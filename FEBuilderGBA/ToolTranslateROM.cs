@@ -499,7 +499,7 @@ namespace FEBuilderGBA
         public void ChangeMainMenuWidth(string to)
         {
             uint length = Program.ROM.u8( Program.ROM.RomInfo.main_menu_width_address() );
-            if (to == "ja" || to == "zh")
+            if (to == "ja" || to == "zh" || to == "ko")
             {
                 if (length <= 6)
                 {
@@ -523,7 +523,7 @@ namespace FEBuilderGBA
             }
 
             uint length = Program.ROM.u8(status + 0x09);
-            if (to == "ja" || to == "zh")
+            if (to == "ja" || to == "zh" || to == "ko")
             {
             }
             else

@@ -1016,6 +1016,7 @@ namespace FEBuilderGBA
           , ZH_TBL = 4
           , EN_TBL = 5
           , AR_TBL = 6
+          , KO_TBL = 7
           , NoChace = 99
         };
         static textencoding_enum g_Cache_textencoding;
