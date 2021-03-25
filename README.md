@@ -1,7 +1,10 @@
 # FEBuilderGBA Unofficial Build
 This is an unofficial build of FEBuilderGBA that supports Korean character table.
+
 The character table used is **Johab**, only for the Hangul Syllables part. If you want to use another character table like Wansung or Windows-949, you may replace __FE\[678\].tbl__ in __./config/translate/ko_tbl__.
+
 Since this fork is incomplete, there might be some issues that raw code points appear can be occurred, e.g. '@61A0' rather than '마' (0xA061) appears. This is likely because the upper bytes from 0xA0 to 0xDF are used for single-byte representation in Shift JIS and Windows-932.
+
 You should change "Text Encoding in ROM" in Options manually every time the ROM is loaded.
 
 Original README
