@@ -149,7 +149,7 @@ namespace FEBuilderGBA
             string versionString = U.getVersion();
             double version = U.atof(versionString);
 
-            string url = "https://api.github.com/repos/FEBuilderGBA/FEBuilderGBA/releases/latest";
+            string url = "https://api.github.com/repos/delvier/FEBuilderGBA/releases/latest";
             string contents;
             try
             {
@@ -183,7 +183,7 @@ namespace FEBuilderGBA
 
             {
                 System.Text.RegularExpressions.Match match = RegexCache.Match(contents
-                , "download/ver_([0-9.]+)/"
+                , "download/ver_([0-9.]+)K/"
                 );
                 if (match.Groups.Count < 2)
                 {
