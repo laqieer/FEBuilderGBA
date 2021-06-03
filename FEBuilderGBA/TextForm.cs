@@ -21,6 +21,7 @@ namespace FEBuilderGBA
 
             public string Error;
             public bool isJump;
+
             public uint[] Units;
 
             public TextBlock()
@@ -243,6 +244,7 @@ namespace FEBuilderGBA
         void UpdateTextArea(string text)
         {
             this.Cache_MainArea = text;
+            UpdateBlockSize(Cache_MainArea);
             SetEditorText(this.TextArea, text);
 
             uint write_pointer = this.InputFormRef.BaseAddress + (this.InputFormRef.BlockSize * (uint)this.AddressList.SelectedIndex);
@@ -319,7 +321,6 @@ namespace FEBuilderGBA
             {
                 text = decoder.huffman_decode(addr, out datasize);
             }
-
             MoveToUnuseSpace.ADDR_AND_LENGTH aal = new MoveToUnuseSpace.ADDR_AND_LENGTH();
             aal.addr = addr;
             aal.length = (uint)datasize;
@@ -1355,7 +1356,7 @@ namespace FEBuilderGBA
         }
 
         //セリフの末尾に @0003 がなければ追加する.
-        string AutoAppend0x0003(string text)
+        static string AutoAppend0x0003(string text)
         {
             string trimtext = text.TrimEnd();
             string last = U.substr(trimtext, -5);
@@ -1438,12 +1439,12 @@ namespace FEBuilderGBA
 
         String ConvertSimpleListToText(List<TextBlock> simpleList)
         {
-            string ret = "";
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < simpleList.Count; i++)
             {
-                ret += simpleList[i].SrcText;
+                sb.Append(simpleList[i].SrcText);
             }
-            return ret;
+            return sb.ToString();
         }
 
 
@@ -1737,7 +1738,7 @@ namespace FEBuilderGBA
             }
             return code.SrcText;
         }
-
+#if DEBUG
         public static void TEST_StripDrawSerifText()
         {//削っていいコードかどうか確認する.
             TextBlock code = new TextBlock();
@@ -1751,7 +1752,7 @@ namespace FEBuilderGBA
             string a = StripDrawSerifText(code);
             Debug.Assert(a == code.SrcText);
         }
-
+#endif //DEBUG
 
         void ShowFloatingControlpanel()
         {
@@ -2170,7 +2171,8 @@ namespace FEBuilderGBA
 
         private void TextArea_TextChanged(object sender, EventArgs e)
         {
-            Cache_MainArea = GetEditorText(this.TextArea);
+            this.Cache_MainArea = GetEditorText(this.TextArea);
+            UpdateBlockSize(Cache_MainArea);
 
             bool isOrderOfHuman = (this.ActiveControl == sender); //人間の操作によるものか
             if (isOrderOfHuman)
@@ -2188,14 +2190,33 @@ namespace FEBuilderGBA
         {
             InputFormRef.WriteButtonToYellow(this.AllWriteButton, true);
 
-            //テキストのサイズを求めます.
-            string text = this.Cache_MainArea;
-            this.BlockSize.Text = CalcTextSize(text).ToString();
-
             //キーワードハイライト
             KeywordHighLight(TextArea);
 
             //DetailErrorMessageBox
+        }
+        //const int TEXTBUFFER_LIMIT = 4096; //本来の限界値
+        const int TEXTBUFFER_LIMIT = 5636;   //テキストバッファの下にはフェードイン用のパレットバッファがあるので、そこてまでの超過を認める
+        static string CheckUnpackSizeTooLong(string text)
+        {
+            if (text.Length <= 2000)
+            {//UTF16でそれほどでかくないなら超える可能性はないので足切り
+                return "";
+            }
+            byte[] encode;
+            Program.FETextEncoder.UnHuffmanEncode(text, out encode);
+
+            if (encode.Length >= TEXTBUFFER_LIMIT)
+            {
+                return R._("警告:\r\n展開時の会話の長さ({0}bytes)が長すぎるので、会話を2つに分割してください。\r\n4096バイトを超えるとテキストバッファを超過し危険です。(ただし背後はフェードアウト用のパレットバッファなので死にはしません。)\r\n5636バイトを超えると主要なバッファへダメージを与えて、ゲームがクラッシュします。", encode.Length);
+            }
+            return "";
+        }
+        void UpdateBlockSize(string text)
+        {
+            uint datasize = CalcTextSize(text);
+            this.BlockSize.Text = datasize.ToString();
+            this.BlockSize.ErrorMessage = CheckUnpackSizeTooLong(text);
         }
 
         private void TextListSpTextTextBox_TextChanged(object sender, EventArgs e)
@@ -2335,10 +2356,6 @@ namespace FEBuilderGBA
         {
             if (TextTabControl.SelectedIndex == 1)
             {//キーワードハイライトは時間がかかるので、選択されたときに実行します.
-                //テキストのサイズを求めます.
-                string text = this.Cache_MainArea;
-                this.BlockSize.Text = CalcTextSize(text).ToString();
-
                 //キーワードハイライト
                 KeywordHighLight(TextArea);
             }
@@ -2493,6 +2510,10 @@ namespace FEBuilderGBA
         }
         public static string ConvertEscapeText(string text)
         {
+//            if (PatchUtil.SearchTextEngineReworkPatch() == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+//            {
+//                text = ConvertTeqTextEngineRework(text);
+//            }
             if (OptionForm.text_escape() == OptionForm.text_escape_enum.FEditorAdv)
             {
                 return ConvertEscapeToFEditor(text);
@@ -2523,6 +2544,7 @@ namespace FEBuilderGBA
             {
                 text = AutoConvertSpaceByLang(text);
             }
+
             //text = ConvertUnicodeDirect(text);
             if (OptionForm.text_escape() == OptionForm.text_escape_enum.FEditorAdv)
             {
@@ -2532,8 +2554,14 @@ namespace FEBuilderGBA
         }
         static string AutoConvertSpaceByLang(string text)
         {
+            PatchUtil.draw_font_enum draw_font = PatchUtil.SearchDrawFontPatch();
+
             if (Program.ROM.RomInfo.is_multibyte())
             {
+                if (draw_font == PatchUtil.draw_font_enum.DrawSingleByte || draw_font == PatchUtil.draw_font_enum.DrawUTF8)
+                {//SingleByte描画パッチが入っているので、何もしない
+                    return text;
+                }
                 OptionForm.textencoding_enum textencoding = OptionForm.textencoding();
                 if (textencoding == OptionForm.textencoding_enum.ZH_TBL)
                 {//わからない FE8CNでは、この文字にすることが多いようだ
@@ -2554,6 +2582,10 @@ namespace FEBuilderGBA
             }
             else
             {//倍角スペースを半角スペースへ
+                if (draw_font == PatchUtil.draw_font_enum.DrawMultiByte || draw_font == PatchUtil.draw_font_enum.DrawUTF8)
+                {//MultiByte描画パッチが入っているので、何もしない
+                    return text;
+                }
                 return text.Replace('　', ' ');
             }
         }
@@ -2815,15 +2847,14 @@ namespace FEBuilderGBA
             }
             if (arg1 == "CONVERSATION")
             {
-                return CheckConversationTextMessage(text, MAX_SERIF_WIDTH);
+                return CheckConversationTextMessage(text,MAX_SERIF_WIDTH);
             }
             if (arg1 == "DEATHQUOTE")
             {
-                return CheckConversationTextMessage(text, MAX_DEATH_QUOTE_WIDTH);
+                return CheckConversationTextMessage(text,MAX_DEATH_QUOTE_WIDTH);
             }
             return "";
         }
-
 
         static string CheckParse(string text, int widthLimit, int heightLimit, bool isItemFont)
         {//実際に文字列をパースして調べてみます.
@@ -2859,7 +2890,9 @@ namespace FEBuilderGBA
                     return ct.ErrorString;
                 }
             }
-            return "";
+
+            //全体の長さの確認
+            return CheckUnpackSizeTooLong(text);
         }
 
         enum CheckBlockResult
@@ -2878,6 +2911,7 @@ namespace FEBuilderGBA
             bool FoundUnkownFont;
             bool IsMultiByte;
             bool HasAutoNewLine;
+            bool HasEnable3Line;
             OptionForm.textencoding_enum TextEncoding;
             OptionForm.lint_text_skip_bug_enum LintTextSkipBug;
 
@@ -2887,9 +2921,10 @@ namespace FEBuilderGBA
                 this.LintTextSkipBug = OptionForm.lint_text_skip_bug();
                 this.IsMultiByte = Program.ROM.RomInfo.is_multibyte();
                 this.HasAutoNewLine = CheckHasAutoNewLine(mainText);
+                this.HasEnable3Line = CheckEnable3LineTeqEscapeTeqTextEngineRework(mainText);
             }
 
-            bool CheckHasAutoNewLine(string text)
+            static bool CheckHasAutoNewLine(string text)
             {
                 if (PatchUtil.SearchAutoNewLinePatch() == PatchUtil.AutoNewLine_enum.AutoNewLine)
                 {//自動改行が入っている場合は、長さのチェックをしない
@@ -2902,6 +2937,19 @@ namespace FEBuilderGBA
                 }
                 return false;
             }
+            static bool CheckEnable3LineTeqEscapeTeqTextEngineRework(string text)
+            {
+                if (PatchUtil.SearchTextEngineReworkPatch() == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+                {//Teqのテキストエンジンリワークの場合は、奴が使うコードを消す
+                    return text.IndexOf("@0080@002B@0003") >= 0;
+                }
+                return false;
+            }
+            static string RemoveEscapeTeqTextEngineRework(string text)
+            {
+                return RegexCache.Replace(text, "@0080@00(?:2(?:[689ABC]|(?:[7E]|(?:F@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F]|D)@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F])@00[0-9A-F][0-9A-F])|3[012345678])@00[0-9A-F][0-9A-F]", "");
+            }
+
 
             public CheckBlockResult CheckBlockBox(string text, int widthLimit, int heightLimit,bool isItemFont)
             {
@@ -2913,6 +2961,11 @@ namespace FEBuilderGBA
                 {//日本語の場合 (.+?)を消す. (ワイバーンナイト)とか
                     text = RegexCache.Replace(text, @"\(.+?\)", "");
                 }
+                if (PatchUtil.SearchTextEngineReworkPatch() == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+                {//Teqのテキストエンジンリワークの場合は、奴が使うコードを消す
+                    text = RemoveEscapeTeqTextEngineRework(text);
+                }
+
                 this.FoundUnkownFont = false;
 
                 string[] blocks = text.Split(new string[] { "@0002", "@0004", "@0005", "@0006", "@0007" }, StringSplitOptions.RemoveEmptyEntries);
@@ -2949,13 +3002,6 @@ namespace FEBuilderGBA
                         {//設定により無視
                             continue;
                         }
-                        else if (this.LintTextSkipBug == OptionForm.lint_text_skip_bug_enum.MoreThan4Lines)
-                        {//4行以上
-                            if (size.Height / 16 < 4)
-                            {
-                                continue;
-                            }
-                        }
                         else if (this.LintTextSkipBug == OptionForm.lint_text_skip_bug_enum.DetectButExceptForVanilla)
                         {//検出するが、無改造ROMにある、もとからあるものは除く
                             if (IsOrignalBug(blocks[n], n, size))
@@ -2963,8 +3009,28 @@ namespace FEBuilderGBA
                                 continue;
                             }
                         }
+                        else if (this.LintTextSkipBug == OptionForm.lint_text_skip_bug_enum.MoreThan4Lines)
+                        {//4行以上
+                            if (size.Height / 16 < 4)
+                            {
+                                continue;
+                            }
+                        }
                         else
                         {//すべて検出する.
+                        }
+
+                        //除外ケース                      
+                        if (this.HasAutoNewLine)
+                        {//自動改行が入っている場合は、高さのチェックをしない
+                            continue;
+                        }
+                        else if (this.HasEnable3Line)
+                        {//高さ3行までOKの設定が入っているか
+                            if (size.Height / 16 <= 3)
+                            {//3行までならセーフ
+                                continue;
+                            }
                         }
 
                         this.ErrorString = R._("警告:テキストの行数が多すぎます。\r\n想定ドット数({0} , {1})\r\n{2}", size.Width, size.Height, blocks[n]);
@@ -3109,6 +3175,7 @@ namespace FEBuilderGBA
             }
         }
 
+
         //会話テキストのエラーチェック
         public static string CheckConversationTextMessage(string text, int widthLimit)
         {
@@ -3116,6 +3183,7 @@ namespace FEBuilderGBA
             {
                 return "";
             }
+
             text = ConvertEscapeTextRev(text);
 
             string[] required_words2 = new string[] { "@0003", "@0018", "@0017", "@0010", "@0006", "@0007" };///No Translate
@@ -3321,13 +3389,10 @@ namespace FEBuilderGBA
                 SelectEscapeText(sender, e);
             }
         }
-        public static string Direct(uint textid,bool isSkip0x1f = true)
+        public static string Direct(uint textid)
         {
             string str = FETextDecode.Direct(textid);
-            if (isSkip0x1f)
-            {
-                 str = str.Replace("@001F", "");
-            }
+            str = str.Replace("@001F", "");
             str = ConvertEscapeText(str);
             return str;
         }
@@ -3552,6 +3617,112 @@ namespace FEBuilderGBA
 
             TextListSpShowCharPictureBox.Image =
                 ImagePortraitForm.DrawPortraitAuto(portraitID);
+        }
+
+        static uint GetOneCharOrAtCode(string text,ref int ref_i)
+        {
+            if (text[ref_i] == '@')
+            {
+                uint code = U.atoh(U.substr(text, ref_i + 1, 4));
+                ref_i += 5;
+                return code;
+            }
+            else if (text[ref_i] == '\r' && text[ref_i+1] == '\n')
+            {
+                uint code = 1;
+                ref_i+=2;
+                return code;
+            }
+            else
+            {
+                uint code = text[ref_i];
+                ref_i++;
+                return code;
+            }
+        }
+
+        //Teqのreworkは、既存ルールと重複しているのがあるので、いい感じに調整する.
+        static string ConvertTeqTextEngineRework(string text)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            int text_stsrt = 0;
+            int len = text.Length;
+            for (int i = 0; i < len; )
+            {
+                uint code1 = GetOneCharOrAtCode(text, ref i);
+                if (code1 != 0x80)
+                {
+                    continue;
+                }
+
+                uint code2 = GetOneCharOrAtCode(text, ref i);
+                if (code2 == 0x26 || (code2 >= 0x28 && code2 <= 0x2C) || (code2 >= 0x30 && code2 <= 0x38))
+                {
+                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    sb.Append(block);
+
+                    uint code3 = GetOneCharOrAtCode(text, ref i);
+                    sb.Append("@" + U.ToHexString4(code3));
+
+                    text_stsrt = i;
+                }
+                else if (code2 == 0x27 || code2 == 0x2E)
+                {
+                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    sb.Append(block);
+
+                    uint code3 = GetOneCharOrAtCode(text, ref i);
+                    uint code4 = GetOneCharOrAtCode(text, ref i);
+                    sb.Append("@" + U.ToHexString4(code3));
+                    sb.Append("@" + U.ToHexString4(code4));
+
+                    text_stsrt = i;
+                }
+                else if (code2 == 0x2D)
+                {
+                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    sb.Append(block);
+
+                    uint code3 = GetOneCharOrAtCode(text, ref i);
+                    uint code4 = GetOneCharOrAtCode(text, ref i);
+                    uint code5 = GetOneCharOrAtCode(text, ref i);
+                    uint code6 = GetOneCharOrAtCode(text, ref i);
+                    sb.Append("@" + U.ToHexString4(code3));
+                    sb.Append("@" + U.ToHexString4(code4));
+                    sb.Append("@" + U.ToHexString4(code5));
+                    sb.Append("@" + U.ToHexString4(code6));
+
+                    text_stsrt = i;
+                }
+                else if (code2 == 0x2F)
+                {
+                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    sb.Append(block);
+
+                    uint code3 = GetOneCharOrAtCode(text, ref i);
+                    uint code4 = GetOneCharOrAtCode(text, ref i);
+                    uint code5 = GetOneCharOrAtCode(text, ref i);
+                    uint code6 = GetOneCharOrAtCode(text, ref i);
+                    uint code7 = GetOneCharOrAtCode(text, ref i);
+                    uint code8 = GetOneCharOrAtCode(text, ref i);
+                    sb.Append("@" + U.ToHexString4(code3));
+                    sb.Append("@" + U.ToHexString4(code4));
+                    sb.Append("@" + U.ToHexString4(code5));
+                    sb.Append("@" + U.ToHexString4(code6));
+                    sb.Append("@" + U.ToHexString4(code7));
+                    sb.Append("@" + U.ToHexString4(code8));
+
+                    text_stsrt = i;
+                }
+            }
+            //最後っ屁
+            {
+                string block = U.substr(text, text_stsrt);
+                sb.Append(block);
+            }
+
+            return sb.ToString();
         }
 
 

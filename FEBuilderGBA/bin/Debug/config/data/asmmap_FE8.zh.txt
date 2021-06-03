@@ -1149,14 +1149,39 @@ r3=X tile position of menu of the right	{U}
 @AiData@79	byte	cpDecideNext
 @AiData@7A	byte	dangerMapActive
 @AiData@7B	byte	aiConfig
-@AiData@7C	byte	_pad7C
+@AiData@7C	byte	Unk7C
+@AiData@7D	byte	Unk7D
+@AiData@7E	byte	Unk7E
+@AiData@7F	byte	_pad7F
+@AiData@80	word	someFlag80
+@AiData@84	byte	Unk84
 @AiData@85	byte	highestBlueMov
-@AiData@86	byte	_pad86
-@AiData@90	&AiDecision	decision
+@AiData@86	byte	AI Result1
+@AiData@87	byte	AI Result2
+@AiData@88	byte	AI Result3
+@AiData@89	byte	AI Result4
+@AiData@8A	byte	AI Result5
+@AiData@8B	byte	_pad8B
+@AiData@8C	byte	_pad8C
+@AiData@8D	byte	_pad8D
+@AiData@8E	byte	_pad8E
+@AiData@8F	byte	_pad8F
+@AiData@90	byte	decisionType;
+@AiData@91	byte	unitIndex
+@AiData@92	byte	xMovement
+@AiData@93	byte	yMovement
+@AiData@94	byte	pad_04
+@AiData@95	byte	pad_05
+@AiData@96	byte	unitTargetIndex
+@AiData@97	byte	usedItemSlot
+@AiData@98	byte	xOther
+@AiData@99	byte	yOther
+@AiData@9A	byte	decisionTaken
+@AiData@9B	byte	decisionType
 
-@BattleHit@00	word	attributes_info_hpChange
-
-@ActionData@00	short	_u00
+@ActionData@00	short	Unknown0
+@ActionData@02	short	Unknown2
+@ActionData@04	short	Unknown4
 @ActionData@06	short	Unknown6
 @ActionData@08	short	Unknown8
 @ActionData@0A	short	UnknownA
@@ -1171,8 +1196,8 @@ r3=X tile position of menu of the right	{U}
 @ActionData@14	byte	yOther
 @ActionData@15	byte	trapType
 @ActionData@16	byte	suspendPointType
-@ActionData@18	&BattleHit	scriptedBattleHits
-@ActionData@1C	byte	_Unknown1C
+@ActionData@18	word	scriptedBattleHits
+@ActionData@1C	word	_Unknown1C
 
 @Vec2@00	short	x
 @Vec2@02	short	y
@@ -1225,71 +1250,134 @@ r3=X tile position of menu of the right	{U}
 @GmapMUsData@01	byte	Current WM Location Index?
 @GmapMUsData@02	short	Char/Class ID
 03005290	@GmapMUsData	GmapMUsData	{U}
+03005280	@GmapMUsData	GmapMUsData	{J}
 
 //http://ngmansion.xyz/wiki/hackfe/index.php?%E8%A7%A3%E8%AA%AC/%E7%B5%82%E7%AB%A0%E3%81%B8%E3%81%AE%E9%81%93%E3%81%8C%E8%A1%A8%E7%A4%BA%E3%81%95%E3%82%8C%E3%81%AA%E3%81%8F%E3%81%AA%E3%82%8B%E7%8F%BE%E8%B1%A1%E3%81%AE%E8%80%83%E5%AF%9F
-03005314	Worldmap Show RoadID 0	{J}
-03005316	Worldmap Show RoadID 2	{J}
-03005317	Worldmap Show RoadID 3	{J}
-03005318	Worldmap Show RoadID 4	{J}
-03005319	Worldmap Show RoadID 5	{J}
-0300531A	Worldmap Show RoadID 6	{J}
-0300531B	Worldmap Show RoadID 7	{J}
-0300531C	Worldmap Show RoadID 8	{J}
-0300531D	Worldmap Show RoadID 9	{J}
-0300531F	Worldmap Show RoadID 10	{J}
-03005320	Worldmap Show RoadID 11	{J}
-03005321	Worldmap Show RoadID 12	{J}
-03005322	Worldmap Show RoadID 13	{J}
-03005323	Worldmap Show RoadID 14	{J}
-03005324	Worldmap Show RoadID 15	{J}
-03005325	Worldmap Show RoadID 16	{J}
-03005326	Worldmap Show RoadID 17	{J}
-03005327	Worldmap Show RoadID 18	{J}
-03005328	Worldmap Show RoadID 19	{J}
-03005329	Worldmap Show RoadID 20	{J}
-0300532A	Worldmap Show RoadID 21	{J}
-0300532B	Worldmap Show RoadID 22	{J}
-0300532C	Worldmap Show RoadID 23	{J}
-0300532D	Worldmap Show RoadID 24	{J}
-0300532E	Worldmap Show RoadID 25	{J}
-0300532F	Worldmap Show RoadID 26	{J}
-03005330	Worldmap Show RoadID 27	{J}
-03005331	Worldmap Show RoadID 28	{J}
-03005332	Worldmap Show RoadID 29	{J}
-03005333	Worldmap Show RoadID 30	{J}
+03005314	Worldmap Show RoadID 00	{J}
+03005315	Worldmap Show RoadID 01	{J}
+03005316	Worldmap Show RoadID 02	{J}
+03005317	Worldmap Show RoadID 03	{J}
+03005318	Worldmap Show RoadID 04	{J}
+03005319	Worldmap Show RoadID 05	{J}
+0300531A	Worldmap Show RoadID 06	{J}
+0300531B	Worldmap Show RoadID 07	{J}
+0300531C	Worldmap Show RoadID 08	{J}
+0300531D	Worldmap Show RoadID 09	{J}
+0300531F	Worldmap Show RoadID 0A	{J}
+03005320	Worldmap Show RoadID 0B	{J}
+03005321	Worldmap Show RoadID 0C	{J}
+03005322	Worldmap Show RoadID 0D	{J}
+03005323	Worldmap Show RoadID 0E	{J}
+03005324	Worldmap Show RoadID 0F	{J}
+03005325	Worldmap Show RoadID 10	{J}
+03005326	Worldmap Show RoadID 11	{J}
+03005327	Worldmap Show RoadID 12	{J}
+03005328	Worldmap Show RoadID 13	{J}
+03005329	Worldmap Show RoadID 14	{J}
+0300532A	Worldmap Show RoadID 15	{J}
+0300532B	Worldmap Show RoadID 16	{J}
+0300532C	Worldmap Show RoadID 17	{J}
+0300532D	Worldmap Show RoadID 18	{J}
+0300532E	Worldmap Show RoadID 19	{J}
+0300532F	Worldmap Show RoadID 1A	{J}
+03005330	Worldmap Show RoadID 1B	{J}
+03005331	Worldmap Show RoadID 1C	{J}
+03005332	Worldmap Show RoadID 1D	{J}
+03005333	Worldmap Show RoadID 1E	{J}
 03005334	Worldmap Road Count	{J}
-03005324	Worldmap Show RoadID 0	{U}
-03005325	Worldmap Show RoadID 1	{U}
-03005326	Worldmap Show RoadID 2	{U}
-03005327	Worldmap Show RoadID 3	{U}
-03005328	Worldmap Show RoadID 4	{U}
-03005329	Worldmap Show RoadID 5	{U}
-0300532A	Worldmap Show RoadID 6	{U}
-0300532B	Worldmap Show RoadID 7	{U}
-0300532C	Worldmap Show RoadID 8	{U}
-0300532D	Worldmap Show RoadID 9	{U}
-0300532F	Worldmap Show RoadID 10	{U}
-03005330	Worldmap Show RoadID 11	{U}
-03005331	Worldmap Show RoadID 12	{U}
-03005332	Worldmap Show RoadID 13	{U}
-03005333	Worldmap Show RoadID 14	{U}
-03005334	Worldmap Show RoadID 15	{U}
-03005335	Worldmap Show RoadID 16	{U}
-03005336	Worldmap Show RoadID 17	{U}
-03005337	Worldmap Show RoadID 18	{U}
-03005338	Worldmap Show RoadID 19	{U}
-03005339	Worldmap Show RoadID 20	{U}
-0300533A	Worldmap Show RoadID 21	{U}
-0300533B	Worldmap Show RoadID 22	{U}
-0300533C	Worldmap Show RoadID 23	{U}
-0300533D	Worldmap Show RoadID 24	{U}
-0300533E	Worldmap Show RoadID 25	{U}
-0300533F	Worldmap Show RoadID 26	{U}
-03005340	Worldmap Show RoadID 27	{U}
-03005341	Worldmap Show RoadID 28	{U}
-03005342	Worldmap Show RoadID 29	{U}
-03005343	Worldmap Show RoadID 30	{U}
+03005324	Worldmap Show RoadID 00	{U}
+03005325	Worldmap Show RoadID 01	{U}
+03005326	Worldmap Show RoadID 02	{U}
+03005327	Worldmap Show RoadID 03	{U}
+03005328	Worldmap Show RoadID 04	{U}
+03005329	Worldmap Show RoadID 05	{U}
+0300532A	Worldmap Show RoadID 06	{U}
+0300532B	Worldmap Show RoadID 07	{U}
+0300532C	Worldmap Show RoadID 08	{U}
+0300532D	Worldmap Show RoadID 09	{U}
+0300532F	Worldmap Show RoadID 0A	{U}
+03005330	Worldmap Show RoadID 0B	{U}
+03005331	Worldmap Show RoadID 0C	{U}
+03005332	Worldmap Show RoadID 0D	{U}
+03005333	Worldmap Show RoadID 0E	{U}
+03005334	Worldmap Show RoadID 0F	{U}
+03005335	Worldmap Show RoadID 10	{U}
+03005336	Worldmap Show RoadID 11	{U}
+03005337	Worldmap Show RoadID 12	{U}
+03005338	Worldmap Show RoadID 13	{U}
+03005339	Worldmap Show RoadID 14	{U}
+0300533A	Worldmap Show RoadID 15	{U}
+0300533B	Worldmap Show RoadID 16	{U}
+0300533C	Worldmap Show RoadID 17	{U}
+0300533D	Worldmap Show RoadID 18	{U}
+0300533E	Worldmap Show RoadID 19	{U}
+0300533F	Worldmap Show RoadID 1A	{U}
+03005340	Worldmap Show RoadID 1B	{U}
+03005341	Worldmap Show RoadID 1C	{U}
+03005342	Worldmap Show RoadID 1D	{U}
+03005343	Worldmap Show RoadID 1E	{U}
 03005344	Worldmap Road Count	{U}
+
+030052A0	Worldmap Node00	Border Mulan	{J}
+030052A4	Worldmap Node01	Castle Frelia	{J}
+030052A8	Worldmap Node02	Ide	{J}
+030052AC	Worldmap Node03	Borgo Ridge	{J}
+030052B0	Worldmap Node04	Zaha Woods	{J}
+030052B4	Worldmap Node05	Serafew	{J}
+030052B8	Worldmap Node06	Adlas Plains	{J}
+030052BC	Worldmap Node07	Renvall	{J}
+030052C0	Worldmap Node08	Renvall	{J}
+030052C4	Worldmap Node09	Port Kiris	{J}
+030052C8	Worldmap Node0A	Teraz Plateau	{J}
+030052CC	Worldmap Node0B	Caer Pelyn	{J}
+030052D0	Worldmap Node0C	Hamill Canyon	{J}
+030052D4	Worldmap Node0D	Jehanna Hall	{J}
+030052D8	Worldmap Node0E	Fort Rigwald	{J}
+030052DC	Worldmap Node0F	Bethroen	{J}
+030052E0	Worldmap Node10	Taizel	{J}
+030052E4	Worldmap Node11	Zaalbul Marsh	{J}
+030052E8	Worldmap Node12	Grado Keep	{J}
+030052EC	Worldmap Node13	Jehanna Hall	{J}
+030052F0	Worldmap Node14	Renais Castle	{J}
+030052F4	Worldmap Node15	Narube River	{J}
+030052F8	Worldmap Node16	Neleras Peak	{J}
+030052FC	Worldmap Node17	Rausten Court	{J}
+03005300	Worldmap Node18	Darkling Woods	{J}
+03005304	Worldmap Node19	Black Temple	{J}
+03005308	Worldmap Node1A	Tower of Valni	{J}
+0300530C	Worldmap Node1B	Lagdou Ruins	{J}
+03005310	Worldmap Node1C	Melkaen Coast	{J}
+
+030052B0	Worldmap Node00	Border Mulan	{U}
+030052B4	Worldmap Node01	Castle Frelia	{U}
+030052B8	Worldmap Node02	Ide	{U}
+030052BC	Worldmap Node03	Borgo Ridge	{U}
+030052C0	Worldmap Node04	Zaha Woods	{U}
+030052C4	Worldmap Node05	Serafew	{U}
+030052C8	Worldmap Node06	Adlas Plains	{U}
+030052CC	Worldmap Node07	Renvall	{U}
+030052D0	Worldmap Node08	Renvall	{U}
+030052D4	Worldmap Node09	Port Kiris	{U}
+030052D8	Worldmap Node0A	Teraz Plateau	{U}
+030052DC	Worldmap Node0B	Caer Pelyn	{U}
+030052E0	Worldmap Node0C	Hamill Canyon	{U}
+030052E4	Worldmap Node0D	Jehanna Hall	{U}
+030052E8	Worldmap Node0E	Fort Rigwald	{U}
+030052EC	Worldmap Node0F	Bethroen	{U}
+030052F0	Worldmap Node10	Taizel	{U}
+030052F4	Worldmap Node11	Zaalbul Marsh	{U}
+030052F8	Worldmap Node12	Grado Keep	{U}
+030052FC	Worldmap Node13	Jehanna Hall	{U}
+03005300	Worldmap Node14	Renais Castle	{U}
+03005304	Worldmap Node15	Narube River	{U}
+03005308	Worldmap Node16	Neleras Peak	{U}
+0300530C	Worldmap Node17	Rausten Court	{U}
+03005310	Worldmap Node18	Darkling Woods	{U}
+03005314	Worldmap Node19	Black Temple	{U}
+03005318	Worldmap Node1A	Tower of Valni	{U}
+0300531C	Worldmap Node1B	Lagdou Ruins	{U}
+03005320	Worldmap Node1C	Melkaen Coast	{U}
+
 @MapSize@0	short	Width
 @MapSize@2	short	Height
 0202E4D4	@MapSize	MapSize	{U}
@@ -1889,7 +1977,7 @@ r3=X tile position of menu of the right	{U}
 @BattleUnit@56	byte	terrainDefense
 @BattleUnit@57	byte	terrainAvoid
 @BattleUnit@58	byte	terrainResistance
-@BattleUnit@59	byte	pad
+@BattleUnit@59	byte	pad59
 @BattleUnit@5a	short	battleAttack
 @BattleUnit@5c	short	battleDefense
 @BattleUnit@5e	short	battleSpeed
@@ -2419,8 +2507,6 @@ r3=X tile position of menu of the right	{U}
 
 080B5110	Cleared Japanese menu loading routine	{J}
 
-081B1878	:081B258C	Cleared beta class list	{J}
-081B258C	:081D3910	Cleared FE6 credits	{J}
 02022AA8	:02022CA7	start of OAM palette buffer
 08048198	名称输入事件	{J}
 08048280	名称输入事件	{U}
@@ -3066,7 +3152,7 @@ r3=X tile position of menu of the right	{U}
 080193a4	UnitTryHeal	{U}
 080193e8	GetRescuingUnitNameId	{U}
 08019414	WriteStatusTextToRAM	{U}
-08019430	GetUnitStruct	RET=RAM Unit:@UNIT	{U}
+08019430	GetUnitStruct	RET=RAM Unit:@Unit	{U}
 08019444	GetROMClassStruct	RET=class data table:CLASS	r0=class_id	{U}
 08019464	GetROMCharStruct	RET=unit data table:UNIT	r0=unit_id	{U}
 08019484	UnitRemoveItem	{U}
@@ -4844,7 +4930,7 @@ r3=X tile position of menu of the right	{U}
 0801907C	UnitTryHeal	{J}
 080190C0	GetRescuingUnitNameId	{J}
 080190EC	WriteStatusTextToRAM	{J}
-08019108	GetUnitStruct	RET=RAM Unit:@UNIT	{J}
+08019108	GetUnitStruct	RET=RAM Unit:@Unit	{J}
 0801911C	GetROMClassStruct	RET=class data table:CLASS	r0=class_id	{J}
 0801913C	GetROMCharStruct	RET=unit data table:UNIT	r0=unit_id	{J}
 0801915C	UnitRemoveItem	{J}
@@ -6987,7 +7073,7 @@ r3=X tile position of menu of the right	{U}
 0203a8e4	gpSomeUnitPool	{U}
 0203a8e8	gpSomeUnitIt	{U}
 0203a8ec	gSomeUnitCounter	{U}
-0203a910	gArenaOpponent	{U}
+0203a910	@Unit	gArenaOpponent	{U}
 0203a958	@ActionData	gActionData	{U}
 0203aa04	@AiData	gAiData	{U}
 0203dde8	gTargetPosition	{U}
@@ -7047,9 +7133,6 @@ r3=X tile position of menu of the right	{U}
 03004f10	gpAiPerformer	{U}
 03004fac	gCurrentUnitIndex	{U}
 03005250	gGlobalTriggerData	{U}
-03005280	gSomeWMEventRelatedStruct	{U}
-03005282	gWMCamera	{U}
-03005291	gWMCurrentNode	{U}
 0300534e	gSaved	{U}
 030067a0	gpReadSramFast	{U}
 030067a4	gpVerifySramFast	{U}
@@ -7102,7 +7185,7 @@ r3=X tile position of menu of the right	{U}
 0203A8E0	gpSomeUnitPool	{J}
 0203A8E4	gpSomeUnitIt	{J}
 0203A8E8	gSomeUnitCounter	{J}
-0203A90C	gArenaOpponent	{J}
+0203A90C	@Unit	gArenaOpponent	{J}
 0203A954	@ActionData	gActionData	{J}
 0203AA00	@AiData	gAiData	{J}
 0203DDE4	gTargetPosition	{J}
@@ -7161,9 +7244,26 @@ r3=X tile position of menu of the right	{U}
 03004F00	gpAiPerformer	{J}
 03004F9C	gCurrentUnitIndex	{J}
 03005240	gGlobalTriggerData	{J}
-03005270	gSomeWMEventRelatedStruct	{J}
-03005272	gWMCamera	{J}
-03005281	gWMCurrentNode	{J}
+
+//03005280	gSomeWMEventRelatedStruct	{U}
+//03005282	gWMCamera	{U}
+//03005291	gWMCurrentNode	{U}
+//03005270	gSomeWMEventRelatedStruct	{J}
+//03005272	gWMCamera	{J}
+//03005281	gWMCurrentNode	{J}
+03005280	@WMEventRelatedStruct	gSomeWMEventRelatedStruct	{U}
+03005270	@WMEventRelatedStruct	gSomeWMEventRelatedStruct	{J}
+@WMEventRelatedStruct@00	Unk00	byte
+@WMEventRelatedStruct@01	Unk01	byte
+@WMEventRelatedStruct@02	gWMCamera	short
+@WMEventRelatedStruct@04	Unk04	short
+@WMEventRelatedStruct@06	Unk06	short
+@WMEventRelatedStruct@08	Unk08	word
+@WMEventRelatedStruct@0C	Unk0C	word
+@WMEventRelatedStruct@10	Unk10	byte
+@WMEventRelatedStruct@11	gWMCurrentNode	byte
+@WMEventRelatedStruct@12	Unk12	short
+
 0300533E	gSaved	{J}
 03006790	gpReadSramFast	{J}
 03006794	gpVerifySramFast	{J}
@@ -9577,6 +9677,7 @@ r3=X tile position of menu of the right	{U}
 @ArenaData@18	short	opponentPowerWeight
 @ArenaData@1a	short	playerWeapon
 @ArenaData@1c	short	opponentWeapon
+@ArenaData@1e	short	_pad_1e
 0203A8EC	@ArenaData	竞技场的临时数据	{J}
 0203A8F0	@ArenaData	竞技场的临时数据	{U}
 
@@ -11266,14 +11367,14 @@ r3=X tile position of menu of the right	{U}
 080A0AFC	将物品发送到进度准备屏幕上的运输车	{J}
 080A0568	在预先攻击屏幕上接收来自运输商的物品	{J}
 0809FCA0	在进度准备屏幕上访问运输车时	{J}
-0809C804	在进度准备屏幕上，所有存款	r0=@UNIT	{J}
+0809C804	在进度准备屏幕上，所有存款	r0=@Unit	{J}
 08031ecc	获得体育场的溢价	{U}
 08031EA0	为体育场设置溢价	{U}
 08031ED8	在竞技场中获得比赛结果	{U}
 0809E85C	将物品发送到进度准备屏幕上的运输车	{U}
 0809E2C8	在预先攻击屏幕上接收来自运输商的物品	{U}
 0809DA00	在进度准备屏幕上访问运输车时	{U}
-0809A538	在进度准备屏幕上，所有存款	r0=@UNIT	{U}
+0809A538	在进度准备屏幕上，所有存款	r0=@Unit	{U}
 0803FB38	AI的魔杖使用判断力	回复之杖	治疗之杖	痊愈之杖	{J}
 0803FCB0	AI的魔杖使用判断力	治愈之杖	援救杖	{J}
 0803FE80	AI的魔杖使用判断力	生命之杖	{J}
@@ -11656,8 +11757,8 @@ r3=X tile position of menu of the right	{U}
 0203EDB0	gBonusContentFlags	{J}
 0203EF60	@SAVEMENURTEXTDATA	gSaveMenuRTextData	{J}
 @SAVEMENURTEXTDATA@00	&SongHeader	songHeader
-@SAVEMENURTEXTDATA@01	byte	HeroLevel
-@SAVEMENURTEXTDATA@02	byte	WorldmapNodeID
+@SAVEMENURTEXTDATA@04	byte	HeroLevel
+@SAVEMENURTEXTDATA@05	byte	WorldmapNodeID
 03000000	gRNState	{J}
 03000038	gpMusicProcA	{J}
 0300003C	gpMusicProcB	{J}
@@ -12118,7 +12219,6 @@ r3=X tile position of menu of the right	{U}
 0203EF44	gTrialMapData	{U}
 0300000C	gSoftResetEnabled	{U}
 03000428	gEvent1EData	{U}
-030017A0	gDungeonState	{U}
 080D793F	gMenuCommandEventDisableList	{U}
 080D794E	gMenuCommandEventGrayList	{U}
 
@@ -12431,13 +12531,13 @@ r3=X tile position of menu of the right	{U}
 086700D4	&PALETTE16	efxLiveSomePalette	{U}
 0803190C	竞技场	选择对手	{U}
 08031858	竞技场	选择对手	{J}
-08038320	清除塔楼和废墟时。	显示结果。	{J}
-080381F4	清除塔楼和废墟时。	显示结果。	{U}
-08037CF8	清除塔楼和废墟时。	显示结果后完成后。	{U}
-08085c7c	清除塔楼和废墟时。	轻量化生产。	LowLevel	{U}
-08087F3C	清除塔楼和废墟时。	轻量化生产。	{J}
-08037D90	清除塔楼和废墟时。	显示结果后完成后。	{J}
-08087F48	清除塔楼和废墟时。	轻量化生产。	LowLevel	{J}
+08038320	清除塔楼和废墟时	显示结果	{J}
+080381F4	清除塔楼和废墟时	显示结果	{U}
+08037CF8	清除塔楼和废墟时	显示结果后完成后	{U}
+08085c7c	清除塔楼和废墟时	轻量化生产	LowLevel	{U}
+08087F3C	清除塔楼和废墟时	轻量化生产	{J}
+08037D90	清除塔楼和废墟时	显示结果后完成后	{J}
+08087F48	清除塔楼和废墟时	轻量化生产	LowLevel	{J}
 08037888	ExecTrapForDropUnit_Sub	{J}
 08032104	ExecTrapForDropUnit	{J}
 080377F0	ExecTrapForDropUnit_Sub	{U}
@@ -12505,7 +12605,7 @@ r3=X tile position of menu of the right	{U}
 08050E40	LoadHPBarImage	{U}
 0809EB38	CallSupply1	{U}
 0809EB58	CallSupply2	{U}
-08A92410	&LZ77	一些TSA数据。	1	{J}
+08A92410	&LZ77	一些TSA数据	1	{J}
 080B6B7C	SetGameOption	r0=OptionIndex	r1=OptionValue	{J}
 080B1F64	SetGameOption	r0=OptionIndex	r1=OptionValue	{U}
 080B6A00	GetGameOption	RET=OptionValue	r0=OptionIndex	{J}
@@ -12610,10 +12710,10 @@ r3=X tile position of menu of the right	{U}
 0803F4EC	从敌方AI执行对话事件	{U}
 08079BB4	New_Procs_ekrDragonTunk	{J}
 08077790	New_Procs_ekrDragonTunk	{U}
-08088868	离队单位的水平调整。	{J}
-0808659C	离队单位的水平调整。	{U}
-080DCCC6	:080DCCDF	交换项目时使用菜单TSA。	{J}
-080D7F92	:080D7FAB	交换项目时使用菜单TSA。	{U}
+08088868	离队单位的水平调整	{J}
+0808659C	离队单位的水平调整	{U}
+080DCCC6	:080DCCDF	交换项目时使用菜单TSA	{J}
+080D7F92	:080D7FAB	交换项目时使用菜单TSA	{U}
 0801F3D8	ShowBrokenWallEffect	{J}
 0801F780	ShowBrokenWallEffect	{U}
 080B4144	SoundRoom_DrawScreen_With_BackgoundImage	{J}
@@ -12756,17 +12856,38 @@ r3=X tile position of menu of the right	{U}
 080A32F0	IsEnableExtraMenuNetworkArena	{U}
 080A33EC	IsEnableExtraMenuFreemap	{U}
 08095240	PrepMenu_PressStart_To_Battle	{U}
-089EE97C	&EVENT	当您离开塔楼或废墟时发生的事件。	{U}
-08037CA0	&EVENT	如果您在塔楼或废墟中消灭200名敌人，请打开旗帜，加入Riev和Hayden。	{U}
-030017ac	gBeforeDungeonState	{U}
+089EE97C	&EVENT	当您离开塔楼或废墟时发生的事件	{U}
+08037CA0	如果您在塔楼或废墟中消灭200名敌人，请打开旗帜，加入Riev和Hayden	{U}
+
+030017A0	@DUNGEON_STRUCT_STRUCT	gDungeonState	{U}
+030017ac	@DUNGEON_STRUCT_STRUCT	gBeforeDungeonState	{U}
+030017B8	gDungeonSomething00	{U}
+030017BC	gDungeonSomething04	{U}
+030017C0	gDungeonSomething08	{U}
+030017C4	gDungeonType	00=Tower 01=Ruins	{U}
+
+03001798	@DUNGEON_STRUCT_STRUCT	gDungeonState	{J}
+030017A4	@DUNGEON_STRUCT_STRUCT	gBeforeDungeonState	{J}
+030017B0	gDungeonSomething00	{J}
+030017B4	gDungeonSomething04	{J}
+030017B8	gDungeonSomething08	{J}
+030017BC	gDungeonType	00=Tower 01=Ruins	{J}
+
+@DUNGEON_STRUCT_STRUCT@00	short	Exps
+@DUNGEON_STRUCT_STRUCT@02	byte	DeployUnits
+@DUNGEON_STRUCT_STRUCT@03	byte	ClearTurns
+@DUNGEON_STRUCT_STRUCT@04	short	Unk4
+@DUNGEON_STRUCT_STRUCT@06	short	DefeatsCount
+@DUNGEON_STRUCT_STRUCT@08	byte	Unk8
+@DUNGEON_STRUCT_STRUCT@09	byte	Unk9
+@DUNGEON_STRUCT_STRUCT@0A	byte	UnkA
+@DUNGEON_STRUCT_STRUCT@0B	byte	UnkB
 08037E4C	SaveBeforeDungeonState	{U}
 08037E64	LoadBeforeDungeonState	{U}
 08037E08	SaveDungeonState	{U}
 08037E30	LoadDungeonState	{U}
-08A60AB4	&EVENT	当您离开塔楼或废墟时发生的事件。	{J}
-08037D38	&EVENT	如果您在塔楼或废墟中消灭200名敌人，请打开旗帜，加入Riev和Hayden。	{J}
-030017A4	gBeforeDungeonState	{J}
-030017BC	gDungeonSomething	{J}
+08A60AB4	&EVENT	当您离开塔楼或废墟时发生的事件	{J}
+08037D38	如果您在塔楼或废墟中消灭200名敌人，请打开旗帜，加入Riev和Hayden	{J}
 08037F34	SaveDungeonState	{J}
 08037F5C	LoadDungeonState	{J}
 08037F78	SaveBeforeDungeonState	{J}
@@ -13014,3 +13135,22 @@ r3=X tile position of menu of the right	{U}
 0809CCC4	DrawPickupUnitsList_PrepScreen	{J}
 0809AAF0)	DrawCountOfPickupUnits_PrepScreen	{U}
 0809A9F8)	DrawPickupUnitsList_PrepScreen	{U}
+08037cd8	InitializeDungeonState	{J}
+08037C40	InitializeDungeonState	{U}
+08028668	GetAttributeIconID	{J}
+080286D4	GetAttributeIconID	{U}
+080BA310	RunProcsArenaAfter	{J}
+080B578C	RunProcsArenaAfter	{U}
+080BA720	PlayVictoryCheersByArena	{J}
+080B5B9C	PlayVictoryCheersByArena	{U}
+080DFF70	:080E0007	KEEPEMPTY	Related to critical	{J}
+080DAF60	:080DAFF7	KEEPEMPTY	Related to critical	{U}
+08A1EB2C	:08A1EB45	KEEPEMPTY	2	{J}
+089AE4A4	:089AE4BD	KEEPEMPTY	2	{U}
+08A1F998	:08A1F9E7	KEEPEMPTY	3	{J}
+089AF310	:089AF35F	KEEPEMPTY	3	{U}
+08AC1BEC	:08AC1BFD	KEEPEMPTY	4	{J}
+08A3E22C	:08A3E23D	KEEPEMPTY	4	{U}
+08BB8EA0	:08BB8EEF	KEEPEMPTY	5	{J}
+0808EB0C	ParseTextCommandSetName0x8023	{U}
+08090DE0	ParseTextCommandSetName0x8023	{J}

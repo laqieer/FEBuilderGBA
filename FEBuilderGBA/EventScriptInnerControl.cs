@@ -388,8 +388,7 @@ namespace FEBuilderGBA
 
 
             //範囲外探索 00 00 00 00 が続く限り検索してみる.
-            uint more = Program.ROM.getBlockDataCount(addr + length, 4
-                , (i, p) => { return Program.ROM.u32(p) == 0x00000000; }) * 4;
+            uint more = MoveToFreeSapceForm.SearchOutOfRange(addr + length);
 
             MoveToUnuseSpace.ADDR_AND_LENGTH aal = new MoveToUnuseSpace.ADDR_AND_LENGTH();
             aal.addr = addr;
@@ -720,7 +719,7 @@ namespace FEBuilderGBA
             }
             else if (arg.Type == EventScript.ArgType.CONVERSATION_TEXT)
             {
-                text = TextForm.Direct((v));
+                text = TextForm.Direct(v);
                 errormessage = TextForm.CheckConversationTextMessage(text, TextForm.MAX_SERIF_WIDTH);
                 text = TextForm.StripAllCode(text);
             }
@@ -1037,6 +1036,10 @@ namespace FEBuilderGBA
             else if (arg.Type == EventScript.ArgType.DISABLEWEAPONS)
             {//DISABLEWEAPONS
                 text = " " + InputFormRef.GetDISABLEWEAPONS(v);
+            }
+            else if (arg.Type == EventScript.ArgType.UNITCLASSABILITY)
+            {//UNITCLASSABILITY
+                text = " " + InputFormRef.GetUNITCLASSABILITY(v);
             }
             else if (arg.Type == EventScript.ArgType.IGNORE_KEYS)
             {//IGNORE_KEYS
@@ -1483,10 +1486,12 @@ namespace FEBuilderGBA
                 ToolFlagNameForm f = (ToolFlagNameForm)InputFormRef.JumpForm<ToolFlagNameForm>(U.NOT_FOUND);
                 f.JumpTo(value, MakeAddressListFlagExpandsCallback_Handler(src_object) , this.MapID);
             }
-            else if (arg.Type == EventScript.ArgType.RAM_UNIT_STATE)
+            else if (arg.Type == EventScript.ArgType.RAM_UNIT_STATE
+                  || arg.Type == EventScript.ArgType.UNITCLASSABILITY
+                )
             {
-                RAMUnitStateFlagForm f = (RAMUnitStateFlagForm)InputFormRef.JumpForm<RAMUnitStateFlagForm>(U.NOT_FOUND);
-                f.JumpTo(value);
+                UwordBitFlagForm f = (UwordBitFlagForm)InputFormRef.JumpForm<UwordBitFlagForm>(U.NOT_FOUND);
+                f.JumpTo(arg.Type,value);
                 MakeInjectionApplyButtonCallback(f
                     , (Button)InputFormRef.FindObjectByForm<Button>
                         (InputFormRef.GetAllControls(f), "ApplyButton")
@@ -2202,6 +2207,7 @@ namespace FEBuilderGBA
             CheckCAMERA_Event_NotExistsUnit_Fix();
             CheckGetUnitStateEvent_0x33_Fix();
             CheckUpdateUnitStateEvent_0x34_Fix();
+            CheckGetUnitStateEvent_0x38_Fix();
             CheckWakuEvent_0x3B_Fix();
         }
 
@@ -2269,6 +2275,16 @@ namespace FEBuilderGBA
                 )
             {
                 HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.UnitUpdateStateEvent_0x34_Fix);
+            }
+        }
+
+        void CheckGetUnitStateEvent_0x38_Fix()
+        {
+            string command = ScriptCodeName.Text;
+            if (command.IndexOf("(SET_ACTIVE)") >= 0
+                )
+            {
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.SetActiveEvent_0x38_Fix);
             }
         }
 
@@ -2888,6 +2904,11 @@ namespace FEBuilderGBA
                     {//DISABLEWEAPONS
                         sb.Append(" ");
                         sb.Append(InputFormRef.GetDISABLEWEAPONS(v));
+                    }
+                    else if (arg.Type == EventScript.ArgType.UNITCLASSABILITY)
+                    {//UNITCLASSABILITY
+                        sb.Append(" ");
+                        sb.Append(InputFormRef.GetUNITCLASSABILITY(v));
                     }
                     else if (arg.Type == EventScript.ArgType.IGNORE_KEYS)
                     {//IGNORE_KEYS

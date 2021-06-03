@@ -242,7 +242,7 @@ namespace FEBuilderGBA
                         track.codes.Add(new Code(addr, waitCount, b));
                         addr++;
                     }
-                    else if (b == 0xBD || b == 0xBB || b == 0xBC || b == 0xBE || b == 0xBF || b == 0xC0 || b == 0xC1)
+                    else if (b == 0xBD || b == 0xBB || b == 0xBC || b == 0xBE || b == 0xBF || b == 0xC0 || b == 0xC1 || b == 0xC2 || b == 0xC3 || b == 0xC4 || b == 0xC5 || b == 0xC8)
                     {
                         if (addr + 1 >= limitter)
                         {//終端を超えました.
@@ -341,7 +341,6 @@ namespace FEBuilderGBA
                     }
                 }
                 insertLoopLabel(track);
-                //                tracks.Add(track);
             }
             return tracks;
         }
@@ -395,11 +394,11 @@ namespace FEBuilderGBA
 
             if (track.codes.Count <= 0)
             {
-                listbox.Items.Add(string.Format("-{0}",0));
+                listbox.Items.Add(string.Format("{0}@",0));
             }
             else
             {
-                listbox.Items.Add(string.Format("-{0} {1}", tune, U.ToHexString(track.codes[0].addr)));
+                listbox.Items.Add(string.Format("{0}@{1}", tune, U.ToHexString(track.codes[0].addr)));
             }
 
             for (int i = 0; i < track.codes.Count; i++)
@@ -414,7 +413,7 @@ namespace FEBuilderGBA
                     {//次のトラックへ
                         lastTuneWait = code.waitCount;
                         tune++;
-                        listbox.Items.Add(string.Format("-{0} {1}", tune, U.ToHexString(code.addr + 1)));
+                        listbox.Items.Add(string.Format("{0}@{1}", tune, U.ToHexString(code.addr + 1)));
                     }
                 }
                 if (isDummyCode(code.type))
@@ -428,7 +427,7 @@ namespace FEBuilderGBA
                 {
                     lastTuneWait = code.waitCount;
                     tune++;
-                    listbox.Items.Add(string.Format("-{0} {1}", tune, U.ToHexString(code.addr + 1)));
+                    listbox.Items.Add(string.Format("{0}@{1}", tune, U.ToHexString(code.addr + 1)));
                 }
             }
             listbox.EndUpdate();
@@ -2377,6 +2376,7 @@ namespace FEBuilderGBA
 
             Dictionary<string, int> equ = new Dictionary<string, int>();
             equ["voicegroup000"] = -1; //楽器テーブル　例外的な扱いをするので適当な値を入れる
+            equ["MusicVoices"] = -1; //楽器テーブル　例外的な扱いをするので適当な値を入れる
             equ["mxv"] = (int)0x7F;
             equ["c_v"] = (int)0x40;
             equ["EOT"] = 0xCE;
@@ -2443,7 +2443,7 @@ namespace FEBuilderGBA
             {
                 string line = lines[i];
                 //@以降はコメントなので消し去る.
-                line = U.ClipComment(line, "@");
+                line = U.ClipCommentWithCharpAndAtmark(line);
 
                 if (line.Length <= 1)
                 {
@@ -3372,5 +3372,29 @@ namespace FEBuilderGBA
             }
             return error;
         }
+        public static uint FindSongTablePointer(byte[] data)
+        {
+            byte[] search = new byte[] {
+                0x00, 0xB5, 0x00, 0x04, 0x07, 0x4A, 0x08, 0x49,
+                0x40, 0x0B, 0x40, 0x18, 0x83, 0x88, 0x59, 0x00,
+                0xC9, 0x18, 0x89, 0x00, 0x89, 0x18, 0x0A, 0x68,
+                0x01, 0x68, 0x10, 0x1C, 0x00, 0xF0
+            };
+            uint foundPoint = U.Grep(data, search);
+            if (foundPoint == U.NOT_FOUND)
+            {//見つからなかった
+                return U.NOT_FOUND;
+            }
+            uint songpointer = foundPoint + (uint)search.Length + 10;
+            songpointer = U.toOffset(songpointer);
+
+            uint songlist = U.u32(data, songpointer);
+            if (!U.isPointer(songlist))
+            {
+                return U.NOT_FOUND;
+            }
+            return songpointer;
+        }
+
     }
 }

@@ -220,6 +220,10 @@ namespace FEBuilderGBA
             {
                 isLabelJump = true;
             }
+            else if (arg.Type == EventScript.ArgType.UNITCLASSABILITY)
+            {
+                isLabelJump = true;
+            }
             else if (arg.Type == EventScript.ArgType.KEYS)
             {
                 isLabelJump = true;
@@ -773,7 +777,7 @@ namespace FEBuilderGBA
                 string text = FETextDecode.Direct(v);
                 errormessage = TextForm.CheckConversationTextMessage(text, TextForm.MAX_SERIF_WIDTH);
             }
-            else if (arg.Type == EventScript.ArgType.CONVERSATION_TEXT)
+            else if (arg.Type == EventScript.ArgType.SYSTEM_TEXT)
             {
                 string text = FETextDecode.Direct(v);
                 errormessage = TextForm.CheckSystemTextMessage(text);
@@ -1430,6 +1434,11 @@ namespace FEBuilderGBA
                         {//DISABLEWEAPONS
                             isENumText = true;
                             text = " " + InputFormRef.GetDISABLEWEAPONS(v);
+                        }
+                        else if (arg.Type == EventScript.ArgType.UNITCLASSABILITY)
+                        {//UNITCLASSABILITY
+                            isENumText = true;
+                            text = " " + InputFormRef.GetUNITCLASSABILITY(v);
                         }
                         else if (arg.Type == EventScript.ArgType.IGNORE_KEYS)
                         {//IGNORE_KEYS

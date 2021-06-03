@@ -50,6 +50,8 @@ namespace FEBuilderGBA
         uint map_setting_datasize(); //マップ設定のデータサイズ
         uint map_setting_event_plist_pos(); //event plistの場所 
         uint map_setting_worldmap_plist_pos(); //woldmap event plistの場所 
+        uint map_setting_clear_conditon_text_pos(); //マップの右上に表示されているクリア条件の定義場所 
+        uint map_setting_name_text_pos(); //マップ名のテキスト定義場所 
         uint map_config_pointer();      //マップ設定の開始位置(config)
         uint map_obj_pointer();         //マップ設定の開始位置(obj) objとpalは同時参照があるので、同一値である必要がある 
         uint map_pal_pointer();         //マップ設定の開始位置(pal) objとpalは同時参照があるので、同一値である必要がある 
@@ -192,6 +194,7 @@ namespace FEBuilderGBA
         uint systemmenu_badstatus_image_pointer(); //無圧縮のバッドステータス画像
         uint systemmenu_badstatus_palette_pointer(); //バッドステータスのパレット
         uint systemmenu_badstatus_old_image_pointer(); //昔の圧縮のバッドステータス画像 FE7-FE6で 毒などのステータス
+        uint systemmenu_badstatus_old_palette_pointer(); //昔の圧縮のバッドステータス画像のパレット FE7 FE6
 
         uint bigcg_pointer(); // CG
         uint end_cg_address(); // END CG FE8のみ
@@ -248,9 +251,22 @@ namespace FEBuilderGBA
         uint oping_event_pointer();
         uint ending1_event_pointer();
         uint ending2_event_pointer();
+        uint RAMSlotTable_address();
+        uint supply_pointer_address();  //輸送体RAMへのアドレス
         uint workmemory_player_units_address() ; //ワークメモリ PLAYER UNIT
         uint workmemory_enemy_units_address(); //ワークメモリ ENEMY UNIT
         uint workmemory_npc_units_address(); //ワークメモリ ENEMY UNIT
+        uint workmemory_chapterdata_address();    //ワークメモリ 章データ
+        uint workmemory_chapterdata_size();    //ワークメモリ 章データのサイズ
+        uint workmemory_battle_actor_address();//ワークメモリ 戦闘時のユニット構造体
+        uint workmemory_battle_target_address();//ワークメモリ 戦闘時のユニット構造体
+        uint workmemory_worldmap_data_address();//ワークメモリ ワールドマップ関係の起点
+        uint workmemory_worldmap_data_size(); //ワークメモリ ワールドマップ関係のサイズ
+        uint workmemory_arena_data_address();//ワークメモリ 闘技場関係の起点
+        uint workmemory_ai_data_address(); //ワークメモリ AI関係の起点
+        uint workmemory_action_data_address(); //ワークメモリ ActionData
+        uint workmemory_dungeon_data_address(); //ワークメモリ ダンジョン FE8のみ
+        uint workmemory_battlesome_data_address(); //ワークメモリ バルトに関係する諸データ
         uint workmemory_mapid_address();    //ワークメモリ マップID
         uint workmemory_last_string_address();  //ワークメモリ 最後に表示した文字列
         uint workmemory_text_buffer_address();  //ワークメモリ デコードされたテキスト
@@ -462,6 +478,11 @@ namespace FEBuilderGBA
             {
                 return true;
             }
+            if (version == "NAZO")
+            {
+                this.RomInfo = new ROMFE0();
+                return true;
+            }
             return false;
         }
         public bool Load(string name,out string version)
@@ -507,6 +528,10 @@ namespace FEBuilderGBA
             else if (forceversion.IndexOf("FE6") >= 0)
             {
                 version = new ROMFE6JP().game_id();
+            }
+            else if (forceversion.IndexOf("NAZO") >= 0)
+            {
+                version = new ROMFE0().game_id();
             }
             else
             {

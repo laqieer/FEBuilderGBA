@@ -39,6 +39,7 @@ namespace FEBuilderGBA
             g_Cache_grows_mod_enum = growth_mod_enum.NoCache;
             g_Cache_HandAxsWildCard = HandAxsWildCard_extends.NoCache;
             g_Cache_soundroom_unlock_enum = soundroom_unlock_enum.NoCache;
+            g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
 
             g_WeaponLockArrayTableAddr = U.NOT_FOUND;
             g_InstrumentSet = null;
@@ -730,7 +731,7 @@ namespace FEBuilderGBA
         }
 
 
-        //存在ユニットを選択したときフリーズしないように
+        //存在しないユニットを選択したときフリーズしないように
         public static bool SearchCAMERA_Event_NotExistsUnit_FixPatch()
         {
             PatchTableSt[] table = new PatchTableSt[] { 
@@ -739,7 +740,7 @@ namespace FEBuilderGBA
             };
             return SearchPatchBool(table);
         }
-        //存在ユニットを選択したときフリーズしないように
+        //存在しないユニットを選択したときフリーズしないように
         public static bool SearchGetUnitStateEvent_0x33_FixPatch()
         {
             PatchTableSt[] table = new PatchTableSt[] { 
@@ -748,7 +749,7 @@ namespace FEBuilderGBA
             };
             return SearchPatchBool(table);
         }
-        //存在ユニットを選択したときフリーズしないように
+        //存在しないユニットを選択したときフリーズしないように
         public static bool SearchUpdateUnitStateEvent_0x34_FixPatch()
         {
             PatchTableSt[] table = new PatchTableSt[] { 
@@ -757,7 +758,16 @@ namespace FEBuilderGBA
             };
             return SearchPatchBool(table);
         }
-        //存在ユニットを選択したときフリーズしないように
+        //存在しないユニットを選択したときフリーズしないように
+        public static bool SearchActiveUnitEvent_0x38_FixPatch()
+        {
+            PatchTableSt[] table = new PatchTableSt[] { 
+                new PatchTableSt{ name="Prevent Freeze For Event 0x38",	ver = "FE8J", addr = 0x10794,data = new byte[]{0x00, 0x20}},
+                new PatchTableSt{ name="Prevent Freeze For Event 0x38",	ver = "FE8U", addr = 0x1063C,data = new byte[]{0x00, 0x20}},
+            };
+            return SearchPatchBool(table);
+        }
+        //存在しないユニットを選択したときフリーズしないように
         public static bool SearchWakuEvent_0x3B_FixPatch()
         {
             PatchTableSt[] table = new PatchTableSt[] { 
@@ -938,6 +948,34 @@ namespace FEBuilderGBA
                 return AutoNewLine_enum.AutoNewLine;
             }
             return AutoNewLine_enum.NO;
+        }
+
+        //TextEngineRework
+        public enum TextEngineRework_enum
+        {
+            NO,             //なし
+            TeqTextEngineRework,
+            NoCache = (int)NO_CACHE
+        };
+        static TextEngineRework_enum g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
+        public static TextEngineRework_enum SearchTextEngineReworkPatch()
+        {
+            if (g_Cache_TextEngineRework_enum == TextEngineRework_enum.NoCache)
+            {
+                g_Cache_TextEngineRework_enum = SearchTextEngineReworkPatchLow();
+            }
+            return g_Cache_TextEngineRework_enum;
+        }
+        static TextEngineRework_enum SearchTextEngineReworkPatchLow()
+        {
+            PatchTableSt[] table = new PatchTableSt[] { 
+                new PatchTableSt{ name="TextEngineRework",	ver = "FE8U", addr = 0x6FD0,data = new byte[]{0xF0, 0xB5, 0x82, 0xB0}},
+            };
+            if (SearchPatchBool(table))
+            {
+                return TextEngineRework_enum.TeqTextEngineRework;
+            }
+            return TextEngineRework_enum.NO;
         }
 
         //指南パッチの設定アドレスの場所

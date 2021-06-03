@@ -4150,8 +4150,8 @@ namespace FEBuilderGBA
             }
             else if (linktype == "RAMUNIT_STATE")
             {
-                RAMUnitStateFlagForm f = (RAMUnitStateFlagForm)InputFormRef.JumpForm<RAMUnitStateFlagForm>(U.NOT_FOUND);
-                f.JumpTo(value);
+                UwordBitFlagForm f = (UwordBitFlagForm)InputFormRef.JumpForm<UwordBitFlagForm>(U.NOT_FOUND);
+                f.JumpTo(EventScript.ArgType.RAM_UNIT_STATE, value);
             }
             else if (linktype == "TEXTOREVENT")
             {
@@ -5142,6 +5142,7 @@ namespace FEBuilderGBA
             SkillConfigSkillSystemForm.ClearCache();
             FE8SpellMenuExtendsForm.ClearCache();
             MapChangeForm.ClearCache();
+            ItemWeaponEffectForm.ClearCache();
 
             Cache_Setting_checkbox = new ConcurrentDictionary<string, Dictionary<uint, string>>();
             PatchUtil.ClearCache();
@@ -6513,7 +6514,7 @@ namespace FEBuilderGBA
             return "-";
         }
         //武器
-        public static String GetWeaponName(uint num)
+        public static String GetWeaponTypeName(uint num)
         {
             switch (num)
             {
@@ -6806,6 +6807,15 @@ namespace FEBuilderGBA
                 return R._("すべてのキーを許可");
             }
             Dictionary<uint, string> dic = ConfigDataDatanameCache("IGNORE_KEYS_checkbox_");
+            return GetInfoByBitFlag(num, dic);
+        }
+        public static string GetUNITCLASSABILITY(uint num)
+        {
+            if (num == 0)
+            {
+                return R._("");
+            }
+            Dictionary<uint, string> dic = ConfigDataDatanameCache("unitclass_checkbox_");
             return GetInfoByBitFlag(num, dic);
         }
         public static string GetPressKEYS(uint num)
@@ -7293,6 +7303,19 @@ namespace FEBuilderGBA
             }
             return "";
         }
+        public static string GetPHASE(uint num)
+        {
+            switch (num)
+            {
+                case 0x0:
+                    return R._("自軍(青)");
+                case 0x40:
+                    return R._("友軍(緑)");
+                case 0x80:
+                    return R._("敵軍(赤)");
+            }
+            return "";
+        }
         public static string GetWEATHER(uint num)
         {
             switch (num)
@@ -7316,6 +7339,60 @@ namespace FEBuilderGBA
             }
             return "";
         }
+        public static string GetDungeonType(uint num)
+        {
+            switch (num)
+            {
+                case 0x00:
+                    return R._("塔");
+                case 0x01:
+                    return R._("遺跡");
+            }
+            return "";
+        }
+
+        public static string GetChatperStaff(uint num)
+        {
+            string r = "";
+            if ( (num & 0x1) == 0x1)
+            {
+                r += " ,0x01 Stat screen page 1 (Inventory)";
+            }
+            else if ((num & 0x2) == 0x2)
+            {
+                r += " ,0x02 Stat screen page 2 (Difficulty)";
+            }
+            else if ((num & 0x10) == 0x10)
+            {
+                r += " ,0x10 Set when on prep screen";
+            }
+            else if ((num & 0x40) == 0x40)
+            {
+                r += " ,0x40 Set for hard mode";
+            }
+            else if ((num & 0x80) == 0x80)
+            {
+                r += " ,0x80 Don't gain weapon exp";
+            }
+            return U.substr(r, 2);
+        }
+        public static string GetChapterDataConfig(uint num)
+        {
+            Dictionary<uint, string> dic = ConfigDataDatanameCache("chapterdata_config_");
+            return GetInfoByBitFlag(num, dic);
+        }
+        public static string GetWorldmapStructWMFLAG1(uint num)
+        {
+            Dictionary<uint, string> dic = ConfigDataDatanameCache("worldmap_struct_wmflag1_");
+            return GetInfoByBitFlag(num, dic);
+        }
+        public static string GetWorldmapNodeFLAG(uint num)
+        {
+            Dictionary<uint, string> dic = ConfigDataDatanameCache("worldmap_node_flag_");
+            return GetInfoByBitFlag(num, dic);
+        }
+
+
         public static string GetBADSTATUS(uint num)
         {
             uint status = (num & 0x0f);
@@ -11402,6 +11479,10 @@ namespace FEBuilderGBA
             else if (str == "@MAPEDITOR_ID")
             {
                 str = R._("タイル変化のIDです。\r\n無駄な混乱を避けるためリストの並び順と同じIDを割り振ることを推奨します。\r\nこの値を0xFFにするとリスト終端として扱われます。");
+            }
+            else if (str == "@SONGDATAFINGERPRINT")
+            {
+                str = R._("楽器データを識別するための値です。\r\nもし、まだ名前が設定されていない楽器の名前を知っている場合は、\r\nこのテキストの内容と、楽器名をコミニティに報告してください。\r\n");
             }
             else
             {

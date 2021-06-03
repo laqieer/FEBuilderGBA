@@ -56,6 +56,8 @@ namespace FEBuilderGBA
         } //マップ設定のデータサイズ
         public uint map_setting_event_plist_pos() { return 58; } //event plistの場所 
         public uint map_setting_worldmap_plist_pos() { return 59; } //woldmap event plistの場所 
+        public uint map_setting_clear_conditon_text_pos() { return 0x30; } //マップの右上に表示されているクリア条件の定義場所 
+        public uint map_setting_name_text_pos() { return 0x38; } //マップ名のテキスト定義場所 
         public uint map_config_pointer() { return 0x018a7c; }      //マップ設定の開始位置(config)
         public uint map_obj_pointer() { return 0x018AE4; }         //マップ設定の開始位置(obj) objとpalは同時参照があるので、同一値である必要がある 
         public uint map_pal_pointer() { return 0x018B18; }         //マップ設定の開始位置(pal) objとpalは同時参照があるので、同一値である必要がある 
@@ -202,6 +204,7 @@ namespace FEBuilderGBA
         public uint systemmenu_badstatus_image_pointer() { return 0; } //無圧縮のバッドステータス画像
         public uint systemmenu_badstatus_palette_pointer() { return 0x70EE8; } //バッドステータスのパレット
         public uint systemmenu_badstatus_old_image_pointer() { return 0x732EC; } //昔の圧縮のバッドステータス画像 FE7-FE6で 毒などのステータス
+        public uint systemmenu_badstatus_old_palette_pointer() { return 0x6388; } //昔の圧縮のバッドステータス画像のパレット FE7 FE6
 
         public uint bigcg_pointer() { return 0x0; } // CG
         public uint end_cg_address() { return 0x0; } // END CG FE8のみ
@@ -258,10 +261,23 @@ namespace FEBuilderGBA
         public uint oping_event_pointer() { return 0x0; }
         public uint ending1_event_pointer() { return 0x0; }
         public uint ending2_event_pointer() { return 0x0; }
+        public uint RAMSlotTable_address() { return 0x5C5280; }
+        public uint supply_pointer_address() { return 0x296A8; }  //輸送体RAMへのアドレス
         public uint workmemory_player_units_address() { return 0x0202AB78; }    //ワークメモリ PLAYER UNIT
         public uint workmemory_enemy_units_address() { return 0x0202BCE8; }    //ワークメモリ PLAYER UNIT
         public uint workmemory_npc_units_address() { return 0x202CAF8; }    //ワークメモリ PLAYER UNIT
+        public uint workmemory_chapterdata_address() { return workmemory_mapid_address() - 0xE; } //ワークメモリ章データ
         public uint workmemory_mapid_address() { return 0x0202AA56; }    //ワークメモリ マップID
+        public uint workmemory_chapterdata_size() { return 0x20; }    //ワークメモリ 章データのサイズ
+        public uint workmemory_battle_actor_address() { return 0x02039214; } //ワークメモリ 戦闘時のユニット構造体
+        public uint workmemory_battle_target_address() { return 0x02039290; } //ワークメモリ 戦闘時のユニット構造体
+        public uint workmemory_worldmap_data_address() { return 0x0; }//ワークメモリ ワールドマップ関係の起点
+        public uint workmemory_worldmap_data_size() { return 0x0; } //ワークメモリ ワールドマップ関係のサイズ
+        public uint workmemory_arena_data_address() { return 0x02039504; }//ワークメモリ 闘技場関係の起点
+        public uint workmemory_ai_data_address() { return 0x02039600; } //ワークメモリ AI関係の起点
+        public uint workmemory_action_data_address() { return 0x0203956C; } //ワークメモリ ActionData
+        public uint workmemory_dungeon_data_address() { return 0x0; } //ワークメモリ ダンジョン FE8のみ
+        public uint workmemory_battlesome_data_address() { return 0x0; } //ワークメモリ バルトに関係する諸データ
         public uint workmemory_last_string_address() { return 0x0202A404; }  //ワークメモリ 最後に表示した文字列
         public uint workmemory_text_buffer_address() { return 0x02029404; }  //ワークメモリ デコードされたテキスト
         public uint workmemory_next_text_buffer_address() { return 0x03000038; }  //ワークメモリ 次に表示するTextBufferの位置を保持するポインタ

@@ -437,7 +437,7 @@ namespace FEBuilderGBA
         public static void CheckText(uint textid, string arg1, List<ErrorSt> errors, Type cond, uint addr, uint tag = U.NOT_FOUND)
         {
             string text = FETextDecode.Direct(textid);
-            string errorMessage = TextForm.GetErrorMessage(text, textid, arg1);
+            string errorMessage = TextForm.GetErrorMessage(text, textid,arg1);
             if (errorMessage != "")
             {
                 errors.Add(new FELint.ErrorSt(cond, U.toOffset(addr)
@@ -835,6 +835,11 @@ namespace FEBuilderGBA
 
                 if (InputFormRef.DoEvents(null, "ScanSystem EDForm")) return;
                 EDForm.MakeCheckError(errors);
+
+                if (Program.ROM.RomInfo.is_multibyte() == false)
+                {
+                    SkillConfigSkillSystemForm.MakeCheckError(errors);
+                }
             }
             else if (Program.ROM.RomInfo.version() == 7)
             {

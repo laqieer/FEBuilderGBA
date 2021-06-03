@@ -14,8 +14,6 @@ namespace FEBuilderGBA
         public EmulatorMemoryForm()
         {
             InitializeComponent();
-
-            SetExplain();
         }
         private void EmulatorMemoryForm_Load(object sender, EventArgs e)
         {
@@ -42,6 +40,8 @@ namespace FEBuilderGBA
             List<Control> controls = InputFormRef.GetAllControls(this);
             string[] args = new string[0];
 
+            SetExplain();
+            FE6ize();
             SetSpeechIcon();
             SetSubtileIcon();
 
@@ -61,6 +61,7 @@ namespace FEBuilderGBA
             //頻繁にリストを更新するのでBrushをキャッシュする.
             this.ListBoxForeBrush = new SolidBrush(OptionForm.Color_Control_ForeColor());
             this.ListBoxForeKeywordBrush = new SolidBrush(OptionForm.Color_Keyword_ForeColor());
+            this.ListBoxForeDecBrush = new SolidBrush(OptionForm.Color_InputDecimal_ForeColor());
             this.BoldFont = new Font(this.FlagListBox.Font, FontStyle.Bold);
             this.YubiYokoCursor = ImageSystemIconForm.YubiYoko();
             U.MakeTransparent(this.YubiYokoCursor);
@@ -104,6 +105,7 @@ namespace FEBuilderGBA
         //頻繁に更新するのでキャッシュしておこう.
         SolidBrush ListBoxForeBrush;
         SolidBrush ListBoxForeKeywordBrush;
+        SolidBrush ListBoxForeDecBrush;
         Font BoldFont;
         Bitmap YubiYokoCursor;
 
@@ -111,7 +113,7 @@ namespace FEBuilderGBA
         InputFormRef PROCS_InputFormRef;
         InputFormRef PARTY_InputFormRef;
 
-        const uint RAMUnitSizeOf = 72;
+        const uint RAMUnitSizeOf = 72; //構造体のサイズ
 
         void InitParty()
         {
@@ -121,8 +123,7 @@ namespace FEBuilderGBA
             PartyCombo.AddIcon(0x40, ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(16, 1, true)); //40=友軍
             PartyCombo.AddIcon(0x80, ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(7, 2, true)); //80=敵軍
 
-            this.UpdateCheckParty = new byte[RAMUnitSizeOf * (62)];
-            this.PartyListBox.OwnerDraw(DrawParty, DrawMode.OwnerDrawVariable, false);
+            this.PartyListBox.OwnerDraw(DrawParty, DrawMode.OwnerDrawFixed, false);
         }
         void InitFlag()
         {
@@ -206,6 +207,16 @@ namespace FEBuilderGBA
             UpdateSong();
             UpdateTrap();
             UpdateBWL();
+            UpdateChapterData();
+            UpdateBattleActor();
+            UpdateBattleTarget();
+            UpdateWorldmap();
+            UpdateArenaData();
+            UpdateAIData();
+            UpdateSupplyData();
+            UpdateActionData();
+            UpdateDungeonData();
+            UpdateBattleSomeData();
             UpdatePalette();
         }
         void UpdateUserStack()
@@ -275,7 +286,7 @@ namespace FEBuilderGBA
             uint currntBGMStructAddr = Program.ROM.RomInfo.workmemory_bgm_address();
             BGM.Value = Program.RAM.u16(currntBGMStructAddr + 4);
 
-            uint stageStructAddr = Program.ROM.RomInfo.workmemory_mapid_address() - 0xE;
+            uint stageStructAddr = Program.ROM.RomInfo.workmemory_chapterdata_address();
             this.N_InputFormRef.ReInit(stageStructAddr, 1);
         }
 
@@ -476,9 +487,6 @@ namespace FEBuilderGBA
             }
             //木の更新.
             this.ProcsTree = tree;
-
-            //PROCツリーを再描画.
-            this.ProcsListBox.Invalidate();
 
             //個数が違うので変更があった
             this.ProcsListBox.DummyAlloc(tree.Count, this.ProcsListBox.SelectedIndex);
@@ -913,6 +921,11 @@ namespace FEBuilderGBA
             {
                 this.ListBoxForeKeywordBrush.Dispose();
                 this.ListBoxForeKeywordBrush = null;
+            }
+            if (this.ListBoxForeDecBrush != null)
+            {
+                this.ListBoxForeDecBrush.Dispose();
+                this.ListBoxForeDecBrush = null;
             }
             if (this.BoldFont != null)
             {
@@ -1426,7 +1439,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            uint stageStructAddr = Program.ROM.RomInfo.workmemory_mapid_address() - 0xE;
+            uint stageStructAddr = Program.ROM.RomInfo.workmemory_chapterdata_address();
             uint writeRAMPointer = stageStructAddr + 0x8;
             Program.RAM.write_u32(writeRAMPointer, (uint)CHEAT_MONEY_VALUE.Value);
 
@@ -1439,7 +1452,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            uint stageStructAddr = Program.ROM.RomInfo.workmemory_mapid_address() - 0xE;
+            uint stageStructAddr = Program.ROM.RomInfo.workmemory_chapterdata_address();
             uint writeRAMPointer = stageStructAddr + 0xD;
             Program.RAM.write_u8(writeRAMPointer, (uint)CHEAT_FOG_VALUE.Value);
 
@@ -1917,18 +1930,19 @@ namespace FEBuilderGBA
 
 
 
-        byte[] UpdateCheckParty;
         void UpdateParty()
         {
             byte[] bin = Program.RAM.getBinaryData(
                   GetShowRAMPartyUnitsAddr()
-                , this.UpdateCheckParty.Length);
-            if (U.memcmp(this.UpdateCheckParty, bin) == 0)
+                , GetLimitRAMPartyUnits() * RAMUnitSizeOf);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum == this.UnitCheckSUM)
             {//変更なし
                 return;
             }
+
             //変更有
-            this.UpdateCheckParty = bin;
+            this.UnitCheckSUM = sum;
             bool isDetail = Party_ControlPanel.Visible;
 
             uint i = 0;
@@ -2090,10 +2104,6 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            if (Program.ROM.RomInfo.version() == 6)
-            {
-                return;
-            }
 
             uint baseaddr = GetShowRAMPartyUnitsAddr();
             uint addr = baseaddr + (uint)index * 72;
@@ -2114,26 +2124,13 @@ namespace FEBuilderGBA
                 uint classid = Program.ROM.u8(U.toOffset(classPointer) + 4);
                 classname = U.ToHexString(classid) + " " + ClassForm.GetClassName(classid);
             }
-            uint state;
-            if (Program.ROM.RomInfo.version() == 6)
-            {//状態1,2だけ
-                state = Program.RAM.u16(addr + 0x0C) << 16;
-            }
-            else
-            {//状態1,2,3,4
-                state = Program.RAM.u16(addr + 0x0C);
-            }
-            string stateString = InputFormRef.GetRAM_UNIT_STATE(state);
-
-            uint aid = Program.RAM.u16(addr + 0x1B);
-            string aidString = GetRAMUnitAIDToName(aid);
 
             PARTY_Address.Value = addr;
             PARTY_SelectAddress.Text = "";
             PARTY_ROMUNITPOINTER.Text = unitname;
             PARTY_ROMCLASSPOINTER.Text = classname;
-            PARTY_RAMUNITSTATE.Text = stateString;
-            PARTY_RAMUNITAID.Text = aidString;
+            PARTY_RAMUNITSTATE.Text = EmulatorMemoryUtil.GetRAMUnitStatus(addr);
+            PARTY_RAMUNITAID.Text = EmulatorMemoryUtil.GetAIDUnitString(addr);
             PARTY_PORTRAIT.Image = faceImage;
 
             this.PARTY_InputFormRef.ReInit(addr, 1);
@@ -2143,26 +2140,6 @@ namespace FEBuilderGBA
             Party_ControlPanel.Show();
         }
 
-        string GetRAMUnitAIDToName(uint aid)
-        {
-            if (aid == 0)
-            {
-                return "";
-            }
-
-            const uint RAMUnitSizeOf = 72;
-            uint addr = Program.ROM.RomInfo.workmemory_player_units_address();
-            addr = addr + ((aid - 1) * RAMUnitSizeOf);
-            uint romUnitAddr = Program.RAM.u32(addr);
-            romUnitAddr = U.toOffset(romUnitAddr);
-            if (!U.isSafetyOffset(romUnitAddr))
-            {
-                return "";
-            }
-            uint textid = Program.ROM.u16(romUnitAddr); //Unit.Name
-            uint unitid = Program.ROM.u8(romUnitAddr + 4); //Unit.ID
-            return U.ToHexString(unitid) + " " + FETextDecode.Direct(textid);
-        }
 
         uint GetShowRAMPartyUnitsAddr()
         {
@@ -2196,13 +2173,13 @@ namespace FEBuilderGBA
             int partyComboSelectedIndex = this.PartyCombo.SelectedIndex;
             if (partyComboSelectedIndex == 1)
             {
-                return 0x20;
+                return 20;
             }
             if (partyComboSelectedIndex == 2)
             {
                 return 50;
             }
-            return (uint)this.UpdateCheckParty.Length / RAMUnitSizeOf;
+            return 62;
         }
 
         private void Party_CloseButton_Click(object sender, EventArgs e)
@@ -2284,6 +2261,69 @@ namespace FEBuilderGBA
             this.SpeechButton.AccessibleDescription = R._("Windowsのテキスト読み上げ機能を利用して、文章を合成音声で読み上げます。\r\n利用するには、OSに合成音声ライブラリがインストールされている必要があります。");
             this.SubtileButton.AccessibleDescription = R._("翻訳リソースを利用して、翻訳した字幕を表示します。");
         }
+        void FE6ize()
+        {
+            if (Program.ROM.RomInfo.version() != 6)
+            {
+                return;
+            }
+            this.PARTY_B58.Name = "PARTY_NONE58";
+            this.PARTY_B58.Hide();
+            this.PARTY_B57.Name = "PARTY_B58";
+            this.PARTY_B56.Name = "PARTY_B54";
+            this.PARTY_B55.Name = "PARTY_B53";
+            this.PARTY_B54.Name = "PARTY_B52";
+            this.PARTY_B53.Name = "PARTY_B51";
+            this.PARTY_B52.Name = "PARTY_B50";
+            this.PARTY_B51.Name = "PARTY_B49";
+            this.PARTY_B50.Name = "PARTY_B48";
+            this.PARTY_B49.Name = "PARTY_B47";
+            this.PARTY_B48.Name = "PARTY_B46";
+            this.PARTY_B47.Name = "PARTY_B45";
+            this.PARTY_B46.Name = "PARTY_B44";
+            this.PARTY_B45.Name = "PARTY_B43";
+            this.PARTY_B44.Name = "PARTY_B42";
+            this.PARTY_B43.Name = "PARTY_B41";
+            this.PARTY_B42.Name = "PARTY_B40";
+            this.PARTY_B41.Name = "PARTY_B39";
+            this.PARTY_B40.Name = "PARTY_B38";
+            this.PARTY_B39.Name = "PARTY_B37";
+            this.PARTY_B38.Name = "PARTY_B36";
+            this.PARTY_B37.Name = "PARTY_B35";
+            this.PARTY_B36.Name = "PARTY_B34";
+            this.PARTY_B35.Name = "PARTY_B33";
+            this.PARTY_B34.Name = "PARTY_B32";
+            this.PARTY_B33.Name = "PARTY_B31";
+            this.PARTY_B32.Name = "PARTY_B30";
+            this.PARTY_B31.Name = "PARTY_B29";
+            this.PARTY_B30.Name = "PARTY_B28";
+            this.PARTY_B29.Name = "PARTY_B27";
+            this.PARTY_B28.Name = "PARTY_B26";
+            this.PARTY_B27.Name = "PARTY_B25";
+            this.PARTY_B26.Name = "PARTY_B24";
+            this.PARTY_B25.Name = "PARTY_B23";
+            this.PARTY_B24.Name = "PARTY_B22";
+            this.PARTY_B23.Name = "PARTY_B21";
+            this.PARTY_B22.Name = "PARTY_B20";
+            this.PARTY_B21.Name = "PARTY_B19";
+            this.PARTY_B20.Name = "PARTY_B18";
+            this.PARTY_B19.Name = "PARTY_B17";
+            this.PARTY_B18.Name = "PARTY_B16";
+            this.PARTY_B17.Name = "PARTY_B15";
+            this.PARTY_B16.Name = "PARTY_B14";
+            this.PARTY_D12.Name = "PARTY_W12";
+            this.PARTY_L_30_ITEM.Name = "PARTY_L_28_ITEM";
+            this.PARTY_L_30_ITEMICON.Name = "PARTY_L_28_ITEMICON";
+            this.PARTY_L_32_ITEM.Name = "PARTY_L_30_ITEM";
+            this.PARTY_L_32_ITEMICON.Name = "PARTY_L_30_ITEMICON";
+            this.PARTY_L_34_ITEM.Name = "PARTY_L_32_ITEM";
+            this.PARTY_L_34_ITEMICON.Name = "PARTY_L_32_ITEMICON";
+            this.PARTY_L_36_ITEM.Name = "PARTY_L_34_ITEM";
+            this.PARTY_L_36_ITEMICON.Name = "PARTY_L_34_ITEMICON";
+            this.PARTY_L_38_ITEM.Name = "PARTY_L_36_ITEM";
+            this.PARTY_L_38_ITEMICON.Name = "PARTY_L_36_ITEMICON";
+        }
+
 
         private void CHEAT_WEATHER_Click(object sender, EventArgs e)
         {
@@ -2295,7 +2335,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            uint stageStructAddr = Program.ROM.RomInfo.workmemory_mapid_address() - 0xE;
+            uint stageStructAddr = Program.ROM.RomInfo.workmemory_chapterdata_address();
             uint writeRAMPointer = stageStructAddr + 0x15;
             Program.RAM.write_u8(writeRAMPointer, (uint)CHEAT_WEATHER_VALUE.Value);
 
@@ -2323,7 +2363,7 @@ namespace FEBuilderGBA
 
         private void CHEAT_ALL_PLAYER_UNIT_GROW_Click(object sender, EventArgs e)
         {
-            uint limit = (uint)this.UpdateCheckParty.Length / RAMUnitSizeOf;
+            uint limit = 62;
             uint addr = Program.ROM.RomInfo.workmemory_player_units_address();
             MultiUnitsGrow(addr, limit, growMovePower: true);
             InputFormRef.ShowWriteNotifyAnimation(this , 0);
@@ -2331,7 +2371,7 @@ namespace FEBuilderGBA
 
         private void CHEAT_ALL_UNIT_GROW_Click(object sender, EventArgs e)
         {
-            uint limit = (uint)this.UpdateCheckParty.Length / RAMUnitSizeOf;
+            uint limit = 62;
             uint addr = Program.ROM.RomInfo.workmemory_player_units_address();
             MultiUnitsGrow(addr, limit, growMovePower: true);
 
@@ -2350,7 +2390,7 @@ namespace FEBuilderGBA
         private void CHEAT_ALL_ENEMY_UNIT_HP_1_Click(object sender, EventArgs e)
         {
             uint addr = Program.ROM.RomInfo.workmemory_enemy_units_address();
-            uint limit = (uint)this.UpdateCheckParty.Length / RAMUnitSizeOf;
+            uint limit = 50;
             for (uint i = 0; i < limit; i++, addr += RAMUnitSizeOf)
             {
                 uint unitPointer = Program.RAM.u32(addr);
@@ -2370,7 +2410,7 @@ namespace FEBuilderGBA
         private void CHEAT_ALL_ENEMY_DO_NOT_MOVE_Click(object sender, EventArgs e)
         {
             uint addr = Program.ROM.RomInfo.workmemory_enemy_units_address();
-            uint limit = (uint)this.UpdateCheckParty.Length / RAMUnitSizeOf;
+            uint limit = 50;
             for (uint i = 0; i < limit; i++, addr += RAMUnitSizeOf)
             {
                 uint unitPointer = Program.RAM.u32(addr);
@@ -2397,7 +2437,6 @@ namespace FEBuilderGBA
             this.Edition = U.NOT_FOUND;
             this.Diffeclty = U.NOT_FOUND;
             this.WorldmapNode = U.NOT_FOUND;
-            this.PaletteCheckBuffer = new byte[2 * 16 * 16 * 2];
             this.PaletteList.OwnerDraw(DrawPalette, DrawMode.OwnerDrawFixed, false);
             this.PaletteList.ItemHeight = 12;
             this.PaletteList.DummyAlloc(32, 0);
@@ -2441,6 +2480,67 @@ namespace FEBuilderGBA
                 this.ClearTurnList.DummyAlloc((int)Program.ROM.RomInfo.workmemory_clear_turn_count(), 0);
             }
             InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.ClearTurnList);
+
+            this.ChapterDataList.OwnerDraw(DrawChapterDataList, DrawMode.OwnerDrawFixed, false);
+            this.ChapterDataList.ItemHeight = 12;
+            this.ChapterDataList.DummyAlloc(ChapterDataStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.ChapterDataAddress);
+
+            this.BattleActorList.OwnerDraw(DrawBattleUnitBattleActorList, DrawMode.OwnerDrawFixed, false);
+            this.BattleActorList.ItemHeight = 12;
+            this.BattleActorList.DummyAlloc(BattleUnitStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.BattleActorAddress);
+
+            this.BattleTargetList.OwnerDraw(DrawBattleUnitBattleTargetList, DrawMode.OwnerDrawFixed, false);
+            this.BattleTargetList.ItemHeight = 12;
+            this.BattleTargetList.DummyAlloc(BattleUnitStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.BattleTargetAddress);
+
+            if (Program.ROM.RomInfo.version() == 8)
+            {
+                this.WorldmapList.OwnerDraw(DrawWorldmapList, DrawMode.OwnerDrawFixed, false);
+                this.WorldmapList.ItemHeight = 12;
+                this.WorldmapList.DummyAlloc(WorldmapStruct.Count, 0);
+                InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.WorldmapAddress);
+
+                this.DungeonDataList.OwnerDraw(DrawDungeonDataList, DrawMode.OwnerDrawFixed, false);
+                this.DungeonDataList.ItemHeight = 12;
+                this.DungeonDataList.DummyAlloc(DungeonDataStruct.Count, 0);
+                InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.DungeonDataAddress);
+
+                this.BattleSomeDataList.OwnerDraw(DrawBattleSomeDataList, DrawMode.OwnerDrawFixed, false);
+                this.BattleSomeDataList.ItemHeight = 12;
+                this.BattleSomeDataList.DummyAlloc(BattleSomeDataStruct.Count, 0);
+                InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.BattleSomeDataAddress);
+            }
+            else
+            {
+                tabControlEtc.TabPages.Remove(tabPageBattleSome);
+                tabControlEtc.TabPages.Remove(tabPageWorldmap);
+                tabControlEtc.TabPages.Remove(tabPageDungeon);
+            }
+
+            this.ArenaDataList.OwnerDraw(DrawArenaDataList, DrawMode.OwnerDrawFixed, false);
+            this.ArenaDataList.ItemHeight = 12;
+            this.ArenaDataList.DummyAlloc(ArenaDataStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.ArenaDataAddress);
+
+            this.AIDataList.OwnerDraw(DrawAIDataList, DrawMode.OwnerDrawFixed, false);
+            this.AIDataList.ItemHeight = 12;
+            this.AIDataList.DummyAlloc(AIDataStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.AIDataAddress);
+
+            this.ActionDataList.OwnerDraw(DrawActionDataList, DrawMode.OwnerDrawFixed, false);
+            this.ActionDataList.ItemHeight = 12;
+            this.ActionDataList.DummyAlloc(ActionDataStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.ActionDataAddress);
+
+            InitSupplyRAMAddress();
+            this.SupplyDataList.OwnerDraw(DrawSupplyDataList, DrawMode.OwnerDrawFixed, false);
+            this.SupplyDataList.ItemHeight = 16;
+            this.SupplyDataList.DummyAlloc((int)this.SuppyMaxCount, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.SupplyDataAddress);
+
         }
 
         void UpdateEditon()
@@ -2518,6 +2618,43 @@ namespace FEBuilderGBA
                 this.BWLList.Invalidate();
             }
         }
+        void UpdateChapterData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_chapterdata_address()
+                , Program.ROM.RomInfo.workmemory_chapterdata_size() );
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.ChapterDataCheckSUM)
+            {//変更有
+                this.ChapterDataCheckSUM = sum;
+                this.ChapterDataList.Invalidate();
+            }
+        }
+        void UpdateBattleActor()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_battle_actor_address()
+                , 0x80);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.BattleActorSUM)
+            {//変更有
+                this.BattleActorSUM = sum;
+                this.BattleActorList.Invalidate();
+            }
+        }
+        void UpdateBattleTarget()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_battle_target_address()
+                , 0x80);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.BattleTargetSUM)
+            {//変更有
+                this.BattleTargetSUM = sum;
+                this.BattleTargetList.Invalidate();
+            }
+        }
+
         void UpdateClearTurn()
         {
             byte[] bin = Program.RAM.getBinaryData(
@@ -2534,13 +2671,110 @@ namespace FEBuilderGBA
         {
             byte[] bin = Program.RAM.getBinaryData(
                   Program.ROM.RomInfo.workmemory_palette_address()
-                , this.PaletteCheckBuffer.Length);
-            if (U.memcmp(this.PaletteCheckBuffer, bin) != 0)
+                , 2 * 16 * 16 * 2);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.PaletteCheckSUM)
             {//変更有
-                this.PaletteCheckBuffer = bin;
-                this.PartyListBox.Invalidate();
+                this.PaletteCheckSUM = sum;
+                this.PaletteList.Invalidate();
             }
         }
+        void UpdateWorldmap()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_worldmap_data_address()
+                , Program.ROM.RomInfo.workmemory_worldmap_data_size());
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.WorldmapSUM)
+            {//変更有
+                this.WorldmapSUM = sum;
+                this.WorldmapList.Invalidate();
+            }
+        }
+        void UpdateArenaData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_arena_data_address()
+                , 0x68);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.ArenaDataSUM)
+            {//変更有
+                this.ArenaDataSUM = sum;
+                this.ArenaDataList.Invalidate();
+            }
+        }
+        void UpdateAIData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_ai_data_address()
+                , 0x100);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.AIDataSUM)
+            {//変更有
+                this.AIDataSUM = sum;
+                this.AIDataList.Invalidate();
+            }
+        }
+
+        uint SuppyRAMAddress;
+        uint SuppyMaxCount;
+        void InitSupplyRAMAddress()
+        {
+            uint addr = Program.ROM.RomInfo.supply_pointer_address();
+            SuppyRAMAddress = Program.ROM.u32(addr);
+            SuppyMaxCount = Program.ROM.u16(addr + 4);
+        }
+
+        void UpdateSupplyData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  SuppyRAMAddress
+                , SuppyMaxCount);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.SupplyDataSUM)
+            {//変更有
+                this.SupplyDataSUM = sum;
+                this.SupplyDataList.Invalidate();
+            }
+        }
+        void UpdateActionData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_action_data_address()
+                , 0x20);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.ActionDataSUM)
+            {//変更有
+                this.ActionDataSUM = sum;
+                this.ActionDataList.Invalidate();
+            }
+        }
+        void UpdateDungeonData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_dungeon_data_address()
+                , 0x20);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.DungeonDataSUM)
+            {//変更有
+                this.DungeonDataSUM = sum;
+                this.DungeonDataList.Invalidate();
+            }
+        }
+        void UpdateBattleSomeData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_battlesome_data_address()
+                , 0x100);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.BattleSomeDataSUM)
+            {//変更有
+                this.BattleSomeDataSUM = sum;
+                this.BattleSomeDataList.Invalidate();
+            }
+        }
+        
+        
         Size DrawPalette(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
             if (index < 0 || index >= lb.Items.Count)
@@ -2566,7 +2800,8 @@ namespace FEBuilderGBA
             for (uint i = 0; i < 16; i++)
             {
                 uint a = (uint)((i * 2) + (index * 16 * 2));
-                uint rgb = U.u16(this.PaletteCheckBuffer, a);
+                uint addr = Program.ROM.RomInfo.workmemory_palette_address() + a;
+                uint rgb = Program.RAM.u16(addr);
                 Color c = ImageUtil.GBARGBToColor(rgb);
                 Brush b = new SolidBrush(c);
                 Rectangle rc = new Rectangle(
@@ -2728,6 +2963,126 @@ namespace FEBuilderGBA
             bounds.Y += (int)lineHeight;
             return new Size(bounds.X, bounds.Y);
         }
+        Size DrawSupplyDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            if (index < 0 || index >= lb.Items.Count)
+            {
+                return new Size(listbounds.X, listbounds.Y);
+            }
+            Rectangle bounds = listbounds;
+            uint lineHeight = 16;
+
+            uint addr = this.SuppyRAMAddress + ((uint)index * 2);
+            U.DrawText(U.ToHexString8(addr), g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+            bounds.X += 60;
+
+            uint item = Program.RAM.u8(addr + 0x0);
+            Bitmap icon = ItemForm.DrawIcon(item);
+            U.MakeTransparent(icon);
+            Rectangle bb = bounds;
+            bb.Width = (int)lineHeight;
+            bb.Height = (int)lineHeight;
+            bounds.X += U.DrawPicture(icon, g, isWithDraw, bb);
+            bounds.X += 2;
+            icon.Dispose();
+
+            string text = U.ToHexString2(item) + " " + ItemForm.GetItemName(item);
+            U.DrawText(text, g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+            bounds.X += 90;
+
+            uint count = Program.RAM.u8(addr + 0x1);
+            U.DrawText(count.ToString() , g, lb.Font, this.ListBoxForeDecBrush, isWithDraw, bounds);
+            bounds.X += 20;
+
+            bounds.Y += (int)lineHeight;
+            return new Size(bounds.X, bounds.Y);
+        }
+
+        Size DrawChapterDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(ChapterDataStruct, Program.ROM.RomInfo.workmemory_chapterdata_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawBattleUnitBattleActorList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(BattleUnitStruct, Program.ROM.RomInfo.workmemory_battle_actor_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawBattleUnitBattleTargetList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(BattleUnitStruct, Program.ROM.RomInfo.workmemory_battle_target_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawWorldmapList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(WorldmapStruct, Program.ROM.RomInfo.workmemory_worldmap_data_address(), lb, index, g, listbounds, isWithDraw , 5);
+        }
+        Size DrawArenaDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(ArenaDataStruct, Program.ROM.RomInfo.workmemory_arena_data_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawAIDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(AIDataStruct, Program.ROM.RomInfo.workmemory_ai_data_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawActionDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(ActionDataStruct, Program.ROM.RomInfo.workmemory_action_data_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawDungeonDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(DungeonDataStruct, Program.ROM.RomInfo.workmemory_dungeon_data_address(), lb, index, g, listbounds, isWithDraw);
+        }
+        Size DrawBattleSomeDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(BattleSomeDataStruct, Program.ROM.RomInfo.workmemory_battlesome_data_address(), lb, index, g, listbounds, isWithDraw , 20);
+        }
+       
+
+        Size DrawAddressList(List<EmulatorMemoryUtil.AddressList> list, uint baseaddr, ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw, int shiftDrawX = 0)
+        {
+            if (index < 0 || index >= lb.Items.Count || index >= list.Count)
+            {
+                return new Size(listbounds.X, listbounds.Y);
+            }
+            Rectangle bounds = listbounds;
+            uint lineHeight = 12;
+
+            EmulatorMemoryUtil.AddressList a = list[index];
+
+            uint addr = baseaddr + a.Plus;
+
+            if (a.Size == 0)
+            {//Label
+                U.DrawText(U.ToHexString8(addr), g, lb.Font, this.ListBoxForeKeywordBrush, isWithDraw, bounds);
+                bounds.X += 60;
+                U.DrawText(a.Name, g, lb.Font, this.ListBoxForeKeywordBrush, isWithDraw, bounds);
+                bounds.X += 40;
+                bounds.X += 120 + shiftDrawX;
+            }
+            else
+            {//Value
+                U.DrawText(U.ToHexString8(addr), g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+                bounds.X += 60;
+
+                U.DrawText("(+" + U.ToHexString2(a.Plus) + ")", g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+                bounds.X += 40;
+
+                U.DrawText(a.Name, g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+                bounds.X += 120 + shiftDrawX;
+            }
+
+
+            string r = EmulatorMemoryUtil.GetAddressList(a, addr);
+            if (a.Type == "DEC")
+            {
+                U.DrawText(r, g, lb.Font, this.ListBoxForeDecBrush, isWithDraw, bounds);
+            }
+            else
+            {
+                U.DrawText(r, g, lb.Font, this.ListBoxForeBrush, isWithDraw, bounds);
+            }
+
+            bounds.Y += (int)lineHeight;
+            return new Size(bounds.X, bounds.Y);
+        }
 
         Size DrawClearTurnList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
@@ -2797,12 +3152,23 @@ namespace FEBuilderGBA
         uint Edition;
         uint Diffeclty;
         uint WorldmapNode;
-        byte[] PaletteCheckBuffer;
+        uint PaletteCheckSUM;
         uint[] SongIDBuffer;
         uint[] SongWorkingRAMs;
+        uint UnitCheckSUM;
         uint TrapCheckSUM;
         uint BWLCheckSUM;
         uint ClearTurnSUM;
+        uint ChapterDataCheckSUM;
+        uint BattleActorSUM;
+        uint BattleTargetSUM;
+        uint WorldmapSUM;
+        uint ArenaDataSUM;
+        uint AIDataSUM;
+        uint SupplyDataSUM;
+        uint ActionDataSUM;
+        uint DungeonDataSUM;
+        uint BattleSomeDataSUM;
 
         private void PaletteSearchButton_Click(object sender, EventArgs e)
         {
@@ -2822,9 +3188,15 @@ namespace FEBuilderGBA
             for (uint i = 0; i < 16; i++)
             {
                 uint a = (uint)((i * 2) + (index * 16 * 2));
-                sb.Append(U.ToHexString(U.u8(this.PaletteCheckBuffer, a)));
+                uint addr_ = Program.ROM.RomInfo.workmemory_palette_address() + a;
+                uint rgb = Program.RAM.u8(addr_);
+
+                sb.Append(U.ToHexString(rgb));
                 sb.Append(' ');
-                sb.Append(U.ToHexString(U.u8(this.PaletteCheckBuffer, a + 1)));
+
+                addr_ = Program.ROM.RomInfo.workmemory_palette_address() + a + 1;
+                rgb = Program.RAM.u8(addr_);
+                sb.Append(U.ToHexString(rgb));
                 sb.Append(' ');
             }
             SelectPalette.Text = sb.ToString();
@@ -2881,19 +3253,26 @@ namespace FEBuilderGBA
                 f.JumpToMAPIDAndID( mapid, ext1);
             }
         }
-        private void ClearTurnList_MouseDoubleClick(object sender, MouseEventArgs e)
+        private void ClearTurnList_SelectedIndexChanged(object sender, EventArgs e)
         {
-            int index = TrapList.SelectedIndex;
-            if (index < 0 || index >= TrapList.Items.Count)
+            int index = ClearTurnList.SelectedIndex;
+            if (index < 0 || index >= ClearTurnList.Items.Count)
             {
                 return;
             }
-            uint addr = Program.ROM.RomInfo.workmemory_trap_address() + ((uint)index * 0x8);
-
-            PointerToolCopyToForm f = (PointerToolCopyToForm)InputFormRef.JumpFormLow<PointerToolCopyToForm>();
-            f.Init(addr);
-            f.ShowDialog();
+            uint addr;
+            if (PatchUtil.SearchCache_ClearTurn2x() == PatchUtil.ClearTurn2x_extends._2x)
+            {
+                addr = Program.ROM.RomInfo.workmemory_clear_turn_address() + ((uint)index * 0x2);
+            }
+            else
+            {
+                addr = Program.ROM.RomInfo.workmemory_clear_turn_address() + ((uint)index * 0x4);
+            }
+            ClearTurnAddress.Text = U.ToHexString(addr);
         }
+
+
 
         private void PARTY_ROMUNITPOINTER_MouseDoubleClick(object sender, MouseEventArgs e)
         {
@@ -3005,7 +3384,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            uint stageStructAddr = Program.ROM.RomInfo.workmemory_mapid_address() - 0xE;
+            uint stageStructAddr = Program.ROM.RomInfo.workmemory_chapterdata_address();
             uint writeRAMPointer = stageStructAddr + 0x10;
             Program.RAM.write_u8(writeRAMPointer, (uint)CHEAT_TURN_VALUE.Value);
 
@@ -3026,16 +3405,152 @@ namespace FEBuilderGBA
 
         private void BWLList_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            int index = BWLList.SelectedIndex;
-            if (index < 0 || index >= BWLList.Items.Count)
+            BWLList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(ClearTurnAddress);
+        }
+
+        static private void AddressList_SelectedIndexChanged(List<EmulatorMemoryUtil.AddressList> list,uint baseaddress, ListBox listbox,TextBox textbox)
+        {
+            int index = listbox.SelectedIndex;
+            if (index < 0 || index >= listbox.Items.Count || index >= list.Count)
             {
+                textbox.Text = "";
                 return;
             }
-            uint addr = Program.ROM.RomInfo.workmemory_bwl_address() + 16 + ((uint)index * 16);
+            EmulatorMemoryUtil.AddressList a = list[index];
+            uint addr = baseaddress + a.Plus;
+            textbox.Text = U.ToHexString(addr);
+        }
 
-            PointerToolCopyToForm f = (PointerToolCopyToForm)InputFormRef.JumpFormLow<PointerToolCopyToForm>();
-            f.Init(addr);
-            f.ShowDialog();
+
+        List<EmulatorMemoryUtil.AddressList> ChapterDataStruct = EmulatorMemoryUtil.GetChapterDataStruct();
+        private void ChapterDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(ChapterDataStruct, Program.ROM.RomInfo.workmemory_chapterdata_address(), ChapterDataList, ChapterDataAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> BattleUnitStruct = EmulatorMemoryUtil.GetBattleUnitStruct();
+
+        private void BattleActorList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(BattleUnitStruct, Program.ROM.RomInfo.workmemory_battle_actor_address(), BattleActorList, BattleActorAddress);
+        }
+
+        private void BattleTargetList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(BattleUnitStruct, Program.ROM.RomInfo.workmemory_battle_target_address(), BattleTargetList, BattleTargetAddress);
+        }
+        List<EmulatorMemoryUtil.AddressList> WorldmapStruct = EmulatorMemoryUtil.GetWorldmapStruct();
+        private void WorldmapList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(WorldmapStruct, Program.ROM.RomInfo.workmemory_worldmap_data_address(), WorldmapList, WorldmapAddress);
+        }
+
+        private void ClearTurnList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ClearTurnList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(ClearTurnAddress);
+        }
+        private void ChapterDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ChapterDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(ChapterDataAddress);
+        }
+
+        private void BattleActorList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            BattleActorList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(BattleActorAddress);
+        }
+
+        private void BattleTargetList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            BattleTargetList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(BattleTargetAddress);
+        }
+
+        private void WorldmapList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            WorldmapList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(WorldmapAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> ArenaDataStruct = EmulatorMemoryUtil.GetArenaDataStruct();
+        private void ArenaDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(ArenaDataStruct, Program.ROM.RomInfo.workmemory_arena_data_address(), ArenaDataList, ArenaDataAddress);
+        }
+
+        private void ArenaDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ArenaDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(ArenaDataAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> AIDataStruct = EmulatorMemoryUtil.GetAIDataStruct();
+        private void AIDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(AIDataStruct, Program.ROM.RomInfo.workmemory_ai_data_address(), AIDataList, AIDataAddress);
+        }
+
+        private void AIDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            AIDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(AIDataAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> ActionDataStruct = EmulatorMemoryUtil.GetActionDataStruct();
+        private void ActionDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(ActionDataStruct, Program.ROM.RomInfo.workmemory_action_data_address(), ActionDataList, ActionDataAddress);
+        }
+
+        private void ActionDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ActionDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(ActionDataAddress);
+        }
+
+        private void SupplyDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int index = SupplyDataList.SelectedIndex;
+            if (index < 0 || index >= SupplyDataList.Items.Count)
+            {
+                BWLAddress.Text = "";
+                return;
+            }
+            uint addr = this.SuppyRAMAddress + ((uint)index * 2);
+            SupplyDataAddress.Text = U.ToHexString(addr);
+        }
+
+        private void SupplyDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            SupplyDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(SupplyDataAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> DungeonDataStruct = EmulatorMemoryUtil.GetDungeonDataStruct();
+        private void DungeonDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(DungeonDataStruct, Program.ROM.RomInfo.workmemory_dungeon_data_address(), DungeonDataList, DungeonDataAddress);
+        }
+
+        private void DungeonDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            DungeonDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(DungeonDataAddress);
+        }
+
+        List<EmulatorMemoryUtil.AddressList> BattleSomeDataStruct = EmulatorMemoryUtil.GetBattleSomeDataStruct();
+        private void BattleSomeList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(BattleSomeDataStruct, Program.ROM.RomInfo.workmemory_battlesome_data_address(), BattleSomeDataList, BattleSomeDataAddress);
+        }
+
+        private void BattleSomeList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            BattleSomeList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(BattleSomeDataAddress);
         }
     }
 }

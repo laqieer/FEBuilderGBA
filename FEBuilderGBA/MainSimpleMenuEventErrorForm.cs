@@ -90,7 +90,14 @@ namespace FEBuilderGBA
         {
             this.ShowAllError.Checked = showAllError;
             this.MapID = mapid;
-            this.EventCond_Label.Text = R._("エラー:") + MapSettingForm.GetMapName(this.MapID);
+            if (mapid == FELint.SYSTEM_MAP_ID)
+            {
+                this.EventCond_Label.Text = R._("システムエラー:");
+            }
+            else
+            {
+                this.EventCond_Label.Text = R._("エラー:") + " MapID:" + U.To0xHexString(mapid) + " " + MapSettingForm.GetMapName(this.MapID);
+            }
             Scan();
         }
         void Scan()
@@ -1004,14 +1011,14 @@ namespace FEBuilderGBA
                     PatchUtil.skill_system_enum skill = PatchUtil.SearchSkillSystem();
                     if (skill == PatchUtil.skill_system_enum.SkillSystem)
                     {
-                        InputFormRef.JumpForm<SkillConfigSkillSystemForm>();
+                        InputFormRef.JumpForm<SkillConfigSkillSystemForm>(tag);
                     }
                     else if (skill == PatchUtil.skill_system_enum.FE8N
                         || skill == PatchUtil.skill_system_enum.yugudora
                         || skill == PatchUtil.skill_system_enum.FE8N_ver2
                         )
                     {
-                        InputFormRef.JumpForm<SkillConfigFE8NSkillForm>();
+                        InputFormRef.JumpForm<SkillConfigFE8NSkillForm>(tag);
                     }
                 }
                 return;
@@ -1200,7 +1207,5 @@ namespace FEBuilderGBA
                 U.SelectedIndexSafety(EventList , index);
             }
         }
-
-
     }
 }

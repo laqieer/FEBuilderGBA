@@ -453,6 +453,7 @@ namespace FEBuilderGBA
             return '"' + str + '"';
         }
 
+        [MethodImpl(256)]
         public static bool isPadding4(uint a)
         {
             return a % 4 == 0;
@@ -748,6 +749,14 @@ namespace FEBuilderGBA
         public static string ToHexString8(uint a)
         {
             return a.ToString("X08");
+        }
+        public static string ToHexString4(int a)
+        {
+            return a.ToString("X04");
+        }
+        public static string ToHexString4(uint a)
+        {
+            return a.ToString("X04");
         }
         public static string ToHexString2(int a)
         {
@@ -1796,12 +1805,12 @@ namespace FEBuilderGBA
                 return "";
             }
 
-            string ret = "";
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < list.Items.Count; i++)
             {
-                ret += list.Items[i].ToString() + "\r\n";
+                sb.AppendLine(list.Items[i].ToString());
             }
-            return ret;
+            return sb.ToString();
         }
 
         public static void SetClipboardText(string text)
@@ -2221,7 +2230,6 @@ namespace FEBuilderGBA
                 end = (uint)data.Length;
             }
 
-            Debug.Assert(need.Length > 0);
             if (need.Length <= 0)
             {
                 return U.NOT_FOUND;
@@ -2946,54 +2954,51 @@ namespace FEBuilderGBA
             }
             return -1;
         }
-        public static string ClipComment(string str,bool isWithoutSharpComment = false)
+        public static string ClipComment(string str)
         {
             int term = ClipCommentIndexOf(str,"{J}");
             if (term >= 0)
             {//言語指定を飛ばす
-                return str.Substring(0, term);
+                str = str.Substring(0, term);
             }
             term = ClipCommentIndexOf(str,"{U}");
             if (term >= 0)
             {//言語指定を飛ばす
-                return str.Substring(0, term);
+                str = str.Substring(0, term);
             }
             term = ClipCommentIndexOf(str,"//");
             if (term >= 0)
             {//コメント
-                return str.Substring(0, term + 1);
-            }
-            term = ClipCommentIndexOf(str,"--");
-            if (term >= 0)
-            {//コメント
-                return str.Substring(0, term + 1);
-            }
-            if (isWithoutSharpComment == false)
-            {
-                term = ClipCommentIndexOf(str, "#");
-                if (term >= 0)
-                {//コメント
-                    return str.Substring(0, term + 1);
-                }
-            }
-            term = ClipCommentIndexOf(str,";");
-            if (term >= 0)
-            {//コメント
-                return str.Substring(0, term + 1);
+                str = str.Substring(0, term);
             }
             return str;
         }
-        public static string ClipComment(string str, string comment_mark)
+        public static string ClipCommentWithCharpAndAtmark(string str)
         {
-            int term = str.IndexOf("\t{");
+            int term = ClipCommentIndexOf(str, "{J}");
             if (term >= 0)
             {//言語指定を飛ばす
-                return str.Substring(0, term);
+                str = str.Substring(0, term);
             }
-            term = str.IndexOf(comment_mark);
+            term = ClipCommentIndexOf(str, "{U}");
+            if (term >= 0)
+            {//言語指定を飛ばす
+                str = str.Substring(0, term);
+            }
+            term = ClipCommentIndexOf(str, "//");
             if (term >= 0)
             {//コメント
-                return str.Substring(0, term);
+                str = str.Substring(0, term);
+            }
+            term = ClipCommentIndexOf(str, "#");
+            if (term >= 0)
+            {//コメント
+                str = str.Substring(0, term);
+            }
+            term = ClipCommentIndexOf(str, "@");
+            if (term >= 0)
+            {//コメント
+                str = str.Substring(0, term);
             }
             return str;
         }
@@ -4777,6 +4782,12 @@ namespace FEBuilderGBA
 
         public static string table_replace(string target, string[] table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Length; i += 2)
             {
@@ -4786,6 +4797,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_rev(string target, string[] table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Length; i += 2)
             {
@@ -4795,6 +4812,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_regex(string target, string[] table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Length; i += 2)
             {
@@ -4804,6 +4827,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_regex_rev(string target, string[] table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Length; i += 2)
             {
@@ -4814,6 +4843,12 @@ namespace FEBuilderGBA
 
         public static string table_replace(string target, List<string> table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Count; i += 2)
             {
@@ -4823,6 +4858,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_rev(string target, List<string> table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Count; i += 2)
             {
@@ -4832,6 +4873,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_regex(string target, List<string> table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Count; i += 2)
             {
@@ -4841,6 +4888,12 @@ namespace FEBuilderGBA
         }
         public static string table_replace_regex_rev(string target, List<string> table)
         {
+            if (table == null)
+            {
+                Debug.Assert(false);
+                return target;
+            }
+
             string r = target;
             for (int i = 0; i < table.Count; i += 2)
             {
@@ -5120,10 +5173,17 @@ namespace FEBuilderGBA
                 throw new Exception(String.Format("The value is greater than Items.Count! value:({0}) ComboBox:({1}) current:{2} ParentForm:({3}) Count:{4}", value, obj.Name, obj.SelectedIndex, f == null ? "null" : f.Name ,obj.Items.Count));
 #else
                 Log.Error(String.Format("The value is greater than Items.Count! value:({0}) ComboBox:({1}) current:{2} ParentForm:({3}) Count:{4}", value, obj.Name, obj.SelectedIndex, f == null ? "null" : f.Name, obj.Items.Count));
-                value = obj.Items.Count - 1;
-                if (value < 0)
+                if (obj.Items.Count == 0)
                 {
-                    value = 0;
+                    value = -1;
+                }
+                else
+                {
+                    value = obj.Items.Count - 1;
+                    if (value < 0)
+                    {
+                        value = 0;
+                    }
                 }
 #endif
             }
@@ -5156,10 +5216,17 @@ namespace FEBuilderGBA
                 throw new Exception(String.Format("The value is greater than Items.Count! value:({0}) ComboBox:({1}) current:{2} ParentForm:({3}) Count:{4}", value, obj.Name, obj.SelectedIndex, f == null ? "null" : f.Name, obj.Items.Count));
 #else
                 Log.Error(String.Format("The value is greater than Items.Count! value:({0}) ComboBox:({1}) current:{2} ParentForm:({3}) Count:{4}", value, obj.Name, obj.SelectedIndex, f == null ? "null" : f.Name, obj.Items.Count));
-                value = obj.Items.Count - 1;
-                if (value < 0)
+                if (obj.Items.Count == 0)
                 {
-                    value = 0;
+                    value = -1;
+                }
+                else
+                {
+                    value = obj.Items.Count - 1;
+                    if (value < 0)
+                    {
+                        value = 0;
+                    }
                 }
 #endif
             }
@@ -5488,12 +5555,12 @@ namespace FEBuilderGBA
             {
                 return "";
             }
-            string ret = "";
+            StringBuilder sb = new StringBuilder();
             for (int i = 0; i < jisage; i++)
             {
-                ret += "    ";
+                sb.Append("    ");
             }
-            return ret;
+            return sb.ToString();
         }
 
         //奇数かどうか
@@ -5518,7 +5585,12 @@ namespace FEBuilderGBA
         {
             if (!File.Exists(filename))
             {
-                R.ShowStopError("必須となる設定ファイルを読みこめません。\r\n設定ファイルが壊れている可能性があります。\r\n再ダウンロードしなおしてください。\r\n{0}",filename.Replace("_ALL.txt","_*.txt"));
+                if (Program.ROM.RomInfo.version() == 0)
+                {//FEでないので読めなくてもいい
+                    return false;
+                }
+
+                R.ShowStopError("必須となる設定ファイルを読みこめません。\r\n設定ファイルが壊れている可能性があります。\r\n再ダウンロードしなおしてください。\r\n{0}", filename.Replace("_ALL.txt", "_*.txt"));
                 Debug.Assert(false);
                 return false;
             }
@@ -5966,6 +6038,11 @@ namespace FEBuilderGBA
             }
 
         }
+        public static void FireOnMouseDoubleClick(Object obj)
+        {
+            FireEvent(obj, "OnMouseDoubleClick", new MouseEventArgs(MouseButtons.Left,1,0,0,0));
+        }
+
 
         //60fpsをgif FPSに変換
         //GAME 1/60  sec
@@ -7227,6 +7304,23 @@ namespace FEBuilderGBA
         }
         [DllImport("user32.dll")]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        public static void SetFocusByProcess(Process p)
+        {
+            if (p == null)
+            {
+                return;
+            }
+            if (p.HasExited)
+            {
+                return;
+            }
+            if (p.MainWindowHandle == IntPtr.Zero)
+            {
+                return;
+            }
+            U.SetForegroundWindow(p.MainWindowHandle);
+        }
 
         public static uint CalcCheckSUM(byte[] data)
         {

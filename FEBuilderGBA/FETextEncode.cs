@@ -27,6 +27,13 @@ namespace FEBuilderGBA
         }
         public void RebuildHuffmanMap()
         {
+            if (Program.ROM.RomInfo.version() == 0)
+            {
+                huffman_map = new Dictionary<uint, huffman_value_st>();
+                huffman_map[0] = new huffman_value_st();
+                return;
+            }
+
             this.huffman_map = new Dictionary<uint, huffman_value_st>();
             uint tree_data_base = Program.ROM.p32p(Program.ROM.RomInfo.mask_point_base_pointer());
             this.tree_base = Program.ROM.p32(Program.ROM.RomInfo.mask_pointer());
@@ -546,7 +553,6 @@ namespace FEBuilderGBA
                     g_RepalceSPCode.Add("û"); g_RepalceSPCode.Add("@00FB");///No Translate
                     g_RepalceSPCode.Add("ü"); g_RepalceSPCode.Add("@00FC");///No Translate
                 }
-                    
             }
         }
 

@@ -47,6 +47,9 @@
             this.Address = new System.Windows.Forms.NumericUpDown();
             this.label23 = new System.Windows.Forms.Label();
             this.panel2 = new System.Windows.Forms.Panel();
+            this.Inst_ExportButton = new System.Windows.Forms.Button();
+            this.Inst_ImportButton = new System.Windows.Forms.Button();
+            this.label17 = new System.Windows.Forms.Label();
             this.L_0_COMBO = new System.Windows.Forms.ComboBox();
             this.panel3 = new System.Windows.Forms.Panel();
             this.UNIONTAB = new System.Windows.Forms.TabControl();
@@ -514,15 +517,15 @@
             this.panel9.Location = new System.Drawing.Point(6, 37);
             this.panel9.Margin = new System.Windows.Forms.Padding(2);
             this.panel9.Name = "panel9";
-            this.panel9.Size = new System.Drawing.Size(267, 590);
+            this.panel9.Size = new System.Drawing.Size(286, 669);
             this.panel9.TabIndex = 197;
             // 
             // AddressListExpandsButton_128
             // 
-            this.AddressListExpandsButton_128.Location = new System.Drawing.Point(2, 556);
+            this.AddressListExpandsButton_128.Location = new System.Drawing.Point(-1, 635);
             this.AddressListExpandsButton_128.Margin = new System.Windows.Forms.Padding(2);
             this.AddressListExpandsButton_128.Name = "AddressListExpandsButton_128";
-            this.AddressListExpandsButton_128.Size = new System.Drawing.Size(255, 30);
+            this.AddressListExpandsButton_128.Size = new System.Drawing.Size(274, 30);
             this.AddressListExpandsButton_128.TabIndex = 116;
             this.AddressListExpandsButton_128.Text = "リストの拡張";
             this.AddressListExpandsButton_128.UseVisualStyleBackColor = true;
@@ -533,7 +536,7 @@
             this.LabelFilter.Location = new System.Drawing.Point(-1, -1);
             this.LabelFilter.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.LabelFilter.Name = "LabelFilter";
-            this.LabelFilter.Size = new System.Drawing.Size(267, 26);
+            this.LabelFilter.Size = new System.Drawing.Size(286, 26);
             this.LabelFilter.TabIndex = 107;
             this.LabelFilter.Text = "名前";
             this.LabelFilter.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -546,7 +549,7 @@
             this.AddressList.Location = new System.Drawing.Point(-1, 24);
             this.AddressList.Margin = new System.Windows.Forms.Padding(4);
             this.AddressList.Name = "AddressList";
-            this.AddressList.Size = new System.Drawing.Size(267, 526);
+            this.AddressList.Size = new System.Drawing.Size(286, 605);
             this.AddressList.TabIndex = 108;
             this.AddressList.SelectedIndexChanged += new System.EventHandler(this.AddressList_SelectedIndexChanged);
             // 
@@ -561,12 +564,12 @@
             this.panel1.Location = new System.Drawing.Point(6, 8);
             this.panel1.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1111, 28);
+            this.panel1.Size = new System.Drawing.Size(1115, 28);
             this.panel1.TabIndex = 196;
             // 
             // ReloadListButton
             // 
-            this.ReloadListButton.Location = new System.Drawing.Point(470, -1);
+            this.ReloadListButton.Location = new System.Drawing.Point(474, -2);
             this.ReloadListButton.Margin = new System.Windows.Forms.Padding(2);
             this.ReloadListButton.Name = "ReloadListButton";
             this.ReloadListButton.Size = new System.Drawing.Size(112, 30);
@@ -577,7 +580,7 @@
             // label1
             // 
             this.label1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label1.Location = new System.Drawing.Point(-1, 0);
+            this.label1.Location = new System.Drawing.Point(-1, -1);
             this.label1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(115, 30);
@@ -588,7 +591,7 @@
             // label2
             // 
             this.label2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label2.Location = new System.Drawing.Point(269, 0);
+            this.label2.Location = new System.Drawing.Point(286, -1);
             this.label2.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(91, 30);
@@ -598,7 +601,7 @@
             // 
             // ReadCount
             // 
-            this.ReadCount.Location = new System.Drawing.Point(364, 0);
+            this.ReadCount.Location = new System.Drawing.Point(380, 0);
             this.ReadCount.Margin = new System.Windows.Forms.Padding(2);
             this.ReadCount.Name = "ReadCount";
             this.ReadCount.Size = new System.Drawing.Size(78, 25);
@@ -628,16 +631,16 @@
             this.AddressPanel.Controls.Add(this.WriteButton);
             this.AddressPanel.Controls.Add(this.Address);
             this.AddressPanel.Controls.Add(this.label23);
-            this.AddressPanel.Location = new System.Drawing.Point(275, 38);
+            this.AddressPanel.Location = new System.Drawing.Point(293, 38);
             this.AddressPanel.Margin = new System.Windows.Forms.Padding(2);
             this.AddressPanel.Name = "AddressPanel";
-            this.AddressPanel.Size = new System.Drawing.Size(842, 33);
+            this.AddressPanel.Size = new System.Drawing.Size(828, 33);
             this.AddressPanel.TabIndex = 195;
             // 
             // BlockSize
             // 
             this.BlockSize.ErrorMessage = "";
-            this.BlockSize.Location = new System.Drawing.Point(317, 2);
+            this.BlockSize.Location = new System.Drawing.Point(303, 2);
             this.BlockSize.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             this.BlockSize.Name = "BlockSize";
             this.BlockSize.Placeholder = "";
@@ -648,7 +651,7 @@
             // label3
             // 
             this.label3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label3.Location = new System.Drawing.Point(233, 1);
+            this.label3.Location = new System.Drawing.Point(219, 1);
             this.label3.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(80, 30);
@@ -659,7 +662,7 @@
             // SelectAddress
             // 
             this.SelectAddress.ErrorMessage = "";
-            this.SelectAddress.Location = new System.Drawing.Point(530, 1);
+            this.SelectAddress.Location = new System.Drawing.Point(512, 2);
             this.SelectAddress.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
             this.SelectAddress.Name = "SelectAddress";
             this.SelectAddress.Placeholder = "";
@@ -670,7 +673,7 @@
             // label22
             // 
             this.label22.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label22.Location = new System.Drawing.Point(407, 1);
+            this.label22.Location = new System.Drawing.Point(389, 1);
             this.label22.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(122, 30);
@@ -680,10 +683,10 @@
             // 
             // WriteButton
             // 
-            this.WriteButton.Location = new System.Drawing.Point(676, -1);
+            this.WriteButton.Location = new System.Drawing.Point(656, -1);
             this.WriteButton.Margin = new System.Windows.Forms.Padding(2);
             this.WriteButton.Name = "WriteButton";
-            this.WriteButton.Size = new System.Drawing.Size(167, 30);
+            this.WriteButton.Size = new System.Drawing.Size(171, 30);
             this.WriteButton.TabIndex = 9;
             this.WriteButton.Text = "書き込み";
             this.WriteButton.UseVisualStyleBackColor = true;
@@ -691,7 +694,7 @@
             // Address
             // 
             this.Address.Hexadecimal = true;
-            this.Address.Location = new System.Drawing.Point(94, 4);
+            this.Address.Location = new System.Drawing.Point(93, 4);
             this.Address.Margin = new System.Windows.Forms.Padding(2);
             this.Address.Maximum = new decimal(new int[] {
             -559939585,
@@ -699,7 +702,7 @@
             54,
             0});
             this.Address.Name = "Address";
-            this.Address.Size = new System.Drawing.Size(130, 25);
+            this.Address.Size = new System.Drawing.Size(122, 25);
             this.Address.TabIndex = 8;
             // 
             // label23
@@ -716,16 +719,51 @@
             // panel2
             // 
             this.panel2.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel2.Controls.Add(this.Inst_ExportButton);
+            this.panel2.Controls.Add(this.Inst_ImportButton);
+            this.panel2.Controls.Add(this.label17);
             this.panel2.Controls.Add(this.L_0_COMBO);
             this.panel2.Controls.Add(this.panel3);
             this.panel2.Controls.Add(this.panel4);
             this.panel2.Controls.Add(this.B0_UNIONKEY);
             this.panel2.Controls.Add(this.label4);
-            this.panel2.Location = new System.Drawing.Point(279, 72);
+            this.panel2.Location = new System.Drawing.Point(293, 72);
             this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(842, 555);
+            this.panel2.Size = new System.Drawing.Size(828, 634);
             this.panel2.TabIndex = 198;
+            // 
+            // Inst_ExportButton
+            // 
+            this.Inst_ExportButton.Location = new System.Drawing.Point(591, 554);
+            this.Inst_ExportButton.Margin = new System.Windows.Forms.Padding(2);
+            this.Inst_ExportButton.Name = "Inst_ExportButton";
+            this.Inst_ExportButton.Size = new System.Drawing.Size(230, 30);
+            this.Inst_ExportButton.TabIndex = 120;
+            this.Inst_ExportButton.Text = "楽器データ 書出";
+            this.Inst_ExportButton.UseVisualStyleBackColor = true;
+            this.Inst_ExportButton.Click += new System.EventHandler(this.Inst_ExportButton_Click);
+            // 
+            // Inst_ImportButton
+            // 
+            this.Inst_ImportButton.Location = new System.Drawing.Point(340, 554);
+            this.Inst_ImportButton.Margin = new System.Windows.Forms.Padding(2);
+            this.Inst_ImportButton.Name = "Inst_ImportButton";
+            this.Inst_ImportButton.Size = new System.Drawing.Size(230, 30);
+            this.Inst_ImportButton.TabIndex = 119;
+            this.Inst_ImportButton.Text = "楽器データ 読込";
+            this.Inst_ImportButton.UseVisualStyleBackColor = true;
+            this.Inst_ImportButton.Click += new System.EventHandler(this.Inst_ImportButton_Click);
+            // 
+            // label17
+            // 
+            this.label17.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.label17.Location = new System.Drawing.Point(-1, 545);
+            this.label17.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label17.Name = "label17";
+            this.label17.Size = new System.Drawing.Size(828, 46);
+            this.label17.TabIndex = 93;
+            this.label17.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // L_0_COMBO
             // 
@@ -822,7 +860,7 @@
             // 
             // N00_ExportButton
             // 
-            this.N00_ExportButton.Location = new System.Drawing.Point(630, 262);
+            this.N00_ExportButton.Location = new System.Drawing.Point(630, 222);
             this.N00_ExportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N00_ExportButton.Name = "N00_ExportButton";
             this.N00_ExportButton.Size = new System.Drawing.Size(186, 30);
@@ -833,7 +871,7 @@
             // 
             // N00_ImportButton
             // 
-            this.N00_ImportButton.Location = new System.Drawing.Point(439, 262);
+            this.N00_ImportButton.Location = new System.Drawing.Point(439, 222);
             this.N00_ImportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N00_ImportButton.Name = "N00_ImportButton";
             this.N00_ImportButton.Size = new System.Drawing.Size(186, 30);
@@ -2337,7 +2375,7 @@
             // 
             // N08_ExportButton
             // 
-            this.N08_ExportButton.Location = new System.Drawing.Point(629, 264);
+            this.N08_ExportButton.Location = new System.Drawing.Point(636, 222);
             this.N08_ExportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N08_ExportButton.Name = "N08_ExportButton";
             this.N08_ExportButton.Size = new System.Drawing.Size(186, 30);
@@ -2348,7 +2386,7 @@
             // 
             // N08_ImportButton
             // 
-            this.N08_ImportButton.Location = new System.Drawing.Point(438, 264);
+            this.N08_ImportButton.Location = new System.Drawing.Point(445, 222);
             this.N08_ImportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N08_ImportButton.Name = "N08_ImportButton";
             this.N08_ImportButton.Size = new System.Drawing.Size(186, 30);
@@ -3851,7 +3889,7 @@
             // 
             // N10_ExportButton
             // 
-            this.N10_ExportButton.Location = new System.Drawing.Point(631, 269);
+            this.N10_ExportButton.Location = new System.Drawing.Point(636, 227);
             this.N10_ExportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N10_ExportButton.Name = "N10_ExportButton";
             this.N10_ExportButton.Size = new System.Drawing.Size(186, 30);
@@ -3862,7 +3900,7 @@
             // 
             // N10_ImportButton
             // 
-            this.N10_ImportButton.Location = new System.Drawing.Point(440, 269);
+            this.N10_ImportButton.Location = new System.Drawing.Point(445, 227);
             this.N10_ImportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N10_ImportButton.Name = "N10_ImportButton";
             this.N10_ImportButton.Size = new System.Drawing.Size(186, 30);
@@ -4164,7 +4202,7 @@
             // 
             // N18_ExportButton
             // 
-            this.N18_ExportButton.Location = new System.Drawing.Point(630, 267);
+            this.N18_ExportButton.Location = new System.Drawing.Point(633, 224);
             this.N18_ExportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N18_ExportButton.Name = "N18_ExportButton";
             this.N18_ExportButton.Size = new System.Drawing.Size(186, 30);
@@ -4175,7 +4213,7 @@
             // 
             // N18_ImportButton
             // 
-            this.N18_ImportButton.Location = new System.Drawing.Point(439, 267);
+            this.N18_ImportButton.Location = new System.Drawing.Point(442, 224);
             this.N18_ImportButton.Margin = new System.Windows.Forms.Padding(2);
             this.N18_ImportButton.Name = "N18_ImportButton";
             this.N18_ImportButton.Size = new System.Drawing.Size(186, 30);
@@ -4817,10 +4855,10 @@
             this.panel4.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panel4.Controls.Add(this.FINGERPRINT);
             this.panel4.Controls.Add(this.label122);
-            this.panel4.Location = new System.Drawing.Point(4, 511);
+            this.panel4.Location = new System.Drawing.Point(-1, 590);
             this.panel4.Margin = new System.Windows.Forms.Padding(4);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(820, 43);
+            this.panel4.Size = new System.Drawing.Size(828, 43);
             this.panel4.TabIndex = 92;
             // 
             // FINGERPRINT
@@ -4836,6 +4874,7 @@
             // 
             // label122
             // 
+            this.label122.AccessibleDescription = "@SONGDATAFINGERPRINT";
             this.label122.AutoSize = true;
             this.label122.Location = new System.Drawing.Point(4, 12);
             this.label122.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
@@ -4874,7 +4913,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(144F, 144F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.AutoSize = true;
-            this.ClientSize = new System.Drawing.Size(1126, 638);
+            this.ClientSize = new System.Drawing.Size(1135, 719);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel9);
             this.Controls.Add(this.panel1);
@@ -5372,5 +5411,8 @@
         private System.Windows.Forms.Button N18_ExportButton;
         private System.Windows.Forms.Button N18_ImportButton;
         private System.Windows.Forms.Button AddressListExpandsButton_128;
+        private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Button Inst_ExportButton;
+        private System.Windows.Forms.Button Inst_ImportButton;
     }
 }

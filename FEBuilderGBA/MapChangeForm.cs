@@ -91,18 +91,23 @@ namespace FEBuilderGBA
             this.N_InputFormRef.ReInit(change_addr);
         }
 
-        void SelectMapID(uint mapid)
+        bool SelectMapID(uint mapid)
         {
             MapSettingForm.PLists plist = MapSettingForm.GetMapPListsWhereMapID((uint)mapid);
+            if (plist.mapchange_plist == 0)
+            {//タイルチェンジが設定されていない
+                return false;
+            }
             uint change_plist_addr = MapPointerForm.PlistToOffsetAddr(MapPointerForm.PLIST_TYPE.CHANGE , plist.mapchange_plist);
 
             uint selected = InputFormRef.AddrToSelect(this.AddressList, change_plist_addr);
             if (selected == U.NOT_FOUND)
             {
-                return;
+                return false;
             }
 
             U.SelectedIndexSafety(this.AddressList, selected);
+            return true;
         }
 
         public void JumpToMAPID(uint mapid)
@@ -111,7 +116,12 @@ namespace FEBuilderGBA
         }
         public void JumpToMAPIDAndAddr(uint mapid,uint addr)
         {
-            SelectMapID(mapid);
+            bool r = SelectMapID(mapid);
+            if (!r)
+            {//とりあえず最初のマップを選択しておく.
+                U.SelectedIndexSafety(this.AddressList, 0);
+                return;
+            }
 
             uint id = this.N_InputFormRef.AddrToID(addr);
             if (id == U.NOT_FOUND)
@@ -141,6 +151,21 @@ namespace FEBuilderGBA
             MapPictureBox.SetDefualtIcon(
                 MapSettingForm.DrawMapChange(mapid, width, height, change_address)
             );
+            if (!U.isSafetyPointer(change_address))
+            {
+                if (change_address == 0)
+                {
+                    N_J_8.ErrorMessage = R._("データが設定されていません。マップエディタから、データを作成してください。");
+                }
+                else
+                {
+                    N_J_8.ErrorMessage = R._("ポインタが正しくありません");
+                }
+            }
+            else
+            {
+                N_J_8.ErrorMessage = "";
+            }
         }
 
         public class ChangeSt
@@ -409,10 +434,9 @@ namespace FEBuilderGBA
                 string name = "MapChange map:" + U.To0xHexString(mapid) ;
                 FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, name, new uint[] { 8 });
 
-                List<U.AddrResult> arlist = N_InputFormRef.MakeList();
-                for (int n = 0; n < arlist.Count; n++)
+                uint addr = N_InputFormRef.BaseAddress;
+                for (int i = 0; i < N_InputFormRef.DataCount; i++, addr += N_InputFormRef.BlockSize)
                 {
-                    uint addr = arlist[n].addr;
                     uint w = Program.ROM.u8((uint)addr + 3); //サイズw
                     uint h = Program.ROM.u8((uint)addr + 4); //サイズh
                     uint change_mar = Program.ROM.p32((uint)addr + 8); //変化ポインタ
@@ -420,7 +444,7 @@ namespace FEBuilderGBA
                     {
                         continue;
                     }
-                    name = "MapChange map:" + U.To0xHexString(mapid) + " n:" + U.To0xHexString(n);
+                    name = "MapChange map:" + U.To0xHexString(mapid) + " n:" + U.To0xHexString(i);
                     FEBuilderGBA.Address.AddAddress(list,change_mar
                         , w * h * 2
                         , addr + 8
@@ -483,23 +507,6 @@ namespace FEBuilderGBA
                 uint width = Program.ROM.u8(3 + addr);
                 uint height = Program.ROM.u8(4 + addr);
                 uint pointer = Program.ROM.u32(8 + addr);
-
-//マップ変化を使いまわしているところが軒並みエラーになるのでやめておこう...
-//                if (x + width > mapwidth)
-//                {
-//                    errors.Add(new FELint.ErrorSt(FELint.Type.MAPCHANGE, addr
-//                        , R._("マップ変化({0})の幅(X:{1} Width:{2})は、マップの幅({3})より大きいです", number, x , width, mapwidth)));
-//                }
-//                if (y + height > mapheight)
-//                {
-//                    if (isFE6 && mapid == 0x28 && addr == 0x687A94)
-//                    {
-//                        //FE6にはマップ変化リストを間違えて指定している場所があるので無視する.
-//                        continue;
-//                    }
-//                    errors.Add(new FELint.ErrorSt(FELint.Type.MAPCHANGE, addr
-                //                        , R._("マップ変化({0})の高さ(Y:{1} Height:{2})は、マップの高さ({3})より大きいです", U.To0xHexString(number), y, height, mapheight)));
-//                }
 
                 if (pointer == 0)
                 {//マップ変化ポインタ 0 を容認する.
