@@ -1399,8 +1399,10 @@
 
 08063014	战斗动画脚本C26(投掷盾牌)/ C27(投掷剑)指挥判断	{J}
 0806CC94	战斗动画脚本C26(投掷盾牌)/ C27(投掷剑)指挥判断	{U}
-08050bf8	瓷砖的特殊运动？从C26 / C27调用	r0=不明	r1=指针数组1	r2=指针数组1	r3=??	{J}
-0805041C	瓷砖的特殊运动？从C26 / C27调用	r0=不明	r1=指针数组1	r2=指针数组1	r3=??	{U}
+
+08050bf8	PrepAIS	瓷砖的特殊运动 从C26 / C27调用	r0=ParentProcs	r1=FrameDataMeleeLeft	r2=FrameDataMeleeRight	r3=FrameDataRangedLeft	[sp+0]=FrameDataRangedRight	{J}
+0805041C	PrepAIS	瓷砖的特殊运动 从C26 / C27调用	r0=ParentProcs	r1=FrameDataMeleeLeft	r2=FrameDataMeleeRight	r3=FrameDataRangedLeft	[sp+0]=FrameDataRangedRight	{U}
+
 083bdff4	:083be18c	日本的地形符号	{J}
 083be18c	:083bee00	地形和字符的名字是用ASCII码输入的	{J}
 083bee00	:083bf508	员工角色以ASCII输入未使用	{J}
@@ -2426,9 +2428,9 @@
 08050008	ClearBG1Setup	{U}
 08050018	ClearBG1	{U}
 08050140	ThisMakesTheHPInSpellAnimGoAway	{U}
-080505C8	SomeImageStoringRoutine_SpellAnim	{U}
-080505F0	SomePaletteStoringRoutine_SpellAnim	{U}
-0805060C	SomeImageStoringRoutine_SpellAnim2	{U}
+080505C8	StoreSpellAnimTilesOBJ	{U}
+080505F0	StoreSpellAnimPaletteOBJ	{U}
+0805060C	StoreSpellAnimTilesBG	{U}
 080509A4	BeginAnimsOnBattleAnimations	{U}
 08050A38	MainUpdate_8055C68	{U}
 08050CDC	ekrBattleStarting_8055F00	{U}
@@ -3223,9 +3225,9 @@
 080507E4	ClearBG1Setup	{J}
 080507F4	ClearBG1	{J}
 0805091C	ThisMakesTheHPInSpellAnimGoAway	{J}
-08050DA4	SomeImageStoringRoutine_SpellAnim	{J}
-08050DCC	SomePaletteStoringRoutine_SpellAnim	{J}
-08050DE8	SomeImageStoringRoutine_SpellAnim2	{J}
+08050DA4	StoreSpellAnimTilesOBJ	{J}
+08050DCC	StoreSpellAnimPaletteOBJ	{J}
+08050DE8	StoreSpellAnimTilesBG	{J}
 08051180	BeginAnimsOnBattleAnimations	{J}
 08051214	MainUpdate_8055C68	{J}
 080514B8	ekrBattleStarting_8055F00	{J}
@@ -3240,7 +3242,6 @@
 08052278	NewEkrWindowAppear	{J}
 0805235C	NewEkrNamewinAppear	{J}
 080532F0	GetSpellAnimId	{J}
-08053042	GetBattleAnimationId	{J}
 08053A7E	GetAllegienceId	{J}
 08053AD2	GetSomeAISRelatedIndexMaybeByID	{J}
 08053B5C	IsItemDisplayedInBattle	{J}
@@ -5118,3 +5119,38 @@
 @AiData@99	byte	yOther
 @AiData@9A	byte	decisionTaken
 @AiData@9B	byte	decisionType
+
+//https://discord.com/channels/144670830150811649/725478895226191892/850481060751999016
+08013508	GetValueFromEasingFunction	r0=rate function	r1=start x	r2=end x	r3=current t	sp0=end t	{J}
+08012FE8	GetValueFromEasingFunction	r0=rate function	r1=start x	r2=end x	r3=current t	sp0=end t	{U}
+
+08085478	Drawing of terrain avoidance rate, etc	{U}
+080c57bc	TileMap_FillRect	{U}
+080056a8	GetStringTextCenteredPos	{U}
+080054e0	TextVRAMClearer This function gets a space in VRAM and prepares it for the new text		{U}
+08005588	Text_SetParameters r0=Text Struct r1=cursor r2=color id	{U}
+08005590	Text_Draw	{U}
+08005044	NumBufferWriter StoreNumberStringToSmallBuffer	{U}
+
+08085E6C	Drawing of terrain avoidance rate, etc	{J}
+080c0c30	TileMap_FillRect	{J}
+08005458	Text_SetParameters r0=Text Struct r1=cursor r2=color id	{J}
+08005460	Text_Draw	{J}
+08013870	GetTerrainTypeID	{J}
+
+08005580	Text_SetColorId	{U}
+08005570	Text_GetXCursor	{U}
+080171e4	GetItemSomeString	{U}
+
+08005450	Text_SetColorId	{J}
+08005440	Text_GetXCursor	{J}
+0203A508	@BattleRound@[7]	gRoundArray	{J}
+0203A50C	@BattleRound@[7]	gRoundArray	{U}
+0808F3D0	马修讲话为 ch8 推进做准备。	{U}
+0808FD10	马修讲话为 ch8 推进做准备。	{J}
+0808F43C	玛丽娜斯会谈为前进做准备。	{U}
+0808FD7C	玛丽娜斯会谈为前进做准备。	{J}
+0808F4A8	算命先生谈话为ch14的推进做准备。	{U}
+0808FDE8	算命先生谈话为ch14的推进做准备。	{J}
+0808F52C	当玛丽娜斯得到马车时，她说话以准备前进。	{U}
+0808FE6C	当玛丽娜斯得到马车时，她说话以准备前进。	{J}

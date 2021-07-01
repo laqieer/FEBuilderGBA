@@ -102,10 +102,11 @@ namespace FEBuilderGBA
             TRAP_L_0_COMBO.OwnerDraw(ComboBoxEx.DrawIconAndText, DrawMode.OwnerDrawFixed);
             TRAP_L_0_COMBO.AddIcon(0x1, ImageSystemIconForm.BaristaIcon()); //01=アーチ配置
             TRAP_L_0_COMBO.AddIcon(0x4, ImageSystemIconForm.Cursol()); //04=ダメージ床
+            TRAP_L_0_COMBO.AddIcon(0x5, ImageSystemIconForm.Cursol()); //05=毒ガス
             TRAP_L_0_COMBO.AddIcon(0x7, ImageSystemIconForm.Cursol()); //07=神の矢
             TRAP_L_0_COMBO.AddIcon(0x8, ImageSystemIconForm.Cursol()); //08=炎
-            TRAP_L_0_COMBO.AddIcon(0x8, ImageItemIconForm.DrawIconWhereID(Program.ROM.RomInfo.itemicon_mine_id())); //0B=地雷
-            TRAP_L_0_COMBO.AddIcon(0x8, ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(0x53, 2, true)); //0C=ゴーゴンの卵
+            TRAP_L_0_COMBO.AddIcon(0xB, ImageItemIconForm.DrawIconWhereID(Program.ROM.RomInfo.itemicon_mine_id())); //0B=地雷
+            TRAP_L_0_COMBO.AddIcon(0xC, ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(0x53, 2, true)); //0C=ゴーゴンの卵
 
             OBJECT_N05_L_10_COMBO.OwnerDraw(ComboBoxEx.DrawIconAndText, DrawMode.OwnerDrawFixed);
             OBJECT_N06_L_10_COMBO.OwnerDraw(ComboBoxEx.DrawIconAndText, DrawMode.OwnerDrawFixed);
@@ -243,6 +244,17 @@ namespace FEBuilderGBA
             TRAP_L_0_COMBO.BeginUpdate();
             TRAP_L_0_COMBO.Items.RemoveAt(TRAP_L_0_COMBO.Items.Count - 1); //0xCゴーゴンの卵を消す
             TRAP_L_0_COMBO.EndUpdate();
+            if (Program.ROM.RomInfo.version() == 7)
+            {//バリスタの並び順が異なるので作り直す
+                TRAP_N01_L_3_COMBO.BeginUpdate();
+                TRAP_N01_L_3_COMBO.Items.Clear();
+                TRAP_N01_L_3_COMBO.Items.Add(R._("34=ロングアーチ"));
+                TRAP_N01_L_3_COMBO.Items.Add(R._("35=アイアンアーチ"));
+                TRAP_N01_L_3_COMBO.Items.Add(R._("36=キラーアーチ"));
+                TRAP_N01_L_3_COMBO.Items.Add(R._("0=--"));
+                TRAP_N01_L_3_COMBO.EndUpdate();
+            }
+
 
             if (Program.ROM.RomInfo.version() == 6)
             {//FE6の常時条件のasm条件の発生条件は、 0Eではなくて0D
@@ -4136,25 +4148,51 @@ namespace FEBuilderGBA
             {//バリスタ
                 bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(0, 1, true);
                 uint archtype = Program.ROM.u8(ar.addr + 3);
-                if (archtype == 0x35)
+                if (Program.ROM.RomInfo.version() == 8)
                 {
-                    text = U.ToHexString(type) + ":" + R._("35=ロングアーチ");
-                    bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
-                }
-                else if (archtype == 0x36)
-                {
-                    text = U.ToHexString(type) + ":" + R._("36=アイアンアーチ");
-                    bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 1, 0, true);
-                }
-                else if (archtype == 0x37)
-                {
-                    text = U.ToHexString(type) + ":" + R._("37=キラーアーチ");
-                    bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 2, 0, true);
+                    if (archtype == 0x35)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("35=ロングアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
+                    }
+                    else if (archtype == 0x36)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("36=アイアンアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 1, 0, true);
+                    }
+                    else if (archtype == 0x37)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("37=キラーアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 2, 0, true);
+                    }
+                    else
+                    {
+                        text = U.ToHexString(type) + ":" + U.ToHexString(archtype) + "=" + "???";
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
+                    }
                 }
                 else
                 {
-                    text = U.ToHexString(type) + ":" + U.ToHexString(archtype) + "=" + "???";
-                    bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
+                    if (archtype == 0x34)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("34=ロングアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
+                    }
+                    else if (archtype == 0x35)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("35=アイアンアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 1, 0, true);
+                    }
+                    else if (archtype == 0x36)
+                    {
+                        text = U.ToHexString(type) + ":" + R._("36=キラーアーチ");
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id() + 2, 0, true);
+                    }
+                    else
+                    {
+                        text = U.ToHexString(type) + ":" + U.ToHexString(archtype) + "=" + "???";
+                        bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(Program.ROM.RomInfo.unit_wait_barista_id(), 0, true);
+                    }
                 }
                 U.MakeTransparent(bitmap);
             }
@@ -4162,11 +4200,11 @@ namespace FEBuilderGBA
             {//ダメージ床 or 炎
                 if (type == 0x04)
                 {
-                    text = U.ToHexString(type) + ":" + R._("04=ダメージ床");
+                    text = R._("04=ダメージ床");
                 }
                 else
                 {
-                    text = U.ToHexString(type) + ":" + R._("08=炎");
+                    text = R._("08=炎");
                 }
                 int x = (int)Program.ROM.u8(ar.addr + 1);
                 int y = (int)Program.ROM.u8(ar.addr + 2);
@@ -4174,25 +4212,25 @@ namespace FEBuilderGBA
             }
             else if (type == 0x0B)
             {//地雷
-                text = U.ToHexString(type) + ":" + R._("0B=地雷");
+                text = R._("0B=地雷");
                 bitmap = ImageItemIconForm.DrawIconWhereID(Program.ROM.RomInfo.itemicon_mine_id());
                 U.MakeTransparent(bitmap);
             }
             else if (type == 0x0C && Program.ROM.RomInfo.version() == 8)
             {//ゴーゴンの卵
-                text = U.ToHexString(type) + ":" + R._("0C=ゴーゴンの卵");
+                text = R._("0C=ゴーゴンの卵");
                 bitmap = ImageUnitWaitIconFrom.DrawWaitUnitIconBitmap(0x53, 2, true);
                 U.MakeTransparent(bitmap);
             }
             else if (type == 0x05)
             {
-                text = U.ToHexString(type) + ":" + R._("05=毒ガス");
+                text = R._("05=毒ガス");
                 bitmap = ImageSystemIconForm.Cursol();
                 U.MakeTransparent(bitmap);
             }
             else if (type == 0x07)
             {
-                text = U.ToHexString(type) + ":" + R._("07=神の矢");
+                text = R._("07=神の矢");
                 bitmap = ImageSystemIconForm.Cursol();
                 U.MakeTransparent(bitmap);
             }

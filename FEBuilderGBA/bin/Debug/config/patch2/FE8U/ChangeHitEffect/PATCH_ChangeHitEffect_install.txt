@@ -1,0 +1,16 @@
+NAME=物理攻撃がヒットした時に、魔法モーションをロードする(Installer)
+NAME.en=Use magic motion when physical attack hits.(Installer)
+NAME.zh=Use magic motion when physical attack hits.(Installer)
+INFO=物理モーションは利用できないので、EffecID:0x11以降から指定できます。\r\n\r\n使用する武器や、使用者によって、通常の攻撃が命中した時の命中モーションを魔法モーションに変更します。
+INFO.en=Physical motion is not available and can be specified from EffecID:0x11 onwards.\r\n\r\nChanges the hit motion to a magic motion when a normal attack hits, depending on the weapon used and the user.
+INFO.zh=Physical motion is not available and can be specified from EffecID:0x11 onwards.\r\n\r\nChanges the hit motion to a magic motion when a normal attack hits, depending on the weapon used and the user.
+
+TYPE=EA
+TAG=#ENGINE
+
+//既に適応されたかどうか
+PATCHED_IF:0x6C720=0x00 0x4B
+EDIT_PATCH:1=PATCH_ChangeHitEffect.txt
+EA=ChangeHitEffect_installer.event
+
+AUTHOR=7743

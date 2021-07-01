@@ -101,12 +101,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="SelectAllocAreaForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="SelectAllocAreaForm.Designer.cs">
-      <DependentUpon>SelectAllocAreaForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="SongInstrumentDirectSoundForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -266,6 +260,18 @@
     </Compile>
     <Compile Include="EtcCache.cs" />
     <Compile Include="EtcCacheFLag.cs" />
+    <Compile Include="ToolDisasmSourceCode.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ToolDisasmSourceCode.Designer.cs">
+      <DependentUpon>ToolDisasmSourceCode.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MapStyleEditorFormWarningVanillaTileOverraideForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MapStyleEditorFormWarningVanillaTileOverraideForm.Designer.cs">
+      <DependentUpon>MapStyleEditorFormWarningVanillaTileOverraideForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="UwordBitFlagForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -2077,6 +2083,12 @@
     <Compile Include="MainFE0Form.Designer.cs">
       <DependentUpon>MainFE0Form.cs</DependentUpon>
     </Compile>
+    <Compile Include="SkillConfigFE8NVer3SkillForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SkillConfigFE8NVer3SkillForm.Designer.cs">
+      <DependentUpon>SkillConfigFE8NVer3SkillForm.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FEBuilderGBA_logo1.png" />
@@ -2122,9 +2134,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="MapStyleEditorImportImageOptionForm.resx">
       <DependentUpon>MapStyleEditorImportImageOptionForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="SelectAllocAreaForm.resx">
-      <DependentUpon>SelectAllocAreaForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SongInstrumentDirectSoundForm.resx">
       <DependentUpon>SongInstrumentDirectSoundForm.cs</DependentUpon>
@@ -2204,6 +2213,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ProcsScriptInnerControl.resx">
       <DependentUpon>ProcsScriptInnerControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ToolDisasmSourceCode.resx">
+      <DependentUpon>ToolDisasmSourceCode.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MapStyleEditorFormWarningVanillaTileOverraideForm.resx">
+      <DependentUpon>MapStyleEditorFormWarningVanillaTileOverraideForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UwordBitFlagForm.resx">
       <DependentUpon>UwordBitFlagForm.cs</DependentUpon>
@@ -3073,6 +3088,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="MainFE0Form.resx">
       <DependentUpon>MainFE0Form.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SkillConfigFE8NVer3SkillForm.resx">
+      <DependentUpon>SkillConfigFE8NVer3SkillForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

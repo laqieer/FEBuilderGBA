@@ -69,6 +69,7 @@ namespace FEBuilderGBA
         uint support_attribute_pointer();  //支援効果の開始位置
         uint terrain_recovery_pointer(); //地形回復 全クラス共通
         uint terrain_bad_status_recovery_pointer(); //地形回復 全クラス共通
+        uint terrain_show_infomation_pointer(); //地形ウィンドウに情報表示 全クラス共通
         uint ccbranch_pointer(); // CC分岐の開始位置
         uint ccbranch2_pointer(); // CC分岐の開始位置2 見習いのCCにのみ利用 CC分岐の開始位置+1の場所を指す
         uint class_alphaname_pointer(); // クラスのアルファベット表記の開始位置
@@ -267,6 +268,7 @@ namespace FEBuilderGBA
         uint workmemory_action_data_address(); //ワークメモリ ActionData
         uint workmemory_dungeon_data_address(); //ワークメモリ ダンジョン FE8のみ
         uint workmemory_battlesome_data_address(); //ワークメモリ バルトに関係する諸データ
+        uint workmemory_battleround_data_address(); //ワークメモリ　戦闘のラウンドデータ
         uint workmemory_mapid_address();    //ワークメモリ マップID
         uint workmemory_last_string_address();  //ワークメモリ 最後に表示した文字列
         uint workmemory_text_buffer_address();  //ワークメモリ デコードされたテキスト
@@ -427,6 +429,17 @@ namespace FEBuilderGBA
         uint wait_menu_command_id(); //WaitメニューのID
         uint font_default_begin(); //フォント開始
         uint font_default_end();   //フォント終了
+        uint item_name_article_pointer(); // a|an|the を切り替えるテーブル 英語版のみ
+        uint item_name_article_switch2_address();
+        uint vanilla_field_config_address();    //バニラのタイルセット よく使われもの
+        uint vanilla_field_image_address();
+        uint vanilla_village_config_address();
+        uint vanilla_village_image_address();
+        uint vanilla_casle_config_address();
+        uint vanilla_casle_image_address();
+        uint vanilla_plain_config_address();
+        uint vanilla_plain_image_address();
+
         uint extends_address(); //拡張領域
         uint orignal_crc32(); //無改造ROMのCRC32
         bool is_multibyte();    // マルチバイトを利用するか？

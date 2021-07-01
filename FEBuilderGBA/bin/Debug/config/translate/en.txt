@@ -913,6 +913,9 @@ Reference
 :逆アセンブラ
 Disassembler
 
+:ソースコードを更新する場合は、このファイル消すか、0バイトの空ファイルにしてください。
+When updating the source code, delete this file or make it a 0-byte empty file.
+
 :このゲームのプログラムデータをすべてファイルに出力します。\r\n処理には時間がかかるものがあります。
 All programming data of the game will be exported to a file.\r\nProcessing may take some time.
 
@@ -963,6 +966,9 @@ Click the link or J to go to the function.
 
 :クリックボードへ(Ctrl+C)
 Copy to Clipboard (Ctrl+C)
+
+:バニラのソースコードを確認
+Check vanilla Source code
 
 :TSV形式|*.tsv|CSV形式|*.csv|All files|*
 TSV Format|*.tsv|CSV Format|*.csv|All files|*
@@ -1246,6 +1252,9 @@ Battle data gBattleActor.
 :戦闘データ gBattleTarget
 Battle data gBattleTarget.
 
+:戦闘に関係する諸データ
+Various data related to battle.
+
 :塔と遺跡のデータ
 Data on towers and ruins.
 
@@ -1476,9 +1485,6 @@ Max out all of this unit's stats
 
 :現在の章をクリアします。(Hotkey: Ctrl + U)
 Clear and End the Current Chapter (Hotkey: Ctrl + U)
-
-:戦闘に関係する諸データ
-Various data related to battle.
 
 :エミュレータへ接続
 Emulator Debugger - 
@@ -1818,6 +1824,15 @@ C0=Run on 4th Army Phase
 
 :15=秘密の店
 15=Secret Shop
+
+:34=ロングアーチ
+34=Ballista
+
+:35=アイアンアーチ
+35=Iron Ballista
+
+:36=キラーアーチ
+36=Killer Ballista
 
 :0D=ASM条件
 0D=ASM Condition
@@ -3277,6 +3292,9 @@ If you want to use the world map skirmishes, select MNC2Fix.\r\n
 :{0}パッチを有効にする
 Enable {0}
 
+:このパッチを推奨しない
+Do not recommend this patch
+
 :無視して続行する
 Ignore and continue
 
@@ -3361,8 +3379,8 @@ An unsupported extension ({0}) was specified.
 :アニメーションエディタを表示するために、アニメーションをエクスポートしようとしましたが、アニメをファイルにエクスポートできませんでした。\r\n\r\nファイル:{0}
 It tried exporting animation to display animation editor, but could not export animation to file.\r\n\r\nFile: {0}
 
-:クラス({0})は、斧を利用できますが、手斧({1})の設定がありません。\r\nGBAFEでは、手斧系の武器は、アイテムごとに投げるモーションを設定する必要があります。
-The class ({0}) can use the ax, but there is no setting for the ax ax ({1}).\r\nIn GBAFE, you need to set motion that throws for each item for hand-held weapons.
+:クラス({0})は、斧を利用できますが、手斧({1})の設定がありません。\r\nGBAFEでは、手斧系の武器は、アイテムごとに投げるモーションを設定する必要があります。\r\n個別に設定するのが面倒な場合は、「手斧モーションを投げ斧の汎用モーションとして利用する」パッチを有効にしてください。
+The class ({0}) can use the ax, but there is no setting for the ax ax ({1}).\r\nIn GBAFE, you need to set motion that throws for each item for hand-held weapons.\r\nIf you don't want to bother with individual settings, Use "Use HandAxs motion as generic motion for throwing axes" patch.
 
 :クラス({0})の{1}のポインタ({2})が危険です。
 Pointer ({2}) of class ({0}) 's {1} is dangerous.
@@ -5299,6 +5317,9 @@ Specify the recovery bonus for each terrain.\r\nIt is used for setting to recove
 :地形ごとの毒や睡眠などのバットステータスを自動回復するボーナスを指定します。\r\n城門にいると回復するという設定に利用されます。\r\nこの設定はすべてのクラスで共通しています。\r\n個別に指定することはできません。\r\n1を設定すると有効になります。\r\nその地形にいるユニットのバッドステータスが自動的に回復します。\r\n
 Specify bonuses to automatically recover bat status such as poison and sleep for each terrain.\r\nIt is used for setting to recover when you are at the gate.\r\nThis setting is common to all classes.\r\nIt cannot be specified individually.\r\nSet to 1 to enable.\r\nThe bad status of units on that terrain is automatically restored.\r\n
 
+:地形の回避率と防御ボーナスを表示するタイルを決定するテーブルです。\r\n255は、「--」を表示するタイルです。\r\nそれ以外は、タイルの回避率と防御値の情報を表示します。\r\n\r\nバニラでは、なぜかバーサーカーの移動コストのテーブルと同じアドレスが指定されています。\r\nよって、このデータはバーサーカーの移動コストにも使われるので、変な値は設定しないでください。\r\n
+A table that determines the tiles that display terrain evasion rates and defense bonuses.\r\n255 is a tile that displays "-".\r\nOther than that, it displays tile evasion rate and defense value information.\r\n\r\nIn vanilla, for some reason, the same address as the Berserker travel cost table is specified.\r\nTherefore, this data is also used for the Berserker's travel cost, so please do not set strange values.\r\n
+
 :このデータに対するハードコーディングがあります。\r\n詳しくは、ラベルをクリックして、関連するパッチを見てください。\r\n
 There is hard coding for this data.\r\nClick the label to see the associated patch for more information.\r\n
 
@@ -5319,6 +5340,9 @@ The ID of the tile change.\r\nIt is recommended to assign the same ID as the lis
 
 :楽器データを識別するための値です。\r\nもし、まだ名前が設定されていない楽器の名前を知っている場合は、\r\nこのテキストの内容と、楽器名をコミニティに報告してください。\r\n
 A value for identifying instrument data.\r\nIf you know the name of an instrument that has not yet been named,\r\nplease report the content of this text and the instrument name to the community.\r\n
+
+:これにチェックして、パッチのインストールをキャンセルした場合は、\r\n次回起動時までこのパッチを推奨しなくします。\r\n
+If you check this and cancel the installation of the patch, \r\nthis patch will not be recommended until the next startup.\r\n
 
 :元に戻す(&Z)
 Undo(&Z)
@@ -5590,11 +5614,11 @@ ASM pointer
 :2=CCアイテムを使った場合の処理を定義する
 2=Define processing when Promotion Items are used
 
-:3=CCアイテムかどうかを定義する
-3=Define whether it is a Promotion Items
+:3=CCアイテムかどうかを定義する(FE7のみ)
+3=Define whether it is a Promotion Items(FE7 Only)
 
-:4=アイテムのターゲット選択の方法を定義する(多分)
-4=Define method of target selection of item (maybe)
+:4=アイテムのターゲット選択の方法を定義する
+4=Define method of target selection of item
 
 :5=杖の種類を定義する
 5=Define the type of Staff
@@ -5606,7 +5630,10 @@ ASM pointer
 7=Define whether it is Stat Booster and Promotion Items
 
 :8=利用時のエラーメッセージを定義する
-8=Define error message when using.
+8=Define error message when using
+
+:9=アイテムの前置詞 A|An|The(FE8Uのみ)
+9=Define item name article A|An|The(FE8U Only)
 
 :アイテム利用効果
 Item "Use" Effect
@@ -5776,6 +5803,24 @@ Run in Program 3
 :任意のプログラムで開く
 Run in External Program
 
+:ツール
+Tools
+
+:別ROMから曲のインポート
+Import Song From Another ROM
+
+:ログ
+Log
+
+:LZ77ツール
+LZ77 Tool
+
+:Diffツール
+Diff Tool
+
+:ポインタ計算ツール
+Pointer Calculator
+
 :設定
 Settings
 
@@ -5797,29 +5842,8 @@ Discord Community URL
 :バージョン
 Version
 
-:ポインタ計算ツール
-Pointer Calculator
-
 :EAで追加
 Insert EA
-
-:別ROMから曲のインポート
-Import Song From Another ROM
-
-:比較デバッグツール
-Difference Debug Tool
-
-:ログ
-Log
-
-:LZ77ツール
-LZ77 Tool
-
-:Diffツール
-Diff Tool
-
-:ツール
-Tools
 
 :詳細メニュー
 Advanced Editors
@@ -5877,6 +5901,9 @@ Revision History
 
 :パッチ
 Patches
+
+:比較デバッグツール
+Difference Debug Tool
 
 :動作中のエミュレータへ接続
 Emulator Debug Tool
@@ -6580,6 +6607,9 @@ File not found
 :指定されたROMは無改造ROMではありません。\r\nCRC32が一致しません。\r\n正規品の無改造ROMを指定してください。\r\n正規品のROMからupsを作らないと誰もそれを開けません。\r\n\r\n指定されたROMのCRC32:\r\n{0}\r\n正規品のCRC32:\r\n{1}
 The specified ROM is not an unmodified ROM.\r\nCRC32 does not match.\r\nPlease specify a genuine ROM without modification.\r\nNo one can open it without making an ups from a genuine ROM.\r\n\r\nYour ROM CRC32:\r\n{0}\r\nGenuine ROM CRC32:\r\n{1}
 
+:ソースコードを保存するディレクトリが設定されていません。\r\n設定のパス2の「ソースコードの保存場所」を設定してください。
+The directory to save the source code is not set.\r\nSet the "Source code storage location" in path 2 of the settings.
+
 :エラーに移動する
 Go to error
 
@@ -6684,6 +6714,9 @@ Branch extension.
 
 :ユニットのセリフ
 Unit dialogue.
+
+:楽器
+Instrument
 
 :計測中...
 Measuring.
@@ -6820,8 +6853,8 @@ Tile Change ID:
 :マップが読み込めません。エラーマップを表示します。
 Unable to load the map. Display map error.
 
-:幅と高さのどちらかがゼロのマップなので、開くことができません。
-Map cannot be opened as it has 0 width/height.
+:幅と高さのどちらかがゼロのマップなので、開くことができません。\r\n利用する場合は、「サイズ変更」ボタンを押して適切なサイズに設定してください。
+Map cannot be opened as it has 0 width/height.\r\nIf you want to use it, click the "Resize" button and set it to an appropriate size.
 
 :地形回復
 Terrain Healing
@@ -7732,6 +7765,9 @@ Map is damaged. {0}
 :マップが狭すぎます。現在のサイズ:({0},{1}) 利用できる最少サイズ:({2},{3})
 Map is too narrow.Current size: ({0}, {1}) Minimum available size: ({2}, {3}).
 
+:HPBarを表示するパッチをインストールしている時には、表示が乱れるので天気を曇りには設定しないでください。
+When installing a patch that displays the HP Bar, do not set the weather to cloudy as the display will be distorted.
+
 :指南へJump
 Jump to the Shinan
 
@@ -7957,8 +7993,23 @@ Export Tile Config
 :マップスタイルエディタ
 Tileset Palette
 
+:バニラのタイルセットを上書きしようとしています。
+You are trying to overwrite the vanilla tileset.
+
+:このタイルセットを上書きすると、このタイルセットを利用しているすべてのマップに影響を与えます。\r\n本当に上書きをしてもよろしいですか？\r\n\r\nバニラのタイルセットを上書きせずに、新しいタイルセットを追加する場合は、こちらのヘルプをご覧ください。
+If you overwrite this tileset, it will affect all maps that use this tileset.\r\nAre you sure you want to overwrite it?\r\n\r\nIf you want to add a new tileset without overwriting the vanilla tileset, please see this help section.
+
+:上書きする
+Overwrite
+
+:次回起動時までこの警告を出さない
+Do not issue this warning until next startup.
+
+:警告
+Warning
+
 :画像と同時にパレットもインポートする(推奨)
-Import the palette at the same time as the image (recommended).
+Import the palette at same time as image(recommended)
 
 :画像だけをインポートする。(パレットはインポートしない)
 Import images only.(Do not import palettes).
@@ -7973,7 +8024,7 @@ Map tip import.
 Import a single picture.
 
 :インポートオプション
-Import options.
+Import options
 
 :値
 value
@@ -8347,6 +8398,9 @@ Movement Cost: Clear sky
 :地形ステータス異常回復
 Terrain Recovery Bad Status
 
+:地形ウィンドに情報表示
+Terrain Information Display in Window
+
 :使用中のクラス
 Class in use
 
@@ -8719,6 +8773,15 @@ Set music conversion tools.\r\ngba_mus_riper is used to export MIDI and soundfon
 :Midiをインポートする時に、mid2agbを利用するならば設定してください。\r\nたいていの場合、mid2agbを利用して変換した方がよりよい結果を得ることができます。
 Please set the path to mid2agb.\r\nIt is highly recommended for importing music, and should be chosen.
 
+:バニラのソースコードを簡単に確認するために利用する項目です。\r\nディフォルトではF10キーを押すとバニラのコードにアクセスできます。\r\nバニラのソースコードは数十万行になるので、テキストエディターには、大きなファイルを表示できるテキストエディタを指定してください。
+This item is used to easily check the vanilla source code.\r\nBy default, you can access the vanilla code by pressing the F10 key.\r\nVanilla source code can be hundreds of thousands of lines long, so make sure you specify a text editor that can display large files.
+
+:スキル拡張パッチをインストールする領域を予約し保護するかどうかを設定します。\r\n「常に」(ディフォルト)は、その領域には一切干渉しないようにして保護します。\r\n「インストールされていれば保護」は、スキル拡張がインストールされていれば保護します。後からスキル拡張がインストールされる可能性もあるので推奨はしません。\r\n「保護しない」は、一切保護しません。
+Set whether to reserve and protect the area where the skill extension patch is installed.\r\n"Always" (default) protects the area from interference at all.\r\n"Protect if installed" protects if the skill extension is installed.We do not recommend it as skill extensions may be installed later.\r\n"Not protect" does not protect at all.
+
+:ソースコードを保存するディレクトリを指定してください。
+Specify the directory where you want to save the source code.
+
 :パス
 Path
 
@@ -8766,6 +8829,15 @@ Emulator
 
 :パス2
 Path 2
+
+:ソースコードの保存場所
+Source code Directory
+
+:利用するテキストエディタ
+Text editor to use
+
+:逆アセンブラしたソースコードを閲覧する設定です
+Setting to browse the disassembled source code.
 
 :コンパイラを利用してC言語を利用する場合は設定してください。
 C Lang Compiler
@@ -8956,6 +9028,9 @@ Shortcut Key 2
 :22=アイテム画面を開く
 22=Open Item Editor
 
+:23=逆アセンブルソースコードの表示
+23=Display By Disassemble source code
+
 :ショートカットキー1
 Shortcut Key 1
 
@@ -9036,9 +9111,6 @@ Set Lint Text Detection (3 Lines of Text = Bug)
 
 :1=ROMサイズを32MBまで拡張を認める
 1=Enable ROM Expansion up to 32MB
-
-:2=拡張を認めるが、アドレスは手動管理
-2=Allow expansion, but manage addresses manually
 
 :0=変換しない
 0=No Conversion
@@ -9240,6 +9312,18 @@ When exporting a file...
 
 :保存
 Save
+
+:スキル拡張の聖域
+Sanctuary of skill expansion
+
+:0=常に保護する
+0=Always protect
+
+:1=インストールされていれば保護
+1=Protect if installed
+
+:9=保護しない
+9=Do not protect
 
 :その他ROM直値テキスト
 Other ROM Direct Text
@@ -9781,9 +9865,6 @@ A System.OutOfMemoryException error has occurred.\r\nIf this reoccurs, please se
 :例外が発生しました。\r\n何度も再発する場合は、report7zを送ってください。\r\nMessage:\r\n{0}\r\n{1}
 Exception occured.\r\nIf this reoccurs, please send a report7z.\r\nMessage:\r\n{0}\r\n{1}
 
-:警告
-Warning
-
 :警告:データが途中で終わってしまいました。 addr:{0} data.Length:{1} countI:{2}
 Warning: The data has unexpectedly ended. addr: {0} data.Length: {1} countI: {2}
 
@@ -9864,15 +9945,6 @@ ROM has been changed.
 
 :次を検索
 Search Next
-
-:「データ({0}) 元の長さ({1} {2})」は、長さ({3} {4})のデータとなり、既存のスペースに入りきりません。\r\nこのデータを割り当てる領域を指定してください。\r\n\r\n指定しない場合は、\r\nディフォルトで割り当てられる({5})から変更せずに、割り当てボタンを押してください。
-"Data ({0}), Original length ({1} {2})" becomes the length of ({3} {4}), which cannot fit into the existing space.\r\nSpecify the area to reallocate this data.\r\n\r\nIf not specified, press the Assign button\r\nwithout changing the default assignment ({5}).
-
-:新しい領域
-New Area
-
-:再割り当てアドレスの指定
-Specify New Address
 
 :スキル拡張 SkillSystem の、アイコンを取得できません。
 Skill Extensions cannot get SkillSystem's Icons.
@@ -10159,6 +10231,27 @@ Owned Item Skills
 : スキル割り当て
 Skill Assignment
 
+:COMBAT_ARTへ移動
+Jump to COMBAT_ART
+
+:ユニットクラス
+Unit class.
+
+:ユニットスキル
+Unit skill.
+
+:複合スキル
+ComplexSkill
+
+:このアイテムを武器として装備しているときに、このスキルを有効にします。
+Activate this skill when equipping this item as a weapon.
+
+:このアイテムを所持しているときに、このスキルを有効にします。
+Activate this skill when you have this item.
+
+:現在のスキルに、指定した他のスキルの効果を追加します。
+Adds the effects of other specified skills to the current skill.
+
 :スキル拡張 SkillSystem の、アニメを取得できません。
 SkillSystem's animation can't be acquired.
 
@@ -10251,6 +10344,30 @@ The area has not been reserved.
 
 :これより下のアドレスには、waveデータが、LengthByteだけ格納されています。
 Wave data is stored as LengthByte below this address.
+
+:楽器({0})のアドレス({1})は、ROMの範囲外です
+The address ({1}) of the instrument ({0}) is outside the ROM range.
+
+:楽器({0})のDIRECTSOUNDのwaveデータ({1})は、ROMの範囲外です
+The DIRECTSOUND wave data ({1}) of the instrument ({0}) is out of ROM range.
+
+:楽器({0})のDIRECTSOUNDのwaveデータ({1})の長さ({2})は、ROMの範囲外です
+The length ({2}) of the wave data ({1}) of the DIRECTSOUND of the instrument ({0}) is out of the ROM range.
+
+:楽器({0})のDIRECTSOUNDのwaveデータ({1})は、破損していいます
+The wave data ({1}) of the DIRECTSOUND of the instrument ({0}) is said to be corrupted.
+
+:楽器({0})のWAVE楽器のデータ({1})は、破損していいます
+The WAVE instrument data ({1}) of the instrument ({0}) is said to be corrupted.
+
+:楽器({0})のドラムのデータ({1})は、破損していいます
+The drum data ({1}) of the instrument ({0}) is said to be corrupted.
+
+:楽器({0})のマルチサンプルの楽器割り当てデータ({1})は、破損していいます
+The multi-sampled instrument assignment data ({1}) of the instrument ({0}) is said to be corrupted.
+
+:楽器({0})のマルチサンプルのキー割り当てデータ({1})は、破損していいます
+The multi-sample key assignment data ({1}) of the instrument ({0}) is said to be corrupted.
 
 :SquareWave(消音プチノイズ)
 Square Wave (Silent, Small)
@@ -10591,9 +10708,6 @@ Ignore MOD and MODT Instructions
 :音が「みょーん」となる場合は、有効にしてみてください。
 For if the sound is strange (wonky, "mi~yoon").
 
-:楽器
-Instrument
-
 :曲を演奏するときに利用する楽器を選択してください。\r\nディフォルトは現在の曲の楽器アドレスになっています。\r\n\r\nmidi楽器とFEの楽器は、並び順が違うので、注意してください。\r\n自分で楽器の順番を調整するか、\r\nNIMAP(Native Instrument Map)パッチを利用してください。
 Please select the instrument to use when playing the song.\r\nDefaults to the current song's instruments (from vanilla FE if unmodified).\r\n\r\nPlease note that MIDI instruments and FE/GBA instruments are ordered differently.\r\nAdjust the order of the musical instruments yourself.\r\nPlease use the NIMAP2 (Native Instrument Map) patch for easier organizing.
 
@@ -10704,6 +10818,12 @@ This WAV file consumes a very large size of {0} bytes! Proceed with importing an
 
 :Waveファイルのインポートを取りやめました
 Canceled WAV importing.
+
+:SongID {0}のトラック「{1}」は、壊れた楽器「{2}」を再生するように命令されています。\r\nVOICE命令を確認してください。\r\n{3}
+Track "{1}" with SongID {0} is instructed to play the broken instrument "{2}".\r\nCheck the VOICE instruction.\r\n{3}
+
+:SongID {0}のトラック「{1}」は、TIEに対するEOTを忘れてGOTOでループしています。\r\nEOTを忘れてループすると、音が鳴りっぱなしになるます。楽譜のGOTOの前にEOTを追加してください。
+Track "{1}" with SongID {0} is looping in GOTO, forgetting the EOT for TIE.\r\nIf you forget the EOT and loop, the sound will continue to sound.Add EOT before GOTO in the score.
 
 :GBAMusRiperがエラーを返しました。\r\nFEBuilderGBA側で代用します。\r\n\r\nGBAMusRiperのエラーメッセージ\r\n{0}
 GBAMusRiper returned an error.\r\nFEBuilderGBA will substitute.\r\n\r\nGBAMusRiper error message:\r\n{0}.
@@ -11709,6 +11829,21 @@ File for Comparison
 
 :フリースペースはまとめる
 Collect free space.
+
+:ソースコードの生成するには数分かかります。
+It will take a few minutes to generate the source code.
+
+:ソースコードを生成するためのバニラROMを選択してください。\r\nもし、現在のROMの逆アセンブラを表示したい場合は、メニューのツール内にある逆アセンブル機能を利用してください。\r\nソースコードの生成には、数分かかります。
+Select a vanilla ROM to generate the source code.\r\nIf you want to display the disassembler of the current ROM, please use the disassemble function in the tool of the menu.\r\nIt will take a few minutes to generate the source code.
+
+:逆アセンブルソースコードの作成
+Disassembled source code creation.
+
+:保存先
+Destination.
+
+:ソースコードがないのでバニラROMから生成します
+Generate from vanilla ROM since there is no source code
 
 :エミュレータが設定されていません。\r\n動作テストに利用するエミュレータを設定してください。
 The emulator is not set.\r\nSet the emulator used for playtesting.
@@ -13045,3 +13180,5 @@ Map Skirmish Type
 :いつでも入れるかどうか
 Placement Flag
 
+:操作中のユニット
+Active Unit

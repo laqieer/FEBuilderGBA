@@ -233,6 +233,7 @@ namespace FEBuilderGBA
         byte[] convert_unHuffman_code_to_binary(byte[] sjisstr)
         {
             PatchUtil.PRIORITY_CODE priorityCode = PatchUtil.SearchPriorityCode();
+            PatchUtil.TextEngineRework_enum textEngineRework = PatchUtil.SearchTextEngineReworkPatch();
 
             List<byte> ret = new List<byte>();
             for (int i = 0; i < sjisstr.Length; )
@@ -263,6 +264,11 @@ namespace FEBuilderGBA
                         }
                         ret.Add((byte)(code1));     //@0080
                         ret.Add((byte)(code2));    //@0000
+
+                        if (textEngineRework == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+                        {
+                            i += TeqTextEngineRework(ret, code2, sjisstr, i);
+                        }
                     }
                     else if (code1 == 0x10)
                     {
@@ -272,14 +278,14 @@ namespace FEBuilderGBA
                             code2 = at_code_to_binary(sjisstr, i, out i);
                             if (code2 < 0x100)
                             {//@0010 の次のコードが 0x0003 みたいに 0x100以下
-                                R.Error("@0010の次のコードが 0x100以下です。危険なので、+0x100補正します。 code2:{0}", code2);
+                                R.Debug("@0010の次のコードが 0x100以下です。危険なので、+0x100補正します。 code2:{0}", code2);
                                 code2 += 0x100;
                             }
                         }
                         else
                         {
                             //一番 無害な 0x0101で補正.
-                            R.Error("@0010の後に、@命令が続いていません。@0010@0101@0001で補正します。");
+                            R.Debug("@0010の後に、@命令が続いていません。@0010@0101@0001で補正します。");
                         }
 
 
@@ -290,7 +296,7 @@ namespace FEBuilderGBA
                         }
                         else
                         {//@0010@0101???
-                            R.Error("@0010命令が途中で終わってしまいました。");
+                            R.Debug("@0010命令が途中で終わってしまいました。");
                         }
 
                         ret.Add((byte)(code1));     //@0010
@@ -343,6 +349,103 @@ namespace FEBuilderGBA
             return ret.ToArray();
         }
 
+        int TeqTextEngineRework(List<byte> ret,uint code2,byte[] sjisstr,int i)
+        {
+            if (i >= sjisstr.Length || sjisstr[i] != '@')
+            {
+                return 0;
+            }
+            int orignalI = i;
+            uint code3 = at_code_to_binary(sjisstr, i, out i);
+            if (code3 >= 0x20)
+            {
+                return 0;
+            }
+
+            if (code2 == 0x26 || (code2 >= 0x28 && code2 <= 0x2C) || (code2 >= 0x30 && code2 <= 0x38))
+            {
+                ret.Add((byte)(code3));
+                return i - orignalI;
+            }
+            else if (code2 == 0x27 || code2 == 0x2E)
+            {
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code4 = at_code_to_binary(sjisstr, i, out i);
+                ret.Add((byte)(code3));
+                ret.Add((byte)(code4));
+                return i - orignalI;
+            }
+            else if (code2 == 0x2D)
+            {
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code4 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code5 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code6 = at_code_to_binary(sjisstr, i, out i);
+
+                ret.Add((byte)(code3));
+                ret.Add((byte)(code4));
+                ret.Add((byte)(code5));
+                ret.Add((byte)(code6));
+                return i - orignalI;
+            }
+            else if (code2 == 0x2F)
+            {
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code4 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code5 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code6 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code7 = at_code_to_binary(sjisstr, i, out i);
+
+                if (i >= sjisstr.Length || sjisstr[i] != '@')
+                {
+                    return 0;
+                }
+                uint code8 = at_code_to_binary(sjisstr, i, out i);
+
+                ret.Add((byte)(code3));
+                ret.Add((byte)(code4));
+                ret.Add((byte)(code5));
+                ret.Add((byte)(code6));
+                ret.Add((byte)(code7));
+                ret.Add((byte)(code8));
+                return i - orignalI;
+            }
+            return 0;
+        }
 
 
 		void make_huffman_map(uint tree_data,uint bit_deps)

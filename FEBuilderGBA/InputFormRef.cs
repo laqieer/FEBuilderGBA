@@ -788,7 +788,7 @@ namespace FEBuilderGBA
                         link_object.Text = "";
                         return;
                     }
-                    link_object.Text = ItemWeaponEffectForm.GetName(id);
+                    link_object.Text = ItemWeaponEffectForm.GetEffectName(id);
                 };
 
                 return;
@@ -4053,7 +4053,11 @@ namespace FEBuilderGBA
                 if (Program.ROM.RomInfo.version() == 8 && Program.ROM.RomInfo.is_multibyte())
                 {
                     PatchUtil.skill_system_enum skill = PatchUtil.SearchSkillSystem();
-                    if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
+                    if (skill == PatchUtil.skill_system_enum.FE8N_ver3)
+                    {
+                        SkillConfigFE8NVer3SkillForm f = (SkillConfigFE8NVer3SkillForm)InputFormRef.JumpForm<SkillConfigFE8NVer3SkillForm>(value, "AddressList", src_object);
+                    }
+                    else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
                     {
                         SkillConfigFE8NVer2SkillForm f = (SkillConfigFE8NVer2SkillForm)InputFormRef.JumpForm<SkillConfigFE8NVer2SkillForm>(value, "AddressList", src_object);
                     }
@@ -5139,6 +5143,7 @@ namespace FEBuilderGBA
             MagicSplitUtil.ClearCache();
             SkillConfigFE8NSkillForm.ClearCache();
             SkillConfigFE8NVer2SkillForm.ClearCache();
+            SkillConfigFE8NVer3SkillForm.ClearCache();
             SkillConfigSkillSystemForm.ClearCache();
             FE8SpellMenuExtendsForm.ClearCache();
             MapChangeForm.ClearCache();
@@ -6295,6 +6300,21 @@ namespace FEBuilderGBA
             }
         }
 
+        public string GetNameFull(uint id)
+        {
+            if (id >= this.DataCount)
+            {
+                return "";
+            }
+            uint addr = this.BaseAddress + (id * this.BlockSize);
+            U.AddrResult ar = this.LoopCallback((int)id, addr);
+            if (ar.isNULL())
+            {
+                return "";
+            }
+            return ar.name;
+        }
+
         //再初期化 ポインタ更新版
         public void ReInitPointer(uint newPointer, uint newDataCount = U.NOT_FOUND, bool IsManualForcedChange = false)
         {
@@ -6920,7 +6940,8 @@ namespace FEBuilderGBA
             }
 
             PatchUtil.skill_system_enum skill = PatchUtil.SearchSkillSystem();
-            if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
+            if (skill == PatchUtil.skill_system_enum.FE8N_ver2
+                || skill == PatchUtil.skill_system_enum.FE8N_ver3)
             {//FE8J FE8NSkillは、0x3Aに追加スキルを記録してる
                 ramunit_param_dic[0x3A] = R._("追加スキル");
             }
@@ -6959,7 +6980,11 @@ namespace FEBuilderGBA
             else if (prevValue == 0x3A)
             {
                 PatchUtil.skill_system_enum skill = PatchUtil.SearchSkillSystem();
-                if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
+                if (skill == PatchUtil.skill_system_enum.FE8N_ver3)
+                {//FE8J FE8NSkillは、0x3Aに追加スキルを記録してる
+                    return SkillConfigFE8NVer3SkillForm.GetSkillText(num);
+                }
+                else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
                 {//FE8J FE8NSkillは、0x3Aに追加スキルを記録してる
                     return SkillConfigFE8NVer2SkillForm.GetSkillText(num);
                 }
@@ -7442,6 +7467,10 @@ namespace FEBuilderGBA
             {
                 return SkillConfigSkillSystemForm.GetSkillText(num);
             }
+            else if (skill == PatchUtil.skill_system_enum.FE8N_ver3)
+            {
+                return SkillConfigFE8NVer3SkillForm.GetSkillText(num);
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 return SkillConfigFE8NVer2SkillForm.GetSkillText(num);
@@ -7457,6 +7486,10 @@ namespace FEBuilderGBA
             if (skill == PatchUtil.skill_system_enum.SkillSystem)
             {
                 return SkillConfigSkillSystemForm.DrawSkillIcon(num);
+            }
+            else if (skill == PatchUtil.skill_system_enum.FE8N_ver3)
+            {
+                return SkillConfigFE8NVer3SkillForm.DrawSkillIcon(num);
             }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
@@ -8692,6 +8725,8 @@ namespace FEBuilderGBA
                     {
                         continue;
                     }
+                    e.Handled = true;
+
                     //ショートカットマッチ.
                     switch (U.atoi(Program.Config.at("ShortCutValue" + (i+1).ToString(),"255")))
                     {
@@ -8790,11 +8825,13 @@ namespace FEBuilderGBA
                                 InputFormRef.JumpForm<ItemForm>();
                             }
                             break;
+                        case 23: //23=逆アセンブルしたソースコードを開く
+                            MainFormUtil.OpenDisassembleSrcCode();
+                            break;
                         case 0xFF: //未定義
                             R.ShowStopError("ショートカットキーの設定がされていません。\r\nメニューの、設定→オプションから、ショートカットキーを定義してください。");
                             break;
                     }
-                    e.Handled = true;
                     return;
                 }
             };
@@ -11456,6 +11493,10 @@ namespace FEBuilderGBA
             {
                 str = R._("地形ごとの毒や睡眠などのバットステータスを自動回復するボーナスを指定します。\r\n城門にいると回復するという設定に利用されます。\r\nこの設定はすべてのクラスで共通しています。\r\n個別に指定することはできません。\r\n1を設定すると有効になります。\r\nその地形にいるユニットのバッドステータスが自動的に回復します。\r\n");
             }
+            else if (str == "@EXPLAIN_MOVEMENTCOST_SHOW_INFOMATION")
+            {
+                str = R._("地形の回避率と防御ボーナスを表示するタイルを決定するテーブルです。\r\n255は、「--」を表示するタイルです。\r\nそれ以外は、タイルの回避率と防御値の情報を表示します。\r\n\r\nバニラでは、なぜかバーサーカーの移動コストのテーブルと同じアドレスが指定されています。\r\nよって、このデータはバーサーカーの移動コストにも使われるので、変な値は設定しないでください。\r\n");
+            }
             else if (str == "@HARDCODING_WARNING")
             {
                 str = R._("このデータに対するハードコーディングがあります。\r\n詳しくは、ラベルをクリックして、関連するパッチを見てください。\r\n");
@@ -11483,6 +11524,10 @@ namespace FEBuilderGBA
             else if (str == "@SONGDATAFINGERPRINT")
             {
                 str = R._("楽器データを識別するための値です。\r\nもし、まだ名前が設定されていない楽器の名前を知っている場合は、\r\nこのテキストの内容と、楽器名をコミニティに報告してください。\r\n");
+            }
+            else if (str == "@NORECOMMEDPATCH")
+            {
+                str = R._("これにチェックして、パッチのインストールをキャンセルした場合は、\r\n次回起動時までこのパッチを推奨しなくします。\r\n");
             }
             else
             {

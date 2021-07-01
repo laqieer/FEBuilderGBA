@@ -75,6 +75,7 @@ namespace FEBuilderGBA
         public uint support_attribute_pointer() { return 0x22dbc; }  //支援効果の開始位置
         public uint terrain_recovery_pointer() { return 0x192d0; } //地形回復 全クラス共通
         public uint terrain_bad_status_recovery_pointer() { return 0x0192E0; } //地形回復 全クラス共通
+        public uint terrain_show_infomation_pointer() { return 0x72DC4; } //地形ウィンドウに情報表示 全クラス共通
         public uint ccbranch_pointer() { return 0x0; } // CC分岐の開始位置
         public uint ccbranch2_pointer() { return 0x0; } // CC分岐の開始位置2 見習いのCCにのみ利用 CC分岐の開始位置+1の場所を指す
         public uint class_alphaname_pointer() { return 0x95B48; } // クラスのアルファベット表記の開始位置
@@ -278,6 +279,7 @@ namespace FEBuilderGBA
         public uint workmemory_action_data_address() { return 0x0203956C; } //ワークメモリ ActionData
         public uint workmemory_dungeon_data_address() { return 0x0; } //ワークメモリ ダンジョン FE8のみ
         public uint workmemory_battlesome_data_address() { return 0x0; } //ワークメモリ バルトに関係する諸データ
+        public uint workmemory_battleround_data_address() { return 0x0; } //ワークメモリ　戦闘のラウンドデータ
         public uint workmemory_last_string_address() { return 0x0202A404; }  //ワークメモリ 最後に表示した文字列
         public uint workmemory_text_buffer_address() { return 0x02029404; }  //ワークメモリ デコードされたテキスト
         public uint workmemory_next_text_buffer_address() { return 0x03000038; }  //ワークメモリ 次に表示するTextBufferの位置を保持するポインタ
@@ -438,6 +440,16 @@ namespace FEBuilderGBA
         public uint wait_menu_command_id() { return 0x00; } //WaitメニューのID FE6にMenu IDはない
         public uint font_default_begin() { return 0x59060C; }
         public uint font_default_end() { return 0x5C39A0; }
+        public uint item_name_article_pointer() { return 0x0; } // a|an|the を切り替えるテーブル 英語版のみ
+        public uint item_name_article_switch2_address() { return 0x0; }
+        public uint vanilla_field_config_address() { return 0x23956C; }    //バニラのタイルセット よく使われもの
+        public uint vanilla_field_image_address() { return 0x2478F0; }
+        public uint vanilla_village_config_address() { return 0x2384F8; }
+        public uint vanilla_village_image_address() { return 0x222628; }
+        public uint vanilla_casle_config_address() { return 0x2365F4; }
+        public uint vanilla_casle_image_address() { return 0x219DEC; }
+        public uint vanilla_plain_config_address() { return 0x22A6A4; }
+        public uint vanilla_plain_image_address() { return 0x1E3F54; }
         public string get_shop_name(uint shop_object)//店の名前
         {
             if (shop_object == 0x13)

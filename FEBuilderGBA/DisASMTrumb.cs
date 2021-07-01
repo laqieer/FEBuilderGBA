@@ -960,7 +960,7 @@ namespace FEBuilderGBA
                     {
                         d = d + ",";
                     }
-                    return new Code("POP {" + d + "lr}", CodeType.POP, 0, 0, CommentFunction(pos));
+                    return new Code("POP {" + d + "pc}", CodeType.POP, 0, 0, CommentFunction(pos));
                 }
             }
         }
@@ -976,6 +976,17 @@ namespace FEBuilderGBA
             uint a = 0xb510;
             Code c = dis.Format14(d,pos,a,vm);
             Debug.Assert(c.ASM == "PUSH {r4,lr}");
+        }
+        public static void TEST_Format14_2()
+        {
+            uint pos = 0x0988d4;
+            byte[] d = new byte[] { 0x70, 0xBD };
+
+            DisassemblerTrumb dis = new DisassemblerTrumb();
+            DisassemblerTrumb.VM vm = new VM();
+            uint a = 0xBD70;
+            Code c = dis.Format14(d, pos, a, vm);
+            Debug.Assert(c.ASM == "POP {r4,r5,r6,pc}");
         }
 #endif
         Code Format15(byte[] bin, uint pos, uint a)
@@ -1281,8 +1292,18 @@ namespace FEBuilderGBA
             {//データ参照先からデータが取れるなら参照先だけ明記する.
                 comment += " -> " + data.ToString("X08");
                 comment += " (" + p.Name + " " + p.ResultAndArgs + ")";
+                return comment;
             }
-            else
+            if (U.isPointerASM(data))
+            {//LYNでは、アドレス+1のデータが使われるので、それ用にパースしてみる.
+                if (this.ASMMapFile.TryGetValue(data - 1, out p))
+                {
+                    comment += " -> " + data.ToString("X08");
+                    comment += " (" + p.Name + " " + p.ResultAndArgs + ")";
+                    return comment;
+                }
+            }
+
             {//参照先から取れないなら、参照元から名前を取ってみる
                 if (this.ASMMapFile.TryGetValue(addr, out p))
                 {
@@ -1290,7 +1311,6 @@ namespace FEBuilderGBA
                 }
                 comment += " -> " + data.ToString("X08");
             }
-
             return comment;
         }
 

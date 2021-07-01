@@ -327,7 +327,7 @@ namespace FEBuilderGBA
             return aal;
         }
 
-        static bool Is_RAMPointerArea(uint addr)
+        public static bool Is_RAMPointerArea(uint addr)
         {
             return (U.is_03RAMPointer(addr)
                 || FETextEncode.IsUnHuffmanPatch_IW_RAMPointer(addr)
@@ -626,6 +626,12 @@ namespace FEBuilderGBA
                 {//次もコード
                     code2 = U.atoh(U.substr(srctext, next_i + 1, 4));
                     next_i += 5;
+                }
+
+                if (code1 == 0x80 && CheckTextEngineRework_ParseTextList(code2, srctext , ref next_i))
+                {
+                    i = next_i;
+                    continue;
                 }
 
                 if ((code1 >= 8 && code1 <= 0xF))
@@ -2510,10 +2516,11 @@ namespace FEBuilderGBA
         }
         public static string ConvertEscapeText(string text)
         {
-//            if (PatchUtil.SearchTextEngineReworkPatch() == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
-//            {
-//                text = ConvertTeqTextEngineRework(text);
-//            }
+            if (PatchUtil.SearchTextEngineReworkPatch() == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+            {
+                return ConvertTeqTextEngineRework(text, OptionForm.text_escape());
+            }
+
             if (OptionForm.text_escape() == OptionForm.text_escape_enum.FEditorAdv)
             {
                 return ConvertEscapeToFEditor(text);
@@ -2659,11 +2666,17 @@ namespace FEBuilderGBA
         {
             ToolTranslateROM trans = new ToolTranslateROM();
             trans.CheckTextImportPatch(false);
-            trans.ImportAllText(this);
+            bool r = trans.ImportAllText(this);
+            if (!r)
+            {
+                return;
+            }
 
             this.InputFormRef = Init(this);
             UpdateDataCountCache(this.InputFormRef);
             U.ReSelectList(this.AddressList);
+
+            InputFormRef.ShowWriteNotifyAnimation(this,U.NOT_FOUND);
         }
         public static string GetExplainOneLine()
         {
@@ -2947,7 +2960,10 @@ namespace FEBuilderGBA
             }
             static string RemoveEscapeTeqTextEngineRework(string text)
             {
-                return RegexCache.Replace(text, "@0080@00(?:2(?:[689ABC]|(?:[7E]|(?:F@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F]|D)@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F])@00[0-9A-F][0-9A-F])|3[012345678])@00[0-9A-F][0-9A-F]", "");
+                text = text.Replace("\r\n", "@0001");
+                text = RegexCache.Replace(text, "@0080@00(?:2(?:[689ABC]|(?:[7E]|(?:F@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F]|D)@00[0-9A-F][0-9A-F]@00[0-9A-F][0-9A-F])@00[0-9A-F][0-9A-F])|3[012345678])@00[0-9A-F][0-9A-F]", "");
+                text = text.Replace("@0001", "\r\n");
+                return text;
             }
 
 
@@ -3621,6 +3637,10 @@ namespace FEBuilderGBA
 
         static uint GetOneCharOrAtCode(string text,ref int ref_i)
         {
+            if (ref_i >= text.Length)
+            {
+                return 0;
+            }
             if (text[ref_i] == '@')
             {
                 uint code = U.atoh(U.substr(text, ref_i + 1, 4));
@@ -3641,8 +3661,26 @@ namespace FEBuilderGBA
             }
         }
 
+        static string SubStrAndEscape(string text, int start , int length)
+        {
+            string rettext = U.substr(text, start, length);
+            if (OptionForm.text_escape() == OptionForm.text_escape_enum.FEditorAdv)
+            {
+                return ConvertEscapeToFEditor(rettext);
+            }
+            return rettext;
+        }
+        static string MakeCodeAndEscape(uint code, OptionForm.text_escape_enum escape_enum)
+        {
+            if (escape_enum == OptionForm.text_escape_enum.FEditorAdv)
+            {
+                return "[0x00" + U.ToHexString2(code) + "]";
+            }
+            return "@00" + U.ToHexString2(code);
+        }
+
         //Teqのreworkは、既存ルールと重複しているのがあるので、いい感じに調整する.
-        static string ConvertTeqTextEngineRework(string text)
+        static string ConvertTeqTextEngineRework(string text, OptionForm.text_escape_enum escape_enum)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -3659,45 +3697,52 @@ namespace FEBuilderGBA
                 uint code2 = GetOneCharOrAtCode(text, ref i);
                 if (code2 == 0x26 || (code2 >= 0x28 && code2 <= 0x2C) || (code2 >= 0x30 && code2 <= 0x38))
                 {
-                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    string block = SubStrAndEscape(text, text_stsrt, i - text_stsrt);
                     sb.Append(block);
 
                     uint code3 = GetOneCharOrAtCode(text, ref i);
-                    sb.Append("@" + U.ToHexString4(code3));
-
+                    if (code3 != 0)
+                    {
+                        sb.Append(MakeCodeAndEscape(code3, escape_enum));
+                    }
                     text_stsrt = i;
+
                 }
                 else if (code2 == 0x27 || code2 == 0x2E)
                 {
-                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    string block = SubStrAndEscape(text, text_stsrt, i - text_stsrt);
                     sb.Append(block);
 
                     uint code3 = GetOneCharOrAtCode(text, ref i);
                     uint code4 = GetOneCharOrAtCode(text, ref i);
-                    sb.Append("@" + U.ToHexString4(code3));
-                    sb.Append("@" + U.ToHexString4(code4));
-
+                    if (code3 != 0 && code4 != 0)
+                    {
+                        sb.Append(MakeCodeAndEscape(code3, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code4, escape_enum));
+                    }
                     text_stsrt = i;
                 }
                 else if (code2 == 0x2D)
                 {
-                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    string block = SubStrAndEscape(text, text_stsrt, i - text_stsrt);
                     sb.Append(block);
 
                     uint code3 = GetOneCharOrAtCode(text, ref i);
                     uint code4 = GetOneCharOrAtCode(text, ref i);
                     uint code5 = GetOneCharOrAtCode(text, ref i);
                     uint code6 = GetOneCharOrAtCode(text, ref i);
-                    sb.Append("@" + U.ToHexString4(code3));
-                    sb.Append("@" + U.ToHexString4(code4));
-                    sb.Append("@" + U.ToHexString4(code5));
-                    sb.Append("@" + U.ToHexString4(code6));
-
+                    if (code3 != 0 && code4 != 0 && code5 != 0 && code6 != 0)
+                    {
+                        sb.Append(MakeCodeAndEscape(code3, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code4, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code5, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code6, escape_enum));
+                    }
                     text_stsrt = i;
                 }
                 else if (code2 == 0x2F)
                 {
-                    string block = U.substr(text, text_stsrt, i - text_stsrt);
+                    string block = SubStrAndEscape(text, text_stsrt, i - text_stsrt);
                     sb.Append(block);
 
                     uint code3 = GetOneCharOrAtCode(text, ref i);
@@ -3706,23 +3751,81 @@ namespace FEBuilderGBA
                     uint code6 = GetOneCharOrAtCode(text, ref i);
                     uint code7 = GetOneCharOrAtCode(text, ref i);
                     uint code8 = GetOneCharOrAtCode(text, ref i);
-                    sb.Append("@" + U.ToHexString4(code3));
-                    sb.Append("@" + U.ToHexString4(code4));
-                    sb.Append("@" + U.ToHexString4(code5));
-                    sb.Append("@" + U.ToHexString4(code6));
-                    sb.Append("@" + U.ToHexString4(code7));
-                    sb.Append("@" + U.ToHexString4(code8));
-
+                    if (code3 != 0 && code4 != 0 && code5 != 0 && code6 != 0 && code7 != 0 && code8 != 0)
+                    {
+                        sb.Append(MakeCodeAndEscape(code3, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code4, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code5, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code6, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code7, escape_enum));
+                        sb.Append(MakeCodeAndEscape(code8, escape_enum));
+                    }
                     text_stsrt = i;
                 }
             }
             //最後っ屁
             {
-                string block = U.substr(text, text_stsrt);
+                string block = SubStrAndEscape(text, text_stsrt , text.Length - text_stsrt);
                 sb.Append(block);
             }
 
             return sb.ToString();
+        }
+        static bool CheckTextEngineRework_ParseTextList(uint code2, string srctext , ref int next_i)
+        {
+            if (PatchUtil.SearchTextEngineReworkPatch() != PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+            {
+                return false;
+            }
+
+            if (code2 == 0x26 || (code2 >= 0x28 && code2 <= 0x2C) || (code2 >= 0x30 && code2 <= 0x38))
+            {
+                if (next_i + 5 > srctext.Length || srctext[next_i] != '@')
+                {
+                    return false;
+                }
+                uint code3 = U.atoh(U.substr(srctext, next_i + 1, 4));
+                next_i += 5;
+            }
+            else if (code2 == 0x27 || code2 == 0x2E)
+            {
+                if (next_i + 10 > srctext.Length || srctext[next_i] != '@' || srctext[next_i + 5] != '@')
+                {
+                    return false;
+                }
+                next_i += 10;
+            }
+            else if (code2 == 0x2D)
+            {
+                if (next_i + 20 > srctext.Length || srctext[next_i] != '@' || srctext[next_i + 5] != '@' || srctext[next_i + 10] != '@' || srctext[next_i + 15] != '@')
+                {
+                    return false;
+                }
+                next_i += 20;
+            }
+            else if (code2 == 0x2F)
+            {
+                if (next_i + 30 > srctext.Length || srctext[next_i] != '@' || srctext[next_i + 5] != '@' || srctext[next_i + 10] != '@' || srctext[next_i + 15] != '@' || srctext[next_i + 20] != '@' || srctext[next_i + 25] != '@')
+                {
+                    return false;
+                }
+                next_i += 30;
+            }
+            else
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private void AddressList_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == 'F')
+            {
+                TextTabControl.SelectedTab = SearchTabPage;
+                SearchTextBox.Focus();
+            }
         }
 
 

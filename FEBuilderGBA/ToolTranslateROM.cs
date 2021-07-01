@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 namespace FEBuilderGBA
 {
@@ -16,12 +17,84 @@ namespace FEBuilderGBA
         {
             this.MaxTextCount = TextForm.GetDataCount();
             this.TextBaseAddress = TextForm.GetBaseAddress();
+            this.TextID0Addr = Program.ROM.p32(this.TextBaseAddress);
         }
         uint MaxTextCount;
         uint TextBaseAddress;
         bool UseGoolgeTranslate;
+        FETextDecode TextDecode = new FETextDecode();
+        uint TextID0Addr;
 
-        void WriteText(uint id, string text, Undo.UndoData undodata)
+        void AddRecycle(uint id, List<Address> recycle)
+        {
+            //無効なID
+            if (id <= 0)
+            {
+                return;
+            }
+            if (id < this.MaxTextCount)
+            {
+                uint addr = this.TextBaseAddress + (id * 4);
+                uint paddr = Program.ROM.u32(addr);
+                if (TextForm.Is_RAMPointerArea(paddr))
+                {
+                    return;
+                }
+                uint data_addr;
+
+                int length;
+                if (FETextEncode.IsUnHuffmanPatchPointer(paddr))
+                {//un-huffman patch?
+                    uint unhuffman_addr = U.toOffset(FETextEncode.ConvertUnHuffmanPatchToPointer(paddr));
+                    data_addr = unhuffman_addr;
+                    TextDecode.UnHffmanPatchDecode(unhuffman_addr, out length);
+                }
+                else if (U.isPointer(paddr))
+                {
+                    data_addr = U.toOffset(paddr);
+                    TextDecode.huffman_decode(data_addr, out length);
+                }
+                else
+                {
+                    return;
+                }
+
+                if (length <= 0)
+                {
+                    return;
+                }
+                if (data_addr == this.TextID0Addr)
+                {
+                    return;
+                }
+                FEBuilderGBA.Address.AddAddress(recycle
+                    , data_addr
+                    , (uint)length
+                    , U.NOT_FOUND
+                    , "text " + U.ToHexString(id)
+                    , FEBuilderGBA.Address.DataTypeEnum.BIN);
+            }
+            else if (U.isSafetyPointer(id))
+            {
+                uint data_addr = Program.ROM.p32(U.toOffset(id));
+                if (! U.isSafetyOffset(id))
+                {
+                    return;
+                }
+
+                int length = 0;
+                string str = Program.ROM.getString(data_addr, out length);
+
+                FEBuilderGBA.Address.AddAddress(recycle
+                    , data_addr
+                    , (uint)length
+                    , U.NOT_FOUND
+                    , "CString " + U.To0xHexString(id)
+                    , FEBuilderGBA.Address.DataTypeEnum.BIN);
+            }
+        }
+
+        void WriteText(uint id, string text,RecycleAddress ra, Undo.UndoData undodata)
         {
             //無効なID
             if (id <= 0)
@@ -38,32 +111,62 @@ namespace FEBuilderGBA
 
             if (id < this.MaxTextCount)
             {
-                TextForm.WriteText(this.TextBaseAddress
-                    , this.MaxTextCount
-                    , id
-                    , writetext
-                    , undodata);
-                return;
+                WriteTextUnHffman(id, writetext, ra, undodata);
             }
-            if (!U.isSafetyPointer(id))
+            else if (U.isSafetyPointer(id))
             {
-                Log.Error("不明な文字列", id.ToString(), text);
+                WriteCString(id, writetext, ra, undodata);
+            }
+            else
+            {
+                Log.Error("不明な文字列", id.ToString(), writetext);
                 return;
             }
-            uint p_text_pointer = U.toOffset(id);
+        }
+        void WriteTextUnHffman(uint id, string text, RecycleAddress ra, Undo.UndoData undodata)
+        {
+            uint addr = this.TextBaseAddress + (id * 4);
+            uint paddr = Program.ROM.u32(addr);
+            if (TextForm.Is_RAMPointerArea(paddr))
+            {//iw-ram / ew-ram にデータをおいている人がいるらしい
+                return ;
+            }
+
+            byte[] encode;
+            Program.FETextEncoder.UnHuffmanEncode(text, out encode);
+
+            string undoname = "Text:" + U.ToHexString(id);
+            uint newaddr = ra.Write(encode, undodata);
+            if (newaddr == U.NOT_FOUND)
+            {
+                return;
+            }
+            newaddr = U.toPointer(newaddr);
+            newaddr = FETextEncode.ConvertPointerToUnHuffmanPatchPointer(newaddr);
+            Program.ROM.write_u32(addr, newaddr, undodata);
+        }
+
+        void WriteCString(uint pointer, string text, RecycleAddress ra, Undo.UndoData undodata)
+        {
+            Debug.Assert(U.isSafetyPointer(pointer));
+
+            uint p_text_pointer = U.toOffset(pointer);
             uint text_pointer = Program.ROM.u32(p_text_pointer);
             if (!U.isSafetyPointer(text_pointer))
             {
-                Log.Error("ポインタではありません", id.ToString(), text);
+                Log.Error("ポインタではありません", U.To0xHexString(pointer), text);
                 return;
             }
-            uint new_textpointer = CStringForm.WriteCString(text_pointer, writetext, undodata);
-            if (new_textpointer == U.NOT_FOUND)
+            byte[] stringbyte = Program.SystemTextEncoder.Encode(text);
+            stringbyte = U.ArrayAppend(stringbyte, new byte[] { 0x00 });
+
+            string undoname = "CString:" + U.ToHexString(pointer);
+            uint newaddr = ra.Write(stringbyte, undodata);
+            if (newaddr == U.NOT_FOUND)
             {
                 return;
             }
-
-            Program.ROM.write_p32(p_text_pointer, new_textpointer, undodata);
+            Program.ROM.write_p32(p_text_pointer, newaddr, undodata);
         }
         void ApplyAntiHuffmanPatch()
         {
@@ -97,7 +200,7 @@ namespace FEBuilderGBA
             this.ChangeStatusScreenSkill(to);
         }
 
-        public void ImportAllText(Form self)
+        public bool ImportAllText(Form self)
         {
             string title = R._("開くファイル名を選択してください");
             string filter = R._("TEXT|*.txt|All files|*");
@@ -109,11 +212,11 @@ namespace FEBuilderGBA
             DialogResult dr = open.ShowDialog();
             if (dr != DialogResult.OK)
             {
-                return ;
+                return false;
             }
             if (!U.CanReadFileRetry(open))
             {
-                return ;
+                return false;
             }
 
             Program.LastSelectedFilename.Save(self, "", open);
@@ -121,9 +224,8 @@ namespace FEBuilderGBA
 
 
             ImportAllText(self, filename);
-            
+            return true;
         }
-
         public void ImportAllText(Form self,string filename)
         {
             //少し時間がかかるので、しばらくお待ちください表示.
@@ -132,8 +234,37 @@ namespace FEBuilderGBA
                 Undo.UndoData undodata = Program.Undo.NewUndoData("ImportAllText" + Path.GetFileName(filename)　);
 
                 uint id = U.NOT_FOUND;
-                string text = "";
                 string[] lines = File.ReadAllLines(filename);
+
+                //上書きするテキスト領域を再利用リストに突っ込む
+                List<Address> recycle = new List<FEBuilderGBA.Address>();
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i];
+                    if (U.IsCommentSlashOnly(line) || U.OtherLangLine(line))
+                    {
+                        continue;
+                    }
+                    line = U.ClipComment(line);
+                    if (line.Length <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (!TranslateTextUtil.IsTextIDCode(line))
+                    {
+                        continue;
+                    }
+
+                    AddRecycle(id, recycle);
+
+                    //次のテキスト
+                    id = U.atoh(U.substr(line, 1));
+                }
+                RecycleAddress ra = new RecycleAddress(recycle);
+
+                id = U.NOT_FOUND;
+                string text = "";
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string line = lines[i];
@@ -153,10 +284,9 @@ namespace FEBuilderGBA
                         continue;
                     }
 
-
                     //次の数字があったので、現在のテキストの書き込み.
                     pleaseWait.DoEvents("Write:" + U.To0xHexString(id));
-                    WriteText(id, text, undodata);
+                    WriteText(id, text, ra, undodata);
 
                     //次のテキスト
                     id = U.atoh(U.substr(line, 1));
@@ -164,7 +294,8 @@ namespace FEBuilderGBA
                 }
 
                 //最後のデータ
-                WriteText(id, text, undodata);
+                WriteText(id, text, ra, undodata);
+                ra.BlackOut(undodata);
 
                 Program.Undo.Push(undodata);
             }
@@ -345,6 +476,12 @@ namespace FEBuilderGBA
             , bool isOneLiner
             )
         {
+            bool use_anti_Huffman = PatchUtil.SearchAntiHuffmanPatch();
+            if (use_anti_Huffman == false)
+            {//Anti-Huffmanが入っていない
+                return;
+            }
+
             //少し時間がかかるので、しばらくお待ちください表示.
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(self))
             {

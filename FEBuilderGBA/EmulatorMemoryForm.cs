@@ -49,7 +49,7 @@ namespace FEBuilderGBA
 
             InputFormRef.makeLinkEventHandler("", controls, this.BGM, this.BGMName, 0, "SONG", args);
             InputFormRef.makeJumpEventHandler(this.BGM, this.J_BGM, "SONG", args);
-
+            InputFormRef.markupJumpLabel(J_ACTIVEUNIT);
             InputFormRef.markupJumpLabel(RunningEventListBoxLabel);
 
             this.N_InputFormRef = new InputFormRef(this, "N_", 0, 0);
@@ -96,7 +96,8 @@ namespace FEBuilderGBA
             }
 
             PatchUtil.skill_system_enum skill = PatchUtil.SearchSkillSystem();
-            if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
+            if (skill == PatchUtil.skill_system_enum.FE8N_ver2
+                || skill == PatchUtil.skill_system_enum.FE8N_ver3)
             {//FE8J FE8NSkillは、0x3Aに追加スキルを記録してる
                 PARTY_J_58.Text = R._("追加スキル");
             }
@@ -217,6 +218,7 @@ namespace FEBuilderGBA
             UpdateActionData();
             UpdateDungeonData();
             UpdateBattleSomeData();
+            UpdateBattleRoundData();
             UpdatePalette();
         }
         void UpdateUserStack()
@@ -1586,6 +1588,8 @@ namespace FEBuilderGBA
             CurrentControlUnitRAMAddress = 0;
             CHEAT_UNIT_MEMORY_AND_NAME.Text = R._("ユニットが選択されていません");
             CHEAT_UNIT_MEMORY_AND_ICON.Image = null;
+            ETC_UNIT_MEMORY_AND_NAME.Text = R._("ユニットが選択されていません");
+            ETC_UNIT_MEMORY_AND_ICON.Image = null;
         }
 
         uint CurrentControlUnitRAMAddress;
@@ -1616,14 +1620,17 @@ namespace FEBuilderGBA
             uint uid = UnitForm.GetUnitIDByAddr(romUnitAddr);
             Bitmap iconBitmap = UnitForm.DrawUnitFacePictureByAddr(romUnitAddr, true);
             U.MakeTransparent(iconBitmap);
-            CHEAT_UNIT_MEMORY_AND_ICON.Image = iconBitmap;
-            CHEAT_UNIT_MEMORY_AND_NAME.Text = string.Format("{0} {1} //{2}->{3}->{4}"
-                ,U.ToHexString(uid)
-                ,name
+            string unitmemory_info = string.Format("{0} {1} //{2}->{3}->{4}"
+                , U.ToHexString(uid)
+                , name
                 , U.ToHexString8(control_unit_address)
                 , U.ToHexString8(unit_ram_address)
                 , U.ToHexString8(romUnitPointer)
                 );
+            CHEAT_UNIT_MEMORY_AND_ICON.Image = iconBitmap;
+            CHEAT_UNIT_MEMORY_AND_NAME.Text = unitmemory_info;
+            ETC_UNIT_MEMORY_AND_ICON.Image = iconBitmap;
+            ETC_UNIT_MEMORY_AND_NAME.Text = unitmemory_info;
 
             CurrentControlUnitRAMAddress = unit_ram_address;
 
@@ -2063,17 +2070,6 @@ namespace FEBuilderGBA
 
             bounds.Y += lineHeight;
             return new Size(bounds.X, bounds.Y);
-        }
-
-        private void PartyListBox_DoubleClick(object sender, EventArgs e)
-        {
-            int index = this.PartyListBox.SelectedIndex;
-            if (index < 0)
-            {
-                return ;
-            }
-
-            this.CurrentControlUnitRAMAddress = Program.ROM.RomInfo.workmemory_player_units_address() + (uint)index * 72;
         }
 
         private void PartyListBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -2541,6 +2537,11 @@ namespace FEBuilderGBA
             this.SupplyDataList.DummyAlloc((int)this.SuppyMaxCount, 0);
             InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.SupplyDataAddress);
 
+            this.BattleRoundDataList.OwnerDraw(DrawBattleRoundDataList, DrawMode.OwnerDrawFixed, false);
+            this.BattleRoundDataList.ItemHeight = 12;
+            this.BattleRoundDataList.DummyAlloc(BattleRoundDataStruct.Count, 0);
+            InputFormRef.AppendEvent_CopyAddressToDoubleClick(this.BattleRoundDataAddress);
+
         }
 
         void UpdateEditon()
@@ -2771,6 +2772,18 @@ namespace FEBuilderGBA
             {//変更有
                 this.BattleSomeDataSUM = sum;
                 this.BattleSomeDataList.Invalidate();
+            }
+        }
+        void UpdateBattleRoundData()
+        {
+            byte[] bin = Program.RAM.getBinaryData(
+                  Program.ROM.RomInfo.workmemory_battleround_data_address()
+                , 0x74);
+            uint sum = U.CalcCheckSUM(bin);
+            if (sum != this.BattleRoundDataSUM)
+            {//変更有
+                this.BattleRoundDataSUM = sum;
+                this.BattleRoundDataList.Invalidate();
             }
         }
         
@@ -3034,6 +3047,10 @@ namespace FEBuilderGBA
         {
             return DrawAddressList(BattleSomeDataStruct, Program.ROM.RomInfo.workmemory_battlesome_data_address(), lb, index, g, listbounds, isWithDraw , 20);
         }
+        Size DrawBattleRoundDataList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        {
+            return DrawAddressList(BattleRoundDataStruct, Program.ROM.RomInfo.workmemory_battleround_data_address(), lb, index, g, listbounds, isWithDraw);
+        }
        
 
         Size DrawAddressList(List<EmulatorMemoryUtil.AddressList> list, uint baseaddr, ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw, int shiftDrawX = 0)
@@ -3169,6 +3186,7 @@ namespace FEBuilderGBA
         uint ActionDataSUM;
         uint DungeonDataSUM;
         uint BattleSomeDataSUM;
+        uint BattleRoundDataSUM;
 
         private void PaletteSearchButton_Click(object sender, EventArgs e)
         {
@@ -3552,5 +3570,66 @@ namespace FEBuilderGBA
             BattleSomeList_SelectedIndexChanged(null, null);
             U.FireOnMouseDoubleClick(BattleSomeDataAddress);
         }
+
+        List<EmulatorMemoryUtil.AddressList> BattleRoundDataStruct = EmulatorMemoryUtil.GetBattleRoundDataStruct();
+        private void BattleRoundDataList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            BattleRoundDataList_SelectedIndexChanged(null, null);
+            U.FireOnMouseDoubleClick(BattleRoundDataAddress);
+        }
+
+        private void BattleRoundDataList_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            AddressList_SelectedIndexChanged(BattleRoundDataStruct, Program.ROM.RomInfo.workmemory_battleround_data_address(), BattleRoundDataList, BattleRoundDataAddress);
+        }
+
+        private void ETC_UNIT_MEMORY_AND_NAME_DoubleClick(object sender, EventArgs e)
+        {
+            ETC_UNIT_MEMORY_AND_ICON_Click(sender, e);
+        }
+        private void J_ACTIVEUNIT_Click(object sender, EventArgs e)
+        {
+            ETC_UNIT_MEMORY_AND_ICON_Click(sender, e);
+        }
+
+        private void ETC_UNIT_MEMORY_AND_ICON_Click(object sender, EventArgs e)
+        {
+            if (!CheckConnectShowError())
+            {
+                return;
+            }
+            if (!CheckUnitSelectAndError())
+            {
+                return;
+            }
+            Debug.Assert(U.is_02RAMPointer(CurrentControlUnitRAMAddress));
+            uint unitnumber = Program.RAM.u8(CurrentControlUnitRAMAddress + 0xB);
+            if (unitnumber < 0x40)
+            {//player
+                U.SelectedIndexSafety(PartyCombo, 0);
+            }
+            else if (unitnumber < 0x80)
+            {//NPC
+                U.SelectedIndexSafety(PartyCombo, 1);
+            }
+            else
+            {//Enenmy
+                U.SelectedIndexSafety(PartyCombo, 2);
+            }
+            uint top = GetShowRAMPartyUnitsAddr();
+            if (CurrentControlUnitRAMAddress < top)
+            {
+                return;
+            }
+            UpdateParty();
+            uint index = (CurrentControlUnitRAMAddress - top) / 72;
+            if (index >= PartyListBox.Items.Count)
+            {
+                return;
+            }
+            U.SelectedIndexSafety(PartyListBox, index);
+            ShowPartyFloatingControlpanel();
+        }
+
     }
 }

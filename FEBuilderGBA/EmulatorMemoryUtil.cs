@@ -1285,10 +1285,12 @@ namespace FEBuilderGBA
             ret.Add(new AddressList(0x08, "EkrBattleDeamon", "POINTER", 4));
             ret.Add(new AddressList(0x0C, "Unk0C", "", 2));
             ret.Add(new AddressList(0x0E, "BattleBG", "BATTLEBG", 2));
-            ret.Add(new AddressList(0x10, "BattleAttackPhaseBool", "", 4));
+            ret.Add(new AddressList(0x10, "BattleAttackPhaseBool", "BATTLEATTACKPHASE", 4));
             ret.Add(new AddressList(0x14, "Unk10", "", 2));
             ret.Add(new AddressList(0x16, "Unk12", "", 2));
-            ret.Add(new AddressList(0x18, "BattleActorTargetOrder", "", 4));
+            ret.Add(new AddressList(0x18, "BattleActorTargetOrder", "BATTLEACTORTARGETORDER", 1));
+            ret.Add(new AddressList(0x19, "pad19", "", 1));
+            ret.Add(new AddressList(0x1A, "pad1A", "", 2));
             ret.Add(new AddressList(0x1C, "BattleAnimId 1", "BATTLEANIME-1", 2));
             ret.Add(new AddressList(0x1E, "BattleAnimId 2", "BATTLEANIME-1", 2));
             ret.Add(new AddressList(0x20, "BattlePalette 1", "UNITPALETTE-1", 2));
@@ -1306,18 +1308,26 @@ namespace FEBuilderGBA
             ret.Add(new AddressList(0x38, "Unk38", "", 2));
 
             ret.Add(new AddressList(0x3A, "AISRelatedShorts", "LABEL", 0));
-            ret.Add(new AddressList(0x3A, "AISRelatedShorts[0]", "", 2));
-            ret.Add(new AddressList(0x3B, "AISRelatedShorts[1]", "", 2));
-            ret.Add(new AddressList(0x3E, "AISRelatedShorts[2]", "", 2));
-            ret.Add(new AddressList(0x40, "AISRelatedShorts[3]", "", 2));
-            ret.Add(new AddressList(0x42, "AISRelatedShorts[4]", "", 2));
-            ret.Add(new AddressList(0x44, "AISRelatedShorts[5]", "", 2));
-            ret.Add(new AddressList(0x46, "AISRelatedShorts[6]", "", 2));
-            ret.Add(new AddressList(0x48, "AISRelatedShorts[7]", "", 2));
-            ret.Add(new AddressList(0x4A, "AISRelatedShorts[8]", "", 2));
-            ret.Add(new AddressList(0x4C, "AISRelatedShorts[9]", "", 2));
-            ret.Add(new AddressList(0x4E, "AISRelatedShorts...", "", 2));
-
+            ret.Add(new AddressList(0x3A, "AISRelatedShorts[0]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x3C, "AISRelatedShorts[1]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x3E, "AISRelatedShorts[2]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x40, "AISRelatedShorts[3]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x42, "AISRelatedShorts[4]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x44, "AISRelatedShorts[5]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x46, "AISRelatedShorts[6]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x48, "AISRelatedShorts[7]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x4A, "AISRelatedShorts[8]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x4C, "AISRelatedShorts[9]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x4E, "AISRelatedShorts[10]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x50, "AISRelatedShorts[11]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x52, "AISRelatedShorts[12]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x54, "AISRelatedShorts[13]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x56, "AISRelatedShorts[14]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x58, "AISRelatedShorts[15]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x5A, "AISRelatedShorts[16]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x5C, "AISRelatedShorts[17]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x5D, "AISRelatedShorts[18]", "AISRELATED", 2));
+            ret.Add(new AddressList(0x5E, "AISRelatedShorts....", "AISRELATED", 2));
             ret.Add(new AddressList(0x7A, "SomeBattle2", "LABEL", 0));
             ret.Add(new AddressList(0x7A, "Unk7A", "", 2));
             ret.Add(new AddressList(0x7C, "Unk7C", "", 2));
@@ -1372,6 +1382,27 @@ namespace FEBuilderGBA
             ret.Add(new AddressList(0xFE, "UnkFE", "", 2));
             return ret;
         }
+        static public List<EmulatorMemoryUtil.AddressList> GetBattleRoundDataStruct()
+        {
+            List<AddressList> ret = new List<AddressList>();
+            ret.Add(new AddressList(0x00, "Round[0].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x03, "Round[0].damage", "DEC", 1));
+            ret.Add(new AddressList(0x04, "Round[1].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x07, "Round[1].damage", "DEC", 1));
+            ret.Add(new AddressList(0x08, "Round[2].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x0B, "Round[2].damage", "DEC", 1));
+            ret.Add(new AddressList(0x0C, "Round[3].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x0F, "Round[3].damage", "DEC", 1));
+            ret.Add(new AddressList(0x10, "Round[4].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x13, "Round[4].damage", "DEC", 1));
+            ret.Add(new AddressList(0x14, "Round[5].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x17, "Round[5].damage", "DEC", 1));
+            ret.Add(new AddressList(0x18, "Round[6].flag", "BATTLEROUND", 3));
+            ret.Add(new AddressList(0x1B, "Round[6].damage", "DEC", 1));
+            ret.Add(new AddressList(0x1C, "CurrentRound", "POINTER", 4));
+
+            return ret;
+        }
         public static string GetAddressList(AddressList a, uint addr)
         {
             if (a.Size == 0)
@@ -1387,6 +1418,10 @@ namespace FEBuilderGBA
             else if (a.Size == 2)
             {
                 v = Program.RAM.u16(addr);
+            }
+            else if (a.Size == 3)
+            {
+                v = Program.RAM.u24(addr);
             }
             else if (a.Size == 4)
             {
@@ -1541,10 +1576,242 @@ namespace FEBuilderGBA
                 }
                 return U.To0xHexString(v) + " (" + name + ")";
             }
+            else if (a.Type == "BATTLEACTORTARGETORDER")
+            {
+                return U.To0xHexString(v) + " (" + GetBattleActorTargetOrder(v) + ")";
+            }
+            else if (a.Type == "BATTLEATTACKPHASE")
+            {
+                return U.To0xHexString(v) + " (" + GetBattleAttackPhase(v) + ")";
+            }
+            else if (a.Type == "AISRELATED")
+            {
+                return U.To0xHexString(v) + " (" + GetAISRelated(v) + ")";
+            }
+            else if (a.Type == "BATTLEROUND")
+            {
+                return U.To0xHexString(v) + " (" + GetBattleRoundFlag(v) + ")";
+            }
             else
             {
                 return U.To0xHexString(v);
             }
+        }
+        static string GetAISRelated(uint v)
+        {
+            if (v == 0xffff)
+            {
+                return "--";
+            }
+
+            uint vv = v & 0xff;
+            string r;
+            if (vv == 0)
+            {
+                r = "Hit (Close)";
+            }
+            else if (vv == 1)
+            {
+                r = "Crit (Close)";
+            }
+            else if (vv == 2)
+            {
+                r = "Non-Crit (Far)";
+            }
+            else if (vv == 3)
+            {
+                r = "Crit (Far)";
+            }
+            else if (vv == 4)
+            {
+                r = "Taking Miss (Close)";
+            }
+            else if (vv == 5)
+            {
+                r = "Taking Miss (Far)";
+            }
+            else if (vv == 6)
+            {
+                r = "Taking Hit (Close)";
+            }
+            else if (vv == 7)
+            {
+                r = "Standing (hardcoded)";
+            }
+            else if (vv == 8)
+            {
+                r = "Taking Hit (Far)";
+            }
+            else if (vv == 9)
+            {
+                r = "Miss (Close)";
+            }
+            else
+            {
+                r = "";
+            }
+            
+            if ((v & 0x0100) == 0x0100)
+            {
+                r += " |Unk0100";
+            }
+            else if ((v & 0x0200) == 0x0200)
+            {
+                r += " |Pierce";
+            }
+            else if ((v & 0x0400) == 0x0400)
+            {
+                r += " |GreatShield";
+            }
+            else if ((v & 0x0800) == 0x0800)
+            {
+                r += " |SureShot";
+            }
+            else if ((v & 0x1000) == 0x1000)
+            {
+                r += " |Silencer";
+            }
+            else if ((v & 0x2000) == 0x2000)
+            {
+                r += " |Poison";
+            }
+            else if ((v & 0x4000) == 0x4000)
+            {
+                r += " |Unk4000";
+            }
+            else if ((v & 0x8000) == 0x2000)
+            {
+                r += " |DevilAxs";
+            }
+            return r;
+        }
+        static string GetBattleActorTargetOrder(uint v)
+        {
+            if (v == 0)
+            {
+                return "actor on the Left";
+            }
+            else if (v == 1)
+            {
+                return "actor on the Right";
+            }
+            return "";
+        }
+        static string GetBattleAttackPhase(uint v)
+        {
+            if (v == 0)
+            {
+                return "initial hit by Left";
+            }
+            else if (v == 1)
+            {
+                return "initial hit by Right";
+            }
+            return "";
+        }
+        static string GetBattleRoundFlag(uint v)
+        {
+            string r = "";
+            if ((v & 0x1) == 0x1)
+            {
+                r += ",Critical";
+            }
+            if ((v & 0x2) == 0x2)
+            {
+                r += ",Miss";
+            }
+            if ((v & 0x4) == 0x4)
+            {
+                r += ",Follow-Up04";
+            }
+            if ((v & 0x8) == 0x8)
+            {
+                r += ",Unk08";
+            }
+            if ((v & 0x10) == 0x10)
+            {
+                r += ",Brave";
+            }
+            if ((v & 0x20) == 0x20)
+            {
+                r += ",?";
+            }
+            if ((v & 0x40) == 0x40)
+            {
+                r += ",Poison";
+            }
+            if ((v & 0x80) == 0x80)
+            {
+                r += ",Devil";
+            }
+
+            if ((v & 0x100) == 0x100)
+            {
+                r += ",StealHP";
+            }
+            if ((v & 0x200) == 0x200)
+            {
+                r += ",Unk0200";
+            }
+            if ((v & 0x400) == 0x400)
+            {
+                r += ",TriangleAttack";
+            }
+            if ((v & 0x800) == 0x800)
+            {
+                r += ",Lethality";
+            }
+            if ((v & 0x1000) == 0x1000)
+            {
+                r += ",Unk1000";
+            }
+            if ((v & 0x2000) == 0x2000)
+            {
+                r += ",Petrified";
+            }
+            if ((v & 0x4000) == 0x4000)
+            {
+                r += ",SureShot";
+            }
+            if ((v & 0x8000) == 0x8000)
+            {
+                r += ",GreatShield";
+            }
+
+            if ((v & 0x10000) == 0x10000)
+            {
+                r += ",Pierce";
+            }
+            if ((v & 0x20000) == 0x20000)
+            {
+                r += ",Unk020000";
+            }
+            if ((v & 0x40000) == 0x40000)
+            {
+                r += ",Unk040000";
+            }
+            if ((v & 0x80000) == 0x80000)
+            {
+                r += ",EndTurn";
+            }
+            if ((v & 0x100000) == 0x100000)
+            {
+                r += ",Defeat100000";
+            }
+            if ((v & 0x200000) == 0x200000)
+            {
+                r += ",Defeat200000";
+            }
+            if ((v & 0x400000) == 0x400000)
+            {
+                r += ",Counterattack";
+            }
+            if ((v & 0x800000) == 0x800000)
+            {
+                r += ",EndBattle";
+            }
+
+            return U.substr(r, 1);
         }
     }
 }

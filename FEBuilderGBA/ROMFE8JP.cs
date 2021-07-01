@@ -69,6 +69,7 @@ namespace FEBuilderGBA
         public uint support_attribute_pointer() { return 0x284C8; }  //支援効果の開始位置
         public uint terrain_recovery_pointer(){ return 0x19F34; } //地形回復 全クラス共通
         public uint terrain_bad_status_recovery_pointer() { return 0x019F44; } //地形回復 全クラス共通
+        public uint terrain_show_infomation_pointer() { return 0x8ED58; } //地形ウィンドウに情報表示 全クラス共通
         public uint ccbranch_pointer() { return 0xD14EC; } // CC分岐の開始位置
         public uint ccbranch2_pointer() { return 0xD14E4; } // CC分岐の開始位置2 見習いのCCにのみ利用 CC分岐の開始位置+1の場所を指す
         public uint class_alphaname_pointer() { return 0xD18CC; } // クラスのアルファベット表記の開始位置
@@ -271,6 +272,7 @@ namespace FEBuilderGBA
         public uint workmemory_action_data_address() { return 0x0203A954; } //ワークメモリ ActionData
         public uint workmemory_dungeon_data_address() { return 0x03001798; } //ワークメモリ ダンジョン FE8のみ
         public uint workmemory_battlesome_data_address() { return 0x0203E0EC; } //ワークメモリ バルトに関係する諸データ
+        public uint workmemory_battleround_data_address() { return 0x0203A5E8; } //ワークメモリ　戦闘のラウンドデータ
         public uint workmemory_last_string_address() { return 0x0202B6A8; }  //ワークメモリ 最後に表示した文字列
         public uint workmemory_text_buffer_address() { return 0x0202A6A8; }  //ワークメモリ デコードされたテキスト
         public uint workmemory_next_text_buffer_address() { return 0x03000040; }  //ワークメモリ 次に表示するTextBufferの位置を保持するポインタ
@@ -332,9 +334,29 @@ namespace FEBuilderGBA
         public uint ai_preform_item_direct_asm_pointer() { return 0x40848; }  //AIアイテム アイテム評価テーブル
         public uint ai_map_setting_pointer() { return 0x39784; }  //AI 章ごとの設定テーブル 0x080DD214
         public uint item_usability_array_pointer() { return 0x28858; } //アイテムを利用できるか判定する
-        public uint item_usability_array_switch2_address() { return 0x28846; }
+        public uint item_usability_array_switch2_address() 
+        {
+            uint jumpPointer = Program.ROM.u32(0x2884C);
+            if (U.isSafetyPointer(jumpPointer) && U.IsValueOdd(jumpPointer))
+            {//FE8N SkillBook
+                uint switch_address = jumpPointer - 1 + (2 * 9);
+                return U.toOffset(switch_address);
+            }
+
+            return 0x28846;
+        }
         public uint item_effect_array_pointer() { return 0x2fbdc; }    //アイテムを利用した場合の効果を定義する
-        public uint item_effect_array_switch2_address() { return 0x2fbc2; }
+        public uint item_effect_array_switch2_address() 
+        {
+            uint jumpPointer = Program.ROM.u32(0x2FBC4);
+            if (U.isSafetyPointer(jumpPointer) && U.IsValueOdd(jumpPointer))
+            {//FE8N SkillBook
+                uint switch_address = jumpPointer - 1 + (2 * 8);
+                return U.toOffset(switch_address);
+            }
+           
+            return 0x2fbc2; 
+        }
         public uint item_promotion1_array_pointer() { return 0x291c0; }   //CCアイテムを使った場合の処理を定義する
         public uint item_promotion1_array_switch2_address() { return 0x291aa; }
         public uint item_promotion2_array_pointer() { return 0x0; }  //CCアイテムかどうかを定義する(FE7のみ)
@@ -346,9 +368,29 @@ namespace FEBuilderGBA
         public uint item_statbooster1_array_pointer() { return 0x2f7dc; }    //ドーピングアイテムを利用した時のメッセージを定義する
         public uint item_statbooster1_array_switch2_address() { return 0x2f7ca; }
         public uint item_statbooster2_array_pointer() { return 0x29ebc; }    //ドーピングアイテムとCCアイテムかどうかを定義する
-        public uint item_statbooster2_array_switch2_address() { return 0x29ea8; }
+        public uint item_statbooster2_array_switch2_address() 
+        {
+            uint jumpPointer = Program.ROM.u32(0x29EAC);
+            if (U.isSafetyPointer(jumpPointer) && U.IsValueOdd(jumpPointer))
+            {//FE8N SkillBook
+                uint switch_address = jumpPointer - 1 + (2 * 9);
+                return U.toOffset(switch_address);
+            }
+
+            return 0x29ea8; 
+        }
         public uint item_errormessage_array_pointer() { return 0x28BD4; }    //アイテム利用時のエラーメッセージ
-        public uint item_errormessage_array_switch2_address() { return 0x28BC2; }
+        public uint item_errormessage_array_switch2_address() 
+        {
+            uint jumpPointer = Program.ROM.u32(0x28BC8);
+            if (U.isSafetyPointer(jumpPointer) && U.IsValueOdd(jumpPointer))
+            {//FE8N SkillBook
+                uint switch_address = jumpPointer - 1 + (2 * 9);
+                return U.toOffset(switch_address);
+            }
+
+            return 0x28BC2; 
+        }
         public uint event_function_pointer_table_pointer() { return 0x0D1A4; }    //イベント命令ポインタ
         public uint event_function_pointer_table2_pointer() { return 0x0D1CC; }   //イベント命令ポインタ2 ワールドマップ
         public uint item_effect_pointer_table_pointer() { return 0x5C19C; }   //間接エフェクトポインタ
@@ -429,6 +471,16 @@ namespace FEBuilderGBA
         public uint wait_menu_command_id() { return 0x6B; } //WaitメニューのID
         public uint font_default_begin() { return 0x579CDC; }
         public uint font_default_end() { return 0x5B8CDC; }
+        public uint item_name_article_pointer() { return 0x0; } // a|an|the を切り替えるテーブル 英語版のみ
+        public uint item_name_article_switch2_address() { return 0x0; }
+        public uint vanilla_field_config_address() { return 0x19B198; }    //バニラのタイルセット よく使われもの
+        public uint vanilla_field_image_address() { return 0x188888; }
+        public uint vanilla_village_config_address() { return 0x199C3C; }
+        public uint vanilla_village_image_address() { return 0x181610; }
+        public uint vanilla_casle_config_address() { return 0x1987C8; }
+        public uint vanilla_casle_image_address() { return 0x17B398; }
+        public uint vanilla_plain_config_address() { return 0x197170; }
+        public uint vanilla_plain_image_address() { return 0x174C50; }
         public string get_shop_name(uint shop_object)//店の名前
         {
             if (shop_object == 0x16)

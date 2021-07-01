@@ -879,7 +879,7 @@ namespace FEBuilderGBA
             }
             if (compileType == CompileType.CONVERT_LYN)
             {//LYNに変換する場合、ELFを作るのとは別の処理になる.
-                return ConvertLYN(target_filename, out output);
+                return ConvertLYN(target_filename, out output, out out_symbol);
             }
 
             string output_temp_filename = target + ".elf";
@@ -935,8 +935,10 @@ namespace FEBuilderGBA
             return true;
         }
 
-        static bool ConvertLYN(string target_filename, out string output)
+        static bool ConvertLYN(string target_filename, out string output, out string out_symbol)
         {
+            out_symbol = "";
+
             bool r;
             r = ConvertLYN_S_to_O(target_filename, out output);
             if (r == false || !File.Exists(output))
@@ -946,6 +948,10 @@ namespace FEBuilderGBA
 
             string obj_filename = output;
             r = ConvertLYN_O_to_Event(obj_filename, out output);
+
+            Elf elf = new Elf(obj_filename, useHookMode: false);
+            out_symbol = elf.ToEASymbol();
+            
             File.Delete(obj_filename);
             if (r == false || !File.Exists(output))
             {
@@ -1982,8 +1988,6 @@ namespace FEBuilderGBA
                     patchMainFilter.ApplyFilter(filter, isJP, tooltip);
                 }
             }
-
-            
         }
 
 
@@ -2932,22 +2936,25 @@ namespace FEBuilderGBA
         //テキストエディタで行番号を指定して開く
         public static void OpenTextEditor(string textFilename,uint number = U.NOT_FOUND)
         {
-            if (number == U.NOT_FOUND)
-            {
-                Process.Start(textFilename);
-                return;
-            }
-
-            string ext = Path.GetExtension(textFilename);
-            string editor = U.FindAssociatedExecutable(ext);
+            string editor = OptionForm.GetSrccodeTexteditor();
             if (!File.Exists(editor))
             {
-                return;
+                string ext = Path.GetExtension(textFilename);
+                editor = U.FindAssociatedExecutable(ext);
+                if (!File.Exists(editor))
+                {
+                    return;
+                }
             }
             string args;
             string editorFilename = Path.GetFileName(editor);
+
             editorFilename = editorFilename.ToLower();
-            if (editorFilename == "sakura.exe")
+            if (number == U.NOT_FOUND)
+            {
+                args = U.escape_shell_args(textFilename);
+            }
+            else if (editorFilename == "sakura.exe")
             {
                 args = U.escape_shell_args(textFilename) + " -Y=" + number;
             }
@@ -2990,6 +2997,79 @@ namespace FEBuilderGBA
                 }
             }
             while (true);
+        }
+        static bool IsSorceCodeExits(string srccode_filename)
+        {
+            if (!File.Exists(srccode_filename))
+            {
+                return false;
+            }
+            if (U.GetFileSize(srccode_filename) <= 100)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        static uint GrepAddrInSrcCode(string srccode_filename,uint addr)
+        {
+            string search_addr = U.ToHexString8(U.toPointer(addr));
+
+            try
+            {
+                uint number = 0;
+                using (StreamReader reader = new StreamReader(srccode_filename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        number++;
+
+                        if (line.IndexOf(search_addr) == 0)
+                        {
+                            return number;
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return 0;
+        }
+
+        public static void OpenDisassembleSrcCode(uint addr = U.NOT_FOUND)
+        {
+            string srccode_directory = OptionForm.GetSrccodeDirectory();
+            if (srccode_directory == "")
+            {
+                R.ShowStopError("ソースコードを保存するディレクトリが設定されていません。\r\n設定のパス2の「ソースコードの保存場所」を設定してください。");
+                return;
+            }
+
+            string srccode_filename = Path.Combine(srccode_directory, "_" + Program.ROM.RomInfo.VersionToFilename() + ".TXT");
+            if (!IsSorceCodeExits(srccode_filename))
+            {//ソースコードがないので生成する
+                ToolDisasmSourceCode f = (ToolDisasmSourceCode)InputFormRef.JumpFormLow<ToolDisasmSourceCode>();
+                f.StoreSrcCode = srccode_filename;
+                f.ShowDialog();
+
+                if (!IsSorceCodeExits(srccode_filename))
+                {//ソースコードを開けませんでした。
+                    return;
+                }
+            }
+
+            uint number = GrepAddrInSrcCode(srccode_filename, addr);
+
+            try
+            {
+                MainFormUtil.OpenTextEditor(srccode_filename, number);
+            }
+            catch (Exception ee)
+            {
+                R.ShowStopError(ee.ToString());
+            }
         }
     }
 }

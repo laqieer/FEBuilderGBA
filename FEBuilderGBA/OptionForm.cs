@@ -24,6 +24,9 @@ namespace FEBuilderGBA
 
             InputFormRef.markupJumpLabel(X_EXPLAIN_NECESSARY_PROGRAM);
             this.Icon = Properties.Resources.icon_settings;
+
+            U.SetIcon(ColorSaveASbutton, Properties.Resources.icon_arrow);
+            U.SetIcon(ColorLoadButton, Properties.Resources.icon_upload);
         }
 
         public void AutoClose(int autocolor = 0)
@@ -58,6 +61,8 @@ namespace FEBuilderGBA
             CFLAGS.Text = GetCFLAGS();
             retdec.Text = GetRetDec();
             python3.Text = GetPython3();
+            srccode_texteditor.Text = GetSrccodeTexteditor();
+            srccode_directory.Text = GetSrccodeDirectory();
 
             Color_Control_BackColor_button.BackColor = Color_Control_BackColor();
             Color_Control_ForeColor_button.BackColor = Color_Control_ForeColor();
@@ -152,6 +157,7 @@ namespace FEBuilderGBA
             U.SelectedIndexSafety(func_create_nodoll_gba_sym, (int)create_nodoll_gba_sym());
             U.SelectedIndexSafety(func_overraide_simple_error_check, (int)overraide_simple_error_check());
             U.SelectedIndexSafety(func_alert_unk_event_code, (int)alert_unk_event_code());
+            U.SelectedIndexSafety(func_skillsystems_sanctuary_option, (int)skillsystems_sanctuary_option());
             U.SelectedIndexSafety(RunTestMessage, (int)U.atoi(Program.Config.at("RunTestMessage")));
 
             ChangeColorWriteButtonWhenChangingSetting();
@@ -215,6 +221,7 @@ namespace FEBuilderGBA
         }
         private void Save()
         {
+            ClearCache();
             Program.Config["emulator"] = emulator.Text;
             Program.Config["emulator2"] = emulator2.Text;
             Program.Config["sappy"] = sappy.Text;
@@ -232,6 +239,8 @@ namespace FEBuilderGBA
             Program.Config["sox"] = sox.Text;
             Program.Config["midfix4agb"] = midfix4agb.Text;
             Program.Config["FECLIB"] = FECLIB.Text;
+            Program.Config["srccode_texteditor"] = srccode_texteditor.Text;
+            Program.Config["srccode_directory"] = srccode_directory.Text;
 
             Program.Config["Color_Control_BackColor"] = Color_Control_BackColor_button.BackColor.Name;
             Program.Config["Color_Control_ForeColor"] = Color_Control_ForeColor_button.BackColor.Name;
@@ -307,6 +316,7 @@ namespace FEBuilderGBA
             Program.Config["func_create_nodoll_gba_sym"] = U.SelectValueComboboxText(func_create_nodoll_gba_sym.Text);
             Program.Config["func_overraide_simple_error_check"] = U.SelectValueComboboxText(func_overraide_simple_error_check.Text);
             Program.Config["func_alert_unk_event_code"] = U.SelectValueComboboxText(func_alert_unk_event_code.Text);
+            Program.Config["func_skillsystems_sanctuary_option"] = U.SelectValueComboboxText(func_skillsystems_sanctuary_option.Text);
             Program.Config["RunTestMessage"] = U.SelectValueComboboxText(RunTestMessage.Text);
 
             //configの保存
@@ -329,6 +339,7 @@ namespace FEBuilderGBA
             g_Cache_lint_text_skip_bug_enum = lint_text_skip_bug_enum.NoCache;
             g_Cache_lang = null;
             g_Cache_textencoding = textencoding_enum.NoChace;
+            g_skillsystems_sanctuary_option = skillsystems_sanctuary_option_enum.NoCache;
         }
 
         public static string EXESearch(string first_filter)
@@ -731,7 +742,6 @@ namespace FEBuilderGBA
         {
              NO   = 0
             ,YES  = 1
-            ,YES_But_Manual = 2
         };
         public static rom_extends_enum rom_extends()
         {
@@ -962,6 +972,23 @@ namespace FEBuilderGBA
         public static overraide_simple_error_check_enum overraide_simple_error_check()
         {
             return (overraide_simple_error_check_enum)U.atoi(Program.Config.at("func_overraide_simple_error_check", "1"));
+        }
+
+        public enum skillsystems_sanctuary_option_enum
+        {
+            Always = 0
+          , IfSkillSystemsInstalled = 1
+          , None = 2
+          , NoCache = 0xff
+        };
+        static skillsystems_sanctuary_option_enum g_skillsystems_sanctuary_option = skillsystems_sanctuary_option_enum.NoCache;
+        public static skillsystems_sanctuary_option_enum skillsystems_sanctuary_option()
+        {
+            if (g_skillsystems_sanctuary_option == skillsystems_sanctuary_option_enum.NoCache)
+            {
+                g_skillsystems_sanctuary_option = (skillsystems_sanctuary_option_enum)U.atoi(Program.Config.at("func_skillsystems_sanctuary_option", "0"));
+            }
+            return g_skillsystems_sanctuary_option;
         }
 
         public static int alert_unk_event_code()
@@ -1272,7 +1299,7 @@ namespace FEBuilderGBA
 
         private void mid2agb_button_Click(object sender, EventArgs e)
         {
-            string r = EXESearch("mid2agb.exe|mid2agb.exe|");
+            string r = EXESearch("mid2agb,midi2agb|mid2agb.exe;midi2agb.exe|");
             if (r != "")
             {
                 mid2agb.Text = r;
@@ -1349,6 +1376,15 @@ namespace FEBuilderGBA
         {
             return Program.Config.at("FECLIB", "");
         }
+        public static string GetSrccodeTexteditor()
+        {
+            return Program.Config.at("srccode_texteditor", "");
+        }
+        public static string GetSrccodeDirectory()
+        {
+            return Program.Config.at("srccode_directory", Program.BaseDirectory);
+        }
+
         public static bool IsKanaToNumberMode()
         {
             return U.stringbool(Program.Config.at("IsKanaToNumberMode", "false"));
@@ -1393,6 +1429,8 @@ namespace FEBuilderGBA
             X_EXPLAIN_PROGRAMN.AccessibleDescription = R._("FEBuilderGBAから動作させたいプログラムがあれば指定してください。\r\nたいていの場合は、特に設定する必要はありません。");
             X_EXPLAIN_MUSICTOOL.AccessibleDescription = R._("音楽を変換するツールを設定します。\r\ngba_mus_riperは、midiへエクスポートするためと、soundfontをエクスポートするために利用されます。\r\nsoxは、wavをインポートするときの周波数や余白の削除等に利用されます。\r\n");
             X_EXPLAIN_MID2AGB.AccessibleDescription = R._("Midiをインポートする時に、mid2agbを利用するならば設定してください。\r\nたいていの場合、mid2agbを利用して変換した方がよりよい結果を得ることができます。");
+            X_EXPLAIN_SRCCODE.AccessibleDescription = R._("バニラのソースコードを簡単に確認するために利用する項目です。\r\nディフォルトではF10キーを押すとバニラのコードにアクセスできます。\r\nバニラのソースコードは数十万行になるので、テキストエディターには、大きなファイルを表示できるテキストエディタを指定してください。");
+            explain_func_skillsystems_sanctuary_option.AccessibleDescription = R._("スキル拡張パッチをインストールする領域を予約し保護するかどうかを設定します。\r\n「常に」(ディフォルト)は、その領域には一切干渉しないようにして保護します。\r\n「インストールされていれば保護」は、スキル拡張がインストールされていれば保護します。後からスキル拡張がインストールされる可能性もあるので推奨はしません。\r\n「保護しない」は、一切保護しません。");
         }
 
         private void Color_ControlComment_ForeColor_button_Click(object sender, EventArgs e)
@@ -1516,6 +1554,138 @@ namespace FEBuilderGBA
         private void midfix4agb_DoubleClick(object sender, EventArgs e)
         {
             midfix4agb_button.PerformClick();
+        }
+
+        private void srccode_texteditor_button_Click(object sender, EventArgs e)
+        {
+            string r = EXESearch("");
+            if (r != "")
+            {
+                srccode_texteditor.Text = r;
+            }
+        }
+
+        private void srccode_directory_button_Click(object sender, EventArgs e)
+        {
+            //FolderBrowserDialogクラスのインスタンスを作成
+            FolderBrowserDialog fbd = new FolderBrowserDialog();
+
+            //上部に表示する説明テキストを指定する
+            fbd.Description = R._("ソースコードを保存するディレクトリを指定してください。");
+            //ルートフォルダを指定する
+            //デフォルトでDesktop
+            fbd.RootFolder = Environment.SpecialFolder.Desktop;
+            //最初に選択するフォルダを指定する
+            //RootFolder以下にあるフォルダである必要がある
+            fbd.SelectedPath = srccode_directory.Text;
+            //ユーザーが新しいフォルダを作成できるようにする
+            //デフォルトでTrue
+            fbd.ShowNewFolderButton = true;
+
+            //ダイアログを表示する
+            if (fbd.ShowDialog(this) == DialogResult.OK)
+            {
+                srccode_directory.Text = fbd.SelectedPath;
+            }
+        }
+
+        private void srccode_texteditor_DoubleClick(object sender, EventArgs e)
+        {
+            srccode_texteditor_button.PerformClick();
+        }
+
+        private void srccode_directory_DoubleClick(object sender, EventArgs e)
+        {
+            srccode_directory_button.PerformClick();
+        }
+
+        private void ColorSaveASbutton_Click(object sender, EventArgs e)
+        {
+            string title = R._("保存するファイル名を選択してください");
+            string filter = "FEBuilderColor|*.febuildergba_color.txt|All files|*";
+
+            SaveFileDialog save = new SaveFileDialog();
+            save.Title = title;
+            save.Filter = filter;
+            save.CheckPathExists = true;
+            save.ShowDialog();
+            if (save.FileNames.Length <= 0)
+            {
+                return;
+            }
+
+            string filename = save.FileNames[0];
+            if (!U.CanWriteFileRetry(filename))
+            {
+                return;
+            }
+            using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+            using (StreamWriter w = new StreamWriter(filename))
+            {
+                w.WriteLine("Color_Control_BackColor" + "\t" + Color_Control_BackColor_button.BackColor.Name);
+                w.WriteLine("Color_Control_ForeColor" + "\t" + Color_Control_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_Input_BackColor" + "\t" + Color_Input_BackColor_button.BackColor.Name);
+                w.WriteLine("Color_Input_ForeColor" + "\t" + Color_Input_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_InputDecimal_BackColor" + "\t" + Color_InputDecimal_BackColor_button.BackColor.Name);
+                w.WriteLine("Color_InputDecimal_ForeColor" + "\t" + Color_InputDecimal_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_NotifyWrite_BackColor" + "\t" + Color_NotifyWrite_BackColor_button.BackColor.Name);
+                w.WriteLine("Color_NotifyWrite_ForeColor" + "\t" + Color_NotifyWrite_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_List_SelectedColor" + "\t" + Color_List_SelectedColor_button.BackColor.Name);
+                w.WriteLine("Color_List_HoverColor" + "\t" + Color_List_HoverColor_button.BackColor.Name);
+                w.WriteLine("Color_Keyword_BackColor" + "\t" + Color_Keyword_BackColor_button.BackColor.Name);
+                w.WriteLine("Color_Keyword_ForeColor" + "\t" + Color_Keyword_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_Comment_ForeColor" + "\t" + Color_Comment_ForeColor_button.BackColor.Name);
+                w.WriteLine("Color_ControlComment_ForeColor" + "\t" + Color_ControlComment_ForeColor_button.BackColor.Name);
+            }
+            U.SelectFileByExplorer(filename);
+        }
+
+        private void ColorLoadButton_Click(object sender, EventArgs e)
+        {
+            string title = R._("開くファイル名を選択してください");
+            string filter = "FEBuilderColor|*.febuildergba_color.txt|All files|*";
+
+            OpenFileDialog open = new OpenFileDialog();
+            open.Title = title;
+            open.Filter = filter;
+            open.Multiselect = false;
+            open.CheckFileExists = true;
+            open.CheckPathExists = true;
+            open.ShowDialog();
+            if (!U.CanReadFileRetry(open))
+            {
+                return;
+            }
+            U.SelectedIndexSafety(ColorSetComboBox, 0);
+
+            string filename = open.FileNames[0];
+            using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+            using (StreamReader reader = new StreamReader(filename))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    string[] sp = line.Split('\t');
+                    if (sp.Length <= 1)
+                    {
+                        continue;
+                    }
+                    if (sp[0] == "Color_Control_BackColor") Color_Control_BackColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Control_ForeColor") Color_Control_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Input_BackColor") Color_Input_BackColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Input_ForeColor") Color_Input_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_InputDecimal_BackColor") Color_InputDecimal_BackColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_InputDecimal_ForeColor") Color_InputDecimal_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_NotifyWrite_BackColor") Color_NotifyWrite_BackColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_NotifyWrite_ForeColor") Color_NotifyWrite_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_List_SelectedColor") Color_List_SelectedColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_List_HoverColor") Color_List_HoverColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Keyword_BackColor") Color_Keyword_BackColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Keyword_ForeColor") Color_Keyword_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_Comment_ForeColor") Color_Comment_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                    else if (sp[0] == "Color_ControlComment_ForeColor") Color_ControlComment_ForeColor_button.BackColor = U.ColorFromName(sp[1]);
+                }
+            }
         }
     }
 }

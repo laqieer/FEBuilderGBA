@@ -1399,8 +1399,10 @@
 
 08063014	Battle animation scriptC26 (throw shield) / C27 (throw sword) command judgment	{J}
 0806CC94	Battle animation scriptC26 (throw shield) / C27 (throw sword) command judgment	{U}
-08050bf8	Special movement of tiles?Called from C26 / C27	r0=unknown	r1=Pointer array 1	r2=Pointer array 1	r3=??	{J}
-0805041C	Special movement of tiles?Called from C26 / C27	r0=unknown	r1=Pointer array 1	r2=Pointer array 1	r3=??	{U}
+
+08050bf8	PrepAIS	Special movement of tiles Called from C26 / C27	r0=ParentProcs	r1=FrameDataMeleeLeft	r2=FrameDataMeleeRight	r3=FrameDataRangedLeft	[sp+0]=FrameDataRangedRight	{J}
+0805041C	PrepAIS	Special movement of tiles Called from C26 / C27	r0=ParentProcs	r1=FrameDataMeleeLeft	r2=FrameDataMeleeRight	r3=FrameDataRangedLeft	[sp+0]=FrameDataRangedRight	{U}
+
 083bdff4	:083be18c	Japanese notation of terrain	{J}
 083be18c	:083bee00	The terrain and the name of the character are entered in ASCII	{J}
 083bee00	:083bf508	The staff role is entered in ASCIINot used	{J}
@@ -2426,9 +2428,9 @@
 08050008	ClearBG1Setup	{U}
 08050018	ClearBG1	{U}
 08050140	ThisMakesTheHPInSpellAnimGoAway	{U}
-080505C8	SomeImageStoringRoutine_SpellAnim	{U}
-080505F0	SomePaletteStoringRoutine_SpellAnim	{U}
-0805060C	SomeImageStoringRoutine_SpellAnim2	{U}
+080505C8	StoreSpellAnimTilesOBJ	{U}
+080505F0	StoreSpellAnimPaletteOBJ	{U}
+0805060C	StoreSpellAnimTilesBG	{U}
 080509A4	BeginAnimsOnBattleAnimations	{U}
 08050A38	MainUpdate_8055C68	{U}
 08050CDC	ekrBattleStarting_8055F00	{U}
@@ -3223,9 +3225,9 @@
 080507E4	ClearBG1Setup	{J}
 080507F4	ClearBG1	{J}
 0805091C	ThisMakesTheHPInSpellAnimGoAway	{J}
-08050DA4	SomeImageStoringRoutine_SpellAnim	{J}
-08050DCC	SomePaletteStoringRoutine_SpellAnim	{J}
-08050DE8	SomeImageStoringRoutine_SpellAnim2	{J}
+08050DA4	StoreSpellAnimTilesOBJ	{J}
+08050DCC	StoreSpellAnimPaletteOBJ	{J}
+08050DE8	StoreSpellAnimTilesBG	{J}
 08051180	BeginAnimsOnBattleAnimations	{J}
 08051214	MainUpdate_8055C68	{J}
 080514B8	ekrBattleStarting_8055F00	{J}
@@ -3242,7 +3244,6 @@
 080532F0	GetSpellAnimId	{J}
 08053042	GetBattleAnimationId	{J}
 08053A7E	GetAllegienceId	{J}
-08053AD2	GetSomeAISRelatedIndexMaybeByID	{J}
 08053B5C	IsItemDisplayedInBattle	{J}
 08053C3C	BattleAIS_ExecCommands	{J}
 08054734	NewEkrChienCHR	{J}
@@ -5139,3 +5140,43 @@
 @AiData@99	byte	yOther
 @AiData@9A	byte	decisionTaken
 @AiData@9B	byte	decisionType
+
+//https://discord.com/channels/144670830150811649/725478895226191892/850481060751999016
+08013508	GetValueFromEasingFunction	r0=rate function	r1=start x	r2=end x	r3=current t	sp0=end t	{J}
+08012FE8	GetValueFromEasingFunction	r0=rate function	r1=start x	r2=end x	r3=current t	sp0=end t	{U}
+
+08085478	Drawing of terrain avoidance rate, etc	{U}
+080c57bc	TileMap_FillRect	{U}
+080056a8	GetStringTextCenteredPos	{U}
+080054e0	TextVRAMClearer This function gets a space in VRAM and prepares it for the new text		{U}
+08005588	Text_SetParameters r0=Text Struct r1=cursor r2=color id	{U}
+08005590	Text_Draw	{U}
+08005044	NumBufferWriter StoreNumberStringToSmallBuffer	{U}
+
+08085E6C	Drawing of terrain avoidance rate, etc	{J}
+080c0c30	TileMap_FillRect	{J}
+08005458	Text_SetParameters r0=Text Struct r1=cursor r2=color id	{J}
+08005460	Text_Draw	{J}
+08013870	GetTerrainTypeID	{J}
+
+08005580	Text_SetColorId	{U}
+08005570	Text_GetXCursor	{U}
+080171e4	GetItemSomeString	{U}
+
+08005450	Text_SetColorId	{J}
+08005440	Text_GetXCursor	{J}
+0203A508	@BattleRound@[7]	gRoundArray	{J}
+0203A50C	@BattleRound@[7]	gRoundArray	{U}
+08053AD2	GetSomeAISRelatedIndexMaybeByID	{J}
+0800515C	SetupDebugFontForOBJ	{J}
+080051E8	PrintDebugStringAsOBJ	{J}
+08005280	SetupDebugFontForOBJ	{U}
+0800530C	PrintDebugStringAsOBJ	{U}
+0808F3D0	Matthew speaks in preparation for ch8 advance.	{U}
+0808FD10	Matthew speaks in preparation for ch8 advance.	{J}
+0808F43C	Marinas talks in preparation for the advance.	{U}
+0808FD7C	Marinas talks in preparation for the advance.	{J}
+0808F4A8	Fortune-teller talks in preparation for the advance of ch14.	{U}
+0808FDE8	Fortune-teller talks in preparation for the advance of ch14.	{J}
+0808F52C	When Marinas gets the carriage, she talks in preparation for the advance.	{U}
+0808FE6C	When Marinas gets the carriage, she talks in preparation for the advance.	{J}

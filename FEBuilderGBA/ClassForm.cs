@@ -91,6 +91,7 @@ namespace FEBuilderGBA
                 this.X_SkillType = PatchUtil.SearchSkillSystem();
                 if ( this.X_SkillType == PatchUtil.skill_system_enum.SkillSystem
                   || this.X_SkillType == PatchUtil.skill_system_enum.FE8N_ver2
+                  || this.X_SkillType == PatchUtil.skill_system_enum.FE8N_ver3
                     )
                 {
                     InputFormRef.markupJumpLabel(this.X_CLASSSKILL);
@@ -500,6 +501,8 @@ namespace FEBuilderGBA
                         return Program.ROM.RomInfo.terrain_recovery_pointer(); //地形回復
                     case 7:
                         return Program.ROM.RomInfo.terrain_bad_status_recovery_pointer(); //地形ステータス異常回復
+                    case 8:
+                        return Program.ROM.RomInfo.terrain_show_infomation_pointer(); //地形ウィンドウに情報表示
                     default:
                         return Program.ROM.RomInfo.terrain_recovery_pointer(); //地形回復
                 }
@@ -524,6 +527,8 @@ namespace FEBuilderGBA
                         return Program.ROM.RomInfo.terrain_recovery_pointer(); //地形回復
                     case 7:
                         return Program.ROM.RomInfo.terrain_bad_status_recovery_pointer(); //地形ステータス異常回復
+                    case 8:
+                        return Program.ROM.RomInfo.terrain_show_infomation_pointer(); //地形ウィンドウに情報表示
                     default:
                         return Program.ROM.RomInfo.terrain_recovery_pointer(); //地形回復
                 }
@@ -740,18 +745,25 @@ namespace FEBuilderGBA
                 }
             }
 
-            //全クラス共通地形回復
+            //全クラス共通:地形回復
             FEBuilderGBA.Address.AddPointer(list,
                   Program.ROM.RomInfo.terrain_recovery_pointer()
                 , 66
                 , "MoveCost ref"
                 , FEBuilderGBA.Address.DataTypeEnum.BIN);
 
-            //全クラス共通地形バッドステータス回復
+            //全クラス共通:地形バッドステータス回復
             FEBuilderGBA.Address.AddPointer(list,
                   Program.ROM.RomInfo.terrain_bad_status_recovery_pointer()
                 , 66
-                , "MoveCost ref"
+                , "MoveCost recovery bad status"
+                , FEBuilderGBA.Address.DataTypeEnum.BIN);
+
+            //全クラス共通:地形ウィンドウに情報表示
+            FEBuilderGBA.Address.AddPointer(list,
+                  Program.ROM.RomInfo.terrain_show_infomation_pointer()
+                , 66
+                , "MoveCost show infomation"
                 , FEBuilderGBA.Address.DataTypeEnum.BIN);
         }
 

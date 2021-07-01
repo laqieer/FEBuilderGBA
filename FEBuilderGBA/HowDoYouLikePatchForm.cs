@@ -19,14 +19,21 @@ namespace FEBuilderGBA
 
         private void CancelButton_Click(object sender, EventArgs e)
         {
+            if (this.NoRecommedPatchCheckBox.Checked)
+            {
+                IgnorePatchs.Add(this.CurrentType);
+            }
             this.Close();
         }
+        static List<TYPE> IgnorePatchs = new List<TYPE>();
+        TYPE CurrentType;
 
         private void HowDoYouLikePatchForm_Load(object sender, EventArgs e)
         {
             //メッセージ（問い合わせ）を鳴らす
             System.Media.SystemSounds.Question.Play();
         }
+
         static bool AlwaysFalse()
         {
             return false;
@@ -61,6 +68,7 @@ namespace FEBuilderGBA
             string patchName2 = "";
             string patchShowName = null;
             string patchCombo = "";
+
             if (type == TYPE.Anti_Huffman_By_Translate)
             {
                 checkFunc = PatchUtil.SearchAntiHuffmanPatch;
@@ -139,6 +147,7 @@ namespace FEBuilderGBA
                         PatchUtil.skill_system_enum a = PatchUtil.SearchSkillSystem();
                         return (a == PatchUtil.skill_system_enum.FE8N
                             || a == PatchUtil.skill_system_enum.FE8N_ver2
+                            || a == PatchUtil.skill_system_enum.FE8N_ver3
                             || a == PatchUtil.skill_system_enum.yugudora
                             );
                     };
@@ -305,6 +314,10 @@ namespace FEBuilderGBA
             {//すでに適応されている.
                 return true;
             }
+            if (IgnorePatchs.IndexOf(type) >= 0)
+            {
+                return true;
+            }
             if (patchShowName == null)
             {
                 patchShowName = patchName1;
@@ -312,6 +325,7 @@ namespace FEBuilderGBA
 
             HowDoYouLikePatchForm f = (HowDoYouLikePatchForm)InputFormRef.JumpFormLow<HowDoYouLikePatchForm>();
             string tile = R._("{0}パッチを有効にしますか？", patchShowName);
+            f.CurrentType = type;
             f.Text = tile;
             f.ReasonLabel.Text = R._("{0}\r\n\r\n{1}", tile, reason);
             f.EnableButton.Text = R._("{0}パッチを有効にする", patchShowName);

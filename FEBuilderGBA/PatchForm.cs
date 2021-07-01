@@ -891,6 +891,16 @@ namespace FEBuilderGBA
                     U.ConvertComboBox(dic, ref link, true);
                     PatchPage.Controls.Add(link);
                 }
+                else if (type.IndexOf("ITEMEFFECT") == 0)
+                {//間接エフェクト
+                    TextBoxEx link = new TextBoxEx();
+                    link.SetToolTipEx(this.ToolTip);
+                    link.Location = new Point(500, y);
+                    link.Size = new Size(100, CONTROL_HEIGHT);
+                    link.ReadOnly = true;
+                    link.Name = "L_" + datanum + "_" + type;
+                    PatchPage.Controls.Add(link);
+                }
                 else if (type.IndexOf("BATTLEANIMEITEM") == 0)
                 {//戦闘アニメの特別指定1 面倒だが仕方ない.
                     TextBoxEx link = new TextBoxEx();
@@ -4117,7 +4127,7 @@ namespace FEBuilderGBA
         {
             alloc_address = U.toOffset(alloc_address);
             base_address = U.toOffset(base_address);
-            if (! U.isSafetyOffset(base_address) )
+            if (!U.isSafetyOffset(alloc_address) )
             {
                 return original;
             }
@@ -5042,7 +5052,10 @@ namespace FEBuilderGBA
                 for (int n = 0; n < ea.DataList.Count; n++)
                 {
                     EAUtil.Data data = ea.DataList[n];
-                    if (data.DataType == EAUtil.DataEnum.ORG)
+                    if (data.BINData == null || data.BINData.Length == 0)
+                    {//empty data
+                    }
+                    else if (data.DataType == EAUtil.DataEnum.ORG)
                     {
                         uint addr = data.ORGAddr;
 
@@ -7032,6 +7045,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            string asmc_name = PatchUtil.GetASMCName(eventscript);
 
             string basedir = Path.GetDirectoryName(st.PatchFileName);
             List<string> scriptBinList = ParseEventScript(eventscript);
@@ -7050,9 +7064,8 @@ namespace FEBuilderGBA
                 //マクロを置換する.
                 eventscript = ReplaceL1Macro(eventscript, scriptbin, addr);
             }
-            eventscript += "\t" + R._("拡張命令:") + U.at(st.Param, "NAME");
+            eventscript += "\t" + R._("拡張命令:") + U.at(st.Param, "NAME") + " " + asmc_name + "(ASMC)\r\n" + U.at(st.Param, "INFO");
             
-
             EventScript.Script script = EventScript.ParseScriptLine(eventscript);
             if (script == null)
             {
@@ -7255,6 +7268,19 @@ namespace FEBuilderGBA
             ReScan();
 
             JumpTo(filter, index);
+        }
+        public void JumpToSelectStruct(string filter, int index, int selectStructIndex)
+        {
+            this.Filter.Text = filter;
+            U.SelectedIndexSafety(this.PatchList, index, true);
+
+            List<Control> controls = InputFormRef.GetAllControls(this);
+            Control c = InputFormRef.FindObjectByForm<ListBox>(controls, "AddressList");
+            if (c is ListBox)
+            {
+                ListBox listObject = (ListBox)c;
+                U.SelectedIndexSafety(listObject, selectStructIndex, true);
+            }
         }
 
 #if DEBUG
