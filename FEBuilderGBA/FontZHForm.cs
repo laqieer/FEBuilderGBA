@@ -763,14 +763,14 @@ namespace FEBuilderGBA
                 ImageUtil.BlackOutUnnecessaryColors(bitmap, 1);
                 string name = U.escape_filename(a.Info) + "_" + U.ToHexString(hex);
                 string font_filename = Path.Combine(basedir, name + ".png");
-                try
+                /*try
                 {
                     U.BitmapSave(bitmap, font_filename);
                 }
-                catch (Exception)
+                catch (Exception)*/
                 {//このOSではこの文字のファイル名は使えないので削ります
-                    string trimName = U.substr(a.Info, 0, a.Info.Length - 2);
-                    name = trimName + "_" + U.ToHexString(hex);
+                    string trimName = U.substr(a.Info, 0, a.Info.Length - 1);
+                    name = trimName + "_" + BitConverter.ToString(Encoding.UTF8.GetBytes(ch)).Replace("-", "");
                     font_filename = Path.Combine(basedir, name + ".png");
                     U.BitmapSave(bitmap, font_filename);
                 }
