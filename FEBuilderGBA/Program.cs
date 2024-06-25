@@ -157,6 +157,12 @@ namespace FEBuilderGBA
                 Environment.Exit(VersionForm.CommandLineVersion());
                 return true;
             }
+            if (ArgsDic.ContainsKey("--decreasecolor"))
+            {//減色
+                Program.IsCommandLine = true;
+                Environment.Exit(DecreaseColorTSAToolForm.CommandLineDecreaseColor());
+                return true;
+            }
 
 #if DEBUG
             //デバッグの場合はテストを実行
