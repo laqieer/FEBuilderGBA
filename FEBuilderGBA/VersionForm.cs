@@ -15,6 +15,15 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
+            Version.Text = MakeVersionMessage();
+            Version.Select(0, 0); //全選択解除.
+#if DEBUG
+            DevTranslateButton.Show();
+#endif
+        }
+
+        public static string MakeVersionMessage()
+        {
             //see   ビルド時間の取得
             //http://devlights.hatenablog.com/entry/2015/04/14/230841 
 
@@ -56,12 +65,7 @@ namespace FEBuilderGBA
                 sb.AppendLine(MakeUpdateMessage());
             }
 
-
-            Version.Text = sb.ToString();
-            Version.Select(0, 0); //全選択解除.
-#if DEBUG
-            DevTranslateButton.Show();
-#endif
+            return sb.ToString();
         }
 
         public static bool IsOldVersion()
@@ -134,6 +138,13 @@ namespace FEBuilderGBA
         private void CloseButton_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        public static int CommandLineVersion()
+        {
+            U.echo("CommandLineVersion");
+            U.echo(MakeVersionMessage());
+            return 0;
         }
 
     }

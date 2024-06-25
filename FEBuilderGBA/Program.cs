@@ -151,6 +151,12 @@ namespace FEBuilderGBA
                 Environment.Exit(DisASMDumpAllForm.CommandLineDisasm(ArgsDic["--disasm"]));
                 return true;
             }
+            if (ArgsDic.ContainsKey("--version"))
+            {//バージョン表示
+                Program.IsCommandLine = true;
+                Environment.Exit(VersionForm.CommandLineVersion());
+                return true;
+            }
 
 #if DEBUG
             //デバッグの場合はテストを実行
