@@ -158,13 +158,13 @@ namespace FEBuilderGBA
                 return true;
             }
             if (ArgsDic.ContainsKey("--decreasecolor"))
-            {//減色
+            {//減色: https://github.com/laqieer/FEHRR/commit/cabe71980d800bcffbd25f19d5604b9ee7096259
                 Program.IsCommandLine = true;
                 Environment.Exit(DecreaseColorTSAToolForm.CommandLineDecreaseColor());
                 return true;
             }
             if (ArgsDic.ContainsKey("--convertmap1picture"))
-            {//マップ1枚絵の変換
+            {//マップ1枚絵の変換: https://github.com/laqieer/FEHRR/commit/03297e5b6ce442608cc6e942c392322acb3d0208
                 Program.IsCommandLine = true;
                 Environment.Exit(MapStyleEditorForm.CommandLineConvertMapOnePicture());
                 return true;
