@@ -163,6 +163,12 @@ namespace FEBuilderGBA
                 Environment.Exit(DecreaseColorTSAToolForm.CommandLineDecreaseColor());
                 return true;
             }
+            if (ArgsDic.ContainsKey("--convertmap1picture"))
+            {//マップ1枚絵の変換
+                Program.IsCommandLine = true;
+                Environment.Exit(MapStyleEditorForm.CommandLineConvertMapOnePicture());
+                return true;
+            }
 
 #if DEBUG
             //デバッグの場合はテストを実行

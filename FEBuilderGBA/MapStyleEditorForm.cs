@@ -734,6 +734,91 @@ namespace FEBuilderGBA
             }
         }
 
+        public static int CommandLineConvertMapOnePicture()
+        {
+            U.echo("CommandLineImportObjOnePicture");
+            string inFilename = U.at(Program.ArgsDic, "--in");
+            if (!File.Exists(inFilename))
+            {
+                U.echo("マップ画像を「--in」で指定してください。");
+                return -2;
+            }
+            string outImgFilename = U.at(Program.ArgsDic, "--outImg");
+            if (outImgFilename == "")
+            {
+                U.echo("出力画像を「--outImg」で指定してください。");
+                return -2;
+            }
+            string outTSAFilename = U.at(Program.ArgsDic, "--outTSA");
+            if (outTSAFilename == "")
+            {
+                U.echo("出力TSAを「--outTSA」で指定してください。");
+                return -2;
+            }
+
+            Bitmap loadbitmap = ImageUtil.OpenBitmap(inFilename);
+            if (loadbitmap == null)
+            {
+                U.echo("マップ画像を開けませんでした。");
+                return -1;
+            }
+
+            const int palette_count = MAX_MAP_PALETTE_COUNT;
+
+            int bitmap_palette_count = ImageUtil.GetPalette16Count(loadbitmap);
+            if (bitmap_palette_count > palette_count)
+            {
+                R.ShowStopError("パレット数が正しくありません。\r\n{1}種類以下(16色*{1}種類) でなければなりません。\r\n\r\n選択された画像のパレット種類:{0}種類", bitmap_palette_count, palette_count);
+                return -1;
+            }
+
+            if (loadbitmap.Width > 512 || loadbitmap.Height > 512 || loadbitmap.Width % 8 != 0)
+            {
+                R.ShowStopError("画像サイズが正しくありません。\r\nWidth:{2}以下 Height:{3}以下、でなければなりません。\r\nまた、幅は8で割り切れる必要があります。\r\n\r\n選択された画像のサイズ Width:{0} Height:{1}", loadbitmap.Width, loadbitmap.Height, 512, 512);
+                return -1;
+            }
+            //マップチップ用に512x512のキャンバスに再描画
+            Bitmap bitmap = ImageUtil.Blank(512, 512, loadbitmap);
+            ImageUtil.BitBlt(bitmap, 0, 0, loadbitmap.Width, loadbitmap.Height, loadbitmap, 0, 0);
+
+            byte[] image;
+            byte[] tsa;
+            string error = ImageUtil.ImageToBytePackedTSA(bitmap, 512, 512, 0, out image, out tsa);
+            if (error != "")
+            {
+                R.ShowStopError(error);
+                return -1;
+            }
+
+            if (image.Length > 0x8000)
+            {
+                R.ShowStopError("マップが広すぎて、0x8000バイトに収まりませんでした。\r\n入力されたサイズ:  {0}\r\n\r\nもっと小さいマップにするか、圧縮率を上げるために共通のパーツを増やしてください。", U.To0xHexString(image.Length));
+                return -1;
+            }
+
+            //写像した画像を再描画
+            byte[] palette_bin = ImageUtil.ImageToPalette(bitmap, 16);
+            bitmap = ImageUtil.ByteToImage16Tile(256, 256, image, 0, palette_bin, 0);
+
+            byte[] map_config = ImageUtilMap.ConvertTSAToMapConfig(tsa);
+
+            //画像を出力
+            if (!U.BitmapSave(bitmap, outImgFilename))
+            {
+                U.echo("画像を保存できませんでした。");
+                return -1;
+            }
+
+            //圧縮されたTSAを出力
+            Array.Resize(ref map_config, 0x2000);
+            U.WriteAllBytes(outTSAFilename, LZ77.compress(map_config));
+
+            loadbitmap.Dispose();
+            bitmap.Dispose();
+
+            return 0;
+        }
+
         void ImportObjOnePicture(Bitmap loadbitmap)
         {
             const int palette_count = MAX_MAP_PALETTE_COUNT;
