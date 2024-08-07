@@ -5,7 +5,6 @@ using System.Data;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
-using System.Diagnostics;
 
 namespace FEBuilderGBA
 {
@@ -43,6 +42,13 @@ namespace FEBuilderGBA
 
             X_SIM.ValueChanged += X_SIM_ValueChanged;
             InputFormRef.markupJumpLabel(HardCodingWarningLabel);
+
+            // Import/Export Setup
+            U.SetIcon(ExportAllBtn, Properties.Resources.icon_arrow);
+            U.SetIcon(ExportSelectedBtn, Properties.Resources.icon_arrow);
+
+            U.SetIcon(ImportAllBtn, Properties.Resources.icon_upload);
+            U.SetIcon(ImportSelectedStatsBtn, Properties.Resources.icon_upload);
         }
 
         public InputFormRef InputFormRef;
@@ -1175,6 +1181,73 @@ namespace FEBuilderGBA
                 return;
             }
             P52.Value = U.toPointer(newAddr);
+        }
+
+        private void ExportAllBtn_Click(object sender, EventArgs e)
+        {
+            InputFormRef InputFormRef = Init(null);
+            CsvManager csv = new CsvManager(
+                ChkUseClipboard.Checked,
+                ChkIncludeUID.Checked,
+                ChkIncludeHeader.Checked,
+                ChkIncludeName.Checked,
+                ChkExportStats.Checked,
+                ChkExportGrowths.Checked,
+                ChkExportWLevel.Checked,
+                ChkGrowthsAsDecimal.Checked,
+                true);
+            csv.ExportList(InputFormRef, AddressList.Items.Count);
+        }
+
+        private void ExportSelectedBtn_Click(object sender, EventArgs e)
+        {
+            InputFormRef InputFormRef = Init(null);
+            CsvManager csv = new CsvManager(
+                ChkUseClipboard.Checked,
+                ChkIncludeUID.Checked,
+                ChkIncludeHeader.Checked,
+                ChkIncludeName.Checked,
+                ChkExportStats.Checked,
+                ChkExportGrowths.Checked,
+                ChkExportWLevel.Checked,
+                ChkGrowthsAsDecimal.Checked,
+                true);
+            csv.ExportSingle(InputFormRef, AddressList.SelectedIndex);
+
+        }
+
+        private void ImportAllBtn_Click(object sender, EventArgs e)
+        {
+            InputFormRef InputFormRef = Init(null);
+            CsvManager csv = new CsvManager(
+               ChkUseClipboard.Checked,
+               ChkIncludeUID.Checked,
+               ChkIncludeHeader.Checked,
+               ChkIncludeName.Checked,
+               ChkExportStats.Checked,
+               ChkExportGrowths.Checked,
+               ChkExportWLevel.Checked,
+               ChkGrowthsAsDecimal.Checked,
+               true);
+            csv.ImportList(InputFormRef);
+            ReloadListButton.PerformClick();
+        }
+
+        private void ImportSelectedStatsBtn_Click(object sender, EventArgs e)
+        {
+            InputFormRef InputFormRef = Init(null);
+            CsvManager csv = new CsvManager(
+                ChkUseClipboard.Checked,
+                ChkIncludeUID.Checked,
+                ChkIncludeHeader.Checked,
+                ChkIncludeName.Checked,
+                ChkExportStats.Checked,
+                ChkExportGrowths.Checked,
+                ChkExportWLevel.Checked,
+                ChkGrowthsAsDecimal.Checked,
+                true);
+            csv.ImportSingle(InputFormRef, AddressList.SelectedIndex);
+            ReloadListButton.PerformClick();
         }
     }
 }

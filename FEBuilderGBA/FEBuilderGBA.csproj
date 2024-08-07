@@ -89,6 +89,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data" />
@@ -118,6 +119,7 @@
     <Compile Include="ArenaClassForm.Designer.cs">
       <DependentUpon>ArenaClassForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="CsvManager.cs" />
     <Compile Include="EAUtilLynDumpMode.cs" />
     <Compile Include="ImageBGSelectPopupForm.cs">
       <SubType>Form</SubType>
