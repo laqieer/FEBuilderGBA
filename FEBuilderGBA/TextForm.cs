@@ -431,7 +431,7 @@ namespace FEBuilderGBA
         static void NeedAntiHuffman(string error)
         {
             string lang = OptionForm.lang();
-            if (lang == "ja" || lang == "zh")
+            if (lang == "ja" || lang == "zh" || lang == "ko" )
             {
                 TextBadCharPopupForm f = (TextBadCharPopupForm)InputFormRef.JumpFormLow<TextBadCharPopupForm>();
                 string dialog_text = R.Error("文字:{0}はシステムに登録されていません。", error);
@@ -2642,6 +2642,10 @@ namespace FEBuilderGBA
                 {//倍角スペースを半角スペースへ
                     return text.Replace('　', ' ');
                 }
+                else if (textencoding == OptionForm.textencoding_enum.KO_TBL)
+                {
+                    return text.Replace(' ', '　');
+                }
                 else
                 {//半角スペースを倍角スペース
                     return text.Replace(' ', '　');
@@ -3043,7 +3047,7 @@ namespace FEBuilderGBA
 
             public CheckBlockResult CheckBlockBox(string text, int widthLimit, int heightLimit,bool isItemFont)
             {
-                if (this.TextEncoding == OptionForm.textencoding_enum.ZH_TBL)
+                if (this.TextEncoding == OptionForm.textencoding_enum.ZH_TBL || this.TextEncoding == OptionForm.textencoding_enum.KO_TBL)
                 {//中国語の場合、今のところフォントデータが取れないので何もチェックできない.
                     return CheckBlockResult.NoError;
                 }

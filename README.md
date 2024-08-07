@@ -1,3 +1,22 @@
+README
+===
+
+This fork is an integration of several forks of FEBuilderGBA and continues development based on it.
+
+README for Korean character table
+===
+
+It is from an [unofficial build](https://github.com/delvier/FEBuilderGBA) of FEBuilderGBA that supports Korean character table.
+
+The character table used is **Johab**, only for the Hangul Syllables part. If you want to use another character table like Wansung or Windows-949, you may replace __FE\[678\].tbl__ in __./config/translate/ko_tbl__.
+
+Since this fork is incomplete, there might be some issues that raw code points appear can be occurred, e.g. '@61A0' rather than '마' (0xA061) appears. This is likely because the upper bytes from 0xA0 to 0xDF are used for single-byte representation in Shift JIS and Windows-932.
+
+You should change "Text Encoding in ROM" in Options manually every time the ROM is loaded.
+
+Original README
+===
+
 FE_Builder_GBA
 ===
 This is a ROM hacking suite for the Trilogy of Fire Emblem games for the Game Boy Advance.

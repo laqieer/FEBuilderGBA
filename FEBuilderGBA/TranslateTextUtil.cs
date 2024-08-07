@@ -241,6 +241,11 @@ namespace FEBuilderGBA
                 from_n = 0;
                 from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.ZH_TBL, rom_f);
             }
+            else if (from == "ko" || from == "ko-KR")
+            {
+                from_n = 0;
+                from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.KO_TBL, rom_f);
+            }
             else
             {//fromが対応外.
                 return dic;
@@ -268,6 +273,11 @@ namespace FEBuilderGBA
             {
                 to_n = 0;
                 to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.ZH_TBL, rom_t);
+            }
+            else if (to == "ko" || to == "ko-KR")
+            {
+                to_n = 0;
+                to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.KO_TBL, rom_t);
             }
             else
             {//toが対応外.
