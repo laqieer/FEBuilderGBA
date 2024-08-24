@@ -1003,6 +1003,9 @@
     <Compile Include="SkillConfigSkillSystemForm.Designer.cs">
       <DependentUpon>SkillConfigSkillSystemForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="SkillConfigFE8UCSkillSys09xForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="SongExchangeForm.cs">
       <SubType>Form</SubType>
     </Compile>
