@@ -1006,6 +1006,9 @@
     <Compile Include="SkillConfigFE8UCSkillSys09xForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="SkillConfigFE8UCSkillSys09xForm.Designer.cs">
+      <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SongExchangeForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -2245,6 +2248,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="RAMRewriteToolForm.resx">
       <DependentUpon>RAMRewriteToolForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SkillConfigFE8UCSkillSys09xForm.resx">
+      <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SongInstrumentDirectSoundForm.resx">
       <DependentUpon>SongInstrumentDirectSoundForm.cs</DependentUpon>
