@@ -167,6 +167,7 @@ namespace FEBuilderGBA
             Program.ROM.write_p32(anime, (uint)ANIMATION.Value);
         }
 
+
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
         {
             this.SKILLICON.Image = DrawSkillIcon((uint)AddressList.SelectedIndex);
