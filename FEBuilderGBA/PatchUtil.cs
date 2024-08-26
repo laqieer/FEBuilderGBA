@@ -72,6 +72,10 @@ namespace FEBuilderGBA
                 {//不明なので31とする
                     g_LevelMaxCaps = 31;
                 }
+                if (PatchUtil.SearchSkillSystem() == PatchUtil.skill_system_enum.CSkillSys09x)
+                {// UNIT_LEVEL_MAX_RE
+                    g_LevelMaxCaps = 25;
+                }
                 if (PatchUtil.SearchGrowsMod() == PatchUtil.growth_mod_enum.Vennou)
                 {//不明なので31とする
                     g_LevelMaxCaps = 31;
@@ -166,6 +170,7 @@ namespace FEBuilderGBA
             yugudora,       //for FE8J   FE8Nのカスタマイズ
             midori,         //for FE8J   初期から独自スキルを実装していた拡張
             SkillSystem,    //for FE8U
+            CSkillSys09x,   //for FE8U
             NoCache = (int)NO_CACHE
         };
         static skill_system_enum g_Cache_skill_system_enum = skill_system_enum.NoCache;
@@ -184,6 +189,7 @@ namespace FEBuilderGBA
                 new PatchTableSt{ name="FE8N",	ver = "FE8J", addr = 0x89268,data = new byte[]{0x00 ,0x4B ,0x9F ,0x46}},
                 new PatchTableSt{ name="midori",	ver = "FE8J", addr = 0xFE58E0,data = new byte[]{0x05 ,0x1C ,0x00 ,0xF0 ,0x25 ,0xF8 ,0x01 ,0x29 ,0x04 ,0xD0 ,0x28 ,0x1C ,0x00 ,0xF0 ,0x28 ,0xF8}},
                 new PatchTableSt{ name="SkillSystem",	ver = "FE8U", addr = 0x2ACF8,data = new byte[]{0x70 ,0x47}},
+                new PatchTableSt{ name="CSkillSys09x",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x30, 0x39, 0x78, 0x00}},
             };
 
             string version = Program.ROM.RomInfo.VersionToFilename;
@@ -222,6 +228,10 @@ namespace FEBuilderGBA
                 if (t.name == "SkillSystem")
                 {
                     return skill_system_enum.SkillSystem;
+                }
+                if (t.name == "CSkillSys09x")
+                {
+                    return skill_system_enum.CSkillSys09x;
                 }
             }
             return skill_system_enum.NO;

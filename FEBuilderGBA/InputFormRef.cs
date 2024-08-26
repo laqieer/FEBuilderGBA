@@ -8227,6 +8227,10 @@ namespace FEBuilderGBA
             {
                 return SkillConfigFE8NVer2SkillForm.GetSkillText(num);
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys09x)
+            {
+                return SkillConfigCSkillSystem09xForm.GetSkillName(num);
+            }
             else
             {
                 return R.Error("スキル拡張がありません");

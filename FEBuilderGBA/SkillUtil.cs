@@ -185,6 +185,11 @@ namespace FEBuilderGBA
                 string name = SkillConfigSkillSystemForm.GetSkillName(skillid);
                 return name;
             }
+            else if (skillsystem == PatchUtil.skill_system_enum.CSkillSys09x)
+            {
+                string name = SkillConfigCSkillSystem09xForm.GetSkillName(skillid);
+                return name;
+            }
             else if (skillsystem == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 string name = SkillConfigFE8NVer2SkillForm.GetSkillText(skillid);
