@@ -62,11 +62,14 @@ namespace FEBuilderGBA
             this.label1 = new System.Windows.Forms.Label();
             this.ImportButton = new System.Windows.Forms.Button();
             this.ExportButton = new System.Windows.Forms.Button();
-            this.L_0_TEXT = new FEBuilderGBA.TextBoxEx();
-            this.W0 = new System.Windows.Forms.NumericUpDown();
-            this.J_0_TEXT = new System.Windows.Forms.Label();
+            this.L_6_TEXT = new FEBuilderGBA.TextBoxEx();
+            this.W6 = new System.Windows.Forms.NumericUpDown();
+            this.J_6_TEXT = new System.Windows.Forms.Label();
             this.SKILLICON = new FEBuilderGBA.InterpolatedPictureBox();
             this.panel10 = new System.Windows.Forms.Label();
+            this.J_4_TEXT = new System.Windows.Forms.Label();
+            this.W4 = new System.Windows.Forms.NumericUpDown();
+            this.L_4_TEXT = new FEBuilderGBA.TextBoxEx();
             this.panel3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.ReadCount)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.ReadStartAddress)).BeginInit();
@@ -79,8 +82,9 @@ namespace FEBuilderGBA
             ((System.ComponentModel.ISupportInitialize)(this.ShowFrameUpDown)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.AnimationPictureBox)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.ANIMATION)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.W0)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W6)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.SKILLICON)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W4)).BeginInit();
             this.SuspendLayout();
             // 
             // panel3
@@ -99,7 +103,7 @@ namespace FEBuilderGBA
             // ReloadListButton
             // 
             this.ReloadListButton.Location = new System.Drawing.Point(320, 1);
-            this.ReloadListButton.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.ReloadListButton.Margin = new System.Windows.Forms.Padding(1);
             this.ReloadListButton.Name = "ReloadListButton";
             this.ReloadListButton.Size = new System.Drawing.Size(75, 20);
             this.ReloadListButton.TabIndex = 3;
@@ -131,7 +135,7 @@ namespace FEBuilderGBA
             // ReadCount
             // 
             this.ReadCount.Location = new System.Drawing.Point(227, 2);
-            this.ReadCount.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.ReadCount.Margin = new System.Windows.Forms.Padding(1);
             this.ReadCount.Maximum = new decimal(new int[] {
             256,
             0,
@@ -145,7 +149,7 @@ namespace FEBuilderGBA
             // 
             this.ReadStartAddress.Hexadecimal = true;
             this.ReadStartAddress.Location = new System.Drawing.Point(76, 3);
-            this.ReadStartAddress.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.ReadStartAddress.Margin = new System.Windows.Forms.Padding(1);
             this.ReadStartAddress.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
@@ -166,7 +170,7 @@ namespace FEBuilderGBA
             this.panel5.Controls.Add(this.Address);
             this.panel5.Controls.Add(this.label23);
             this.panel5.Location = new System.Drawing.Point(174, 27);
-            this.panel5.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.panel5.Margin = new System.Windows.Forms.Padding(1);
             this.panel5.Name = "panel5";
             this.panel5.Size = new System.Drawing.Size(604, 23);
             this.panel5.TabIndex = 94;
@@ -217,7 +221,7 @@ namespace FEBuilderGBA
             // WriteButton
             // 
             this.WriteButton.Location = new System.Drawing.Point(477, 0);
-            this.WriteButton.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.WriteButton.Margin = new System.Windows.Forms.Padding(1);
             this.WriteButton.Name = "WriteButton";
             this.WriteButton.Size = new System.Drawing.Size(112, 20);
             this.WriteButton.TabIndex = 55;
@@ -229,7 +233,7 @@ namespace FEBuilderGBA
             // 
             this.Address.Hexadecimal = true;
             this.Address.Location = new System.Drawing.Point(60, 3);
-            this.Address.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.Address.Margin = new System.Windows.Forms.Padding(1);
             this.Address.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
@@ -256,7 +260,7 @@ namespace FEBuilderGBA
             this.panel6.Controls.Add(this.LabelFilter);
             this.panel6.Controls.Add(this.AddressList);
             this.panel6.Location = new System.Drawing.Point(7, 29);
-            this.panel6.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.panel6.Margin = new System.Windows.Forms.Padding(1);
             this.panel6.Name = "panel6";
             this.panel6.Size = new System.Drawing.Size(164, 535);
             this.panel6.TabIndex = 96;
@@ -288,6 +292,9 @@ namespace FEBuilderGBA
             // panel1
             // 
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel1.Controls.Add(this.L_4_TEXT);
+            this.panel1.Controls.Add(this.W4);
+            this.panel1.Controls.Add(this.J_4_TEXT);
             this.panel1.Controls.Add(this.IconAddr);
             this.panel1.Controls.Add(this.AnimationExportButton);
             this.panel1.Controls.Add(this.AnimationInportButton);
@@ -296,13 +303,13 @@ namespace FEBuilderGBA
             this.panel1.Controls.Add(this.label1);
             this.panel1.Controls.Add(this.ImportButton);
             this.panel1.Controls.Add(this.ExportButton);
-            this.panel1.Controls.Add(this.L_0_TEXT);
-            this.panel1.Controls.Add(this.W0);
-            this.panel1.Controls.Add(this.J_0_TEXT);
+            this.panel1.Controls.Add(this.L_6_TEXT);
+            this.panel1.Controls.Add(this.W6);
+            this.panel1.Controls.Add(this.J_6_TEXT);
             this.panel1.Controls.Add(this.SKILLICON);
             this.panel1.Controls.Add(this.panel10);
             this.panel1.Location = new System.Drawing.Point(174, 49);
-            this.panel1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.panel1.Margin = new System.Windows.Forms.Padding(2);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(603, 509);
             this.panel1.TabIndex = 97;
@@ -311,7 +318,7 @@ namespace FEBuilderGBA
             // 
             this.IconAddr.Hexadecimal = true;
             this.IconAddr.Location = new System.Drawing.Point(156, 29);
-            this.IconAddr.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.IconAddr.Margin = new System.Windows.Forms.Padding(1);
             this.IconAddr.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
@@ -324,7 +331,7 @@ namespace FEBuilderGBA
             // 
             // AnimationExportButton
             // 
-            this.AnimationExportButton.Location = new System.Drawing.Point(407, 130);
+            this.AnimationExportButton.Location = new System.Drawing.Point(407, 197);
             this.AnimationExportButton.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.AnimationExportButton.Name = "AnimationExportButton";
             this.AnimationExportButton.Size = new System.Drawing.Size(153, 20);
@@ -335,7 +342,7 @@ namespace FEBuilderGBA
             // 
             // AnimationInportButton
             // 
-            this.AnimationInportButton.Location = new System.Drawing.Point(229, 130);
+            this.AnimationInportButton.Location = new System.Drawing.Point(229, 197);
             this.AnimationInportButton.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.AnimationInportButton.Name = "AnimationInportButton";
             this.AnimationInportButton.Size = new System.Drawing.Size(153, 20);
@@ -354,8 +361,8 @@ namespace FEBuilderGBA
             this.AnimationPanel.Controls.Add(this.label24);
             this.AnimationPanel.Controls.Add(this.ShowFrameUpDown);
             this.AnimationPanel.Controls.Add(this.AnimationPictureBox);
-            this.AnimationPanel.Location = new System.Drawing.Point(12, 161);
-            this.AnimationPanel.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.AnimationPanel.Location = new System.Drawing.Point(12, 228);
+            this.AnimationPanel.Margin = new System.Windows.Forms.Padding(2);
             this.AnimationPanel.Name = "AnimationPanel";
             this.AnimationPanel.Size = new System.Drawing.Size(576, 273);
             this.AnimationPanel.TabIndex = 120;
@@ -365,7 +372,7 @@ namespace FEBuilderGBA
             // 
             this.BinInfo.ErrorMessage = "";
             this.BinInfo.Location = new System.Drawing.Point(216, 245);
-            this.BinInfo.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.BinInfo.Margin = new System.Windows.Forms.Padding(2);
             this.BinInfo.Name = "BinInfo";
             this.BinInfo.Placeholder = "";
             this.BinInfo.ReadOnly = true;
@@ -375,7 +382,7 @@ namespace FEBuilderGBA
             // X_N_JumpEditor
             // 
             this.X_N_JumpEditor.Location = new System.Drawing.Point(113, 81);
-            this.X_N_JumpEditor.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.X_N_JumpEditor.Margin = new System.Windows.Forms.Padding(2);
             this.X_N_JumpEditor.Name = "X_N_JumpEditor";
             this.X_N_JumpEditor.Size = new System.Drawing.Size(89, 20);
             this.X_N_JumpEditor.TabIndex = 188;
@@ -445,7 +452,7 @@ namespace FEBuilderGBA
             // 
             this.AnimationPictureBox.Interpolation = System.Drawing.Drawing2D.InterpolationMode.Bicubic;
             this.AnimationPictureBox.Location = new System.Drawing.Point(217, 1);
-            this.AnimationPictureBox.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.AnimationPictureBox.Margin = new System.Windows.Forms.Padding(1);
             this.AnimationPictureBox.Name = "AnimationPictureBox";
             this.AnimationPictureBox.Size = new System.Drawing.Size(357, 240);
             this.AnimationPictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -455,8 +462,8 @@ namespace FEBuilderGBA
             // ANIMATION
             // 
             this.ANIMATION.Hexadecimal = true;
-            this.ANIMATION.Location = new System.Drawing.Point(94, 133);
-            this.ANIMATION.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.ANIMATION.Location = new System.Drawing.Point(94, 200);
+            this.ANIMATION.Margin = new System.Windows.Forms.Padding(1);
             this.ANIMATION.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
@@ -469,7 +476,7 @@ namespace FEBuilderGBA
             // label1
             // 
             this.label1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label1.Location = new System.Drawing.Point(1, 130);
+            this.label1.Location = new System.Drawing.Point(1, 197);
             this.label1.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(91, 21);
@@ -499,48 +506,48 @@ namespace FEBuilderGBA
             this.ExportButton.UseVisualStyleBackColor = true;
             this.ExportButton.Click += new System.EventHandler(this.ExportButton_Click);
             // 
-            // L_0_TEXT
+            // L_6_TEXT
             // 
-            this.L_0_TEXT.ErrorMessage = "";
-            this.L_0_TEXT.Location = new System.Drawing.Point(156, 49);
-            this.L_0_TEXT.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
-            this.L_0_TEXT.Multiline = true;
-            this.L_0_TEXT.Name = "L_0_TEXT";
-            this.L_0_TEXT.Placeholder = "";
-            this.L_0_TEXT.ReadOnly = true;
-            this.L_0_TEXT.Size = new System.Drawing.Size(233, 73);
-            this.L_0_TEXT.TabIndex = 115;
+            this.L_6_TEXT.ErrorMessage = "";
+            this.L_6_TEXT.Location = new System.Drawing.Point(149, 91);
+            this.L_6_TEXT.Margin = new System.Windows.Forms.Padding(1);
+            this.L_6_TEXT.Multiline = true;
+            this.L_6_TEXT.Name = "L_6_TEXT";
+            this.L_6_TEXT.Placeholder = "";
+            this.L_6_TEXT.ReadOnly = true;
+            this.L_6_TEXT.Size = new System.Drawing.Size(233, 73);
+            this.L_6_TEXT.TabIndex = 115;
             // 
-            // W0
+            // W6
             // 
-            this.W0.Hexadecimal = true;
-            this.W0.Location = new System.Drawing.Point(94, 49);
-            this.W0.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
-            this.W0.Maximum = new decimal(new int[] {
+            this.W6.Hexadecimal = true;
+            this.W6.Location = new System.Drawing.Point(94, 92);
+            this.W6.Margin = new System.Windows.Forms.Padding(1);
+            this.W6.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
-            this.W0.Name = "W0";
-            this.W0.Size = new System.Drawing.Size(53, 21);
-            this.W0.TabIndex = 111;
+            this.W6.Name = "W6";
+            this.W6.Size = new System.Drawing.Size(53, 21);
+            this.W6.TabIndex = 111;
             // 
-            // J_0_TEXT
+            // J_6_TEXT
             // 
-            this.J_0_TEXT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_0_TEXT.Location = new System.Drawing.Point(1, 46);
-            this.J_0_TEXT.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
-            this.J_0_TEXT.Name = "J_0_TEXT";
-            this.J_0_TEXT.Size = new System.Drawing.Size(91, 21);
-            this.J_0_TEXT.TabIndex = 114;
-            this.J_0_TEXT.Text = "詳細";
-            this.J_0_TEXT.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            this.J_6_TEXT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.J_6_TEXT.Location = new System.Drawing.Point(1, 92);
+            this.J_6_TEXT.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
+            this.J_6_TEXT.Name = "J_6_TEXT";
+            this.J_6_TEXT.Size = new System.Drawing.Size(91, 21);
+            this.J_6_TEXT.TabIndex = 114;
+            this.J_6_TEXT.Text = "詳細";
+            this.J_6_TEXT.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // SKILLICON
             // 
             this.SKILLICON.Interpolation = System.Drawing.Drawing2D.InterpolationMode.Bicubic;
             this.SKILLICON.Location = new System.Drawing.Point(94, 4);
-            this.SKILLICON.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
+            this.SKILLICON.Margin = new System.Windows.Forms.Padding(1);
             this.SKILLICON.Name = "SKILLICON";
             this.SKILLICON.Size = new System.Drawing.Size(43, 43);
             this.SKILLICON.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -558,6 +565,43 @@ namespace FEBuilderGBA
             this.panel10.Text = "アイコン";
             this.panel10.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
+            // J_4_TEXT
+            // 
+            this.J_4_TEXT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.J_4_TEXT.Location = new System.Drawing.Point(1, 56);
+            this.J_4_TEXT.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
+            this.J_4_TEXT.Name = "J_4_TEXT";
+            this.J_4_TEXT.Size = new System.Drawing.Size(91, 21);
+            this.J_4_TEXT.TabIndex = 155;
+            this.J_4_TEXT.Text = "スキル名";
+            this.J_4_TEXT.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
+            // W4
+            // 
+            this.W4.Hexadecimal = true;
+            this.W4.Location = new System.Drawing.Point(94, 56);
+            this.W4.Margin = new System.Windows.Forms.Padding(1);
+            this.W4.Maximum = new decimal(new int[] {
+            -559939585,
+            902409669,
+            54,
+            0});
+            this.W4.Name = "W4";
+            this.W4.Size = new System.Drawing.Size(53, 21);
+            this.W4.TabIndex = 156;
+            // 
+            // L_4_TEXT
+            // 
+            this.L_4_TEXT.ErrorMessage = "";
+            this.L_4_TEXT.Location = new System.Drawing.Point(149, 56);
+            this.L_4_TEXT.Margin = new System.Windows.Forms.Padding(1);
+            this.L_4_TEXT.Multiline = true;
+            this.L_4_TEXT.Name = "L_4_TEXT";
+            this.L_4_TEXT.Placeholder = "";
+            this.L_4_TEXT.ReadOnly = true;
+            this.L_4_TEXT.Size = new System.Drawing.Size(233, 21);
+            this.L_4_TEXT.TabIndex = 157;
+            // 
             // SkillConfigCSkillSystem09xForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -568,7 +612,7 @@ namespace FEBuilderGBA
             this.Controls.Add(this.panel3);
             this.Controls.Add(this.panel5);
             this.Controls.Add(this.panel6);
-            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "SkillConfigCSkillSystem09xForm";
             this.Text = "スキル拡張設定";
             this.Load += new System.EventHandler(this.SkillConfigCSkillSystem09xForm_Load);
@@ -587,8 +631,9 @@ namespace FEBuilderGBA
             ((System.ComponentModel.ISupportInitialize)(this.ShowFrameUpDown)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.AnimationPictureBox)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.ANIMATION)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.W0)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W6)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.SKILLICON)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W4)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -613,9 +658,9 @@ namespace FEBuilderGBA
         private System.Windows.Forms.Label LabelFilter;
         private ListBoxEx AddressList;
         private System.Windows.Forms.Panel panel1;
-        private FEBuilderGBA.TextBoxEx L_0_TEXT;
-        private System.Windows.Forms.NumericUpDown W0;
-        private System.Windows.Forms.Label J_0_TEXT;
+        private FEBuilderGBA.TextBoxEx L_6_TEXT;
+        private System.Windows.Forms.NumericUpDown W6;
+        private System.Windows.Forms.Label J_6_TEXT;
         private InterpolatedPictureBox SKILLICON;
         private System.Windows.Forms.Label panel10;
         private System.Windows.Forms.Button ImportButton;
@@ -634,5 +679,8 @@ namespace FEBuilderGBA
         private System.Windows.Forms.Button X_N_JumpEditor;
         private System.Windows.Forms.NumericUpDown IconAddr;
         private TextBoxEx BinInfo;
+        private System.Windows.Forms.Label J_4_TEXT;
+        private System.Windows.Forms.NumericUpDown W4;
+        private TextBoxEx L_4_TEXT;
     }
 }
