@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         {
             InputFormRef ifr = new InputFormRef(self
                 , ""
-                , gpSkillInfos_Desc
+                , gpSkillInfos
                 , 8
                 , (int i, uint addr) =>
                 {//読込最大値検索
@@ -83,10 +83,14 @@ namespace FEBuilderGBA
 
         public static Bitmap DrawSkillIcon(uint index)
         {
+            uint pr_icon = GetSkillIcon(index);
+            if  (!U.isSafetyOffset(pr_icon))
+                return ImageUtil.Blank(16,16);
+
             return ImageUtil.ByteToImage16Tile(
                 16, 16,
                 Program.ROM.Data,
-                (int)GetSkillIcon(index),
+                (int)pr_icon,
                 Program.ROM.Data,
                 (int)Program.ROM.p32(SkillPalettePointer));
         }
