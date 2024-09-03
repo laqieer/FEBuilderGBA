@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         {
             InputFormRef ifr = new InputFormRef(self
                 , ""
-                , gpSkillInfos_Desc
+                , gpSkillInfos
                 , 8
                 , (int i, uint addr) =>
                 {//読込最大値検索
@@ -83,10 +83,14 @@ namespace FEBuilderGBA
 
         public static Bitmap DrawSkillIcon(uint index)
         {
+            uint pr_icon = GetSkillIcon(index);
+            if  (!U.isSafetyOffset(pr_icon))
+                return ImageUtil.Blank(16,16);
+
             return ImageUtil.ByteToImage16Tile(
                 16, 16,
                 Program.ROM.Data,
-                (int)GetSkillIcon(index),
+                (int)pr_icon,
                 Program.ROM.Data,
                 (int)Program.ROM.p32(SkillPalettePointer));
         }
@@ -188,66 +192,6 @@ namespace FEBuilderGBA
                 AnimationPanel.Hide();
                 AnimationExportButton.Hide();
             }
-        }
-
-        private void ExportAllButton_Click(object sender, EventArgs e)
-        {
-            string title = R._("保存するファイル名を選択してください");
-            string filter = R._("SkillConfig|*.SkillConfig.tsv|All files|*");
-
-            SaveFileDialog save = new SaveFileDialog();
-            save.Title = title;
-            save.Filter = filter;
-            Program.LastSelectedFilename.Load(this, "", save, "");
-
-            DialogResult dr = save.ShowDialog();
-            if (dr != DialogResult.OK)
-            {
-                return;
-            }
-            if (save.FileNames.Length <= 0 || !U.CanWriteFileRetry(save.FileNames[0]))
-            {
-                return;
-            }
-
-            using (InputFormRef.AutoPleaseWait wait = new InputFormRef.AutoPleaseWait(this))
-            {
-                ExportAllData(save.FileName);
-            }
-        }
-
-        private void ImportAllButton_Click(object sender, EventArgs e)
-        {
-            string title = R._("読込むファイル名を選択してください");
-            string filter = R._("SkillConfig|*.SkillConfig.tsv|All files|*");
-
-            OpenFileDialog open = new OpenFileDialog();
-            open.Title = title;
-            open.Filter = filter;
-
-            DialogResult dr = open.ShowDialog();
-            if (dr != DialogResult.OK)
-            {
-                return;
-            }
-            if (open.FileNames.Length <= 0 || !U.CanReadFileRetry(open.FileNames[0]))
-            {
-                return;
-            }
-            string filename = open.FileNames[0];
-            Program.LastSelectedFilename.Save(this, "", open);
-
-            using (InputFormRef.AutoPleaseWait wait = new InputFormRef.AutoPleaseWait(this))
-            {
-                bool r = ImportAllData(filename, recycleConvertSkillTextID: false);
-                if (!r)
-                {
-                    R.ShowStopError("インポートに失敗しました。");
-                    return;
-                }
-            }
-            U.ReSelectList(this.AddressList);
-            R.ShowOK("データのインポートが完了しました。");
         }
 
         private void AnimationExportButton_Click(object sender, EventArgs e)
@@ -480,18 +424,6 @@ namespace FEBuilderGBA
         {
             Bitmap bitmap = DrawSkillIcon((uint)AddressList.SelectedIndex);
             ImageFormRef.ExportImage(this, bitmap, InputFormRef.MakeSaveImageFilename());
-        }
-
-        public static void ExportAllData(string filename)
-        {
-            R.ShowStopError("WIP");
-            return;
-        }
-
-        public static bool ImportAllData(string filename, bool recycleConvertSkillTextID)
-        {
-            R.ShowStopError("WIP");
-            return false;
         }
     }
 }
