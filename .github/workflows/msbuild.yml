@@ -44,6 +44,9 @@ jobs:
     - name: Post Build
       shell: pwsh
       run: |
+        Get-Date -UFormat '%Y%m%d.%H'
+        echo "build_time=$(Get-Date -UFormat '%Y%m%d.%H')"
+        echo "$GITHUB_ENV"
         echo "build_time=$(Get-Date -UFormat '%Y%m%d.%H')" >> "$GITHUB_ENV"
         mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
         mv FEBuilderGBA/bin/Debug/7-zip32.dll .
