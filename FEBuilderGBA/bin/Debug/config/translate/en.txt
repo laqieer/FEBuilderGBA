@@ -9079,6 +9079,9 @@ Determine the first screen to show when a ROM is opened.\r\nThe default choice i
 :このソフトウェアを自動的に更新する更新間隔を設定します。
 Set the refresh interval to check for FEBuilderGBA updates.
 
+:アップデートのバージョンを設定します。
+Set the build version to check for FEBuilderGBA updates.
+
 :テキストに利用するエスケープシーケンスをどうするかを決定します。\r\nProjectFEGBA形式(@0003)、\r\nFEditor形式[A]、\r\nどちらを利用するかを決定します
 This changes which escape sequence ("tag" or "label") style to use in FEBuilderGBA.\r\nProjectFEGBA Format (@0003, @0002)\r\nFEditor Format ([A],[Clear])\r\nFEditor is recommended for readability.
 
@@ -9741,6 +9744,15 @@ Automatic Update Checking
 
 :7=7日毎
 7=Once a Week
+
+:ビルドバージョン
+Build Version
+
+:0=ナイトリー
+0=Nightly
+
+:1=リリース
+1=Release
 
 :ROM内のテキストエンコード
 Text Encoding in ROM

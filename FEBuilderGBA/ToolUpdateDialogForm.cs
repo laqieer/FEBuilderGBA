@@ -85,13 +85,16 @@ namespace FEBuilderGBA
                     return;
                 }
 
-
-                string update7z = Path.Combine(Program.BaseDirectory, "dltemp_" + DateTime.Now.Ticks.ToString() + ".7z");
+                string ext = ".7z";
+                int func_update_source = OptionForm.update_source();
+                if (func_update_source == 0)
+                    ext = ".zip";
+                string updateArchive = Path.Combine(Program.BaseDirectory, "dltemp_" + DateTime.Now.Ticks.ToString() + ext);
 
                 //ダウンロード
                 try
                 {
-                    U.DownloadFile(update7z, this.URL, pleaseWait);
+                    U.DownloadFile(updateArchive, this.URL, pleaseWait);
                 }
                 catch (Exception ee)
                 {
@@ -99,13 +102,13 @@ namespace FEBuilderGBA
                     this.Close();
                     return;
                 }
-                if (! File.Exists(update7z))
+                if (! File.Exists(updateArchive))
                 {
                     BrokenDownload(R._("ダウンロードしたはずのファイルがありません。"));
                     this.Close();
                     return;
                 }
-                if (U.GetFileSize(update7z) < 2 * 1024 * 1024)
+                if (U.GetFileSize(updateArchive) < 2 * 1024 * 1024)
                 {
                     BrokenDownload(R._("ダウンロードしたファイルが小さすぎます。"));
                     this.Close();
@@ -119,7 +122,7 @@ namespace FEBuilderGBA
                 {
                     string _update = Path.Combine(Program.BaseDirectory, "_update");
                     U.mkdir(_update);
-                    string r = ArchSevenZip.Extract(update7z, _update, isHide: false);
+                    string r = ArchSevenZip.Extract(updateArchive, _update, isHide: false);
                     if (r != "")
                     {
                         BrokenDownload(R._("ダウンロードしたファイルを解凍できませんでした。") + "\r\n" + r);

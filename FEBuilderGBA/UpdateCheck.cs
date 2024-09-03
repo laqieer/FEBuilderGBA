@@ -12,7 +12,15 @@ namespace FEBuilderGBA
             string download_url;
             string net_version;
 
-            string error = CheckUpdateURLByGitHub(out download_url, out net_version);
+            int func_update_source = OptionForm.update_source();
+
+            string error;
+
+            if (func_update_source == 0)
+                error = CheckUpdateURLByNightlyLink(out download_url, out net_version);
+            else
+                error = CheckUpdateURLByGitHub(out download_url, out net_version);
+
             if (error != "")
             {
                 if (net_version != "")
@@ -209,6 +217,61 @@ namespace FEBuilderGBA
             }
 
             out_url = downloadurl;
+            return "";
+        }
+
+        static string CheckUpdateURLByNightlyLink(out string out_url, out string out_version)
+        {
+            out_url = "";
+            out_version = "";
+
+            string versionString = U.getVersion();
+            double version = U.atof(versionString);
+
+            string url = "https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master";
+            string contents;
+            try
+            {
+                contents = U.HttpGet(url);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+                throw;
+#else
+                return R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+#endif
+            }
+
+            {
+                System.Text.RegularExpressions.Match match = RegexCache.Match(contents
+                , url + "/FEBuilderGBA_([0-9.]+).zip"
+                );
+                if (match.Groups.Count < 2)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "nightly build not found" + "\r\n"
+                        + "contents:\r\n" + contents + "\r\n"
+                        + "match.Groups:\r\n" + U.var_dump(match.Groups);
+                }
+                out_version = match.Groups[1].Value;
+
+                double net_version = U.atof(out_version);
+                if (version >= net_version)
+                {
+                    if (net_version == 0)
+                    {
+                        return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                            + "version can not parse" + "\r\n"
+                            + "contents:\r\n" + contents + "\r\n"
+                            + "match.Groups:\r\n" + U.var_dump(match.Groups);
+                    }
+                    return R._("現在のバージョンが最新です。version:{0}", version);
+                }
+            }
+
+            out_url = url + "/FEBuilderGBA_" + out_version + ".zip";
             return "";
         }
 
