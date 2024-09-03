@@ -40,3 +40,15 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Store build timestamp
+      run: echo "build_time=$(date +'%Y%m%d.%H')" >> "$GITHUB_ENV"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ github.event.repository.name }}_${{ env.build_time }}
+        path: |
+          FEBuilderGBA/bin/Release/FEBuilderGBA.exe
+          FEBuilderGBA/bin/Debug/7-zip32.dll
+          FEBuilderGBA/bin/Debug/config/
+          *.md
