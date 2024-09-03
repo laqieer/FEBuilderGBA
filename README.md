@@ -1,6 +1,8 @@
 README
 ===
 
+[![MSBuild](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml)
+
 This fork is an integration of several forks of FEBuilderGBA and continues development based on it.
 
 README for Korean character table
