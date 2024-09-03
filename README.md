@@ -2,6 +2,8 @@ README
 ===
 
 [![MSBuild](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml)
+![GitHub Release](https://img.shields.io/github/v/release/laqieer/FEBuilderGBA)
+[<img src="https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg" alt="Nightly Build" height="16" style="height: 16px; vertical-align: sub">Nightly Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
 
 This fork is an integration of several forks of FEBuilderGBA and continues development based on it.
 
