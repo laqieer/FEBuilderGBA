@@ -6127,6 +6127,9 @@ Copy to Clipboard
 :ログディレクトリを開く
 Open Log Directory
 
+:リソース
+Resource
+
 :ソングテーブル
 Song Table
 

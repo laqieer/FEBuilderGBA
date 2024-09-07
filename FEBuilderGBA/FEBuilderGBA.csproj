@@ -121,11 +121,18 @@
     </Compile>
     <Compile Include="CsvManager.cs" />
     <Compile Include="EAUtilLynDumpMode.cs" />
+    <Compile Include="EtcCacheResource.cs" />
     <Compile Include="ImageBGSelectPopupForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="ImageBGSelectPopupForm.Designer.cs">
       <DependentUpon>ImageBGSelectPopupForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ResourceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ResourceForm.Designer.cs">
+      <DependentUpon>ResourceForm.cs</DependentUpon>
     </Compile>
     <Compile Include="SongUtilDPCM.cs" />
     <Compile Include="ToolBGMMuteDialogForm.cs">
@@ -2248,6 +2255,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="RAMRewriteToolForm.resx">
       <DependentUpon>RAMRewriteToolForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ResourceForm.resx">
+      <DependentUpon>ResourceForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SkillConfigFE8UCSkillSys09xForm.resx">
       <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>

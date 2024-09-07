@@ -13827,3 +13827,6 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 
 :アップデートのバージョンを設定します。
 指定更新版本。
+
+:リソース
+素材

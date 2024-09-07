@@ -779,6 +779,8 @@ namespace FEBuilderGBA
                return error;
            }
 
+           Program.ResourceCache.Update("BattleAnime_" + U.ToHexString(id), filename);
+
            //選択しているところを再選択して画面を再描画
            U.ReSelectList(N_AddressList);
            //書き込み通知

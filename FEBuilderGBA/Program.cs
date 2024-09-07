@@ -481,7 +481,9 @@ namespace FEBuilderGBA
 
             //イベントの読込
             ReLoadEventScript();
-               
+
+            ResourceCache = new EtcCacheResource();
+
             //イベント条件の解釈リスト
             EventCondForm.PreLoadResource(U.ConfigDataFilename("eventcond_"));
 
@@ -690,6 +692,7 @@ namespace FEBuilderGBA
         public static EtcCache LintCache { get; private set; }
         public static EtcCache CommentCache { get; private set; }
         public static EtcCache WorkSupportCache { get; private set; }
+        public static EtcCacheResource ResourceCache { get; private set; }
         public static ExportFunction ExportFunction { get; private set; }
         public static AsmMapFileAsmCache AsmMapFileAsmCache { get; private set; }
         public static RAM RAM { get; private set; }

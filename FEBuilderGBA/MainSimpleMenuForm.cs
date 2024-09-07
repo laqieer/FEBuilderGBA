@@ -1476,6 +1476,11 @@ namespace FEBuilderGBA
             MainFormUtil.GotoManual();
         }
 
+        private void ResourceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            InputFormRef.JumpForm<ResourceForm>();
+        }
+
         private void DiscordURLToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MainFormUtil.GotoCommunities();

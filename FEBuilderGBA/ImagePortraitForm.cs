@@ -1241,6 +1241,8 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
         }
 
         static bool IsHalfBodyFlag(uint unit_face)
@@ -1316,6 +1318,8 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
         }
         void ImportClassCard(Bitmap fullColor, string imagefilename)
         {
@@ -1351,6 +1355,8 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
         }
 
         private void ImportButton_Click(object sender, EventArgs e)

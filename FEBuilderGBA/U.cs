@@ -3424,7 +3424,36 @@ namespace FEBuilderGBA
             {
                 R.ShowStopError("ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
             }
-            
+
+        }
+
+        public static void SaveTSVResourcePair2(string fullfilename, Dictionary<string, string> data)
+        {
+            string dir = Path.GetDirectoryName(fullfilename);
+            if (!Directory.Exists(dir))
+            {
+                U.mkdir(dir);
+            }
+            if (!U.CanWriteFileRetry(fullfilename))
+            {
+                return;
+            }
+            try
+            {
+                using (StreamWriter w = new StreamWriter(fullfilename))
+                {
+                    foreach (var pair in data)
+                    {
+                        string line = pair.Key + "\t" + pair.Value;
+                        w.WriteLine(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError("ファイルに書き込めません。\r\n{0}\r\n{1}", fullfilename, e.ToString());
+            }
+
         }
 
         public static Dictionary<uint, string[]> LoadTSVResource(string fullfilename, bool isRequired = true)
@@ -3571,6 +3600,20 @@ namespace FEBuilderGBA
                 return;
             }
             U.SaveTSVResource1(fullfilename, dic);
+        }
+
+        public static void SaveConfigEtcTSVPair(string type, Dictionary<string, string> dic, string romBaseFilename)
+        {
+            string fullfilename = U.ConfigEtcFilename(type, romBaseFilename);
+            if (dic.Count <= 0)
+            {//0件なら消す.
+                if (File.Exists(fullfilename))
+                {
+                    File.Delete(fullfilename);
+                }
+                return;
+            }
+            U.SaveTSVResourcePair2(fullfilename, dic);
         }
 
         //オプション引数 --mode=foo とかを、dic["--mode"]="foo" みたいに変換します. 
@@ -6048,12 +6091,22 @@ namespace FEBuilderGBA
         {
             return a.ToString("X02");
         }
-        public static Dictionary<string, string> LoadTSVResourcePair(string fullfilename)
+        public static Dictionary<string, string> LoadTSVResourcePair(string fullfilename, bool isRequired = true)
         {
             Dictionary<string, string> dic = new Dictionary<string, string>();
-            if (!U.IsRequiredFileExist(fullfilename))
+            if (isRequired)
             {
-                return dic;
+                if (!U.IsRequiredFileExist(fullfilename))
+                {
+                    return dic;
+                }
+            }
+            else
+            {
+                if (!File.Exists(fullfilename))
+                {
+                    return dic;
+                }
             }
 
             try
@@ -6087,6 +6140,56 @@ namespace FEBuilderGBA
             }
             return dic;
         }
+        public static Dictionary<string, string> LoadTSVResourcePair2(string fullfilename, bool isRequired = true)
+        {
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+            if (isRequired)
+            {
+                if (!U.IsRequiredFileExist(fullfilename))
+                {
+                    return dic;
+                }
+            }
+            else
+            {
+                if (!File.Exists(fullfilename))
+                {
+                    return dic;
+                }
+            }
+
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line))
+                        {
+                            continue;
+                        }
+                        line = U.ClipComment(line);
+                        if (line == "")
+                        {
+                            continue;
+                        }
+                        string[] sp = line.Split('\t');
+                        if (sp.Length < 2)
+                        {
+                            continue;
+                        }
+                        dic[sp[0]] = sp[1];
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError("必須となる設定ファイルを読みこめません。\r\n設定ファイルが壊れている可能性があります。\r\n再ダウンロードしなおしてください。\r\n{0}\r\n{1}", fullfilename, e.ToString());
+            }
+            return dic;
+        }
+
         public static void AddCancelButton(Form f)
         {
             if (f.CancelButton != null)

@@ -268,11 +268,14 @@ namespace FEBuilderGBA
             ToolRunHintMessageForm.Run();
         }
 
+        private void ResourceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            InputFormRef.JumpForm<ResourceForm>();
+        }
+
         private void MainFE0Form_Load(object sender, EventArgs e)
         {
 
         }
-
-
     }
 }

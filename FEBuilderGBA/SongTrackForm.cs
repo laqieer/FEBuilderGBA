@@ -285,6 +285,9 @@ namespace FEBuilderGBA
             }
             R.Notify("{0}, SongID: {1} ,Ext: {2} ,Filename: {3}", this.Text, song_id, ext, filename);
 
+            if (ext != "INSTRUMENT")
+                Program.ResourceCache.Update("Song_" + U.ToHexString(song_id), filename);
+
             int selectedIndex = AddressList.SelectedIndex;
             ReloadListButton.PerformClick();
             AddressList.SelectedIndex = selectedIndex;

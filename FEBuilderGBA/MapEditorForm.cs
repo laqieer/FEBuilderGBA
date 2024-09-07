@@ -1288,6 +1288,13 @@ this.MapObjImage);
             {
                 R.ShowStopError(errormessage);
             }
+            else
+            {
+                if (ext != "*.png")
+                {
+                    Program.ResourceCache.Update("Map_" + U.ToHexString(this.MAPCOMBO.SelectedIndex), mapfilename);
+                }
+            }
         }
 
         string LoadAsMAR(string mapfilename)

@@ -1968,6 +1968,7 @@ namespace FEBuilderGBA
                 }
 
                 R.Notify("パッチ({0})を適応しました。{1} PATCH APPLY", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
                 ClearCheckIF();
                 Program.Undo.Push(undodata);
                 InputFormRef.ShowWriteNotifyAnimation(this, 0);
@@ -2429,6 +2430,7 @@ namespace FEBuilderGBA
                     }
                 }
                 R.Notify("パッチ({0})を適応しました。{1} PATCH APPLY", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
                 ClearCheckIF();
                 Program.Undo.Push(undodata);
                 InputFormRef.ShowWriteNotifyAnimation(this, addr_address);
@@ -2619,6 +2621,7 @@ namespace FEBuilderGBA
                 }
 
                 R.Notify("パッチ({0})を適応しました。{1} PATCH APPLY", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
                 ClearCheckIF();
                 Program.Undo.Push(undodata);
                 InputFormRef.ShowWriteNotifyAnimation(this, addr_address);
@@ -3539,6 +3542,7 @@ namespace FEBuilderGBA
                 ReplacePointers(patch, undodata);
 
                 R.Notify("パッチ({0})をインストールしました。{1} PATCH INSTALL", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
                 ClearCheckIF();
                 Program.Undo.Push(undodata);
                 InputFormRef.ShowWriteNotifyAnimation(this, 0);
@@ -3731,6 +3735,7 @@ namespace FEBuilderGBA
                     ReplacePointers(patch,undodata);
 
                     R.Notify("パッチ({0})をインストールしました。{1} PATCH INSTALL", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                    Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
                     ClearCheckIF();
                     Program.Undo.Push(undodata);
                     InputFormRef.ShowWriteNotifyAnimation(this, 0);
@@ -8016,6 +8021,7 @@ namespace FEBuilderGBA
                 }
 
                 R.Notify("パッチ({0})をアンインストールしました。{1} PATCH UNINSTALL", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Remove(Path.GetFileNameWithoutExtension(patch.PatchFileName));
                 ClearCheckIF();
                 Program.Undo.Push(undodata);
                 Program.ReLoadSetting();
@@ -8937,6 +8943,7 @@ namespace FEBuilderGBA
                     UpdateEmbedFunction(mappingSRCEmbedFunction, mappingDESTEmbedFunction, pleaseWait);
                 }
                 R.Notify("パッチ({0})を更新しました。{1} PATCH UPDATE", patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName));
+                Program.ResourceCache.Update(Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
             }
 
             

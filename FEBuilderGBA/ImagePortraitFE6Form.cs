@@ -562,6 +562,8 @@ namespace FEBuilderGBA
 
                 //ポインタの書き込み
                 this.WriteButton.PerformClick();
+
+                Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
             }
             else if (fullColor.Width == 80 &&
                 (fullColor.Height == 80 || fullColor.Height == 72))
@@ -598,6 +600,8 @@ namespace FEBuilderGBA
 
                 //ポインタの書き込み
                 this.WriteButton.PerformClick();
+
+                Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
 
             }
             else

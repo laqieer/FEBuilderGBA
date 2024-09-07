@@ -813,10 +813,14 @@ namespace FEBuilderGBA
             InputFormRef.JumpForm<ImageBattleBGForm>();
         }
 
+        private void ResourceToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            InputFormRef.JumpForm<ResourceForm>();
+        }
+
         private void MapMiniMapTerrainImageButton_Click(object sender, EventArgs e)
         {
             InputFormRef.JumpForm<MapMiniMapTerrainImageForm>();
         }
-
     }
 }
