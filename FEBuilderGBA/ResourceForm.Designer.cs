@@ -32,6 +32,8 @@
             this.labelEx1 = new FEBuilderGBA.LabelEx();
             this.listBoxEx2 = new FEBuilderGBA.ListBoxEx();
             this.resources = new FEBuilderGBA.TextBoxEx();
+            this.labelEx2 = new FEBuilderGBA.LabelEx();
+            this.comboBoxEx1 = new FEBuilderGBA.ComboBoxEx();
             this.SuspendLayout();
             // 
             // listBoxEx1
@@ -41,7 +43,7 @@
             this.listBoxEx1.Items.AddRange(new object[] {
             "日付順",
             "種類順"});
-            this.listBoxEx1.Location = new System.Drawing.Point(15, 22);
+            this.listBoxEx1.Location = new System.Drawing.Point(12, 25);
             this.listBoxEx1.Name = "listBoxEx1";
             this.listBoxEx1.Size = new System.Drawing.Size(65, 32);
             this.listBoxEx1.TabIndex = 0;
@@ -51,7 +53,7 @@
             // 
             this.labelEx1.AutoSize = true;
             this.labelEx1.ErrorMessage = "";
-            this.labelEx1.Location = new System.Drawing.Point(75, 6);
+            this.labelEx1.Location = new System.Drawing.Point(12, 9);
             this.labelEx1.Name = "labelEx1";
             this.labelEx1.Size = new System.Drawing.Size(34, 13);
             this.labelEx1.TabIndex = 1;
@@ -64,7 +66,7 @@
             this.listBoxEx2.Items.AddRange(new object[] {
             "昇順",
             "降順"});
-            this.listBoxEx2.Location = new System.Drawing.Point(96, 22);
+            this.listBoxEx2.Location = new System.Drawing.Point(12, 63);
             this.listBoxEx2.Name = "listBoxEx2";
             this.listBoxEx2.Size = new System.Drawing.Size(76, 32);
             this.listBoxEx2.TabIndex = 2;
@@ -73,19 +75,42 @@
             // resources
             // 
             this.resources.ErrorMessage = "";
-            this.resources.Location = new System.Drawing.Point(10, 69);
+            this.resources.Location = new System.Drawing.Point(137, 6);
             this.resources.Multiline = true;
             this.resources.Name = "resources";
             this.resources.Placeholder = "";
             this.resources.ReadOnly = true;
             this.resources.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.resources.Size = new System.Drawing.Size(628, 332);
+            this.resources.Size = new System.Drawing.Size(628, 418);
             this.resources.TabIndex = 3;
             this.resources.WordWrap = false;
             // 
+            // labelEx2
+            // 
+            this.labelEx2.AutoSize = true;
+            this.labelEx2.ErrorMessage = "";
+            this.labelEx2.Location = new System.Drawing.Point(12, 103);
+            this.labelEx2.Name = "labelEx2";
+            this.labelEx2.Size = new System.Drawing.Size(50, 13);
+            this.labelEx2.TabIndex = 4;
+            this.labelEx2.Text = "フィルター";
+            // 
+            // comboBoxEx1
+            // 
+            this.comboBoxEx1.FormattingEnabled = true;
+            this.comboBoxEx1.Items.AddRange(new object[] {
+            ""});
+            this.comboBoxEx1.Location = new System.Drawing.Point(12, 119);
+            this.comboBoxEx1.Name = "comboBoxEx1";
+            this.comboBoxEx1.Size = new System.Drawing.Size(114, 21);
+            this.comboBoxEx1.TabIndex = 5;
+            this.comboBoxEx1.SelectedIndexChanged += new System.EventHandler(this.comboBoxEx1_SelectedIndexChanged);
+            // 
             // ResourceForm
             // 
-            this.ClientSize = new System.Drawing.Size(650, 436);
+            this.ClientSize = new System.Drawing.Size(777, 436);
+            this.Controls.Add(this.comboBoxEx1);
+            this.Controls.Add(this.labelEx2);
             this.Controls.Add(this.resources);
             this.Controls.Add(this.listBoxEx2);
             this.Controls.Add(this.labelEx1);
@@ -103,5 +128,7 @@
         private LabelEx labelEx1;
         private ListBoxEx listBoxEx2;
         private TextBoxEx resources;
+        private LabelEx labelEx2;
+        private ComboBoxEx comboBoxEx1;
     }
 }

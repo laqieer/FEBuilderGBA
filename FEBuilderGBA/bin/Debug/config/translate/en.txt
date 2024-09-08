@@ -13842,3 +13842,6 @@ Ascending
 
 :降順
 Descending
+
+:フィルター
+Filter

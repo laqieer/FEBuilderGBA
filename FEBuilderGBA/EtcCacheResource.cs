@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FEBuilderGBA.Properties;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -24,8 +25,18 @@ namespace FEBuilderGBA
             }
         }
 
-        public string ListAll(int sortKey = 0, bool reversed = false)
+        public string[] MakeCategoryList()
         {
+            return this.Resource.Keys.Select(x => x.Split('_')[0]).Distinct().ToArray();
+        }
+
+        public string ListAll(int sortKey = 0, bool reversed = false, string filter = "")
+        {
+            if (filter != "")
+            {
+               filter += "_";
+            }
+            Dictionary<string, string> filtered = this.Resource.Where(x => x.Key.StartsWith(filter)).ToDictionary(x => x.Key, x => x.Value);
             StringBuilder sb = new StringBuilder();
             switch (sortKey)
             {
@@ -33,14 +44,14 @@ namespace FEBuilderGBA
 
                     if (reversed)
                     {
-                        foreach (var pair in this.Resource.OrderByDescending(x => x.Key))
+                        foreach (var pair in filtered.OrderByDescending(x => x.Key))
                         {
                             sb.AppendLine(pair.Key + "\t" + pair.Value);
                         }
                     }
                     else
                     {
-                        foreach (var pair in this.Resource.OrderBy(x => x.Key))
+                        foreach (var pair in filtered.OrderBy(x => x.Key))
                         {
                             sb.AppendLine(pair.Key + "\t" + pair.Value);
                         }
@@ -52,14 +63,14 @@ namespace FEBuilderGBA
 
                     if (reversed)
                     {
-                        foreach (var pair in this.Resource.Reverse())
+                        foreach (var pair in filtered.Reverse())
                         {
                             sb.AppendLine(pair.Key + "\t" + pair.Value);
                         }
                     }
                     else
                     {
-                        foreach (var pair in this.Resource)
+                        foreach (var pair in filtered)
                         {
                             sb.AppendLine(pair.Key + "\t" + pair.Value);
                         }

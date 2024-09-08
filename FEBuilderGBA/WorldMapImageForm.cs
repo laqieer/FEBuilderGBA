@@ -176,7 +176,7 @@ namespace FEBuilderGBA
             //ポインタの書き込み
             this.AllWriteButton.PerformClick();
 
-            Program.ResourceCache.Update("WorldMap", bitmap.Tag.ToString());
+            Program.ResourceCache.Update("WorldMap_", bitmap.Tag.ToString());
 
             WMPictureBox.Image = DrawWorldMap();
         }
@@ -222,7 +222,7 @@ namespace FEBuilderGBA
             //ポインタの書き込み
             this.AllWriteButton.PerformClick();
 
-            Program.ResourceCache.Update("WorldMap_Dark", bitmap.Tag.ToString());
+            Program.ResourceCache.Update("WorldMapDark_", bitmap.Tag.ToString());
         }
 
         
