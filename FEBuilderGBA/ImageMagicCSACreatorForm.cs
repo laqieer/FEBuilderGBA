@@ -284,7 +284,7 @@ namespace FEBuilderGBA
                 return error;
             }
 
-            Program.ResourceCache.Update("MagicCSA_" + U.ToHexString(id), filename);
+            Program.ResourceCache.Update("MagicAnimation_" + U.ToHexString(id), filename);
 
             if (DimComboBox.SelectedIndex >= 2)
             {//EMPTYになっている場合は、dim_pcを選択.

@@ -361,6 +361,8 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("UnitWaitIcon_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
         }
 
         private void X_JUMP_MOVEICON_Click(object sender, EventArgs e)

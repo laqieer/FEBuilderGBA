@@ -237,6 +237,8 @@ namespace FEBuilderGBA
             Program.ROM.write_range(U.toOffset(addr), image, undodata);
             Program.Undo.Push(undodata);
 
+            Program.ResourceCache.Update("ItemIcon_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+
             InputFormRef.ReloadAddressList();
             InputFormRef.ShowWriteNotifyAnimation(this, addr);
         }

@@ -1323,6 +1323,8 @@ namespace FEBuilderGBA
             Program.Undo.Push(undodata);
             AllWriteButton.PerformClick();
 
+            Program.ResourceCache.Update("Image_" + U.ToHexString(U.toOffset(IMAGEPointer)), bitmap.Tag.ToString());
+
             DrawPictureBox();
 
             bitmap.Dispose();
@@ -1598,7 +1600,7 @@ namespace FEBuilderGBA
             this.AllWriteButton = allWriteButton;
         }
 
-        public void RegistAllWriteEvent(string name)
+        public void RegistAllWriteEvent(string name, string patchFilename, string author)
         {
             this.AllWriteButton.Click += (sender ,e)=>{
                 Undo.UndoData undodata = Program.Undo.NewUndoData(name);
@@ -1671,6 +1673,7 @@ namespace FEBuilderGBA
                 }
 
                 Program.Undo.Push(undodata);
+                Program.ResourceCache.Update(patchFilename, author);
                 InputFormRef.ShowWriteNotifyAnimation(this.SelfForm, U.toOffset(this.IMAGEPointer));
             };
         }

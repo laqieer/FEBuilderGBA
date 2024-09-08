@@ -173,6 +173,8 @@ namespace FEBuilderGBA
 
                 //ポインタの書き込み
                 this.WriteButton.PerformClick();
+
+                Program.ResourceCache.Update("CG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
             }
             else if (bitmap_palette_count <= 8)
             {//16色*8種類カラー
@@ -207,6 +209,8 @@ namespace FEBuilderGBA
 
                 //ポインタの書き込み
                 this.WriteButton.PerformClick();
+
+                Program.ResourceCache.Update("CG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
             }
             else 
             {

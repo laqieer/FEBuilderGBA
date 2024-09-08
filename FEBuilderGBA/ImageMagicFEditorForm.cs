@@ -251,6 +251,8 @@ namespace FEBuilderGBA
                 InputFormRef.IfAdditionalErrorMessagesForIdiotsWhoDontKnowHowToUnzipTheZip(filename);
                 return;
             }
+
+            Program.ResourceCache.Update("MagicAnimation_" + U.ToHexString(id), filename);
         }
         public string MagicAnimeImportDirect(uint id, string filename)
         {

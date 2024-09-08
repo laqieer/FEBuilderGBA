@@ -252,6 +252,8 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("BG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
         }
 
         //全データの取得

@@ -153,6 +153,8 @@ namespace FEBuilderGBA
             }
             //ポインタの書き込み
             this.WriteButton.PerformClick();
+
+            Program.ResourceCache.Update("BattleBG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
         }
         public static List<U.AddrResult> MakeList()
         {

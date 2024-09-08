@@ -423,6 +423,8 @@ namespace FEBuilderGBA
             //書き込み通知
             InputFormRef.ShowWriteNotifyAnimation(this, 0);
 
+            Program.ResourceCache.Update("MapActionAnimation_" + U.ToHexString(id), filename);
+
             return "";
         }
 

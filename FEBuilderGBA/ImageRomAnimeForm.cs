@@ -1237,6 +1237,8 @@ namespace FEBuilderGBA
                 return;
             }
 
+            Program.ResourceCache.Update("MagicAnimation_" + U.ToHexString(this.AddressList.SelectedIndex), filename);
+
             U.ReSelectList(this.AddressList);
         }
     }

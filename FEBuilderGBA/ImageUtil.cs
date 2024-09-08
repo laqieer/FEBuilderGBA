@@ -2816,6 +2816,7 @@ namespace FEBuilderGBA
                 errormessage += "\r\n"+R._("ファイル名:{0}",filename)+"\r\n";
                 return null;
             }
+            ret.Tag = filename;
             return ret;
         }
         static bool IsDouplicateColorFEditorImage(Bitmap bitmap, ColorPalette newpal)
@@ -3038,6 +3039,7 @@ namespace FEBuilderGBA
             }
 
             retbitmap.UnlockBits(destbmpData);
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
 
         }
@@ -3074,6 +3076,7 @@ namespace FEBuilderGBA
 
             retbitmap.UnlockBits(destbmpData);
             bitmap.UnlockBits(srcbmpData);
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
         }
 
@@ -3135,6 +3138,7 @@ namespace FEBuilderGBA
             }
             bitmap.UnlockBits(bmpData);
             retbitmap.UnlockBits(destbmpData);
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
         }
         static Bitmap ConvertIndexedBitmap4Color(Bitmap bitmap, Bitmap paletteHint, out string errormessage)
@@ -3186,6 +3190,7 @@ namespace FEBuilderGBA
 
             bitmap.UnlockBits(bmpData);
             retbitmap.UnlockBits(destbmpData);
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
         }
 
@@ -3259,6 +3264,7 @@ namespace FEBuilderGBA
             retbitmap.UnlockBits(destbmpData);
 
             retbitmap.Palette = newpal;
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
         }
 
@@ -3322,6 +3328,7 @@ namespace FEBuilderGBA
             retbitmap.UnlockBits(destbmpData);
 
             retbitmap.Palette = newpal;
+            retbitmap.Tag = bitmap.Tag;
             return retbitmap;
         }
  
@@ -3369,6 +3376,7 @@ namespace FEBuilderGBA
         unsafe static Bitmap ImageConvert24biTo8bit(Bitmap bmpSource)
         {
             Bitmap dstBmp = bmpSource.Clone(new Rectangle(0, 0, bmpSource.Width, bmpSource.Height), PixelFormat.Format8bppIndexed);
+            dstBmp.Tag = bmpSource.Tag;
             return dstBmp;
         }
 
@@ -4456,6 +4464,7 @@ namespace FEBuilderGBA
                 R.ShowStopError(R._("ファイルがありません。\r\nファイル名:{0}"), imagefilename);
                 return null;
             }
+            bitmap.Tag = imagefilename;
             return bitmap;
         }
 

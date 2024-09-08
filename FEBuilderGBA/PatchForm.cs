@@ -1452,7 +1452,7 @@ namespace FEBuilderGBA
 
             ImageFormRef ifr = new ImageFormRef(this, "", (int)width, (int)height, (int)palette_index, image_pointer_base, tsa_pointer_base, palette_pointer_base);
             ifr.UpdateAllWriteButton(writeButton);
-            ifr.RegistAllWriteEvent(patch.Name);
+            ifr.RegistAllWriteEvent(patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
 
             ifr.UpdateNumericUpDown(image.ImageNup, image.ImageTypeName);
             if (image.HasPalette())
@@ -2966,7 +2966,7 @@ namespace FEBuilderGBA
             InfoAndAuthor(parent, patch);
 
             ImageFormRef ifr = new ImageFormRef(self, "", (int)width, (int)height, (int)palette_index, image_pointer, tsa_pointer, palette_pointer, forceSeparationAddress.ToArray(), image_pointer2);
-            ifr.RegistAllWriteEvent(patch.Name);
+            ifr.RegistAllWriteEvent(patch.Name, Path.GetFileNameWithoutExtension(patch.PatchFileName), U.at(patch.Param, "AUTHOR"));
 
             image.Tag = ifr;
         }
