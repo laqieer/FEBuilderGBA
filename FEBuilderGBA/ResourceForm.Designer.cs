@@ -34,8 +34,8 @@
             this.listBoxEx2 = new FEBuilderGBA.ListBoxEx();
             this.labelEx1 = new FEBuilderGBA.LabelEx();
             this.listBoxEx1 = new FEBuilderGBA.ListBoxEx();
-            this.button1 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
+            this.ClipbordButton = new System.Windows.Forms.Button();
+            this.SaveButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // comboBoxEx1
@@ -108,31 +108,31 @@
             this.listBoxEx1.TabIndex = 0;
             this.listBoxEx1.SelectedIndexChanged += new System.EventHandler(this.listBoxEx1_SelectedIndexChanged);
             // 
-            // button1
+            // ClipbordButton
             // 
-            this.button1.Location = new System.Drawing.Point(11, 364);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(76, 25);
-            this.button1.TabIndex = 6;
-            this.button1.Text = "コピー";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.ClipbordButton.Location = new System.Drawing.Point(12, 364);
+            this.ClipbordButton.Name = "ClipbordButton";
+            this.ClipbordButton.Size = new System.Drawing.Size(119, 25);
+            this.ClipbordButton.TabIndex = 6;
+            this.ClipbordButton.Text = "クリップボードへ";
+            this.ClipbordButton.UseVisualStyleBackColor = true;
+            this.ClipbordButton.Click += new System.EventHandler(this.ClipbordButton_Click);
             // 
-            // button2
+            // SaveButton
             // 
-            this.button2.Location = new System.Drawing.Point(11, 398);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(77, 26);
-            this.button2.TabIndex = 7;
-            this.button2.Text = "エクスポート";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
+            this.SaveButton.Location = new System.Drawing.Point(12, 398);
+            this.SaveButton.Name = "SaveButton";
+            this.SaveButton.Size = new System.Drawing.Size(119, 26);
+            this.SaveButton.TabIndex = 7;
+            this.SaveButton.Text = "ファイルに保存";
+            this.SaveButton.UseVisualStyleBackColor = true;
+            this.SaveButton.Click += new System.EventHandler(this.SaveButton_Click);
             // 
             // ResourceForm
             // 
             this.ClientSize = new System.Drawing.Size(777, 436);
-            this.Controls.Add(this.button2);
-            this.Controls.Add(this.button1);
+            this.Controls.Add(this.SaveButton);
+            this.Controls.Add(this.ClipbordButton);
             this.Controls.Add(this.comboBoxEx1);
             this.Controls.Add(this.labelEx2);
             this.Controls.Add(this.resources);
@@ -154,7 +154,7 @@
         private TextBoxEx resources;
         private LabelEx labelEx2;
         private ComboBoxEx comboBoxEx1;
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button button2;
+        private System.Windows.Forms.Button ClipbordButton;
+        private System.Windows.Forms.Button SaveButton;
     }
 }

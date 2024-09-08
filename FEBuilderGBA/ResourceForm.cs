@@ -47,15 +47,15 @@ namespace FEBuilderGBA
             UpdateResources();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void ClipbordButton_Click(object sender, EventArgs e)
         {
-            // Copy text to clipboard
-            Clipboard.SetText(this.resources.Text);
+            // Copy to clipboard
+            U.SetClipboardText(this.resources.Text);
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        private void SaveButton_Click(object sender, EventArgs e)
         {
-            // Save text to file
+            // Save to file
             string title = R._("保存するファイル名を選択してください");
             string filter = R._("テキストファイル(*.txt)|*.txt|TSVファイル(*.tsv)|*.tsv|All files|*");
 
@@ -66,6 +66,11 @@ namespace FEBuilderGBA
             save.FilterIndex = 1;
             if (save.ShowDialog() == DialogResult.OK)
             {
+                if (save.FileNames.Length <= 0 || !U.CanWriteFileRetry(save.FileName))
+                {
+                    return;
+                }
+                Program.LastSelectedFilename.Save(this, "", save);
                 U.WriteAllText(save.FileName, this.resources.Text);
                 U.OpenURLOrFile(save.FileName);
             }
