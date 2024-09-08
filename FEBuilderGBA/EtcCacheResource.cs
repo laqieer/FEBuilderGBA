@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -78,6 +79,21 @@ namespace FEBuilderGBA
                     break;
             }
             return sb.ToString();
+        }
+
+        public bool CheckFast(string name)
+        {
+            return this.Resource.ContainsKey(name);
+        }
+
+        public string At(string name, string def = "")
+        {
+            string str;
+            if (this.Resource.TryGetValue(name, out str))
+            {
+                return str;
+            }
+            return def;
         }
 
         public bool TryGetValue(string name, out string out_data)

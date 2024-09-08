@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -57,6 +58,18 @@ namespace FEBuilderGBA
         {
             X_BG_PIC.Image = DrawBG((uint)D0.Value, (uint)D8.Value, (uint)D4.Value);
             U.ConvertListBox(MapTerrainBGLookupTableForm.MakeListByUseTerrain((uint)this.AddressList.SelectedIndex), ref this.X_REF);
+
+            string filename = Program.ResourceCache.At("BattleBG_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         public static Bitmap DrawBG(uint image, uint palette,uint tsa)
@@ -155,6 +168,8 @@ namespace FEBuilderGBA
             this.WriteButton.PerformClick();
 
             Program.ResourceCache.Update("BattleBG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
         }
         public static List<U.AddrResult> MakeList()
         {
@@ -245,5 +260,39 @@ namespace FEBuilderGBA
             f.Show();
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BattleBG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BattleBG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

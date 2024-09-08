@@ -158,6 +158,18 @@ namespace FEBuilderGBA
             U.ForceUpdate(ShowSectionCombo, 0);
             U.ForceUpdate(ShowFrameUpDown, 0);
             DrawSelectedAnime();
+
+            string filename = Program.ResourceCache.At("BattleAnime_" + U.ToHexString((uint)N_AddressList.SelectedIndex + 1), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         void UpdateLZ77Info(bool errorOver16Anime)
@@ -780,6 +792,8 @@ namespace FEBuilderGBA
            }
 
            Program.ResourceCache.Update("BattleAnime_" + U.ToHexString(id), filename);
+           this.OpenSourceButton.Show();
+           this.SelectSourceButton.Show();
 
            //選択しているところを再選択して画面を再描画
            U.ReSelectList(N_AddressList);
@@ -1298,5 +1312,39 @@ namespace FEBuilderGBA
            R.ShowOK("完了しました。\r\n{0}バイトの領域を解放できました。", totalSize);
        }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BattleAnime_" + U.ToHexString((uint)N_AddressList.SelectedIndex + 1), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BattleAnime_" + U.ToHexString((uint)N_AddressList.SelectedIndex + 1), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

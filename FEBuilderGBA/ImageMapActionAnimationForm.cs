@@ -7,6 +7,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -192,6 +193,18 @@ namespace FEBuilderGBA
             {
                 AnimationPanel.Hide();
                 AnimationExportButton.Hide();
+            }
+
+            string filename = Program.ResourceCache.At("MapActionAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
             }
         }
 
@@ -424,6 +437,8 @@ namespace FEBuilderGBA
             InputFormRef.ShowWriteNotifyAnimation(this, 0);
 
             Program.ResourceCache.Update("MapActionAnimation_" + U.ToHexString(id), filename);
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
 
             return "";
         }
@@ -468,6 +483,41 @@ namespace FEBuilderGBA
                 R.ShowStopError("攻撃モーションの、アニメーションテーブルを取得できません。\r\nパッチがインストールされていない可能性があります。");
                 this.Close();
                 return;
+            }
+        }
+
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("MapActionAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("MapActionAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
             }
         }
     }

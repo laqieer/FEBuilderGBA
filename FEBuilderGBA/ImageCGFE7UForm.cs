@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -117,6 +118,18 @@ namespace FEBuilderGBA
             {//10分割
                 X_PIC.Image = ImageCGForm.DrawImage(table, tsa, palette);
             }
+
+            string filename = Program.ResourceCache.At("CG_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         private void ImageCGFE7UForm_Load(object sender, EventArgs e)
@@ -175,6 +188,8 @@ namespace FEBuilderGBA
                 this.WriteButton.PerformClick();
 
                 Program.ResourceCache.Update("CG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
             }
             else if (bitmap_palette_count <= 8)
             {//16色*8種類カラー
@@ -211,6 +226,8 @@ namespace FEBuilderGBA
                 this.WriteButton.PerformClick();
 
                 Program.ResourceCache.Update("CG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
             }
             else 
             {
@@ -332,5 +349,39 @@ namespace FEBuilderGBA
             return InputFormRef.MakeList();
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("CG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("CG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

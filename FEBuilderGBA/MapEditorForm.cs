@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -221,6 +222,18 @@ namespace FEBuilderGBA
             //変更マークをクリア
             ClearModifiedFlag();
             this.PrevSelectMAPCOMBO = mapid;
+
+            string filename = Program.ResourceCache.At("Map_" + U.ToHexString(this.MAPCOMBO.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
         void ReloadMapChange(uint mapid,MapSettingForm.PLists plists, int selected)
         {
@@ -1293,6 +1306,8 @@ this.MapObjImage);
                 if (ext != "*.png")
                 {
                     Program.ResourceCache.Update("Map_" + U.ToHexString(this.MAPCOMBO.SelectedIndex), mapfilename);
+                    this.OpenSourceButton.Show();
+                    this.SelectSourceButton.Show();
                 }
             }
         }
@@ -3194,5 +3209,40 @@ this.MapObjImage);
             return true;
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("Map_" + U.ToHexString(this.MAPCOMBO.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("Map_" + U.ToHexString(this.MAPCOMBO.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+
+        }
     }
 }

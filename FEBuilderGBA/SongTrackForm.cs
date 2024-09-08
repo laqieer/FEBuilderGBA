@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Diagnostics;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -132,8 +133,20 @@ namespace FEBuilderGBA
                     HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.Track12_Over_By_SongTrack);
                 }
             }
+
+            string filename = Program.ResourceCache.At("Song_" + U.ToHexString((uint)AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
-        
+
         private void SongExchangeButton_Click(object sender, EventArgs e)
         {
             InputFormRef.JumpForm<SongExchangeForm>((uint)this.AddressList.SelectedIndex);
@@ -286,7 +299,11 @@ namespace FEBuilderGBA
             R.Notify("{0}, SongID: {1} ,Ext: {2} ,Filename: {3}", this.Text, song_id, ext, filename);
 
             if (ext != "INSTRUMENT")
+            {
                 Program.ResourceCache.Update("Song_" + U.ToHexString(song_id), filename);
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
 
             int selectedIndex = AddressList.SelectedIndex;
             ReloadListButton.PerformClick();
@@ -540,6 +557,39 @@ namespace FEBuilderGBA
             }
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("Song_" + U.ToHexString((uint)AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
 
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("Song_" + U.ToHexString((uint)AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -46,6 +47,18 @@ namespace FEBuilderGBA
             WMPoint2 = new ImageFormRef(this, "WMPoint2", 12 * 8, 4 * 8, 1, Program.ROM.RomInfo.worldmap_icon2_pointer, 0, Program.ROM.RomInfo.worldmap_icon_palette_pointer);
 
             WMRoad = new ImageFormRef(this, "WMRoad", 8, 120, 1, Program.ROM.RomInfo.worldmap_road_tile_pointer, 0, Program.ROM.RomInfo.worldmap_icon_palette_pointer);
+
+            string filename = Program.ResourceCache.At("WorldMap_", "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         InputFormRef Border_InputFormRef;
@@ -177,6 +190,8 @@ namespace FEBuilderGBA
             this.AllWriteButton.PerformClick();
 
             Program.ResourceCache.Update("WorldMap_", bitmap.Tag.ToString());
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
 
             WMPictureBox.Image = DrawWorldMap();
         }
@@ -221,8 +236,6 @@ namespace FEBuilderGBA
 
             //ポインタの書き込み
             this.AllWriteButton.PerformClick();
-
-            Program.ResourceCache.Update("WorldMapDark_", bitmap.Tag.ToString());
         }
 
         
@@ -558,5 +571,40 @@ namespace FEBuilderGBA
             DrawBorderImages();
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("WorldMap_", out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("WorldMap_", out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+
+        }
     }
 }

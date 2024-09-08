@@ -13848,3 +13848,12 @@ Filter
 
 :テキストファイル(*.txt)|*.txt|TSVファイル(*.tsv)|*.tsv|All files|*
 Text files (*.txt)|*.txt|TSV files (*.tsv)|*.tsv|All files|*
+
+:ソースファイルが記録されません
+Source file is not recorded
+
+:ソースファイルを開く
+Open source file
+
+:ソースフォルダーを開く
+Open source folder

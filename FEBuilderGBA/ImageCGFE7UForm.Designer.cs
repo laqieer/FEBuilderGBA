@@ -66,6 +66,8 @@
             this.ReadStartAddress = new System.Windows.Forms.NumericUpDown();
             this.label23 = new System.Windows.Forms.Label();
             this.panel5 = new System.Windows.Forms.Panel();
+            this.OpenSourceButton = new System.Windows.Forms.Button();
+            this.SelectSourceButton = new System.Windows.Forms.Button();
             this.DragTargetPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.B3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.B2)).BeginInit();
@@ -87,9 +89,9 @@
             // 
             this.label8.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.label8.Location = new System.Drawing.Point(-1, -1);
-            this.label8.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label8.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(115, 30);
+            this.label8.Size = new System.Drawing.Size(77, 21);
             this.label8.TabIndex = 23;
             this.label8.Text = "先頭アドレス";
             this.label8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -97,6 +99,8 @@
             // DragTargetPanel
             // 
             this.DragTargetPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.DragTargetPanel.Controls.Add(this.SelectSourceButton);
+            this.DragTargetPanel.Controls.Add(this.OpenSourceButton);
             this.DragTargetPanel.Controls.Add(this.Comment);
             this.DragTargetPanel.Controls.Add(this.label6);
             this.DragTargetPanel.Controls.Add(this.DecreaseColorTSAToolButton);
@@ -116,39 +120,38 @@
             this.DragTargetPanel.Controls.Add(this.J_8);
             this.DragTargetPanel.Controls.Add(this.X_PIC);
             this.DragTargetPanel.Controls.Add(this.J_4);
-            this.DragTargetPanel.Location = new System.Drawing.Point(263, 73);
-            this.DragTargetPanel.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            this.DragTargetPanel.Location = new System.Drawing.Point(175, 49);
             this.DragTargetPanel.Name = "DragTargetPanel";
-            this.DragTargetPanel.Size = new System.Drawing.Size(862, 369);
+            this.DragTargetPanel.Size = new System.Drawing.Size(575, 247);
             this.DragTargetPanel.TabIndex = 88;
             // 
             // Comment
             // 
             this.Comment.ErrorMessage = "";
-            this.Comment.Location = new System.Drawing.Point(128, 176);
+            this.Comment.Location = new System.Drawing.Point(85, 117);
+            this.Comment.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.Comment.Name = "Comment";
             this.Comment.Placeholder = "";
-            this.Comment.Size = new System.Drawing.Size(236, 25);
+            this.Comment.Size = new System.Drawing.Size(159, 20);
             this.Comment.TabIndex = 200;
             // 
             // label6
             // 
             this.label6.AccessibleDescription = "@COMMENT";
             this.label6.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label6.Location = new System.Drawing.Point(-1, 173);
-            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label6.Location = new System.Drawing.Point(-1, 115);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(122, 31);
+            this.label6.Size = new System.Drawing.Size(82, 21);
             this.label6.TabIndex = 199;
             this.label6.Text = "コメント";
             this.label6.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // DecreaseColorTSAToolButton
             // 
-            this.DecreaseColorTSAToolButton.Location = new System.Drawing.Point(653, 334);
-            this.DecreaseColorTSAToolButton.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
+            this.DecreaseColorTSAToolButton.Location = new System.Drawing.Point(435, 223);
+            this.DecreaseColorTSAToolButton.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.DecreaseColorTSAToolButton.Name = "DecreaseColorTSAToolButton";
-            this.DecreaseColorTSAToolButton.Size = new System.Drawing.Size(206, 30);
+            this.DecreaseColorTSAToolButton.Size = new System.Drawing.Size(137, 20);
             this.DecreaseColorTSAToolButton.TabIndex = 68;
             this.DecreaseColorTSAToolButton.Text = "減色ツール";
             this.DecreaseColorTSAToolButton.UseVisualStyleBackColor = true;
@@ -156,10 +159,10 @@
             // 
             // ImportButton
             // 
-            this.ImportButton.Location = new System.Drawing.Point(4, 334);
-            this.ImportButton.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
+            this.ImportButton.Location = new System.Drawing.Point(3, 223);
+            this.ImportButton.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.ImportButton.Name = "ImportButton";
-            this.ImportButton.Size = new System.Drawing.Size(185, 30);
+            this.ImportButton.Size = new System.Drawing.Size(123, 20);
             this.ImportButton.TabIndex = 67;
             this.ImportButton.Text = "画像読込";
             this.ImportButton.UseVisualStyleBackColor = true;
@@ -167,10 +170,10 @@
             // 
             // ExportButton
             // 
-            this.ExportButton.Location = new System.Drawing.Point(197, 334);
-            this.ExportButton.Margin = new System.Windows.Forms.Padding(4, 2, 4, 2);
+            this.ExportButton.Location = new System.Drawing.Point(131, 223);
+            this.ExportButton.Margin = new System.Windows.Forms.Padding(3, 1, 3, 1);
             this.ExportButton.Name = "ExportButton";
-            this.ExportButton.Size = new System.Drawing.Size(186, 30);
+            this.ExportButton.Size = new System.Drawing.Size(124, 20);
             this.ExportButton.TabIndex = 66;
             this.ExportButton.Text = "画像取出";
             this.ExportButton.UseVisualStyleBackColor = true;
@@ -183,19 +186,19 @@
             this.L_0_COMBO.Items.AddRange(new object[] {
             "00=単体",
             "01=10分割"});
-            this.L_0_COMBO.Location = new System.Drawing.Point(223, 8);
-            this.L_0_COMBO.Margin = new System.Windows.Forms.Padding(2);
+            this.L_0_COMBO.Location = new System.Drawing.Point(149, 5);
+            this.L_0_COMBO.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.L_0_COMBO.Name = "L_0_COMBO";
-            this.L_0_COMBO.Size = new System.Drawing.Size(162, 26);
+            this.L_0_COMBO.Size = new System.Drawing.Size(109, 21);
             this.L_0_COMBO.TabIndex = 39;
             // 
             // J_1
             // 
             this.J_1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_1.Location = new System.Drawing.Point(-1, 37);
-            this.J_1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.J_1.Location = new System.Drawing.Point(-1, 25);
+            this.J_1.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.J_1.Name = "J_1";
-            this.J_1.Size = new System.Drawing.Size(156, 30);
+            this.J_1.Size = new System.Drawing.Size(105, 21);
             this.J_1.TabIndex = 38;
             this.J_1.Text = "00";
             this.J_1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -203,66 +206,66 @@
             // B3
             // 
             this.B3.Hexadecimal = true;
-            this.B3.Location = new System.Drawing.Point(291, 41);
-            this.B3.Margin = new System.Windows.Forms.Padding(2);
+            this.B3.Location = new System.Drawing.Point(194, 27);
+            this.B3.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.B3.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.B3.Name = "B3";
-            this.B3.Size = new System.Drawing.Size(60, 25);
+            this.B3.Size = new System.Drawing.Size(40, 20);
             this.B3.TabIndex = 37;
             // 
             // B2
             // 
             this.B2.Hexadecimal = true;
-            this.B2.Location = new System.Drawing.Point(225, 41);
-            this.B2.Margin = new System.Windows.Forms.Padding(2);
+            this.B2.Location = new System.Drawing.Point(150, 27);
+            this.B2.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.B2.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.B2.Name = "B2";
-            this.B2.Size = new System.Drawing.Size(60, 25);
+            this.B2.Size = new System.Drawing.Size(40, 20);
             this.B2.TabIndex = 36;
             // 
             // B1
             // 
             this.B1.Hexadecimal = true;
-            this.B1.Location = new System.Drawing.Point(159, 41);
-            this.B1.Margin = new System.Windows.Forms.Padding(2);
+            this.B1.Location = new System.Drawing.Point(106, 27);
+            this.B1.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.B1.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.B1.Name = "B1";
-            this.B1.Size = new System.Drawing.Size(60, 25);
+            this.B1.Size = new System.Drawing.Size(40, 20);
             this.B1.TabIndex = 35;
             // 
             // B0
             // 
             this.B0.Hexadecimal = true;
-            this.B0.Location = new System.Drawing.Point(159, 11);
-            this.B0.Margin = new System.Windows.Forms.Padding(2);
+            this.B0.Location = new System.Drawing.Point(106, 7);
+            this.B0.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.B0.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.B0.Name = "B0";
-            this.B0.Size = new System.Drawing.Size(60, 25);
+            this.B0.Size = new System.Drawing.Size(40, 20);
             this.B0.TabIndex = 34;
             // 
             // J_0
             // 
             this.J_0.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_0.Location = new System.Drawing.Point(-1, 8);
-            this.J_0.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.J_0.Location = new System.Drawing.Point(-1, 5);
+            this.J_0.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.J_0.Name = "J_0";
-            this.J_0.Size = new System.Drawing.Size(156, 30);
+            this.J_0.Size = new System.Drawing.Size(105, 21);
             this.J_0.TabIndex = 33;
             this.J_0.Text = "??";
             this.J_0.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -270,38 +273,38 @@
             // P4
             // 
             this.P4.Hexadecimal = true;
-            this.P4.Location = new System.Drawing.Point(159, 76);
-            this.P4.Margin = new System.Windows.Forms.Padding(2);
+            this.P4.Location = new System.Drawing.Point(106, 51);
+            this.P4.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.P4.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.P4.Name = "P4";
-            this.P4.Size = new System.Drawing.Size(130, 25);
+            this.P4.Size = new System.Drawing.Size(87, 20);
             this.P4.TabIndex = 3;
             // 
             // P12
             // 
             this.P12.Hexadecimal = true;
-            this.P12.Location = new System.Drawing.Point(159, 137);
-            this.P12.Margin = new System.Windows.Forms.Padding(2);
+            this.P12.Location = new System.Drawing.Point(106, 91);
+            this.P12.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.P12.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.P12.Name = "P12";
-            this.P12.Size = new System.Drawing.Size(130, 25);
+            this.P12.Size = new System.Drawing.Size(87, 20);
             this.P12.TabIndex = 2;
             // 
             // J_12
             // 
             this.J_12.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_12.Location = new System.Drawing.Point(-2, 132);
-            this.J_12.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.J_12.Location = new System.Drawing.Point(-1, 88);
+            this.J_12.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.J_12.Name = "J_12";
-            this.J_12.Size = new System.Drawing.Size(156, 30);
+            this.J_12.Size = new System.Drawing.Size(105, 21);
             this.J_12.TabIndex = 32;
             this.J_12.Text = "パレット";
             this.J_12.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -309,24 +312,24 @@
             // P8
             // 
             this.P8.Hexadecimal = true;
-            this.P8.Location = new System.Drawing.Point(159, 106);
-            this.P8.Margin = new System.Windows.Forms.Padding(2);
+            this.P8.Location = new System.Drawing.Point(106, 71);
+            this.P8.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.P8.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.P8.Name = "P8";
-            this.P8.Size = new System.Drawing.Size(130, 25);
+            this.P8.Size = new System.Drawing.Size(87, 20);
             this.P8.TabIndex = 1;
             // 
             // J_8
             // 
             this.J_8.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_8.Location = new System.Drawing.Point(-2, 101);
-            this.J_8.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.J_8.Location = new System.Drawing.Point(-1, 67);
+            this.J_8.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.J_8.Name = "J_8";
-            this.J_8.Size = new System.Drawing.Size(156, 30);
+            this.J_8.Size = new System.Drawing.Size(105, 21);
             this.J_8.TabIndex = 30;
             this.J_8.Text = "TSA";
             this.J_8.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -334,40 +337,40 @@
             // X_PIC
             // 
             this.X_PIC.Interpolation = System.Drawing.Drawing2D.InterpolationMode.Bicubic;
-            this.X_PIC.Location = new System.Drawing.Point(390, 2);
-            this.X_PIC.Margin = new System.Windows.Forms.Padding(2);
+            this.X_PIC.Location = new System.Drawing.Point(260, 1);
+            this.X_PIC.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.X_PIC.Name = "X_PIC";
-            this.X_PIC.Size = new System.Drawing.Size(469, 317);
+            this.X_PIC.Size = new System.Drawing.Size(313, 211);
             this.X_PIC.TabIndex = 29;
             this.X_PIC.TabStop = false;
             // 
             // J_4
             // 
             this.J_4.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.J_4.Location = new System.Drawing.Point(-2, 71);
-            this.J_4.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.J_4.Location = new System.Drawing.Point(-1, 47);
+            this.J_4.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.J_4.Name = "J_4";
-            this.J_4.Size = new System.Drawing.Size(156, 30);
+            this.J_4.Size = new System.Drawing.Size(105, 21);
             this.J_4.TabIndex = 24;
             this.J_4.Text = "10分割画像";
             this.J_4.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // ReloadListButton
             // 
-            this.ReloadListButton.Location = new System.Drawing.Point(431, -1);
-            this.ReloadListButton.Margin = new System.Windows.Forms.Padding(2);
+            this.ReloadListButton.Location = new System.Drawing.Point(287, -1);
+            this.ReloadListButton.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.ReloadListButton.Name = "ReloadListButton";
-            this.ReloadListButton.Size = new System.Drawing.Size(112, 30);
+            this.ReloadListButton.Size = new System.Drawing.Size(75, 20);
             this.ReloadListButton.TabIndex = 25;
             this.ReloadListButton.Text = "再取得";
             this.ReloadListButton.UseVisualStyleBackColor = true;
             // 
             // WriteButton
             // 
-            this.WriteButton.Location = new System.Drawing.Point(695, -2);
-            this.WriteButton.Margin = new System.Windows.Forms.Padding(2);
+            this.WriteButton.Location = new System.Drawing.Point(463, -1);
+            this.WriteButton.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.WriteButton.Name = "WriteButton";
-            this.WriteButton.Size = new System.Drawing.Size(167, 30);
+            this.WriteButton.Size = new System.Drawing.Size(111, 20);
             this.WriteButton.TabIndex = 55;
             this.WriteButton.Text = "書き込み";
             this.WriteButton.UseVisualStyleBackColor = true;
@@ -378,18 +381,18 @@
             this.panel6.Controls.Add(this.AddressListExpandsButton);
             this.panel6.Controls.Add(this.LabelFilter);
             this.panel6.Controls.Add(this.AddressList);
-            this.panel6.Location = new System.Drawing.Point(11, 38);
-            this.panel6.Margin = new System.Windows.Forms.Padding(2);
+            this.panel6.Location = new System.Drawing.Point(7, 25);
+            this.panel6.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.panel6.Name = "panel6";
-            this.panel6.Size = new System.Drawing.Size(245, 406);
+            this.panel6.Size = new System.Drawing.Size(164, 271);
             this.panel6.TabIndex = 89;
             // 
             // AddressListExpandsButton
             // 
-            this.AddressListExpandsButton.Location = new System.Drawing.Point(2, 373);
-            this.AddressListExpandsButton.Margin = new System.Windows.Forms.Padding(2);
+            this.AddressListExpandsButton.Location = new System.Drawing.Point(1, 249);
+            this.AddressListExpandsButton.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.AddressListExpandsButton.Name = "AddressListExpandsButton";
-            this.AddressListExpandsButton.Size = new System.Drawing.Size(236, 30);
+            this.AddressListExpandsButton.Size = new System.Drawing.Size(157, 20);
             this.AddressListExpandsButton.TabIndex = 114;
             this.AddressListExpandsButton.Text = "リストの拡張";
             this.AddressListExpandsButton.UseVisualStyleBackColor = true;
@@ -398,10 +401,10 @@
             // 
             this.LabelFilter.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.LabelFilter.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.LabelFilter.Location = new System.Drawing.Point(0, -3);
-            this.LabelFilter.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.LabelFilter.Location = new System.Drawing.Point(0, -2);
+            this.LabelFilter.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.LabelFilter.Name = "LabelFilter";
-            this.LabelFilter.Size = new System.Drawing.Size(244, 30);
+            this.LabelFilter.Size = new System.Drawing.Size(163, 21);
             this.LabelFilter.TabIndex = 55;
             this.LabelFilter.Text = "名前";
             this.LabelFilter.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -411,32 +414,29 @@
             this.AddressList.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.AddressList.FormattingEnabled = true;
             this.AddressList.IntegralHeight = false;
-            this.AddressList.ItemHeight = 18;
-            this.AddressList.Location = new System.Drawing.Point(0, 26);
-            this.AddressList.Margin = new System.Windows.Forms.Padding(4);
+            this.AddressList.Location = new System.Drawing.Point(0, 17);
             this.AddressList.Name = "AddressList";
-            this.AddressList.Size = new System.Drawing.Size(244, 346);
+            this.AddressList.Size = new System.Drawing.Size(164, 232);
             this.AddressList.TabIndex = 0;
             this.AddressList.SelectedIndexChanged += new System.EventHandler(this.AddressList_SelectedIndexChanged);
             // 
             // BlockSize
             // 
             this.BlockSize.ErrorMessage = "";
-            this.BlockSize.Location = new System.Drawing.Point(318, 3);
-            this.BlockSize.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            this.BlockSize.Location = new System.Drawing.Point(212, 2);
             this.BlockSize.Name = "BlockSize";
             this.BlockSize.Placeholder = "";
             this.BlockSize.ReadOnly = true;
-            this.BlockSize.Size = new System.Drawing.Size(82, 25);
+            this.BlockSize.Size = new System.Drawing.Size(56, 20);
             this.BlockSize.TabIndex = 58;
             // 
             // label3
             // 
             this.label3.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label3.Location = new System.Drawing.Point(235, -1);
-            this.label3.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label3.Location = new System.Drawing.Point(157, -1);
+            this.label3.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(80, 30);
+            this.label3.Size = new System.Drawing.Size(54, 21);
             this.label3.TabIndex = 59;
             this.label3.Text = "Size:";
             this.label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -444,22 +444,21 @@
             // SelectAddress
             // 
             this.SelectAddress.ErrorMessage = "";
-            this.SelectAddress.Location = new System.Drawing.Point(532, 1);
-            this.SelectAddress.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            this.SelectAddress.Location = new System.Drawing.Point(355, 1);
             this.SelectAddress.Name = "SelectAddress";
             this.SelectAddress.Placeholder = "";
             this.SelectAddress.ReadOnly = true;
-            this.SelectAddress.Size = new System.Drawing.Size(137, 25);
+            this.SelectAddress.Size = new System.Drawing.Size(93, 20);
             this.SelectAddress.TabIndex = 57;
             // 
             // label22
             // 
             this.label22.AccessibleDescription = "@SELECTION_ADDRESS";
             this.label22.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label22.Location = new System.Drawing.Point(409, -1);
-            this.label22.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label22.Location = new System.Drawing.Point(273, -1);
+            this.label22.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label22.Name = "label22";
-            this.label22.Size = new System.Drawing.Size(122, 30);
+            this.label22.Size = new System.Drawing.Size(82, 21);
             this.label22.TabIndex = 56;
             this.label22.Text = "選択アドレス:";
             this.label22.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -467,24 +466,24 @@
             // Address
             // 
             this.Address.Hexadecimal = true;
-            this.Address.Location = new System.Drawing.Point(97, 2);
-            this.Address.Margin = new System.Windows.Forms.Padding(2);
+            this.Address.Location = new System.Drawing.Point(65, 1);
+            this.Address.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.Address.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.Address.Name = "Address";
-            this.Address.Size = new System.Drawing.Size(130, 25);
+            this.Address.Size = new System.Drawing.Size(87, 20);
             this.Address.TabIndex = 0;
             // 
             // label9
             // 
             this.label9.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label9.Location = new System.Drawing.Point(250, -1);
-            this.label9.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label9.Location = new System.Drawing.Point(167, -1);
+            this.label9.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(85, 34);
+            this.label9.Size = new System.Drawing.Size(57, 23);
             this.label9.TabIndex = 24;
             this.label9.Text = "読込数";
             this.label9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -497,46 +496,45 @@
             this.panel3.Controls.Add(this.label9);
             this.panel3.Controls.Add(this.ReadCount);
             this.panel3.Controls.Add(this.ReadStartAddress);
-            this.panel3.Location = new System.Drawing.Point(11, 5);
-            this.panel3.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
+            this.panel3.Location = new System.Drawing.Point(7, 3);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(1114, 31);
+            this.panel3.Size = new System.Drawing.Size(743, 21);
             this.panel3.TabIndex = 87;
             // 
             // ReadCount
             // 
-            this.ReadCount.Location = new System.Drawing.Point(347, 2);
-            this.ReadCount.Margin = new System.Windows.Forms.Padding(2);
+            this.ReadCount.Location = new System.Drawing.Point(231, 1);
+            this.ReadCount.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.ReadCount.Maximum = new decimal(new int[] {
             256,
             0,
             0,
             0});
             this.ReadCount.Name = "ReadCount";
-            this.ReadCount.Size = new System.Drawing.Size(78, 25);
+            this.ReadCount.Size = new System.Drawing.Size(52, 20);
             this.ReadCount.TabIndex = 1;
             // 
             // ReadStartAddress
             // 
             this.ReadStartAddress.Hexadecimal = true;
-            this.ReadStartAddress.Location = new System.Drawing.Point(116, 1);
-            this.ReadStartAddress.Margin = new System.Windows.Forms.Padding(2);
+            this.ReadStartAddress.Location = new System.Drawing.Point(77, 1);
+            this.ReadStartAddress.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.ReadStartAddress.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
             this.ReadStartAddress.Name = "ReadStartAddress";
-            this.ReadStartAddress.Size = new System.Drawing.Size(130, 25);
+            this.ReadStartAddress.Size = new System.Drawing.Size(87, 20);
             this.ReadStartAddress.TabIndex = 0;
             // 
             // label23
             // 
             this.label23.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.label23.Location = new System.Drawing.Point(-1, -1);
-            this.label23.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label23.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
             this.label23.Name = "label23";
-            this.label23.Size = new System.Drawing.Size(85, 30);
+            this.label23.Size = new System.Drawing.Size(57, 21);
             this.label23.TabIndex = 53;
             this.label23.Text = "アドレス";
             this.label23.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
@@ -551,23 +549,43 @@
             this.panel5.Controls.Add(this.WriteButton);
             this.panel5.Controls.Add(this.Address);
             this.panel5.Controls.Add(this.label23);
-            this.panel5.Location = new System.Drawing.Point(263, 39);
-            this.panel5.Margin = new System.Windows.Forms.Padding(2);
+            this.panel5.Location = new System.Drawing.Point(175, 26);
+            this.panel5.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.panel5.Name = "panel5";
-            this.panel5.Size = new System.Drawing.Size(862, 29);
+            this.panel5.Size = new System.Drawing.Size(575, 20);
             this.panel5.TabIndex = 86;
+            // 
+            // OpenSourceButton
+            // 
+            this.OpenSourceButton.Location = new System.Drawing.Point(3, 199);
+            this.OpenSourceButton.Name = "OpenSourceButton";
+            this.OpenSourceButton.Size = new System.Drawing.Size(123, 20);
+            this.OpenSourceButton.TabIndex = 201;
+            this.OpenSourceButton.Text = "ソースファイルを開く";
+            this.OpenSourceButton.UseVisualStyleBackColor = true;
+            this.OpenSourceButton.Click += new System.EventHandler(this.OpenSourceButton_Click);
+            // 
+            // SelectSourceButton
+            // 
+            this.SelectSourceButton.Location = new System.Drawing.Point(131, 199);
+            this.SelectSourceButton.Name = "SelectSourceButton";
+            this.SelectSourceButton.Size = new System.Drawing.Size(124, 20);
+            this.SelectSourceButton.TabIndex = 202;
+            this.SelectSourceButton.Text = "ソースフォルダーを開く";
+            this.SelectSourceButton.UseVisualStyleBackColor = true;
+            this.SelectSourceButton.Click += new System.EventHandler(this.SelectSourceButton_Click);
             // 
             // ImageCGFE7UForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(144F, 144F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.AutoSize = true;
-            this.ClientSize = new System.Drawing.Size(1137, 449);
+            this.ClientSize = new System.Drawing.Size(758, 299);
             this.Controls.Add(this.DragTargetPanel);
             this.Controls.Add(this.panel6);
             this.Controls.Add(this.panel3);
             this.Controls.Add(this.panel5);
-            this.Margin = new System.Windows.Forms.Padding(2);
+            this.Margin = new System.Windows.Forms.Padding(1, 1, 1, 1);
             this.Name = "ImageCGFE7UForm";
             this.Text = "CG画像";
             this.Load += new System.EventHandler(this.ImageCGFE7UForm_Load);
@@ -632,5 +650,7 @@
         private System.Windows.Forms.Button DecreaseColorTSAToolButton;
         private TextBoxEx Comment;
         private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Button SelectSourceButton;
+        private System.Windows.Forms.Button OpenSourceButton;
     }
 }

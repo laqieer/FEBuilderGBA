@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -154,6 +155,18 @@ namespace FEBuilderGBA
 
             this.MagicComment.Text = Program.CommentCache.At(ar.addr);
             DrawSelectedAnime();
+
+            string filename = Program.ResourceCache.At("MagicAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex + 1), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
         private void ShowFrameUpDown_ValueChanged(object sender, EventArgs e)
         {
@@ -253,6 +266,8 @@ namespace FEBuilderGBA
             }
 
             Program.ResourceCache.Update("MagicAnimation_" + U.ToHexString(id), filename);
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
         }
         public string MagicAnimeImportDirect(uint id, string filename)
         {
@@ -587,6 +602,41 @@ namespace FEBuilderGBA
 
             //開きなおす.
             InputFormRef.ReOpenForm<ImageMagicFEditorForm>();
+        }
+
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("MagicAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex + 1), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("MagicAnimation_" + U.ToHexString((uint)AddressList.SelectedIndex + 1), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
         }
 
         private void X_N_JumpEditor_Click(object sender, EventArgs e)

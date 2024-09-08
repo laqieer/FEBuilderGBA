@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -105,6 +106,18 @@ namespace FEBuilderGBA
 
             X_PIC.Image = LoadWaitUnitIcon(pic_address, palette_type, b2);
             X_ONE_PIC.Image = DrawWaitUnitIcon(pic_address, b2, (int)X_ONE_STEP.Value, palette_type, false);
+
+            string filename = Program.ResourceCache.At("UnitWaitIcon_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
         private void X_ONE_STEP_ValueChanged(object sender, EventArgs e)
         {
@@ -363,6 +376,8 @@ namespace FEBuilderGBA
             this.WriteButton.PerformClick();
 
             Program.ResourceCache.Update("UnitWaitIcon_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
         }
 
         private void X_JUMP_MOVEICON_Click(object sender, EventArgs e)
@@ -416,5 +431,39 @@ namespace FEBuilderGBA
             f.JumpToPage(1);
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("UnitWaitIcon_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("UnitWaitIcon_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

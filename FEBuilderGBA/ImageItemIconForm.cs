@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -111,6 +112,18 @@ namespace FEBuilderGBA
 
             U.ConvertListBox(ItemForm.MakeItemListByUseIcon((uint)this.AddressList.SelectedIndex),
                 ref this.X_ICON_REF_ITEM);
+
+            string filename = Program.ResourceCache.At("ItemIcon_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         public static Bitmap DrawIcon(uint addr, uint customPalette = 0)
@@ -238,6 +251,8 @@ namespace FEBuilderGBA
             Program.Undo.Push(undodata);
 
             Program.ResourceCache.Update("ItemIcon_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
 
             InputFormRef.ReloadAddressList();
             InputFormRef.ShowWriteNotifyAnimation(this, addr);
@@ -329,6 +344,39 @@ namespace FEBuilderGBA
 
         }
 
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("ItemIcon_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
 
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("ItemIcon_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
     }
 }

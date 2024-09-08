@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -77,6 +78,18 @@ namespace FEBuilderGBA
             UpdateRef((uint)this.AddressList.SelectedIndex);
 
             ShowWarningMessage();
+
+            string filename = Program.ResourceCache.At("BG_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         public static string GetComment(uint id)
@@ -254,6 +267,9 @@ namespace FEBuilderGBA
             this.WriteButton.PerformClick();
 
             Program.ResourceCache.Update("BG_" + U.ToHexString(this.AddressList.SelectedIndex), bitmap.Tag.ToString());
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
+
         }
 
         //全データの取得
@@ -466,6 +482,41 @@ namespace FEBuilderGBA
             }
             return true;
 
+        }
+
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("BG_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
         }
     }
 }

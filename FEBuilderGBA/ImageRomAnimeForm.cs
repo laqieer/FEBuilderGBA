@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
+using static FEBuilderGBA.EmulatorMemoryUtil;
 
 namespace FEBuilderGBA
 {
@@ -90,6 +91,18 @@ namespace FEBuilderGBA
             X_INFO.Text = DumpInfo();
             this.ShowFrameUpDown.Value = 0;
             Draw(0);
+
+            string filename = Program.ResourceCache.At("VanillaAnime_" + U.ToHexString(this.AddressList.SelectedIndex), "");
+            if (filename.Length > 0 && File.Exists(filename))
+            {
+                this.OpenSourceButton.Show();
+                this.SelectSourceButton.Show();
+            }
+            else
+            {
+                this.OpenSourceButton.Hide();
+                this.SelectSourceButton.Hide();
+            }
         }
 
         static List<uint> GetPointerListCount(uint p)
@@ -1237,9 +1250,46 @@ namespace FEBuilderGBA
                 return;
             }
 
-            Program.ResourceCache.Update("MagicAnimation_" + U.ToHexString(this.AddressList.SelectedIndex), filename);
+            Program.ResourceCache.Update("VanillaAnime_" + U.ToHexString(this.AddressList.SelectedIndex), filename);
+            this.OpenSourceButton.Show();
+            this.SelectSourceButton.Show();
 
             U.ReSelectList(this.AddressList);
+        }
+
+        private void OpenSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("VanillaAnime_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!U.CanReadFileRetry(filename))
+                {
+                    return;
+                }
+                U.OpenURLOrFile(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
+        }
+
+        private void SelectSourceButton_Click(object sender, EventArgs e)
+        {
+            string filename = "";
+            if (Program.ResourceCache.TryGetValue("VanillaAnime_" + U.ToHexString(this.AddressList.SelectedIndex), out filename))
+            {
+                if (!File.Exists(filename))
+                {
+                    R.ShowStopError("ファイルが見つかりません");
+                    return;
+                }
+                U.SelectFileByExplorer(filename);
+            }
+            else
+            {
+                R.ShowStopError("ソースファイルが記録されません");
+            }
         }
     }
 }

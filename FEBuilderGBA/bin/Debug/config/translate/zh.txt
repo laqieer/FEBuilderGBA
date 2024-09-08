@@ -13848,3 +13848,12 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 
 :テキストファイル(*.txt)|*.txt|TSVファイル(*.tsv)|*.tsv|All files|*
 文本文件(*.txt)|*.txt|TSV文件(*.tsv)|*.tsv|All files|*
+
+:ソースファイルが記録されません
+源文件未记录
+
+:ソースファイルを開く
+打开源文件
+
+:ソースフォルダーを開く
+打开源目录
