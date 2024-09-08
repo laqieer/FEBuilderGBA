@@ -13845,3 +13845,6 @@ Descending
 
 :フィルター
 Filter
+
+:テキストファイル(*.txt)|*.txt|TSVファイル(*.tsv)|*.tsv|All files|*
+Text files (*.txt)|*.txt|TSV files (*.tsv)|*.tsv|All files|*

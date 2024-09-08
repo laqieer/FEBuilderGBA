@@ -46,5 +46,29 @@ namespace FEBuilderGBA
             this.filter = this.comboBoxEx1.Text;
             UpdateResources();
         }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            // Copy text to clipboard
+            Clipboard.SetText(this.resources.Text);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            // Save text to file
+            string title = R._("保存するファイル名を選択してください");
+            string filter = R._("テキストファイル(*.txt)|*.txt|TSVファイル(*.tsv)|*.tsv|All files|*");
+
+            SaveFileDialog save = new SaveFileDialog();
+            save.Title = title;
+            save.Filter = filter;
+            save.AddExtension = true;
+            save.FilterIndex = 1;
+            if (save.ShowDialog() == DialogResult.OK)
+            {
+                U.WriteAllText(save.FileName, this.resources.Text);
+                U.OpenURLOrFile(save.FileName);
+            }
+        }
     }
 }
