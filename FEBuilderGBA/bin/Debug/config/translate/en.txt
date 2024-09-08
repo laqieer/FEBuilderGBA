@@ -13831,3 +13831,14 @@ Map Skirmish Type
 :いつでも入れるかどうか
 Placement Flag
 
+:日付順
+By Date
+
+:種類順
+By Category
+
+:昇順
+Ascending
+
+:降順
+Descending

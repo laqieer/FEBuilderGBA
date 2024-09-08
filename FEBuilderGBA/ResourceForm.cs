@@ -10,18 +10,33 @@ namespace FEBuilderGBA
 {
     public partial class ResourceForm : Form
     {
+        private int sortKey = 0;
+        private bool reversed = false;
         public ResourceForm()
         {
             InitializeComponent();
 
-            TextBoxEx info = new TextBoxEx();
-            info.Multiline = true;
-            info.Location = new Point(5, 5);
-            info.Size = new Size(600, 400);
-            info.ReadOnly = true;
-            info.ScrollBars = ScrollBars.Both;
-            info.Text = Program.ResourceCache.ListAll();
-            this.Controls.Add(info);
+            this.listBoxEx1.SelectedIndex = this.sortKey;
+            this.listBoxEx2.SelectedIndex = this.reversed ? 1 : 0;
+
+            UpdateResources();
+        }
+
+        private void UpdateResources()
+        {
+            this.resources.Text = Program.ResourceCache.ListAll(this.sortKey, this.reversed);
+        }
+
+        private void listBoxEx1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.sortKey = this.listBoxEx1.SelectedIndex;
+            UpdateResources();
+        }
+
+        private void listBoxEx2_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.reversed = this.listBoxEx2.SelectedIndex == 1;
+            UpdateResources();
         }
     }
 }

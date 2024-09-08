@@ -13830,3 +13830,15 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 
 :リソース
 素材
+
+:日付順
+按日期
+
+:種類順
+按类别
+
+:昇順
+正序
+
+:降順
+逆序

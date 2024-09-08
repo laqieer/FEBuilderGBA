@@ -10,6 +10,7 @@ namespace FEBuilderGBA
     class EtcCacheResource
     {
         Dictionary<string, string> Resource;
+
         public EtcCacheResource()
         {
             this.Resource = U.LoadTSVResourcePair2(U.ConfigEtcFilename("resource_"), false);
@@ -23,12 +24,47 @@ namespace FEBuilderGBA
             }
         }
 
-        public string ListAll()
+        public string ListAll(int sortKey = 0, bool reversed = false)
         {
             StringBuilder sb = new StringBuilder();
-            foreach (var pair in this.Resource)
+            switch (sortKey)
             {
-                sb.AppendLine(pair.Key + "\t" + pair.Value);
+                case 1: // sort by category
+
+                    if (reversed)
+                    {
+                        foreach (var pair in this.Resource.OrderByDescending(x => x.Key))
+                        {
+                            sb.AppendLine(pair.Key + "\t" + pair.Value);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var pair in this.Resource.OrderBy(x => x.Key))
+                        {
+                            sb.AppendLine(pair.Key + "\t" + pair.Value);
+                        }
+                    }
+                    break;
+
+                case 0: // sort by date by default
+                default:
+
+                    if (reversed)
+                    {
+                        foreach (var pair in this.Resource.Reverse())
+                        {
+                            sb.AppendLine(pair.Key + "\t" + pair.Value);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var pair in this.Resource)
+                        {
+                            sb.AppendLine(pair.Key + "\t" + pair.Value);
+                        }
+                    }
+                    break;
             }
             return sb.ToString();
         }
