@@ -1,0 +1,6 @@
+0=hp-bar
+1=buff icon
+2=debuff icon
+3=resucing icon
+4=boss icon
+5=protection icon

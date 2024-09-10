@@ -1,0 +1,54 @@
+NAME=[CSKILL] (100LTS) Unit debuff status config
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=gDebuffInfos
+
+POINTER=0xB2A660
+DATASIZE=0x24
+DATACOUNT=64
+
+LISTNAME=$COMBO combo.debuffs.txt
+
+P0:PatchImage_IMAGE=MMB
+WIDTH=40
+HEIGHT=8
+PALETTE=1
+PatchImage_PALETTE=Palette
+KEEPPALETTE=1
+PALETTE_POINTER=0x035D0
+
+P4:ASM_NOWARNING=on_draw
+W8:TEXT=name
+W10:TEXT=desc
+
+B12:$COMBO combo.debuff_positive.txt=positive_type
+B13:$COMBO combo.debuff_tick.txt=tick_type
+B14:DECIMAL=duration
+
+B16:$COMBO combo.debuff_flashing.txt=flashing speed
+B17:DECIMAL=flashing_red (0-16)
+B18:DECIMAL=flashing_green (0-16)
+B19:DECIMAL=flashing_blue (0-16)
+
+b20:DECIMAL=pow
+b21:DECIMAL=mag
+b22:DECIMAL=skl
+b23:DECIMAL=spd
+b24:DECIMAL=def
+b25:DECIMAL=res
+b26:DECIMAL=lck
+b27:DECIMAL=mov
+
+b28:DECIMAL=atk
+b29:DECIMAL=def
+b30:DECIMAL=hit
+b31:DECIMAL=avo
+b32:DECIMAL=crit
+b33:DECIMAL=silencer
+b34:DECIMAL=dodge
+b35:$COMBO combo.bool.txt=cannot_move

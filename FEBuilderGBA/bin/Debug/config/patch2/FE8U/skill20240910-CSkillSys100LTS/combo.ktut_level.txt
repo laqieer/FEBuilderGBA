@@ -1,0 +1,3 @@
+0=NEVER
+1=Only on tutorial mode
+2=Always

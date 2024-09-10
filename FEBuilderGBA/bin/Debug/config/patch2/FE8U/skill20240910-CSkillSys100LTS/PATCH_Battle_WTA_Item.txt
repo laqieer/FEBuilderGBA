@@ -1,0 +1,24 @@
+NAME=[CSKILL] (100LTS) BattleSys weapon-triangle weapon configs
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K: gWeaponTriangleItemConf] Config weapon WTA effect (Lancereaver, etc.)
+
+POINTER=0xB2A658
+DATASIZE=12
+DATACOUNT=0x100
+
+LISTNAME=ITEM
+B0:$COMBO combo.bool.txt=valid
+B1:$COMBO combo.wtype.txt=effective against
+b2:DECIMAL=atk
+b3:DECIMAL=def
+b4:DECIMAL=hit
+b5:DECIMAL=avo
+b6:DECIMAL=crt
+b7:DECIMAL=silencer
+b8:$COMBO combo.bool.txt=is buff

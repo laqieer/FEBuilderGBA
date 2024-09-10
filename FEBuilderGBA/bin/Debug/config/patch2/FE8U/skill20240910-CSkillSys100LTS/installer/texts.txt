@@ -1,0 +1,2518 @@
+[0578]
+Skills
+[0580]
+Manage your units' skills
+[0D4C]
+_reserved
+[0D4D]
+W.I.P.
+[0D4E]
+Spirit Dust
+[0D4F]
+Incease Mag +2
+[0D50]
+Raises magic.
+[0D51]
+Total
+[0D52]
+Total battle amount
+[0D53]
+B
+[0D54]
+W
+[0D55]
+L
+[0D56]
+@00E6@0088@00A6
+[0D57]
+@00E5@008B@009D
+[0D58]
+@00E6@0095@0097
+[0D59]
+Bonus
+[0D5A]
+Stat bonuses currently
+being granted by supports.
+[0D5B]
+Ability to avoid enemy critical
+strikes. Affects enemy's crit %.
+[0D5C]
+Talk
+[0D5D]
+Lead
+[0D5E]
+Unit leadership to give bonus
+on battle status for allies
+[0D5F]
+Skills
+[0D60]
+No skills...
+[0D61]
+Arts
+[0D62]
+No arts...
+[0D63]
+Equiped
+[0D64]
+     Skill added
+[0D65]
+     Skill removed
+[0D66]
+No enough space to equip,
+please remve skill first.
+[0D67]
+This skill is
+not removable.
+[0D68]
+Occult Scroll
+[0D69]
+Oblivion Scroll
+[0D6A]
+Learn skill
+[0D6B]
+Remove skill back to scroll
+[0D6C]
+Skill learned.
+[0D6D]
+Skill Removed.
+[0D6E]
+Select a skill to remove and generate scroll
+[0D6F]
+Spent 1000 Gold.
+[0D70]
+Def-
+[0D71]
+Armor pierced: Def-5
+[0D72]
+Res-
+[0D73]
+Pierce magic: Res-5
+[0D74]
+Mov-
+[0D75]
+Heavy gravity: cannot move
+[0D76]
+Weaken
+[0D77]
+Weaken: Pow-5, Mag-5
+[0D78]
+Avo+
+[0D79]
+Avoid: avoid + 15%
+[0D7A]
+Avo++
+[0D7B]
+Avoid+: avoid + 30%
+[0D7C]
+Panic
+[0D7D]
+Panic: reverse stat-buff
+[0D7E]
+Life-Death:
+For both unit and enemy,
+STR/MAG +5, DEF/RES -5.
+[0D7F]
+Fury:
+All stats +3, HP -6 after combat.
+[0D80]
+Fury+:
+All stats +4, HP -8 after combat.
+[0D81]
+Fortress Def:
+STR/MAG -3, DEF +5.
+[0D82]
+Fortress Res:
+STR/MAG -3, RES +5.
+[0D83]
+Hp+5:
+Unit is granted HP +5.
+[0D84]
+Str+2:
+Unit is granted STR +2.
+[0D85]
+Mag+2:
+Unit is granted MAG +2.
+[0D86]
+Skl+2:
+Unit is granted SKL +2.
+[0D87]
+Spd+2:
+Unit is granted SPD +2.
+[0D88]
+Luck+2:
+Unit is granted LUCK +2.
+[0D89]
+Def+2:
+Unit is granted DEF +2.
+[0D8A]
+Res+2:
+Unit is granted RES +2.
+[0D8B]
+Mov+2:
+Unit is granted MOV +2.
+[0D8C]
+Defiant Crit:
+Crit Rate +50%,
+if HP < 25%.
+[0D8D]
+Defiant Avoid:
+Avoid Rate +30%,
+if HP < 25%.
+[0D8E]
+Defiant Str:
+STR +7 if HP < 25%
+[0D8F]
+Defiant Mag: 
+MAG +7 if HP < 25%
+[0D90]
+Defiant Skl: 
+SKL +7 if HP < 25%
+[0D91]
+Defiant Spd: 
+SPD +7 if HP < 25%
+[0D92]
+Defiant Luk: 
+LUCK +7 if HP < 25%
+[0D93]
+Defiant Def: 
+DEF +7 if HP < 25%
+[0D94]
+Defiant Res: 
+RES +7 if HP < 25%
+[0D95]
+Lucky 7: 
+Apply a fresh +7 stat bonus
+on each subsequent turn.
+[0D96]
+P-Defense
+[0D97]
+PushDefense:
++5 DEF if HP is full.
+[0D98]
+P-Magic
+[0D99]
+PushMagic:
++5 MAG if HP is full.
+[0D9A]
+P-Resistance
+[0D9B]
+Push Resistance:
++5 RES when HP is full.
+[0D9C]
+P-Skill
+[0D9D]
+Push Skill:
++5 SKL if HP is full.
+[0D9E]
+P-Speed
+[0D9F]
+Push Speed:
++5 SPD if HP is full.
+[0DA0]
+P-Strength
+[0DA1]
+Push Strength:
++5 STR if HP is full.
+[0DA2]
+P-Luck
+[0DA3]
+Push Luck:
++5 LUCK if HP is full.
+[0DA4]
+P-Movement
+[0DA5]
+Push Movement:
++5 MOV if HP is full.
+[0DA6]
+P-Spectrum
+[0DA7]
+Push Spectrum:
++5 to all stats if HP is full.
+[0DA8]
+EvenFooted:
++1 MOV on even
+numbered turns.
+[0DA9]
+OddFooted:
++1 MOV on odd
+numbered turns.
+[0DAA]
+Resolve:
+When HP < 50%,
+STR/SKL/SPD +50% bonus.
+[0DAB]
+Calm-Init
+[0DAC]
+Calm Initiative:
++7 RES at the
+beginning of the turn.
+[0DAD]
+Strong-Init
+[0DAE]
+Strong Initiative:
++7 STR at the
+beginning of the turn.
+[0DAF]
+Deft-Init
+[0DB0]
+Deft Initiative:
++7 SKL at the
+beginning of the turn.
+[0DB1]
+Quick-Init
+[0DB2]
+Quick Initiative:
++7 SPD at the
+beginning of the turn.
+[0DB3]
+Sturdy-Init
+[0DB4]
+Sturdy Initiative:
++7 DEF at the
+beginning of the turn.
+[0DB5]
+Clever-Init
+[0DB6]
+Clever Initiative:
++7 MAG at the
+beginning of the turn.
+[0DB7]
+Lucky-Init
+[0DB8]
+Lucky Initiative:
++7 LUCK at the
+beginning of the turn.
+[0DB9]
+Nimble-Init
+[0DBA]
+Nimble Initiative:
++7 MOV at the
+beginning of the turn.
+[0DBB]
+Spec-Init
+[0DBC]
+Spectrum Initiative:
++7 to all stats at the
+beginning of the turn.
+[0DBD]
+O-Defense
+[0DBE]
+Oath Defense:
++4 DEF at the start of the turn
+if an adjacent ally is present.
+[0DBF]
+O-Luck
+[0DC0]
+Oath Luck:
++4 LUCK at the start of the turn
+if an adjacent ally is present.
+[0DC1]
+O-Magic
+[0DC2]
+Oath Magic:
++4 MAG at the start of the turn
+if an adjacent ally is present.
+[0DC3]
+O-Movement
+[0DC4]
+Oath Movement:
++4 MOV at the start of the turn
+if an adjacent ally is present.
+[0DC5]
+O-Resistance
+[0DC6]
+Oath Resistance:
++4 RES at the start of the turn
+if an adjacent ally is present.
+[0DC7]
+O-Skill
+[0DC8]
+Oath Skill:
++4 SKL at the start of the turn
+if an adjacent ally is present.
+[0DC9]
+O-Speed
+[0DCA]
+Oath Speed:
++4 SPD at the start of the turn
+if an adjacent ally is present.
+[0DCB]
+O-Strength
+[0DCC]
+Oath Strength:
++4 STR at the start of the turn
+if an adjacent ally is present.
+[0DCD]
+R-Defense
+[0DCE]
+Rouse Defense:
++4 DEF at the start of the turn
+if an adjacent ally isn't present.
+[0DCF]
+R-Luck
+[0DD0]
+Rouse Luck:
++4 LUCK at the start of the turn
+if an adjacent ally isn't present.
+[0DD1]
+R-Magic
+[0DD2]
+Rouse Magic:
++4 MAG at the start of the turn
+if an adjacent ally isn't present.
+[0DD3]
+R-Movement
+[0DD4]
+Rouse Movement:
++4 MOV at the start of the turn
+if an adjacent ally isn't present.
+[0DD5]
+R-Resistance
+[0DD6]
+Rouse Resistance:
++4 RES at the start of the turn
+if an adjacent ally isn't present.
+[0DD7]
+R-Skill
+[0DD8]
+Rouse Skill:
++4 SKL at the start of the turn
+if an adjacent ally isn't present.
+[0DD9]
+R-Speed
+[0DDA]
+Rouse Speed:
++4 SPD at the start of the turn
+if an adjacent ally isn't present.
+[0DDB]
+R-Strength
+[0DDC]
+Rouse Strength:
++4 STR at the start of the turn
+if an adjacent ally isn't present.
+[0DDD]
+Poise:
++1 MOV. Negates enemy weapon
+triangle advantage.
+[0DDE]
+Def-Boost
+[0DDF]
+Defense Boost:
++1 DEF per turn up
+to a maximum of 6 turns.
+[0DE0]
+Lck-Boost
+[0DE1]
+Luck Boost:
++1 LUCK per turn up
+to a maximum of 6 turns.
+[0DE2]
+Mag-Boost
+[0DE3]
+Magic Boost:
++1 MAG per turn up
+to a maximum of 6 turns.
+[0DE4]
+Mov-Boost
+[0DE5]
+Move Boost:
++1 MOV per turn up
+to a maximum of 6 turns.
+[0DE6]
+Res-Boost
+[0DE7]
+Resistance Boost:
++1 RES per turn up
+to a maximum of 6 turns.
+[0DE8]
+Skl-Boost
+[0DE9]
+Skill Boost:
++1 SKL per turn up
+to a maximum of 6 turns.
+[0DEA]
+Spd-Boost
+[0DEB]
+Speed Boost:
++1 SPD per turn up
+to a maximum of 6 turns.
+[0DEC]
+Str-Boost
+[0DED]
+Strength Boost:
++1 STR per turn up
+to a maximum of 6 turns.
+[0DEE]
+Spec-Boost
+[0DEF]
+Spectrum Boost:
++1 to all stats per turn up
+to a maximum of 6 turns.
+[0DF0]
+Shrewd-P
+[0DF1]
+Shrewd Potential:
++1 to stat boosters used
+by this unit.
+[0DF2]
+Armor-M
+[0DF3]
+Armor March: At the start of the turn,
+if unit is adjacent to an armor ally,
+unit and adjacent armor allies +2 MOV.
+[0DF4]
+Lethality: 
+Unit may instantly kill enemy with a
+critical attack. (Skill % activation).
+[0DF5]
+Crit: 
+Crit rate +15%.
+[0DF6]
+W-Eye: 
+Hit rate +20%.
+[0DF7]
+Crit Sword: 
+Crit rate +10%,
+if a Sword is equipped.
+[0DF8]
+Crit Axe: 
+Crit rate +10%,
+if an Axe is equipped.
+[0DF9]
+Crit Lance: 
+Crit rate +10%,
+if a Lance is equipped.
+[0DFA]
+Crit Bow: 
+Crit rate +10%,
+if a Bow is equipped.
+[0DFB]
+Faire Sword: 
+Atk +5 if unit
+equips a Sword.
+[0DFC]
+Faire Lance: 
+Atk +5 if unit
+equips a Lance.
+[0DFD]
+Faire Axe: 
+Atk +5 if unit
+equips an Axe.
+[0DFE]
+Faire Bow: 
+Atk +5 if unit
+equips a Bow.
+[0DFF]
+Faire B.Mag: 
+Atk +5 if unit
+equips B.Mag.
+[0E00]
+FaireAnima
+[0E01]
+Faire-Anima: 
+ATK +5 if the unit
+has anima magic equipped.
+[0E02]
+FaireLight
+[0E03]
+Faire-Light: 
+ATK +5 if the unit
+has light magic equipped.
+[0E04]
+FaireDark
+[0E05]
+Faire-Dark: 
+ATK +5 if the unit
+has dark magic equipped.
+[0E06]
+Avoid+10:
+Avoid rate +10%.
+[0E07]
+Avoid Sword: 
+Grants avoid rate +20%
+if unit equips a Sword.
+[0E08]
+RuinBlade
+[0E09]
+Ruined Blade: 
+Str/Mag-5, Spd+5, increases
+real damage by 5 in combat.
+[0E0A]
+RuinBlade+
+[0E0B]
+Ruined Blade+:
+Spd +5, deal real damage +5,
+battle hit +1 but cannot crit.
+[0E0C]
+Infinity Edge: 
+Critical attacks damage +100%.
+[0E0D]
+Heavy Blade: 
+If unit's attack is higher than
+foe, critical rate +15%.
+[0E0E]
+Flashing Blade: 
+If unit's AS is higher than
+foe, critical rate +15%.
+[0E0F]
+Heavy Blade+: 
+Str+5. If unit's attack is higher
+than foe, critical rate +25%.
+[0E10]
+Flash Blade+: 
+Dmg+3. If unit's AS is higher
+than foe, critical rate +25%.
+[0E11]
+Luna Attack: 
+Grants real dmg bonus
+of enemy's DEF / 4.
+[0E12]
+Sorcery Blade: 
+Target defense is calculated as
+lower value of DEF or RES.
+[0E13]
+Fortune:
+This unit
+cannot be crit.
+[0E14]
+Blue Flame: Attack +2 to this
+unit. When adjacent to an ally
+with this skill, gain Attack +2.
+[0E15]
+Frenzy: 
+For every 4 damage taken,
++1 to damage dealt.
+[0E16]
+W-Guard
+[0E17]
+WonderGuard:
+Cannot be damaged by weapons of
+the same weapon type as the user's.
+[0E18]
+PoisonPoint
+[0E19]
+P-Point: Inflict poison
+on the opponent.
+[0E1A]
+Merciless: 
+Guaranteed critical hit
+against poisoned foes.
+[0E1B]
+CriticalPierce: 
+Ignore enemy's dodge rate.
+[0E1C]
+K-Machine
+[0E1D]
+KillingMachine: 
+Double this unit's
+total crit rate.
+[0E1E]
+H-Strikes
+[0E1F]
+HeavyStrikes:
+Add weapon weight
+to critical chance.
+[0E20]
+Quick Burn: 
++15 Hit and Avoid.
+This bonus decreases each turn.
+[0E21]
+Technician: If the user is
+holding an E-ranked weapon,
+boost weapon damage by 50%.
+[0E22]
+CatchingUp: If foe doubles unit,
+increase their attack by the amount
+they're above the doubling threshold.
+[0E23]
+Slow Burn: 
++1 Hit and Avoid for
+each passing turn, up to 15.
+[0E24]
+Battle Vet
+[0E25]
+Battle Veteran:
+Gain +1 damage and +5% Hit
+per 10 levels unit has.
+[0E26]
+StoneBody:
+If the user's CON is greater than the
+enemy, boost damage by the difference.
+[0E27]
+Chivalry:
+When foe is at full HP,
+attack and DEF/RES +2.
+[0E28]
+Pragmatic:
+When foe is not at full HP,
+attack +3 and DEF/RES+1.
+[0E29]
+WindDisciple:
++10 Hit and Avoid
+when HP is not at max.
+[0E2A]
+Perfectionist:
++15 Hit and Avoid
+when user's HP is at maximum.
+[0E2B]
+Crit-Force
+[0E2C]
+Critical Force:
+Base critical is SKL * 1.5.
+[0E2D]
+S-Riposte
+[0E2E]
+Strong Riposte:
+When under attack, damage +3.
+[0E2F]
+Patience:
+When under attack, avoid +10.
+[0E30]
+Pursuit:
+When under attack, attack speed +2.
+[0E31]
+D-Skin
+[0E32]
+Dragon Skin:
+Halve damage taken.
+[0E33]
+Hawk Eye:
+User will always hit the enemy.
+[0E34]
+Magic Eye:
+Unit will not lose hit range when
+attacking from distance
+[0E35]
+K-Fighter
+[0E36]
+Keen Fighter:
+Unit takes 50% damage
+if the opponent can double.
+[0E37]
+Counter Roar: Reduce 30% damage
+for fist attack from foe, and
+70% damage for the next attacks.
+[0E38]
+Gambit:
+Reduce 50% damage on critical
+attack from the foe in melee.
+[0E39]
+Magic Gambit:
+Reduce 50% damage on critical attack
+from the foe at 2+ ranges.
+[0E3A]
+Bst Assault
+[0E3B]
+Beast Assault:
+Reduce 40% damage on
+non-critical attack
+[0E3C]
+Light & Dark:Inflicts Atk/Spd/
+Def/Res-5 on foe, neutralizes unit's
+penalties and foe's bonuses in battle
+[0E3D]
+Fire Boost:
+Grants +6 ATK if unit's current HP
+is at least 3 higher than the enemy's.
+[0E3E]
+Wind Boost:
+Grants +6 SPD if unit's current HP
+is at least 3 higher than the enemy's.
+[0E3F]
+Earth Boost:
+Grants +6 DEF if unit's current HP
+is at least 3 higher than the enemy's.
+[0E40]
+Water Boost:
+Grants +6 RES if unit's current HP
+is at least 3 higher than the enemy's.
+[0E41]
+Charge:
++1 damage for every
+two tiles moved.
+[0E42]
+ChargePlus:
+Apply brave effect if all
+movement used this turn.
+[0E43]
+F-Blood
+[0E44]
+FieryBlood:
++4 strength if HP
+is not at max.
+[0E45]
+LightWeight:
+If unit has 3 or less
+items, +3 speed.
+[0E46]
+Quick Draw:
++4 Damage when initiating battle.
+[0E47]
+Arcane Blade:
+When initiating battle at 1 range:
+Add 3+(MAG/2) to Hit and Crit
+[0E48]
+Elbow Room:
++3 damage dealt when on
+open terrain.
+[0E49]
+N-Cover
+[0E4A]
+Natural Cover:
+-3 damage taken when on
+terrain with effects.
+[0E4B]
+Chaos Style:
++3 AS when using a physical weapon
+against a magical foe, or vice versa.
+[0E4C]
+Wrath:
+If current HP is < 50%
+of max, +20 Crit Rate.
+[0E4D]
+Vigilance:
+Gain +20 Avoid.
+[0E4E]
+Out-Fighter
+[0E4F]
+OutdoorFighter:
++10 Hit and Avoid when
+fighting outdoors.
+[0E50]
+Dan-Blade:
+[0E51]
+Dancing Blade:
++4 Attack Speed/-2 Damage when
+unit's CON. is lower than the enemy.
+[0E52]
+K-Aspirant
+[0E53]
+KnightAspirant:
+When above 75% health,
++2 damage, +15% avoid.
+[0E54]
+Outrider:
+-1 damage taken and
++3% crit per tile moved.
+[0E55]
+EvenRhythm:
++10 Hit and Avoid on
+even numbered turns.
+[0E56]
+OddRhythm:
++10 Hit and Avoid on
+odd numbered turns.
+[0E57]
+NoGuard:
+Both sides have a
+100% chance of hitting.
+[0E58]
+Puissance:
++3 Attack if the unit's attack
+is greater than the enemy's.
+[0E59]
+Prescience:
+If initiating at melee range,
++15 Hit and Avoid.
+[0E5A]
+SilentPride:
+Gain +2 damage and take
+-2 damage per 25% below max HP.
+[0E5B]
+Guts:
++5 Attack if afflicted by
+any status condition.
+[0E5C]
+Strong Con:
++5 Def/Res if afflicted by
+any status condition.
+[0E5D]
+Hero:
+If unit's HP < 50%, add +30% to
+unit's activation skill rate.
+[0E5E]
+Holy Aura:
+Gain +1 damage, +5% Hit,
++5% Avoid, +5% Crit when using Light.
+[0E5F]
+Loyalty:
+When within 2 spaces of a Lord,
+-3 damage taken, +15% Hit.
+[0E60]
+Tower Shield:
+Gain 6 Defense against
+attacks received at range.
+[0E61]
+Stun-Smile
+[0E62]
+Stunning Smile:
+If foe is male, inflicts -20 Avoid
+on that foe during combat.
+[0E63]
+Trample:
++5 damage to unmounted units.
+[0E64]
+Opportunist:
++4 damage if the foe cannot counter.
+[0E65]
+SuperLuck:
+Use Luck as crit rate.
+[0E66]
+Short Shield:
+Gain 6 Defense against
+attacks recieved in melee.
+[0E67]
+Vanity:
+Gain +2 Damage and +10 Hit
+when fighting enemy at 2 range.
+[0E68]
+Skyguard:
++4 Defense against flying enemies
+if within 3 spaces of an ally flier.
+[0E69]
+Horseguard:
++4 Defense against horseback enemies
+if within 3 spaces of an ally horse rider.
+[0E6A]
+Armorboost:
++4 ATK/DEF against armored enemies
+if within 3 spaces of an armored ally.
+[0E6B]
+Analytic:
++10 ATK if SPD is less than enemy's by
+4 or more. If between 1-3, then +5 ATK.
+[0E6C]
+MysticBoost: Disables foe's skills
+as "calculate on lower def/res for
+damage". Restores 6 HP after combat.
+[0E6D]
+GuardBear
+[0E6E]
+GuardBearing: During first combat
+in enemy phase, if attacked, reduces
+50 %damage from foe's first attack.
+[0E6F]
+Spurn: Reduce damage as 4% AS diff
+(max 40%). Damage +5 for critical atk
+if unit HP is less than 75%
+[0E70]
+Bushido:
+Reduce damage as 4% AS diff
+(max 40%). Damage +7
+[0E71]
+Dragon Wall:
+Reduce damage as 4% RES diff
+(max 40%).
+[0E72]
+Blue Lion
+[0E73]
+Blue Lion Rule:
+Reduce damage as 4% DEF diff
+(max 40%).
+[0E74]
+Faerghus-A
+[0E75]
+Faerghus Ancestry:
+Weapon damage doubled,
+weapon consumption doubled
+[0E76]
+DragonWarth
+[0E77]
+Dragon's Warth: Damage -20% of the
+first attack from the foe and
+attack+20% on first own attack
+[0E78]
+Crusader-W
+[0E79]
+Crusader's Ward:
+Reduces damage from foe's second
+ranged attack onward by 80%
+[0E7A]
+Chlorophyll:
+If it is sunny, double this
+unit's battle speed.
+[0E7B]
+SlushRush:
+If it is snowing, double this
+this unit's battle speed.
+[0E7C]
+SwiftSwim:
+If there is a sandstorm, double
+this unit's battle speed.
+[0E7D]
+SwiftSwim:
+If it is raining, double this
+unit's battle speed.
+[0E7E]
+Dazzle:
+Enemy cannot counterattack
+this unit.
+[0E7F]
+Moonlight:
+This unit cannot double, but
+the enemy cannot counterattack.
+[0E80]
+BlackMagic:
+Inflict a random bad status on the enemy.
+(Skill % activation).
+[0E81]
+LastWord:
+If the enemy doubles,
+this unit doubles.
+[0E82]
+Multiscale:
+Halve damage taken if the
+user is at full HP.
+[0E83]
+MageSlayer:
++2 damage and +10% crit
+against magical enemies.
+[0E84]
+TowerShield+:
+Take no damage from attacks
+received at range.
+[0E85]
+Solar Power:
+If the weather is sunny, +25%
+damage when using magic.
+[0E86]
+Enrage:
+Inflict Berserk on the opponent.
+(Skill % activation).
+[0E87]
+Petrify:
+Inflict stone on the opponent.
+(Skill % activation).
+[0E88]
+AR-Attack
+[0E89]
+AirRaid-Attack:
+When standing on a tile the enemy
+cannot enter, ATK + 5.
+[0E8A]
+AR-Avoid
+[0E8B]
+AirRaid-Avoid:
+When standing on a tile the enemy
+cannot enter, AVO + 15.
+[0E8C]
+AR-Crit
+[0E8D]
+AirCrit-Attack:
+When standing on a tile the enemy
+cannot enter, CRT + 5.
+[0E8E]
+AR-Defense
+[0E8F]
+AirRaid-Defense:
+When standing on a tile the enemy
+cannot enter, DEF + 5.
+[0E90]
+AR-Hit
+[0E91]
+AirRaid-Hit:
+When standing on a tile the enemy
+cannot enter, HIT + 15.
+[0E92]
+AR-Resist
+[0E93]
+AirRaid-Resistance:
+When standing on a tile the enemy
+cannot enter, RES + 5.
+[0E94]
+AR-Speed
+[0E95]
+AirRaid-Speed:
+When standing on a tile the enemy
+cannot enter, SPD + 5.
+[0E96]
+Pickup: Obtain the last item in the
+enemy's inventory after attacking
+and killing them. (Luck % activation)
+[0E97]
+Expertise:
+Halve damage taken from
+critical hits.
+[0E98]
+L-Blade
+[0E99]
+LadyBlade:
+If this unit is female,
+double weapon might.
+[0E9A]
+Lull-Def
+[0E9B]
+Lull Defense:
+Negated the effects of DEF
+boosting rally skills on the enemy.
+[0E9C]
+Lull-Lck
+[0E9D]
+Lull Luck:
+Negated the effects of LCK
+boosting rally skills on the enemy.
+[0E9E]
+Lull-Mag
+[0E9F]
+Lull Magic:
+Negated the effects of MAG
+boosting rally skills on the enemy.
+[0EA0]
+Lull-Mov
+[0EA1]
+Lull Movement:
+Negated the effects of MOV
+boosting rally skills on the enemy.
+[0EA2]
+Lull-Res
+[0EA3]
+Lull Resistance:
+Negated the effects of RES
+boosting rally skills on the enemy.
+[0EA4]
+Lull-Skl
+[0EA5]
+Lull Skill:
+Negated the effects of SKL
+boosting rally skills on the enemy.
+[0EA6]
+Lull-Spec
+[0EA7]
+Lull Spectrum:
+Negated the effects of any
+boosting rally skills on the enemy.
+[0EA8]
+Lull-Spd
+[0EA9]
+Lull Speed:
+Negated the effects of SPD
+boosting rally skills on the enemy.
+[0EAA]
+Lull-Str
+[0EAB]
+Lull Strength:
+Negated the effects of STR
+boosting rally skills on the enemy.
+[0EAC]
+Steady-B
+[0EAD]
+Steady Brawler:
++25% damage if this unit can
+double, -25% damage if not.
+[0EAE]
+Liquid-O
+[0EAF]
+Liquid Ooze:
+Attackers trying to gain HP from
+this unit lose as much instead.
+[0EB0]
+Barricade: Damage taken is halved
+in this combat only, after first
+being struck.
+[0EB1]
+Barricade+: Damage taken is halved
+in this combat only, after every
+strike against this unit.
+[0EB2]
+Pursuer: If initiating combat,
+attack speed +5, attack + 25% of unit
+speed, double attack immediately.
+[0EB3]
+L-Brace
+[0EB4]
+Lunar Brace:
+Negate 25% of enemy defense.
+[0EB5]
+E-Spore
+[0EB6]
+Effect Spore:
+If attacked, 50% chance of inflicting
+poison, silence or sleep.
+[0EB7]
+D-Arm
+[0EB8]
+Dominant Arm: If the unit's equipped
+weapon is the same type as their
+highest weapon rank, +50% weapon ATK.
+[0EB9]
+F-Swing
+[0EBA]
+Frantic Swing:
+If hit rate is less than or
+equal to 50%, +50 crit.
+[0EBB]
+M-Maniac
+[0EBC]
+Melee Maniac:
+Deal 2x damage at 1 range,
+take 2x damage otherwise.
+[0EBD]
+C-Overload
+[0EBE]
+Critical Overload:
++1% crit for every +3%
+hit over 100%.
+[0EBF]
+Sword Break:
+Hit and Avoid +20% if unit
+battles a Sword with a Lance.
+[0EC0]
+Axe Break:
+Hit and Avoid +20% if unit
+battles an Axe with a Sword.
+[0EC1]
+Lance Break:
+Hit and Avoid +20% if unit
+battles a Lance with an Axe.
+[0EC2]
+Bow Break: 
+Hit and Avoid +20% if unit
+battles a Bow with B.mag.
+[0EC3]
+B.Mag Break: 
+Hit and Avoid +20%.
+[0EC4]
+N-conforming
+[0EC5]
+Nonconforming:
+Invert the effect of the weapon
+triangle for both units in battle.
+[0EC6]
+T-Adapt
+[0EC7]
+Triangle Adapt:
+Doubles weapon triangle
+effects for this unit.
+[0EC8]
+T-Adapt+
+[0EC9]
+Triangle Adapt+:
+Doubles weapon triangle
+effects for both units.
+[0ECA]
+Blossom:
+2x growth rates,
+but 1/2 EXP gain.
+[0ECB]
+Paragon:
+Experience gained
+is doubled.
+[0ECC]
+V-Curse:
+This unit gives no
+experience when defeated.
+[0ECD]
+Aptitude:
++20% to all
+growth rates.
+[0ECE]
+Aegis:
+Nullify a magic attack.
+(Skill % activation).
+[0ECF]
+Pavise:
+Nullify a physical attack.
+(Skill % activation).
+[0ED0]
+Mercy: Leave the opponent at
+1 HP if the attack would kill.
+(Skill % activation).
+[0ED1]
+Bane:
+Leave the opponent at 1 HP
+(Skill % activation).
+[0ED2]
+Aether: Negate 80% of enemy
+defenses and absorb HP.
+(Skill/2 % activation).
+[0ED3]
+Corona:
+Negate enemy resistance.
+(Skill % activation).
+[0ED4]
+Luna:
+Negates enemy defense.
+(Skill % activation).
+[0ED5]
+Flare:
+Halve enemy resistance.
+(Skill % activation).
+[0ED6]
+Foresight: Avoid the damage
+from enemy Critical Hits and
+Skill Activations.
+[0ED7]
+Sol:
+Restore damage dealt as HP.
+(Skill % activation).
+[0ED8]
+DragonFang:
+Damage +50%.
+(Skill % activation).
+[0ED9]
+Colossus:
+Damage +200%.
+(Skill % activation).
+[0EDA]
+Impale:
+Damage +300%.
+(Skill % activation).
+[0EDB]
+Inori:
+Unit may not die if attacked
+to 0 HP (Luck % activation).
+[0EDC]
+Corrosion:
+Reduce enemy's weapon durability
+by user's level (Skill % activation).
+[0EDD]
+Ignis:
+Add DEF/2 or RES/2 to attack based
+on weapon type (Skill % activation).
+[0EDE]
+RightfulKing:
+Add +10% to the activation
+rate of this unit's skills.
+[0EDF]
+RightfulGod:
+Add +30% to the activation
+rate of this unit's skills.
+[0EE0]
+RightfulArch:
+Set activation rate of
+this unit's skills to 100%.
+[0EE1]
+Glacies:
+Add unit resistance to damage dealt.
+ (Skill % activation).
+[0EE2]
+GreatShield:
+Nullify all attacks.
+(Skill % activation).
+[0EE3]
+Vengeance:
+Add damage taken to attack.
+(Skill % activation).
+[0EE4]
+Deadeye:
+Doubles hit rate and inflict sleep.
+(Skill % activation).
+[0EE5]
+AxeFaith:
+When attacking with an Axe, hit + attack%.
+(Attack % activation).
+[0EE6]
+Armsthrift:
+A weapon use is not consumed.
+(Skill % activation).
+[0EE7]
+SureShot:
+100% hit rate, damage +50%.
+(Skill % activation).
+[0EE8]
+D-Pulse
+[0EE9]
+Divine Pulse:
+Turn a missed attack into a hit
+(30% + Luck % activation).
+[0EEA]
+Discipline:
+Weapon experience gains are
+doubled for this unit.
+[0EEB]
+Counter:
+Reflect physical damage
+dealt at melee range.
+[0EEC]
+D-Pact
+[0EED]
+Devil's Pact:
+Inflict the Devil effect
+upon the enemy unit.
+[0EEE]
+D-Whim
+[0EEF]
+Devil's Whim:
+Inflict the Devil effect
+upon both units.
+[0EF0]
+D-Luck
+[0EF1]
+Devil's Luck:
+Give the unit's devil effect
+to the enemy in battle.
+[0EF2]
+C-Magic:
+[0EF3]
+Counter Magic:
+Reflect magical damage
+dealt at range.
+[0EF4]
+Eclipse:
+Halve the opponent's current HP.
+(Skill % activation).
+[0EF5]
+Sturdy:
+If the unit has full HP at the
+start of the fight, they cannot die.
+[0EF6]
+Vantage:
+When unit is defender while
+their HP is < 50%, attack first.
+[0EF7]
+Desper: When unit
+attacks while their HP < 50%,
+double attack immediately.
+[0EF8]
+Quick-R
+[0EF9]
+Quick Riposte:
+If unit is attacked while their
+HP > 50%, they attack twice.
+[0EFA]
+W-Fighter:
+Prevents follow up attack
+if unit's HP > 50%.
+[0EFB]
+D-Lion
+[0EFC]
+Double Lion:
+If unit attacks with full HP,
+bestow Brave effect and lose 1 HP.
+[0EFD]
+Astra:
+Unit attacks 5 times but damage
+is halved. (SPD % activation).
+[0EFE]
+Adept:
+Allow unit to perform another
+attack if HP is full.
+[0EFF]
+V-Fighter
+[0F00]
+VengefulFighter:
+If HP is higher than 50%
+Always attack twice when under attack.
+[0F01]
+R-Fighter
+[0F02]
+RecklessFighter:
+If HP is higher than 50%
+Both sides always attack twice.
+[0F03]
+B-Fighter
+[0F04]
+BoldFighter:
+If HP is higher than 50%
+Always attack twice when attacking.
+[0F05]
+BidingBlow:
+Attack twice if the enemy
+cannot counterattack.
+[0F06]
+Adv-Chaser
+[0F07]
+AdvantageChaser:
+Unit always doubles if they have
+Weapon Triangle Advantage.
+[0F08]
+P-Warrior
+[0F09]
+PridefulWarrior:
+Unit always attacks last in
+the round, but always doubles.
+[0F0A]
+P-Flow
+[0F0B]
+Passions Flow:
+Unit doubles if currently
+gaining support bonuses.
+[0F0C]
+C-Combat
+[0F0D]
+Close Combat: +2 damage if at
+1 range. Your double attacks
+occur before countering.
+[0F0E]
+Q-Learner
+[0F0F]
+Quick Learner:
+When attacking a higher level
+enemy, this unit doubles.
+[0F10]
+Gale Wings:
+When unit is defender while
+their HP is 100%, attack first.
+[0F11]
+Nullify: Unit is protected
+from all effective attacks.
+[0F12]
+Slayer: Deal effective damage
+to monster units.
+[0F13]
+Sky-K
+[0F14]
+Sky breaker: Deal effective
+damage to flying units.
+[0F15]
+Resourc
+[0F16]
+Resourceful: Double bonus
+effectiveness multipliers.
+[0F17]
+Solid Rock:
+Halves effective damage
+against this unit.
+[0F18]
+Nihil:
+Negates enemy's
+combat-related skills.
+[0F19]
+Darting Blow:
+If unit initiates combat,
+grants +6 AS during combat.
+[0F1A]
+Death Blow:
+If unit initiates combat,
+grants +6 STR during combat.
+[0F1B]
+Armored Blow:
+If unit initiates combat,
+grants +6 DEF during combat.
+[0F1C]
+Fiendish Blow:
+If unit initiates combat,
+grants +6 MAG during combat.
+[0F1D]
+Warding Blow:
+If unit initiates combat,
+grants +6 RES during combat.
+[0F1E]
+Duelist Blow:
+If unit initiates combat,
+grants +20 Avoid during combat.
+[0F1F]
+Uncanny Blow:
+If unit initiates combat,
+grants +30 Hit during combat.
+[0F20]
+Killing Blow:
+If unit initiates combat,
+grants +20 Crit during combat.
+[0F21]
+S-Bracing:
+Grants +4 DEF and RES
+if attacked.
+[0F22]
+S-Darting:
+Grants +6 AS
+if attacked.
+[0F23]
+S-Fierce:
+Grants +6 ATK
+if attacked.
+[0F24]
+S-Kestrel:
+Grants +4 ATK and AS
+if attacked.
+[0F25]
+S-Mirror:
+Grants +4 ATK and RES
+if attacked.
+[0F26]
+S-Ready:
+Grants +4 AS and DEF
+if attacked.
+[0F27]
+S-Steady:
+Grants +6 DEF
+if attacked.
+[0F28]
+S-Sturdy:
+Grants +4 ATK and DEF
+if attacked.
+[0F29]
+S-Swift:
+Grants +4 AS and RES
+if attacked.
+[0F2A]
+S-Warding:
+Grants +6 RES
+if attacked.
+[0F2B]
+S-Spectrum
+[0F2C]
+Stance Spectrum:
+Grants +2 ATK, SPD, DEF
+and RES if attacked.
+[0F2D]
+B.Mag RNG+1:
+Increases black magic range by 1
+[0F2E]
+B.Mag RNG+2:
+Increases black magic range by 2
+[0F2F]
+Bow RNG+1:
+Increases bow range by 1
+[0F30]
+Bow RNG+2:
+Increases bow range by 2
+[0F31]
+R-Start
+[0F32]
+RunningStart:
++1 attack range for
+every two tiles moved.
+[0F33]
+HighGround:
++2 range for bows and tomes
+when unit is atop forts.
+[0F34]
+PointBlank:
+Set minimum range
+of bows to 1.
+[0F35]
+StaffSavant:
++1 range for staves.
+[0F36]
+Canto:
+Unit can move again after combat.
+[0F37]
+Canto+:
+Unit can move again.
+[0F38]
+A-Stance:
+If unit takes no action
+except Wait, grants Avoid +15%.
+[0F39]
+A-Stance+:
+If unit takes no action
+except Wait, grants Avoid +30%.
+[0F3A]
+Galeforce: Move again after
+attacking and defeating an enemy.
+(Skill % activation)
+[0F3B]
+Savage Blow:
+After attacking, enemies
+within 2 tiles take 20% damage.
+[0F3C]
+Breath Life:
+After attacking, allies
+in 2 tiles heal for 20% their max HP.
+[0F3D]
+Thunder
+[0F3E]
+Thunder Storm:
+Call thunder-storm with AOE damage
+on emey when attacking from distance.
+[0F3F]
+Return:
+If the enemy is defeated, you can
+return to your starting position.
+[0F40]
+Swap:
+Swap positions with the enemy
+after attacking them.
+[0F41]
+Synchronize: 
+Copy status of unit to target.
+Allies only get buffs, and vice-versa.
+[0F42]
+Lifetaker:
+Restore up to 25% current HP after
+attacking and defeating an enemy.
+[0F43]
+Tsuzuku:
+Gain an additional action at the end
+of this unit's turn (Skill % activation).
+[0F44]
+PowerStaff:
+Gain another action after
+using a staff.
+[0F45]
+Fail Gale:
+Move again after attacking and
+failing to harm an enemy.
+[0F46]
+P-Strike
+[0F47]
+Poison Strike:
+If user initiated combat, deal up to
+20% of enemy's current HP in damage.
+[0F48]
+G-Wound
+[0F49]
+Grisly Wound:
+Deal up to 20% of the enemy's current
+HP in damage, after combat.
+[0F4A]
+Clearance:
+Clear own negative status after combat
+[0F4B]
+Despoil:
+Gain a red gem after killing an
+enemy unit. (Skill % activation)
+[0F4C]
+Soul Sap: At the end of this unit's
+action, drain up to 10% HP from each
+enemy within two tiles for healing.
+[0F4D]
+G-Digger
+[0F4E]
+Gold Digger:
+Gain 100 gold after
+killing an enemy.
+[0F4F]
+Renewal:
+Restore 30% of max HP
+at the start of each turn.
+[0F50]
+Imbue:
+Recover HP equal to MAG
+at the start of each turn.
+[0F51]
+Forager:
+Recover 20% HP each turn if
+on a Plain, Forest or Mountain.
+[0F52]
+Airlock:
+Set weather to clear at
+the start of the turn.
+[0F53]
+Drizzle:
+Set weather to rain at
+the start of the turn.
+[0F54]
+Drought:
+Set weather to sunny at
+the start of the turn.
+[0F55]
+SnowWarning:
+Set weather to snowing at
+the start of the turn.
+[0F56]
+SandStream:
+Set weather to a sandstorm
+at the start of the turn.
+[0F57]
+YuneWhis
+[0F58]
+Yune's Whispers: At start
+of turn, put ATK/SPD -6 to enemy
+who's RES is 3 less than unit's
+[0F59]
+RainDish:
+If it is raining, then restore 30%
+of max HP at the start of each turn.
+[0F5A]
+Boon:
+Heal bad status effects at the
+beginning of the turn.
+[0F5B]
+Relief:
+Restore 20% of max HP at the start of
+turn, if there are no allies within 2 tiles.
+[0F5C]
+Camaraderie:
+Restore 10% of max HP at the start of
+turn, if there are allies within 2 tiles.
+[0F5D]
+Amaterasu:
+Allies within 2 tiles recover 20% HP each turn.
+[0F5E]
+Indoor-M
+[0F5F]
+Indoor March:
++2 MOV at the start of the turn,
+if the unit is on indoor terrain.
+[0F60]
+Nature-R
+[0F61]
+Nature Rush:
++2 MOV at the start of the turn,
+if the unit is on outdoor terrain.
+[0F62]
+Anathema:
+-10 Avoid/Dodge to all
+enemies within 3 tiles.
+[0F63]
+Bond:
++10 Hit, +3 damage to all
+allies within 3 tiles.
+[0F64]
+Intimidate:
+-10 Avoid to all
+enemies within 2 tiles.
+[0F65]
+Tantivy:
++10 Hit/Avoid if there are
+no allies within 3 tiles.
+[0F66]
+Focus:
++10 Crit if there are
+no allies within 3 tiles.
+[0F67]
+Hex:
+-15 Avoid to all
+adjacent enemies.
+[0F68]
+Charm: Allies within 2
+tiles deal +3 attack.
+[0F69]
+Infilt: If within 2 spaces
+of two or more enemies, gain +3
+damage and +15% Hit.
+[0F6A]
+Inspir: Allies within 2 tiles
+deal +2 damage and receive -2 damage.
+[0F6B]
+D-Inspir: Adjacent allies
+deal +3 damage and receive -1 damage.
+[0F6C]
+Lily's Poise: 
+Adjacent allies deal +1 damage 
+and receive -3 damage.
+[0F6D]
+V-Peace: Enemies within
+2 tiles deal -2 damage.
+[0F6E]
+Range Skill: ATK +10 if
+no ally with 3 tiles.
+[0F6F]
+Range Skill: ATK +7 if
+no ally with 2 tiles.
+[0F70]
+Range Skill: ATK +5 if
+no ally with 1 tiles.
+[0F71]
+Peacebringer:
+Allies and enemies within
+2 tiles deal -2 damage.
+[0F72]
+Drive Str:
+Allies within 2 tiles receive +4 STR.
+[0F73]
+Drive Mag:
+Allies within 2 tiles receive +4 MAG.
+[0F74]
+Drive Spd:
+Allies within 2 tiles receive +4 SPD.
+[0F75]
+Drive Def:
+Allies within 2 tiles receive +4 DEF.
+[0F76]
+Drive Res:
+Allies within 2 tiles receive +4 RES.
+[0F77]
+Charisma:
+Grants +10 Hit/Avoid to all allies within three tiles.
+[0F78]
+Daunt:
+-5 Hit and Crit to all enemy
+units in a 3-tile radius.
+[0F79]
+Blood Tide:
+Grants +5 ATK and Hit
+to adjacent allies.
+[0F7A]
+White Pool:
+Grants +5 ATK and AS
+to adjacent allies.
+[0F7B]
+Night Tide:
+Grants +5 DEF and RES
+to adjacent allies.
+[0F7C]
+Spur Str:
+Adjacent allies gain +4 STR.
+[0F7D]
+Spur Mag:
+Adjacent allies gain +4 MAG.
+[0F7E]
+Spur Spd:
+Adjacent allies gain +4 SPD.
+[0F7F]
+Spur Def:
+Adjacent allies gain +4 DEF.
+[0F80]
+Spur Res:
+Adjacent allies gain +4 RES.
+[0F81]
+Gentilhomme:
+Female allies within 2 tiles receive -2 damage.
+[0F82]
+Demoiselle:
+Male allies within 2 tiles receive -2 damage.
+[0F83]
+Solidarity:
++10 Crit and Crit Avoid to adjacent allies.
+[0F84]
+Plus: At the start of the turn,
++4 to all combat stats for adjacent
+allies that have the 'Minus' skill.
+[0F85]
+Minus: At the start of the turn,
++4 to all combat stats for adjacent
+allies that have the 'Plus' skill.
+[0F86]
+Malefic Aura:
+Enemies within 2 tiles
+receive +2 magic damage.
+[0F87]
+Keep Up: +2 to MOV at the start of
+the turn, if within 3 tiles of an
+ally with Canto or Canto+.
+[0F88]
+Aversa
+[0F89]
+Aversa's Night: If enemy's HP < unit's
+HP -3 and have allies in 2x2, inflicts
+ATK/SPD/DEF/RES -3 and inflict Panic.
+[0F8A]
+Pow Hone
+[0F8B]
+Pow Hone: Grants allies in 2x2
++4 STR for one turn during the
+start of each turn.
+[0F8C]
+Mag Hone
+[0F8D]
+Mag Hone: Grants allies in 2x2
++4 MAG for one turn during the
+start of each turn.
+[0F8E]
+Skl Hone
+[0F8F]
+Skl Hone: Grants allies in 2x2
++4 SKL for one turn during the
+start of each turn.
+[0F90]
+Spd Hone
+[0F91]
+Spd Hone: Grants allies in 2x2
++4 SPD for one turn during the
+start of each turn.
+[0F92]
+Lck Hone
+[0F93]
+Lck Hone: Grants allies in 2x2
++4 LUCK for one turn during the
+start of each turn.
+[0F94]
+Def Hone
+[0F95]
+Def Hone: Grants allies in 2x2
++4 DEF for one turn during the
+start of each turn.
+[0F96]
+Res Hone
+[0F97]
+Res Hone: Grants allies in 2x2
+Res+4 for one turn during the
+start of each turn.
+[0F98]
+Mov Hone
+[0F99]
+Mov Hone: Grants allies in 2x2
++4 MOV for one turn during the
+start of each turn.
+[0F9A]
+H-Cavalry
+[0F9B]
+Hone Cavalry: Grants Cavalry allies
+in 2x2 +6 ATK/SPD at the start
+of each turn.
+[0F9C]
+Hone Flier
+[0F9D]
+Hone Flier: Grants Flier allies
+in 2x2 +6 ATK/SPD at the start
+of each turn.
+[0F9E]
+Hone Armor
+[0F9F]
+Hone Armor: Grants Armor allies
+in 2x2 +6 ATK/SPD at the start
+of each turn.
+[0FA0]
+Fortify Armor
+[0FA1]
+Fortify Armor: Grants Armor allies
+in 2x2 +6 LCK/DEF/RES at the start
+of each turn.
+[0FA2]
+S-Defense
+[0FA3]
+Seal-Defense:
+Debuff the enemy's DEF by 6
+after combat. Recover 1/turn.
+[0FA4]
+S-Luck
+[0FA5]
+Seal-Luck:
+Debuff the enemy's LCK by 6
+after combat. Recover 1/turn.
+[0FA6]
+S-Magic
+[0FA7]
+Seal-Magic:
+Debuff the enemy's MAG by 6
+after combat. Recover 1/turn.
+[0FA8]
+S-Resist
+[0FA9]
+Seal-Resistance:
+Debuff the enemy's RES by 6
+after combat. Recover 1/turn.
+[0FAA]
+S-Skill
+[0FAB]
+Seal-Skill:
+Debuff the enemy's SKL by 6
+after combat. Recover 1/turn.
+[0FAC]
+S-Speed
+[0FAD]
+Seal-Speed:
+Debuff the enemy's SPD by 6
+after combat. Recover 1/turn.
+[0FAE]
+S-Strength
+[0FAF]
+Seal-Strength:
+Debuff the enemy's STR by 6
+after combat. Recover 1/turn.
+[0FB0]
+Shade: Enemies are less
+likely to target this unit.
+[0FB1]
+Shade+: Enemies won't
+target this unit.
+[0FB2]
+Provoke: Enemies are more
+likely to target this unit.
+[0FB3]
+Teleport
+[0FB4]
+Teleportation: Allows unit
+to teleport before attack if
+unit have more than 50% HP.
+[0FB5]
+This skill cannot be used for now!
+[0FB6]
+Dance:
+Art: Unit can use
+"Dance" command.
+[0FB7]
+Lock Touch:
+Art: Unit can use
+"Pick" command.
+[0FB8]
+Summon:
+Art: Unit summon a
+monter on assistance
+[0FB9]
+Supply:
+Unit can use
+"Supply" command.
+[0FBA]
+Steal:
+Unit can use
+"Steal" command.
+[0FBB]
+Heal Focus:
+Art: Unit recovers 50% HP.
+[0FBC]
+ Heal-F
+[0FBD]
+Unit has already full on HP!
+[0FBE]
+ Teleport
+[0FBF]
+Randomly teleport to a place where
+you can hit someone..Good luck!
+[0FC0]
+Light Rune:
+Art: Consumes 20 HP to
+seal an area
+[0FC1]
+ Light-R
+[0FC2]
+Mine:
+Art: Consumes 20 HP to
+plant a mine in an area
+[0FC3]
+ Mine
+[0FC4]
+No allies are in range!
+[0FC5]
+Rally Defense:
+Art: +4 DEF to all allies
+in a 2x2 radius of user.
+[0FC6]
+Rally-Def
+[0FC7]
+ R-Def
+[0FC8]
+Rally Luck:
+Art: +4 LCK to all allies
+in a 2x2 radius of user.
+[0FC9]
+Rally-Lck
+[0FCA]
+ R-Lck
+[0FCB]
+Rally Magic:
+Art: +4 MAG to all allies
+in a 2x2 radius of user.
+[0FCC]
+Rally-Mag
+[0FCD]
+ R-Mag
+[0FCE]
+Rally Movement:
+Art: +4 MOV to all allies
+in a 2x2 radius of user.
+[0FCF]
+Rally-Mov
+[0FD0]
+ R-Mov
+[0FD1]
+Rally Resistance:
+Art: +4 RES to all allies
+in a 2x2 radius of user.
+[0FD2]
+Rally-Res
+[0FD3]
+ R-Res
+[0FD4]
+Rally Skill:
+Art: +4 SKL to all allies
+in a 2x2 radius of user.
+[0FD5]
+Rally-Skl
+[0FD6]
+ R-Skl
+[0FD7]
+Rally Speed:
+Art: +4 SPD to all allies
+in a 2x2 radius of user.
+[0FD8]
+Rally-Spd
+[0FD9]
+ R-Spd
+[0FDA]
+Rally Strength:
+Art: +4 STR to all allies
+in a 2x2 radius of user.
+[0FDB]
+Rally-Str
+[0FDC]
+ R-Str
+[0FDD]
+Rally Spectrum:
+Art: +4 all stats for all allies
+in a 2x2 radius of user.
+[0FDE]
+Rally-Spec
+[0FDF]
+ R-Spec
+[0FE0]
+Goddess Dance:
+Art: Refresh all adjacent
+allies to the user.
+[0FE1]
+G-Dance
+[0FE2]
+ G-Dance
+[0FE3]
+No allies are in range!
+[0FE4]
+Stride:
+Increase the movement of all
+allies within 3 tiles by 3.
+[0FE5]
+ Stride
+[0FE6]
+No allies are in range!
+[0FE7]
+Select a unit to swap.
+[0FE8]
+ Swarp
+[0FE9]
+Swarp:
+Swap positions with
+a distant ally.
+[0FEA]
+No allies are in range!
+[0FEB]
+Blacksmith: Pay 1000 gold to
+restore the user's equipped weapon,
+if from armory and C rank or less.
+[0FEC]
+ B-smith
+[0FED]
+No restorable weapons
+or enough gold!
+[0FEE]
+Legend:(once per chapter)
+If attacked to 0 HP, unit will survive
+and receive +10 ATK, Crit +100%
+[0FEF]
+Legend:(once per chapter)
+If attacked to 0 HP, unit will
+survive and receive +10 SPD, AVO +100%
+[0FF0]
+Legend:(once per chapter)
+If attacked to 0 HP, unit will survive,
+recover HP and receive +10 DEF/RES.
+[0FF1]
+Pass:
+If HP more than 25% unit can
+move through foes' spaces.
+[0FF2]
+Obstruct: If HP more than 50%,
+foes cannot move through adjacent
+to unit. (Null on Pass skill)
+[0FF3]
+Guidance:
+Provide 2 additional movement
+for non-flier allies
+[0FF4]
+F-Guidance
+[0FF5]
+Flier Guidance:
+Provide 3 additional movement
+for flier allies
+[0FF6]
+S-Guidance
+[0FF7]
+Soaring Guidance:
+Provide 1 additional movement
+for allies
+[0FF8]
+Aerobatics:
+Non-flier allies can provides 2
+additional movement for the unit
+[0FF9]
+F-Formation
+[0FFA]
+Flier Formation:
+Flier allies can provides 3
+additional movement for the unit
+[0FFB]
+SoarWing
+[0FFC]
+Soaring Wings:
+Allies can provides 1
+additional movement for the unit
+[0FFD]
+D-Report
+[0FFE]
+Detailed Report:
+if HP>50%, ranged foes cannot
+move throgh 2x2 spaces adjacent.
+[0FFF]
+Grounder: Unit get
+combat-art: Grounder
+[1000]
+B-Monster: Unit get
+combat-art: B-Monster
+[1001]
+Hexblade: Unit get
+combat-art: Hexblade
+[1002]
+Foudroyant: Unit get
+combat-art: Foudroyant
+[1003]
+Tempest: Unit get
+combat-art: Tempest
+[1004]
+Swift Strike: Unit get
+combat-art: Swift Strike
+[1005]
+Frozen: Unit get
+combat-art: Frozen
+[1006]
+Vengeance: Unit get
+combat-art: Vengeance
+[1007]
+HelmSplit: Unit get
+combat-art: HelmSplit
+[1008]
+Lightning: Unit get
+combat-art: Lightning
+[1009]
+W-M Strike: Unit get
+combat-art: W-M Strike
+[100A]
+Curve Shot: Unit get
+combat-art: Curve Shot
+[100B]
+Dead Eye: Unit get
+combat-art: Dead Eye
+[100C]
+Encloser: Unit get
+combat-art: Encloser
+[100D]
+Encloser+: Unit get
+combat-art: Encloser+
+[100E]
+M-Blast: Unit get
+combat-art: M-Blast
+[100F]
+Schism Shot: Unit get
+combat-art: Schism Shot
+[1010]
+Break Shot: Unit get
+combat-art: Break Shot
+[1011]
+Break Shot+: Unit get
+combat-art: Break Shot+
+[1012]
+Waning Shot: Unit get
+combat-art: Waning Shot
+[1013]
+Waning Shot+: Unit get
+combat-art: Waning Shot+
+[1014]
+H-Volley: Unit get
+combat-art: H-Volley
+[1015]
+Galeforce:
+Art: ATK +3, Move again
+after defeating enemy.
+[1016]
+Gamble
+[1017]
+Gamble:
+Art: A reckless attack with
+halved hit but doubled crit.
+[1018]
+Detonate
+[1019]
+Detonate:
+Art: Strike a powerful pierced
+blow by sacrificing own weapon
+[101A]
+G-Flower
+[101B]
+Gentle Flower:
+Allies within 2 spaces restore @00C3@00971.5
+as much HP from healing items.
+[101C]
+Admiration:
+-2 damage taken if two female allies
+are adjacent within 2 spaces.
+[101D]
+F-T Folk
+[101E]
+Fairy-Tale Folk:
++2 damage dealt if a male ally and a
+female ally are adjacent within 2 spaces.
+[101F]
+Assist:
++5 damage dealt on assistance of
+allies' combo-attack
+[1020]
+Synergism:
+Allies +3 damage dealt on
+assistance on combo-attack
+[1021]
+LiveToServe:
+Heal unit by the same amount as
+the target when using a staff.
+[1022]
+S-Butterfly
+[1023]
+Social Butterfly:
+This unit gains support points
+at twice the usual rate.
+[1024]
+Deal:
+Reduce cost of items bought
+by this unit by 20%.
+[1025]
+Bargain:
+Reduce cost of items bought
+by this unit by 50%.
+[1026]
+ Arts
+[1027]
+Combat Art:
+Gains battle bonus
+but null double attack.
+[1028]
+Without Art
+[1029]
+Cost
+[102A]
+W-Strike
+[102B]
+Soulblade
+[102C]
+Magic attack + actor's Res
+[102D]
+Grounder
+[102E]
+Effective against Flying enemies
+[102F]
+B-Monster
+[1030]
+Effective against monsters
+[1031]
+Sunder
+[1032]
+Hexblade
+[1033]
+Magic attack
+[1034]
+HazeSlice
+[1035]
+F-Blade
+[1036]
+Dmg + actor's Skl
+[1037]
+Assassinate
+[1038]
+Silencer rate +50%
+[1039]
+Foudroyant
+[103A]
+Effective against Armored enemies
+[103B]
+Smash
+[103C]
+Helm-K
+[103D]
+Effective against Armored enemies
+[103E]
+Monster-K
+[103F]
+Effective against Monsters
+[1040]
+F-Strike
+[1041]
+Wild-A
+[1042]
+Spike
+[1043]
+Diamond
+[1044]
+A-Strike
+[1045]
+Dmg + actor's Def
+[1046]
+Lightning
+[1047]
+Magic attack + actor's Res
+[1048]
+W-M Strike
+[1049]
+Effective against all foes
+[104A]
+F-Flower
+[104B]
+Enimy cannot move
+[104C]
+Tempest
+[104D]
+Knight-K
+[104E]
+Effective against Cavalry enemies
+[104F]
+S-Slash
+[1050]
+Enimy's Def-5
+[1051]
+Monster-K
+[1052]
+Effective against monsters
+[1053]
+Swift Strike
+[1054]
+Twice consecutive hits
+[1055]
+Frozen
+[1056]
+Magic attack, damage + SKL bonus
+[1057]
+Vengeance
+[1058]
+Damage + lost HP
+[1059]
+Lance Jab
+[105A]
+Dmg + actor's Spd
+[105B]
+Curve Shot
+[105C]
+Dead Eye
+[105D]
+Encloser
+[105E]
+Enimy cannot move
+[105F]
+Encloser+
+[1060]
+Enimy and adjacent units cannot move
+[1061]
+M-Blast
+[1062]
+Effective against monsters
+[1063]
+Schism Shot
+[1064]
+Magic attack, enimy's Res-5
+[1065]
+Break Shot
+[1066]
+Enimy's Def-5
+[1067]
+Break Shot+
+[1068]
+Enimy and adjacent units Def-5
+[1069]
+Waning Shot
+[106A]
+enimy's Atk-5
+[106B]
+Waning Shot+
+[106C]
+Enimy and adjacent units Atk-5
+[106D]
+H-Volley
+[106E]
+Twice consecutive hits
+[106F]
+Galeforce
+[1070]
+If unit is surrounded,@001F
+then he may be weakened.@001F@0003
+The more people surrounding him, the more@001F
+severe this weakening will be.@001F@0003
+Flyers are immune to being surrounded@001F@0003
+[1071]
+When attacking the enemy within@001F
+the range of the companion,@001F
+ally will participate in the combo attack.@001F@0003
+Use this mechanism to cause@001F
+higher damage to the enemy!@001F@0003
+[1072]
+Play combat-arts to deal more damage,@001F
+but this may cause more cost on weapon@001F@0003
+[1073]
+For non-ballista combat, it will cause@001F
+the battle actor lose hit rate with@001F
+the attack distance increases.@001F@0003
+[1074]
+The real damage is different from normal@001F
+damage, which will ignore atk/def calculation@001F
+with no damage increase and cannot Crit.@001F@0003
+[1075]
+Return?        
+@0018
+[1076]
+Swap position?        
+@0018
