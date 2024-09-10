@@ -190,6 +190,7 @@ namespace FEBuilderGBA
                 new PatchTableSt{ name="midori",	ver = "FE8J", addr = 0xFE58E0,data = new byte[]{0x05 ,0x1C ,0x00 ,0xF0 ,0x25 ,0xF8 ,0x01 ,0x29 ,0x04 ,0xD0 ,0x28 ,0x1C ,0x00 ,0xF0 ,0x28 ,0xF8}},
                 new PatchTableSt{ name="SkillSystem",	ver = "FE8U", addr = 0x2ACF8,data = new byte[]{0x70 ,0x47}},
                 new PatchTableSt{ name="CSkillSys09x",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x30, 0x39, 0x78, 0x00}},
+                new PatchTableSt{ name="CSkillSys100",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x31, 0x30, 0x30, 0x00}},
             };
 
             string version = Program.ROM.RomInfo.VersionToFilename;
@@ -230,6 +231,10 @@ namespace FEBuilderGBA
                     return skill_system_enum.SkillSystem;
                 }
                 if (t.name == "CSkillSys09x")
+                {
+                    return skill_system_enum.CSkillSys09x;
+                }
+                if (t.name == "CSkillSys100")
                 {
                     return skill_system_enum.CSkillSys09x;
                 }
