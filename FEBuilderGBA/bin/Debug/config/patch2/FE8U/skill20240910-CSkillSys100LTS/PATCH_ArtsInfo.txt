@@ -1,0 +1,42 @@
+NAME=[CSKILL] (100LTS) CombatArt infos
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K: gCombatArtInfos]Configure CombatArt infos
+
+POINTER=0xB2A638
+DATASIZE=32
+DATACOUNT=0x100
+
+LISTNAME=$COMBO combo.arts.txt
+
+P0:PatchImage_IMAGE=Icon
+WIDTH=16
+HEIGHT=16
+PALETTE=1
+PatchImage_PALETTE=Palette
+KEEPPALETTE=1
+PALETTE_POINTER=0x035D0
+
+W4:TEXT=name
+W6:TEXT=desc
+B8:$COMBO combo.wtype.txt=wtype
+B9=range bonus
+W10:DECIMAL=cost
+b12:DECIMAL=atk
+b13:DECIMAL=def
+b14:DECIMAL=hit
+b15:DECIMAL=avo
+b16:DECIMAL=crt
+b17:DECIMAL=silcencer
+b18:DECIMAL=dodge
+b19:$COMBO combo.bool.txt=display_en_n
+B20:$COMBO combo.art_double.txt=double_attack
+b21:$COMBO combo.bool.txt=magic_attack
+B22:$COMBO combo.art_effectiveness.txt=effectiveness
+B23:$COMBO combo.debuffs.txt=debuff
+b24:$COMBO combo.bool.txt=aoe_debuff

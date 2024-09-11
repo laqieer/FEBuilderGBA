@@ -1,0 +1,43 @@
+NAME=[CSKILL] (100LTS) CombatArt-WeaponRank list for characters
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K: gCombatArtRomJTable] Each character can use different arts at each weapon rank level
+
+POINTER=0xB2A63C
+DATASIZE=32
+DATACOUNT=0x100
+
+LISTNAME=UNIT
+B0:$COMBO combo.arts.txt=art(sword always)
+B1:$COMBO combo.arts.txt=art(sword E)
+B2:$COMBO combo.arts.txt=art(sword D)
+B3:$COMBO combo.arts.txt=art(sword C)
+B4:$COMBO combo.arts.txt=art(sword B)
+B5:$COMBO combo.arts.txt=art(sword A)
+B6:$COMBO combo.arts.txt=art(sword S)
+B7:$COMBO combo.arts.txt=art(Lance always)
+B8:$COMBO combo.arts.txt=art(Lance E)
+B9:$COMBO combo.arts.txt=art(Lance D)
+B10:$COMBO combo.arts.txt=art(Lance C)
+B11:$COMBO combo.arts.txt=art(Lance B)
+B12:$COMBO combo.arts.txt=art(Lance A)
+B13:$COMBO combo.arts.txt=art(Lance S)
+B14:$COMBO combo.arts.txt=art(Axe always)
+B15:$COMBO combo.arts.txt=art(Axe E)
+B16:$COMBO combo.arts.txt=art(Axe D)
+B17:$COMBO combo.arts.txt=art(Axe C)
+B18:$COMBO combo.arts.txt=art(Axe B)
+B19:$COMBO combo.arts.txt=art(Axe A)
+B20:$COMBO combo.arts.txt=art(Axe S)
+B22:$COMBO combo.arts.txt=art(Bow always)
+B23:$COMBO combo.arts.txt=art(Bow E)
+B24:$COMBO combo.arts.txt=art(Bow D)
+B25:$COMBO combo.arts.txt=art(Bow C)
+B26:$COMBO combo.arts.txt=art(Bow B)
+B27:$COMBO combo.arts.txt=art(Bow A)
+B28:$COMBO combo.arts.txt=art(Bow S)

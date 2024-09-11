@@ -1,0 +1,45 @@
+NAME=[CSKILL] (100LTS) Skills-quipable pre-load config for job
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K] gSkillPreloadJData
+
+POINTER=0xB2A628
+DATASIZE=30
+DATACOUNT=0x100
+
+LISTNAME=CLASS
+B0:$COMBO combo.skills_equip.txt=skill learned at lv1
+B1:$COMBO combo.skills_equip.txt=skill learned at lv1
+B2:$COMBO combo.skills_equip.txt=skill learned at lv1
+B3:$COMBO combo.skills_equip.txt=skill learned at lv1
+B4:$COMBO combo.skills_equip.txt=skill learned at lv1
+B5:$COMBO combo.skills_equip.txt=skill learned at lv5
+B6:$COMBO combo.skills_equip.txt=skill learned at lv5
+B7:$COMBO combo.skills_equip.txt=skill learned at lv5
+B8:$COMBO combo.skills_equip.txt=skill learned at lv5
+B9:$COMBO combo.skills_equip.txt=skill learned at lv5
+B10:$COMBO combo.skills_equip.txt=skill learned at lv10
+B11:$COMBO combo.skills_equip.txt=skill learned at lv10
+B12:$COMBO combo.skills_equip.txt=skill learned at lv10
+B13:$COMBO combo.skills_equip.txt=skill learned at lv10
+B14:$COMBO combo.skills_equip.txt=skill learned at lv10
+B15:$COMBO combo.skills_equip.txt=skill learned at lv15
+B16:$COMBO combo.skills_equip.txt=skill learned at lv15
+B17:$COMBO combo.skills_equip.txt=skill learned at lv15
+B18:$COMBO combo.skills_equip.txt=skill learned at lv15
+B19:$COMBO combo.skills_equip.txt=skill learned at lv15
+B20:$COMBO combo.skills_equip.txt=skill learned at lv20
+B21:$COMBO combo.skills_equip.txt=skill learned at lv20
+B22:$COMBO combo.skills_equip.txt=skill learned at lv20
+B23:$COMBO combo.skills_equip.txt=skill learned at lv20
+B24:$COMBO combo.skills_equip.txt=skill learned at lv20
+B25:$COMBO combo.skills_equip.txt=skill learned at lv25
+B26:$COMBO combo.skills_equip.txt=skill learned at lv25
+B27:$COMBO combo.skills_equip.txt=skill learned at lv25
+B28:$COMBO combo.skills_equip.txt=skill learned at lv25
+B29:$COMBO combo.skills_equip.txt=skill learned at lv25
