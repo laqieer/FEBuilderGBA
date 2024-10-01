@@ -501,8 +501,8 @@ namespace FEBuilderGBA
 
             //最初の2バイトにヘッダがある.
             int i = tsa_pos;
-            int master_headerx = tsa[i];
-            int master_headery = tsa[i + 1];
+            int master_headerx = tsa[i] + 1;
+            int master_headery = tsa[i + 1] + 1;
             if (master_headerx > 32 || master_headery > 32)
             {//ヘッダーが壊れている.
                 UInt16[] blankTSA = new UInt16[size];
@@ -521,16 +521,19 @@ namespace FEBuilderGBA
 
             i += 2;
 
-            //後ろから、補正値を入れて足しこむらしい.
-            int n = 0 + (master_headery << 5); //*32
-            if (n >= size)
-            {//エラー
-                return tile;
-            }
+            int n = size;
 
-            for (int headery = 0; headery <= master_headery; headery++)
+            //後ろから、補正値を入れて足しこむらしい.
+            //int n = 0 + (master_headery << 5); //*32
+            //if (n >= size)
+            //{//エラー
+            //    return tile;
+            //}
+
+            for (int headery = 0; headery < master_headery; headery++)
             {
-                for (int headerx = 0; headerx <= master_headerx; headerx++)
+                n = n - master_headerx;
+                for (int headerx = 0; headerx < master_headerx; headerx++)
                 {
                     if (i+1 >= length)
                     {//途中でデータがなくなった...
@@ -546,8 +549,7 @@ namespace FEBuilderGBA
                     i += 2;
                     n++;
                 }
-                n = n - master_headerx ;
-                n = n - (0x42 / 2);
+                n = n - master_headerx;
             }
             return tile;
         }
