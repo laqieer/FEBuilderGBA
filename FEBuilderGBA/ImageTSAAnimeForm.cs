@@ -132,16 +132,17 @@ namespace FEBuilderGBA
 
         int GetThisImageHeight()
         {
-            uint tsa = (uint)P8.Value;
-            if (!U.isPointer(tsa))
-            {
-                return 20 * 8;
-            }
-            byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
-            int height = ImageUtil.CalcHeightbyTSA(32 * 8, tsaUZ.Length);
-            Debug.Assert(height >= 20 * 8);
+            //uint tsa = (uint)P8.Value;
+            //if (!U.isPointer(tsa))
+            //{
+            //    return 20 * 8;
+            //}
+            //byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
+            //int height = ImageUtil.CalcHeightbyTSA(32 * 8, tsaUZ.Length);
+            //Debug.Assert(height >= 20 * 8);
 
-            return height;
+            //return height;
+            return 20 * 8;
         }
 
         private void ImportButton_Click(object sender, EventArgs e)
