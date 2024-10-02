@@ -45,11 +45,11 @@ namespace FEBuilderGBA
             this.Height8 = height8;
             this.PaletteCount = paletteCount;
 
-            if (this.IsHeaderTSA)
-            {
-                this.Width8 = Math.Max(256 / 8, this.Width8);
-                this.Height8 = Math.Max(160 / 8, this.Height8);
-            }
+            //if (this.IsHeaderTSA)
+            //{
+            //    this.Width8 = Math.Max(256 / 8, this.Width8);
+            //    this.Height8 = Math.Max(160 / 8, this.Height8);
+            //}
 
             if (this.PalettePointer == U.NOT_FOUND)
             {
