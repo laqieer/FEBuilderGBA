@@ -1389,11 +1389,11 @@ namespace FEBuilderGBA
                     Debug.Assert(false);
                     return new byte[] { };
                 }
-                orignalTSA = ImageUtil.ByteToHeaderTSA(d, 0, (int)width, (int)height);
+                orignalTSA = ImageUtil.ByteToHeaderTSA(d, 0, ref width, ref height);
             }
             else if (this.HEADERTSA != null)
             {
-                orignalTSA = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)U.toOffset(this.HEADERTSA.Value), (int)width, (int)height);
+                orignalTSA = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)U.toOffset(this.HEADERTSA.Value), ref width, ref height);
             }
             else
             {

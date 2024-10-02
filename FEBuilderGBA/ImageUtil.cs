@@ -489,7 +489,7 @@ namespace FEBuilderGBA
         }
 
         //ヘッダー付きTSA読込 0x080043C 32ビットモード (FE8J)
-        public static UInt16[] ByteToHeaderTSA(byte[] tsa, int tsa_pos, int width, int height)
+        public static UInt16[] ByteToHeaderTSA(byte[] tsa, int tsa_pos, ref int width, ref int height)
         {
             int size = (width / 8) * (height / 8);
 
@@ -509,11 +509,14 @@ namespace FEBuilderGBA
                 return blankTSA;
             }
 
+            width = master_headerx * 8;
+            height = master_headery * 8;
+            size = master_headerx * master_headery;
 
-            if (master_headerx * master_headery > size)
-            {//指示された値よりヘッダの方がでかいばあいはヘッダに従う.
-                size = master_headerx * master_headery;
-            }
+            //if (master_headerx * master_headery > size)
+            //{//指示された値よりヘッダの方がでかいばあいはヘッダに従う.
+            //    size = master_headerx * master_headery;
+            //}
             UInt16[] tile = new UInt16[size];
 
             int length = tsa_pos + (size * 2) + 2;
@@ -669,7 +672,7 @@ namespace FEBuilderGBA
         public static Bitmap ByteToImage16TileHeaderTSA(int width, int height, byte[] image, int image_pos, byte[] palette, int palette_pos, byte[] tsa, int tsa_pos)
         {
             //TSA読込
-            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, width, height);
+            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, ref width, ref height);
             return ByteToImage16TileInner(width, height, image, image_pos, palette, palette_pos, tile,0);
         }
         //224BG色
@@ -756,7 +759,7 @@ namespace FEBuilderGBA
         public static Bitmap ByteToImage256TileHeaderTSA(int width, int height, byte[] image, int image_pos, byte[] palette, int palette_pos, byte[] tsa, int tsa_pos)
         {
             //TSA読込
-            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, width, height);
+            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, ref width, ref height);
             return ByteToImage256TileInner(width, height, image, image_pos, palette, palette_pos, tile);
         }
         //Tile + 256色 + TSA
