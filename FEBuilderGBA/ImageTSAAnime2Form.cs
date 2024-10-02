@@ -123,9 +123,10 @@ namespace FEBuilderGBA
             }
 
             byte[] imageUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(image));
-            int height = (int)ImageUtil.CalcByteLengthForHeaderTSAData(Program.ROM.Data, (int)U.toOffset(tsa));
+            //int height = (int)ImageUtil.CalcByteLengthForHeaderTSAData(Program.ROM.Data, (int)U.toOffset(tsa));
+            int height = 6 * 8;
 
-            return ImageUtil.ByteToImage16TileHeaderTSA(32 * 8, height, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), Program.ROM.Data, (int)U.toOffset(tsa));
+            return ImageUtil.ByteToImage16TileHeaderTSA(6 * 8, height, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), Program.ROM.Data, (int)U.toOffset(tsa));
         }
 
         private void N1_AddressList_SelectedIndexChanged(object sender, EventArgs e)
