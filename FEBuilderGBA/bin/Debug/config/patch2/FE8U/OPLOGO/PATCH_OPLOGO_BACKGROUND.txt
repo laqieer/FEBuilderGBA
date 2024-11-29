@@ -1,6 +1,6 @@
 
 NAME=OPLOGO背景
-NAME.en=OPLOGO BACKGROUND
+NAME.en=OP Title Screen Background
 NAME.zh=OP界面背景
 
 //画像パッチとして実装します
