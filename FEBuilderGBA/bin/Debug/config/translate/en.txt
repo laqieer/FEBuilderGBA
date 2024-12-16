@@ -5381,7 +5381,7 @@ Determines the victory conditions that appear in the status menu.\r\n
 Determines the menu in the upper right.\r\n"Rout Enemy": Displays the remaining number of enemies.\r\n"Defend": Displays current turn / turns to defend.\r\n"Seize": Displays seize point.\r\n"Defeat Boss": Displays boss to defeat.
 
 :ただし、FE8では、敵全滅とボス撃破を選択した場合、敵ユニットがいなくなると自動的に終了イベントが呼ばれることがあります。\r\nこれはフリーマップのルーチンが関係しています。\r\nこれらの条件のマップでは、敵がいなくなる状態を作らないでください。
-However, in FE 8, when you select enemy extinction and boss defeat, when the enemy unit disappears, the end event may be called automatically.\r\nThis is related to the world map skirmishes routines.\r\nIn the map of these conditions, please do not make a state where enemies disappear.
+However, in FE 8, when you select rout or defeat boss, when all enemy units are defeated, the end event may be called automatically.\r\nThis is related to the world map skirmishes routines.\r\nIn the map of these conditions, please avoid having accidentally a map state where there are no enemies.
 
 :「特殊表示」で「ターン防衛」を選択した時に利用されます。\r\n指定したターン数 - 1 == 「最終のターン」\r\nに、なります。\r\nもちろん、表示だけで、実際にそれが最終ターンなのかは、イベントで定義されます。\r\n
 Used when "turn defense" is selected in "Mini-Objective Display".\r\nTurns Specified -1 = Last turn of chapter.\r\nThis is display only and must be defined in the events to be functional.\r\n
@@ -8135,7 +8135,7 @@ Chapter Title Ch.(Eliwood)
 Unit to Defend
 
 :ただし、表示するだけです。この値で何を指定しても、ゲームには影響を与えません。\r\n例えば、この値で、制圧を指定したとしても、\r\n実際のイベントが、ボス撃破でクリアならば、ボス撃破でクリアになります。\r\n\r\n実際の判定には、イベントが利用されます。\r\n
-This is only for display; it doesn't change gameplay.\r\nFor example, if seize is set here but the events declare a chapter is cleared by defeating a boss\r\nthe chapter will still be cleared by defeating the boss.\r\n\r\nEvents always determine the gameplay victory condition.\r\n
+This is mainly for display and will not affect gameplay\r\nunless Rout/Defeat Boss is set for Mini-Objective Display.\r\nFor example, if seize is set here but the events declare a chapter is cleared by defeating a boss\r\nthe chapter will still be cleared by defeating the boss.\r\n\r\nEvents always determine the gameplay victory condition.\r\n
 
 :FEでは、フラグ0x03の制圧フラグを有効にして、終了イベントを呼ぶと、クリアになります。\r\n
 If an End Event is called and the Seize Flag (0x03) is turned on, it will be cleared.\r\n
