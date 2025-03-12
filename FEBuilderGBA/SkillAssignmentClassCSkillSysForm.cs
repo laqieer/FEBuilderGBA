@@ -531,7 +531,7 @@ namespace FEBuilderGBA
                 buttons[0].BackgroundImage = bitmap;
                 buttons[0].Tag = b0;
 
-                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDescMsg((uint)b0);
+                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDesc((uint)b0);
                 tooltip.SetToolTip(buttons[skillCount], skillCaption);
                 skillCount++;
             }
