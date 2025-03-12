@@ -169,9 +169,9 @@ namespace FEBuilderGBA
         {
             uint index = (uint)this.B0.Value;
 
-            N1_SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
-            N1_SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
-            N1_SKILLNAME.Text = SkillConfigCSkillSystem09xForm.GetSkillName(index);
+            SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
+            SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
+            SKILLNAME.Text = SkillConfigCSkillSystem09xForm.GetSkillName(index);
         }
 
 
