@@ -128,16 +128,16 @@ namespace FEBuilderGBA
         //Skill + テキストを書くルーチン
         Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            return SkillConfigFE8UCSkillSys09xForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
+            return SkillConfigCSkillSystem09xForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
         }
 
         private void B0_ValueChanged(object sender, EventArgs e)
         {
             uint index = this.B0.Value;
 
-            N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
-            N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
-            N1_SKILLNAME.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillName(index);
+            N1_SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
+            N1_SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
+            N1_SKILLNAME.Text = SkillConfigCSkillSystem09xForm.GetSkillName(index);
         }
 
 
@@ -173,9 +173,9 @@ namespace FEBuilderGBA
         {
             uint index = this.N1_B1.Value;
 
-            N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
-            N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
-            N1_SKILLNAME.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillName(index);
+            N1_SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
+            N1_SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
+            N1_SKILLNAME.Text = SkillConfigCSkillSystem09xForm.GetSkillName(index);
         }
 
 
