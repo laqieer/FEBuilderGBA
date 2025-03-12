@@ -15,7 +15,6 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
             uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
             uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
@@ -239,15 +238,10 @@ namespace FEBuilderGBA
 
             {
                 uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
                 if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (textP == U.NOT_FOUND)
                 {
                     return;
                 }
@@ -298,15 +292,10 @@ namespace FEBuilderGBA
 
             {
                 uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
                 if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (textP == U.NOT_FOUND)
                 {
                     return;
                 }
@@ -365,15 +354,10 @@ namespace FEBuilderGBA
             List<string> lines = new List<string>();
             {
                 uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
                 if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (textP == U.NOT_FOUND)
                 {
                     return;
                 }
@@ -438,15 +422,10 @@ namespace FEBuilderGBA
             string[] lines = File.ReadAllLines(filename);
             {
                 uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
                 if (iconP == U.NOT_FOUND)
-                {
-                    return false;
-                }
-                if (textP == U.NOT_FOUND)
                 {
                     return false;
                 }
@@ -516,19 +495,9 @@ namespace FEBuilderGBA
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
             uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
             uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-            if (iconP == U.NOT_FOUND)
-            {
-                return 0;
-            }
-            if (textP == U.NOT_FOUND)
-            {
-                return 0;
-            }
             if (assignClassP == U.NOT_FOUND)
             {
                 return 0;
@@ -551,25 +520,23 @@ namespace FEBuilderGBA
                 return 0;
             }
 
-            uint icon = Program.ROM.p32(iconP);
-            uint text = Program.ROM.p32(textP);
             uint assignLevelUp = Program.ROM.p32(assignLevelUpP);
 
             int skillCount = 0;
             uint b0 = Program.ROM.u8(classaddr);
             if (b0 > 0)
             {//クラスの基本スキル.
-                Bitmap bitmap = SkillConfigSkillSystemForm.DrawIcon((uint)b0, icon);
+                Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)b0);
                 U.MakeTransparent(bitmap);
                 buttons[0].BackgroundImage = bitmap;
                 buttons[0].Tag = b0;
 
-                string skillCaption = SkillConfigSkillSystemForm.GetSkillText((uint)b0, text);
+                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDescMsg((uint)b0);
                 tooltip.SetToolTip(buttons[skillCount], skillCaption);
                 skillCount++;
             }
 
-            MakeUnitSkillButtonsList(cid, buttons, tooltip, assignLevelUpP, icon, text, skillCount);
+            MakeUnitSkillButtonsList(cid, buttons, tooltip, assignLevelUpP, skillCount);
             return skillCount;
         }
 
@@ -680,7 +647,7 @@ namespace FEBuilderGBA
             InputFormRef.WriteButtonToYellow(this.N1_WriteButton, false);
         }
 
-        public static int MakeUnitSkillButtonsList(uint id, Button[] buttons, ToolTipEx tooltip, uint assignLevelUpP, uint icon, uint text, int skillCount)
+        public static int MakeUnitSkillButtonsList(uint id, Button[] buttons, ToolTipEx tooltip, uint assignLevelUpP, int skillCount)
         {
             uint assignLevelUp = Program.ROM.p32(assignLevelUpP);
             if (!U.isSafetyOffset(assignLevelUp))
@@ -717,12 +684,12 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                Bitmap bitmap = SkillConfigSkillSystemForm.DrawIcon(skill, icon);
+                Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon(skill);
                 U.MakeTransparent(bitmap);
                 buttons[skillCount].BackgroundImage = bitmap;
                 buttons[skillCount].Tag = skill;
 
-                string skillCaption = SkillConfigSkillSystemForm.GetSkillText(skill, text);
+                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDesc(skill);
                 if (level > 0 && level < 0xFF)
                 {
                     skillCaption = skillCaption + "\r\n" + R._("(Lv{0}で習得)", level);
