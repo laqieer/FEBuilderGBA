@@ -131,47 +131,9 @@ namespace FEBuilderGBA
             return SkillConfigFE8UCSkillSys09xForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
         }
 
-/*
-        //Skill + テキストを書くルーチン
-        public static Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw, uint iconBaseAddress)
-        {
-            if (index < 0 || index >= lb.Items.Count)
-            {
-                return new Size(listbounds.X, listbounds.Y);
-            }
-            string text = lb.Items[index].ToString();
-
-            SolidBrush brush = new SolidBrush(lb.ForeColor);
-            Font normalFont = lb.Font;
-            Rectangle bounds = listbounds;
-
-            int textmargineY = (ListBoxEx.OWNER_DRAW_ICON_SIZE - (int)lb.Font.Height) / 2;
-
-            uint icon = U.atoh(text);
-            Bitmap bitmap = SkillConfigSkillSystemForm.DrawIcon(icon, iconBaseAddress);
-            U.MakeTransparent(bitmap);
-
-            //アイコンを描く.
-            Rectangle b = bounds;
-            b.Width = ListBoxEx.OWNER_DRAW_ICON_SIZE;
-            b.Height = ListBoxEx.OWNER_DRAW_ICON_SIZE;
-            bounds.X += U.DrawPicture(bitmap, g, isWithDraw, b);
-            bitmap.Dispose();
-
-            //テキストを描く.
-            b = bounds;
-            b.Y += textmargineY;
-            bounds.X += U.DrawText(text, g, normalFont, brush, isWithDraw, b);
-            bounds.Y += ListBoxEx.OWNER_DRAW_ICON_SIZE;
-
-            brush.Dispose();
-            return new Size(bounds.X, bounds.Y);
-        }
-*/
-
         private void B0_ValueChanged(object sender, EventArgs e)
         {
-            int index = this.B0.Value;
+            uint index = this.B0.Value;
 
             N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
             N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
@@ -209,7 +171,7 @@ namespace FEBuilderGBA
 
         private void N1_B1_ValueChanged(object sender, EventArgs e)
         {
-            int index = this.N1_B1.Value;
+            uint index = this.N1_B1.Value;
 
             N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
             N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
