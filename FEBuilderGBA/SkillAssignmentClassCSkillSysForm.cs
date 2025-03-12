@@ -28,7 +28,12 @@ namespace FEBuilderGBA
                 R.ShowStopError("スキル拡張 SkillSystem の、レベルアップスキルを取得できません。");
                 return;
             }
-            this.SkillNames = SkillConfigSkillSystemForm.LoadSkillNames();
+
+            this.SkillNames = new Dictionary<uint, string>(); // SkillConfigSkillSystemForm.LoadSkillNames();
+            for (int i = 0; i < 0x400; i = i + 1)
+            {
+                this.SkillNames[i] = SkillConfigCSkillSystem09xForm.GetSkillName(i);
+            }
 
             this.AssignClassBaseAddress = Program.ROM.p32(assignClassP);
             this.AssignLevelUpBaseAddress = Program.ROM.p32(assignLevelUpP);
@@ -139,7 +144,8 @@ namespace FEBuilderGBA
 
             int textmargineY = (ListBoxEx.OWNER_DRAW_ICON_SIZE - (int)lb.Font.Height) / 2;
 
-            Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)index);
+            uint icon = U.atoh(text);
+            Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)icon);
             U.MakeTransparent(bitmap);
 
             //アイコンを描く.
