@@ -1067,6 +1067,10 @@ namespace FEBuilderGBA
                     {
                         InputFormRef.JumpForm<SkillAssignmentUnitSkillSystemForm>(tag);
                     }
+                    else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+                    {
+                        InputFormRef.JumpForm<SkillAssignmentUnitCSkillSysForm>(tag);
+                    }
                 }
                 return;
             }

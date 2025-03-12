@@ -670,12 +670,15 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillAssignmentUnitSkillSystemForm>();
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillAssignmentUnitCSkillSysForm>();
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N 
                 || skill == PatchUtil.skill_system_enum.FE8N_ver2
                 || skill == PatchUtil.skill_system_enum.FE8N_ver3
                 || skill == PatchUtil.skill_system_enum.yugudora
                 || skill == PatchUtil.skill_system_enum.CSkillSys09x
-                || skill == PatchUtil.skill_system_enum.CSkillSys300
                 )
             {
                 //NOP

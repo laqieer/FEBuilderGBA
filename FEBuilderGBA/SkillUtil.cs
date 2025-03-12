@@ -102,6 +102,10 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillAssignmentUnitSkillSystemForm>(uid);
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillAssignmentUnitCSkillSysForm>(uid);
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 InputFormRef.JumpForm<SkillConfigFE8NVer2SkillForm>();
@@ -128,6 +132,10 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillAssignmentUnitSkillSystemForm>(uid);
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillAssignmentUnitCSkillSysForm>(uid);
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 InputFormRef.JumpForm<SkillConfigFE8NVer2SkillForm>(skillid);
@@ -148,6 +156,10 @@ namespace FEBuilderGBA
             if (skill == PatchUtil.skill_system_enum.SkillSystem)
             {
                 skillCount = SkillAssignmentUnitSkillSystemForm.MakeUnitSkillButtons(uid, buttons, tooltip);
+            }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                skillCount = SkillAssignmentUnitCSkillSysForm.MakeUnitSkillButtons(uid, buttons, tooltip);
             }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
