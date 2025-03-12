@@ -461,6 +461,18 @@ namespace FEBuilderGBA
            version = 8;     // バージョン
 
            OverwriteROMConstants(rom);
+
+            byte[] cskillsys_ref   = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53};
+            byte[] cskillsys_magic = Program.RAM.getBinaryData(0xB2A604, 9)
+ 
+            if (U.memcmp(cskillsys_ref, cskillsys_magic) == 0)
+            {
+                 is_cskillsys = true;
+            }
+            else
+            {
+                 is_cskillsys = false;
+            }
         }
 
         override public uint patch_C01_hack(out uint enable_value) { enable_value = 0x47004800; return 0x5138; } //C01 patch

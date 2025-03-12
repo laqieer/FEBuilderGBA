@@ -508,6 +508,7 @@ namespace FEBuilderGBA
             extends_address = 0x09000000;   //拡張領域
             orignal_crc32 = 0x9d76826f;  //無改造ROMのCRC32
             is_multibyte = true;     // マルチバイトを利用するか？
+            is_cskillsys = false;
             version = 8;     // バージョン
 
             OverwriteROMConstants(rom);

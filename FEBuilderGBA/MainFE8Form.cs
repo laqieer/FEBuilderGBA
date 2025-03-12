@@ -647,6 +647,10 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillConfigCSkillSystem09xForm>();
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillConfigCSkillSystem09xForm>();
+            }
             else
             {
                 R.ShowStopError(R._("スキル拡張がありません。\r\nスキル拡張パッチをインストールしてから利用してください。"));
@@ -671,6 +675,7 @@ namespace FEBuilderGBA
                 || skill == PatchUtil.skill_system_enum.FE8N_ver3
                 || skill == PatchUtil.skill_system_enum.yugudora
                 || skill == PatchUtil.skill_system_enum.CSkillSys09x
+                || skill == PatchUtil.skill_system_enum.CSkillSys300
                 )
             {
                 //NOP
@@ -705,6 +710,7 @@ namespace FEBuilderGBA
             else if (skill == PatchUtil.skill_system_enum.FE8N
                 || skill == PatchUtil.skill_system_enum.yugudora
                 || skill == PatchUtil.skill_system_enum.CSkillSys09x
+                || skill == PatchUtil.skill_system_enum.CSkillSys300
             )
             {
                 //NOP
