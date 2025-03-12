@@ -201,7 +201,7 @@ namespace FEBuilderGBA
 
         public static void ExportAllData(string filename)
         {
-            return false;
+            return;
         }
 
         public static bool ImportAllData(string filename)
@@ -264,7 +264,7 @@ namespace FEBuilderGBA
                 return skillCount;
             }
 
-            SkillAssignmentUnitCSkillSysForm.MakeUnitSkillButtonsList(uid, buttons, tooltip, assignLevelUpP, icon, text, skillCount);
+            SkillAssignmentClassSkillSystemForm.MakeUnitSkillButtonsList(uid, buttons, tooltip, assignLevelUpP, icon, text, skillCount);
             return skillCount;
         }
 
@@ -306,7 +306,7 @@ namespace FEBuilderGBA
         //他のユニットでこのデータを参照しているか?
         bool IsShowIndependencePanel()
         {
-            return SkillAssignmentUnitCSkillSysForm.IsShowIndependencePanel(this.AddressList, this.AssignLevelUpBaseAddress);
+            return SkillAssignmentClassSkillSystemForm.IsShowIndependencePanel(this.AddressList, this.AssignLevelUpBaseAddress);
         }
 
         public InputFormRef N1_InputFormRef;
@@ -400,7 +400,7 @@ namespace FEBuilderGBA
         //Skill + テキストを書くルーチン
         Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            return SkillAssignmentUnitCSkillSysForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
+            return SkillAssignmentClassSkillSystemForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
         }
 
         private void IndependenceButton_Click(object sender, EventArgs e)

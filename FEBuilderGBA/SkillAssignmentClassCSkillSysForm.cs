@@ -370,7 +370,7 @@ namespace FEBuilderGBA
 
         public static void ExportAllData(string filename)
         {
-            return false;
+            return;
         }
         public static bool ImportAllData(string filename)
         {
