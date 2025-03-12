@@ -249,7 +249,7 @@ namespace FEBuilderGBA
                     return skill_system_enum.CSkillSys300;
                 }
             }
-            return skill_system_enum.NO;
+            return skill_system_enum.CSkillSys300;
         }
 
         //スキルシステムの判別. ちょっとだけコストがかかる.
