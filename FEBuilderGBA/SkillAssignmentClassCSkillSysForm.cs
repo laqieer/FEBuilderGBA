@@ -133,7 +133,7 @@ namespace FEBuilderGBA
 
         private void B0_ValueChanged(object sender, EventArgs e)
         {
-            uint index = this.B0.Value;
+            uint index = (uint)this.B0.Value;
 
             N1_SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
             N1_SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
@@ -171,7 +171,7 @@ namespace FEBuilderGBA
 
         private void N1_B1_ValueChanged(object sender, EventArgs e)
         {
-            uint index = this.N1_B1.Value;
+            uint index = (uint)this.N1_B1.Value;
 
             N1_SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
             N1_SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
