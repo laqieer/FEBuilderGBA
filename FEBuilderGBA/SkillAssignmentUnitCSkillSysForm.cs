@@ -256,15 +256,13 @@ namespace FEBuilderGBA
             Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
             InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
 
-            uint icon = Program.ROM.p32(iconP);
-            uint text = Program.ROM.p32(textP);
             uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignUnitLevelUpSkillPointer();
             if (assignLevelUpP == U.NOT_FOUND)
             {//昔のバージョンには、存在しなかった
                 return skillCount;
             }
 
-            SkillAssignmentClassCSkillSysForm.MakeUnitSkillButtonsList(uid, buttons, tooltip, assignLevelUpP, icon, text, skillCount);
+            SkillAssignmentClassCSkillSysForm.MakeUnitSkillButtonsList(uid, buttons, tooltip, assignLevelUpP, skillCount);
             return skillCount;
         }
 

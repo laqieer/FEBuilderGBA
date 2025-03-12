@@ -130,7 +130,7 @@ namespace FEBuilderGBA
         Dictionary<uint, string> SkillNames;
 
         //Skill + テキストを書くルーチン
-        Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        public static Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
             if (index < 0 || index >= lb.Items.Count)
             {
