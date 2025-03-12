@@ -65,7 +65,7 @@ namespace FEBuilderGBA
             InputFormRef ifr = new InputFormRef(self
                 , ""
                 , assignClass
-                , 1
+                , 2
                 , (int i, uint addr) =>
                 {//読込最大値検索
                     if (i >= classDataCount)
@@ -237,14 +237,9 @@ namespace FEBuilderGBA
             }
 
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-                if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
                 if (assignClassP == U.NOT_FOUND)
                 {
                     return;
@@ -291,14 +286,9 @@ namespace FEBuilderGBA
             }
 
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-                if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
                 if (assignClassP == U.NOT_FOUND)
                 {
                     return;
@@ -353,14 +343,9 @@ namespace FEBuilderGBA
 
             List<string> lines = new List<string>();
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-                if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
                 if (assignClassP == U.NOT_FOUND)
                 {
                     return;
@@ -421,14 +406,9 @@ namespace FEBuilderGBA
 
             string[] lines = File.ReadAllLines(filename);
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
                 uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
                 uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-                if (iconP == U.NOT_FOUND)
-                {
-                    return false;
-                }
                 if (assignClassP == U.NOT_FOUND)
                 {
                     return false;
