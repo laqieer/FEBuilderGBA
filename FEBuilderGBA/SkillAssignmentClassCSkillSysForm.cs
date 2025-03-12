@@ -15,21 +15,10 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
             uint textP = SkillConfigSkillSystemForm.FindTextPointer();
             uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
             uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-            if (iconP == U.NOT_FOUND)
-            {
-                R.ShowStopError("スキル拡張 SkillSystem の、アイコンを取得できません。");
-                return;
-            }
-            if (textP == U.NOT_FOUND)
-            {
-                R.ShowStopError("スキル拡張 SkillSystem の、テキストを取得できません。");
-                return;
-            }
             if (assignClassP == U.NOT_FOUND)
             {
                 R.ShowStopError("スキル拡張 SkillSystem の、クラススキルを取得できません。");
@@ -42,8 +31,6 @@ namespace FEBuilderGBA
             }
             this.SkillNames = SkillConfigSkillSystemForm.LoadSkillNames();
 
-            this.TextBaseAddress = Program.ROM.p32(textP);
-            this.IconBaseAddress = Program.ROM.p32(iconP);
             this.AssignClassBaseAddress = Program.ROM.p32(assignClassP);
             this.AssignLevelUpBaseAddress = Program.ROM.p32(assignLevelUpP);
 
@@ -134,8 +121,6 @@ namespace FEBuilderGBA
 
         }
 
-        uint TextBaseAddress;
-        uint IconBaseAddress;
         uint AssignClassBaseAddress;
         uint AssignLevelUpBaseAddress;
         Dictionary<uint, string> SkillNames;
@@ -143,9 +128,10 @@ namespace FEBuilderGBA
         //Skill + テキストを書くルーチン
         Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            return DrawSkillAndText(lb, index, g, listbounds, isWithDraw, this.IconBaseAddress);
+            return SkillConfigFE8UCSkillSys09xForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
         }
 
+/*
         //Skill + テキストを書くルーチン
         public static Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw, uint iconBaseAddress)
         {
@@ -181,12 +167,15 @@ namespace FEBuilderGBA
             brush.Dispose();
             return new Size(bounds.X, bounds.Y);
         }
+*/
 
         private void B0_ValueChanged(object sender, EventArgs e)
         {
-            SKILLICON.Image = SkillConfigSkillSystemForm.DrawIcon((uint)this.B0.Value, this.IconBaseAddress);
-            SKILLTEXT.Text = SkillConfigSkillSystemForm.GetSkillText((uint)this.B0.Value, this.TextBaseAddress);
-            SKILLNAME.Text = U.at(this.SkillNames, (uint)this.B0.Value);
+            int index = this.B0.Value;
+
+            N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
+            N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
+            N1_SKILLNAME.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillName(index);
         }
 
 
@@ -220,9 +209,11 @@ namespace FEBuilderGBA
 
         private void N1_B1_ValueChanged(object sender, EventArgs e)
         {
-            N1_SKILLICON.Image = SkillConfigSkillSystemForm.DrawIcon((uint)this.N1_B1.Value, this.IconBaseAddress);
-            N1_SKILLTEXT.Text = SkillConfigSkillSystemForm.GetSkillText((uint)this.N1_B1.Value, this.TextBaseAddress);
-            N1_SKILLNAME.Text = U.at(this.SkillNames, (uint)this.N1_B1.Value);
+            int index = this.N1_B1.Value;
+
+            N1_SKILLICON.Image = SkillConfigFE8UCSkillSys09xForm.DrawSkillIcon(index);
+            N1_SKILLTEXT.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillDesc(index);
+            N1_SKILLNAME.Text = SkillConfigFE8UCSkillSys09xForm.GetSkillName(index);
         }
 
 
