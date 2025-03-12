@@ -370,9 +370,11 @@ namespace FEBuilderGBA
 
         public static void ExportAllData(string filename)
         {
+            return false;
         }
         public static bool ImportAllData(string filename)
         {
+            return false;
         }
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)

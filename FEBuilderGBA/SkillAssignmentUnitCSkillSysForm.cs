@@ -201,14 +201,18 @@ namespace FEBuilderGBA
 
         public static void ExportAllData(string filename)
         {
+            return false;
         }
 
         public static bool ImportAllData(string filename)
         {
+            return false;
         }
 
         public static int MakeUnitSkillButtons(uint uid, Button[] buttons, ToolTipEx tooltip)
         {
+            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
+            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
             uint assignUnitP = SkillConfigSkillSystemForm.FindAssignPersonalSkillPointer();
 
             if (assignUnitP == U.NOT_FOUND)
@@ -237,12 +241,12 @@ namespace FEBuilderGBA
 
             int skillCount = 0;
             {
-                Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon(skill);
+                Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)b0);
                 U.MakeTransparent(bitmap);
                 buttons[0].BackgroundImage = bitmap;
                 buttons[0].Tag = b0;
 
-                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDesc(skill);
+                string skillCaption = SkillConfigCSkillSystem09xForm.GetSkillDesc((uint)b0);
                 tooltip.SetToolTip(buttons[skillCount], skillCaption);
             }
             skillCount++;
@@ -252,6 +256,8 @@ namespace FEBuilderGBA
             Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
             InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
 
+            uint icon = Program.ROM.p32(iconP);
+            uint text = Program.ROM.p32(textP);
             uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignUnitLevelUpSkillPointer();
             if (assignLevelUpP == U.NOT_FOUND)
             {//昔のバージョンには、存在しなかった
