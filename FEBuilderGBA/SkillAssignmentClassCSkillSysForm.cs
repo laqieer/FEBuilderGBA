@@ -30,7 +30,7 @@ namespace FEBuilderGBA
             }
 
             this.SkillNames = new Dictionary<uint, string>(); // SkillConfigSkillSystemForm.LoadSkillNames();
-            for (int i = 0; i < 0x400; i = i + 1)
+            for (uint i = 0; i < 0x400; i = i + 1)
             {
                 this.SkillNames[i] = SkillConfigCSkillSystem09xForm.GetSkillName(i);
             }
