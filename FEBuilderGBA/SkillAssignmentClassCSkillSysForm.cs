@@ -11,9 +11,6 @@ namespace FEBuilderGBA
 {
     public partial class SkillAssignmentClassCSkillSysForm : Form
     {
-        const uint gpSkillInfos = 0xB2A614;
-        const uint gpSkillInfos_Desc = 0xB2A760;
-
         public SkillAssignmentClassCSkillSysForm()
         {
             InitializeComponent();

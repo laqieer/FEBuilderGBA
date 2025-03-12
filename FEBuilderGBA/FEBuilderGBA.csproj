@@ -1016,6 +1016,12 @@
     <Compile Include="SkillConfigFE8UCSkillSys09xForm.Designer.cs">
       <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="SkillAssignmentClassCSkillSysForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SkillAssignmentClassCSkillSysForm.Designer.cs">
+      <DependentUpon>SkillAssignmentClassCSkillSysForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SongExchangeForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -2261,6 +2267,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="SkillConfigFE8UCSkillSys09xForm.resx">
       <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SkillAssignmentClassCSkillSysForm.resx">
+      <DependentUpon>SkillAssignmentClassCSkillSysForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SongInstrumentDirectSoundForm.resx">
       <DependentUpon>SongInstrumentDirectSoundForm.cs</DependentUpon>
