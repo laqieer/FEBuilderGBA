@@ -455,6 +455,7 @@ namespace FEBuilderGBA
         public uint extends_address { get; protected set; } //拡張領域
         public uint orignal_crc32 { get; protected set; } //無改造ROMのCRC32
         public bool is_multibyte { get; protected set; }    // マルチバイトを利用するか？
+        public bool is_cskillsys { get; protected set; }
         public int version { get; protected set; }    // バージョン
 
         virtual public uint patch_C01_hack(out uint enable_value) { enable_value = 0x0; return 0x0; } //C01 patch

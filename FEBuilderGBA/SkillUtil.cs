@@ -16,6 +16,10 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillAssignmentClassSkillSystemForm>(cid);
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillAssignmentClassCSkillSysForm>(cid);
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 InputFormRef.JumpForm<SkillConfigFE8NVer2SkillForm>();
@@ -42,6 +46,10 @@ namespace FEBuilderGBA
             {
                 InputFormRef.JumpForm<SkillAssignmentClassSkillSystemForm>(cid);
             }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                InputFormRef.JumpForm<SkillAssignmentClassCSkillSysForm>(cid);
+            }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
                 InputFormRef.JumpForm<SkillConfigFE8NVer2SkillForm>(skillid);
@@ -62,6 +70,10 @@ namespace FEBuilderGBA
             if (skill == PatchUtil.skill_system_enum.SkillSystem)
             {
                 skillCount = SkillAssignmentClassSkillSystemForm.MakeClassSkillButtons(cid, buttons, tooltip);
+            }
+            else if (skill == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                skillCount = SkillAssignmentClassCSkillSysForm.MakeClassSkillButtons(cid, buttons, tooltip);
             }
             else if (skill == PatchUtil.skill_system_enum.FE8N_ver2)
             {
@@ -186,6 +198,11 @@ namespace FEBuilderGBA
                 return name;
             }
             else if (skillsystem == PatchUtil.skill_system_enum.CSkillSys09x)
+            {
+                string name = SkillConfigCSkillSystem09xForm.GetSkillName(skillid);
+                return name;
+            }
+            else if (skillsystem == PatchUtil.skill_system_enum.CSkillSys300)
             {
                 string name = SkillConfigCSkillSystem09xForm.GetSkillName(skillid);
                 return name;
