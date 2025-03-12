@@ -139,7 +139,7 @@ namespace FEBuilderGBA
 
             int textmargineY = (ListBoxEx.OWNER_DRAW_ICON_SIZE - (int)lb.Font.Height) / 2;
 
-            Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon(1);
+            Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)index);
             U.MakeTransparent(bitmap);
 
             //アイコンを描く.
