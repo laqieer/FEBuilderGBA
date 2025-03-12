@@ -65,7 +65,7 @@ namespace FEBuilderGBA
             InputFormRef ifr = new InputFormRef(self
                 , ""
                 , assignClass
-                , 2
+                , 1
                 , (int i, uint addr) =>
                 {//読込最大値検索
                     if (i >= classDataCount)
