@@ -127,7 +127,36 @@ namespace FEBuilderGBA
         //Skill + テキストを書くルーチン
         Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            return SkillConfigCSkillSystem09xForm.DrawSkillAndText(lb, index, g, listbounds, isWithDraw);
+            if (index < 0 || index >= lb.Items.Count)
+            {
+                return new Size(listbounds.X, listbounds.Y);
+            }
+            string text = lb.Items[index].ToString();
+
+            SolidBrush brush = new SolidBrush(lb.ForeColor);
+            Font normalFont = lb.Font;
+            Rectangle bounds = listbounds;
+
+            int textmargineY = (ListBoxEx.OWNER_DRAW_ICON_SIZE - (int)lb.Font.Height) / 2;
+
+            Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon((uint)index);
+            U.MakeTransparent(bitmap);
+
+            //アイコンを描く.
+            Rectangle b = bounds;
+            b.Width = ListBoxEx.OWNER_DRAW_ICON_SIZE;
+            b.Height = ListBoxEx.OWNER_DRAW_ICON_SIZE;
+            bounds.X += U.DrawPicture(bitmap, g, isWithDraw, b);
+            bitmap.Dispose();
+
+            //テキストを描く.
+            b = bounds;
+            b.Y += textmargineY;
+            bounds.X += U.DrawText(text, g, normalFont, brush, isWithDraw, b);
+            bounds.Y += ListBoxEx.OWNER_DRAW_ICON_SIZE;
+
+            brush.Dispose();
+            return new Size(bounds.X, bounds.Y);
         }
 
         private void B0_ValueChanged(object sender, EventArgs e)
