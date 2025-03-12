@@ -715,62 +715,10 @@ namespace FEBuilderGBA
 
         private void ExportAllButton_Click(object sender, EventArgs e)
         {
-            string title = R._("保存するファイル名を選択してください");
-            string filter = R._("SkillAssignmentClass|*.SkillAssignmentClass.tsv|All files|*");
-
-            SaveFileDialog save = new SaveFileDialog();
-            save.Title = title;
-            save.Filter = filter;
-            Program.LastSelectedFilename.Load(this, "", save, "");
-
-            DialogResult dr = save.ShowDialog();
-            if (dr != DialogResult.OK)
-            {
-                return;
-            }
-            if (save.FileNames.Length <= 0 || !U.CanWriteFileRetry(save.FileNames[0]))
-            {
-                return;
-            }
-
-            using (InputFormRef.AutoPleaseWait wait = new InputFormRef.AutoPleaseWait(this))
-            {
-                ExportAllData(save.FileName);
-            }
         }
 
         private void ImportAllButton_Click(object sender, EventArgs e)
         {
-            string title = R._("読込むファイル名を選択してください");
-            string filter = R._("SkillAssignmentClass|*.SkillAssignmentClass.tsv|All files|*");
-
-            OpenFileDialog open = new OpenFileDialog();
-            open.Title = title;
-            open.Filter = filter;
-
-            DialogResult dr = open.ShowDialog();
-            if (dr != DialogResult.OK)
-            {
-                return;
-            }
-            if (open.FileNames.Length <= 0 || !U.CanReadFileRetry(open.FileNames[0]))
-            {
-                return;
-            }
-            string filename = open.FileNames[0];
-            Program.LastSelectedFilename.Save(this, "", open);
-
-            using (InputFormRef.AutoPleaseWait wait = new InputFormRef.AutoPleaseWait(this))
-            {
-                bool r = ImportAllData(filename);
-                if (!r)
-                {
-                    R.ShowStopError("インポートに失敗しました。");
-                    return;
-                }
-            }
-            U.ReSelectList(this.AddressList);
-            R.ShowOK("データのインポートが完了しました。");
         }
 
         private void X_LEARNINFO_Click(object sender, EventArgs e)
