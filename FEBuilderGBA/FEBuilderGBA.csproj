@@ -998,6 +998,12 @@
     <Compile Include="SkillAssignmentUnitSkillSystemForm.Designer.cs">
       <DependentUpon>SkillAssignmentUnitSkillSystemForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="SkillAssignmentUnitCSkillSysForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SkillAssignmentUnitCSkillSysForm.Designer.cs">
+      <DependentUpon>SkillAssignmentUnitCSkillSysForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SkillConfigFE8NSkillForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -1015,6 +1021,12 @@
     </Compile>
     <Compile Include="SkillConfigFE8UCSkillSys09xForm.Designer.cs">
       <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SkillAssignmentClassCSkillSysForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SkillAssignmentClassCSkillSysForm.Designer.cs">
+      <DependentUpon>SkillAssignmentClassCSkillSysForm.cs</DependentUpon>
     </Compile>
     <Compile Include="SongExchangeForm.cs">
       <SubType>Form</SubType>
@@ -2262,6 +2274,9 @@
     <EmbeddedResource Include="SkillConfigFE8UCSkillSys09xForm.resx">
       <DependentUpon>SkillConfigFE8UCSkillSys09xForm.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="SkillAssignmentClassCSkillSysForm.resx">
+      <DependentUpon>SkillAssignmentClassCSkillSysForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="SongInstrumentDirectSoundForm.resx">
       <DependentUpon>SongInstrumentDirectSoundForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -2731,6 +2746,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="SkillAssignmentUnitFE8NForm.resx">
       <DependentUpon>SkillAssignmentUnitFE8NForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SkillAssignmentUnitCSkillSysForm.resx">
+      <DependentUpon>SkillAssignmentUnitCSkillSysForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SkillAssignmentUnitSkillSystemForm.resx">
       <DependentUpon>SkillAssignmentUnitSkillSystemForm.cs</DependentUpon>

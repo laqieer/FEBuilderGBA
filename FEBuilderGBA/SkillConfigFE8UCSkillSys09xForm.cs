@@ -129,7 +129,7 @@ namespace FEBuilderGBA
             return SkillTextToName(GetSkillDesc(index));
         }
 
-        Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
+        public static Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
             if (index < 0 || index >= lb.Items.Count)
             {

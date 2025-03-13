@@ -76,6 +76,10 @@ namespace FEBuilderGBA
                 {// UNIT_LEVEL_MAX_RE
                     g_LevelMaxCaps = 25;
                 }
+                if (PatchUtil.SearchSkillSystem() == PatchUtil.skill_system_enum.CSkillSys300)
+                {// UNIT_LEVEL_MAX_RE
+                    g_LevelMaxCaps = 25;
+                }
                 if (PatchUtil.SearchGrowsMod() == PatchUtil.growth_mod_enum.Vennou)
                 {//不明なので31とする
                     g_LevelMaxCaps = 31;
@@ -171,6 +175,7 @@ namespace FEBuilderGBA
             midori,         //for FE8J   初期から独自スキルを実装していた拡張
             SkillSystem,    //for FE8U
             CSkillSys09x,   //for FE8U
+            CSkillSys300,   //for FE8U
             NoCache = (int)NO_CACHE
         };
         static skill_system_enum g_Cache_skill_system_enum = skill_system_enum.NoCache;
@@ -191,6 +196,7 @@ namespace FEBuilderGBA
                 new PatchTableSt{ name="SkillSystem",	ver = "FE8U", addr = 0x2ACF8,data = new byte[]{0x70 ,0x47}},
                 new PatchTableSt{ name="CSkillSys09x",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x30, 0x39, 0x78, 0x00}},
                 new PatchTableSt{ name="CSkillSys100",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x31, 0x30, 0x30, 0x00}},
+                new PatchTableSt{ name="CSkillSys300",	ver = "FE8U", addr = 0xB2A604,data = new byte[]{0x43, 0x53, 0x4B, 0x49, 0x4C, 0x4C, 0x53, 0x59, 0x53, 0x5F, 0x4B, 0x2D, 0x33}},
             };
 
             string version = Program.ROM.RomInfo.VersionToFilename;
@@ -237,6 +243,10 @@ namespace FEBuilderGBA
                 if (t.name == "CSkillSys100")
                 {
                     return skill_system_enum.CSkillSys09x;
+                }
+                if (t.name == "CSkillSys300")
+                {
+                    return skill_system_enum.CSkillSys300;
                 }
             }
             return skill_system_enum.NO;
