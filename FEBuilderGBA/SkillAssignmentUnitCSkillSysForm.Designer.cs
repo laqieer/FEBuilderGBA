@@ -74,7 +74,7 @@
             this.SKILLNAME = new FEBuilderGBA.TextBoxEx();
             this.SKILLTEXT = new FEBuilderGBA.TextBoxEx();
             this.SKILLICON = new FEBuilderGBA.InterpolatedPictureBox();
-            this.B0 = new System.Windows.Forms.NumericUpDown();
+            this.W0 = new System.Windows.Forms.NumericUpDown();
             this.J_0_SKILLASSIGNMENT = new System.Windows.Forms.Label();
             this.panel5 = new System.Windows.Forms.Panel();
             this.BlockSize = new FEBuilderGBA.TextBoxEx();
@@ -107,7 +107,7 @@
             this.panel7.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.N1_Address)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.SKILLICON)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.B0)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W0)).BeginInit();
             this.panel5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Address)).BeginInit();
             this.panel6.SuspendLayout();
@@ -193,7 +193,7 @@
             this.panel4.Controls.Add(this.SKILLNAME);
             this.panel4.Controls.Add(this.SKILLTEXT);
             this.panel4.Controls.Add(this.SKILLICON);
-            this.panel4.Controls.Add(this.B0);
+            this.panel4.Controls.Add(this.W0);
             this.panel4.Controls.Add(this.J_0_SKILLASSIGNMENT);
             this.panel4.Location = new System.Drawing.Point(258, 72);
             this.panel4.Margin = new System.Windows.Forms.Padding(5, 4, 5, 4);
@@ -648,20 +648,20 @@
             this.SKILLICON.TabIndex = 102;
             this.SKILLICON.TabStop = false;
             // 
-            // B0
+            // W0
             // 
-            this.B0.Hexadecimal = true;
-            this.B0.Location = new System.Drawing.Point(137, 7);
-            this.B0.Margin = new System.Windows.Forms.Padding(2);
-            this.B0.Maximum = new decimal(new int[] {
+            this.W0.Hexadecimal = true;
+            this.W0.Location = new System.Drawing.Point(137, 7);
+            this.W0.Margin = new System.Windows.Forms.Padding(2);
+            this.W0.Maximum = new decimal(new int[] {
             -559939585,
             902409669,
             54,
             0});
-            this.B0.Name = "B0";
-            this.B0.Size = new System.Drawing.Size(79, 25);
-            this.B0.TabIndex = 0;
-            this.B0.ValueChanged += new System.EventHandler(this.B0_ValueChanged);
+            this.W0.Name = "W0";
+            this.W0.Size = new System.Drawing.Size(79, 25);
+            this.W0.TabIndex = 0;
+            this.W0.ValueChanged += new System.EventHandler(this.W0_ValueChanged);
             // 
             // J_0_SKILLASSIGNMENT
             // 
@@ -853,7 +853,7 @@
             this.panel7.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.N1_Address)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.SKILLICON)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.B0)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.W0)).EndInit();
             this.panel5.ResumeLayout(false);
             this.panel5.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Address)).EndInit();
@@ -873,7 +873,7 @@
         private System.Windows.Forms.Panel panel4;
         private FEBuilderGBA.TextBoxEx SKILLTEXT;
         private InterpolatedPictureBox SKILLICON;
-        private System.Windows.Forms.NumericUpDown B0;
+        private System.Windows.Forms.NumericUpDown W0;
         private System.Windows.Forms.Label J_0_SKILLASSIGNMENT;
         private System.Windows.Forms.Panel panel5;
         private FEBuilderGBA.TextBoxEx BlockSize;
