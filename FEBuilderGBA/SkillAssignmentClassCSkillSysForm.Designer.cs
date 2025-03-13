@@ -58,7 +58,7 @@
             this.label4 = new System.Windows.Forms.Label();
             this.N1_SKILLNAME = new FEBuilderGBA.TextBoxEx();
             this.N1_J_0 = new System.Windows.Forms.Label();
-            this.N1_B0 = new System.Windows.Forms.NumericUpDown();
+            this.N1_B_0 = new System.Windows.Forms.NumericUpDown();
             this.N1_J_1_SKILLASSIGNMENT = new System.Windows.Forms.Label();
             this.N1_SKILLTEXT = new FEBuilderGBA.TextBoxEx();
             this.N1_B1 = new System.Windows.Forms.NumericUpDown();
@@ -108,7 +108,7 @@
             this.panel10.SuspendLayout();
             this.ZeroPointerPanel.SuspendLayout();
             this.IndependencePanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.N1_B0)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.N1_B_0)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.N1_B1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.N1_SKILLICON)).BeginInit();
             this.panel7.SuspendLayout();
@@ -236,7 +236,7 @@
             this.panel8.Controls.Add(this.IndependencePanel);
             this.panel8.Controls.Add(this.N1_SKILLNAME);
             this.panel8.Controls.Add(this.N1_J_0);
-            this.panel8.Controls.Add(this.N1_B0);
+            this.panel8.Controls.Add(this.N1_B_0);
             this.panel8.Controls.Add(this.N1_J_1_SKILLASSIGNMENT);
             this.panel8.Controls.Add(this.N1_SKILLTEXT);
             this.panel8.Controls.Add(this.N1_B1);
@@ -470,19 +470,19 @@
             this.N1_J_0.Text = "習得レベル";
             this.N1_J_0.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
-            // N1_B0
+            // N1_B_0
             // 
-            this.N1_B0.Location = new System.Drawing.Point(197, 6);
-            this.N1_B0.Margin = new System.Windows.Forms.Padding(2);
-            this.N1_B0.Maximum = new decimal(new int[] {
+            this.N1_B_0.Location = new System.Drawing.Point(197, 6);
+            this.N1_B_0.Margin = new System.Windows.Forms.Padding(2);
+            this.N1_B_0.Maximum = new decimal(new int[] {
             256,
             0,
             0,
             0});
-            this.N1_B0.Name = "N1_B0";
-            this.N1_B0.Size = new System.Drawing.Size(78, 25);
-            this.N1_B0.TabIndex = 0;
-            this.N1_B0.ValueChanged += new System.EventHandler(this.N1_B0_ValueChanged);
+            this.N1_B_0.Name = "N1_B_0";
+            this.N1_B_0.Size = new System.Drawing.Size(78, 25);
+            this.N1_B_0.TabIndex = 0;
+            this.N1_B_0.ValueChanged += new System.EventHandler(this.N1_B_0_ValueChanged);
             // 
             // N1_J_1_SKILLASSIGNMENT
             // 
@@ -968,7 +968,7 @@
             this.panel10.ResumeLayout(false);
             this.ZeroPointerPanel.ResumeLayout(false);
             this.IndependencePanel.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.N1_B0)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.N1_B_0)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.N1_B1)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.N1_SKILLICON)).EndInit();
             this.panel7.ResumeLayout(false);
@@ -1033,7 +1033,7 @@
         private InterpolatedPictureBox N1_SKILLICON;
         private System.Windows.Forms.NumericUpDown N1_B1;
         private System.Windows.Forms.Label N1_J_1_SKILLASSIGNMENT;
-        private System.Windows.Forms.NumericUpDown N1_B0;
+        private System.Windows.Forms.NumericUpDown N1_B_0;
         private ListBoxEx N1_AddressList;
         private System.Windows.Forms.Button N1_AddressListExpandsButton;
         private System.Windows.Forms.Panel panel8;

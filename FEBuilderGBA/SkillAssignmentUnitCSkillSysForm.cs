@@ -60,7 +60,7 @@ namespace FEBuilderGBA
             InputFormRef ifr = new InputFormRef(self
                 , ""
                 , assignUnit
-                , 1
+                , 4
                 , (int i, uint addr) =>
                 {//読込最大値検索
                     return i < unitDataCount;
@@ -83,9 +83,9 @@ namespace FEBuilderGBA
         Dictionary<uint, string> SkillNames;
 
 
-        private void B0_ValueChanged(object sender, EventArgs e)
+        private void W0_ValueChanged(object sender, EventArgs e)
         {
-            uint index = (uint)this.B0.Value;
+            uint index = (uint)this.W0.Value;
 
             SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
             SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
@@ -211,8 +211,6 @@ namespace FEBuilderGBA
 
         public static int MakeUnitSkillButtons(uint uid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
             uint assignUnitP = SkillConfigSkillSystemForm.FindAssignPersonalSkillPointer();
 
             if (assignUnitP == U.NOT_FOUND)

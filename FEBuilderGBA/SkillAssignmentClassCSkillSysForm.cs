@@ -165,9 +165,9 @@ namespace FEBuilderGBA
             return new Size(bounds.X, bounds.Y);
         }
 
-        private void B0_ValueChanged(object sender, EventArgs e)
+        private void W0_ValueChanged(object sender, EventArgs e)
         {
-            uint index = (uint)this.B0.Value;
+            uint index = (uint)this.W0.Value;
 
             SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
             SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
