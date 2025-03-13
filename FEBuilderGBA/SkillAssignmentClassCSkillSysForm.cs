@@ -15,8 +15,8 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.gpConstSkillTable_Job;
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.gpClassLevelUpSkillTable;
 
             if (assignClassP == U.NOT_FOUND)
             {
@@ -272,8 +272,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.gpConstSkillTable_Job;
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.gpClassLevelUpSkillTable;
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -321,8 +321,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.gpConstSkillTable_Job;
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.gpClassLevelUpSkillTable;
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -379,8 +379,8 @@ namespace FEBuilderGBA
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.gpConstSkillTable_Job;
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.gpClassLevelUpSkillTable;
 
             if (assignClassP == U.NOT_FOUND)
             {

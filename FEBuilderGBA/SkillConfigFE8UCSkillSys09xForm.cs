@@ -7,6 +7,11 @@ namespace FEBuilderGBA
 {
     public partial class SkillConfigCSkillSystem09xForm : Form
     {
+        public static const uint gpConstSkillTable_Person = 0xB2A61C;
+        public static const uint gpConstSkillTable_Job = 0xB2A620;
+        public static const uint gpClassLevelUpSkillTable = 0xB2A7F8;
+        public static const uint gpCharLevelUpSkillTable = 0xB2A7FC;
+
         const uint gpSkillInfos = 0xB2A614;
         const uint gpSkillInfos_Desc = 0xB2A760;
         const uint gpEfxSkillAnims = 0xB2A630;
