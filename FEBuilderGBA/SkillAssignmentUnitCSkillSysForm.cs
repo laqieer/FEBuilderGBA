@@ -15,8 +15,8 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint assignUnit = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Person();
-            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetCharLevelUpSkillTable();
+            uint assignUnit = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Person();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrCharLevelUpSkillTable();
 
             if (assignUnit == U.NOT_FOUND)
             {
@@ -102,7 +102,7 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignUnitP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Person();
+                uint assignUnitP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Person();
 
                 if (assignUnitP == U.NOT_FOUND)
                 {
@@ -113,7 +113,7 @@ namespace FEBuilderGBA
                 InputFormRef = Init(null, assignUnitP);
                 FEBuilderGBA.Address.AddAddress(list, InputFormRef, "SkillAssignmentUnitSkillSystem", new uint[] { });
 
-                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetCharLevelUpSkillTable();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrCharLevelUpSkillTable();
                 if (assignLevelUpP == U.NOT_FOUND)
                 {
                     return;
@@ -153,14 +153,14 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignUnitP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Person();
+                uint assignUnitP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Person();
                 if (assignUnitP == U.NOT_FOUND)
                 {
                     return;
                 }
                 InputFormRef = Init(null, assignUnitP);
 
-                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetCharLevelUpSkillTable();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrCharLevelUpSkillTable();
                 if (assignLevelUpP == U.NOT_FOUND)
                 {
                     return;
@@ -211,7 +211,7 @@ namespace FEBuilderGBA
 
         public static int MakeUnitSkillButtons(uint uid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint assignUnitP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Person();
+            uint assignUnitP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Person();
 
             if (assignUnitP == U.NOT_FOUND)
             {
@@ -254,7 +254,7 @@ namespace FEBuilderGBA
             Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
             InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
 
-            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetCharLevelUpSkillTable();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrCharLevelUpSkillTable();
             if (assignLevelUpP == U.NOT_FOUND)
             {//昔のバージョンには、存在しなかった
                 return skillCount;

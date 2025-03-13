@@ -71,24 +71,24 @@ namespace FEBuilderGBA
 
         }
 
-        public static uint GetClassLevelUpSkillTable()
+        public static uint GetPrClassLevelUpSkillTable()
         {
-            return Program.ROM.p32(gpClassLevelUpSkillTable);
+            return gpClassLevelUpSkillTable; // Program.ROM.p32(gpClassLevelUpSkillTable);
         }
 
-        public static uint GetCharLevelUpSkillTable()
+        public static uint GetPrCharLevelUpSkillTable()
         {
-            return Program.ROM.p32(gpCharLevelUpSkillTable);
+            return gpCharLevelUpSkillTable; // Program.ROM.p32(gpCharLevelUpSkillTable);
         }
 
-        public static uint GetConstSkillTable_Person()
+        public static uint GetPrConstSkillTable_Person()
         {
-            return Program.ROM.p32(gpConstSkillTable_Person);
+            return gpConstSkillTable_Person; // Program.ROM.p32(gpConstSkillTable_Person);
         }
 
-        public static uint GetConstSkillTable_Job()
+        public static uint GetPrConstSkillTable_Job()
         {
-            return Program.ROM.p32(gpConstSkillTable_Job);
+            return gpConstSkillTable_Job; // Program.ROM.p32(gpConstSkillTable_Job);
         }
 
         static uint GetSkillAnimInfo(uint index)

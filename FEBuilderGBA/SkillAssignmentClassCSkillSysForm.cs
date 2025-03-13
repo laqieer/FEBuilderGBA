@@ -15,8 +15,8 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint assignClassP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Job();
-            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetClassLevelUpSkillTable();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
             if (assignClassP == U.NOT_FOUND)
             {
@@ -272,8 +272,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Job();
-                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetClassLevelUpSkillTable();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -321,8 +321,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Job();
-                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetClassLevelUpSkillTable();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -379,8 +379,8 @@ namespace FEBuilderGBA
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint assignClassP = SkillConfigCSkillSystem09xForm.GetConstSkillTable_Job();
-            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetClassLevelUpSkillTable();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
             if (assignClassP == U.NOT_FOUND)
             {
