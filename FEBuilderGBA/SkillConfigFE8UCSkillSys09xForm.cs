@@ -7,6 +7,11 @@ namespace FEBuilderGBA
 {
     public partial class SkillConfigCSkillSystem09xForm : Form
     {
+        const uint gpConstSkillTable_Person = 0xB2A61C;
+        const uint gpConstSkillTable_Job = 0xB2A620;
+        const uint gpClassLevelUpSkillTable = 0xB2A7F8;
+        const uint gpCharLevelUpSkillTable = 0xB2A7FC;
+
         const uint gpSkillInfos = 0xB2A614;
         const uint gpSkillInfos_Desc = 0xB2A760;
         const uint gpEfxSkillAnims = 0xB2A630;
@@ -64,6 +69,26 @@ namespace FEBuilderGBA
         private void SkillConfigCSkillSystem09xForm_Load(object sender, EventArgs e)
         {
 
+        }
+
+        public static uint GetPrClassLevelUpSkillTable()
+        {
+            return gpClassLevelUpSkillTable; // Program.ROM.p32(gpClassLevelUpSkillTable);
+        }
+
+        public static uint GetPrCharLevelUpSkillTable()
+        {
+            return gpCharLevelUpSkillTable; // Program.ROM.p32(gpCharLevelUpSkillTable);
+        }
+
+        public static uint GetPrConstSkillTable_Person()
+        {
+            return gpConstSkillTable_Person; // Program.ROM.p32(gpConstSkillTable_Person);
+        }
+
+        public static uint GetPrConstSkillTable_Job()
+        {
+            return gpConstSkillTable_Job; // Program.ROM.p32(gpConstSkillTable_Job);
         }
 
         static uint GetSkillAnimInfo(uint index)

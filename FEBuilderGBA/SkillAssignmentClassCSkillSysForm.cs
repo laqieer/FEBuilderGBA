@@ -15,8 +15,8 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
             if (assignClassP == U.NOT_FOUND)
             {
@@ -70,7 +70,7 @@ namespace FEBuilderGBA
             InputFormRef ifr = new InputFormRef(self
                 , ""
                 , assignClass
-                , 1
+                , 4
                 , (int i, uint addr) =>
                 {//読込最大値検索
                     if (i >= classDataCount)
@@ -165,9 +165,9 @@ namespace FEBuilderGBA
             return new Size(bounds.X, bounds.Y);
         }
 
-        private void B0_ValueChanged(object sender, EventArgs e)
+        private void W0_ValueChanged(object sender, EventArgs e)
         {
-            uint index = (uint)this.B0.Value;
+            uint index = (uint)this.W0.Value;
 
             SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(index);
             SKILLTEXT.Text = SkillConfigCSkillSystem09xForm.GetSkillDesc(index);
@@ -272,8 +272,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -321,8 +321,8 @@ namespace FEBuilderGBA
             }
 
             {
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+                uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+                uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
                 if (assignClassP == U.NOT_FOUND)
                 {
@@ -379,8 +379,8 @@ namespace FEBuilderGBA
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)
         {
-            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
+            uint assignClassP = SkillConfigCSkillSystem09xForm.GetPrConstSkillTable_Job();
+            uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrClassLevelUpSkillTable();
 
             if (assignClassP == U.NOT_FOUND)
             {
