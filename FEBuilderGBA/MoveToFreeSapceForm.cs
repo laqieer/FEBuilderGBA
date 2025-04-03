@@ -653,16 +653,7 @@ namespace FEBuilderGBA
                 }
             }
 
-            if (skillsystem == PatchUtil.skill_system_enum.CSkillSys09x ||
-                skillsystem == PatchUtil.skill_system_enum.CSkillSys300)
-            {//B2A604 - BE0000
-                if (addr >= 0xB2A604 && addr < 0xBE0000)
-                {
-                    addr = 0xBE0000;
-                    return true;
-                }
-            }
-            else if (Program.ROM.RomInfo.is_multibyte)
+            if (Program.ROM.RomInfo.is_multibyte)
             {//F00000 - F90000
 
                 if (addr >= 0xF00000 && addr < 0xF90000)
@@ -673,9 +664,9 @@ namespace FEBuilderGBA
             }
             else
             {//1c1ec0 - C00000
-                if (addr >= 0x1c1ec0 && addr < 0xB88560)
+                if (addr >= 0x1c1ec0 && addr < 0xBE0000)
                 {
-                    addr = 0xB88560;
+                    addr = 0xBE0000;
                     return true;
                 }
             }
