@@ -638,6 +638,8 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            PatchUtil.skill_system_enum skillsystem = PatchUtil.SearchSkillSystem();
+
             OptionForm.skillsystems_sanctuary_enum skillsystems_sanctuary = OptionForm.skillsystems_sanctuary();
             if (skillsystems_sanctuary == OptionForm.skillsystems_sanctuary_enum.None)
             {
@@ -645,14 +647,22 @@ namespace FEBuilderGBA
             }
             else if (skillsystems_sanctuary == OptionForm.skillsystems_sanctuary_enum.IfSkillSystemsInstalled)
             {
-                PatchUtil.skill_system_enum skillsystem = PatchUtil.SearchSkillSystem();
                 if (skillsystem == PatchUtil.skill_system_enum.NO)
                 {//SkillSystemsをインストールしていない
                     return false;
                 }
             }
 
-            if (Program.ROM.RomInfo.is_multibyte)
+            if (skillsystem == PatchUtil.skill_system_enum.CSkillSys09x ||
+                skillsystem == PatchUtil.skill_system_enum.CSkillSys300)
+            {//B2A604 - BE0000
+                if (addr >= 0xB2A604 && addr < 0xBE0000)
+                {
+                    addr = 0xBE0000;
+                    return true;
+                }
+            }
+            else if (Program.ROM.RomInfo.is_multibyte)
             {//F00000 - F90000
 
                 if (addr >= 0xF00000 && addr < 0xF90000)
