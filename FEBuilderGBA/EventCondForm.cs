@@ -4695,6 +4695,26 @@ namespace FEBuilderGBA
                     OBJECT_N05_USES_PANEL.Hide();
                     OBJECT_N07_B5.Value = 0; //耐久は常に0にします
                 }
+                else if (PatchUtil.SearchSkillSystem() == PatchUtil.skill_system_enum.CSkillSys09x
+                      || PatchUtil.SearchSkillSystem() == PatchUtil.skill_system_enum.CSkillSys300)
+                {
+                    uint skillScrollItemID = SkillConfigCSkillSystem09xForm.FindSkillScrollItemID();
+                    if (item_id == skillScrollItemID)
+                    {
+                        OBJECT_N07_J_5.Text = R._("スキルID");
+                        SKILLNAME.Show();
+                        SKILLICON.Show();
+                        InputFormRef.UseHexMode(OBJECT_N07_B5);
+                    }
+                    else
+                    {
+                        OBJECT_N07_J_5.Text = R._("耐久");
+                        SKILLNAME.Hide();
+                        SKILLICON.Hide();
+                        InputFormRef.UseDecMode(OBJECT_N07_B5);
+                    }
+                    OBJECT_N05_USES_PANEL.Show();
+                }
                 else
                 {
                     uint skillScrollItemID = SkillConfigSkillSystemForm.FindSkillScrollItemID();

@@ -194,6 +194,11 @@ namespace FEBuilderGBA
                 Bitmap bitmap = SkillConfigFE8NVer3SkillForm.DrawSkillIcon(skillid);
                 return bitmap;
             }
+            else if (PatchUtil.CheckIsCSkillSys())
+            {
+                Bitmap bitmap = SkillConfigCSkillSystem09xForm.DrawSkillIcon(skillid);
+                return bitmap;
+            }
             return ImageUtil.BlankDummy();
         }
 
