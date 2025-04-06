@@ -187,6 +187,19 @@ namespace FEBuilderGBA
             }
             return g_Cache_skill_system_enum;
         }
+
+        public static bool CheckIsCSkillSys()
+        {
+            PatchUtil.skill_system_enum skillsys = SearchSkillSystem();
+
+            if (skillsys == PatchUtil.skill_system_enum.CSkillSys09x
+             || skillsys == PatchUtil.skill_system_enum.CSkillSys300)
+            {
+                return true;
+            }
+            return false;
+        }
+
         static skill_system_enum SearchSkillSystemLow()
         {
             PatchTableSt[] table = new PatchTableSt[] { 

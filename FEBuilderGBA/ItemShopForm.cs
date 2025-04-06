@@ -231,8 +231,17 @@ namespace FEBuilderGBA
                 return ;
             }
             uint skillid = (uint)B1.Value;
-            SKILLICON.Image = SkillConfigSkillSystemForm.DrawSkillIcon(skillid);
-            SKILLNAME.Text = SkillConfigSkillSystemForm.GetSkillName(skillid);
+
+            if (PatchUtil.CheckIsCSkillSys())
+            {
+                SKILLICON.Image = SkillConfigCSkillSystem09xForm.DrawSkillIcon(skillid);
+                SKILLNAME.Text = SkillConfigCSkillSystem09xForm.GetSkillName(skillid);
+            }
+            else
+            {
+                SKILLICON.Image = SkillConfigSkillSystemForm.DrawSkillIcon(skillid);
+                SKILLNAME.Text = SkillConfigSkillSystemForm.GetSkillName(skillid);
+            }
         }
     }
 }
