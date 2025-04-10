@@ -638,6 +638,8 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            PatchUtil.skill_system_enum skillsystem = PatchUtil.SearchSkillSystem();
+
             OptionForm.skillsystems_sanctuary_enum skillsystems_sanctuary = OptionForm.skillsystems_sanctuary();
             if (skillsystems_sanctuary == OptionForm.skillsystems_sanctuary_enum.None)
             {
@@ -645,7 +647,6 @@ namespace FEBuilderGBA
             }
             else if (skillsystems_sanctuary == OptionForm.skillsystems_sanctuary_enum.IfSkillSystemsInstalled)
             {
-                PatchUtil.skill_system_enum skillsystem = PatchUtil.SearchSkillSystem();
                 if (skillsystem == PatchUtil.skill_system_enum.NO)
                 {//SkillSystemsをインストールしていない
                     return false;
@@ -663,9 +664,9 @@ namespace FEBuilderGBA
             }
             else
             {//1c1ec0 - C00000
-                if (addr >= 0x1c1ec0 && addr < 0xB88560)
+                if (addr >= 0x1c1ec0 && addr < 0xBE0000)
                 {
-                    addr = 0xB88560;
+                    addr = 0xBE0000;
                     return true;
                 }
             }

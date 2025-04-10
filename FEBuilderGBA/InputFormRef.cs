@@ -8255,6 +8255,10 @@ namespace FEBuilderGBA
             {
                 return SkillConfigFE8NVer2SkillForm.DrawSkillIcon(num);
             }
+            else if (PatchUtil.CheckIsCSkillSys())
+            {
+                return SkillConfigCSkillSystem09xForm.DrawSkillIcon(num);
+            }
             else
             {
                 return ImageUtil.Blank(16, 16);

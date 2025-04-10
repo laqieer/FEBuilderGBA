@@ -154,6 +154,11 @@ namespace FEBuilderGBA
             return SkillTextToName(GetSkillDesc(index));
         }
 
+        public static uint FindSkillScrollItemID()
+        {
+            return 0xBD;
+        }
+
         public static Size DrawSkillAndText(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
             if (index < 0 || index >= lb.Items.Count)
