@@ -14,3 +14,5 @@ FEBuilderGBA/bin/Debug/config/log/
 FEBuilderGBA/obj
 .vs/
 /FEBuilderGBA/FEBuilderGBA.csproj.user
+/FEBuilderGBA/bin/Debug/FEBuilderGBA.dll
+/FEBuilderGBA/bin/Debug/System.DirectoryServices.dll

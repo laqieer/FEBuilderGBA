@@ -80,42 +80,45 @@ namespace FEBuilderGBA
             editor.PasteCallback += OnPasteOrUndoOrCutText;
         }
 
+        // Replace all occurrences of 'ContextMenu' with 'ContextMenuStrip' and 'MenuItem' with 'ToolStripMenuItem'  
+        // Update the code to use the modern ContextMenuStrip and ToolStripMenuItem classes.  
+
         public static void MakeEditListboxContextMenuText(ListBox listbox, KeyEventHandler keydownfunc)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("元に戻す(&Z)"));
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
+            ToolStripMenuItem menuItem;
+
+            menuItem = new ToolStripMenuItem(R._("元に戻す(&Z)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Z));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("削除(DEL)"));
+            menuItem = new ToolStripMenuItem(R._("削除(DEL)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Delete));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("コピー(&C)"));
+            contextMenuStrip.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("コピー(&C)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.C));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("貼り付け(&V)"));
+            contextMenuStrip.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("貼り付け(&V)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.V));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("読み上げ"));
+            menuItem = new ToolStripMenuItem(R._("読み上げ"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Alt | Keys.O));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("編集画面を出す(ENTER)"));
+            menuItem = new ToolStripMenuItem(R._("編集画面を出す(ENTER)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Enter));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
-            listbox.ContextMenu = contextMenu;
+            listbox.ContextMenuStrip = contextMenuStrip;
         }
 
         //リストが拡張されたとき
@@ -1920,11 +1923,12 @@ namespace FEBuilderGBA
                 RemoveButton_Click(null, null);
             }
         }
+        // Replace all occurrences of 'MenuItem' with 'ToolStripMenuItem' and update the logic accordingly.  
         void OptionTextToSpeechByRichText(Object sender, EventArgs e)
         {
-            if ((sender is MenuItem))
+            if ((sender is ToolStripMenuItem))
             {
-                sender = ((MenuItem)sender).GetContextMenu().SourceControl;
+                sender = ((ToolStripMenuItem)sender).Owner;
             }
             if (!(sender is RichTextBoxEx))
             {
@@ -1935,9 +1939,9 @@ namespace FEBuilderGBA
         }
         void OptionJoinCopyByRichText(Object sender, EventArgs e)
         {
-            if ((sender is MenuItem))
+            if ((sender is ToolStripMenuItem))
             {
-                sender = ((MenuItem)sender).GetContextMenu().SourceControl;
+                sender = ((ToolStripMenuItem)sender).Owner;
             }
             if (!(sender is RichTextBoxEx))
             {
@@ -1951,9 +1955,9 @@ namespace FEBuilderGBA
         }
         void OptionConvertAnrrowFont(Object sender, EventArgs e)
         {
-            if ((sender is MenuItem))
+            if ((sender is ToolStripMenuItem))
             {
-                sender = ((MenuItem)sender).GetContextMenu().SourceControl;
+                sender = ((ToolStripMenuItem)sender).Owner;
             }
             if (!(sender is RichTextBoxEx))
             {
@@ -3518,11 +3522,12 @@ namespace FEBuilderGBA
             return TextForm.StripAllCode(FETextDecode.Direct(textid));
         }
 
+        // Replace the usage of 'MenuItem' with 'ToolStripMenuItem' and update the logic accordingly.  
         void SelectEscapeText(Object sender, EventArgs e)
         {
-            if ((sender is MenuItem))
+            if ((sender is ToolStripMenuItem))
             {
-                sender = ((MenuItem)sender).GetContextMenu().SourceControl;
+                sender = ((ToolStripMenuItem)sender).Owner;
             }
             if (!(sender is RichTextBoxEx))
             {
@@ -3544,22 +3549,23 @@ namespace FEBuilderGBA
             TextScriptFormCategorySelectForm.TextEscape te = f.Script;
             string insertString = ConvertEscapeText(te.Code);
 
-            //これから更新するので、Undoポイントを作る.
+            // Undo point creation.  
             editor.PushUndo();
 
-            //テキストを変更すると、スクロールしてしまうので、一時的にウィンドウを無効にして固める
+            // Temporarily lock the window to prevent scrolling.  
             editor.LockWindowUpdate();
-            editor.SelectedText = insertString; //更新
+            editor.SelectedText = insertString; // Update the text.  
             editor.UnLockWindowUpdate();
 
-            //変更したテキストの末尾へ
+            // Move the cursor to the end of the inserted text.  
             editor.SelectionLength = 0;
             editor.SelectionStart += insertString.Length;
 
-            //変更ボタンを光らせる.
+            // Highlight the update button.  
             InputFormRef.WriteButtonToYellow(this.UpdateButton, true);
             InputFormRef.WriteButtonToYellow(this.NewButton, true);
-            //キーワードハイライトをもう一回行う.
+
+            // Reapply keyword highlighting.  
             KeywordHighLight(editor);
         }
         void OnPasteOrUndoOrCutText(Object sender, EventArgs e)

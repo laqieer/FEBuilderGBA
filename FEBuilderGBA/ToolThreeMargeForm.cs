@@ -20,54 +20,56 @@ namespace FEBuilderGBA
 
         public void MakeListboxContextMenuN(ListBox listbox, KeyEventHandler keydownfunc)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("{0}のデータで上書き(&1)",this.ALabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.D1));
-            contextMenu.MenuItems.Add(menuItem);
+            // Replace ContextMenu with ContextMenuStrip
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
 
-            menuItem = new MenuItem(R._("{0}のデータで上書き(&2)", this.BLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.D2));
-            contextMenu.MenuItems.Add(menuItem);
+            // Replace MenuItem with ToolStripMenuItem
+            ToolStripMenuItem menuItem;
 
-            menuItem = new MenuItem(R._("{0}のデータで上書き(&3)", this.CLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.D3));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("{0}のデータで上書き(&1)", this.ALabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.D1);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("{0}のデータで上書き(&2)", this.BLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.D2);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("マークの切り替え(&M)", this.CLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.M));
-            contextMenu.MenuItems.Add(menuItem);
-            
-            menuItem = new MenuItem(R._("マーク一覧を表示(&L)", this.CLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.L));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("{0}のデータで上書き(&3)", this.CLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.D3);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("以下100件のデータを、{0}のデータで上書き(Ctrl + 1)", this.ALabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D1));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("マークの切り替え(&M)", this.CLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.M);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("以下100件のデータを、{0}のデータで上書き(Ctrl + 2)", this.BLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D2));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("マーク一覧を表示(&L)", this.CLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.L);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("以下100件のデータを、{0}のデータで上書き換えマークを消す(Ctrl + 0)", this.CLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D0));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("以下100件のデータを、{0}のデータで上書き(Ctrl + 1)", this.ALabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D1);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("{0}のデータで上書きし書き換えマークを消す(&0)", this.CLabel));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.D0));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("以下100件のデータを、{0}のデータで上書き(Ctrl + 2)", this.BLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D2);
+            contextMenuStrip.Items.Add(menuItem);
 
-            listbox.ContextMenu = contextMenu;
+            menuItem = new ToolStripMenuItem(R._("以下100件のデータを、{0}のデータで上書き換えマークを消す(Ctrl + 0)", this.CLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.D0);
+            contextMenuStrip.Items.Add(menuItem);
+
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
+
+            menuItem = new ToolStripMenuItem(R._("{0}のデータで上書きし書き換えマークを消す(&0)", this.CLabel));
+            menuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.D0);
+            contextMenuStrip.Items.Add(menuItem);
+
+            // Assign the ContextMenuStrip to the ListBox
+            listbox.ContextMenuStrip = contextMenuStrip;
         }
 
         string ALabel;
@@ -105,7 +107,7 @@ namespace FEBuilderGBA
 
 
             uint addr = code.addr;
-            uint length = Math.Min(code.length , 32);
+            uint length = Math.Min(code.length, 32);
             string whatis = WhatIs(addr);
             if (whatis == "")
             {
@@ -127,7 +129,7 @@ namespace FEBuilderGBA
                 writeof = R._("<<対処法:{0}>>", this.CLabel);
             }
 
-            text = R._("{0} 長さ:{1} {2} {3}", U.To0xHexString(addr), code.length,writeof, whatis);
+            text = R._("{0} 長さ:{1} {2} {3}", U.To0xHexString(addr), code.length, writeof, whatis);
             int labelEnd = U.DrawText(text, g, normalFont, brush, isWithDraw, bounds);
             bounds.Y += lineHeight;
 
@@ -246,10 +248,10 @@ namespace FEBuilderGBA
 
         public enum MargeMethod
         {
-             NONE = 0
-            ,A = 1 
-            ,B = 2
-            ,C = 3
+            NONE = 0
+            , A = 1
+            , B = 2
+            , C = 3
         };
 
         public class ChangeDataSt
@@ -300,7 +302,7 @@ namespace FEBuilderGBA
             {
                 length = (uint)this.AData.Length;
             }
-            Undo.UndoData undodata = Program.Undo.NewUndoData(this,"automarge");
+            Undo.UndoData undodata = Program.Undo.NewUndoData(this, "automarge");
             Program.ROM.write_resize_data((uint)length);
 
             uint nextDoEvents = 0;
@@ -346,7 +348,7 @@ namespace FEBuilderGBA
                 Program.Undo.Push(undodata);
             }
 
-            if (! IsConflictData())
+            if (!IsConflictData())
             {
                 return;
             }
@@ -354,7 +356,7 @@ namespace FEBuilderGBA
             MakeWhatIs();
 
             wait.DoEvents(R._("相違点をリストにまとめています"));
-            this.AddressList.DummyAlloc( this.ChangeDataList.Count, 0);
+            this.AddressList.DummyAlloc(this.ChangeDataList.Count, 0);
 
             MakeListboxContextMenuN(AddressList, AddressList_KeyDown);
             UpdateTitle();
@@ -394,11 +396,11 @@ namespace FEBuilderGBA
 
         public enum DiffDebugMethod
         {
-             Method1
+            Method1
            , Method2
         }
 
-        public void InitDiffDebug(InputFormRef.AutoPleaseWait wait, byte[] okData, byte[] ngData , DiffDebugMethod method)
+        public void InitDiffDebug(InputFormRef.AutoPleaseWait wait, byte[] okData, byte[] ngData, DiffDebugMethod method)
         {
             this.ALabel = "OK ROM ";
             this.BLabel = "NG ROM ";
@@ -421,7 +423,7 @@ namespace FEBuilderGBA
 
             uint nextDoEvents = 0;
 
-            for (uint i = 0; i < length; )
+            for (uint i = 0; i < length;)
             {
                 if (i > nextDoEvents)
                 {//毎回更新するのは無駄なのである程度の間隔で更新して以降
@@ -464,7 +466,7 @@ namespace FEBuilderGBA
             MakeWhatIs();
 
             wait.DoEvents(R._("相違点をリストにまとめています"));
-            this.AddressList.DummyAlloc( this.ChangeDataList.Count, 0);
+            this.AddressList.DummyAlloc(this.ChangeDataList.Count, 0);
             MakeListboxContextMenuN(AddressList, AddressList_KeyDown);
             UpdateTitle();
         }
@@ -592,7 +594,7 @@ namespace FEBuilderGBA
             Program.ROM.write_range(code.addr, bin);
             InputFormRef.ShowWriteNotifyAnimation(this, code.addr);
 
-            if (! e.Shift)
+            if (!e.Shift)
             {//面倒なので操作を逆にする. Shiftが押されていなければ、次へ移動する.
                 if (this.AddressList.SelectedIndex + 1 < this.AddressList.Items.Count)
                 {
@@ -614,7 +616,7 @@ namespace FEBuilderGBA
         //Ctrl押しながら100件一気にマージ
         private bool AddressList_KeyDownWithCtrl(object sender, KeyEventArgs e)
         {
-            if ( ! e.Control)
+            if (!e.Control)
             {
                 return false;
             }
@@ -694,7 +696,12 @@ namespace FEBuilderGBA
                 return;
             }
             Rectangle rc = this.AddressList.GetItemRectangle(index);
-            this.AddressList.ContextMenu.Show(this.AddressList, new Point(rc.X , rc.Y));
+
+            // Fix: Replace 'ContextMenu' with 'ContextMenuStrip'
+            if (this.AddressList.ContextMenuStrip != null)
+            {
+                this.AddressList.ContextMenuStrip.Show(this.AddressList, new Point(rc.X, rc.Y));
+            }
         }
 
         void RunAllCancel()
@@ -730,7 +737,7 @@ namespace FEBuilderGBA
 
         void UpdateTitle()
         {
-            this.Text = R._("マージ 相違点:{0}",CalcLeftCount());
+            this.Text = R._("マージ 相違点:{0}", CalcLeftCount());
         }
 
         private void SetMarkButton_Click(object sender, EventArgs e)
@@ -756,7 +763,7 @@ namespace FEBuilderGBA
             {
                 if (ChangeDataList[i].addr == addr)
                 {
-                    U.SelectedIndexSafety(AddressList,i);
+                    U.SelectedIndexSafety(AddressList, i);
                     break;
                 }
             }
@@ -799,7 +806,7 @@ namespace FEBuilderGBA
 
         private void ToolThreeMargeForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (isAllMethodNone() || isAllMethodNotNone() )
+            if (isAllMethodNone() || isAllMethodNotNone())
             {
                 return;
             }

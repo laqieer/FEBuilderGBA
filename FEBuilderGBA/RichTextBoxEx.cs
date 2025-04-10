@@ -331,48 +331,50 @@ namespace FEBuilderGBA
             this.SelectAll();
         }
 
+        // Replace the usage of ContextMenu with ContextMenuStrip as ContextMenu is obsolete
         void MakeContextMenu()
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("元に戻す(&Z)"));
+            ContextMenuStrip contextMenu = new ContextMenuStrip(); // Updated to ContextMenuStrip
+            ToolStripMenuItem menuItem;
+
+            menuItem = new ToolStripMenuItem(R._("元に戻す(&Z)"));
             menuItem.Click += new EventHandler(UndoAction);
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(new ToolStripSeparator()); // Updated to ToolStripSeparator
 
-            menuItem = new MenuItem(R._("切り取り(&X)"));
+            menuItem = new ToolStripMenuItem(R._("切り取り(&X)"));
             menuItem.Click += new EventHandler(CutAction);
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("コピー(&C)"));
+            contextMenu.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("コピー(&C)"));
             menuItem.Click += new EventHandler(CopyAction);
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("貼り付け(&V)"));
+            contextMenu.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("貼り付け(&V)"));
             menuItem.Click += new EventHandler(PasteAction);
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(new ToolStripSeparator()); // Updated to ToolStripSeparator
 
-            menuItem = new MenuItem(R._("すべて選択(&A)"));
+            menuItem = new ToolStripMenuItem(R._("すべて選択(&A)"));
             menuItem.Click += new EventHandler(SelectAllAction);
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(menuItem);
 
-            this.ContextMenu = contextMenu;        
+            this.ContextMenuStrip = contextMenu; // Updated to ContextMenuStrip
         }
-        public void AppendContentMenu(string name,EventHandler clickHandler)
+        public void AppendContentMenu(string name, EventHandler clickHandler)
         {
-            MenuItem menuItem = new MenuItem(name);
+            ToolStripMenuItem menuItem = new ToolStripMenuItem(name); // Updated to ToolStripMenuItem
             menuItem.Click += new EventHandler(clickHandler);
 
-            this.ContextMenu.MenuItems.Add(menuItem);
+            this.ContextMenuStrip.Items.Add(menuItem); // Updated to ContextMenuStrip
         }
         public void AppendContentMenuBar()
         {
-            MenuItem menuItem = new MenuItem("-");
+            ToolStripSeparator separator = new ToolStripSeparator(); // Updated to ToolStripSeparator
 
-            this.ContextMenu.MenuItems.Add(menuItem);
+            this.ContextMenuStrip.Items.Add(separator); // Updated to ContextMenuStrip
         }
 
         protected override void OnMouseLeave(EventArgs e)

@@ -3673,7 +3673,7 @@ namespace FEBuilderGBA
             CallingConvention = CallingConvention.Cdecl)]
         public static extern int memcmp(IntPtr b1, IntPtr b2, IntPtr size);
 
-        [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
+        [DllImport("ntdll.dll", EntryPoint = "RtlMoveMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, uint count);
 
         //一時的にカレントディレクトリを移動する.

@@ -310,6 +310,9 @@ namespace FEBuilderGBA
         }
 
 
+        // Replace the usage of ContextMenu with ContextMenuStrip and MenuItem with ToolStripMenuItem.  
+        // ContextMenu and MenuItem are outdated and no longer supported in modern .NET versions.  
+
         public void MakePaletteUI(Func<Color, int, bool> onChangeColor, Func<Bitmap> getSampleBitmap)
         {
             for (int paletteno = 1; paletteno <= 16; paletteno++)
@@ -322,17 +325,21 @@ namespace FEBuilderGBA
                 p.MouseClick += Label_MouseClickEvent(p, paletteno);
                 p.Cursor = Cursors.Hand;
 
-                ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-                MenuItem menuItem;
+                // Use ContextMenuStrip instead of ContextMenu.  
+                ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
 
-                menuItem = new MenuItem(R._("色の交換"));
+                // Use ToolStripMenuItem instead of MenuItem.  
+                ToolStripMenuItem menuItem;
+
+                menuItem = new ToolStripMenuItem(R._("色の交換"));
                 menuItem.Click += Label_ColorSwap(p, paletteno);
-                contextMenu.MenuItems.Add(menuItem);
-                menuItem = new MenuItem(R._("色違いを作る"));
-                menuItem.Click += Label_ColorChanges(p, paletteno, getSampleBitmap);
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(menuItem);
 
-                p.ContextMenu = contextMenu;
+                menuItem = new ToolStripMenuItem(R._("色違いを作る"));
+                menuItem.Click += Label_ColorChanges(p, paletteno, getSampleBitmap);
+                contextMenuStrip.Items.Add(menuItem);
+
+                p.ContextMenuStrip = contextMenuStrip;
 
                 EventHandler r_eh = NumericUpDown_ChangeEvent(r, "R", paletteno, onChangeColor);
                 r.ValueChanged += r_eh;

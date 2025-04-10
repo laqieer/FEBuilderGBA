@@ -359,23 +359,25 @@ namespace FEBuilderGBA
         }
 
 
-        ContextMenu MakeEditListboxContextMenu(ListBox listbox, KeyEventHandler keydownfunc)
+        // TODO ContextMenu is no longer supported. Use ContextMenuStrip instead. For more details see https://docs.microsoft.com/en-us/dotnet/core/compatibility/winforms#removed-controls
+        private ContextMenuStrip MakeEditListboxContextMenu(ListBox listbox, KeyEventHandler keydownfunc)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("ジャンプ(&J)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.J));
-            contextMenu.MenuItems.Add(menuItem);
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            ToolStripMenuItem jumpMenuItem = new ToolStripMenuItem(R._("ジャンプ(&J)"));
+            jumpMenuItem.ShortcutKeys = Keys.Control | Keys.J;
+            jumpMenuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.J);
+            contextMenuStrip.Items.Add(jumpMenuItem);
 
-            menuItem = new MenuItem(R._("詳細(ENTER)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.Enter));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            listbox.ContextMenu = contextMenu;
-            return contextMenu;
+            ToolStripMenuItem detailsMenuItem = new ToolStripMenuItem(R._("詳細(ENTER)"));
+            detailsMenuItem.ShortcutKeys = Keys.Control | Keys.Enter;
+            detailsMenuItem.Click += (sender, e) => U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Enter);
+            contextMenuStrip.Items.Add(detailsMenuItem);
+
+            listbox.ContextMenuStrip = contextMenuStrip;
+            return contextMenuStrip;
         }
 
         private void AddressList_DoubleClick(object sender, EventArgs e)

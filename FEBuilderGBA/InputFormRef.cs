@@ -12691,94 +12691,102 @@ namespace FEBuilderGBA
 
         public static void MakeEditListboxContextMenu(ListBox listbox, KeyEventHandler keydownfunc)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("元に戻す(&Z)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.Z));
-            contextMenu.MenuItems.Add(menuItem);
+            // Updated to use ContextMenuStrip instead of ContextMenu
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
+            ToolStripMenuItem menuItem;
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("元に戻す(&Z)"));
+            menuItem.ShortcutKeys = Keys.Control | Keys.Z;
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Z));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("削除(DEL)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Delete));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("コピー(&C)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.C));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("貼り付け(&V)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.V));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("削除(DEL)"));
+            menuItem.ShortcutKeys = Keys.Delete;
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Delete));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("編集画面を出す(ENTER)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.Enter));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("コピー(&C)"));
+            menuItem.ShortcutKeys = Keys.Control | Keys.C;
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.C));
+            contextMenuStrip.Items.Add(menuItem);
 
-            listbox.ContextMenu = contextMenu;
+            menuItem = new ToolStripMenuItem(R._("貼り付け(&V)"));
+            menuItem.ShortcutKeys = Keys.Control | Keys.V;
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.V));
+            contextMenuStrip.Items.Add(menuItem);
+
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
+
+            menuItem = new ToolStripMenuItem(R._("編集画面を出す(ENTER)"));
+            menuItem.ShortcutKeys = Keys.Control | Keys.Enter;
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Enter));
+            contextMenuStrip.Items.Add(menuItem);
+
+            listbox.ContextMenuStrip = contextMenuStrip;
         }
 
-        public static void MakeEditListboxContextMenuN(ListBox listbox, KeyEventHandler keydownfunc, KeyEventHandler parentFormKeydownfunc , bool useTemplate)
+        public static void MakeEditListboxContextMenuN(ListBox listbox, KeyEventHandler keydownfunc, KeyEventHandler parentFormKeydownfunc, bool useTemplate)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
-            menuItem = new MenuItem(R._("元に戻す(&Z)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.Z));
-            contextMenu.MenuItems.Add(menuItem);
+            // Replacing ContextMenu with ContextMenuStrip as ContextMenu is no longer supported.
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            // Replacing MenuItem with ToolStripMenuItem as MenuItem is no longer supported.
+            ToolStripMenuItem menuItem;
 
-            menuItem = new MenuItem(R._("削除(DEL)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Delete));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("コピー(&C)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.C));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("貼り付け(&V)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.V));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("元に戻す(&Z)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Z));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("ジャンプ(&J)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.J));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("削除(DEL)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Delete));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("ジャンプ2"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Alt | Keys.J));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("コピー(&C)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.C));
+            contextMenuStrip.Items.Add(menuItem);
 
+            menuItem = new ToolStripMenuItem(R._("貼り付け(&V)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.V));
+            contextMenuStrip.Items.Add(menuItem);
+
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
+
+            menuItem = new ToolStripMenuItem(R._("ジャンプ(&J)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.J));
+            contextMenuStrip.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("ジャンプ2"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Alt | Keys.J));
+            contextMenuStrip.Items.Add(menuItem);
 
             if (useTemplate)
             {
-                menuItem = new MenuItem("-");
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-                menuItem = new MenuItem(R._("テンプレート(&T)"));
-                menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Alt  | Keys.T));
-                contextMenu.MenuItems.Add(menuItem);
+                menuItem = new ToolStripMenuItem(R._("テンプレート(&T)"));
+                menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Alt | Keys.T));
+                contextMenuStrip.Items.Add(menuItem);
             }
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-            menuItem = new MenuItem(R._("コメント編集(&/)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,parentFormKeydownfunc, Keys.Control | Keys.Divide));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("コメント編集(&/)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, parentFormKeydownfunc, Keys.Control | Keys.Divide));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("直接編集(&N)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,parentFormKeydownfunc, Keys.Control | Keys.N));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("直接編集(&N)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, parentFormKeydownfunc, Keys.Control | Keys.N));
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("編集画面を出す(ENTER)"));
-            menuItem.Click += new EventHandler(U.FireKeyDown(listbox,keydownfunc, Keys.Control | Keys.Enter));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem = new ToolStripMenuItem(R._("編集画面を出す(ENTER)"));
+            menuItem.Click += new EventHandler(U.FireKeyDown(listbox, keydownfunc, Keys.Control | Keys.Enter));
+            contextMenuStrip.Items.Add(menuItem);
 
-            listbox.ContextMenu = contextMenu;
+            listbox.ContextMenuStrip = contextMenuStrip;
         }
 
         //削除を使える
@@ -12786,32 +12794,36 @@ namespace FEBuilderGBA
 
         public void MakeGeneralAddressListContextMenu(bool useUpDown = true, bool useClear = false, KeyEventHandler keyDown = null)
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
+            // Updated to use ContextMenuStrip instead of ContextMenu  
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
+            ToolStripMenuItem menuItem;
+
             if (keyDown == null)
             {
                 keyDown = this.GeneralAddressList_KeyDown;
             }
             this.AddressList.KeyDown += keyDown;
-            
-            menuItem = new MenuItem(R._("コピー(&C)"));
+
+            // Updated to use ToolStripMenuItem instead of MenuItem  
+            menuItem = new ToolStripMenuItem(R._("コピー(&C)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(this.AddressList, keyDown, Keys.Control | Keys.C));
-            contextMenu.MenuItems.Add(menuItem);
-            menuItem = new MenuItem(R._("貼り付け(&V)"));
+            contextMenuStrip.Items.Add(menuItem);
+
+            menuItem = new ToolStripMenuItem(R._("貼り付け(&V)"));
             menuItem.Click += new EventHandler(U.FireKeyDown(this.AddressList, keyDown, Keys.Control | Keys.V));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
             if (useUpDown)
             {
-                menuItem = new MenuItem("-");
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-                menuItem = new MenuItem(R._("↑データ入れ替え(Ctrl + Up)"));
+                menuItem = new ToolStripMenuItem(R._("↑データ入れ替え(Ctrl + Up)"));
                 menuItem.Click += new EventHandler(U.FireKeyDown(this.AddressList, keyDown, Keys.Control | Keys.Up));
-                contextMenu.MenuItems.Add(menuItem);
-                menuItem = new MenuItem(R._("↓データ入れ替え(Ctrl + Down)"));
+                contextMenuStrip.Items.Add(menuItem);
+
+                menuItem = new ToolStripMenuItem(R._("↓データ入れ替え(Ctrl + Down)"));
                 menuItem.Click += new EventHandler(U.FireKeyDown(this.AddressList, keyDown, Keys.Control | Keys.Down));
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(menuItem);
 
                 this.AddressList.AllowDrop = true;
                 this.AddressList.MouseDown += new MouseEventHandler(ListBoxDD_MouseDown);
@@ -12819,19 +12831,19 @@ namespace FEBuilderGBA
                 this.AddressList.DragEnter += new DragEventHandler(ListBoxDD_DragEnter);
                 this.AddressList.DragDrop += new DragEventHandler(ListBoxDD_DragDrop);
             }
+
             if (useClear)
             {
-                menuItem = new MenuItem("-");
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(new ToolStripSeparator());
 
-                menuItem = new MenuItem(R._("無効化する(DEL)"));
+                menuItem = new ToolStripMenuItem(R._("無効化する(DEL)"));
                 menuItem.Click += new EventHandler(U.FireKeyDown(this.AddressList, keyDown, Keys.Delete));
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(menuItem);
 
                 this.UseMenuDeleteAction = true;
             }
 
-            this.AddressList.ContextMenu = contextMenu;
+            this.AddressList.ContextMenuStrip = contextMenuStrip;
         }
 
         Rectangle DragBoxFromMouseDown = Rectangle.Empty;

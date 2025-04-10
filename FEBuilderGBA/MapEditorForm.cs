@@ -999,7 +999,8 @@ this.MapObjImage);
                 , (int)bottom);
         }
 
-        void IfMapChangeMouseDown(int mapChangeIndex,MouseEventArgs e)
+        // Replace the usage of ContextMenu with ContextMenuStrip
+        void IfMapChangeMouseDown(int mapChangeIndex, MouseEventArgs e)
         {
             if (mapChangeIndex <= 0)
             {//マップ変更ではない
@@ -1015,59 +1016,57 @@ this.MapObjImage);
             int x = (e.X / chipsize);
             int y = (e.Y / chipsize);
 
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
+            // Use ContextMenuStrip instead of ContextMenu
+            ContextMenuStrip contextMenu = new ContextMenuStrip();
+            ToolStripMenuItem menuItem;
 
-            menuItem = new MenuItem(R._("タイルを選択する"));
+            // Add menu items
+            menuItem = new ToolStripMenuItem(R._("タイルを選択する"));
             menuItem.Click += new EventHandler((sender, ee) =>
             {
                 Spoit_MainMapTile(x, y);
             });
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(menuItem);
 
-            contextMenu.MenuItems.Add(new MenuItem("-"));
- 
-            menuItem = new MenuItem(R._("この位置に移動する"));
-            menuItem.Click += new EventHandler((sender, ee) => {
+            contextMenu.Items.Add(new ToolStripSeparator());
+
+            menuItem = new ToolStripMenuItem(R._("この位置に移動する"));
+            menuItem.Click += new EventHandler((sender, ee) =>
+            {
                 MoveMapChangeMenuAction((uint)x, (uint)y);
             });
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenu.Items.Add(menuItem);
 
-//            menuItem = new MenuItem(R._("この位置までサイズを拡張する"));
-//            menuItem.Click += new EventHandler((sender, ee) =>
-//            {
-//                ResizeMapChangeMenuAction((uint)x, (uint)y);
-//            });
-//            contextMenu.MenuItems.Add(menuItem);
-            contextMenu.MenuItems.Add(new MenuItem("-"));
+            contextMenu.Items.Add(new ToolStripSeparator());
 
             int w = (int)this.ChangeList[mapChangeIndex].width;
             int h = (int)this.ChangeList[mapChangeIndex].height;
 
-            menuItem = new MenuItem(R._("サイズ変更 1*1"));
+            menuItem = new ToolStripMenuItem(R._("サイズ変更 1*1"));
             menuItem.Click += new EventHandler((sender, ee) =>
             {
                 ResizeDirectMapChangeMenuAction(1, 1);
             });
-            menuItem.Enabled = (! (w == 1 && w == 1) );
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem.Enabled = (!(w == 1 && h == 1));
+            contextMenu.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("サイズ変更 2*2"));
+            menuItem = new ToolStripMenuItem(R._("サイズ変更 2*2"));
             menuItem.Click += new EventHandler((sender, ee) =>
             {
                 ResizeDirectMapChangeMenuAction(2, 2);
             });
-            menuItem.Enabled = (!(w == 2 && w == 2));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem.Enabled = (!(w == 2 && h == 2));
+            contextMenu.Items.Add(menuItem);
 
-            menuItem = new MenuItem(R._("サイズ変更 3*3"));
+            menuItem = new ToolStripMenuItem(R._("サイズ変更 3*3"));
             menuItem.Click += new EventHandler((sender, ee) =>
             {
                 ResizeDirectMapChangeMenuAction(3, 3);
             });
-            menuItem.Enabled = (!(w == 3 && w == 3));
-            contextMenu.MenuItems.Add(menuItem);
+            menuItem.Enabled = (!(w == 3 && h == 3));
+            contextMenu.Items.Add(menuItem);
 
+            // Show the context menu
             contextMenu.Show(MAP, new Point(e.X, e.Y));
         }
 

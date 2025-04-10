@@ -22,34 +22,34 @@ namespace FEBuilderGBA
             this.MaximizeBox = true;
             UpdateContextMenu();
         }
+
+        // Replace the usage of ContextMenu with ContextMenuStrip as ContextMenu is obsolete
         void UpdateContextMenu()
         {
-            ContextMenu contextMenu = new System.Windows.Forms.ContextMenu();
-            MenuItem menuItem;
+            ContextMenuStrip contextMenuStrip = new ContextMenuStrip();
+            ToolStripMenuItem menuItem;
 
-            menuItem = new MenuItem(R._("エラーに移動する"));
+            menuItem = new ToolStripMenuItem(R._("エラーに移動する"));
             menuItem.Click += new EventHandler(U.FireKeyDown(this.EventList, this.EventList_KeyDown, Keys.Enter));
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(menuItem);
 
-            menuItem = new MenuItem("-");
-            contextMenu.MenuItems.Add(menuItem);
+            contextMenuStrip.Items.Add(new ToolStripSeparator());
 
             if (ShowAllError.Checked)
             {
-                menuItem = new MenuItem(R._("このエラーを表示する"));
+                menuItem = new ToolStripMenuItem(R._("このエラーを表示する"));
                 menuItem.Click += ShowErrorButton_Click;
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(menuItem);
             }
             else
             {
-                menuItem = new MenuItem(R._("このエラーは誤報なので表示しない"));
+                menuItem = new ToolStripMenuItem(R._("このエラーは誤報なので表示しない"));
                 menuItem.Click += IgnoreErrorButton_Click;
-                contextMenu.MenuItems.Add(menuItem);
+                contextMenuStrip.Items.Add(menuItem);
             }
 
-            EventList.ContextMenu = contextMenu;
+            EventList.ContextMenuStrip = contextMenuStrip;
         }
-
         private void IgnoreErrorButton_Click(object sender, EventArgs e)
         {
             if (this.EventList.SelectedIndex < 0 || this.EventList.SelectedIndex >= this.ErrorList.Count)
@@ -108,7 +108,7 @@ namespace FEBuilderGBA
                 List<DisassemblerTrumb.LDRPointer> ldrmap = Program.AsmMapFileAsmCache.GetLDRMapCache();
 
                 this.ErrorList = FELint.ScanMAP(this.MapID, ldrmap);
-                if (! this.ShowAllError.Checked)
+                if (!this.ShowAllError.Checked)
                 {
                     this.ErrorList = FELint.HiddenErrorFilter(this.ErrorList);
                 }
@@ -138,7 +138,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static string TypeToString(FELint.Type dataType , uint addr, uint tag)
+        public static string TypeToString(FELint.Type dataType, uint addr, uint tag)
         {
             string text;
             uint show_tag = U.NOT_FOUND;
@@ -524,7 +524,7 @@ namespace FEBuilderGBA
                 text = R._("不明");
             }
 
-            
+
             if (show_tag != U.NOT_FOUND)
             {
                 text += ":" + U.To0xHexString(show_tag) + "(" + U.To0xHexString(addr) + ")";
@@ -550,7 +550,7 @@ namespace FEBuilderGBA
             SolidBrush errorBrush = new SolidBrush(OptionForm.Color_Error_ForeColor());
 
             Font normalFont = lb.Font;
-            Font boldFont = new Font(lb.Font,FontStyle.Bold);
+            Font boldFont = new Font(lb.Font, FontStyle.Bold);
 
             Rectangle bounds = listbounds;
 
@@ -588,7 +588,7 @@ namespace FEBuilderGBA
             bounds.Y += size.Height + lineHeight;
             return new Size(bounds.X, bounds.Y);
         }
-        public static void GotoEvent(FELint.Type dataType, uint addr, uint tag,uint mapid)
+        public static void GotoEvent(FELint.Type dataType, uint addr, uint tag, uint mapid)
         {
             if (mapid == U.NOT_FOUND)
             {
@@ -1147,13 +1147,13 @@ namespace FEBuilderGBA
             }
             else if (dataType == FELint.Type.POINTER_TALKGROUP)
             {
-                EventTalkGroupFE7Form f = (EventTalkGroupFE7Form) InputFormRef.JumpForm<EventTalkGroupFE7Form>();
+                EventTalkGroupFE7Form f = (EventTalkGroupFE7Form)InputFormRef.JumpForm<EventTalkGroupFE7Form>();
                 f.JumpToAddr(addr);
                 return;
             }
             else if (dataType == FELint.Type.POINTER_MENUEXTENDS)
             {
-                MenuExtendSplitMenuForm f = (MenuExtendSplitMenuForm) InputFormRef.JumpForm<MenuExtendSplitMenuForm>();
+                MenuExtendSplitMenuForm f = (MenuExtendSplitMenuForm)InputFormRef.JumpForm<MenuExtendSplitMenuForm>();
                 f.JumpToAddr(addr);
                 return;
             }
@@ -1260,7 +1260,7 @@ namespace FEBuilderGBA
             if (e.Button == System.Windows.Forms.MouseButtons.Right)
             {
                 int index = EventList.IndexFromPoint(e.X, e.Y);
-                U.SelectedIndexSafety(EventList , index);
+                U.SelectedIndexSafety(EventList, index);
             }
         }
     }
