@@ -37,7 +37,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyVersion("1.0.0.0")]  
 [assembly: AssemblyFileVersion("1.0.0.0")]  
 #else
-//リリース時はビルドバージョンを日付にしたので、ワイルドカードを削除して明示的に指定します。  
-[assembly: AssemblyVersion("1.0.0.1")]
-[assembly: AssemblyFileVersion("1.0.0.1")]
+//リリース時はビルドバージョンを日付にしたので 1.0.* にする.
+[assembly: AssemblyVersion("1.0.*")]
+[assembly: AssemblyFileVersion("1.0.*")]
 #endif
