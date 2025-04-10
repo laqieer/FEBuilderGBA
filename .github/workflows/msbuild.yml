@@ -43,7 +43,8 @@ jobs:
       run: |
         echo "build_time=$(Get-Date -UFormat '%Y%m%d.%H')" >> "$env:GITHUB_ENV"
         mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
-        mv FEBuilderGBA/bin/Debug/*.dll .
+        mv FEBuilderGBA/bin/Release/*.dll .
+        mv FEBuilderGBA/bin/Debug/7-zip32.dll .
         mv FEBuilderGBA/bin/Debug/config/ .
 
     - uses: actions/upload-artifact@v4.3.5
