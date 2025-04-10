@@ -44,6 +44,7 @@ jobs:
         echo "build_time=$(Get-Date -UFormat '%Y%m%d.%H')" >> "$env:GITHUB_ENV"
         mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
         mv FEBuilderGBA/bin/Release/*.dll .
+        mv FEBuilderGBA/bin/Release/*.json .
         mv FEBuilderGBA/bin/Debug/7-zip32.dll .
         mv FEBuilderGBA/bin/Debug/config/ .
 
@@ -53,5 +54,6 @@ jobs:
         path: |
           *.exe
           *.dll
+          *.json
           config/
           *.md
