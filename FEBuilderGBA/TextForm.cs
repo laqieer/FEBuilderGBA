@@ -1059,7 +1059,7 @@ namespace FEBuilderGBA
             else
             {
                 pos -= 3;
-                b.X = b.X + (int)(name_x + (lineHeight * 22) + ((lineHeight * 3) / 3 * pos));
+                b.X = b.X + (int)(name_x + (lineHeight * 14) + ((lineHeight * 3) / 3 * pos));
             }
             b.Width = lineHeight * 3;
             b.Height = lineHeight * 3;
