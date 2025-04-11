@@ -303,57 +303,57 @@ namespace FEBuilderGBA
         IAsyncResult AsyncResult = null;
         public bool IsBusyThread()
         {
-            return Caller != null && AsyncResult != null;
+            // Check if a task is currently running.
+            return Caller != null;
         }
-        public async Task BuildThreadAsync()
+        public void BuildThread()
         {
-            if (IsStopFlag || IsBusyThread())
-            {
-                return;
-            }
-            try
-            {
-                CachedFullMAP = await Task.Run(() => MakeFull());
-            }
-            catch (Exception e)
-            {
-                Log.Error(e.ToString());
-            }
-        }
-        void MakeFullEndCallback(IAsyncResult ar)
-        {
-            AsyncMethodCaller caller;
-            AsmMapFile map;
-            try
-            {
-                caller = (AsyncMethodCaller)ar.AsyncState;
-                map = caller.EndInvoke(ar);
-            }
-            catch (Exception e)
-            {
-                Log.Error("MakeFullEndCallback");
-                Log.Error(e.ToString());
-
-                Caller = null;
-                AsyncResult = null;
-                IsStopFlag = false;
-
-                Debug.Assert(false);
-                return;
-            }
-
             if (IsStopFlag)
             {
-                Caller = null;
-                AsyncResult = null;
-                IsStopFlag = false;
+                return;
+            }
+            if (IsBusyThread())
+            {
+                // Already busy, return early.
                 return;
             }
 
-            CachedFullMAP = map;
-            Caller = null;
-            AsyncResult = null;
-            IsStopFlag = false;
+            // Start a new task to execute MakeFull.
+            Task.Run(() =>
+            {
+                try
+                {
+                    var map = MakeFull();
+
+                    lock (this)
+                    {
+                        if (IsStopFlag)
+                        {
+                            // If a stop request was issued, do not update the cache.
+                            return;
+                        }
+
+                        // Update the cache with the result.
+                        CachedFullMAP = map;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error("BuildThread encountered an error.");
+                    Log.Error(e.ToString());
+                    Debug.Assert(false);
+                }
+                finally
+                {
+                    // Reset state.
+                    lock (this)
+                    {
+                        Caller = null;
+                        AsyncResult = null;
+                        IsStopFlag = false;
+                    }
+                }
+            });
         }
         public void Join()
         {
@@ -764,28 +764,6 @@ namespace FEBuilderGBA
             Array.Clear(HardCodeClass, 0, HardCodeClass.Length);
             Array.Clear(HardCodeItem, 0, HardCodeItem.Length);
             PatchForm.MakeHardCodeWarning(ref HardCodeUnit, ref HardCodeClass, ref HardCodeItem);
-        }
-
-        //時間のかかるフルマップはスレッドで生成する.
-        public void BuildThread()
-        {
-            if (IsStopFlag || IsBusyThread())
-            {
-                return;
-            }
-
-            try
-            {
-                Caller = new AsyncMethodCaller(MakeFull);
-                AsyncResult = Caller.BeginInvoke(new AsyncCallback(MakeFullEndCallback), Caller);
-            }
-            catch (Exception e)
-            {
-                Log.Error(e.ToString());
-                Caller = null;
-                AsyncResult = null;
-                IsStopFlag = false;
-            }
         }
     }
 }
