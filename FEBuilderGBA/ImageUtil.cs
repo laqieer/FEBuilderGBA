@@ -489,7 +489,7 @@ namespace FEBuilderGBA
         }
 
         //ヘッダー付きTSA読込 0x080043C 32ビットモード (FE8J)
-        public static UInt16[] ByteToHeaderTSA(byte[] tsa, int tsa_pos, ref int width, ref int height)
+        public static UInt16[] ByteToHeaderTSA(byte[] tsa, int tsa_pos, int width, int height)
         {
             int size = (width / 8) * (height / 8);
 
@@ -501,22 +501,19 @@ namespace FEBuilderGBA
 
             //最初の2バイトにヘッダがある.
             int i = tsa_pos;
-            int master_headerx = tsa[i] + 1;
-            int master_headery = tsa[i + 1] + 1;
+            int master_headerx = tsa[i];
+            int master_headery = tsa[i + 1];
             if (master_headerx > 32 || master_headery > 32)
             {//ヘッダーが壊れている.
                 UInt16[] blankTSA = new UInt16[size];
                 return blankTSA;
             }
 
-            width = master_headerx * 8;
-            height = master_headery * 8;
-            size = master_headerx * master_headery;
 
-            //if (master_headerx * master_headery > size)
-            //{//指示された値よりヘッダの方がでかいばあいはヘッダに従う.
-            //    size = master_headerx * master_headery;
-            //}
+            if (master_headerx * master_headery > size)
+            {//指示された値よりヘッダの方がでかいばあいはヘッダに従う.
+                size = master_headerx * master_headery;
+            }
             UInt16[] tile = new UInt16[size];
 
             int length = tsa_pos + (size * 2) + 2;
@@ -524,19 +521,16 @@ namespace FEBuilderGBA
 
             i += 2;
 
-            int n = size;
-
             //後ろから、補正値を入れて足しこむらしい.
-            //int n = 0 + (master_headery << 5); //*32
-            //if (n >= size)
-            //{//エラー
-            //    return tile;
-            //}
+            int n = 0 + (master_headery << 5); //*32
+            if (n >= size)
+            {//エラー
+                return tile;
+            }
 
-            for (int headery = 0; headery < master_headery; headery++)
+            for (int headery = 0; headery <= master_headery; headery++)
             {
-                n = n - master_headerx;
-                for (int headerx = 0; headerx < master_headerx; headerx++)
+                for (int headerx = 0; headerx <= master_headerx; headerx++)
                 {
                     if (i+1 >= length)
                     {//途中でデータがなくなった...
@@ -552,7 +546,8 @@ namespace FEBuilderGBA
                     i += 2;
                     n++;
                 }
-                n = n - master_headerx;
+                n = n - master_headerx ;
+                n = n - (0x42 / 2);
             }
             return tile;
         }
@@ -672,7 +667,7 @@ namespace FEBuilderGBA
         public static Bitmap ByteToImage16TileHeaderTSA(int width, int height, byte[] image, int image_pos, byte[] palette, int palette_pos, byte[] tsa, int tsa_pos)
         {
             //TSA読込
-            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, ref width, ref height);
+            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, width, height);
             return ByteToImage16TileInner(width, height, image, image_pos, palette, palette_pos, tile,0);
         }
         //224BG色
@@ -759,7 +754,7 @@ namespace FEBuilderGBA
         public static Bitmap ByteToImage256TileHeaderTSA(int width, int height, byte[] image, int image_pos, byte[] palette, int palette_pos, byte[] tsa, int tsa_pos)
         {
             //TSA読込
-            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, ref width, ref height);
+            UInt16[] tile = ByteToHeaderTSA(tsa, tsa_pos, width, height);
             return ByteToImage256TileInner(width, height, image, image_pos, palette, palette_pos, tile);
         }
         //Tile + 256色 + TSA

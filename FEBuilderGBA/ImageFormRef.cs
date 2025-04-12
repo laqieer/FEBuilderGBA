@@ -159,12 +159,6 @@ namespace FEBuilderGBA
                     HEADERTSA.Increment = 4;
                     HEADERTSA.Maximum = 0xffffffff;
                     HEADERTSA.Value = Program.ROM.u32(U.toOffset(tsa_pointer));
-                    Size size = ImageUtil.CalcSizeForHeaderTSAData(Program.ROM.Data, (int)U.toOffset(HEADERTSA.Value));
-                    if (size.Width > 0 && size.Height > 0)
-                    {
-                        Width = size.Width * 8;
-                        Height = size.Height * 8;
-                    }
                     continue;
                 }
                 if (name.IndexOf("_ZHEADERTSA") >= 0 && info is NumericUpDown)
@@ -173,13 +167,6 @@ namespace FEBuilderGBA
                     ZHEADERTSA.Increment = 4;
                     ZHEADERTSA.Maximum = 0xffffffff;
                     ZHEADERTSA.Value = Program.ROM.u32(U.toOffset(tsa_pointer));
-                    byte[] tsa = LZ77.decompress(Program.ROM.Data, U.toOffset(ZHEADERTSA.Value));
-                    Size size = ImageUtil.CalcSizeForHeaderTSAData(tsa, 0);
-                    if (size.Width > 0 && size.Height > 0)
-                    {
-                        Width = size.Width * 8;
-                        Height = size.Height * 8;
-                    }
                     continue;
                 }
                 if (name.IndexOf("Picture") >= 0 && info is PictureBox)
@@ -1389,11 +1376,11 @@ namespace FEBuilderGBA
                     Debug.Assert(false);
                     return new byte[] { };
                 }
-                orignalTSA = ImageUtil.ByteToHeaderTSA(d, 0, ref width, ref height);
+                orignalTSA = ImageUtil.ByteToHeaderTSA(d, 0, (int)width, (int)height);
             }
             else if (this.HEADERTSA != null)
             {
-                orignalTSA = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)U.toOffset(this.HEADERTSA.Value), ref width, ref height);
+                orignalTSA = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)U.toOffset(this.HEADERTSA.Value), (int)width, (int)height);
             }
             else
             {

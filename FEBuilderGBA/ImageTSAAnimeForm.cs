@@ -117,11 +117,10 @@ namespace FEBuilderGBA
 
             byte[] imageUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(image));
             byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
-            //int height = ImageUtil.CalcHeightbyTSA(30 * 8, tsaUZ.Length);
-            //Debug.Assert(height >= 20*8);
-            int height = 20 * 8;
+            int height = ImageUtil.CalcHeightbyTSA(32 * 8, tsaUZ.Length);
+            Debug.Assert(height >= 20*8);
 
-            return ImageUtil.ByteToImage16TileHeaderTSA(30 * 8, height, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), tsaUZ, 0);
+            return ImageUtil.ByteToImage16TileHeaderTSA(32 * 8, height, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), tsaUZ, 0);
         }
 
         private void ExportButton_Click(object sender, EventArgs e)
@@ -132,17 +131,16 @@ namespace FEBuilderGBA
 
         int GetThisImageHeight()
         {
-            //uint tsa = (uint)P8.Value;
-            //if (!U.isPointer(tsa))
-            //{
-            //    return 20 * 8;
-            //}
-            //byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
-            //int height = ImageUtil.CalcHeightbyTSA(32 * 8, tsaUZ.Length);
-            //Debug.Assert(height >= 20 * 8);
+            uint tsa = (uint)P8.Value;
+            if (!U.isPointer(tsa))
+            {
+                return 20 * 8;
+            }
+            byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
+            int height = ImageUtil.CalcHeightbyTSA(32 * 8, tsaUZ.Length);
+            Debug.Assert(height >= 20 * 8);
 
-            //return height;
-            return 20 * 8;
+            return height;
         }
 
         private void ImportButton_Click(object sender, EventArgs e)

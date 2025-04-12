@@ -617,7 +617,7 @@ namespace FEBuilderGBA
             if (size.Width > 0 && size.Height > 0)
             {
                 //幅高さ自動計算
-                if (size.Width >= 32)
+                if (size.Width >= 30)
                 {
                     size.Width = 32;
                 }
@@ -627,13 +627,6 @@ namespace FEBuilderGBA
                 }
                 this.PicWidth.Value = size.Width;
                 this.PicHeight.Value = size.Height;
-                this.PicWidth.Enabled = false;
-                this.PicHeight.Enabled = false;
-            }
-            else
-            {
-                this.PicWidth.Enabled = true;
-                this.PicHeight.Enabled = true;
             }
         }
 

@@ -128,7 +128,7 @@ namespace FEBuilderGBA
 
             {
                 byte[] imageUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(image));
-                return ImageUtil.ByteToImage16TileHeaderTSA(30 * 8, 20 * 8, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), Program.ROM.Data, (int)U.toOffset(tsa));
+                return ImageUtil.ByteToImage16TileHeaderTSA(32 * 8, 20 * 8, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), Program.ROM.Data, (int)U.toOffset(tsa));
             }
         }
         public static Bitmap DrawBG(uint id)

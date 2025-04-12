@@ -45,11 +45,11 @@ namespace FEBuilderGBA
             this.Height8 = height8;
             this.PaletteCount = paletteCount;
 
-            //if (this.IsHeaderTSA)
-            //{
-            //    this.Width8 = Math.Max(256 / 8, this.Width8);
-            //    this.Height8 = Math.Max(160 / 8, this.Height8);
-            //}
+            if (this.IsHeaderTSA)
+            {
+                this.Width8 = Math.Max(256 / 8, this.Width8);
+                this.Height8 = Math.Max(160 / 8, this.Height8);
+            }
 
             if (this.PalettePointer == U.NOT_FOUND)
             {
@@ -196,8 +196,6 @@ namespace FEBuilderGBA
         void LoadBattleScreen()
         {
             uint tsapos = Program.ROM.p32(this.TSAPointer);
-            int width = (int)this.Width8 * 8;
-            int height = (int)this.Height8 * 8;
             if (this.IsLZ77TSA)
             {
                 byte[] tsadata = LZ77.decompress(Program.ROM.Data, tsapos);
@@ -208,22 +206,22 @@ namespace FEBuilderGBA
                 }
                 if (this.IsHeaderTSA)
                 {
-                    this.Map = ImageUtil.ByteToHeaderTSA(tsadata, 0, ref width, ref height);
+                    this.Map = ImageUtil.ByteToHeaderTSA(tsadata, 0, (int)this.Width8 * 8, (int)this.Height8 * 8);
                 }
                 else
                 {
-                    this.Map = ImageUtil.ByteToTSA(tsadata, 0, width, height);
+                    this.Map = ImageUtil.ByteToTSA(tsadata, 0, (int)this.Width8 * 8, (int)this.Height8 * 8);
                 }
             }
             else
             {
                 if (this.IsHeaderTSA)
                 {
-                    this.Map = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)tsapos, ref width, ref height);
+                    this.Map = ImageUtil.ByteToHeaderTSA(Program.ROM.Data, (int)tsapos, (int)this.Width8 * 8, (int)this.Height8 * 8);
                 }
                 else
                 {
-                    this.Map = ImageUtil.ByteToTSA(Program.ROM.Data, (int)tsapos, width, height);
+                    this.Map = ImageUtil.ByteToTSA(Program.ROM.Data, (int)tsapos, (int)this.Width8 * 8, (int)this.Height8 * 8);
                 }
             }
         }

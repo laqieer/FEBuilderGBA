@@ -65,7 +65,7 @@ namespace FEBuilderGBA
 
             byte[] imageUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(image));
             byte[] tsaUZ = LZ77.decompress(Program.ROM.Data, U.toOffset(tsa));
-            return ImageUtil.ByteToImage16TileHeaderTSA(30 * 8, 20 * 8, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), tsaUZ, 0);
+            return ImageUtil.ByteToImage16TileHeaderTSA(32 * 8, 20 * 8, imageUZ, 0, Program.ROM.Data, (int)U.toOffset(palette), tsaUZ, 0);
         }
         public static Bitmap DrawImageByID(uint id)
         {
