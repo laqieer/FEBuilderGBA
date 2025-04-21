@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO;
 using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -45,7 +45,7 @@ namespace FEBuilderGBA
                             , eventlist[i].addr
                             , 4
                             , U.NOT_FOUND
-                            , eventlist[i].name 
+                            , eventlist[i].name
                             , Address.DataTypeEnum.EVENTSCRIPT);
                     }
                 }
@@ -100,7 +100,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
                 return map;
             }
@@ -112,7 +112,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -123,7 +123,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
                 return map;
             }
@@ -137,19 +137,19 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
                 return map;
             }
 
             try
             {
-                PatchForm.MakePatchStructDataList(structlist,true,true,false); //パッチが知っている領域.
+                PatchForm.MakePatchStructDataList(structlist, true, true, false); //パッチが知っている領域.
                 if (IsStopFlag) return map;
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -161,7 +161,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -172,7 +172,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -183,7 +183,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -194,7 +194,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -206,7 +206,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -217,7 +217,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -228,7 +228,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -240,7 +240,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -251,7 +251,7 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                Log.Error(e.ToString() );
+                Log.Error(e.ToString());
                 Debug.Assert(false);
             }
 
@@ -298,109 +298,67 @@ namespace FEBuilderGBA
         bool IsStopFlag = false;
 
         //時間のかかるフルマップはスレッドで生成する.
-        delegate AsmMapFile AsyncMethodCaller();
-        AsyncMethodCaller Caller = null;
-        IAsyncResult AsyncResult = null;
+        private Thread workerThread = null;
+        private bool isThreadRunning = false;
         public bool IsBusyThread()
         {
-            // Check if a task is currently running.
-            return Caller != null;
+            return isThreadRunning;
         }
         public void BuildThread()
         {
-            if (IsStopFlag)
+            if (IsStopFlag || IsBusyThread())
             {
-                return;
-            }
-            if (IsBusyThread())
-            {
-                // Already busy, return early.
                 return;
             }
 
-            // Start a new task to execute MakeFull.
-            Task.Run(() =>
+            isThreadRunning = true;
+            workerThread = new Thread(() =>
             {
                 try
                 {
-                    var map = MakeFull();
-
-                    lock (this)
-                    {
-                        if (IsStopFlag)
-                        {
-                            // If a stop request was issued, do not update the cache.
-                            return;
-                        }
-
-                        // Update the cache with the result.
-                        CachedFullMAP = map;
-                    }
+                    AsmMapFile map = MakeFull();
+                    OnThreadComplete(map);
                 }
                 catch (Exception e)
                 {
-                    Log.Error("BuildThread encountered an error.");
+                    Log.Error("BuildThread Exception");
                     Log.Error(e.ToString());
-                    Debug.Assert(false);
                 }
                 finally
                 {
-                    // Reset state.
-                    lock (this)
-                    {
-                        Caller = null;
-                        AsyncResult = null;
-                        IsStopFlag = false;
-                    }
+                    isThreadRunning = false;
                 }
             });
+
+            workerThread.Start();
+        }
+        private void OnThreadComplete(AsmMapFile map)
+        {
+            if (IsStopFlag)
+            {
+                IsStopFlag = false;
+                return;
+            }
+
+            CachedFullMAP = map;
         }
         public void Join()
         {
-            if (!IsBusyThread())
-            {//スレッドは動作していない.
-                return;
-            }
-            //停止命令を発動する
-            IsStopFlag = true;
-
-            try
+            if (workerThread != null && workerThread.IsAlive)
             {
-                //停止するまで待機
-                while (!AsyncResult.IsCompleted)
-                {
-                    if (AsyncResult.AsyncWaitHandle.WaitOne(1000))
-                    {
-                        break;
-                    }
-                    if (this.IsFELintInvoke)
-                    {
-                        Application.DoEvents();
-                    }
-                    if (AsyncResult == null)
-                    {
-                        break;
-                    }
-                }
+                IsStopFlag = true;
+                workerThread.Join();
+                IsStopFlag = false;
             }
-            catch (Exception e)
-            {
-                Log.Error(e.ToString());
-            }
-           
-            //停止したので、停止フラグを下す.
-            IsStopFlag = false;
         }
         //停止リクエストを送る. 
         //送るだけですぐに停止するわけではない. 確実に停止したい場合はJoinを呼ぶこと.
         public void StopRequest()
         {
-            if (!IsBusyThread())
-            {//スレッドは動作していない.
-                return;
+            if (workerThread != null && workerThread.IsAlive)
+            {
+                IsStopFlag = true;
             }
-            //停止命令を発動する
-            IsStopFlag = true;
         }
         public string GetName(uint num)
         {
@@ -432,9 +390,9 @@ namespace FEBuilderGBA
 
         public enum ASMTYPE
         {
-             THUMB
-            ,SWITCH
-            ,NONE
+            THUMB
+            , SWITCH
+            , NONE
         };
 
         public string GetASMName(uint num, ASMTYPE asmtype, out string errorMessage)
@@ -464,7 +422,7 @@ namespace FEBuilderGBA
             }
             if (!U.isSafetyPointer(num))
             {
-                if (! U.is_RAMPointer(num))
+                if (!U.is_RAMPointer(num))
                 {
                     errorMessage = R._("無効なポインタです。\r\nこの設定は危険です。");
                     return R._("無効なポインタ");
@@ -505,7 +463,7 @@ namespace FEBuilderGBA
                 errorMessage = "";
                 return R._("ダミーイベント");
             }
-            if (! U.isSafetyPointer(num))
+            if (!U.isSafetyPointer(num))
             {
                 errorMessage = R._("無効なポインタです。\r\nこの設定は危険です。");
                 return R._("無効なポインタ");
@@ -591,7 +549,7 @@ namespace FEBuilderGBA
         }
 
         //FELintも重くなったのでスレッド実行しましょう
-        Dictionary<uint, List<FELint.ErrorSt>> FELintCache = new Dictionary<uint,List<FELint.ErrorSt>>();
+        Dictionary<uint, List<FELint.ErrorSt>> FELintCache = new Dictionary<uint, List<FELint.ErrorSt>>();
         //キャッシュしているLint結果を取得します。
         //準備中などで、データがない場合はnullを返す。
         public List<FELint.ErrorSt> GetFELintCache(uint mapid)
@@ -651,9 +609,9 @@ namespace FEBuilderGBA
 
         public enum HasError_Enum
         {
-             NO_ERROR     //エラーはない
-            ,NOT_PREP     //準備できていない
-            ,HAS_ERROR    //エラーがある
+            NO_ERROR     //エラーはない
+            , NOT_PREP     //準備できていない
+            , HAS_ERROR    //エラーがある
         };
 
         object FELintLock = new object();
@@ -689,7 +647,7 @@ namespace FEBuilderGBA
         //FELintスキャン(スレッドで実行する)
         void ScanFELintByThread(List<DisassemblerTrumb.LDRPointer> ldrmap)
         {
-            Dictionary<uint, List<FELint.ErrorSt>> newFELintCache = new Dictionary<uint,List<FELint.ErrorSt>>();
+            Dictionary<uint, List<FELint.ErrorSt>> newFELintCache = new Dictionary<uint, List<FELint.ErrorSt>>();
             //システム全体の問題
             {
                 List<FELint.ErrorSt> errorList = FELint.ScanMAP(FELint.SYSTEM_MAP_ID, ldrmap);
@@ -698,11 +656,11 @@ namespace FEBuilderGBA
             }
 
             uint mapCount = MapSettingForm.GetDataCount();
-            for (int i = 0; i < mapCount ; i++)
+            for (int i = 0; i < mapCount; i++)
             {
                 if (IsStopFlag)
                 {
-                    return ;
+                    return;
                 }
 
                 uint mapid = (uint)i;
