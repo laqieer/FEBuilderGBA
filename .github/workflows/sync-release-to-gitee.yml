@@ -1,0 +1,27 @@
+name: sync_release_to_gitee
+
+on:
+  release:
+    types: [created]  # Runs only when a new release is created
+
+jobs:
+  update:
+    name: Sync GitHub release to Gitee
+    runs-on: ubuntu-20.04
+    steps:
+      - name: sync github release
+        uses: H-TWINKLE/sync-action@v1.0
+        with:
+          # gitee 用户名, 项目URL中可获取
+          gitee_owner: laqieer
+          # gitee 项目名, 项目URL中可获取
+          gitee_repo: FEBuilderGBA
+          # gitee api token
+          gitee_token: ${{ secrets.gitee_token }}
+          # github 用户名, 项目URL中可获取
+          github_owner: laqieer
+          # github 项目名, 项目URL中可获取
+          github_repo: FEBuilderGBA
+          # 上传附件失败后的尝试次数
+          gitee_upload_retry_times: 3 # optional
+          
