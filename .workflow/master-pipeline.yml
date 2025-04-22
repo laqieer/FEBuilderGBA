@@ -21,14 +21,13 @@ stages:
           - '# input your command here'
           - dotnet restore
           - dotnet publish -c Release -r win-x86 --no-self-contained -o FEBuilderGBA_CN
+          - mv ./FEBuilderGBA/bin/Debug/config FEBuilderGBA_CN/
+          - mv ./FEBuilderGBA/bin/Debug/7-zip32.dll FEBuilderGBA_CN/
+          - mv *.md FEBuilderGBA_CN/
         artifacts:
           - name: BUILD_ARTIFACT
             path:
               - ./FEBuilderGBA_CN
-              - ./FEBuilderGBA/bin/Debug/config
-              - ./FEBuilderGBA/bin/Debug/7-zip32.dll
-              - ./README.md
-              - ./README.7-zip32.dll.md
         caches:
           - ~/.nuget/packages
         notify: []
