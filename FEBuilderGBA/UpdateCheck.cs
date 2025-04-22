@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO;
+using System.Text.Json;
 
 namespace FEBuilderGBA
 {
@@ -19,7 +20,7 @@ namespace FEBuilderGBA
             if (func_update_source == 0)
                 error = CheckUpdateURLByNightlyLink(out download_url, out net_version);
             else
-                error = CheckUpdateURLByGitHub(out download_url, out net_version);
+                error = CheckUpdateURLByRelease(out download_url, out net_version);
 
             if (error != "")
             {
@@ -122,7 +123,7 @@ namespace FEBuilderGBA
                 {
                     string download_url;
                     string net_version;
-                    string error = CheckUpdateURLByGitHub(out download_url, out net_version);
+                    string error = CheckUpdateURLByRelease(out download_url, out net_version);
 
                     UpdateEventArgs args = new UpdateEventArgs();
                     args.error = error;
@@ -218,6 +219,130 @@ namespace FEBuilderGBA
 
             out_url = downloadurl;
             return "";
+        }
+
+        // doc: https://gitee.com/api/v5/swagger#/getV5ReposOwnerRepoReleasesLatest
+        public class GiteeReleaseAsset
+        {
+            public string Name { get; set; }
+            public string Browser_download_url { get; set; }
+        }
+        public class GiteeRelease
+        {
+            public string Tag_name { get; set; }
+            public string Name { get; set; }
+            public GiteeReleaseAsset[] Assets { get; set; }
+        }
+        static string CheckUpdateURLByGitee(out string out_url, out string out_version)
+        {
+            out_url = "";
+            out_version = "";
+            string versionString = U.getVersion();
+            double version = U.atof(versionString);
+            string url = "https://gitee.com/api/v5/repos/laqieer/FEBuilderGBA/releases/latest";
+            string contents;
+            try
+            {
+                contents = U.HttpGet(url);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+                throw;
+#else
+                return R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+#endif
+            }
+            // parse contents as json using System.Text.Json
+            try
+            {
+                GiteeRelease release = JsonSerializer.Deserialize<GiteeRelease>(contents, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true // Allows case-insensitive matching of JSON properties
+                });
+                if (release == null)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "json can not parse" + "\r\n"
+                        + "contents:\r\n" + contents;
+                }
+                System.Text.RegularExpressions.Match match = RegexCache.Match(release.Name
+                , "ver_([0-9.]+)"
+                );
+                if (match.Groups.Count < 2)
+                {
+                    System.Text.RegularExpressions.Match match2 = RegexCache.Match(release.Tag_name
+                    , "ver_([0-9.]+)"
+                    );
+                    if (match2.Groups.Count < 2)
+                    {
+                        return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "ver_ not found" + "\r\n"
+                        + "name:\r\n" + release.Name + "\r\n"
+                        + "tag_name:\r\n" + release.Tag_name + "\r\n";
+                    }
+                    out_version = match2.Groups[1].Value;
+                }
+                else
+                {
+                    out_version = match.Groups[1].Value;
+                }
+                double net_version = U.atof(out_version);
+                if (version >= net_version)
+                {
+                    if (net_version == 0)
+                    {
+                        return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                            + "version can not parse" + "\r\n"
+                            + "contents:\r\n" + contents;
+                    }
+                    return R._("現在のバージョンが最新です。version:{0}", version);
+                }
+                foreach (GiteeReleaseAsset asset in release.Assets)
+                {
+                    if (asset.Name.EndsWith(".7z"))
+                    {
+                        out_url = asset.Browser_download_url;
+                        break;
+                    }
+                }
+                if (out_url == "")
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + ".7z not found" + "\r\n"
+                        + "contents:\r\n" + contents;
+                }
+                return "";
+            }
+            catch (JsonException e)
+            {
+                return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                    + "json can not parse" + "\r\n"
+                    + "contents:\r\n" + contents + "\r\n"
+                    + "error:\r\n" + e.ToString();
+            }
+        }
+
+        static string CheckUpdateURLByRelease(out string out_url, out string out_version)
+        {
+            // Initialize out parameters to avoid CS0177 errors
+            out_url = string.Empty;
+            out_version = string.Empty;
+
+            // if selected UI language is Chinese, use Gitee
+            string lang = OptionForm.lang();
+            bool isZH = (lang == "zh");
+            if (isZH)
+            {
+                // Gitee
+                return CheckUpdateURLByGitee(out out_url, out out_version);
+            }
+            else
+            {
+                // GitHub
+                return CheckUpdateURLByGitHub(out out_url, out out_version);
+            }
         }
 
         static string CheckUpdateURLByNightlyLink(out string out_url, out string out_version)
