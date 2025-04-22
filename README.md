@@ -5,7 +5,9 @@ README
 ![GitHub Release](https://img.shields.io/github/v/release/laqieer/FEBuilderGBA)
 [<img src="https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg" alt="Nightly Build" height="16" style="height: 16px; vertical-align: sub">Nightly Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
 
-This fork is an integration of several forks of FEBuilderGBA and continues development based on it.
+Mirror for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Artifacts built on Gitee](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
+
+[This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
 README for Korean character table
 ===
