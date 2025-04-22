@@ -19,16 +19,19 @@ stages:
         dotnetVersion: '6.0'
         commands:
           - dotnet restore
+          - dotnet publish -c Release -r win-x86 --no-self-contained -o .
           - build_time=$(date +"%Y%m%d.%H")
-          - dotnet publish -c Release -r win-x86 --no-self-contained -o FEBuilderGBA_$build_time
-          - rm -f FEBuilderGBA_$build_time/*.pdb
-          - mv ./FEBuilderGBA/bin/Debug/config FEBuilderGBA_$build_time/
-          - mv ./FEBuilderGBA/bin/Debug/7-zip32.dll FEBuilderGBA_$build_time/
-          - mv *.md FEBuilderGBA_$build_time/
+          - mv ./FEBuilderGBA/bin/Debug/config .
+          - mv ./FEBuilderGBA/bin/Debug/7-zip32.dll .
+          - 'echo -e "\n*Gitee Go Build: $build_time*" >> README.md'
         artifacts:
           - name: BUILD_ARTIFACT
             path:
-              - ./FEBuilderGBA_*
+              - ./*.exe
+              - ./*.dll
+              - ./*.json
+              - ./config
+              - ./*.md
         caches:
           - ~/.nuget/packages
         notify: []
