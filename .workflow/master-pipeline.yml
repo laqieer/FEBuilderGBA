@@ -20,7 +20,7 @@ stages:
         commands:
           - '# input your command here'
           - dotnet restore
-          - dotnet publish -c Release -r win-x86 -o out
+          - dotnet publish -c Release -r win-x86 --self-contained -o out
         artifacts:
           - name: BUILD_ARTIFACT
             path:
