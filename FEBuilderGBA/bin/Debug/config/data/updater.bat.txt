@@ -58,7 +58,7 @@ FOR /R %%I IN (*.txt) DO IF %%~zI==0 del "%%I"
 :RUN_COPY
 xcopy /Y /I /E "%UPDATE%" "%TARGETDIR%"
 rmdir /q /s "%UPDATE%"
-del /F dltemp_*.7z
+del /F dltemp_*.*
 
 :RUN_PROGRAM
 start %TARGET_CHECK%
