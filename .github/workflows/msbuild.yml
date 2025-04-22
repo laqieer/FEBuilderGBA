@@ -41,13 +41,14 @@ jobs:
 
     - name: Post Build
       run: |
-        echo "build_time=$(Get-Date -UFormat '%Y%m%d.%H')" >> "$env:GITHUB_ENV"
+        $build_time = Get-Date -UFormat '%Y%m%d.%H'
+        echo "build_time=$build_time" >> "$env:GITHUB_ENV"
         mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
         mv FEBuilderGBA/bin/Release/*.dll .
         mv FEBuilderGBA/bin/Release/*.json .
         mv FEBuilderGBA/bin/Debug/7-zip32.dll .
         mv FEBuilderGBA/bin/Debug/config/ .
-        echo -e "\n*Build ${{ env.build_time }} from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
+        echo "`n*Build $build_time from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
 
     - uses: actions/upload-artifact@v4.3.5
       with:
