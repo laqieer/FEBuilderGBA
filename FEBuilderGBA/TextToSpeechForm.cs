@@ -6,7 +6,7 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Diagnostics;
-using SpeechLib; //for ver11
+using System.Speech.Synthesis;
 
 namespace FEBuilderGBA
 {
@@ -54,10 +54,11 @@ namespace FEBuilderGBA
             }
             this.VoiceComboBox.BeginUpdate();
             this.VoiceComboBox.Items.Clear();
-            foreach (SpObjectToken voiceperson in g_VoiceSpeeach.GetVoices())
+            foreach (InstalledVoice voiceperson in g_VoiceSpeeach.GetInstalledVoices())
             {
-                string language = voiceperson.GetAttribute("Language");
-                string name = voiceperson.GetAttribute("Name");
+                // Updated to use the VoiceInfo property of InstalledVoice  
+                string language = voiceperson.VoiceInfo.Culture.Name;
+                string name = voiceperson.VoiceInfo.Name;
                 this.VoiceComboBox.Items.Add(name + " Language:" + language);
             }
             this.VoiceComboBox.EndUpdate();
@@ -70,7 +71,7 @@ namespace FEBuilderGBA
                 try
                 {
                     //合成音声エンジンを初期化する.
-                    g_VoiceSpeeach = new SpeechLib.SpVoice();
+                    g_VoiceSpeeach = new SpeechSynthesizer();
                     g_VoiceSpeeach.Rate = 0;
 
                     if (Program.ROM.RomInfo.is_multibyte)
@@ -90,7 +91,7 @@ namespace FEBuilderGBA
             }
             return true;
         }
-        static SpeechLib.SpVoice g_VoiceSpeeach = null;
+        static SpeechSynthesizer g_VoiceSpeeach = null;
 
         static string g_CurrentString;
         static int g_ShortLength;
@@ -176,12 +177,13 @@ namespace FEBuilderGBA
             }
             g_CurrentString = str;
 
-            bool isSpeech = !g_VoiceSpeeach.WaitUntilDone(0);
-            if (isSpeech)
+            // Check if the synthesizer is currently speaking  
+            if (g_VoiceSpeeach.State == SynthesizerState.Speaking)
             {
-                g_VoiceSpeeach.Speak(" ", SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak);
+                g_VoiceSpeeach.SpeakAsyncCancelAll();
             }
-            g_VoiceSpeeach.Speak(g_CurrentString, SpeechVoiceSpeakFlags.SVSFlagsAsync);
+            // SpeakAsync is non-blocking, so it will not wait for the speech to finish before continuing
+            g_VoiceSpeeach.SpeakAsync(g_CurrentString);
         }
         public static void Stop()
         {
@@ -189,7 +191,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            g_VoiceSpeeach.Speak(" ", SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak);
+            g_VoiceSpeeach.SpeakAsyncCancelAll();
             g_VoiceSpeeach = null;
         }
 
@@ -243,12 +245,16 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            var voices = g_VoiceSpeeach.GetVoices();
-            if (selected >= voices.Count)
+
+            // Use InstalledVoice collection from GetInstalledVoices instead of GetVoices
+            var installedVoices = g_VoiceSpeeach.GetInstalledVoices();
+            if (selected >= installedVoices.Count)
             {
                 return;
             }
-            g_VoiceSpeeach.Voice = voices.Item(selected);
+
+            // Set the selected voice using VoiceInfo.Name
+            g_VoiceSpeeach.SelectVoice(installedVoices[selected].VoiceInfo.Name);
         }
     }
 }
