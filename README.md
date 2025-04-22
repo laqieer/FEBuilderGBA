@@ -5,7 +5,7 @@ README
 [![GitHub Release](https://img.shields.io/github/v/release/laqieer/FEBuilderGBA)](https://github.com/laqieer/FEBuilderGBA/releases/latest)
 [<img src="https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg" height="16" style="height: 16px; vertical-align: sub">Nightly Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
 
-Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [<img src="[https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)" height="16" style="height: 16px; vertical-align: sub">Gitee Go Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
+Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [<img src="[https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)" height="16" style="height: 16px; vertical-align: sub">Gitee Go Build](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
 
 [This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
