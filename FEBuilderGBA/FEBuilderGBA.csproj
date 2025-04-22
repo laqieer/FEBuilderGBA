@@ -162,6 +162,7 @@
     <Content Include="icon_translate_subtile.ico" />
     <Content Include="icon_upload.ico" />
     <Content Include="icon_X.ico" />
+    <Content Include="icon1.ico" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="SpeechLib" Condition="'$(MSBuildRuntimeType)' != 'Core'">
