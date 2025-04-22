@@ -27,7 +27,7 @@ stages:
         artifacts:
           - name: BUILD_ARTIFACT
             path:
-              - ./FEBuilderGBA_CN
+              - ./FEBuilderGBA_*
         caches:
           - ~/.nuget/packages
         notify: []
