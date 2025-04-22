@@ -20,11 +20,15 @@ stages:
         commands:
           - '# input your command here'
           - dotnet restore
-          - dotnet publish -c Release -r win-x86 --self-contained -o out
+          - dotnet publish -c Release -r win-x86 --no-self-contained -o FEBuilderGBA_CN
         artifacts:
           - name: BUILD_ARTIFACT
             path:
-              - ./out
+              - ./FEBuilderGBA_CN
+              - ./FEBuilderGBA/bin/Debug/config
+              - ./FEBuilderGBA/bin/Debug/7-zip32.dll
+              - ./README.md
+              - ./README.7-zip32.dll.md
         caches:
           - ~/.nuget/packages
         notify: []
@@ -34,7 +38,7 @@ stages:
         name: publish_general_artifacts
         displayName: 上传制品
         dependArtifact: BUILD_ARTIFACT
-        artifactName: output
+        artifactName: FEBuilderGBA_CN
         strategy: {}
         dependsOn: build_dotnet
   - name: release
@@ -45,7 +49,7 @@ stages:
       - step: publish@release_artifacts
         name: publish_release_artifacts
         displayName: 发布
-        dependArtifact: output
+        dependArtifact: FEBuilderGBA_CN
         version: 1.0.0.0
         autoIncrement: true
         strategy: {}
