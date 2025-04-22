@@ -1,4 +1,4 @@
-name: sync_release_to_gitee
+name: Sync GitHub release to Gitee
 
 on:
   release:
@@ -8,7 +8,7 @@ on:
 jobs:
   update:
     name: Sync GitHub release to Gitee
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: sync github release
         uses: H-TWINKLE/sync-action@v1.0
