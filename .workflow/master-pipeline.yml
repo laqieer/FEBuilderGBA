@@ -23,7 +23,7 @@ stages:
           - build_time=$(date +"%Y%m%d.%H")
           - mv ./FEBuilderGBA/bin/Debug/config .
           - mv ./FEBuilderGBA/bin/Debug/7-zip32.dll .
-          - 'echo -e "\n*Gitee Go Build: $build_time*" >> README.md'
+          - 'echo -e "\n*Build $build_time from Gitee Go Pipeline ${GITEE_PIPELINE_DISPLAY_NAME} #${GITEE_PIPELINE_BUILD_NUMBER}, source code version: ${GITEE_REPO} #${GITEE_SHORT_COMMIT}.*" >> README.md'
         artifacts:
           - name: BUILD_ARTIFACT
             path:
