@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Forms;
 using System.IO;
 using System.Text.Json;
+using System.Linq;
 
 namespace FEBuilderGBA
 {
@@ -324,16 +325,20 @@ namespace FEBuilderGBA
             }
         }
 
+        static bool UseChinaMainlandMirror()
+        {
+            // Check if the selected UI language is Chinese
+            string lang = OptionForm.lang();
+            return (lang == "zh");
+        }
+
         static string CheckUpdateURLByRelease(out string out_url, out string out_version)
         {
             // Initialize out parameters to avoid CS0177 errors
             out_url = string.Empty;
             out_version = string.Empty;
 
-            // if selected UI language is Chinese, use Gitee
-            string lang = OptionForm.lang();
-            bool isZH = (lang == "zh");
-            if (isZH)
+            if (UseChinaMainlandMirror())
             {
                 // Gitee
                 return CheckUpdateURLByGitee(out out_url, out out_version);
@@ -398,6 +403,168 @@ namespace FEBuilderGBA
 
             out_url = url + "/FEBuilderGBA_" + out_version + ".zip";
             return "";
+        }
+
+        public class GiteeGoArtifact
+        {
+            public int Id { get; set; }
+            public string ActiveStatusEnum { get; set; }
+        }
+        public class GiteeGoArtifactsResponse
+        {
+            public int Code { get; set; }
+            public string Message { get; set; }
+            public string Error { get; set; }
+            public GiteeGoArtifact[] Data { get; set; }
+        }
+        public class GiteeGoArtifactDetailDownloadInfo
+        {
+            public string DownloadUrl { get; set; }
+            public string Token { get; set; }
+        }
+        public class GiteeGoArtifactDetail
+        {
+            public int Id { get; set; }
+            public string ActiveStatusEnum { get; set; }
+            public string UpLoadTime { get; set; }
+            public GiteeGoArtifactDetailDownloadInfo DownLoadUrlVo { get; set; }
+        }
+        public class GiteeGoArtifactDetailResponse
+        {
+            public int Code { get; set; }
+            public string Message { get; set; }
+            public string Error { get; set; }
+            public GiteeGoArtifactDetail Data { get; set; }
+        }
+        static string CheckUpdateURLByGiteeGo(out string out_url, out string out_version)
+        {
+            out_url = "";
+            out_version = "";
+            string versionString = U.getVersion();
+            double version = U.atof(versionString);
+            // fetch list of artifacts
+            string url = "https://go-repo.gitee.com/laqieer/FEBuilderGBA/gitee-go/artifact-repo/rest/v1/for-pipe/list-published-artis?pageIndex=1&pageSize=10";
+            string contents;
+            try
+            {
+                contents = U.HttpGet(url);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+                throw;
+#else
+                return R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, e.ToString());
+#endif
+            }
+            // parse contents as json using System.Text.Json
+            try
+            {
+                GiteeGoArtifactsResponse giteeGoArtifactsResponse = JsonSerializer.Deserialize<GiteeGoArtifactsResponse>(contents, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true // Allows case-insensitive matching of JSON properties
+                });
+                if (giteeGoArtifactsResponse == null || giteeGoArtifactsResponse.Data == null || giteeGoArtifactsResponse.Data.Length == 0)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "json can not parse" + "\r\n"
+                        + "contents:\r\n" + contents;
+                }
+                // find the latest artifact whose ActiveStatusEnum is "ACTIVE"
+                GiteeGoArtifact artifact = giteeGoArtifactsResponse.Data
+                    .Where(a => a.ActiveStatusEnum == "ACTIVE")
+                    .OrderByDescending(a => a.Id)
+                    .FirstOrDefault();
+                if (artifact == null)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "active artifact not found" + "\r\n"
+                        + "artifacts:\r\n" + giteeGoArtifactsResponse.Data.ToString();
+                }
+                // fetch detail of latest artifact
+                url = $"https://go-repo.gitee.com/laqieer/FEBuilderGBA/gitee-go/artifact-repo/rest/v1/for-pipe/{artifact.Id}/get-published-detail";
+                try
+                {
+                    contents = U.HttpGet(url);
+                }
+                catch (Exception ee)
+                {
+#if DEBUG
+                    R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, ee.ToString());
+                    throw;
+#else
+                    return R.Error("Webサイトにアクセスできません。 URL:{0} Message:{1}", url, ee.ToString());
+#endif
+                }
+                // parse contents as json using System.Text.Json
+                GiteeGoArtifactDetailResponse giteeGoArtifactDetailResponse = JsonSerializer.Deserialize<GiteeGoArtifactDetailResponse>(contents, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true // Allows case-insensitive matching of JSON properties
+                });
+                if (giteeGoArtifactDetailResponse == null || giteeGoArtifactDetailResponse.Data == null)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "json can not parse" + "\r\n"
+                        + "contents:\r\n" + contents;
+                }
+                // parse version from "upLoadTime": "2025-04-23 00:51:01"
+                System.Text.RegularExpressions.Match match = RegexCache.Match(giteeGoArtifactDetailResponse.Data.UpLoadTime
+                    , "([0-9]{4})-([0-9]{2})-([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})");
+                if (match.Groups.Count < 7)
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "fail to parse version from upLoadTime" + "\r\n"
+                        + "upLoadTime:\r\n" + giteeGoArtifactDetailResponse.Data.UpLoadTime + "\r\n"
+                        + "match.Groups:\r\n" + U.var_dump(match.Groups);
+                }
+                out_version = $"{match.Groups[1].Value}{match.Groups[2].Value}{match.Groups[3].Value}.{match.Groups[4].Value}";
+                double net_version = U.atof(out_version);
+                if (version >= net_version)
+                {
+                    if (net_version == 0)
+                    {
+                        return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                            + "version can not parse" + "\r\n"
+                            + "contents:\r\n" + contents;
+                    }
+                    return R._("現在のバージョンが最新です。version:{0}", version);
+                }
+                // parse download url
+                out_url = giteeGoArtifactDetailResponse.Data.DownLoadUrlVo.DownloadUrl;
+                if (string.IsNullOrEmpty(out_url))
+                {
+                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                        + "download url not found" + "\r\n"
+                        + "contents:\r\n" + contents;
+                }
+                return "";
+            }
+            catch (JsonException e)
+            {
+                return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                    + "json can not parse" + "\r\n"
+                    + "contents:\r\n" + contents + "\r\n"
+                    + "error:\r\n" + e.ToString();
+            }
+        }
+
+        static string CheckUpdateURLByCI(out string out_url, out string out_version)
+        {
+            // Initialize out parameters to avoid CS0177 errors
+            out_url = string.Empty;
+            out_version = string.Empty;
+
+            if (UseChinaMainlandMirror())
+            {
+                // Gitee: it doesn't work because you need to login first to access the artifacts of Gitee Go
+                return CheckUpdateURLByGiteeGo(out out_url, out out_version);
+            }
+            else
+            {
+                // GitHub
+                return CheckUpdateURLByNightlyLink(out out_url, out out_version);
+            }
         }
 
         static string CheckUpdateURLByGetUploader(out string out_url, out string out_version)
