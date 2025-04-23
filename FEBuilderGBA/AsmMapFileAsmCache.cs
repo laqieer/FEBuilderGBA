@@ -330,6 +330,8 @@ namespace FEBuilderGBA
                 }
             });
 
+            // set worker thread to background
+            workerThread.IsBackground = true;
             workerThread.Start();
         }
         private void OnThreadComplete(AsmMapFile map)
