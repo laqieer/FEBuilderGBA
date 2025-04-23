@@ -18,7 +18,7 @@ namespace FEBuilderGBA
 
             string error;
 
-            if (func_update_source == 0)
+            if (func_update_source == 1)
                 error = CheckUpdateURLByNightlyLink(out download_url, out net_version);
             else
                 error = CheckUpdateURLByRelease(out download_url, out net_version);

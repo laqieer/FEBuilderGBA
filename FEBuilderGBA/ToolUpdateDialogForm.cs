@@ -87,7 +87,7 @@ namespace FEBuilderGBA
 
                 string ext = ".7z";
                 int func_update_source = OptionForm.update_source();
-                if (func_update_source == 0)
+                if (func_update_source == 1)
                     ext = ".zip";
                 string updateArchive = Path.Combine(Program.BaseDirectory, "dltemp_" + DateTime.Now.Ticks.ToString() + ext);
 

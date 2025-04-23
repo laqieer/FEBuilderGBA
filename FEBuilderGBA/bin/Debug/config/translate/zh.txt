@@ -13819,11 +13819,11 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 :ビルドバージョン
 构建版本
 
-:0=ナイトリー
-0=每日构建版
+:1=ナイトリー
+1=每日构建版
 
-:1=リリース
-1=正式发布版
+:0=リリース
+0=正式发布版
 
 :アップデートのバージョンを設定します。
 指定更新版本。

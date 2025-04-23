@@ -3115,7 +3115,7 @@
             // 
             func_update_source.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             func_update_source.FormattingEnabled = true;
-            func_update_source.Items.AddRange(new object[] { "0=ナイトリー", "1=リリース" });
+            func_update_source.Items.AddRange(new object[] { "0=リリース", "1=ナイトリー" });
             func_update_source.Location = new System.Drawing.Point(548, 604);
             func_update_source.Margin = new System.Windows.Forms.Padding(2);
             func_update_source.Name = "func_update_source";

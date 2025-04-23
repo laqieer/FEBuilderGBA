@@ -9751,11 +9751,11 @@ Automatic Update Checking
 :ビルドバージョン
 Build Version
 
-:0=ナイトリー
-0=Nightly
+:1=ナイトリー
+1=Nightly
 
-:1=リリース
-1=Release
+:0=リリース
+0=Release
 
 :ROM内のテキストエンコード
 Text Encoding in ROM
