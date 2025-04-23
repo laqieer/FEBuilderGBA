@@ -13857,3 +13857,12 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 
 :ソースフォルダーを開く
 打开源目录
+
+:リリース元
+发布源
+
+:リリースの元を設定します。
+指定发布源
+
+:0=言語に基づいて自動決定
+0=根据语言自动决定

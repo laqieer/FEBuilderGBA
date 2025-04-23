@@ -13857,3 +13857,12 @@ Open source file
 
 :ソースフォルダーを開く
 Open source folder
+
+:リリース元
+Release Source
+
+:リリースの元を設定します。
+Set the source to get release versions
+
+:0=言語に基づいて自動決定
+0=Automatically determine based on language

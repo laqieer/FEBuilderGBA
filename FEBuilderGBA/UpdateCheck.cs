@@ -327,9 +327,9 @@ namespace FEBuilderGBA
 
         static bool UseChinaMainlandMirror()
         {
-            // Check if the selected UI language is Chinese
+            int func_release_source = OptionForm.release_source();
             string lang = OptionForm.lang();
-            return (lang == "zh");
+            return func_release_source == 2 || (func_release_source == 0 && lang == "zh");
         }
 
         static string CheckUpdateURLByRelease(out string out_url, out string out_version)

@@ -32,7 +32,7 @@ namespace FEBuilderGBA
         public void AutoClose(int autocolor = 0)
         {
             OptionForm_Load(null, null);
-            if (autocolor >= 1) 
+            if (autocolor >= 1)
             {
                 U.SelectedIndexSafety(ColorSetComboBox, autocolor);
             }
@@ -82,7 +82,7 @@ namespace FEBuilderGBA
             Color_ControlComment_ForeColor_button.BackColor = Color_ControlComment_ForeColor();
             Color_List_RelatedLine_BackColor_button.BackColor = Color_List_RelatedLine_BackColor();
 
-            foreach(String a in ShortCutValue1.Items)
+            foreach (String a in ShortCutValue1.Items)
             {
                 ShortCutValue2.Items.Add(a);
                 ShortCutValue3.Items.Add(a);
@@ -130,25 +130,26 @@ namespace FEBuilderGBA
             ShortCutValue14.SelectedIndex = (int)U.atoi(Program.Config.at("ShortCutValue14"));
             ShortCutKey15.Text = Program.Config.at("ShortCutKey15");
             ShortCutValue15.SelectedIndex = (int)U.atoi(Program.Config.at("ShortCutValue15"));
-          
-            U.SelectedIndexSafety(func_rom_extends,(int)rom_extends());
+
+            U.SelectedIndexSafety(func_rom_extends, (int)rom_extends());
             U.SelectedIndexSafety(func_rom_extends_option, rom_extends_option());
             U.SelectedIndexSafety(func_alloc_program_area_option, alloc_program_area_option());
             U.SelectedIndexSafety(func_auto_backup, (int)auto_backup());
-            U.SelectedIndexSafety(func_first_form,(int)first_form());
-            U.SelectedIndexSafety(func_lang,(int)FindComboboxText(Program.Config.at("func_lang", "auto"), func_lang));
-            U.SelectedIndexSafety(func_textextencodingtencoding,(int)textencoding());
-            U.SelectedIndexSafety(func_auto_update,(int)FindComboboxText(auto_update().ToString(), func_auto_update));
+            U.SelectedIndexSafety(func_first_form, (int)first_form());
+            U.SelectedIndexSafety(func_lang, (int)FindComboboxText(Program.Config.at("func_lang", "auto"), func_lang));
+            U.SelectedIndexSafety(func_textextencodingtencoding, (int)textencoding());
+            U.SelectedIndexSafety(func_auto_update, (int)FindComboboxText(auto_update().ToString(), func_auto_update));
             U.SelectedIndexSafety(func_update_source, (int)FindComboboxText(update_source().ToString(), func_update_source));
-            U.SelectedIndexSafety(func_text_escape,(int)text_escape());
-            U.SelectedIndexSafety(func_write_notify_time,(int)FindComboboxText(write_notify_time().ToString(), func_write_notify_time));
-            U.SelectedIndexSafety(func_write_out_of_range,(int)write_out_of_range());
+            U.SelectedIndexSafety(func_release_source, (int)FindComboboxText(release_source().ToString(), func_release_source));
+            U.SelectedIndexSafety(func_text_escape, (int)text_escape());
+            U.SelectedIndexSafety(func_write_notify_time, (int)FindComboboxText(write_notify_time().ToString(), func_write_notify_time));
+            U.SelectedIndexSafety(func_write_out_of_range, (int)write_out_of_range());
             U.SelectedIndexSafety(func_write_low_address, (int)write_low_address());
             U.SelectedIndexSafety(func_write_00, (int)write_00());
             U.SelectedIndexSafety(func_select_in_explorer_when_export, (int)select_in_explorer_when_export());
-            U.SelectedIndexSafety(func_lookup_feditor,(int)lookup_feditor());
-            U.SelectedIndexSafety(func_lint_text_skip_bug,(int)lint_text_skip_bug());
-            U.SelectedIndexSafety(func_show_class_extends,(int)show_class_extends());
+            U.SelectedIndexSafety(func_lookup_feditor, (int)lookup_feditor());
+            U.SelectedIndexSafety(func_lint_text_skip_bug, (int)lint_text_skip_bug());
+            U.SelectedIndexSafety(func_show_class_extends, (int)show_class_extends());
             U.SelectedIndexSafety(func_show_chapter_extends, (int)show_chapter_extends());
             U.SelectedIndexSafety(func_show_worldmap_node_extends, (int)show_worldmap_node_extends());
             U.SelectedIndexSafety(func_show_worldmap_path_extends, (int)show_worldmap_path_extends());
@@ -208,7 +209,7 @@ namespace FEBuilderGBA
 
         }
 
-        int FindComboboxText(string lang,ComboBox list)
+        int FindComboboxText(string lang, ComboBox list)
         {
             for (int i = 0; i < list.Items.Count; i++)
             {
@@ -310,6 +311,7 @@ namespace FEBuilderGBA
             Program.Config["func_textencoding"] = func_textextencodingtencoding.SelectedIndex.ToString();
             Program.Config["func_auto_update"] = U.atoi(func_auto_update.Text).ToString();
             Program.Config["func_update_source"] = U.atoi(func_update_source.Text).ToString();
+            Program.Config["func_release_source"] = U.atoi(func_release_source.Text).ToString();
             Program.Config["func_text_escape"] = func_text_escape.SelectedIndex.ToString();
             Program.Config["func_write_notify_time"] = U.SelectValueComboboxText(func_write_notify_time.Text);
             Program.Config["func_write_out_of_range"] = U.SelectValueComboboxText(func_write_out_of_range.Text);
@@ -580,7 +582,7 @@ namespace FEBuilderGBA
             }
             return g_Color_List_RelatedLine_BackColor;
         }
-        
+
 
         Color SelectColorDialog(Color def)
         {
@@ -854,8 +856,8 @@ namespace FEBuilderGBA
 
         public enum rom_extends_enum
         {
-             NO   = 0
-            ,YES  = 1
+            NO = 0
+            , YES = 1
         };
         public static rom_extends_enum rom_extends()
         {
@@ -882,31 +884,36 @@ namespace FEBuilderGBA
             return (int)U.atoi(Program.Config.at("func_update_source", "0"));
         }
 
+        public static int release_source()
+        {
+            return (int)U.atoi(Program.Config.at("func_release_source", "0"));
+        }
+
 
         public enum auto_backup_enum
         {
-             NO = 0
+            NO = 0
            , YES = 1
            , YES_7Z = 2
         };
         public static auto_backup_enum auto_backup()
         {
-             return (auto_backup_enum)U.atoi(Program.Config.at("func_auto_backup", "2"));
+            return (auto_backup_enum)U.atoi(Program.Config.at("func_auto_backup", "2"));
         }
 
         public enum first_form_enum
         {
-             EASY = 0
+            EASY = 0
            , DETAIL = 1
         };
         public static first_form_enum first_form()
         {
-             return (first_form_enum)U.atoi(Program.Config.at("func_first_form", "0"));
+            return (first_form_enum)U.atoi(Program.Config.at("func_first_form", "0"));
         }
 
         public enum text_escape_enum
         {
-             ProjectFEGBA = 0
+            ProjectFEGBA = 0
            , FEditorAdv = 1
            , NoCache = 0xFF
         };
@@ -921,7 +928,7 @@ namespace FEBuilderGBA
         }
         static text_escape_enum text_escape_low()
         {
-            if ( Program.Config.ContainsKey("func_text_escape") )
+            if (Program.Config.ContainsKey("func_text_escape"))
             {
                 return (text_escape_enum)U.atoi(Program.Config.at("func_text_escape", "1"));
             }
@@ -942,7 +949,7 @@ namespace FEBuilderGBA
         };
         public static write_out_of_range_enum write_out_of_range()
         {
-            return (write_out_of_range_enum)U.atoi(Program.Config.at("func_write_out_of_range", "1")); 
+            return (write_out_of_range_enum)U.atoi(Program.Config.at("func_write_out_of_range", "1"));
         }
 
         public enum write_low_address_enum
@@ -953,7 +960,7 @@ namespace FEBuilderGBA
         };
         public static write_low_address_enum write_low_address()
         {
-            return (write_low_address_enum)U.atoi(Program.Config.at("func_write_low_address", "2")); 
+            return (write_low_address_enum)U.atoi(Program.Config.at("func_write_low_address", "2"));
         }
 
         public enum write_00_enum
@@ -964,9 +971,9 @@ namespace FEBuilderGBA
         };
         public static write_00_enum write_00()
         {
-            return (write_00_enum)U.atoi(Program.Config.at("func_write_00", "2")); 
+            return (write_00_enum)U.atoi(Program.Config.at("func_write_00", "2"));
         }
-        
+
 
         public enum select_in_explorer_when_export_enum
         {
@@ -985,7 +992,7 @@ namespace FEBuilderGBA
         };
         public static lookup_feditor_enum lookup_feditor()
         {
-            return (lookup_feditor_enum)U.atoi(Program.Config.at("func_lookup_feditor", "0")); 
+            return (lookup_feditor_enum)U.atoi(Program.Config.at("func_lookup_feditor", "0"));
         }
 
         public enum lint_text_skip_bug_enum
@@ -1013,12 +1020,12 @@ namespace FEBuilderGBA
         };
         public static show_extends_enum show_class_extends()
         {
-            return (show_extends_enum)U.atoi(Program.Config.at("func_show_class_extends", "0")); 
+            return (show_extends_enum)U.atoi(Program.Config.at("func_show_class_extends", "0"));
         }
 
         public static show_extends_enum show_chapter_extends()
         {
-            return (show_extends_enum)U.atoi(Program.Config.at("func_show_chapter_extends", "0")); 
+            return (show_extends_enum)U.atoi(Program.Config.at("func_show_chapter_extends", "0"));
         }
         public static show_extends_enum show_worldmap_node_extends()
         {
@@ -1040,7 +1047,7 @@ namespace FEBuilderGBA
         {
             return (show_extends_enum)U.atoi(Program.Config.at("func_show_gameoption_extends", "0"));
         }
-        
+
 
         public enum texteditor_auto_convert_space_enum
         {
@@ -1062,7 +1069,7 @@ namespace FEBuilderGBA
         {
             return (auto_connect_emulator_enum)U.atoi(Program.Config.at("func_auto_connect_emulator", "2"));
         }
-        
+
         public enum midi_importer_enum
         {
             FEBuilderGBA = 0
@@ -1145,7 +1152,7 @@ namespace FEBuilderGBA
         }
         public static int felint_support_validation_low()
         {//支援の妥当性を検証するかどうか
-            return  (int)U.atoi(Program.Config.at("func_felint_support_validation", "0"));
+            return (int)U.atoi(Program.Config.at("func_felint_support_validation", "0"));
         }
         public static bool felint_support_validation()
         {//支援の妥当性を検証するかどうか
@@ -1178,7 +1185,7 @@ namespace FEBuilderGBA
         {
             return (int)U.atoi(Program.Config.at("func_alert_unk_event_code", "1"));
         }
-        
+
 
 
         static string g_Cache_lang = null;
@@ -1192,7 +1199,7 @@ namespace FEBuilderGBA
         }
         static string lang_low()
         {
-            string l =  Program.Config.at("func_lang", "auto");
+            string l = Program.Config.at("func_lang", "auto");
             if (l == "ja" || l == "en" || l == "zh")
             {//ディフォルト対応の言語
                 return l;
@@ -1201,7 +1208,7 @@ namespace FEBuilderGBA
             {
                 string system_lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
 
-                string path = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate",system_lang + ".txt");
+                string path = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", system_lang + ".txt");
                 if (File.Exists(path))
                 {//翻訳ファイルがあるので利用可能.
                     return system_lang;
@@ -1280,7 +1287,7 @@ namespace FEBuilderGBA
                 Color_ControlComment_ForeColor_button.BackColor = U.ColorFromName("Green");
                 Color_List_RelatedLine_BackColor_button.BackColor = U.ColorFromName("ffffe1ff");
 
-                return ;
+                return;
             }
             if (colorset == 2)
             {//black
@@ -1327,7 +1334,7 @@ namespace FEBuilderGBA
                 return;
             }
         }
-        
+
 
         private void KeyFinder_KeyDown(object sender, KeyEventArgs e)
         {
@@ -1382,7 +1389,7 @@ namespace FEBuilderGBA
                 new TBLTableSt{name = "FE7CN",ver = 7,enc = 4,pointer = 0xC542F4,data = new byte[]{0x8D ,0xFB ,0x86 ,0x86}},
                 new TBLTableSt{name = "FE8CN",ver = 8,enc = 4,pointer = 0x8617CC,data = new byte[]{0x8D ,0xBD ,0x85 ,0xF9}},
                 new TBLTableSt{name = "FE8KR",ver = 8,enc = 7,pointer = 0x8617CC,data = new byte[]{0x9D ,0xD2 ,0x9B ,0x6B}},
-            }; 
+            };
 
             uint version = (uint)Program.ROM.RomInfo.version;
             uint tbl_index = 0;
@@ -1616,6 +1623,7 @@ namespace FEBuilderGBA
             explain_func_first_form.AccessibleDescription = R._("ROMを開いたとの最初の画面を決定します。\r\nディフォルトは、マップを表示する簡易メニューです。\r\n");
             explain_func_auto_update.AccessibleDescription = R._("このソフトウェアを自動的に更新する更新間隔を設定します。");
             explain_func_update_source.AccessibleDescription = R._("アップデートのバージョンを設定します。");
+            explain_func_release_source.AccessibleDescription = R._("リリースの元を設定します。");
             explain_func_text_escape.AccessibleDescription = R._("テキストに利用するエスケープシーケンスをどうするかを決定します。\r\nProjectFEGBA形式(@0003)、\r\nFEditor形式[A]、\r\nどちらを利用するかを決定します");
             explain_func_write_notify_time.AccessibleDescription = R._("データを書き込んだときに、書き込み増したという通知を画面下に出しますが、\r\nあの表示の表示時間を決定します");
             explain_func_write_out_of_range.AccessibleDescription = R._("範囲外に書き込みそうになった時に、\r\n自動的に拒否するか、警告を出すか、何もしないかを決定します。");
@@ -1698,11 +1706,11 @@ namespace FEBuilderGBA
         const double CurrentEAVersion = 11.1;
         public bool IsOldEA()
         {
-            return IsOldEA( Program.Config.at("event_assembler") );
+            return IsOldEA(Program.Config.at("event_assembler"));
         }
         public bool IsOldEA(string EAFilename)
         {
-            if (! File.Exists(EAFilename))
+            if (!File.Exists(EAFilename))
             {//ファイルがないので判別不可能
                 return false;
             }
@@ -1878,7 +1886,7 @@ namespace FEBuilderGBA
                 w.WriteLine("Color_Comment_ForeColor" + "\t" + Color_Comment_ForeColor_button.BackColor.Name);
                 w.WriteLine("Color_ControlComment_ForeColor" + "\t" + Color_ControlComment_ForeColor_button.BackColor.Name);
                 w.WriteLine("Color_List_RelatedLine_BackColor" + "\t" + Color_List_RelatedLine_BackColor_button.BackColor.Name);
-                
+
             }
             U.SelectFileByExplorer(filename);
         }
@@ -1936,6 +1944,5 @@ namespace FEBuilderGBA
         {
             Color_List_RelatedLine_BackColor_button.BackColor = SelectColorDialog(Color_List_RelatedLine_BackColor_button.BackColor);
         }
-
     }
 }
