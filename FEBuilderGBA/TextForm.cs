@@ -3555,18 +3555,19 @@ namespace FEBuilderGBA
             // Temporarily lock the window to prevent scrolling.  
             editor.LockWindowUpdate();
             editor.SelectedText = insertString; // Update the text.  
-            editor.UnLockWindowUpdate();
 
             // Move the cursor to the end of the inserted text.  
             editor.SelectionLength = 0;
             editor.SelectionStart += insertString.Length;
+            editor.UnLockWindowUpdate();
+
+            // Reapply keyword highlighting.  
+            KeywordHighLight(editor);
+
 
             // Highlight the update button.  
             InputFormRef.WriteButtonToYellow(this.UpdateButton, true);
             InputFormRef.WriteButtonToYellow(this.NewButton, true);
-
-            // Reapply keyword highlighting.  
-            KeywordHighLight(editor);
         }
         void OnPasteOrUndoOrCutText(Object sender, EventArgs e)
         {
