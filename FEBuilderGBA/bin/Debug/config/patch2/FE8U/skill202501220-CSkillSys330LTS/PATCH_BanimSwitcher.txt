@@ -1,0 +1,26 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Custom banim switcher
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gCustomAnimnSwitcher] Custom switch banim
+
+POINTER=0xB2A6E8
+DATASIZE=16
+DATACOUNT=$GREP8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+LISTNAME=$B0:UNIT
+B0:UNIT=unit
+B1:CLASS=class (00=ANY)
+B2:$COMBO combo.wtype.txt=wtype
+B3:ITEM=weapon (00=ANY)
+B4:UNIT=target unit (00=ANY)
+B5:CLASS=target class (00=ANY)
+B6:$COMBO combo.bool.txt=activate when kill target
+B7:$COMBO combo.bool.txt=activate when critical attack
+W8:BATTLEANIME=banim
+W10:SKILL=skill (00=ANY)
+W12:FLAG=flag (00=ANY)

@@ -6,7 +6,7 @@ TAG=#ENGINE
 
 PATCHED_IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x31 0x30 0x30 0x00
 
-INFO=This is the most recent revision of the Modern C-SkillSystem.\r\nYou can find [CSKILL] in patches for configuration\r\nhttps://feuniverse.us/t/fe8-modern-c-skillsystem-release-0-8-0-beta-aug-18/24614/1
+INFO=This is the 1.0.0-LTS release of the Modern C-SkillSystem.\r\nYou can find [CSKILL] in patches for configuration\r\nhttps://feuniverse.us/t/fe8-modern-c-skillsystem-release-0-8-0-beta-aug-18/24614/1
 
 AUTHOR=\r\nMaintainer: Mokha\r\nContributors: Jester, AliScrooge\r\n
 
@@ -547,3 +547,6 @@ UPDATE_UNINSTALL:15=..\ChangeStaffExp\PATCH_ChangeStaffExp Installer.txt
 UPDATE_UNINSTALL:16=..\MultiSupplyUnits\PATCH_MultiSupplyUnits_install.txt
 UPDATE_UNINSTALL:17=..\MultiSupplyUnits20200302\PATCH_MultiSupplyUnits_install.txt
 UPDATE_UNINSTALL:18=..\MultiSupplyUnits20220419\PATCH_MultiSupplyUnits_install.tx
+
+DEPRECATED=1
+UPDATE_PATCH=..\..\skill202501220-CSkillSys330LTS\installer\PATCH_CSkillSys330LTS.txt

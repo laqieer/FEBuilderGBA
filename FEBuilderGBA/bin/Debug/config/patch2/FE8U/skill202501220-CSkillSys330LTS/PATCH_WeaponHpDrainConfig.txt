@@ -1,0 +1,19 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Weapon hp drain percentage
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 武器HP吸取百分比
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gpWeaponHpDrainConfig] weapon hp drain percentage.\r\n1.ItemData::weaponEffectId must set as WPN_EFFECT_HPDRAIN\r\n2.If not configured in this table, it may use KernelBattleDesignerConfig::nosferatu_hpdrain_perc as reference.
+
+POINTER=0xB2A818
+
+LISTNAME=ITEM
+
+DATASIZE=0x1
+DATACOUNT=0x100
+B0:DECIMAL:=Drain%
+B0:DECIMAL:.zh=吸血百分比

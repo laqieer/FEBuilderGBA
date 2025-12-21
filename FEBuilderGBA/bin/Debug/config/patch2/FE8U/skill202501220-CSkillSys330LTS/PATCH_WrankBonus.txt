@@ -1,0 +1,37 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Weapon rank battle bonus
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 武器熟练度战斗增益
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gpWrankBonusConf] Weapon rank battle bonus
+
+POINTER=0xB2A804
+DATASIZE=12
+DATACOUNT=$GREP4 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+LISTNAME=$B0:WEAPONTYPE
+
+B0:WEAPONTYPE=wtype
+B1:$COMBO combo.wrank.txt=wrank
+B4:DECIMAL= atk bonus
+B5:DECIMAL= def bonus
+B6:DECIMAL= as bonus
+B7:DECIMAL= hit bonus
+B8:DECIMAL= avo bonus
+B9:DECIMAL= crit bonus
+B10:DECIMAL= dodge bonus
+B11:DECIMAL= silencer bonus
+
+B0:WEAPONTYPE.zh=武器类型
+B1:$COMBO combo.wrank.txt.zh=武器熟练度
+B4:DECIMAL.zh= 攻击加成
+B5:DECIMAL.zh= 防御加成
+B6:DECIMAL.zh= 攻速加成
+B7:DECIMAL.zh= 命中加成
+B8:DECIMAL.zh= 回避加成
+B9:DECIMAL.zh= 必杀加成
+B10:DECIMAL.zh= 必杀回避加成
+B11:DECIMAL.zh= 暗杀加成

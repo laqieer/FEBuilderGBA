@@ -1,0 +1,5 @@
+0=vanilla
+1=uncontrollable
+2=fixed
+3=100%
+4=0%

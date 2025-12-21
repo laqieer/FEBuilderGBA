@@ -1,0 +1,18 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Class type: Cavalry
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 职业类型: 骑兵
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): KernelClassList_KernelClassList_Beast] Configure class type: Cavalry (for battle-effectiveness and skills)
+
+POINTER=0xB2A714
+DATASIZE=0x1
+DATACOUNT=$GREP1 0
+
+LISTNAME=$B0:CLASS
+B0:CLASS=class
+B0:CLASS.zh=职业

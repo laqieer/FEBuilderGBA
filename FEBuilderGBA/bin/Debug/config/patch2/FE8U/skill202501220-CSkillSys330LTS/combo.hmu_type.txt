@@ -1,0 +1,6 @@
+0=none
+1=pivot
+2=reposition
+3=swap
+4=shove
+5=smite

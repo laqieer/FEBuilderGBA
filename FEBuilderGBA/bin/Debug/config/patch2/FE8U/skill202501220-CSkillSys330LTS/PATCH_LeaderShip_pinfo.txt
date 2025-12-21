@@ -1,0 +1,18 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Leadership person config
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 指挥官单位设置
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gpLeaderShipPConf] Leadership person config
+
+POINTER=0xB2A6A4
+DATASIZE=0x1
+DATACOUNT=0x100
+
+LISTNAME=UNIT
+B0:DECIMAL=stars
+B0:DECIMAL.zh=星级

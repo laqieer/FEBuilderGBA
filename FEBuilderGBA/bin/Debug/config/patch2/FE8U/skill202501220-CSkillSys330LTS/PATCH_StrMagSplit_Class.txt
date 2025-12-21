@@ -1,0 +1,26 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Str/Mag class config
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 力量/魔力 职业配置
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gMagicJInfos]Configure magic for classes
+
+POINTER=0xB2A66C
+DATASIZE=4
+DATACOUNT=0x100
+
+LISTNAME=CLASS
+b0:DECIMAL=base
+b1:DECIMAL=growth
+b2:DECIMAL=cap
+b3:DECIMAL=promotion bonus
+
+
+b0:DECIMAL.zh=基础
+b1:DECIMAL.zh=成长率
+b2:DECIMAL.zh=上限
+b3:DECIMAL.zh=转职加成

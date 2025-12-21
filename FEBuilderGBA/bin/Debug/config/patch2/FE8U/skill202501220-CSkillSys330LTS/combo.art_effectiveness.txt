@@ -1,0 +1,7 @@
+0=none
+1=all
+2=armor
+3=cavalry
+4=flier
+5=dragon
+6=monster

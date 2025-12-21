@@ -1,0 +1,20 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Map-task configs
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 地图任务设置
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0x9875AC=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#HIDDEN
+
+INFO=[CSKILL_K (3.x): gpMapTaskConfs] Setup maptask objects
+
+POINTER=0x987640
+DATASIZE=0x8
+DATACOUNT=6
+
+LISTNAME=$COMBO combo.maptask_conf.txt
+
+W0=x
+W2=y
+P4=objects

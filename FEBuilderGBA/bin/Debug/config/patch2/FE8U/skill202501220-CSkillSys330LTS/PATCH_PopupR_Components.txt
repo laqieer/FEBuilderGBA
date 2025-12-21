@@ -1,0 +1,21 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Popup rework components
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 弹出返工组件
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0x9875AC=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#HIDDEN
+
+INFO=gpPopupComponents
+
+LISTNAME=$COMBO combo.popup_opcode.txt
+DATASIZE=8
+DATACOUNT=0x30
+
+POINTER=0x98765C
+P0:ASM_NOWARNING=get_len
+P4:ASM_NOWARNING=display
+
+P0:ASM_NOWARNING.zh=获得长度
+P4:ASM_NOWARNING.zh=显示
