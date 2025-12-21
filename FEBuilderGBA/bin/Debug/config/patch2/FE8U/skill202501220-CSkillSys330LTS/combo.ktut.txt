@@ -1,0 +1,8 @@
+1=combat-attack
+2=battle-surrounder
+3=prep-skill
+4=combat-art
+5=range-attack
+6=real-damage
+7=gaiden B.Mag (preserved)
+8=gaiden W.Mag (preserved)

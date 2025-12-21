@@ -1,0 +1,41 @@
+NAME=[CSKILL_K (3.3.0-LTS)] BattleSys weapon-triangle generic configs
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 战斗系统 武器三角克制基础设定
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gWeaponTriangleConfs] Config battle-system WTA
+
+POINTER=0xB2A654
+DATASIZE=16
+DATACOUNT=$GREP8 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00
+
+LISTNAME=DECIMAL
+B0:$COMBO combo.wtype.txt=attacker wtype
+B1:$COMBO combo.wtype.txt=defender wtype
+b5:$COMBO combo.bool.txt=is buff
+W6:SKILL=skill, 0=ANY
+b8:DECIMAL=atk
+b9:DECIMAL=def
+b10:DECIMAL=as
+b11:DECIMAL=hit
+b12:DECIMAL=avo
+b13:DECIMAL=crt
+b14:DECIMAL=dodge
+b15:DECIMAL=silencer
+
+B0:$COMBO combo.wtype.txt.zh=攻击者武器类型
+B1:$COMBO combo.wtype.txt.zh=防御者武器类型
+b5:$COMBO combo.bool.txt.zh=是否为增益状态
+W6:SKILL.zh=技能, 0=ANY
+b8:DECIMAL.zh=攻击力
+b9:DECIMAL.zh=防御力
+b10:DECIMAL.zh=攻速
+b11:DECIMAL.zh=命中率
+b12:DECIMAL.zh=回避率
+b13:DECIMAL.zh=必杀率
+b14:DECIMAL.zh=必杀回避率
+b15:DECIMAL.zh=暗杀率

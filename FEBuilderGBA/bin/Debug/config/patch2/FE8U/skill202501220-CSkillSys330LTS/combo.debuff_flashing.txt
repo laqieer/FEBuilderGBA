@@ -1,0 +1,4 @@
+0=low-low
+1=low
+2=normal
+3=fast

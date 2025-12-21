@@ -1,0 +1,32 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Job growth correction
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 职业成长率修正
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gpJobGrowthList]\r\nPlay can give class growth corrections
+
+POINTER=0xB2A784
+DATASIZE=8
+DATACOUNT=0x100
+
+LISTNAME=CLASS
+
+b0:DECIMAL=pow
+b1:DECIMAL=mag
+b2:DECIMAL=skl
+b3:DECIMAL=spd
+b4:DECIMAL=lck
+b5:DECIMAL=def
+b6:DECIMAL=res
+
+b0:DECIMAL.zh=力量
+b1:DECIMAL.zh=魔力
+b2:DECIMAL.zh=技术
+b3:DECIMAL.zh=速度
+b4:DECIMAL.zh=幸运
+b5:DECIMAL.zh=防御
+b6:DECIMAL.zh=魔防

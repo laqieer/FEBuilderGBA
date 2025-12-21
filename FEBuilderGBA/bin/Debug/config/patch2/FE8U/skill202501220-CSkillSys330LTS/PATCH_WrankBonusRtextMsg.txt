@@ -1,0 +1,21 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Weapon rank battle bonus RText msg config
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 武器熟练度战斗增益 说明信息
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gpWrankRtextConf] Weapon rank battle bonus RTexts
+
+POINTER=0xB2A808
+DATASIZE=4
+DATACOUNT=$GREP4 0x00 0x00 0x00 0x00
+LISTNAME=$W2:WEAPONTYPE
+
+W0:TEXT=rtext
+W2:WEAPONTYPE=wtype
+
+W0:TEXT.zh=文本
+W2:WEAPONTYPE.zh=武器类型

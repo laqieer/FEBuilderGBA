@@ -1,0 +1,63 @@
+NAME=[CSKILL_K (3.3.0-LTS)] CombatArt infos
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 战技信息
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0xB2A604=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#ENGINE
+
+INFO=[CSKILL_K (3.x): gCombatArtInfos]Configure CombatArt infos
+
+POINTER=0xB2A638
+DATASIZE=32
+DATACOUNT=0x100
+
+LISTNAME=$COMBO combo.arts.txt
+
+P0:PatchImage_IMAGE=Icon
+P0:PatchImage_IMAGE.zh=图标
+WIDTH=16
+HEIGHT=16
+PALETTE=1
+PatchImage_PALETTE=Palette
+KEEPPALETTE=1
+PALETTE_POINTER=0x035D0
+
+W4:TEXT=name
+W6:TEXT=desc
+B8:$COMBO combo.wtype.txt=wtype
+B9=range bonus
+W10:DECIMAL=cost
+b12:DECIMAL=atk
+b13:DECIMAL=def
+b14:DECIMAL=hit
+b15:DECIMAL=avo
+b16:DECIMAL=crt
+b17:DECIMAL=silcencer
+b18:DECIMAL=dodge
+b19:$COMBO combo.bool.txt=display_en_n
+B20:$COMBO combo.art_double.txt=double_attack
+b21:$COMBO combo.bool.txt=magic_attack
+B22:$COMBO combo.art_effectiveness.txt=effectiveness
+B23:$COMBO combo.debuffs.txt=debuff
+b24:$COMBO combo.bool.txt=aoe_debuff
+
+W4:TEXT.zh=技能名
+W6:TEXT.zh=杂项
+B8:$COMBO combo.wtype.txt.zh=武器类型
+B9.zh=范围提升
+W10:DECIMAL.zh=消耗
+b12:DECIMAL.zh=攻击力
+b13:DECIMAL.zh=防御力
+b14:DECIMAL.zh=命中率
+b15:DECIMAL.zh=回避率
+b16:DECIMAL.zh=必杀率
+b17:DECIMAL.zh=暗杀率
+b18:DECIMAL.zh=必杀回避率
+b19:$COMBO combo.bool.txt.zh=是否显示详情
+B20:$COMBO combo.art_double.txt.zh=连击
+b21:$COMBO combo.bool.txt.zh=魔法攻击
+B22:$COMBO combo.art_effectiveness.txt.zh=特效
+B23:$COMBO combo.debuffs.txt.zh=减益状态
+b24:$COMBO combo.bool.txt.zh=群体减益状态

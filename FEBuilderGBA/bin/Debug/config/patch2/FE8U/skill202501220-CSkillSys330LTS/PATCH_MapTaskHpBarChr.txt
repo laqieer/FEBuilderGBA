@@ -1,0 +1,16 @@
+NAME=[CSKILL_K (3.3.0-LTS)] Map-task hp-bar oam2 configs
+NAME.zh=[CSKILL_K (3.3.0-LTS)] 地图任务HP条oam2设置
+AUTHOR=Mokha(悠木晓缺)
+
+IF:0x9875AC=0x43 0x53 0x4B 0x49 0x4C 0x4C 0x53 0x59 0x53 0x5F 0x4B 0x2D 0x33 0x33 0x30 0x00
+
+TYPE=STRUCT
+TAG=#HIDDEN
+
+INFO=[CSKILL_K (3.x): gpHpBarChr] Setup hp-bar oam2 CHR
+
+POINTER=0x987644
+DATASIZE=0x1
+DATACOUNT=11
+
+B0=OAM2_CHR
