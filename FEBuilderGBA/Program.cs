@@ -19,6 +19,9 @@ namespace FEBuilderGBA
         {
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
+            // Set app-wide default font before any forms are created
+            Application.SetDefaultFont(new Font("Microsoft Sans Serif", 8.25f));
+
             //オプション引数 --mode=foo とかを、dic["--mode"]="foo" みたいに変換します. 
             ArgsDic = U.OptionMap(args, "--rom");
             //メインスレッド判定に利用するためにスレッドIDを保存

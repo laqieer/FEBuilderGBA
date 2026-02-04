@@ -23,6 +23,7 @@
     <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	<Deterministic>false</Deterministic>
+	<ApplicationDefaultFont>Microsoft Sans Serif, 8.25pt</ApplicationDefaultFont>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
