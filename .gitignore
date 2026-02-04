@@ -11,6 +11,7 @@ FEBuilderGBA/bin/Release
 FEBuilderGBA/bin/Debug/config/*.xml
 FEBuilderGBA/bin/Debug/config/etc/
 FEBuilderGBA/bin/Debug/config/log/
+FEBuilderGBA/bin/x64
 FEBuilderGBA/obj
 .vs/
 /FEBuilderGBA/FEBuilderGBA.csproj.user
