@@ -790,7 +790,8 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.AutoSize = true;
-            this.ClientSize = new System.Drawing.Size(837, 435);
+            this.AutoScroll = true;
+            this.ClientSize = new System.Drawing.Size(837, 420);
             this.Controls.Add(this.MenuPanel);
             this.Controls.Add(this.EventPanel);
             this.Controls.Add(this.MapPanel);
