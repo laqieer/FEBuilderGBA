@@ -678,6 +678,7 @@
             this.MAP_LISTBOX.IntegralHeight = false;
             this.MAP_LISTBOX.Location = new System.Drawing.Point(0, -1);
             this.MAP_LISTBOX.Name = "MAP_LISTBOX";
+            this.MAP_LISTBOX.ScrollAlwaysVisible = true;
             this.MAP_LISTBOX.Size = new System.Drawing.Size(173, 423);
             this.MAP_LISTBOX.TabIndex = 0;
             this.MAP_LISTBOX.SelectedIndexChanged += new System.EventHandler(this.MAP_LISTBOX_SelectedIndexChanged);
