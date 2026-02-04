@@ -195,9 +195,9 @@
             // 
             // WelcomeForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(144F, 144F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
-            this.AutoSize = false;
+            this.AutoSize = true;
             this.ClientSize = new System.Drawing.Size(1156, 550);
             this.Controls.Add(this.panel1);
             this.Name = "WelcomeForm";
