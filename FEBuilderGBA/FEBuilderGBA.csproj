@@ -24,6 +24,9 @@
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	<Deterministic>false</Deterministic>
 	<ApplicationDefaultFont>Microsoft Sans Serif, 8.25pt</ApplicationDefaultFont>
+	<!-- Suppress warnings for Windows-only application and package compatibility -->
+	<NoWarn>$(NoWarn);CA1416;NETSDK1138;CS7035</NoWarn>
+	<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
