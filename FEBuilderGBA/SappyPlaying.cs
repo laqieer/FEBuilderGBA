@@ -165,7 +165,7 @@ namespace FEBuilderGBA
         
         public void StartPlay(Process p, uint songid)
         {
-            if (p == null || p.MainWindowHandle == null || p.HasExited)
+            if (p == null || p.MainWindowHandle == IntPtr.Zero || p.HasExited)
             {
                 return;
             }

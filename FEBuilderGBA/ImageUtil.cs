@@ -73,10 +73,6 @@ namespace FEBuilderGBA
             //BITMAP生成.
             Bitmap pic = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
             //パレット
-            if (bgColor == null)
-            {
-                bgColor = Color.FromArgb(255, 255, 255);
-            }
             ColorPalette palette = pic.Palette; //一度、値をとってからいじらないと無視される・・ C#むずかしい
             //日本語、英語版は以下のルールで統一
             palette.Entries[0] = bgColor;
@@ -134,10 +130,6 @@ namespace FEBuilderGBA
             //BITMAP生成.
             Bitmap pic = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
             //パレット
-            if (bgColor == null)
-            {
-                bgColor = Color.FromArgb(255, 255, 255);
-            }
             ColorPalette palette = pic.Palette; //一度、値をとってからいじらないと無視される・・ C#むずかしい
 
             //中国語版はパレットが少し違う.
@@ -3693,10 +3685,6 @@ namespace FEBuilderGBA
         public static void SettingFontPalette(Bitmap pic,Color bgColor)
         {
             //パレット
-            if (bgColor == null)
-            {
-                bgColor = Color.FromArgb(255, 255, 255);
-            }
             ColorPalette palette = pic.Palette; //一度、値をとってからいじらないと無視される・・ C#むずかしい
             palette.Entries[0] = bgColor;
             palette.Entries[1] = Color.FromArgb(0xA8, 0xA8, 0xA7); //グレー
@@ -3790,10 +3778,6 @@ namespace FEBuilderGBA
 
         static bool IsFontColorFore(Color c)
         {
-            if (c == null)
-            {
-                return false;
-            }
             return c.R < 0xa0 ;
         }
 

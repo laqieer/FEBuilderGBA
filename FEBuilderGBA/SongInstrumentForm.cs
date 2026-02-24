@@ -462,16 +462,17 @@ namespace FEBuilderGBA
             byte[] wavedata = Program.ROM.getBinaryData(songdata_addr + 12, length);
             data.AddRange(wavedata);
 
-            System.Security.Cryptography.MD5CryptoServiceProvider md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
-            byte[] bs = md5.ComputeHash(data.ToArray());
-            md5.Clear();
-
-            System.Text.StringBuilder result = new System.Text.StringBuilder();
-            foreach (byte b in bs)
+            using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                result.Append(b.ToString("x2"));
+                byte[] bs = md5.ComputeHash(data.ToArray());
+
+                System.Text.StringBuilder result = new System.Text.StringBuilder();
+                foreach (byte b in bs)
+                {
+                    result.Append(b.ToString("x2"));
+                }
+                return result.ToString();
             }
-            return result.ToString();
         }
 
         //WaveMemory +P4 のソングデータを使って比較用のフィンガプリントを作ります.
@@ -508,16 +509,17 @@ namespace FEBuilderGBA
             byte[] fixeddata = Program.ROM.getBinaryData(songdata_addr + 0, 12);
             data.AddRange(fixeddata);
 
-            System.Security.Cryptography.MD5CryptoServiceProvider md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
-            byte[] bs = md5.ComputeHash(data.ToArray());
-            md5.Clear();
-
-            System.Text.StringBuilder result = new System.Text.StringBuilder();
-            foreach (byte b in bs)
+            using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                result.Append(b.ToString("x2"));
+                byte[] bs = md5.ComputeHash(data.ToArray());
+
+                System.Text.StringBuilder result = new System.Text.StringBuilder();
+                foreach (byte b in bs)
+                {
+                    result.Append(b.ToString("x2"));
+                }
+                return result.ToString();
             }
-            return result.ToString();
         }
 
         //SquareWaveのデータ使って比較用のフィンガプリントを作ります.
@@ -527,16 +529,17 @@ namespace FEBuilderGBA
 
             byte[] data = Program.ROM.getBinaryData(vocaaddr + 1, 11);
 
-            System.Security.Cryptography.MD5CryptoServiceProvider md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
-            byte[] bs = md5.ComputeHash(data);
-            md5.Clear();
-
-            System.Text.StringBuilder result = new System.Text.StringBuilder();
-            foreach (byte b in bs)
+            using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                result.Append(b.ToString("x2"));
+                byte[] bs = md5.ComputeHash(data);
+
+                System.Text.StringBuilder result = new System.Text.StringBuilder();
+                foreach (byte b in bs)
+                {
+                    result.Append(b.ToString("x2"));
+                }
+                return result.ToString();
             }
-            return result.ToString();
         }
 
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)

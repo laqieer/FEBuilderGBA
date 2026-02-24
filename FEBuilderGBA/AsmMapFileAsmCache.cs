@@ -607,7 +607,9 @@ namespace FEBuilderGBA
             this.IsFELintInvoke = false;
         }
         //FELintの結果をInvokeしたときに、Joinで終了待ちすると、デッドロックするので、回避するプロセスを入れる.
+#pragma warning disable CS0414 // Field is assigned but its value is never used - kept for potential future deadlock avoidance logic
         bool IsFELintInvoke = false;
+#pragma warning restore CS0414
 
         public enum HasError_Enum
         {

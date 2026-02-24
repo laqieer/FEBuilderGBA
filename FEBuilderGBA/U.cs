@@ -4458,7 +4458,9 @@ namespace FEBuilderGBA
 
             string UserAgent = GenUserAgent(); //"Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36";
 
+#pragma warning disable SYSLIB0014 // WebRequest is obsolete but required for legacy HttpWebRequest functionality
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+#pragma warning restore SYSLIB0014
 
             if (OptionForm.proxy_server_when_connecting() == OptionForm.proxy_server_when_connecting_enum.None)
             {//自動プロキシ検出を利用しない.
@@ -4616,9 +4618,9 @@ namespace FEBuilderGBA
                 {
                     sb.Append('&');
                 }
-                sb.Append(Uri.EscapeUriString(a.Key));
+                sb.Append(Uri.EscapeDataString(a.Key));
                 sb.Append('=');
-                sb.Append(Uri.EscapeUriString(a.Value));
+                sb.Append(Uri.EscapeDataString(a.Value));
                 isFirst = false;
             }
 
@@ -4663,9 +4665,9 @@ namespace FEBuilderGBA
             foreach (var a in args)
             {
                 sb.Append("--" + boundary + "\r\n");
-                sb.Append(Uri.EscapeUriString(a.Key));
+                sb.Append(Uri.EscapeDataString(a.Key));
                 sb.Append('=');
-                sb.Append(Uri.EscapeUriString(a.Value));
+                sb.Append(Uri.EscapeDataString(a.Value));
             }
             sb.Append("--" + boundary + "\r\n");
             sb.Append("Content-Disposition: form-data; name=\"" + fileid  + "\"; filename=\"" + Path.GetExtension(filename) + "\"\r\n");
@@ -4713,9 +4715,9 @@ namespace FEBuilderGBA
             foreach (var a in args)
             {
                 sb.Append("--" + boundary + "\r\n");
-                sb.Append(Uri.EscapeUriString(a.Key));
+                sb.Append(Uri.EscapeDataString(a.Key));
                 sb.Append('=');
-                sb.Append(Uri.EscapeUriString(a.Value));
+                sb.Append(Uri.EscapeDataString(a.Value));
             }
 
             sb.Append("--" + boundary + "\r\n");
@@ -6359,16 +6361,17 @@ namespace FEBuilderGBA
 
         public static string md5(byte[] bin)
         {
-            System.Security.Cryptography.MD5CryptoServiceProvider md5 = new System.Security.Cryptography.MD5CryptoServiceProvider();
-            byte[] bs = md5.ComputeHash(bin);
-            md5.Clear();
-
-            System.Text.StringBuilder result = new System.Text.StringBuilder();
-            foreach (byte b in bs)
+            using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                result.Append(b.ToString("x2"));
+                byte[] bs = md5.ComputeHash(bin);
+
+                System.Text.StringBuilder result = new System.Text.StringBuilder();
+                foreach (byte b in bs)
+                {
+                    result.Append(b.ToString("x2"));
+                }
+                return result.ToString();
             }
-            return result.ToString();
         }
 
         public static void AllowDropFilename(Form self

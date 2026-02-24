@@ -3704,7 +3704,8 @@
         private System.Windows.Forms.Label explain_func_update_source;
         private System.Windows.Forms.ComboBox func_release_source;
         private System.Windows.Forms.Label explain_func_release_source;
-        private System.Windows.Forms.ComboBox comboBox1;
-        private System.Windows.Forms.Label label75;
+        // Unused fields - kept for backwards compatibility with Designer
+        // private System.Windows.Forms.ComboBox comboBox1;
+        // private System.Windows.Forms.Label label75;
     }
 }
