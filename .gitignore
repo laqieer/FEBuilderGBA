@@ -6,7 +6,9 @@ FEBuilderGBA/bin/Debug/*.png
 FEBuilderGBA/bin/Debug/*.bin
 FEBuilderGBA/bin/Debug/*.gba
 FEBuilderGBA/bin/Debug/*.dmp
+FEBuilderGBA/bin/Debug/*.json
 FEBuilderGBA/bin/Debug/app
+FEBuilderGBA/bin/Debug/runtimes/
 FEBuilderGBA/bin/Release
 FEBuilderGBA/bin/Debug/config/*.xml
 FEBuilderGBA/bin/Debug/config/etc/
