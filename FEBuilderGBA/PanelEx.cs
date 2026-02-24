@@ -49,6 +49,7 @@ namespace FEBuilderGBA
 
         string _ErrorMessage = "";
         //エラーメッセージ
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string ErrorMessage
         {
             get { return _ErrorMessage; }

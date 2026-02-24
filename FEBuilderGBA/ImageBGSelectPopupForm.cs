@@ -23,6 +23,7 @@ namespace FEBuilderGBA
 
         }
 
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public SelectedType Selected { get; protected set; } // Huffman tree end (indirected twice)
         public enum SelectedType
         {

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <OutputType>WinExe</OutputType>
     <IsWebBootstrapper>false</IsWebBootstrapper>
@@ -24,9 +24,8 @@
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	<Deterministic>false</Deterministic>
 	<ApplicationDefaultFont>Microsoft Sans Serif, 8.25pt</ApplicationDefaultFont>
-	<!-- Suppress warnings for Windows-only application and package compatibility -->
-	<NoWarn>$(NoWarn);CA1416;NETSDK1138;CS7035</NoWarn>
-	<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+	<!-- Suppress warnings for Windows-only application -->
+	<NoWarn>$(NoWarn);CA1416;CS7035</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>

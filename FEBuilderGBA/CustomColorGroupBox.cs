@@ -31,6 +31,7 @@ namespace FEBuilderGBA
         }
 
         // プロパティ
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public Color BorderColor
         {
             get

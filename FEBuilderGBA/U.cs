@@ -4453,12 +4453,12 @@ namespace FEBuilderGBA
 
         static HttpWebRequest HttpMakeRequest(string url, string referer, System.Net.CookieContainer cookie = null)
         {
+#pragma warning disable SYSLIB0014 // ServicePointManager and WebRequest are obsolete but required for legacy HttpWebRequest functionality
             ServicePointManager.ServerCertificateValidationCallback = OnRemoteCertificateValidationCallback;
-            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; //TLS 1.2 
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; //TLS 1.2
 
             string UserAgent = GenUserAgent(); //"Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36";
 
-#pragma warning disable SYSLIB0014 // WebRequest is obsolete but required for legacy HttpWebRequest functionality
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
 #pragma warning restore SYSLIB0014
 

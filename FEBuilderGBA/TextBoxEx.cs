@@ -95,6 +95,7 @@ namespace FEBuilderGBA
         private string _Placeholder = "";
 
         //プレースフォルダ
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string Placeholder
         {
             get { return _Placeholder; }
@@ -109,6 +110,7 @@ namespace FEBuilderGBA
         }
         string _ErrorMessage = "";
         //エラーメッセージ
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public string ErrorMessage
         {
             get { return _ErrorMessage; }
