@@ -13,14 +13,19 @@ namespace FEBuilderGBA
     public class ArchSevenZip
     {
         /// <summary>
+        /// Progress callback for extraction
+        /// </summary>
+        public delegate void ProgressCallback(int currentEntry, int totalEntries, string currentFile, TimeSpan elapsed, TimeSpan estimated);
+
+        /// <summary>
         /// Extract an archive to a directory using SharpCompress
         /// Supports 7z, zip, rar, tar, and other formats
         /// </summary>
-        public static string Extract(string archiveFile, string dir, bool isHide)
+        public static string Extract(string archiveFile, string dir, bool isHide, ProgressCallback progressCallback = null)
         {
             try
             {
-                return ExtractLow(archiveFile, dir, isHide);
+                return ExtractLow(archiveFile, dir, isHide, progressCallback);
             }
             catch (Exception e)
             {
@@ -29,7 +34,7 @@ namespace FEBuilderGBA
             }
         }
 
-        static string ExtractLow(string archiveFile, string dir, bool isHide)
+        static string ExtractLow(string archiveFile, string dir, bool isHide, ProgressCallback progressCallback)
         {
             try
             {
@@ -44,7 +49,8 @@ namespace FEBuilderGBA
                     Directory.CreateDirectory(dir);
                 }
 
-                // Use Reader API for more reliable extraction across all formats
+                // First pass: count total entries
+                int totalEntries = 0;
                 var readerOptions = new ReaderOptions
                 {
                     LeaveStreamOpen = false
@@ -57,6 +63,42 @@ namespace FEBuilderGBA
                     {
                         if (!reader.Entry.IsDirectory)
                         {
+                            totalEntries++;
+                        }
+                    }
+                }
+
+                // Second pass: extract with progress reporting
+                int currentEntry = 0;
+                var stopwatch = Stopwatch.StartNew();
+
+                using (Stream stream = File.OpenRead(archiveFile))
+                using (var reader = ReaderFactory.Open(stream, readerOptions))
+                {
+                    while (reader.MoveToNextEntry())
+                    {
+                        if (!reader.Entry.IsDirectory)
+                        {
+                            currentEntry++;
+
+                            // Calculate progress
+                            TimeSpan elapsed = stopwatch.Elapsed;
+                            TimeSpan estimated = TimeSpan.Zero;
+                            if (currentEntry > 0)
+                            {
+                                double avgTimePerEntry = elapsed.TotalSeconds / currentEntry;
+                                int remainingEntries = totalEntries - currentEntry;
+                                estimated = TimeSpan.FromSeconds(avgTimePerEntry * remainingEntries);
+                            }
+
+                            // Report progress
+                            if (progressCallback != null)
+                            {
+                                string fileName = Path.GetFileName(reader.Entry.Key);
+                                progressCallback(currentEntry, totalEntries, fileName, elapsed, estimated);
+                            }
+
+                            // Extract the entry
                             reader.WriteEntryToDirectory(dir, new ExtractionOptions
                             {
                                 ExtractFullPath = true,
@@ -66,6 +108,7 @@ namespace FEBuilderGBA
                     }
                 }
 
+                stopwatch.Stop();
                 return "";
             }
             catch (Exception e)

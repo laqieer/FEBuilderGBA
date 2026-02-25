@@ -593,7 +593,17 @@ namespace FEBuilderGBA
 
                 this.SettingPleaseWait.DoEvents("Extract...");
                 U.mkdir(dir);
-                string r = ArchSevenZip.Extract(tempFilename, dir, isHide: true);
+                string r = ArchSevenZip.Extract(tempFilename, dir, isHide: true,
+                    (current, total, file, elapsed, remaining) =>
+                    {
+                        string progress = string.Format("Extract... ({0}/{1}) {2:0.0}% - {3}\r\nElapsed: {4:mm\\:ss} / Remaining: {5:mm\\:ss}",
+                            current, total,
+                            (double)current / total * 100,
+                            file,
+                            elapsed,
+                            remaining);
+                        this.SettingPleaseWait.DoEvents(progress);
+                    });
                 if (r != "")
                 {
                     return R.Error("ダウンロードしたファイルを解凍できませんでした。\r\nURL:{0}\r\nPATH:{1}\r\nfindEXE:{2}", url, dir, findEXE);

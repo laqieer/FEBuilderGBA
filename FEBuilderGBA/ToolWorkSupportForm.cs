@@ -515,7 +515,17 @@ namespace FEBuilderGBA
                 {
                     using (U.MakeTempDirectory t = new U.MakeTempDirectory())
                     {
-                        string r = ArchSevenZip.Extract(tempfile, t.Dir, isHide: true);
+                        string r = ArchSevenZip.Extract(tempfile, t.Dir, isHide: true,
+                            (current, total, file, elapsed, remaining) =>
+                            {
+                                string progress = string.Format("Extract... ({0}/{1}) {2:0.0}% - {3}\r\nElapsed: {4:mm\\:ss} / Remaining: {5:mm\\:ss}",
+                                    current, total,
+                                    (double)current / total * 100,
+                                    file,
+                                    elapsed,
+                                    remaining);
+                                pleaseWait.DoEvents(progress);
+                            });
                         if (r != "")
                         {
                             BrokenDownload(R._("ダウンロードしたファイルを解凍できませんでした。") + "\r\n" + r);

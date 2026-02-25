@@ -122,7 +122,17 @@ namespace FEBuilderGBA
                 {
                     string _update = Path.Combine(Program.BaseDirectory, "_update");
                     U.mkdir(_update);
-                    string r = ArchSevenZip.Extract(updateArchive, _update, isHide: false);
+                    string r = ArchSevenZip.Extract(updateArchive, _update, isHide: false,
+                        (current, total, file, elapsed, remaining) =>
+                        {
+                            string progress = string.Format("Extract... ({0}/{1}) {2:0.0}% - {3}\r\nElapsed: {4:mm\\:ss} / Remaining: {5:mm\\:ss}",
+                                current, total,
+                                (double)current / total * 100,
+                                file,
+                                elapsed,
+                                remaining);
+                            pleaseWait.DoEvents(progress);
+                        });
                     if (r != "")
                     {
                         BrokenDownload(R._("ダウンロードしたファイルを解凍できませんでした。") + "\r\n" + r);
