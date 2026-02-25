@@ -6,7 +6,6 @@ using System.Text;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Writers;
-using SharpCompress.Readers;
 
 namespace FEBuilderGBA
 {
@@ -49,35 +48,32 @@ namespace FEBuilderGBA
                     Directory.CreateDirectory(dir);
                 }
 
-                // First pass: count total entries
-                int totalEntries = 0;
-                var readerOptions = new ReaderOptions
+                // Use ArchiveFactory which supports 7z, zip, rar, tar, etc.
+                using (var archive = ArchiveFactory.Open(archiveFile))
                 {
-                    LeaveStreamOpen = false
-                };
-
-                using (Stream stream = File.OpenRead(archiveFile))
-                using (var reader = ReaderFactory.Open(stream, readerOptions))
-                {
-                    while (reader.MoveToNextEntry())
+                    var extractOptions = new ExtractionOptions
                     {
-                        if (!reader.Entry.IsDirectory)
+                        ExtractFullPath = true,
+                        Overwrite = true
+                    };
+
+                    // First count total entries for progress reporting
+                    int totalEntries = 0;
+                    foreach (var entry in archive.Entries)
+                    {
+                        if (!entry.IsDirectory)
                         {
                             totalEntries++;
                         }
                     }
-                }
 
-                // Second pass: extract with progress reporting
-                int currentEntry = 0;
-                var stopwatch = Stopwatch.StartNew();
+                    // Extract with progress reporting
+                    int currentEntry = 0;
+                    var stopwatch = Stopwatch.StartNew();
 
-                using (Stream stream = File.OpenRead(archiveFile))
-                using (var reader = ReaderFactory.Open(stream, readerOptions))
-                {
-                    while (reader.MoveToNextEntry())
+                    foreach (var entry in archive.Entries)
                     {
-                        if (!reader.Entry.IsDirectory)
+                        if (!entry.IsDirectory)
                         {
                             currentEntry++;
 
@@ -94,21 +90,18 @@ namespace FEBuilderGBA
                             // Report progress
                             if (progressCallback != null)
                             {
-                                string fileName = Path.GetFileName(reader.Entry.Key);
+                                string fileName = Path.GetFileName(entry.Key);
                                 progressCallback(currentEntry, totalEntries, fileName, elapsed, estimated);
                             }
 
                             // Extract the entry
-                            reader.WriteEntryToDirectory(dir, new ExtractionOptions
-                            {
-                                ExtractFullPath = true,
-                                Overwrite = true
-                            });
+                            entry.WriteToDirectory(dir, extractOptions);
                         }
                     }
+
+                    stopwatch.Stop();
                 }
 
-                stopwatch.Stop();
                 return "";
             }
             catch (Exception e)
