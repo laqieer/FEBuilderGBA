@@ -1,0 +1,70 @@
+<!--
+  Add this MSBuild target to FEBuilderGBA/FEBuilderGBA.csproj
+
+  Location: Insert BEFORE the closing </Project> tag
+
+  This target copies the config/patch2 submodule to the build output directory
+  after compilation completes.
+-->
+
+<Target Name="CopyConfigSubmodule" AfterTargets="Build">
+  <Message Text="========================================" Importance="high" />
+  <Message Text="Copying config/patch2 submodule to build output..." Importance="high" />
+  <Message Text="========================================" Importance="high" />
+
+  <!-- Define source and target paths -->
+  <PropertyGroup>
+    <!-- Path to submodule (relative to project directory) -->
+    <SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</SubmodulePath>
+
+    <!-- Path to output directory config/patch2 -->
+    <TargetConfigPath>$(OutDir)config\patch2</TargetConfigPath>
+  </PropertyGroup>
+
+  <Message Text="Source: $(SubmodulePath)" Importance="high" />
+  <Message Text="Target: $(TargetConfigPath)" Importance="high" />
+
+  <!-- Create target directory if it doesn't exist -->
+  <MakeDir Directories="$(TargetConfigPath)" Condition="!Exists('$(TargetConfigPath)')" />
+
+  <!-- Get all files from submodule recursively -->
+  <ItemGroup>
+    <SubmoduleFiles Include="$(SubmodulePath)\**\*.*" />
+  </ItemGroup>
+
+  <!-- Copy files preserving directory structure -->
+  <Copy SourceFiles="@(SubmoduleFiles)"
+        DestinationFolder="$(TargetConfigPath)\%(RecursiveDir)"
+        SkipUnchangedFiles="true"
+        OverwriteReadOnlyFiles="true" />
+
+  <Message Text="========================================" Importance="high" />
+  <Message Text="✓ Copied %(SubmoduleFiles.RecursiveIdentity.Count) files from submodule" Importance="high" />
+  <Message Text="✓ Config submodule ready at: $(TargetConfigPath)" Importance="high" />
+  <Message Text="========================================" Importance="high" />
+</Target>
+
+<!--
+  USAGE:
+
+  1. Open FEBuilderGBA/FEBuilderGBA.csproj in text editor
+  2. Find the closing </Project> tag at the end of the file
+  3. Insert the <Target> element above BEFORE </Project>
+  4. Save the file
+  5. Build the project:
+
+     msbuild /m /p:Configuration=Release FEBuilderGBA.sln
+
+  6. Verify output:
+
+     ls FEBuilderGBA/bin/Release/config/patch2/FE8U/
+
+     Should show patch files copied from submodule
+
+  TROUBLESHOOTING:
+
+  - If submodule is empty: git submodule update --init --recursive
+  - If copy fails: Check that config/patch2 exists and is initialized
+  - If no files copied: Check SubmodulePath is correct
+  - To see detailed copy logs: msbuild /v:detailed
+-->
