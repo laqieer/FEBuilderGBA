@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
+using System.Linq;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Writers;
@@ -57,19 +58,36 @@ namespace FEBuilderGBA
                         Overwrite = true
                     };
 
-                    // First count total entries for progress reporting
+                    // Only count entries if progress callback is provided
                     int totalEntries = 0;
-                    foreach (var entry in archive.Entries)
+                    if (progressCallback != null)
                     {
-                        if (!entry.IsDirectory)
+                        // Try to get count efficiently first
+                        try
                         {
-                            totalEntries++;
+                            totalEntries = archive.Entries.Count(e => !e.IsDirectory);
+                        }
+                        catch
+                        {
+                            // Fallback to manual count if LINQ fails
+                            foreach (var entry in archive.Entries)
+                            {
+                                if (!entry.IsDirectory)
+                                {
+                                    totalEntries++;
+                                }
+                            }
                         }
                     }
 
-                    // Extract with progress reporting
+                    // Extract with optional progress reporting
                     int currentEntry = 0;
-                    var stopwatch = Stopwatch.StartNew();
+                    Stopwatch stopwatch = null;
+                    long lastProgressUpdate = 0;
+                    if (progressCallback != null)
+                    {
+                        stopwatch = Stopwatch.StartNew();
+                    }
 
                     foreach (var entry in archive.Entries)
                     {
@@ -77,29 +95,37 @@ namespace FEBuilderGBA
                         {
                             currentEntry++;
 
-                            // Calculate progress
-                            TimeSpan elapsed = stopwatch.Elapsed;
-                            TimeSpan estimated = TimeSpan.Zero;
-                            if (currentEntry > 0)
-                            {
-                                double avgTimePerEntry = elapsed.TotalSeconds / currentEntry;
-                                int remainingEntries = totalEntries - currentEntry;
-                                estimated = TimeSpan.FromSeconds(avgTimePerEntry * remainingEntries);
-                            }
-
-                            // Report progress
-                            if (progressCallback != null)
-                            {
-                                string fileName = Path.GetFileName(entry.Key);
-                                progressCallback(currentEntry, totalEntries, fileName, elapsed, estimated);
-                            }
-
                             // Extract the entry
                             entry.WriteToDirectory(dir, extractOptions);
+
+                            // Report progress if callback provided (throttled to every 100ms or every 10 files)
+                            if (progressCallback != null && stopwatch != null)
+                            {
+                                long currentTicks = stopwatch.ElapsedMilliseconds;
+                                if (currentEntry % 10 == 0 || currentTicks - lastProgressUpdate >= 100 || currentEntry == totalEntries)
+                                {
+                                    lastProgressUpdate = currentTicks;
+
+                                    TimeSpan elapsed = stopwatch.Elapsed;
+                                    TimeSpan estimated = TimeSpan.Zero;
+                                    if (currentEntry > 0 && totalEntries > 0)
+                                    {
+                                        double avgTimePerEntry = elapsed.TotalSeconds / currentEntry;
+                                        int remainingEntries = totalEntries - currentEntry;
+                                        estimated = TimeSpan.FromSeconds(avgTimePerEntry * remainingEntries);
+                                    }
+
+                                    string fileName = Path.GetFileName(entry.Key);
+                                    progressCallback(currentEntry, totalEntries, fileName, elapsed, estimated);
+                                }
+                            }
                         }
                     }
 
-                    stopwatch.Stop();
+                    if (stopwatch != null)
+                    {
+                        stopwatch.Stop();
+                    }
                 }
 
                 return "";
