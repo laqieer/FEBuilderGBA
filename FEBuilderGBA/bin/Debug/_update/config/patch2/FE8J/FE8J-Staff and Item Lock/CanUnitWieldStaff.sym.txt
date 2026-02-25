@@ -1,3 +1,0 @@
-Exit_NotUse=$1C
-Check_Lock=$2C
-Exit_ContinueStaffProcess=$16

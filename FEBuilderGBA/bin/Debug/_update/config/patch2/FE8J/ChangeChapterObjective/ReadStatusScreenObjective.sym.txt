@@ -1,2 +1,0 @@
-GetChapterObjective=$10
-EALiterals=$10

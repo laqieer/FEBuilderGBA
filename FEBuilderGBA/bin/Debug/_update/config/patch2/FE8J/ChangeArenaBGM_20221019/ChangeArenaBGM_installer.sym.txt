@@ -1,3 +1,0 @@
-ASMC_Draw=$AC7410
-ChangeArenaBGM=$E5540
-ChangeArenaBGM_Table=$E55C8

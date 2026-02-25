@@ -1,2 +1,0 @@
-Exit=$1E
-SomeBGM=$18

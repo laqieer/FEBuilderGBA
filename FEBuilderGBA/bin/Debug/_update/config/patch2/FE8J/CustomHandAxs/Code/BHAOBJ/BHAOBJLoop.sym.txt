@@ -1,3 +1,0 @@
-L0=$0A
-GOTO_R4=$3C
-Return=$36

@@ -1,2 +1,0 @@
-Table=$18
-Found=$10

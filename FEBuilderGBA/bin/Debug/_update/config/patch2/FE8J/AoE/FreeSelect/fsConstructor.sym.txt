@@ -1,4 +1,0 @@
-Proc_FreeSelect=$28
-PointerList=$28
-End=$1C
-Jump=$22

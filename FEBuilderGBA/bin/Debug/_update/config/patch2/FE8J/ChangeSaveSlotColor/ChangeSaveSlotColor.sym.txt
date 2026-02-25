@@ -1,5 +1,0 @@
-Table=$40
-Loop=$04
-NotFound=$2C
-Found=$28
-Exit=$2E

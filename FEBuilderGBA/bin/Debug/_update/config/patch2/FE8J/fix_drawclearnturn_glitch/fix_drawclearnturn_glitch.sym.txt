@@ -1,2 +1,0 @@
-ENDCHAPTER=$38
-FalseExit=$28

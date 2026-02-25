@@ -1,4 +1,0 @@
-{}	View All
-{AICHARGE}	Assault
-{COND}	Conditions
-{MAP}	Map Relation

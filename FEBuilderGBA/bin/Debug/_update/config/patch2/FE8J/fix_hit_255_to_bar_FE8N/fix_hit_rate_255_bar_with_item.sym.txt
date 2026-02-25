@@ -1,3 +1,0 @@
-display_number=$18
-display_bar=$50
-Exit=$60

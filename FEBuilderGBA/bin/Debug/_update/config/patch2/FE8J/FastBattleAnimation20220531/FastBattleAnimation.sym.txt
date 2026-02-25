@@ -1,3 +1,0 @@
-PressButton=$88
-WaitExit=$4C
-Exit=$52

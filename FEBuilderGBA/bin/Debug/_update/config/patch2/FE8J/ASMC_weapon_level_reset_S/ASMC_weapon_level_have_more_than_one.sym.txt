@@ -1,5 +1,0 @@
-Exit=$32
-Loop0=$16
-Loop0_Continue=$1E
-FlaseExit=$2A
-TrueExit=$2E

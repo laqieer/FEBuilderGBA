@@ -1,3 +1,0 @@
-Loop=$08
-Found=$16
-NotFound=$14

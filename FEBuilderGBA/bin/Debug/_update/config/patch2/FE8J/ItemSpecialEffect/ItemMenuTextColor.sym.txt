@@ -1,3 +1,0 @@
-ItemSpecialEffectUsability=$4C
-Vanilla=$26
-Skip=$30

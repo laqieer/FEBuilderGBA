@@ -1,2 +1,0 @@
-ASMC_Draw=$AC7410
-FastBattleAnimation=$E5A9C

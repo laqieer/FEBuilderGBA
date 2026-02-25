@@ -1,3 +1,0 @@
-Exit2=$14
-ShowAndSaveSoundRoomEnableList=$18
-Exit=$4C

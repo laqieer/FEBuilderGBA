@@ -1,6 +1,0 @@
-ArenaDicStruct=$38
-Loop=$06
-Break=$12
-RunMemset=$1E
-ArenaDicConfig=$3C
-DATA=$38

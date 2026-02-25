@@ -1,3 +1,0 @@
-DrawBattleBackground=$2C
-FalseReturn=$3C
-BackR3=$3E

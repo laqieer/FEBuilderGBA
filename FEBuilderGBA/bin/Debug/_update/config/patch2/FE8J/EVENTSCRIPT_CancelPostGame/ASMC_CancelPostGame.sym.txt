@@ -1,3 +1,0 @@
-ON=$1E
-OFF=$0A
-Exit=$2E

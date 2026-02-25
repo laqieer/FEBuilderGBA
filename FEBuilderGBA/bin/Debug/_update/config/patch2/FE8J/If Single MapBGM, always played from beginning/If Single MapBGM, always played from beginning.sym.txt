@@ -1,6 +1,0 @@
-IsSingleBGM=$1A
-FalseExit=$0E
-StartFromBeginning=$0A
-Exit=$10
-IsSingleBGM_False=$44
-IsSingleBGM_Exit=$46

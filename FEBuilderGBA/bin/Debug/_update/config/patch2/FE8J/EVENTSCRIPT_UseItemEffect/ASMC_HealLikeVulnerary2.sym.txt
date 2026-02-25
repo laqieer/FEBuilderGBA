@@ -1,2 +1,0 @@
-Exit=$3E
-WaitForMotionEndProc=$5C

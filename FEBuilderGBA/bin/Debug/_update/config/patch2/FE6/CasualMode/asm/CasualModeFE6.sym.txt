@@ -1,4 +1,0 @@
-CasualCheck=$2E
-Retreat=$10
-Main=$12
-goto_r3=$2C

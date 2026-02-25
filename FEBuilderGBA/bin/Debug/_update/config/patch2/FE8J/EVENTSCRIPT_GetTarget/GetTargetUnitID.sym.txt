@@ -1,2 +1,0 @@
-Error=$24
-Store=$28

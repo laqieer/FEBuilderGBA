@@ -1,5 +1,0 @@
-CanDisplaySong=$12
-InitEnableSongList=$04
-NotFound=$2A
-Found=$26
-Exit=$2A

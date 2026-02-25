@@ -1,2 +1,0 @@
-LuckTable=$18
-Exit=$12
