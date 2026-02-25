@@ -8,6 +8,24 @@ README
 
 Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [<img src="[https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)" height="16" style="height: 16px; vertical-align: sub">Gitee Go Build](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
 
+## 🚀 Getting Started
+
+### Cloning the Repository
+
+This repository uses **git submodules** for patch management. Clone with:
+
+```bash
+git clone --recursive https://github.com/laqieer/FEBuilderGBA.git
+```
+
+Or if you already cloned without `--recursive`:
+
+```bash
+git submodule update --init --recursive
+```
+
+**Note:** The patch repository ([FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2)) is maintained separately for independent versioning and faster updates.
+
 ## Testing & Coverage
 
 - ✅ **129 tests** covering core utility classes (RegexCache, LZ77, U)

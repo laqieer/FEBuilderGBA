@@ -199,4 +199,40 @@
     <PlatformTarget>x86</PlatformTarget>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+
+  <!-- Copy config/patch2 submodule to build output directory -->
+  <Target Name="CopyConfigSubmodule" AfterTargets="Build">
+    <Message Text="========================================" Importance="high" />
+    <Message Text="Copying config/patch2 submodule to build output..." Importance="high" />
+    <Message Text="========================================" Importance="high" />
+
+    <!-- Define source and target paths -->
+    <PropertyGroup>
+      <!-- Path to submodule (relative to project directory) -->
+      <SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</SubmodulePath>
+      <!-- Path to output directory config/patch2 -->
+      <TargetConfigPath>$(OutDir)config\patch2</TargetConfigPath>
+    </PropertyGroup>
+
+    <Message Text="Source: $(SubmodulePath)" Importance="high" />
+    <Message Text="Target: $(TargetConfigPath)" Importance="high" />
+
+    <!-- Create target directory if it doesn't exist -->
+    <MakeDir Directories="$(TargetConfigPath)" Condition="!Exists('$(TargetConfigPath)')" />
+
+    <!-- Get all files from submodule recursively -->
+    <ItemGroup>
+      <SubmoduleFiles Include="$(SubmodulePath)\**\*.*" />
+    </ItemGroup>
+
+    <!-- Copy files preserving directory structure -->
+    <Copy SourceFiles="@(SubmoduleFiles)"
+          DestinationFolder="$(TargetConfigPath)\%(RecursiveDir)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <Message Text="========================================" Importance="high" />
+    <Message Text="✓ Config submodule copied to: $(TargetConfigPath)" Importance="high" />
+    <Message Text="========================================" Importance="high" />
+  </Target>
 </Project>
