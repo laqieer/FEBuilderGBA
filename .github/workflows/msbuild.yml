@@ -22,6 +22,7 @@ env:
 
 permissions:
   contents: read
+  checks: write
 
 jobs:
   build:
@@ -54,6 +55,15 @@ jobs:
       with:
         name: test-results-${{ github.run_number }}
         path: "**/TestResults/*.trx"
+
+    - name: Publish Test Results
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Test Results
+        path: "**/TestResults/*.trx"
+        reporter: dotnet-trx
+        fail-on-error: false
 
     - name: Upload Coverage Report
       if: always()
