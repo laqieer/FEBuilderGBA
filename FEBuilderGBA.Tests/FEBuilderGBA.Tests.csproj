@@ -42,10 +42,8 @@
   <Target Name="CopyDependencies" AfterTargets="Build">
     <ItemGroup>
       <ConfigFiles Include="..\FEBuilderGBA\bin\Debug\config\**\*.*" />
-      <NativeDlls Include="..\FEBuilderGBA\bin\Debug\7-zip32.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(ConfigFiles)" DestinationFolder="$(OutputPath)\config\%(RecursiveDir)" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(NativeDlls)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

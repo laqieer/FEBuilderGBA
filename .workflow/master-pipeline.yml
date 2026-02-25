@@ -22,7 +22,6 @@ stages:
           - dotnet publish -c Release -r win-x86 --no-self-contained -o .
           - build_time=$(date +"%Y%m%d.%H")
           - mv ./FEBuilderGBA/bin/Debug/config .
-          - mv ./FEBuilderGBA/bin/Debug/7-zip32.dll .
           - 'echo -e "\n*Build $build_time from Gitee Go pipeline ${GITEE_PIPELINE_DISPLAY_NAME} #${GITEE_PIPELINE_BUILD_NUMBER} & source code commit [${GITEE_SHORT_COMMIT}](https://gitee.com/${GITEE_REPO}/commit/${GITEE_COMMIT}).*" >> README.md'
         artifacts:
           - name: BUILD_ARTIFACT

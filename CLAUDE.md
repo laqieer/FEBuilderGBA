@@ -59,8 +59,9 @@ msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderG
 ### Dependencies
 
 The application requires these runtime files (copied from Debug build):
-- `7-zip32.dll` - Archive handling
 - `config/` directory - Contains all game data definitions, patches, translations
+
+Archive handling uses SharpCompress NuGet package (pure .NET, no native dependencies).
 
 ## Architecture Overview
 

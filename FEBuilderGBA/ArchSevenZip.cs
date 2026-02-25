@@ -1,93 +1,84 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers;
+using SharpCompress.Readers;
 
 namespace FEBuilderGBA
 {
     public class ArchSevenZip
     {
-        [DllImport("7-zip32.dll", CharSet = CharSet.Ansi)]
-        static extern int SevenZip(
-            IntPtr hwnd,            // ウィンドウハンドル
-            string szCmdLine,       // コマンドライン
-            StringBuilder szOutput, // 処理結果文字列
-            int dwSize);            // 引数szOutputの文字列サイズ
-
-        public static string Extract(string a7z, string dir, bool isHide)
+        /// <summary>
+        /// Extract an archive to a directory using SharpCompress
+        /// Supports 7z, zip, rar, tar, and other formats
+        /// </summary>
+        public static string Extract(string archiveFile, string dir, bool isHide)
         {
             try
             {
-                string basedir1 = Path.GetDirectoryName(a7z) + "\\";
-                string basedir2 = Path.GetDirectoryName(dir) + "\\";
-                if (basedir1 == basedir2)
-                {
-                    string a7z_relativePath = U.GetRelativePath(basedir1, a7z);
-                    string dir_relativePath = U.GetRelativePath(basedir2, dir);
-                    string errorMessage;
-                    using (new U.ChangeCurrentDirectory(basedir1))
-                    {
-                        errorMessage = ExtractLow(a7z_relativePath, dir_relativePath, isHide);
-                    }
-                    //いくつかの環境では相対パスでうまくいかないことがあるらしい.
-                    if (errorMessage.Length <= 0)
-                    {//上手くいった
-                        return "";
-                    }
-
-                    //絶対パスで再取得.
-                }
-                return ExtractLow(a7z, dir, isHide);
+                return ExtractLow(archiveFile, dir, isHide);
             }
             catch (Exception e)
             {
                 Debug.Assert(false);
-                return R.Error("7z解凍中にエラーが発生しました。\r\nターゲットファイル:{0}\r\n{1}", a7z , e.ToString());
+                return R.Error("7z解凍中にエラーが発生しました。\r\nターゲットファイル:{0}\r\n{1}", archiveFile, e.ToString());
             }
         }
-        static string ExtractLow(string a7z, string dir, bool isHide)
-        {
-            string command = "x -y ";
-            if (isHide)
-            {
-                command += "-hide ";
-            }
-            command += "-o" + "\"" + dir + "\"" + " " + "\"" + a7z + "\"";
 
-            StringBuilder sb = new StringBuilder(1024);
-            int r = SevenZip(IntPtr.Zero, command, sb, 1024);
-            if (r != 0)
-            {
-                return sb.ToString();
-            }
-            return "";
-        }
-        public static string Compress(string a7z, string target, uint checksize = 1024)
+        static string ExtractLow(string archiveFile, string dir, bool isHide)
         {
             try
             {
-                string basedir1 = Path.GetDirectoryName(a7z) + "\\";
-                string basedir2 = Path.GetDirectoryName(target) + "\\";
-
-                if (basedir1 == basedir2)
+                if (!File.Exists(archiveFile))
                 {
-                    string a7z_relativePath = U.GetRelativePath(basedir1, a7z);
-                    string target_relativePath = U.GetRelativePath(basedir2, target);
-                    string errorMessage;
-                    using (new U.ChangeCurrentDirectory(basedir1))
-                    {
-                        errorMessage = CompressLow(a7z_relativePath, target_relativePath, checksize);
-                    }
+                    return $"Archive file not found: {archiveFile}";
+                }
 
-                    //いくつかの環境では相対パスでうまくいかないことがあるらしい.
-                    if (errorMessage.Length <= 0)
-                    {//上手くいった
-                        return "";
+                // Ensure output directory exists
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                // Use generic ArchiveFactory to support multiple formats (7z, zip, rar, tar, etc.)
+                using (var archive = ArchiveFactory.Open(archiveFile))
+                {
+                    var extractOptions = new ExtractionOptions
+                    {
+                        ExtractFullPath = true,
+                        Overwrite = true
+                    };
+
+                    foreach (var entry in archive.Entries)
+                    {
+                        if (!entry.IsDirectory)
+                        {
+                            entry.WriteToDirectory(dir, extractOptions);
+                        }
                     }
                 }
-                return CompressLow(a7z, target, checksize);
+
+                return "";
+            }
+            catch (Exception e)
+            {
+                return $"Extraction failed: {e.Message}\r\n{e.StackTrace}";
+            }
+        }
+
+        /// <summary>
+        /// Compress a file or directory to a zip archive using SharpCompress
+        /// Note: Creates zip format archives (not 7z) for pure .NET compatibility
+        /// </summary>
+        public static string Compress(string outputFile, string target, uint checksize = 1024)
+        {
+            try
+            {
+                return CompressLow(outputFile, target, checksize);
             }
             catch (Exception e)
             {
@@ -95,28 +86,84 @@ namespace FEBuilderGBA
                 return R.Error("7z圧縮中にエラーが発生しました。\r\n{0}", e.ToString());
             }
         }
-        static string CompressLow(string a7z, string target , uint checksize)
+
+        static string CompressLow(string outputFile, string target, uint checksize)
         {
-            string command = "a -hide " + "\"" + a7z + "\"" + " " + "\"" + target + "\"";
-
-            StringBuilder sb = new StringBuilder(1024);
-            int r = SevenZip(IntPtr.Zero, command, sb, 1024);
-            if (r != 0)
-            {//エラー発生
-                return sb.ToString();
-            }
-
-            if (!File.Exists(a7z))
+            try
             {
-                return "file not found";
+                if (!File.Exists(target) && !Directory.Exists(target))
+                {
+                    return $"Target not found: {target}";
+                }
+
+                // Delete existing archive if it exists
+                if (File.Exists(outputFile))
+                {
+                    File.Delete(outputFile);
+                }
+
+                // Ensure output directory exists
+                string outputDir = Path.GetDirectoryName(outputFile);
+                if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
+                {
+                    Directory.CreateDirectory(outputDir);
+                }
+
+                // Create zip archive using SharpCompress Writers API
+                using (var stream = File.Create(outputFile))
+                using (var writer = WriterFactory.Open(stream, ArchiveType.Zip, new WriterOptions(CompressionType.Deflate)
+                {
+                    LeaveStreamOpen = false
+                }))
+                {
+                    if (File.Exists(target))
+                    {
+                        // Compress a single file
+                        writer.Write(Path.GetFileName(target), target);
+                    }
+                    else if (Directory.Exists(target))
+                    {
+                        // Compress a directory
+                        AddDirectoryToWriter(writer, target, target);
+                    }
+                }
+
+                // Check if archive was created successfully
+                if (!File.Exists(outputFile))
+                {
+                    return "file not found";
+                }
+                else if (U.GetFileSize(outputFile) < checksize)
+                {
+                    File.Delete(outputFile);
+                    return "file size too short";
+                }
+
+                return "";
             }
-            else if (U.GetFileSize(a7z) < checksize)
+            catch (Exception e)
             {
-                File.Delete(a7z);
-                return "file size too short";
+                return $"Compression failed: {e.Message}\r\n{e.StackTrace}";
+            }
+        }
+
+        /// <summary>
+        /// Recursively add all files from a directory to the writer
+        /// </summary>
+        private static void AddDirectoryToWriter(IWriter writer, string sourceDir, string basePath)
+        {
+            // Add all files in current directory
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                string relativePath = file.Substring(basePath.Length).TrimStart('\\', '/');
+                writer.Write(relativePath, file);
             }
 
-            return "";
+            // Recursively add subdirectories
+            foreach (string subDir in Directory.GetDirectories(sourceDir))
+            {
+                AddDirectoryToWriter(writer, subDir, basePath);
+            }
         }
     }
 }
