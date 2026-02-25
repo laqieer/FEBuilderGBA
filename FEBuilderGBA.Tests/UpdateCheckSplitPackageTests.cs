@@ -19,14 +19,8 @@ namespace FEBuilderGBA.Tests
         [InlineData("https://example.com/invalid.7z", 0, "00000000.00")]
         public void ExtractVersionFromUrl_ParsesCorrectly(string url, int versionIndex, string expected)
         {
-            // Use reflection to access private method
-            var method = typeof(UpdateCheckSplitPackage).GetMethod("ExtractVersionFromUrl",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-            Assert.NotNull(method);
-
             // Act
-            string result = (string)method.Invoke(null, new object[] { url, versionIndex });
+            string result = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, versionIndex);
 
             // Assert
             Assert.Equal(expected, result);

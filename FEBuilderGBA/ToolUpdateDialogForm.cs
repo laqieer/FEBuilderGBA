@@ -24,12 +24,89 @@ namespace FEBuilderGBA
 
         string Version;
         string URL;
+        UpdateInfo UpdateInfoData;
+        UpdateInfo.PackageType PackageType;
+
         public void Init(string version, string url)
         {
             this.Version = version;
             this.URL = url;
 
             this.Message.Text = string.Format(this.Message.Text, version, url);
+        }
+
+        /// <summary>
+        /// Initialize with split package support
+        /// </summary>
+        public void InitSplitPackage(UpdateInfo updateInfo)
+        {
+            this.UpdateInfoData = updateInfo;
+
+            // Determine what needs to be updated and get the appropriate URL
+            this.URL = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out this.PackageType);
+
+            // Build descriptive message
+            string messageText = BuildUpdateMessage(updateInfo, this.PackageType);
+            this.Message.Text = messageText;
+
+            // Update button text based on package type
+            UpdateButtonText(this.PackageType);
+        }
+
+        private string BuildUpdateMessage(UpdateInfo updateInfo, UpdateInfo.PackageType packageType)
+        {
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("アップデートが利用可能です:");
+            sb.AppendLine();
+
+            switch (packageType)
+            {
+                case UpdateInfo.PackageType.CoreOnly:
+                    sb.AppendLine($"プログラム本体の更新があります");
+                    sb.AppendLine($"現在: {updateInfo.VERSION_CORE}");
+                    sb.AppendLine($"最新: {UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE ?? updateInfo.URL_FULL, 0)}");
+                    break;
+
+                case UpdateInfo.PackageType.Patch2Only:
+                    sb.AppendLine($"パッチデータの更新があります");
+                    sb.AppendLine($"現在: {updateInfo.VERSION_PATCH2}");
+                    sb.AppendLine($"最新: {UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_PATCH2 ?? updateInfo.URL_FULL, 1)}");
+                    break;
+
+                case UpdateInfo.PackageType.Full:
+                    sb.AppendLine($"プログラム本体とパッチデータの両方を更新します");
+                    sb.AppendLine($"現在: Core={updateInfo.VERSION_CORE}, Patch2={updateInfo.VERSION_PATCH2}");
+                    break;
+
+                default:
+                    sb.AppendLine($"新しいバージョンが利用可能です");
+                    break;
+            }
+
+            sb.AppendLine();
+            sb.AppendLine($"ダウンロード元: {this.URL}");
+
+            return sb.ToString();
+        }
+
+        private void UpdateButtonText(UpdateInfo.PackageType packageType)
+        {
+            switch (packageType)
+            {
+                case UpdateInfo.PackageType.CoreOnly:
+                    this.AutoUpdateButton.Text = "プログラム本体を自動更新します";
+                    break;
+
+                case UpdateInfo.PackageType.Patch2Only:
+                    this.AutoUpdateButton.Text = "パッチデータを自動更新します";
+                    break;
+
+                case UpdateInfo.PackageType.Full:
+                default:
+                    this.AutoUpdateButton.Text = "全自動でアップデートします";
+                    break;
+            }
         }
 
 

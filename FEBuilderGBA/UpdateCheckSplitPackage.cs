@@ -178,7 +178,7 @@ namespace FEBuilderGBA
         /// For FULL packages: versionIndex=0 returns core version, versionIndex=1 returns patch2 version
         /// For single packages: returns the version regardless of index
         /// </summary>
-        private static string ExtractVersionFromUrl(string url, int versionIndex)
+        public static string ExtractVersionFromUrl(string url, int versionIndex)
         {
             if (string.IsNullOrEmpty(url))
                 return "00000000.00";
