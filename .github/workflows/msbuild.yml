@@ -82,9 +82,12 @@ jobs:
     - name: Install JUnit Test Logger
       run: dotnet add FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj package JunitXml.TestLogger --version 3.1.21
 
+    - name: Restore and Build Test Project
+      run: dotnet build FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj --configuration ${{env.BUILD_CONFIGURATION}}
+
     - name: Re-run Tests with JUnit Logger
       if: always()
-      run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "junit;LogFileName=test-results.xml"
+      run: dotnet test FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "junit;LogFileName=test-results.xml"
 
     - name: Upload Test Results to Codecov
       if: always()
