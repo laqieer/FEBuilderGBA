@@ -61,9 +61,11 @@ CHECKSUM=...
 
 ### 3.1 New Package Structure
 
-#### Full Package (for new installations - keep current name!)
+**Version Format:** `YYYYMMDD.HH` (e.g., `20260204.22`)
+
+#### Full Package (for new installations - keep current pattern!)
 ```
-FEBuilderGBA.zip
+FEBuilderGBA_{VERSION}.zip
 └── [everything as current]
 ```
 
@@ -71,7 +73,7 @@ FEBuilderGBA.zip
 
 #### Core Package (program only)
 ```
-FEBuilderGBA-core.zip (NEW)
+FEBuilderGBA-core_{VERSION}.zip (NEW)
 ├── FEBuilderGBA.exe
 ├── config/
 │   ├── data/
@@ -83,7 +85,7 @@ FEBuilderGBA-core.zip (NEW)
 
 #### Patch2 Package (patches only)
 ```
-FEBuilderGBA-patch2.zip (NEW)
+FEBuilderGBA-patch2_{VERSION}.zip (NEW)
 └── config/
     └── patch2/
         ├── FE6/
@@ -98,9 +100,9 @@ VERSION=20240225
 VERSION_CORE=20240225
 VERSION_PATCH2=20240220
 
-URL_FULL=https://github.com/.../FEBuilderGBA.zip
-URL_CORE=https://github.com/.../FEBuilderGBA-core.zip
-URL_PATCH2=https://github.com/.../FEBuilderGBA-patch2.zip
+URL_FULL=https://github.com/.../FEBuilderGBA_{VERSION}.zip
+URL_CORE=https://github.com/.../FEBuilderGBA-core_{VERSION}.zip
+URL_PATCH2=https://github.com/.../FEBuilderGBA-patch2_{VERSION}.zip
 
 CHECKSUM_FULL=...
 CHECKSUM_CORE=...
@@ -320,7 +322,7 @@ New-Item -ItemType Directory -Force -Path $OutputDir
 # 1. Create Full Package (keep original name for backward compatibility!)
 Write-Host "Creating full package..."
 Compress-Archive -Path "$BuildDir/*" `
-    -DestinationPath "$OutputDir/FEBuilderGBA.zip" `
+    -DestinationPath "$OutputDir/FEBuilderGBA_{VERSION}.zip" `
     -Force
 
 # 2. Create Core Package (exclude patch2)
@@ -329,7 +331,7 @@ $TempCore = "temp_core"
 Copy-Item -Path "$BuildDir" -Destination $TempCore -Recurse
 Remove-Item -Path "$TempCore/config/patch2" -Recurse -Force
 Compress-Archive -Path "$TempCore/*" `
-    -DestinationPath "$OutputDir/FEBuilderGBA-core.zip" `
+    -DestinationPath "$OutputDir/FEBuilderGBA-core_{VERSION}.zip" `
     -Force
 Remove-Item -Path $TempCore -Recurse -Force
 
@@ -341,7 +343,7 @@ Copy-Item -Path "$BuildDir/config/patch2" `
     -Destination "$TempPatch2/config/patch2" `
     -Recurse
 Compress-Archive -Path "$TempPatch2/*" `
-    -DestinationPath "$OutputDir/FEBuilderGBA-patch2.zip" `
+    -DestinationPath "$OutputDir/FEBuilderGBA-patch2_{VERSION}.zip" `
     -Force
 Remove-Item -Path $TempPatch2 -Recurse -Force
 
