@@ -122,7 +122,7 @@ namespace FEBuilderGBA
                 {
                     string _update = Path.Combine(Program.BaseDirectory, "_update");
                     U.mkdir(_update);
-                    string r = ArchSevenZip.Extract(updateArchive, _update, isHide: true,
+                    string r = ArchSevenZip.Extract(updateArchive, _update, isHide: false,
                         (current, total, file, elapsed, remaining) =>
                         {
                             string progress;
