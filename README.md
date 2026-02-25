@@ -28,9 +28,47 @@ git submodule update --init --recursive
 
 ## Testing & Coverage
 
-- ✅ **129 tests** covering core utility classes (RegexCache, LZ77, U)
+- ✅ **408 tests** passing (410 total, 2 skipped)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
+- 🧪 **Test Coverage:**
+  - Unit tests for core utilities (RegexCache, LZ77, U, TextEscape)
+  - UpdateInfo version tracking and comparison
+  - Split package download logic
+  - Integration tests for update system
+
+## 🔄 Smart Update System
+
+FEBuilderGBA features an intelligent **split package update system** that reduces download sizes by up to 90%:
+
+### How It Works
+
+The application tracks two version numbers independently:
+- **Core Version**: The application executable and libraries (FEBuilderGBA.exe, DLLs)
+- **Patch2 Version**: The patch database (~44,000 patch files in `config/patch2/`)
+
+When you check for updates, the system automatically:
+1. Detects which components have new versions
+2. Downloads only what's changed:
+   - **PATCH2 Package** (~10-20MB) - If only patches were updated
+   - **CORE Package** (~10-20MB) - If only the application was updated
+   - **FULL Package** (~60-80MB) - If both were updated or for fresh installs
+
+### Benefits
+
+- ✅ **70-90% smaller downloads** for incremental updates
+- ✅ **Faster updates** - Download and install in seconds, not minutes
+- ✅ **No restart required** for patch-only updates
+- ✅ **Automatic fallback** to full package if split packages unavailable
+- ✅ **Fully backward compatible** with older versions
+
+### Version Information
+
+Check your current versions:
+- **Core:** Click "Help" → "About" to see application version
+- **Patch2:** See `config/patch2/version.txt` for patch database version
+
+The update system is enabled by default and requires no configuration.
 
 [This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
