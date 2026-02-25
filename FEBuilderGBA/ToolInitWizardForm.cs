@@ -596,12 +596,23 @@ namespace FEBuilderGBA
                 string r = ArchSevenZip.Extract(tempFilename, dir, isHide: true,
                     (current, total, file, elapsed, remaining) =>
                     {
-                        string progress = string.Format("Extract... ({0}/{1}) {2:0.0}% - {3}\r\nElapsed: {4:mm\\:ss} / Remaining: {5:mm\\:ss}",
-                            current, total,
-                            (double)current / total * 100,
-                            file,
-                            elapsed,
-                            remaining);
+                        string progress;
+                        if (total > 0)
+                        {
+                            progress = string.Format("Extract... ({0}/{1}) {2:0.0}% - {3}\r\nElapsed: {4:mm\\:ss} / Remaining: {5:mm\\:ss}",
+                                current, total,
+                                (double)current / total * 100,
+                                file,
+                                elapsed,
+                                remaining);
+                        }
+                        else
+                        {
+                            progress = string.Format("Extract... ({0} files) - {1}\r\nElapsed: {2:mm\\:ss}",
+                                current,
+                                file,
+                                elapsed);
+                        }
                         this.SettingPleaseWait.DoEvents(progress);
                     });
                 if (r != "")

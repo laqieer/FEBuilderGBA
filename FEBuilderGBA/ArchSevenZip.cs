@@ -58,29 +58,8 @@ namespace FEBuilderGBA
                         Overwrite = true
                     };
 
-                    // Only count entries if progress callback is provided
-                    int totalEntries = 0;
-                    if (progressCallback != null)
-                    {
-                        // Try to get count efficiently first
-                        try
-                        {
-                            totalEntries = archive.Entries.Count(e => !e.IsDirectory);
-                        }
-                        catch
-                        {
-                            // Fallback to manual count if LINQ fails
-                            foreach (var entry in archive.Entries)
-                            {
-                                if (!entry.IsDirectory)
-                                {
-                                    totalEntries++;
-                                }
-                            }
-                        }
-                    }
-
-                    // Extract with optional progress reporting
+                    // Single-pass extraction with progress reporting
+                    // No pre-counting to maximize speed
                     int currentEntry = 0;
                     Stopwatch stopwatch = null;
                     long lastProgressUpdate = 0;
@@ -98,25 +77,21 @@ namespace FEBuilderGBA
                             // Extract the entry
                             entry.WriteToDirectory(dir, extractOptions);
 
-                            // Report progress if callback provided (throttled to every 100ms or every 10 files)
+                            // Report progress if callback provided (throttled to every 100ms or every 5 files)
                             if (progressCallback != null && stopwatch != null)
                             {
                                 long currentTicks = stopwatch.ElapsedMilliseconds;
-                                if (currentEntry % 10 == 0 || currentTicks - lastProgressUpdate >= 100 || currentEntry == totalEntries)
+                                if (currentEntry % 5 == 0 || currentTicks - lastProgressUpdate >= 100)
                                 {
                                     lastProgressUpdate = currentTicks;
 
                                     TimeSpan elapsed = stopwatch.Elapsed;
+                                    // No ETA since we don't know total count (single pass for speed)
                                     TimeSpan estimated = TimeSpan.Zero;
-                                    if (currentEntry > 0 && totalEntries > 0)
-                                    {
-                                        double avgTimePerEntry = elapsed.TotalSeconds / currentEntry;
-                                        int remainingEntries = totalEntries - currentEntry;
-                                        estimated = TimeSpan.FromSeconds(avgTimePerEntry * remainingEntries);
-                                    }
 
                                     string fileName = Path.GetFileName(entry.Key);
-                                    progressCallback(currentEntry, totalEntries, fileName, elapsed, estimated);
+                                    // Pass 0 for totalEntries to indicate count unknown
+                                    progressCallback(currentEntry, 0, fileName, elapsed, estimated);
                                 }
                             }
                         }
