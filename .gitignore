@@ -21,3 +21,9 @@ FEBuilderGBA/obj
 /FEBuilderGBA/bin/Debug/FEBuilderGBA.dll
 /FEBuilderGBA/bin/Debug/System.DirectoryServices.dll
 /FEBuilderGBA/bin/Debug/System.Speech.dll
+
+# Test results and coverage
+**/TestResults/
+coverage-report/
+FEBuilderGBA.Tests/bin/
+FEBuilderGBA.Tests/obj/

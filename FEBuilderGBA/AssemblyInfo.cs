@@ -19,8 +19,11 @@ using System.Runtime.InteropServices;
 // その型の ComVisible 属性を true に設定してください。  
 [assembly: ComVisible(false)]
 
-// 次の GUID は、このプロジェクトが COM に公開される場合の、typelib の ID です  
+// 次の GUID は、このプロジェクトが COM に公開される場合の、typelib の ID です
 [assembly: Guid("28e651ca-4217-4492-aae4-9695ab954ab0")]
+
+// Make internal types visible to test assembly
+[assembly: InternalsVisibleTo("FEBuilderGBA.Tests")]
 
 // アセンブリのバージョン情報は、以下の 4 つの値で構成されています:  
 //  

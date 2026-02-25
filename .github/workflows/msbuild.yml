@@ -39,6 +39,36 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
 
+    - name: Run Tests
+      run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+
+    - name: Install ReportGenerator
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+    - name: Generate Coverage Report
+      run: reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:"Html;MarkdownSummaryGithub;Cobertura"
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ github.run_number }}
+        path: "**/TestResults/*.trx"
+
+    - name: Upload Coverage Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ github.run_number }}
+        path: coverage-report/
+
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: "**/coverage.cobertura.xml"
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false
+
     - name: Post Build
       run: |
         $build_time = Get-Date -UFormat '%Y%m%d.%H'

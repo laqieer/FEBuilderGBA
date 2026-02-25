@@ -22,6 +22,8 @@ env:
 
 permissions:
   contents: read
+  pull-requests: write
+  checks: write
 
 jobs:
   build:
@@ -38,3 +40,29 @@ jobs:
       # Add additional options to the MSBuild command line here (like platform or verbosity level).
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
+
+    - name: Run Tests
+      run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+
+    - name: Publish Test Results
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Test Results
+        path: "**/TestResults/*.trx"
+        reporter: dotnet-trx
+        fail-on-error: true
+
+    - name: Install ReportGenerator
+      if: github.event_name == 'pull_request'
+      run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+    - name: Generate Coverage Report
+      if: github.event_name == 'pull_request'
+      run: reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:"MarkdownSummaryGithub"
+
+    - name: Comment PR with Coverage
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        path: coverage-report/SummaryGithub.md
