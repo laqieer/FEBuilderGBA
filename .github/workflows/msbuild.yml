@@ -79,33 +79,25 @@ jobs:
         fail_ci_if_error: false
         verbose: true
 
-    - name: Convert TRX to JUnit XML
+    - name: Install JUnit Test Logger
+      run: dotnet add FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj package JunitXml.TestLogger --version 3.1.21
+
+    - name: Re-run Tests with JUnit Logger
       if: always()
-      shell: pwsh
-      run: |
-        # Install trx2junit converter
-        dotnet tool install -g trx2junit
-
-        # Convert all TRX files to JUnit XML format
-        Get-ChildItem -Path . -Filter "*.trx" -Recurse | ForEach-Object {
-          $outputPath = $_.DirectoryName + "\junit-" + $_.BaseName + ".xml"
-          Write-Host "Converting $($_.FullName) to $outputPath"
-          trx2junit $_.FullName --output $outputPath
-        }
-
-        # List generated JUnit files
-        Write-Host "`nGenerated JUnit XML files:"
-        Get-ChildItem -Path . -Filter "junit-*.xml" -Recurse | Select-Object FullName
+      run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "junit;LogFileName=test-results.xml"
 
     - name: Upload Test Results to Codecov
       if: always()
       continue-on-error: true
-      uses: codecov/test-results-action@v1
+      uses: codecov/codecov-action@v4
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: "**/junit-*.xml"
+        flags: unittests
+        plugin: noop
+        disable_search: true
+        files: "**/test-results.xml"
         fail_ci_if_error: false
         verbose: true
 
