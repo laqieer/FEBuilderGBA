@@ -354,5 +354,198 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         #endregion
+
+        #region Padding and Alignment Methods
+
+        [Theory]
+        [InlineData(0u, true)]
+        [InlineData(4u, true)]
+        [InlineData(8u, true)]
+        [InlineData(12u, true)]
+        [InlineData(1u, false)]
+        [InlineData(3u, false)]
+        [InlineData(5u, false)]
+        [InlineData(7u, false)]
+        public void IsPadding4_ReturnsCorrectResult(uint value, bool expected)
+        {
+            // Act
+            var result = U.isPadding4(value);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(4u, 4u)]
+        [InlineData(5u, 4u)]
+        [InlineData(6u, 4u)]
+        [InlineData(7u, 4u)]
+        [InlineData(8u, 8u)]
+        [InlineData(11u, 8u)]
+        [InlineData(15u, 12u)]
+        public void SubPadding4_RoundsDownToFourByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.SubPadding4(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(1u, 2u)]
+        [InlineData(2u, 2u)]
+        [InlineData(3u, 4u)]
+        [InlineData(4u, 4u)]
+        [InlineData(5u, 6u)]
+        [InlineData(10u, 10u)]
+        [InlineData(11u, 12u)]
+        public void Padding2_RoundsUpToTwoByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.Padding2(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(1u, 0u)]
+        [InlineData(2u, 2u)]
+        [InlineData(3u, 2u)]
+        [InlineData(4u, 4u)]
+        [InlineData(5u, 4u)]
+        [InlineData(10u, 10u)]
+        [InlineData(11u, 10u)]
+        public void Padding2Before_RoundsDownToTwoByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.Padding2Before(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(1u, 4u)]
+        [InlineData(2u, 4u)]
+        [InlineData(3u, 4u)]
+        [InlineData(4u, 4u)]
+        [InlineData(5u, 8u)]
+        [InlineData(6u, 8u)]
+        [InlineData(7u, 8u)]
+        [InlineData(8u, 8u)]
+        [InlineData(15u, 16u)]
+        [InlineData(16u, 16u)]
+        [InlineData(17u, 20u)]
+        public void Padding4_Uint_RoundsUpToFourByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.Padding4(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(1, 4)]
+        [InlineData(2, 4)]
+        [InlineData(3, 4)]
+        [InlineData(4, 4)]
+        [InlineData(5, 8)]
+        [InlineData(15, 16)]
+        [InlineData(16, 16)]
+        [InlineData(17, 20)]
+        public void Padding4_Int_RoundsUpToFourByteBoundary(int input, int expected)
+        {
+            // Act
+            var result = U.Padding4(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(1u, 8u)]
+        [InlineData(7u, 8u)]
+        [InlineData(8u, 8u)]
+        [InlineData(9u, 16u)]
+        [InlineData(15u, 16u)]
+        [InlineData(16u, 16u)]
+        [InlineData(17u, 24u)]
+        [InlineData(23u, 24u)]
+        [InlineData(24u, 24u)]
+        public void Padding8_Uint_RoundsUpToEightByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.Padding8(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(1, 8)]
+        [InlineData(7, 8)]
+        [InlineData(8, 8)]
+        [InlineData(9, 16)]
+        [InlineData(15, 16)]
+        [InlineData(16, 16)]
+        [InlineData(17, 24)]
+        public void Padding8_Int_RoundsUpToEightByteBoundary(int input, int expected)
+        {
+            // Act
+            var result = U.Padding8(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0u, 0u)]
+        [InlineData(1u, 16u)]
+        [InlineData(15u, 16u)]
+        [InlineData(16u, 16u)]
+        [InlineData(17u, 32u)]
+        [InlineData(31u, 32u)]
+        [InlineData(32u, 32u)]
+        [InlineData(33u, 48u)]
+        [InlineData(47u, 48u)]
+        [InlineData(48u, 48u)]
+        public void Padding16_Uint_RoundsUpToSixteenByteBoundary(uint input, uint expected)
+        {
+            // Act
+            var result = U.Padding16(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(0, 0)]
+        [InlineData(1, 16)]
+        [InlineData(15, 16)]
+        [InlineData(16, 16)]
+        [InlineData(17, 32)]
+        [InlineData(31, 32)]
+        [InlineData(32, 32)]
+        [InlineData(33, 48)]
+        public void Padding16_Int_RoundsUpToSixteenByteBoundary(int input, int expected)
+        {
+            // Act
+            var result = U.Padding16(input);
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+
+        #endregion
     }
 }
