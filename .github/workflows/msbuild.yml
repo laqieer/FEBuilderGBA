@@ -70,9 +70,10 @@ jobs:
         Get-ChildItem -Path . -Filter "coverage.cobertura.xml" -Recurse | Select-Object FullName
 
     - name: Upload Coverage to Codecov
-      if: ${{ secrets.CODECOV_TOKEN != '' }}
       continue-on-error: true
       uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       with:
         files: "**/coverage.cobertura.xml"
         token: ${{ secrets.CODECOV_TOKEN }}
