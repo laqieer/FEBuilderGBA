@@ -1,0 +1,34 @@
+NAME=アイテムチェック(全ユニットと輸送隊)(イベント命令)
+TYPE=BIN
+TAG=#EVENT
+
+//既に適応されたかどうか
+PATCHED_IF:$FGREP4 item_find.bin=0xF0 0xB5 0x80 0x6B
+
+
+EVENTSCRIPT=400DYYYY{$L1:item_find.bin}	[YYYY:ITEM:アイテム]アイテム所持チェック 	{COND}
+
+
+//本体をフリーエリアにいれる.
+BIN:$FREEAREA:1=item_find.bin
+
+INFO=特定のアイテムを輸送隊を含めて誰かもっているかという条件式を作成します.
+
+HINT=輸送体
+AUTHOR=怪盗パッチ 7743
+NAME.en=Add Event Condition: Item Check(All units and transporters)
+INFO.en=Patches the ROM with an event conditional statement that searches all player character inventories for a specific item.
+
+HINT.en=convoy,supply,transporter,merlinus,wagon
+AUTHOR.en=Kaito patch7743
+
+NAME.zh=事件命令_ 物品拥有运输队(Add Event)
+INFO.zh=我们创建一个有条件的表达式，有人有一个包含一个运输队的某个物品。
+AUTHOR.zh=Kaito补丁7743
+
+
+
+
+
+EVENTSCRIPT.en=400DYYYY{$L1:item_find.bin}	[YYYY:ITEM:ITEM] item possession check
+EVENTSCRIPT.zh=400DYYYY{$L1:item_find.bin}	[YYYY:ITEM:ITEM]项目拥有检查

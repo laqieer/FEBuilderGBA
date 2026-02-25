@@ -1,0 +1,3 @@
+Exit=$36
+DanceCheck=$2C
+AnimeOFF=$34

@@ -1,0 +1,13 @@
+NAME=サポートレベルAになるサポート値
+NAME.en=Change SupportLevel fot next level A
+
+//アドレスパッチとして実装します
+TYPE=ADDR
+TAG=#ENGINE
+
+ADDRESS=0x02669A 0xB9418C
+
+INFO=支援レベルAになれるサポート値 Default:0xF0
+INFO.en=Support value that can reach support level A. Default:0xF0
+NAME.zh=达到支撑级别A的支撑值。
+INFO.zh=可以达到支撑级别A的支撑值。 Default:0xF0

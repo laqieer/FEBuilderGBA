@@ -1,0 +1,21 @@
+NAME=オートセーブキラー
+NAME.en=Autosave Killer
+NAME.zh=关掉自动存档
+
+AUTHOR=laqieer
+
+INFO=オートセーブ機能を削除します。
+INFO.en=Remove autosave.
+INFO.zh=关掉自动存档。
+
+TYPE=BIN
+
+PATCHED_IF:0x1548E=0x00 0x00 0x00 0x00
+BIN:0x1548E=nop4byte.bin
+BIN:0x1BC28=nop4byte.bin
+BIN:0x1C186=nop4byte.bin
+BIN:0x1CB80=nop4byte.bin
+BIN:0x2A75A=nop4byte.bin
+BIN:0x2F10E=nop4byte.bin
+BIN:0x3454E=nop4byte.bin
+BIN:0x34D24=nop4byte.bin

@@ -44,20 +44,24 @@ namespace FEBuilderGBA
                     Directory.CreateDirectory(dir);
                 }
 
-                // Use generic ArchiveFactory to support multiple formats (7z, zip, rar, tar, etc.)
-                using (var archive = ArchiveFactory.Open(archiveFile))
+                // Use Reader API for more reliable extraction across all formats
+                var readerOptions = new ReaderOptions
                 {
-                    var extractOptions = new ExtractionOptions
-                    {
-                        ExtractFullPath = true,
-                        Overwrite = true
-                    };
+                    LeaveStreamOpen = false
+                };
 
-                    foreach (var entry in archive.Entries)
+                using (Stream stream = File.OpenRead(archiveFile))
+                using (var reader = ReaderFactory.Open(stream, readerOptions))
+                {
+                    while (reader.MoveToNextEntry())
                     {
-                        if (!entry.IsDirectory)
+                        if (!reader.Entry.IsDirectory)
                         {
-                            entry.WriteToDirectory(dir, extractOptions);
+                            reader.WriteEntryToDirectory(dir, new ExtractionOptions
+                            {
+                                ExtractFullPath = true,
+                                Overwrite = true
+                            });
                         }
                     }
                 }

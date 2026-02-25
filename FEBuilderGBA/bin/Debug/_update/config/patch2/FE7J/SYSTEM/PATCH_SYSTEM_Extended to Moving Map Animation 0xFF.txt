@@ -1,0 +1,42 @@
+NAME=移動アイコンをFFまで拡張
+NAME.en=Extended Moving Map Animation List
+
+TYPE=SWITCH
+TAG=#ENGINE
+COMBO=Default 0x7F|OFF|Extend 0xFF|ONN
+
+
+OFF:0x025202=0x7F
+ONN:0x025202=0xFF
+OFF:0x025288=0x7F
+ONN:0x025288=0xFF
+OFF:0x0256E4=0x7F
+ONN:0x0256E4=0xFF
+OFF:0x025C48=0x7F
+ONN:0x025C48=0xFF
+OFF:0x026576=0x7F
+ONN:0x026576=0xFF
+OFF:0x026662=0x7F
+ONN:0x026662=0xFF
+OFF:0x026710=0x7F
+ONN:0x026710=0xFF
+OFF:0x0267D0=0x7F
+ONN:0x0267D0=0xFF
+OFF:0x026864=0x7F
+ONN:0x026864=0xFF
+OFF:0x026940=0x7F
+ONN:0x026940=0xFF
+OFF:0x0254CE=0xD0 0x09
+ONN:0x0254CE=0x00 0x20
+OFF:0x025360=0xD0 0x09	//Snakey1
+ONN:0x025360=0x00 0x20	//
+OFF:0x0255BE=0xD0 0x09	//
+ONN:0x0255BE=0x00 0x20	//
+
+AUTHOR=Icecube https://feuniverse.us/t/max-number-of-standing-map-sprites/773/20 , Snakey1 https://feuniverse.us/t/max-number-of-standing-map-sprites/773/29
+NAME.zh=将移动图标扩展到FF
+
+INFO=ユニットが移動する、または待機するときに利用されるユニットアイコンを255まで利用できるように修正します。
+INFO.en=Toggles whether to limit class moving animations(Standing Map Animation) to 127 (Default) or 255 (Extended)\r\nIf moving map animations exceed 127 without being patched, there will be errors.\r\n
+HINT=fixed unit's standing map animations
+INFO.zh=修改单位移动或等待时使用的单位图标，最多可使用255个。

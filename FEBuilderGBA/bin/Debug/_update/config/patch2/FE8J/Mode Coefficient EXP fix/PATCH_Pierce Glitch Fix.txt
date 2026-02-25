@@ -1,0 +1,16 @@
+NAME=Pierce Glitch Fix
+NAME.en=Remove Pierce Glitch
+TYPE=ADDR
+TAG=#ENGINE #ESSENTIALFIXES
+
+ADDRESS=0x2B200
+COMBO=Default: Fix|0xa0|Default|0x80
+COMBO.zh=Default: 修复|0xa0|默认|0x80
+
+AUTHOR=credit Brendor
+AUTHOR.en=credit Brendor
+NAME.zh=故障修复
+INFO.zh=故障修复
+AUTHOR.zh=credit Brendor
+
+INFO.en=Patches the ROM to remove the glitch with the Wyvern Knight Pierce skill.\r\nForces the character to wait for the animation to finish before striking like with Sureshot and the Japanese ROM.\r\nIn the Vanilla FE8U ROM, Pierce can freeze the game, especially when activated during a ranged attack.\r\n

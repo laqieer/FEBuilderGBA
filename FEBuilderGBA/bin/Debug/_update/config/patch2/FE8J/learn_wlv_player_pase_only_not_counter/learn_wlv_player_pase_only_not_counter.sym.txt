@@ -1,0 +1,3 @@
+LimitWeaponLevel=$38
+AddWeaponLevel=$10
+FalseExit=$20

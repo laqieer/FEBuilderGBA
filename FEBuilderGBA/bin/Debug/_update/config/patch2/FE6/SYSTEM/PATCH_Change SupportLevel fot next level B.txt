@@ -1,0 +1,13 @@
+NAME=サポートレベルBになるサポート値
+NAME.en=Change SupportLevel fot next level B
+
+//アドレスパッチとして実装します
+TYPE=ADDR
+TAG=#ENGINE
+
+ADDRESS=0x22AFE 0x5C6134
+
+INFO=支援レベルBになれるサポート値 Default:0x78
+INFO.en=Support value that can reach support level B. Default:0x78
+NAME.zh=达到支撑级别B的支撑值。
+INFO.zh=可以达到支撑级别B的支撑值。 Default:0x78
