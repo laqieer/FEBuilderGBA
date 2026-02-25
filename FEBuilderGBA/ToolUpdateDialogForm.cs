@@ -112,6 +112,150 @@ namespace FEBuilderGBA
 
         private void AutoUpdateButton_Click(object sender, EventArgs e)
         {
+            // Handle split package updates differently
+            if (this.UpdateInfoData != null && this.PackageType == UpdateInfo.PackageType.Patch2Only)
+            {
+                AutoUpdatePatch2Only(e);
+                return;
+            }
+
+            // Standard update flow (FULL, CORE, or legacy)
+            AutoUpdateStandard(e);
+        }
+
+        /// <summary>
+        /// Handle PATCH2-only updates (no application restart needed)
+        /// </summary>
+        private void AutoUpdatePatch2Only(EventArgs e)
+        {
+            if (InputFormRef.IsPleaseWaitDialog(this))
+            {
+                return;
+            }
+
+            if (Program.ROM != null && Program.ROM.Modified)
+            {
+                DialogResult dr = R.ShowQ("未保存の変更があるようです。\r\n保存してもよろしいですか？");
+                if (dr == System.Windows.Forms.DialogResult.Yes)
+                {
+                    MainFormUtil.SaveForce(Program.MainForm());
+                }
+                else if (dr == System.Windows.Forms.DialogResult.Cancel)
+                {
+                    return;
+                }
+            }
+
+            using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+            {
+                string ext = ".7z";
+                string updateArchive = Path.Combine(Program.BaseDirectory, "dltemp_patch2_" + DateTime.Now.Ticks.ToString() + ext);
+
+                // Download
+                try
+                {
+                    U.DownloadFile(updateArchive, this.URL, pleaseWait);
+                }
+                catch (Exception ee)
+                {
+                    BrokenDownload(ee);
+                    this.Close();
+                    return;
+                }
+
+                if (!File.Exists(updateArchive))
+                {
+                    BrokenDownload(R._("ダウンロードしたファイルがありません。"));
+                    this.Close();
+                    return;
+                }
+
+                pleaseWait.DoEvents("Extract...");
+
+                // Extract PATCH2 package to temporary directory first
+                string tempExtractPath = Path.Combine(Program.BaseDirectory, "_temp_patch2_extract");
+                U.mkdir(tempExtractPath);
+
+                try
+                {
+                    string r = ArchSevenZip.Extract(updateArchive, tempExtractPath, isHide: false,
+                        (current, total, file, elapsed, remaining) =>
+                        {
+                            string progress = string.Format("Extract... ({0}/{1}) - {2}",
+                                current, total, file);
+                            pleaseWait.DoEvents(progress);
+                        });
+
+                    if (r != "")
+                    {
+                        BrokenDownload(R._("ダウンロードしたファイルを解凍できませんでした。") + "\r\n" + r);
+                        this.Close();
+                        return;
+                    }
+                }
+                catch (Exception ee)
+                {
+                    BrokenDownload(ee);
+                    this.Close();
+                    return;
+                }
+
+                pleaseWait.DoEvents("Installing patch data...");
+
+                // Copy extracted files to config/patch2/
+                try
+                {
+                    string sourcePatch2 = Path.Combine(tempExtractPath, "config", "patch2");
+                    string targetPatch2 = Path.Combine(Program.BaseDirectory, "config", "patch2");
+
+                    if (!Directory.Exists(sourcePatch2))
+                    {
+                        BrokenDownload(R._("パッチデータが見つかりませんでした。"));
+                        this.Close();
+                        return;
+                    }
+
+                    // Backup current patch2 directory
+                    string backupPath = Path.Combine(Program.BaseDirectory, "config", "_patch2_backup_" + DateTime.Now.Ticks);
+                    if (Directory.Exists(targetPatch2))
+                    {
+                        Directory.Move(targetPatch2, backupPath);
+                    }
+
+                    // Copy new patch2 data
+                    U.DirectoryCopy(sourcePatch2, targetPatch2, true);
+
+                    // Clean up backup after successful copy
+                    if (Directory.Exists(backupPath))
+                    {
+                        Directory.Delete(backupPath, true);
+                    }
+
+                    // Clean up temp directory
+                    Directory.Delete(tempExtractPath, true);
+
+                    // Delete download archive
+                    File.Delete(updateArchive);
+
+                    R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには、アプリケーションを再起動してください。");
+                }
+                catch (Exception ee)
+                {
+                    BrokenDownload(R._("パッチデータのインストール中にエラーが発生しました。\r\n{0}", ee.ToString()));
+                    this.Close();
+                    return;
+                }
+            }
+
+            this.DialogResult = System.Windows.Forms.DialogResult.OK;
+            this.Close();
+        }
+
+        /// <summary>
+        /// Standard update flow (FULL/CORE packages or legacy)
+        /// </summary>
+        private void AutoUpdateStandard(EventArgs e)
+        {
             if (InputFormRef.IsPleaseWaitDialog(this))
             {//2重割り込み禁止
                 return;

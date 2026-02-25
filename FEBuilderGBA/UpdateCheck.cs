@@ -11,29 +11,70 @@ namespace FEBuilderGBA
     {
         public static void CheckUpdateUI()
         {
-            string download_url;
-            string net_version;
+            CheckUpdateUI(enableSplitPackages: true);
+        }
 
+        public static void CheckUpdateUI(bool enableSplitPackages)
+        {
             int func_update_source = OptionForm.update_source();
 
-            string error;
+            if (enableSplitPackages && func_update_source != 1)
+            {
+                // Try split package detection first (only for release, not nightly)
+                try
+                {
+                    UpdateInfo updateInfo;
+                    string error = UpdateCheckSplitPackage.CheckSplitPackageUpdateByGitHub(out updateInfo);
+
+                    if (error != "")
+                    {
+                        // Check if error is "already up to date"
+                        if (error.Contains("最新です"))
+                        {
+                            OverradeLastUpdateTime();
+                            R.ShowOK(error);
+                            return;
+                        }
+                        // Fall through to legacy check if split package check failed
+                    }
+                    else
+                    {
+                        // Success with split packages
+                        OverradeLastUpdateTime();
+                        ToolUpdateDialogForm f = (ToolUpdateDialogForm)InputFormRef.JumpFormLow<ToolUpdateDialogForm>();
+                        f.InitSplitPackage(updateInfo);
+                        f.ShowDialog();
+                        return;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error($"Split package check failed, falling back to legacy: {e}");
+                    // Fall through to legacy check
+                }
+            }
+
+            // Legacy single-package check (backward compatibility)
+            string download_url;
+            string net_version;
+            string error_legacy;
 
             if (func_update_source == 1)
-                error = CheckUpdateURLByNightlyLink(out download_url, out net_version);
+                error_legacy = CheckUpdateURLByNightlyLink(out download_url, out net_version);
             else
-                error = CheckUpdateURLByRelease(out download_url, out net_version);
+                error_legacy = CheckUpdateURLByRelease(out download_url, out net_version);
 
-            if (error != "")
+            if (error_legacy != "")
             {
                 if (net_version != "")
                 {//バージョンが取れたということは、現在のが最新
                     OverradeLastUpdateTime();
-                    R.ShowOK(error);
+                    R.ShowOK(error_legacy);
                     return;
                 }
                 else
                 {//何かエラーが発生
-                    R.ShowStopError(error);
+                    R.ShowStopError(error_legacy);
                     return;
                 }
             }
