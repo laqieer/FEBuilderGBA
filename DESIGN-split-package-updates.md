@@ -16,7 +16,7 @@
 
 ### 1.3 Proposed Solution
 Split release into three packages:
-1. **Full Package** - Complete installation (for new users)
+1. **Full Package** - Complete installation (keep current name for backward compatibility)
 2. **Core Package** - Program files without patch2/ (for code updates)
 3. **Patch2 Package** - Only patch2/ folder (for patch updates)
 
@@ -61,15 +61,17 @@ CHECKSUM=...
 
 ### 3.1 New Package Structure
 
-#### Full Package (for new installations)
+#### Full Package (for new installations - keep current name!)
 ```
-FEBuilderGBA-full.zip
+FEBuilderGBA.zip
 └── [everything as current]
 ```
 
+**Important:** Keep the original filename for backward compatibility. Old clients will continue to work.
+
 #### Core Package (program only)
 ```
-FEBuilderGBA-core.zip
+FEBuilderGBA-core.zip (NEW)
 ├── FEBuilderGBA.exe
 ├── config/
 │   ├── data/
@@ -81,7 +83,7 @@ FEBuilderGBA-core.zip
 
 #### Patch2 Package (patches only)
 ```
-FEBuilderGBA-patch2.zip
+FEBuilderGBA-patch2.zip (NEW)
 └── config/
     └── patch2/
         ├── FE6/
@@ -96,7 +98,7 @@ VERSION=20240225
 VERSION_CORE=20240225
 VERSION_PATCH2=20240220
 
-URL_FULL=https://github.com/.../FEBuilderGBA-full.zip
+URL_FULL=https://github.com/.../FEBuilderGBA.zip
 URL_CORE=https://github.com/.../FEBuilderGBA-core.zip
 URL_PATCH2=https://github.com/.../FEBuilderGBA-patch2.zip
 
@@ -315,10 +317,10 @@ param(
 $OutputDir = "releases/$Version"
 New-Item -ItemType Directory -Force -Path $OutputDir
 
-# 1. Create Full Package
+# 1. Create Full Package (keep original name for backward compatibility!)
 Write-Host "Creating full package..."
 Compress-Archive -Path "$BuildDir/*" `
-    -DestinationPath "$OutputDir/FEBuilderGBA-full.zip" `
+    -DestinationPath "$OutputDir/FEBuilderGBA.zip" `
     -Force
 
 # 2. Create Core Package (exclude patch2)
