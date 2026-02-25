@@ -18,12 +18,14 @@ http://www.madobe.net/archiver/lib/7-zip32.html
 License: LGPL 2.1
 
 
-7-zip32.dll (廃止 - 使用されていません)
+7-zip32.dll (オプション - ハイブリッドモード)
 ===
 
-**注意:** 2025年以降、FEBuilderGBAはネイティブの7-zip32.dllを使用しなくなりました。アーカイブ処理は[SharpCompress](https://github.com/adamhathcock/sharpcompress)という純粋な.NETライブラリに移行され、ネイティブ依存関係がなくなりました。
+**注意:** 2025年以降、FEBuilderGBAはアーカイブ処理に**ハイブリッドアプローチ**を使用しています：
+- **7-zip32.dllが存在する場合**: ネイティブDLLを使用して最大の展開速度を実現
+- **7-zip32.dllがない場合**: 自動的に[SharpCompress](https://github.com/adamhathcock/sharpcompress)（純粋な.NET）にフォールバック
 
-このファイルは履歴参照のためにのみ保持されています。
+DLLは**オプション**です - アプリケーションはDLLなしでも正常に動作しますが、大きなアーカイブの場合は遅くなります。
 
 ---
 
