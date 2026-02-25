@@ -9,20 +9,98 @@
 - Preserve complete download option for new users
 
 ### 1.2 Current Issues
-- Full release package contains ~44,000 files
-- Users must download entire package even for small code changes
-- Patch updates require downloading full program
-- Large download size (~hundreds of MB)
+- Full release package contains ~44,000 files (mostly in patch2/)
+- **Slow extraction time** when updating (thousands of files to extract)
+- Users must extract entire package even for small code changes
+- Patch updates require extracting full program files
+- Monolithic repository mixes code and data (patch2/)
 
 ### 1.3 Proposed Solution
-Split release into three packages:
-1. **Full Package** - Complete installation (keep current name for backward compatibility)
-2. **Core Package** - Program files without patch2/ (for code updates)
-3. **Patch2 Package** - Only patch2/ folder (for patch updates)
+
+**Primary Solution: Git Submodule**
+- Move `config/patch2/` to separate git repository
+- Add as submodule to main repository
+- Independent version control and updates
+- Cleaner repository separation (code vs data)
+
+**Secondary Solution: Split Packages**
+- Create three release packages (full, core, patch2)
+- Allow selective updates
+- Faster extraction for code-only or patch-only updates
+
+**Combined Approach:**
+1. Use git submodule for repository management
+2. Build separate packages from submodule structure
+3. Update mechanism supports updating main repo or submodule independently
 
 ---
 
-## 2. Current Architecture
+## 2. Git Submodule Architecture
+
+### 2.1 Repository Structure
+
+**Current (Monolithic):**
+```
+laqieer/FEBuilderGBA (single repo)
+└── All code + patch2/
+```
+
+**Proposed (Submodule):**
+```
+laqieer/FEBuilderGBA (main repo - code only)
+└── config/patch2/ → submodule → laqieer/FEBuilderGBA-patch2
+
+laqieer/FEBuilderGBA-patch2 (separate repo - patches only)
+└── FE6/, FE7/, FE8/, FE8U/
+```
+
+### 2.2 Submodule Setup
+
+```bash
+# 1. Create new repository for patches
+cd /path/to/FEBuilderGBA
+git clone FEBuilderGBA FEBuilderGBA-patch2-temp
+cd FEBuilderGBA-patch2-temp
+
+# 2. Remove everything except config/patch2
+git filter-branch --subdirectory-filter config/patch2 --prune-empty -- --all
+git remote set-url origin https://github.com/laqieer/FEBuilderGBA-patch2.git
+git push -u origin master --force
+
+# 3. Add as submodule to main repository
+cd /path/to/FEBuilderGBA
+git rm -r config/patch2
+git commit -m "Remove patch2 directory (will be replaced by submodule)"
+git submodule add https://github.com/laqieer/FEBuilderGBA-patch2.git config/patch2
+git commit -m "Add patch2 as submodule"
+```
+
+### 2.3 Submodule Updates
+
+**User updating main repo:**
+```bash
+git pull
+# Does NOT automatically update submodule
+```
+
+**User updating patch2 only:**
+```bash
+cd config/patch2
+git pull
+cd ../..
+git add config/patch2
+git commit -m "Update patch2 to latest"
+```
+
+**User updating both:**
+```bash
+git pull
+git submodule update --remote
+```
+
+---
+
+## 3. Current Architecture (Pre-Submodule)
 
 ### 2.1 Package Structure
 ```
@@ -465,7 +543,17 @@ if (downloadedChecksum != expectedChecksum)
 
 ## 11. Implementation Phases
 
-### Phase 1: Backend Infrastructure (Week 1)
+### Phase 0: Git Submodule Migration (Week 1)
+- [ ] Create FEBuilderGBA-patch2 repository
+- [ ] Extract patch2/ history using filter-branch
+- [ ] Push to new repository
+- [ ] Remove patch2/ from main repository
+- [ ] Add patch2 as submodule
+- [ ] Update .gitignore and .gitmodules
+- [ ] Test clone/build with submodule
+- [ ] Document submodule workflow
+
+### Phase 1: Backend Infrastructure (Week 2)
 - [ ] Create UpdateInfo class with new fields
 - [ ] Implement version.txt read/write
 - [ ] Update version comparison logic
