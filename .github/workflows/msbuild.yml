@@ -134,4 +134,4 @@ jobs:
           *.dll
           *.json
           config/
-          *.md
+          README*.md
