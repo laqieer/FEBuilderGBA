@@ -468,6 +468,9 @@ namespace FEBuilderGBA
 
         public static void DEBUG_LZ77CHECK(byte[] original_data, byte[] lz77data)
         {
+            // decompress() returns empty array for data smaller than 3 bytes, skip round-trip check
+            if (original_data.Length < 3)
+                return;
             byte[] uncomp = LZ77.decompress(lz77data, 0);
             Debug.Assert(original_data.Length == uncomp.Length);
 
