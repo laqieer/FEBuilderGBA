@@ -135,3 +135,19 @@ jobs:
           *.json
           config/
           README*.md
+
+    - name: Create Split Packages
+      id: create_packages
+      run: |
+        # Create split packages using PowerShell script
+        pwsh -File scripts/create-split-packages.ps1 -BuildTime "${{ env.build_time }}" -BinPath "." -OutputPath "."
+
+    - name: Upload Split Package Artifacts
+      if: success()
+      uses: actions/upload-artifact@v4.3.5
+      with:
+        name: split-packages_${{ env.build_time }}
+        path: |
+          FEBuilderGBA_FULL_*.7z
+          FEBuilderGBA_CORE_*.7z
+          FEBuilderGBA_PATCH2_*.7z
