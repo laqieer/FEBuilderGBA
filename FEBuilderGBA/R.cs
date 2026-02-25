@@ -87,6 +87,8 @@ namespace FEBuilderGBA
             try
             {
                 string title = R._("エラー");
+                // Copy error message to clipboard before showing dialog
+                U.SetClipboardText(message);
                 MessageBox.Show(message
                     , title
                     , MessageBoxButtons.OK
@@ -125,6 +127,8 @@ namespace FEBuilderGBA
             try
             {
                 string title = R._("エラー");
+                // Copy error message to clipboard before showing dialog
+                U.SetClipboardText(message);
                 MessageBox.Show(message
                     , title
                     , MessageBoxButtons.OK

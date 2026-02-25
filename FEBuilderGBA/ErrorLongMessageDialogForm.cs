@@ -19,6 +19,8 @@ namespace FEBuilderGBA
         public void SetErrorMessage(string message)
         {
             this.ErrorMessage.Text = message;
+            // Automatically copy error message to clipboard
+            U.SetClipboardText(message);
         }
 
         private void ErrorLongMessageDialogForm_Load(object sender, EventArgs e)
@@ -28,6 +30,11 @@ namespace FEBuilderGBA
 
         private void MyCloseButton_Click(object sender, EventArgs e)
         {
+            // Copy to clipboard again when closing, in case user modified the text
+            if (!string.IsNullOrEmpty(this.ErrorMessage.Text))
+            {
+                U.SetClipboardText(this.ErrorMessage.Text);
+            }
             this.Close();
         }
 
