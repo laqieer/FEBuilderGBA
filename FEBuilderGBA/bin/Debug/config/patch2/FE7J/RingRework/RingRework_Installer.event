@@ -1,7 +1,0 @@
-PUSH
-ORG 0x29364  //FE7J
-#incbin "RingRework.dmp"
-POIN RingRework_Table
-POP
-
-#include "RingRework_Table.event"

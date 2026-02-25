@@ -1,3 +1,0 @@
-0=ANY
-1=UnPromoted
-2=Promoted

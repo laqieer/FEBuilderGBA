@@ -1,2 +1,0 @@
-Store=$18
-Term=$1C

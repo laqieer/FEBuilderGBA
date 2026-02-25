@@ -1,2 +1,0 @@
-0=When condition
-1=Always displayed

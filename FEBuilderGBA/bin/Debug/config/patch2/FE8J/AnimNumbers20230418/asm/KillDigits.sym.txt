@@ -1,3 +1,0 @@
-Loop=$02
-GOTO_R3=$32
-EndLoop=$24

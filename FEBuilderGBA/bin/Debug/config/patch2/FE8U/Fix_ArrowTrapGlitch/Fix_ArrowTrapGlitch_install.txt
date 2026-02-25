@@ -1,8 +1,0 @@
-PUSH
-ORG 0x0378e2	//{U}
-BYTE 0x00 0x00
-jumpToHack(Fix_ArrowTrapGlitch)
-POP
-
-Fix_ArrowTrapGlitch:
-#incbin "Fix_ArrowTrapGlitch.dmp"

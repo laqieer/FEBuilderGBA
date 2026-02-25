@@ -1,1 +1,0 @@
-LuckTable=$18

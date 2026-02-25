@@ -1,4 +1,0 @@
-NAME=フォデス戦
-NAME.zh=打击MUSIC_ Fodeh
-
-NAME.en=Fight against MUSIC_ Fodeh

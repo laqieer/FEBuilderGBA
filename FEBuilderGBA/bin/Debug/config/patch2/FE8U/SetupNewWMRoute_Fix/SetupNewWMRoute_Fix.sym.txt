@@ -1,4 +1,0 @@
-NotFound=$20
-Loop=$0C
-TrueExit=$2A
-Exit=$2C

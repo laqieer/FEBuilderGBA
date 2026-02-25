@@ -1,3 +1,0 @@
-BGList=$24
-Loop=$04
-ChooseRandBG=$0E

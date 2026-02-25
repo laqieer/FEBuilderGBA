@@ -1,4 +1,0 @@
-00=Player
-01=NPC
-02=Enemy
-03=Other

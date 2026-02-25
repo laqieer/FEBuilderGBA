@@ -1,4 +1,0 @@
-ReturnFalse=$40
-LoadBuffer=$16
-ReturnTrue=$3C
-Exit=$4E

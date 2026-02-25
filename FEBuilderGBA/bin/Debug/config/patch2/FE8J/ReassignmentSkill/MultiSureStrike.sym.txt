@@ -1,4 +1,0 @@
-Table=$24
-Loop=$04
-FalseExit=$12
-TrueExit=$16

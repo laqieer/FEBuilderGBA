@@ -1,3 +1,0 @@
-0=none
-1=negative
-2=positive

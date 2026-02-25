@@ -1,4 +1,0 @@
-SelectAxsData=$58
-StartBHA=$2A
-StartVanillaHandAxs=$1E
-Exit=$38

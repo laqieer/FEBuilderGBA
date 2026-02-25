@@ -1,2 +1,0 @@
-Deadeye: Doubles hit rate.
-Skill% chance to inflict sleep.

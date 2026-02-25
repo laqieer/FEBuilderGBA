@@ -1,4 +1,0 @@
-Exit=$2A
-Loop1=$18
-TrueExit=$28
-FlaseExit=$24

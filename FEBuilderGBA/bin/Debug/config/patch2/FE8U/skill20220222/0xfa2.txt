@@ -1,3 +1,0 @@
-Heavy Blade: +4 Damage/-2[N]
-Attack Speed when unit's Con[N] 
-is bigger than the enemy.

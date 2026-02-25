@@ -1,3 +1,0 @@
-BXR6=$48
-NoItemUseDescription=$30
-DisplayItemUseDescription=$1C

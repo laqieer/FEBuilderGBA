@@ -1,3 +1,0 @@
-0=cannot double
-1=can double
-2=guaranteed double

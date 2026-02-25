@@ -1,4 +1,0 @@
-Loop=$0E
-Break=$6A
-Store=$54
-Term=$80

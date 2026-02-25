@@ -1,2 +1,0 @@
-FalseExit=$3C
-TrueExit=$38

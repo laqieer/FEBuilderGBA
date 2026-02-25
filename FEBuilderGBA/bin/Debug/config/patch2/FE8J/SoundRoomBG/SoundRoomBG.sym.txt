@@ -1,2 +1,0 @@
-SoundRoomBG=$1000000
-SoundRoomBG_Table=$10000CC

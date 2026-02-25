@@ -1,3 +1,0 @@
-GetValue=$0C
-Promotied=$0A
-Table=$1C

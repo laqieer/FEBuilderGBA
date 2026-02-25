@@ -1,2 +1,0 @@
-0=Allow
-1=Prevent

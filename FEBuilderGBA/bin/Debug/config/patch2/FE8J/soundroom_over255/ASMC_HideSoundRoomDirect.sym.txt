@@ -1,3 +1,0 @@
-Exit2=$16
-DeleteAndSaveSoundRoomEnableList=$1A
-Exit=$4E

@@ -1,3 +1,0 @@
-0=no tick
-1=tick on enemy phase
-2=tick on own phase

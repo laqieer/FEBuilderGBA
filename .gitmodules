@@ -1,0 +1,3 @@
+[submodule "config/patch2"]
+	path = config/patch2
+	url = https://github.com/laqieer/FEBuilderGBA-patch2.git

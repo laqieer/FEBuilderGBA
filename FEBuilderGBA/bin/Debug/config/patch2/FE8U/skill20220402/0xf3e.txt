@@ -1,2 +1,0 @@
-Alert Stance+: +30 Avo
-when defending.

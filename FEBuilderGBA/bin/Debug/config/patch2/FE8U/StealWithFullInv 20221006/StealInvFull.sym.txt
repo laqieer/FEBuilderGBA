@@ -1,3 +1,0 @@
-Exit=$4A
-Handle=$24
-StealFixProc=$6C

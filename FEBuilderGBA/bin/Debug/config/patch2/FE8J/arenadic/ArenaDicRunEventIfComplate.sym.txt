@@ -1,3 +1,0 @@
-ComplateEvent_Exit=$38
-ArenaDicConfig=$4C
-DATA=$4C

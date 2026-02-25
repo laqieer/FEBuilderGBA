@@ -1,2 +1,0 @@
-ShowName=$0E
-ShowClassName=$0C

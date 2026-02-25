@@ -1,4 +1,0 @@
-0=HitDef
-1=HitRes
-2=HitLower
-3=HitHigher

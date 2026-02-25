@@ -1,3 +1,0 @@
-Term=$2A
-RemoveLightRune=$24
-Join=$2A

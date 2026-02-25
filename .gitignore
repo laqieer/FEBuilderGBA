@@ -18,6 +18,8 @@ FEBuilderGBA/bin/Release
 FEBuilderGBA/bin/Debug/config/*.xml
 FEBuilderGBA/bin/Debug/config/etc/
 FEBuilderGBA/bin/Debug/config/log/
+FEBuilderGBA/bin/Debug/config/patch2/
+FEBuilderGBA/bin/Release/config/
 FEBuilderGBA/bin/x64
 FEBuilderGBA/obj
 .vs/

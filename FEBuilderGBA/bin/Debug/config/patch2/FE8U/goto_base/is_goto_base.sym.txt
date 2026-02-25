@@ -1,2 +1,0 @@
-FlaseReturn=$1E
-TrueReturn=$1A

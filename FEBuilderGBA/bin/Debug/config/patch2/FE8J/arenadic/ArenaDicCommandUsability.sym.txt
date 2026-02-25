@@ -1,6 +1,0 @@
-ArenaDicMenuCond=$40
-Loop=$06
-NotFound=$30
-CheckFlag=$1C
-Found=$2C
-Exit=$32

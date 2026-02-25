@@ -1,3 +1,0 @@
-Dancing Blade: +4 Attack Speed[N]
-/-2 Damage when unit's Con[N]
-is lower than the enemy.

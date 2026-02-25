@@ -1,3 +1,0 @@
-RingReworkTable=$30
-Loop=$18
-Exit=$28

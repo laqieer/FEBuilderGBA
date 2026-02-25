@@ -1,3 +1,0 @@
-Step1=$0A
-Step2=$0E
-Step3=$20

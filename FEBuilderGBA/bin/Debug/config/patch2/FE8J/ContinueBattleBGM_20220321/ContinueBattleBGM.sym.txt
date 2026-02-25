@@ -1,3 +1,0 @@
-SomeBGM=$36
-CheckSameBGM=$1E
-Exit=$3C

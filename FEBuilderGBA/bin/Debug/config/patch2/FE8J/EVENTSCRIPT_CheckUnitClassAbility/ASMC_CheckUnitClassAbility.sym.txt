@@ -1,3 +1,0 @@
-Exit=$2A
-FalseExit=$28
-TrueExit=$24

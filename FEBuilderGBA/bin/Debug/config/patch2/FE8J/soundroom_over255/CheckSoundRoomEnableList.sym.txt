@@ -1,6 +1,0 @@
-LoadBuffer=$0E
-ReturnTrue=$56
-Loop=$1E
-ReturnFalse=$52
-Found=$2C
-Exit=$58

@@ -1,2 +1,0 @@
-Start=$16
-NormalExit=$2A

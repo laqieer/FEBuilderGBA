@@ -1,6 +1,0 @@
-GetUnitInfoBySVAL1=$20
-GetUnitInfoByCoord=$24
-GetUnitInfoByCurrent=$1A
-GetUnitInfo=$26
-Term=$4E
-Change=$4A

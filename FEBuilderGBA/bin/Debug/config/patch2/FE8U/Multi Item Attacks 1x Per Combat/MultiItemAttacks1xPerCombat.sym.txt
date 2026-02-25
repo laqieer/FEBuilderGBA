@@ -1,5 +1,0 @@
-MultiItemAttacks1xPerCombatTable=$20
-Loop=$02
-NotFound=$14
-Found=$10
-Exit=$18
