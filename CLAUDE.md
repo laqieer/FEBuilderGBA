@@ -60,8 +60,11 @@ msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderG
 
 The application requires these runtime files (copied from Debug build):
 - `config/` directory - Contains all game data definitions, patches, translations
+- `7-zip32.dll` (optional) - Native archive handling for maximum speed
 
-Archive handling uses SharpCompress NuGet package (pure .NET, no native dependencies).
+Archive handling:
+- **If 7-zip32.dll exists**: Uses native DLL (very fast, no progress reporting)
+- **If 7-zip32.dll missing**: Falls back to SharpCompress (pure .NET, slower but with progress)
 
 ## Architecture Overview
 

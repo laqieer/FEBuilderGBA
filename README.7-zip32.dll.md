@@ -1,9 +1,11 @@
-7-zip32.dll (DEPRECATED - No Longer Used)
+7-zip32.dll (Optional - Hybrid Mode)
 ===
 
-**Note:** As of 2025, FEBuilderGBA no longer uses the native 7-zip32.dll. Archive handling has been migrated to [SharpCompress](https://github.com/adamhathcock/sharpcompress), a pure .NET library with no native dependencies.
+**Note:** As of 2025, FEBuilderGBA uses a **hybrid approach** for archive handling:
+- **If 7-zip32.dll exists**: Uses native DLL for maximum extraction speed
+- **If 7-zip32.dll is missing**: Automatically falls back to [SharpCompress](https://github.com/adamhathcock/sharpcompress) (pure .NET)
 
-This file is kept for historical reference only.
+The DLL is **optional** - the application works fine without it, just slower for large archives.
 
 ---
 
