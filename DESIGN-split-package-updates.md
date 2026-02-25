@@ -543,7 +543,7 @@ if (downloadedChecksum != expectedChecksum)
 
 ## 11. Implementation Phases
 
-### Phase 0: Git Submodule Migration (Week 1)
+### Phase 0: Git Submodule Migration
 - [ ] Create FEBuilderGBA-patch2 repository
 - [ ] Extract patch2/ history using filter-branch
 - [ ] Push to new repository
@@ -553,39 +553,38 @@ if (downloadedChecksum != expectedChecksum)
 - [ ] Test clone/build with submodule
 - [ ] Document submodule workflow
 
-### Phase 1: Backend Infrastructure (Week 2)
+### Phase 1: Backend Infrastructure
 - [ ] Create UpdateInfo class with new fields
 - [ ] Implement version.txt read/write
 - [ ] Update version comparison logic
 - [ ] Add package type detection
 
-### Phase 2: Download Logic (Week 1)
+### Phase 2: Download Logic
 - [ ] Modify download to support multiple URLs
 - [ ] Implement merge extraction logic
 - [ ] Add checksum validation
 - [ ] Test with mock packages
 
-### Phase 3: UI Changes (Week 2)
+### Phase 3: UI Changes
 - [ ] Modify ToolUpdateDialogForm layout
 - [ ] Add new buttons (Update Program, Update Patches)
 - [ ] Implement button state logic
 - [ ] Update progress messages
 
-### Phase 4: Build/Packaging (Week 2)
+### Phase 4: Build/Packaging
 - [ ] Create packaging script
 - [ ] Test package generation
 - [ ] Validate package structure
 - [ ] Document release process
 
-### Phase 5: Testing & Polish (Week 3)
+### Phase 5: Testing & Integration
 - [ ] Integration testing
 - [ ] Backward compatibility testing
 - [ ] Error handling refinement
 - [ ] Documentation updates
 
-### Phase 6: Deployment (Week 3)
+### Phase 6: Deployment
 - [ ] Create test release with all three packages
-- [ ] Beta testing
 - [ ] Update documentation
 - [ ] Public release
 
@@ -661,6 +660,5 @@ if (downloadedChecksum != expectedChecksum)
 
 Once this design is approved, implementation can begin following the phased approach in Section 11.
 
-**Estimated Total Development Time:** 3 weeks
-**Estimated Testing Time:** 1 week
-**Target Release:** TBD
+Implementation will be completed in phases as outlined above.
+Testing and deployment timeline to be determined based on user requirements.
