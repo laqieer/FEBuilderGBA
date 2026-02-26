@@ -15,6 +15,8 @@ FEBuilderGBA/bin/Debug/app
 FEBuilderGBA/bin/Debug/runtimes/
 FEBuilderGBA/bin/Debug/_update/
 FEBuilderGBA/bin/Debug/dltemp*
+FEBuilderGBA/bin/Debug/*.md
+FEBuilderGBA/bin/Debug/updater.bat
 FEBuilderGBA/bin/Release
 FEBuilderGBA/bin/Debug/config/*.xml
 FEBuilderGBA/bin/Debug/config/etc/
