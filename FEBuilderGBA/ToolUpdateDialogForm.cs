@@ -388,7 +388,10 @@ namespace FEBuilderGBA
                     this.Close();
                     return;
                 }
-                if (U.GetFileSize(updateNewVersionFilename) < 2 * 1024 * 1024)
+                // With .NET SDK-style projects, FEBuilderGBA.exe is a small AppHost stub (~172KB).
+                // The actual application code is in FEBuilderGBA.dll. Check that for the size guard.
+                string updateNewVersionDllname = Path.Combine(Program.BaseDirectory, "_update", "FEBuilderGBA.dll");
+                if (!File.Exists(updateNewVersionDllname) || U.GetFileSize(updateNewVersionDllname) < 2 * 1024 * 1024)
                 {
                     BrokenDownload(R._("ダウンロードしたファイルを解凍した中にあった、実行ファイルが小さすぎます。"));
                     this.Close();
