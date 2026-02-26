@@ -165,7 +165,7 @@ namespace FEBuilderGBA
 
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
             {
-                string ext = ".7z";
+                string ext = OptionForm.update_source() == 1 ? ".zip" : ".7z";
                 string updateArchive = Path.Combine(Program.BaseDirectory, "dltemp_patch2_" + DateTime.Now.Ticks.ToString() + ext);
 
                 // Download
@@ -222,10 +222,13 @@ namespace FEBuilderGBA
                 // Copy extracted files to config/patch2/
                 try
                 {
-                    string sourcePatch2 = Path.Combine(tempExtractPath, "config", "patch2");
+                    // upload-artifact@v4 may preserve full workspace-relative paths
+                    // (config/patch2/FE6/...) or strip the directory prefix (FE6/...
+                    // directly at extract root). Search all likely locations.
+                    string sourcePatch2 = FindPatch2Source(tempExtractPath);
                     string targetPatch2 = Path.Combine(Program.BaseDirectory, "config", "patch2");
 
-                    if (!Directory.Exists(sourcePatch2))
+                    if (sourcePatch2 == null)
                     {
                         BrokenDownload(R._("パッチデータが見つかりませんでした。"));
                         this.Close();
@@ -266,6 +269,41 @@ namespace FEBuilderGBA
 
             this.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.Close();
+        }
+
+        /// <summary>
+        /// Locates the patch2 data root inside an extraction directory.
+        /// Handles three possible upload-artifact@v4 path structures:
+        ///   1. Full workspace-relative path preserved: extractRoot/config/patch2/FE6/...
+        ///   2. Recursive any-depth match: extractRoot/.../patch2/FE6/...
+        ///   3. Prefix stripped: extractRoot/FE6/... (config/patch2/ stripped)
+        /// Returns null if patch2 data cannot be found.
+        /// </summary>
+        private static string FindPatch2Source(string extractRoot)
+        {
+            // Case 1: upload-artifact preserved full workspace path
+            string direct = Path.Combine(extractRoot, "config", "patch2");
+            if (Directory.Exists(direct) && Directory.EnumerateFileSystemEntries(direct).Any())
+                return direct;
+
+            // Case 2: search recursively for any directory named "patch2"
+            try
+            {
+                string[] candidates = Directory.GetDirectories(extractRoot, "patch2", SearchOption.AllDirectories);
+                if (candidates.Length > 0 && Directory.EnumerateFileSystemEntries(candidates[0]).Any())
+                    return candidates[0];
+            }
+            catch { }
+
+            // Case 3: upload-artifact stripped config/patch2/ prefix;
+            // ROM-version subdirs (FE6, FE7J, …) land directly at extractRoot
+            string[] romVersions = { "FE6", "FE7J", "FE7U", "FE8J", "FE8U" };
+            bool looksLikePatch2Root = Array.Exists(romVersions,
+                v => Directory.Exists(Path.Combine(extractRoot, v)));
+            if (looksLikePatch2Root)
+                return extractRoot;
+
+            return null;
         }
 
         /// <summary>
