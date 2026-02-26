@@ -283,14 +283,14 @@ namespace FEBuilderGBA
         {
             // Case 1: upload-artifact preserved full workspace path
             string direct = Path.Combine(extractRoot, "config", "patch2");
-            if (Directory.Exists(direct) && Directory.EnumerateFileSystemEntries(direct).Any())
+            if (Directory.Exists(direct) && Directory.GetFileSystemEntries(direct).Length > 0)
                 return direct;
 
             // Case 2: search recursively for any directory named "patch2"
             try
             {
                 string[] candidates = Directory.GetDirectories(extractRoot, "patch2", SearchOption.AllDirectories);
-                if (candidates.Length > 0 && Directory.EnumerateFileSystemEntries(candidates[0]).Any())
+                if (candidates.Length > 0 && Directory.GetFileSystemEntries(candidates[0]).Length > 0)
                     return candidates[0];
             }
             catch { }
