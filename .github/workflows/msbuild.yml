@@ -143,37 +143,26 @@ jobs:
           config/
           README*.md
 
-    - name: Prepare Core Package
-      run: |
-        $tempCoreDir = "pkg_core"
-        New-Item -ItemType Directory -Path $tempCoreDir | Out-Null
-        Copy-Item "*.exe" $tempCoreDir -Force
-        Copy-Item "*.dll" $tempCoreDir -Force
-        Copy-Item "*.json" $tempCoreDir -Force
-        Copy-Item "README*.md" $tempCoreDir -Force -ErrorAction SilentlyContinue
-        if (Test-Path "config") {
-          Copy-Item "config" $tempCoreDir -Recurse -Force
-          if (Test-Path "$tempCoreDir/config/patch2") {
-            Remove-Item "$tempCoreDir/config/patch2" -Recurse -Force
-          }
-        }
+    - name: Upload Patch2 Artifact
+      uses: actions/upload-artifact@v4.3.5
+      with:
+        name: ${{ github.event.repository.name }}_PATCH2_${{ env.build_time }}
+        path: config/patch2/
 
-    - name: Prepare Patch2 Package
+    - name: Remove patch2 for Core package
+      shell: pwsh
       run: |
-        $tempPatch2Dir = "pkg_patch2"
-        New-Item -ItemType Directory -Path "$tempPatch2Dir/config" | Out-Null
         if (Test-Path "config/patch2") {
-          Copy-Item "config/patch2" "$tempPatch2Dir/config" -Recurse -Force
+          Remove-Item "config/patch2" -Recurse -Force
         }
 
     - name: Upload Core Artifact
       uses: actions/upload-artifact@v4.3.5
       with:
         name: ${{ github.event.repository.name }}_CORE_${{ env.build_time }}
-        path: pkg_core/
-
-    - name: Upload Patch2 Artifact
-      uses: actions/upload-artifact@v4.3.5
-      with:
-        name: ${{ github.event.repository.name }}_PATCH2_${{ env.build_time }}
-        path: pkg_patch2/
+        path: |
+          *.exe
+          *.dll
+          *.json
+          config/
+          README*.md
