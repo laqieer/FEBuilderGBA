@@ -208,15 +208,15 @@
 
     <!-- Define source and target paths -->
     <PropertyGroup>
-      <!-- Path to resource config directory (r/config/) -->
-      <ResourceConfigPath>$(MSBuildProjectDirectory)\..\r\config</ResourceConfigPath>
+      <!-- Path to tracked config directory (config/data and config/translate) -->
+      <TrackedConfigPath>$(MSBuildProjectDirectory)\..\config</TrackedConfigPath>
       <!-- Path to patch2 submodule -->
       <Patch2SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</Patch2SubmodulePath>
       <!-- Path to output directory config -->
       <TargetConfigDir>$(OutDir)config</TargetConfigDir>
     </PropertyGroup>
 
-    <Message Text="Source (resources): $(ResourceConfigPath)" Importance="high" />
+    <Message Text="Source (tracked config): $(TrackedConfigPath)" Importance="high" />
     <Message Text="Source (patch2): $(Patch2SubmodulePath)" Importance="high" />
     <Message Text="Target: $(TargetConfigDir)" Importance="high" />
 
@@ -225,10 +225,10 @@
     <MakeDir Directories="$(TargetConfigDir)\translate" Condition="!Exists('$(TargetConfigDir)\translate')" />
     <MakeDir Directories="$(TargetConfigDir)\patch2" Condition="!Exists('$(TargetConfigDir)\patch2')" />
 
-    <!-- Get all files from resource config directories recursively -->
+    <!-- Get all files from tracked config directories recursively -->
     <ItemGroup>
-      <DataFiles Include="$(ResourceConfigPath)\data\**\*.*" />
-      <TranslateFiles Include="$(ResourceConfigPath)\translate\**\*.*" />
+      <DataFiles Include="$(TrackedConfigPath)\data\**\*.*" />
+      <TranslateFiles Include="$(TrackedConfigPath)\translate\**\*.*" />
       <Patch2Files Include="$(Patch2SubmodulePath)\**\*.*" />
     </ItemGroup>
 
@@ -252,8 +252,8 @@
 
     <Message Text="========================================" Importance="high" />
     <Message Text="✓ Config directories copied:" Importance="high" />
-    <Message Text="  - data/ (from r/config/data)" Importance="high" />
-    <Message Text="  - translate/ (from r/config/translate)" Importance="high" />
+    <Message Text="  - data/ (from config/data)" Importance="high" />
+    <Message Text="  - translate/ (from config/translate)" Importance="high" />
     <Message Text="  - patch2/ (from config/patch2 submodule)" Importance="high" />
     <Message Text="========================================" Importance="high" />
   </Target>
