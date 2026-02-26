@@ -13,8 +13,18 @@ The build system automatically maintains the correct directory structure for `co
 FEBuilderGBA/
 ├── FEBuilderGBA/           (Main project)
 │   └── FEBuilderGBA.csproj
+├── r/                       (Resources directory)
+│   └── config/
+│       ├── data/            (Game data definitions)
+│       │   ├── 6c_name_*.txt
+│       │   ├── 6c_script_*.txt
+│       │   └── ... (data files)
+│       └── translate/       (Localization files)
+│           ├── en.txt
+│           ├── zh.txt
+│           └── *_tbl/ (character tables)
 └── config/                  (Submodule root)
-    └── patch2/              (Git submodule)
+    └── patch2/              (Git submodule - patch database)
         ├── FE6/
         ├── FE7J/
         ├── FE7U/
@@ -31,7 +41,18 @@ FEBuilderGBA/bin/Debug/
 ├── *.dll
 ├── *.json
 └── config/                  ← Relative path preserved
-    └── patch2/              ← Copied from submodule
+    ├── data/                ← Copied from r/config/data
+    │   ├── 6c_name_*.txt
+    │   ├── 6c_script_*.txt
+    │   └── ... (game data definitions)
+    ├── translate/           ← Copied from r/config/translate
+    │   ├── en.txt
+    │   ├── zh.txt
+    │   ├── ar_tbl/
+    │   ├── en_tbl/
+    │   ├── ko_tbl/
+    │   └── zh_tbl/
+    └── patch2/              ← Copied from config/patch2 submodule
         ├── FE6/
         ├── FE7J/
         ├── FE7U/
@@ -48,7 +69,18 @@ FEBuilderGBA/bin/Release/
 ├── *.dll
 ├── *.json
 └── config/                  ← Relative path preserved
-    └── patch2/              ← Copied from submodule
+    ├── data/                ← Copied from r/config/data
+    │   ├── 6c_name_*.txt
+    │   ├── 6c_script_*.txt
+    │   └── ... (game data definitions)
+    ├── translate/           ← Copied from r/config/translate
+    │   ├── en.txt
+    │   ├── zh.txt
+    │   ├── ar_tbl/
+    │   ├── en_tbl/
+    │   ├── ko_tbl/
+    │   └── zh_tbl/
+    └── patch2/              ← Copied from config/patch2 submodule
         ├── FE6/
         ├── FE7J/
         ├── FE7U/
@@ -62,23 +94,38 @@ FEBuilderGBA/bin/Release/
 
 ## Build Configuration
 
-The relative path `config/patch2/` is maintained by the MSBuild target in `FEBuilderGBA.csproj`:
+The relative path `config/` structure is maintained by the MSBuild target in `FEBuilderGBA.csproj`:
 
-### MSBuild Target: CopyConfigSubmodule
+### MSBuild Target: CopyConfigDirectories
 
 ```xml
-<Target Name="CopyConfigSubmodule" AfterTargets="Build">
+<Target Name="CopyConfigDirectories" AfterTargets="Build">
   <PropertyGroup>
-    <!-- Source: Repository root/config/patch2 -->
-    <SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</SubmodulePath>
+    <!-- Source: Repository r/config/ (resources) -->
+    <ResourceConfigPath>$(MSBuildProjectDirectory)\..\r\config</ResourceConfigPath>
 
-    <!-- Target: bin/{Configuration}/config/patch2 -->
-    <TargetConfigPath>$(OutDir)config\patch2</TargetConfigPath>
+    <!-- Source: Repository config/patch2 (git submodule) -->
+    <Patch2SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</Patch2SubmodulePath>
+
+    <!-- Target: bin/{Configuration}/config -->
+    <TargetConfigDir>$(OutDir)config</TargetConfigDir>
   </PropertyGroup>
 
-  <!-- Copy files preserving directory structure -->
-  <Copy SourceFiles="@(SubmoduleFiles)"
-        DestinationFolder="$(TargetConfigPath)\%(RecursiveDir)"
+  <!-- Copy data/ files preserving directory structure -->
+  <Copy SourceFiles="@(DataFiles)"
+        DestinationFolder="$(TargetConfigDir)\data\%(RecursiveDir)"
+        SkipUnchangedFiles="true"
+        OverwriteReadOnlyFiles="true" />
+
+  <!-- Copy translate/ files preserving directory structure -->
+  <Copy SourceFiles="@(TranslateFiles)"
+        DestinationFolder="$(TargetConfigDir)\translate\%(RecursiveDir)"
+        SkipUnchangedFiles="true"
+        OverwriteReadOnlyFiles="true" />
+
+  <!-- Copy patch2/ files preserving directory structure -->
+  <Copy SourceFiles="@(Patch2Files)"
+        DestinationFolder="$(TargetConfigDir)\patch2\%(RecursiveDir)"
         SkipUnchangedFiles="true"
         OverwriteReadOnlyFiles="true" />
 </Target>
@@ -87,8 +134,12 @@ The relative path `config/patch2/` is maintained by the MSBuild target in `FEBui
 **Key Points:**
 - ✅ Runs automatically after every build
 - ✅ Works for both Debug and Release configurations
-- ✅ Preserves relative path: `config/patch2/`
-- ✅ Maintains subdirectory structure (FE6, FE7J, etc.)
+- ✅ Copies three directories:
+  - `config/data/` from `r/config/data/` (game data definitions)
+  - `config/translate/` from `r/config/translate/` (localization files)
+  - `config/patch2/` from `config/patch2/` submodule (patch database)
+- ✅ Preserves relative path structure
+- ✅ Maintains all subdirectory structures
 - ✅ Only copies changed files (efficient)
 - ✅ Overwrites read-only files if needed
 
@@ -309,17 +360,21 @@ dotnet build FEBuilderGBA/FEBuilderGBA.csproj -c Release
 
 ✅ **Current Status: WORKING CORRECTLY**
 
-- `config/patch2/` relative path is maintained in all builds
-- MSBuild target automatically copies files after every build
+- `config/` relative path structure is maintained in all builds
+- Three directories automatically copied:
+  - `config/data/` - Game data definitions
+  - `config/translate/` - Localization files
+  - `config/patch2/` - Patch database (git submodule)
+- MSBuild target automatically copies all files after every build
 - Structure is consistent across Debug, Release, and packaged builds
 - No manual intervention required
 - Split package system relies on this structure
 
-**No changes needed** - the configuration is already correct and operational.
+**Configuration is correct and operational** ✅
 
 ---
 
-**Build Configuration:** `FEBuilderGBA/FEBuilderGBA.csproj` (lines 203-237)
+**Build Configuration:** `FEBuilderGBA/FEBuilderGBA.csproj` (CopyConfigDirectories target)
 **Related Documentation:**
 - `SPLIT-PACKAGE-FINAL-STATUS.md` - Split package system overview
 - `DEPLOYMENT.md` - Package creation and deployment

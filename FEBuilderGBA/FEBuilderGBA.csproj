@@ -200,39 +200,61 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
-  <!-- Copy config/patch2 submodule to build output directory -->
-  <Target Name="CopyConfigSubmodule" AfterTargets="Build">
+  <!-- Copy config directories to build output directory -->
+  <Target Name="CopyConfigDirectories" AfterTargets="Build">
     <Message Text="========================================" Importance="high" />
-    <Message Text="Copying config/patch2 submodule to build output..." Importance="high" />
+    <Message Text="Copying config directories to build output..." Importance="high" />
     <Message Text="========================================" Importance="high" />
 
     <!-- Define source and target paths -->
     <PropertyGroup>
-      <!-- Path to submodule (relative to project directory) -->
-      <SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</SubmodulePath>
-      <!-- Path to output directory config/patch2 -->
-      <TargetConfigPath>$(OutDir)config\patch2</TargetConfigPath>
+      <!-- Path to resource config directory (r/config/) -->
+      <ResourceConfigPath>$(MSBuildProjectDirectory)\..\r\config</ResourceConfigPath>
+      <!-- Path to patch2 submodule -->
+      <Patch2SubmodulePath>$(MSBuildProjectDirectory)\..\config\patch2</Patch2SubmodulePath>
+      <!-- Path to output directory config -->
+      <TargetConfigDir>$(OutDir)config</TargetConfigDir>
     </PropertyGroup>
 
-    <Message Text="Source: $(SubmodulePath)" Importance="high" />
-    <Message Text="Target: $(TargetConfigPath)" Importance="high" />
+    <Message Text="Source (resources): $(ResourceConfigPath)" Importance="high" />
+    <Message Text="Source (patch2): $(Patch2SubmodulePath)" Importance="high" />
+    <Message Text="Target: $(TargetConfigDir)" Importance="high" />
 
-    <!-- Create target directory if it doesn't exist -->
-    <MakeDir Directories="$(TargetConfigPath)" Condition="!Exists('$(TargetConfigPath)')" />
+    <!-- Create target directories if they don't exist -->
+    <MakeDir Directories="$(TargetConfigDir)\data" Condition="!Exists('$(TargetConfigDir)\data')" />
+    <MakeDir Directories="$(TargetConfigDir)\translate" Condition="!Exists('$(TargetConfigDir)\translate')" />
+    <MakeDir Directories="$(TargetConfigDir)\patch2" Condition="!Exists('$(TargetConfigDir)\patch2')" />
 
-    <!-- Get all files from submodule recursively -->
+    <!-- Get all files from resource config directories recursively -->
     <ItemGroup>
-      <SubmoduleFiles Include="$(SubmodulePath)\**\*.*" />
+      <DataFiles Include="$(ResourceConfigPath)\data\**\*.*" />
+      <TranslateFiles Include="$(ResourceConfigPath)\translate\**\*.*" />
+      <Patch2Files Include="$(Patch2SubmodulePath)\**\*.*" />
     </ItemGroup>
 
-    <!-- Copy files preserving directory structure -->
-    <Copy SourceFiles="@(SubmoduleFiles)"
-          DestinationFolder="$(TargetConfigPath)\%(RecursiveDir)"
+    <!-- Copy data/ files preserving directory structure -->
+    <Copy SourceFiles="@(DataFiles)"
+          DestinationFolder="$(TargetConfigDir)\data\%(RecursiveDir)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <!-- Copy translate/ files preserving directory structure -->
+    <Copy SourceFiles="@(TranslateFiles)"
+          DestinationFolder="$(TargetConfigDir)\translate\%(RecursiveDir)"
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <!-- Copy patch2/ files preserving directory structure -->
+    <Copy SourceFiles="@(Patch2Files)"
+          DestinationFolder="$(TargetConfigDir)\patch2\%(RecursiveDir)"
           SkipUnchangedFiles="true"
           OverwriteReadOnlyFiles="true" />
 
     <Message Text="========================================" Importance="high" />
-    <Message Text="✓ Config submodule copied to: $(TargetConfigPath)" Importance="high" />
+    <Message Text="✓ Config directories copied:" Importance="high" />
+    <Message Text="  - data/ (from r/config/data)" Importance="high" />
+    <Message Text="  - translate/ (from r/config/translate)" Importance="high" />
+    <Message Text="  - patch2/ (from config/patch2 submodule)" Importance="high" />
     <Message Text="========================================" Importance="high" />
   </Target>
 </Project>
