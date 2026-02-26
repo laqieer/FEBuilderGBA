@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -9,17 +10,10 @@ namespace FEBuilderGBA
     //コンパイルして永続的にキャッシュします.
     static class RegexCache
     {
-        static Dictionary<string,Regex> Cache = new Dictionary<string,Regex>();
+        static ConcurrentDictionary<string,Regex> Cache = new ConcurrentDictionary<string,Regex>();
         public static Regex Regex(string pattern)
         {
-            Regex r;
-            if(Cache.TryGetValue(pattern,out r))
-            {
-                return r;
-            }
-            r = new Regex(pattern, RegexOptions.Compiled);
-            Cache[pattern] =  r;
-            return r;
+            return Cache.GetOrAdd(pattern, p => new Regex(p, RegexOptions.Compiled));
         }
         public static string Replace(string str, string pattern, string replace)
         {
