@@ -42,30 +42,54 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Initialize with split package support — shows individual Core / Patch2 / Full buttons.
+        /// Buttons are stacked dynamically so there are no blank gaps.
         /// </summary>
         public void InitSplitPackage(UpdateInfo updateInfo)
         {
             this.UpdateInfoData = updateInfo;
 
-            // Core button: visible and enabled only when a CORE URL is available
-            bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
-            this.UpdateCoreButton.Visible = hasCore;
-            this.UpdateCoreButton.Enabled = hasCore;
+            // --- stack update buttons from y=182 downward ---
+            int y = 182;
+            const int btnH   = 34;
+            const int btnGap = 6;
 
-            // Patch2 button: visible and enabled only when a PATCH2 URL is available
-            bool hasPatch2 = !string.IsNullOrEmpty(updateInfo.URL_PATCH2);
-            this.UpdatePatch2Button.Visible = hasPatch2;
-            this.UpdatePatch2Button.Enabled = hasPatch2;
-
-            // Full/auto button: visible when a FULL URL is available
+            // Full / legacy button
             bool hasFull = !string.IsNullOrEmpty(updateInfo.URL_FULL);
-            this.AutoUpdateButton.Visible = hasFull;
-            this.AutoUpdateButton.Enabled = hasFull;
-            this.AutoUpdateButton.Text = "全部を更新します (Core + Patch2)";
+            this.AutoUpdateButton.Visible  = hasFull;
+            this.AutoUpdateButton.Enabled  = hasFull;
+            this.AutoUpdateButton.Text     = "全部を更新します (Core + Patch2)";
+            this.AutoUpdateButton.Location = new System.Drawing.Point(17, y);
+            if (hasFull) y += btnH + btnGap;
+
+            // Core-only button
+            bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
+            this.UpdateCoreButton.Visible  = hasCore;
+            this.UpdateCoreButton.Enabled  = hasCore;
+            this.UpdateCoreButton.Location = new System.Drawing.Point(17, y);
+            if (hasCore) y += btnH + btnGap;
+
+            // Patch2-only button
+            bool hasPatch2 = !string.IsNullOrEmpty(updateInfo.URL_PATCH2);
+            this.UpdatePatch2Button.Visible  = hasPatch2;
+            this.UpdatePatch2Button.Enabled  = hasPatch2;
+            this.UpdatePatch2Button.Location = new System.Drawing.Point(17, y);
+            if (hasPatch2) y += btnH + btnGap;
+
+            // Push OpenBrowser and Ignore below all visible update buttons
+            // (keep at least the original gap from y=182 so layout isn't cramped)
+            int openY   = Math.Max(234, y);
+            int ignoreY = openY + btnH + btnGap;
+            this.OpenBrowserButton.Location = new System.Drawing.Point(17, openY);
+            this.IgnoreButton.Location      = new System.Drawing.Point(17, ignoreY);
+
+            // Resize panel and form to fit without extra whitespace
+            int panelH  = ignoreY + btnH + 22;   // 22 px bottom padding
+            this.panel1.Size    = new System.Drawing.Size(879, panelH);
+            this.ClientSize     = new System.Drawing.Size(904, panelH + 26); // 13 top + 13 bottom
 
             // Set URL for OpenBrowser to the most relevant package
             UpdateInfo.PackageType pt;
-            this.URL = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out pt);
+            this.URL         = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out pt);
             this.PackageType = pt;
 
             this.Message.Text = BuildUpdateMessage(updateInfo);
