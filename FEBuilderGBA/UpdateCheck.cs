@@ -18,39 +18,37 @@ namespace FEBuilderGBA
         {
             int func_update_source = OptionForm.update_source();
 
-            if (enableSplitPackages && func_update_source != 1)
+            if (enableSplitPackages)
             {
-                // Try split package detection first (only for release, not nightly)
+                // Try split package detection first.
+                // Nightly source  → nightly.link artifacts (.zip)
+                // Release source  → GitHub Releases assets (.7z / .zip)
                 try
                 {
                     UpdateInfo updateInfo;
-                    string error = UpdateCheckSplitPackage.CheckSplitPackageUpdateByGitHub(out updateInfo);
+                    string error = func_update_source == 1
+                        ? UpdateCheckSplitPackage.CheckSplitPackageUpdateByNightlyLink(out updateInfo)
+                        : UpdateCheckSplitPackage.CheckSplitPackageUpdateByGitHub(out updateInfo);
 
-                    if (error != "")
+                    if (error == "")
                     {
-                        // Check if error is "already up to date"
-                        if (error.Contains("最新です"))
-                        {
-                            OverradeLastUpdateTime();
-                            R.ShowOK(error);
-                            return;
-                        }
-                        // Fall through to legacy check if split package check failed
-                    }
-                    else
-                    {
-                        // Success with split packages
                         OverradeLastUpdateTime();
                         ToolUpdateDialogForm f = (ToolUpdateDialogForm)InputFormRef.JumpFormLow<ToolUpdateDialogForm>();
                         f.InitSplitPackage(updateInfo);
                         f.ShowDialog();
                         return;
                     }
+                    else if (error.Contains("最新です"))
+                    {
+                        OverradeLastUpdateTime();
+                        R.ShowOK(error);
+                        return;
+                    }
+                    // Otherwise fall through to legacy check
                 }
                 catch (Exception e)
                 {
                     Log.Error($"Split package check failed, falling back to legacy: {e}");
-                    // Fall through to legacy check
                 }
             }
 
