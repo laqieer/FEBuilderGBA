@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -33,93 +33,86 @@ namespace FEBuilderGBA
             this.URL = url;
 
             this.Message.Text = string.Format(this.Message.Text, version, url);
+
+            // Legacy mode: hide split-package buttons, keep the single auto-update button
+            this.UpdateCoreButton.Visible = false;
+            this.UpdatePatch2Button.Visible = false;
+            this.AutoUpdateButton.Text = "全自動でアップデートします";
         }
 
         /// <summary>
-        /// Initialize with split package support
+        /// Initialize with split package support — shows individual Core / Patch2 / Full buttons.
         /// </summary>
         public void InitSplitPackage(UpdateInfo updateInfo)
         {
             this.UpdateInfoData = updateInfo;
 
-            // Determine what needs to be updated and get the appropriate URL
-            this.URL = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out this.PackageType);
+            // Core button: visible and enabled only when a CORE URL is available
+            bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
+            this.UpdateCoreButton.Visible = hasCore;
+            this.UpdateCoreButton.Enabled = hasCore;
 
-            // Build descriptive message
-            string messageText = BuildUpdateMessage(updateInfo, this.PackageType);
-            this.Message.Text = messageText;
+            // Patch2 button: visible and enabled only when a PATCH2 URL is available
+            bool hasPatch2 = !string.IsNullOrEmpty(updateInfo.URL_PATCH2);
+            this.UpdatePatch2Button.Visible = hasPatch2;
+            this.UpdatePatch2Button.Enabled = hasPatch2;
 
-            // Update button text based on package type
-            UpdateButtonText(this.PackageType);
+            // Full/auto button: visible when a FULL URL is available
+            bool hasFull = !string.IsNullOrEmpty(updateInfo.URL_FULL);
+            this.AutoUpdateButton.Visible = hasFull;
+            this.AutoUpdateButton.Enabled = hasFull;
+            this.AutoUpdateButton.Text = "全部を更新します (Core + Patch2)";
+
+            // Set URL for OpenBrowser to the most relevant package
+            UpdateInfo.PackageType pt;
+            this.URL = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out pt);
+            this.PackageType = pt;
+
+            this.Message.Text = BuildUpdateMessage(updateInfo);
         }
 
-        private string BuildUpdateMessage(UpdateInfo updateInfo, UpdateInfo.PackageType packageType)
+        private string BuildUpdateMessage(UpdateInfo updateInfo)
         {
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            var sb = new System.Text.StringBuilder();
 
             sb.AppendLine("アップデートが利用可能です:");
             sb.AppendLine();
 
-            switch (packageType)
-            {
-                case UpdateInfo.PackageType.CoreOnly:
-                    sb.AppendLine($"プログラム本体の更新があります");
-                    sb.AppendLine($"現在: {updateInfo.VERSION_CORE}");
-                    sb.AppendLine($"最新: {UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE ?? updateInfo.URL_FULL, 0)}");
-                    break;
+            string remoteCore   = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE   ?? updateInfo.URL_FULL, 0);
+            string remotePatch2 = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_PATCH2 ?? updateInfo.URL_FULL, 1);
 
-                case UpdateInfo.PackageType.Patch2Only:
-                    sb.AppendLine($"パッチデータの更新があります");
-                    sb.AppendLine($"現在: {updateInfo.VERSION_PATCH2}");
-                    sb.AppendLine($"最新: {UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_PATCH2 ?? updateInfo.URL_FULL, 1)}");
-                    break;
-
-                case UpdateInfo.PackageType.Full:
-                    sb.AppendLine($"プログラム本体とパッチデータの両方を更新します");
-                    sb.AppendLine($"現在: Core={updateInfo.VERSION_CORE}, Patch2={updateInfo.VERSION_PATCH2}");
-                    break;
-
-                default:
-                    sb.AppendLine($"新しいバージョンが利用可能です");
-                    break;
-            }
-
-            sb.AppendLine();
-            sb.AppendLine($"ダウンロード元: {this.URL}");
+            sb.AppendLine($"プログラム本体: {updateInfo.VERSION_CORE} → {remoteCore}");
+            sb.AppendLine($"パッチデータ:   {updateInfo.VERSION_PATCH2} → {remotePatch2}");
 
             return sb.ToString();
         }
 
-        private void UpdateButtonText(UpdateInfo.PackageType packageType)
+        private void UpdateCoreButton_Click(object sender, EventArgs e)
         {
-            switch (packageType)
-            {
-                case UpdateInfo.PackageType.CoreOnly:
-                    this.AutoUpdateButton.Text = "プログラム本体を自動更新します";
-                    break;
-
-                case UpdateInfo.PackageType.Patch2Only:
-                    this.AutoUpdateButton.Text = "パッチデータを自動更新します";
-                    break;
-
-                case UpdateInfo.PackageType.Full:
-                default:
-                    this.AutoUpdateButton.Text = "全自動でアップデートします";
-                    break;
-            }
+            this.URL = this.UpdateInfoData.URL_CORE;
+            this.PackageType = UpdateInfo.PackageType.CoreOnly;
+            AutoUpdateStandard(e);
         }
 
+        private void UpdatePatch2Button_Click(object sender, EventArgs e)
+        {
+            this.URL = this.UpdateInfoData.URL_PATCH2;
+            this.PackageType = UpdateInfo.PackageType.Patch2Only;
+            AutoUpdatePatch2Only(e);
+        }
 
         private void AutoUpdateButton_Click(object sender, EventArgs e)
         {
-            // Handle split package updates differently
-            if (this.UpdateInfoData != null && this.PackageType == UpdateInfo.PackageType.Patch2Only)
+            if (this.UpdateInfoData != null)
             {
-                AutoUpdatePatch2Only(e);
+                // Split package mode: this button downloads the full package
+                this.URL = this.UpdateInfoData.URL_FULL;
+                this.PackageType = UpdateInfo.PackageType.Full;
+                AutoUpdateStandard(e);
                 return;
             }
 
-            // Standard update flow (FULL, CORE, or legacy)
+            // Legacy single-package mode
             AutoUpdateStandard(e);
         }
 
