@@ -48,6 +48,8 @@ namespace FEBuilderGBA
             //多言語切り替え
             ReLoadTranslateResource();
 
+            //patch2サブディレクトリが存在しない場合、gitでダウンロードを促す (なければ空ディレクトリを作成)
+            EnsurePatch2Subdirectories();
 
             //外部プロセスからの書き換え監視等の開始
             UpdateWatcher = new ROMUpdateWatcher();
@@ -637,6 +639,55 @@ namespace FEBuilderGBA
             }
             RAM = new RAM();
         }
+        static readonly string[] Patch2VersionDirs = { "FE6", "FE7J", "FE7U", "FE8J", "FE8U" };
+
+        static void EnsurePatch2Subdirectories()
+        {
+            string patch2Root = Path.Combine(BaseDirectory, "config", "patch2");
+            bool anyMissing = false;
+            foreach (string v in Patch2VersionDirs)
+            {
+                if (!Directory.Exists(Path.Combine(patch2Root, v)))
+                {
+                    anyMissing = true;
+                    break;
+                }
+            }
+            if (!anyMissing) return;
+
+            // Offer git download if git is available
+            string gitExe = GitUtil.FindGitExecutable();
+            if (gitExe != null)
+            {
+                DialogResult dr = R.ShowQ(
+                    "パッチデータのディレクトリが見つかりません。\r\nGitを使用してパッチデータをダウンロードしますか？\r\n\r\nPatch2 directories not found.\r\nDownload via Git now?");
+                if (dr == DialogResult.Yes)
+                {
+                    bool success = false;
+                    try
+                    {
+                        int code;
+                        if (GitUtil.IsGitRepo(patch2Root))
+                            code = GitUtil.Update(gitExe, patch2Root, null);
+                        else
+                            code = GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patch2Root, null);
+                        success = (code == 0);
+                    }
+                    catch { }
+
+                    if (success) return;
+                    R.ShowOK("パッチデータのダウンロードに失敗しました。空のディレクトリを作成します。\r\nFailed to download patch2. Creating empty directories.");
+                }
+            }
+
+            // Fallback: create empty version directories so the app doesn't crash
+            Directory.CreateDirectory(patch2Root);
+            foreach (string v in Patch2VersionDirs)
+            {
+                Directory.CreateDirectory(Path.Combine(patch2Root, v));
+            }
+        }
+
         static bool CheckConfigDirectory()
         {
             string[] dir_list = new string[]{

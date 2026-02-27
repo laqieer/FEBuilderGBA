@@ -59,10 +59,10 @@ namespace FEBuilderGBA.Tests.Integration
         }
 
         [Fact]
-        public void UpdateCheckSplitPackage_ExtractsVersionFromCorePackageUrl()
+        public void UpdateCheckSplitPackage_ExtractsVersionFromPackageUrl()
         {
             // Arrange
-            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_CORE_20260226.00.7z";
+            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_20260226.00.7z";
 
             // Act
             string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Tests.Integration
             var updateInfo = new UpdateInfo();
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
 
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260227.00.7z";
+            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_20260227.00.7z";
 
             // Act
             string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);

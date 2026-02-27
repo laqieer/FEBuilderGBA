@@ -130,16 +130,22 @@ jobs:
           }
           mv FEBuilderGBA/bin/Release/config .
         }
-        # Remove patch2 from artifact — users update it via git
+        # Remove patch2 content from artifact — users update it via git
+        # Keep the 5 empty version subdirs so the app doesn't crash on startup
         if (Test-Path "config/patch2") {
           Remove-Item "config/patch2" -Recurse -Force
         }
+        $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE6"
+        $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7J"
+        $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7U"
+        $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8J"
+        $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8U"
         echo "`n*Build $build_time from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
 
     - name: Upload Core Artifact
       uses: actions/upload-artifact@v4.3.5
       with:
-        name: ${{ github.event.repository.name }}_CORE_${{ env.build_time }}
+        name: ${{ github.event.repository.name }}_${{ env.build_time }}
         path: |
           *.exe
           *.dll

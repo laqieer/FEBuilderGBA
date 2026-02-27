@@ -15,7 +15,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Checks for a core update via nightly.link (GitHub Actions artifacts).
-        /// Looks for FEBuilderGBA_CORE_*.zip on the nightly.link page.
+        /// Looks for FEBuilderGBA_*.zip on the nightly.link page.
         /// </summary>
         public static string CheckSplitPackageUpdateByNightlyLink(out UpdateInfo updateInfo)
         {
@@ -38,18 +38,18 @@ namespace FEBuilderGBA
             }
 
             string escapedBase = Regex.Escape(baseUrl);
-            string corePattern = escapedBase + @"/FEBuilderGBA_CORE_(\d{8}\.\d{2})\.zip";
+            string corePattern = escapedBase + @"/FEBuilderGBA_(\d{8}\.\d{2})\.zip";
 
             Match coreMatch = RegexCache.Match(contents, corePattern);
 
             if (!coreMatch.Success)
             {
                 return R._("サイトの結果が期待外でした。\r\n{0}", baseUrl) + "\r\n\r\n"
-                    + "CORE package not found on nightly.link";
+                    + "Package not found on nightly.link";
             }
 
             string remoteCoreVersion = coreMatch.Groups[1].Value;
-            updateInfo.URL_CORE = baseUrl + "/FEBuilderGBA_CORE_" + remoteCoreVersion + ".zip";
+            updateInfo.URL_CORE = baseUrl + "/FEBuilderGBA_" + remoteCoreVersion + ".zip";
 
             UpdateInfo.PackageType packageType = updateInfo.DetermineUpdateType(remoteCoreVersion);
 
@@ -68,8 +68,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Checks for a core update in the latest GitHub Release.
-        /// Looks for FEBuilderGBA_CORE_* release assets (.7z or .zip).
-        /// Falls back to legacy single-package format if not found.
+        /// Looks for FEBuilderGBA_* release assets (.7z or .zip).
         /// </summary>
         public static string CheckSplitPackageUpdateByGitHub(out UpdateInfo updateInfo)
         {
@@ -91,7 +90,7 @@ namespace FEBuilderGBA
 #endif
             }
 
-            string corePattern = @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_CORE_(\d{8}\.\d{2})\.(7z|zip))""";
+            string corePattern = @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip))""";
             Match coreMatch = RegexCache.Match(contents, corePattern);
 
             if (coreMatch.Success && coreMatch.Groups.Count >= 3)
@@ -112,7 +111,7 @@ namespace FEBuilderGBA
             else
             {
                 return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
-                    + "CORE package not found in release assets";
+                    + "Package not found in release assets";
             }
         }
 
@@ -138,8 +137,8 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(url))
                 return "00000000.00";
 
-            // CORE: FEBuilderGBA_CORE_20260226.00.(7z|zip)
-            Match coreMatch = RegexCache.Match(url, @"FEBuilderGBA_CORE_(\d{8}\.\d{2})\.(7z|zip)");
+            // FEBuilderGBA_20260226.00.(7z|zip)
+            Match coreMatch = RegexCache.Match(url, @"FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip)");
             if (coreMatch.Success && coreMatch.Groups.Count >= 2)
                 return coreMatch.Groups[1].Value;
 
