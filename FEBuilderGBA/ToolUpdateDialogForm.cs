@@ -152,17 +152,13 @@ namespace FEBuilderGBA
                 return;
             }
 
-            // Resolve git executable
+            // Resolve git executable — auto-install if not found
             string gitExe = GitUtil.FindGitExecutable();
             if (gitExe == null)
             {
-                DialogResult dr = R.ShowQ(
-                    "Gitがインストールされていません。\r\n" +
-                    "https://git-scm.com からインストールしてください。\r\n\r\n" +
-                    "ダウンロードページをブラウザで開きますか？");
-                if (dr == DialogResult.Yes)
-                    U.OpenURLOrFile("https://git-scm.com");
-                return;
+                gitExe = TryAutoInstallGit();
+                if (gitExe == null)
+                    return;
             }
 
             // Unsaved ROM check
@@ -278,6 +274,110 @@ namespace FEBuilderGBA
             string last = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
             if (!string.IsNullOrEmpty(last))
                 pleaseWait.DoEvents(last);
+        }
+
+        /// <summary>
+        /// Prompts the user to auto-install Git, downloads the installer, and runs it silently.
+        /// Returns the path to git.exe on success, or null if the user declines / install fails.
+        /// On failure, offers to open https://git-scm.com for manual installation.
+        /// </summary>
+        private string TryAutoInstallGit()
+        {
+            // Three-way choice: Yes = auto-install, No = open browser, Cancel = do nothing
+            DialogResult choice = MessageBox.Show(
+                "Gitが見つかりません。\r\n" +
+                "パッチデータの更新にはGitが必要です。\r\n\r\n" +
+                "自動でGitをダウンロード・インストールしますか？\r\n" +
+                "(「いいえ」を選択するとブラウザでダウンロードページを開きます)",
+                "Gitが必要です",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question);
+
+            if (choice == DialogResult.Cancel)
+                return null;
+
+            if (choice == DialogResult.No)
+            {
+                U.OpenURLOrFile("https://git-scm.com");
+                return null;
+            }
+
+            // Auto-install chosen
+            string gitExe = TryAutoInstallGitInternal();
+            if (gitExe != null)
+            {
+                R.ShowOK("Gitのインストールが完了しました。\r\n引き続きパッチデータの更新を行います。");
+                return gitExe;
+            }
+
+            // Auto-install failed — guide to manual install
+            DialogResult dr = R.ShowQ(
+                "Gitの自動インストールに失敗しました。\r\n" +
+                "https://git-scm.com から手動でインストールしてください。\r\n\r\n" +
+                "ダウンロードページをブラウザで開きますか？");
+            if (dr == DialogResult.Yes)
+                U.OpenURLOrFile("https://git-scm.com");
+            return null;
+        }
+
+        /// <summary>
+        /// Core logic for auto-installing Git:
+        ///   1. Fetch the latest installer URL from the GitHub releases API.
+        ///   2. Download the installer (with progress in the please-wait label).
+        ///   3. Run the installer silently (UAC prompt may appear).
+        ///   4. Locate the newly installed git.exe.
+        /// Returns the git.exe path on success, or null on any failure.
+        /// </summary>
+        private string TryAutoInstallGitInternal()
+        {
+            string installerPath = null;
+            try
+            {
+                // Step 1 + 2: fetch URL and download installer
+                string installerUrl = null;
+                using (InputFormRef.AutoPleaseWait pw = new InputFormRef.AutoPleaseWait(this))
+                {
+                    pw.DoEvents("Gitインストーラーの最新バージョンを確認中...");
+                    installerUrl = GitInstaller.GetLatestInstallerUrl();
+                    if (string.IsNullOrEmpty(installerUrl))
+                        return null;
+
+                    installerPath = Path.Combine(Path.GetTempPath(),
+                        "git_installer_" + DateTime.Now.Ticks.ToString() + ".exe");
+
+                    pw.DoEvents("Gitインストーラーをダウンロード中...");
+                    U.DownloadFile(installerPath, installerUrl, pw);
+                }
+
+                if (!File.Exists(installerPath))
+                    return null;
+
+                // Step 3: run installer (outside of please-wait — UAC prompt will appear)
+                using (InputFormRef.AutoPleaseWait pw = new InputFormRef.AutoPleaseWait(this))
+                {
+                    pw.DoEvents("Gitをインストール中... しばらくお待ちください");
+                    var task = GitInstaller.RunInstallerSilentlyAsync(installerPath);
+                    while (!task.IsCompleted)
+                    {
+                        System.Windows.Forms.Application.DoEvents();
+                        System.Threading.Thread.Sleep(200);
+                    }
+                    if (!task.Result)
+                        return null;
+                }
+
+                // Step 4: locate the newly installed git.exe
+                return GitUtil.FindGitExecutable();
+            }
+            catch
+            {
+                return null;
+            }
+            finally
+            {
+                try { if (!string.IsNullOrEmpty(installerPath)) File.Delete(installerPath); }
+                catch { }
+            }
         }
 
         /// <summary>
