@@ -148,25 +148,27 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// git clone --depth=1 &lt;url&gt; &lt;targetPath&gt;  (targetPath must not exist yet)
+        /// git clone --progress --depth=1 &lt;url&gt; &lt;targetPath&gt;  (targetPath must not exist yet)
+        /// --progress forces git to emit progress lines even when stderr is redirected.
         /// </summary>
         public static int Clone(string gitExe, string url, string targetPath,
                                 Action<string> outputCallback = null,
                                 StringBuilder outputLog = null)
         {
-            string args = string.Format("clone --depth=1 \"{0}\" \"{1}\"", url, targetPath);
+            string args = string.Format("clone --progress --depth=1 \"{0}\" \"{1}\"", url, targetPath);
             return RunGit(gitExe, args, null, outputCallback, outputLog);
         }
 
         /// <summary>
-        /// git fetch --depth=1 origin  +  git reset --hard FETCH_HEAD
+        /// git fetch --progress --depth=1 origin  +  git reset --hard FETCH_HEAD
+        /// --progress forces git to emit progress lines even when stderr is redirected.
         /// Returns exit code of the final step.
         /// </summary>
         public static int Update(string gitExe, string repoPath,
                                  Action<string> outputCallback = null,
                                  StringBuilder outputLog = null)
         {
-            int code = RunGit(gitExe, "fetch --depth=1 origin", repoPath, outputCallback, outputLog);
+            int code = RunGit(gitExe, "fetch --progress --depth=1 origin", repoPath, outputCallback, outputLog);
             if (code != 0)
                 return code;
 

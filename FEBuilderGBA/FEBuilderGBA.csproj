@@ -229,7 +229,9 @@
     <ItemGroup>
       <DataFiles Include="$(TrackedConfigPath)\data\**\*.*" />
       <TranslateFiles Include="$(TrackedConfigPath)\translate\**\*.*" />
-      <Patch2Files Include="$(Patch2SubmodulePath)\**\*.*" />
+      <!-- Exclude .git (submodule link file or cloned .git directory + its contents) -->
+      <Patch2Files Include="$(Patch2SubmodulePath)\**\*.*"
+                   Exclude="$(Patch2SubmodulePath)\.git;$(Patch2SubmodulePath)\.git\**\*.*" />
     </ItemGroup>
 
     <!-- Copy data/ files preserving directory structure -->
@@ -243,6 +245,10 @@
           DestinationFolder="$(TargetConfigDir)\translate\%(RecursiveDir)"
           SkipUnchangedFiles="true"
           OverwriteReadOnlyFiles="true" />
+
+    <!-- Remove stale .git directory from build output (left over from a previous clone) -->
+    <RemoveDir Directories="$(TargetConfigDir)\patch2\.git"
+               Condition="Exists('$(TargetConfigDir)\patch2\.git')" />
 
     <!-- Copy patch2/ files preserving directory structure -->
     <Copy SourceFiles="@(Patch2Files)"

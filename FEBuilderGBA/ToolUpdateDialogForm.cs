@@ -141,6 +141,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Update patch2 data via git clone (first time) or git fetch+reset (subsequent).
+        /// Git runs on a background Task; the main thread polls every 80 ms so the
+        /// please-wait label shows real-time git progress output.
         /// No application restart is needed — the data is reloaded on next launch.
         /// </summary>
         private void AutoUpdatePatch2Git(EventArgs e)
@@ -183,22 +185,34 @@ namespace FEBuilderGBA
             {
                 var gitLog = new System.Text.StringBuilder();
 
+                // lastLine[0] is written by the git output callback (background thread)
+                // and consumed by the polling loop below (main thread) via Interlocked.
+                var lastLine = new string[1];
+                Action<string> progress = line =>
+                {
+                    if (!string.IsNullOrEmpty(line))
+                        System.Threading.Interlocked.Exchange(ref lastLine[0], line);
+                };
+
                 if (GitUtil.IsGitRepo(patchPath))
                 {
-                    // UPDATE PATH: fetch + reset
-                    pleaseWait.DoEvents("Git: fetch --depth=1 origin ...");
-                    int code = GitUtil.Update(gitExe, patchPath, null, gitLog);
-                    if (code != 0)
+                    // UPDATE PATH: run git on background task, poll for progress on main thread
+                    pleaseWait.DoEvents("Git: fetch --progress --depth=1 origin ...");
+                    var task = System.Threading.Tasks.Task.Run(
+                        () => GitUtil.Update(gitExe, patchPath, progress, gitLog));
+                    PollGitProgress(task, pleaseWait, lastLine);
+
+                    if (task.Result != 0)
                     {
                         R.ShowStopError("Gitによる更新に失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
-                            code, gitLog.ToString().Trim());
+                            task.Result, gitLog.ToString().Trim());
                         this.Close();
                         return;
                     }
                 }
                 else
                 {
-                    // FIRST-TIME PATH: clone
+                    // FIRST-TIME PATH: back up existing dir, then clone
                     string backupPath = null;
                     if (Directory.Exists(patchPath))
                     {
@@ -208,9 +222,12 @@ namespace FEBuilderGBA
                         Directory.Move(patchPath, backupPath);
                     }
 
-                    pleaseWait.DoEvents("Git: clone --depth=1 ...");
-                    int code = GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patchPath, null, gitLog);
-                    if (code != 0)
+                    pleaseWait.DoEvents("Git: clone --progress --depth=1 ...");
+                    var task = System.Threading.Tasks.Task.Run(
+                        () => GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patchPath, progress, gitLog));
+                    PollGitProgress(task, pleaseWait, lastLine);
+
+                    if (task.Result != 0)
                     {
                         // Restore backup on failure
                         if (backupPath != null)
@@ -220,7 +237,7 @@ namespace FEBuilderGBA
                             Directory.Move(backupPath, patchPath);
                         }
                         R.ShowStopError("Gitによるクローンに失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
-                            code, gitLog.ToString().Trim());
+                            task.Result, gitLog.ToString().Trim());
                         this.Close();
                         return;
                     }
@@ -237,6 +254,30 @@ namespace FEBuilderGBA
             R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには再起動してください。");
             this.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.Close();
+        }
+
+        /// <summary>
+        /// Pumps the UI message loop while a background git Task is running,
+        /// showing each new output line in the please-wait label as it arrives.
+        /// lastLine[0] is written atomically by the git output callback and consumed here.
+        /// </summary>
+        private static void PollGitProgress(System.Threading.Tasks.Task task,
+                                            InputFormRef.AutoPleaseWait pleaseWait,
+                                            string[] lastLine)
+        {
+            while (!task.IsCompleted)
+            {
+                string line = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
+                if (!string.IsNullOrEmpty(line))
+                    pleaseWait.DoEvents(line);
+                else
+                    System.Windows.Forms.Application.DoEvents();
+                System.Threading.Thread.Sleep(80);
+            }
+            // Flush any final line that arrived just before the task completed
+            string last = System.Threading.Interlocked.Exchange(ref lastLine[0], null);
+            if (!string.IsNullOrEmpty(last))
+                pleaseWait.DoEvents(last);
         }
 
         /// <summary>
