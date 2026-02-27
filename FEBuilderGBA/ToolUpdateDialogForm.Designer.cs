@@ -35,7 +35,7 @@ namespace FEBuilderGBA
             this.OpenBrowserButton = new System.Windows.Forms.Button();
             this.AutoUpdateButton = new System.Windows.Forms.Button();
             this.UpdateCoreButton = new System.Windows.Forms.Button();
-            this.UpdatePatch2Button = new System.Windows.Forms.Button();
+            this.UpdatePatch2GitButton = new System.Windows.Forms.Button();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.FormIcon)).BeginInit();
             this.SuspendLayout();
@@ -55,7 +55,7 @@ namespace FEBuilderGBA
             this.panel1.Controls.Add(this.OpenBrowserButton);
             this.panel1.Controls.Add(this.AutoUpdateButton);
             this.panel1.Controls.Add(this.UpdateCoreButton);
-            this.panel1.Controls.Add(this.UpdatePatch2Button);
+            this.panel1.Controls.Add(this.UpdatePatch2GitButton);
             this.panel1.Controls.Add(this.Message);
             this.panel1.Location = new System.Drawing.Point(13, 13);
             this.panel1.Name = "panel1";
@@ -92,18 +92,18 @@ namespace FEBuilderGBA
             this.UpdateCoreButton.Visible = false;
             this.UpdateCoreButton.Click += new System.EventHandler(this.UpdateCoreButton_Click);
             //
-            // UpdatePatch2Button  (row 3 — split-package mode only, hidden by default)
+            // UpdatePatch2GitButton  (row 4 — shown when git is found, hidden by default)
             //
-            this.UpdatePatch2Button.Location = new System.Drawing.Point(17, 262);
-            this.UpdatePatch2Button.Name = "UpdatePatch2Button";
-            this.UpdatePatch2Button.Size = new System.Drawing.Size(841, 34);
-            this.UpdatePatch2Button.TabIndex = 3;
-            this.UpdatePatch2Button.Text = "パッチデータを更新します";
-            this.UpdatePatch2Button.UseVisualStyleBackColor = true;
-            this.UpdatePatch2Button.Visible = false;
-            this.UpdatePatch2Button.Click += new System.EventHandler(this.UpdatePatch2Button_Click);
+            this.UpdatePatch2GitButton.Location = new System.Drawing.Point(17, 302);
+            this.UpdatePatch2GitButton.Name = "UpdatePatch2GitButton";
+            this.UpdatePatch2GitButton.Size = new System.Drawing.Size(841, 34);
+            this.UpdatePatch2GitButton.TabIndex = 6;
+            this.UpdatePatch2GitButton.Text = "Gitでパッチデータを更新します";
+            this.UpdatePatch2GitButton.UseVisualStyleBackColor = true;
+            this.UpdatePatch2GitButton.Visible = false;
+            this.UpdatePatch2GitButton.Click += new System.EventHandler(this.UpdatePatch2GitButton_Click);
             //
-            // OpenBrowserButton  (row 4)
+            // OpenBrowserButton  (row 5)
             //
             this.OpenBrowserButton.Location = new System.Drawing.Point(17, 234);
             this.OpenBrowserButton.Name = "OpenBrowserButton";
@@ -147,7 +147,7 @@ namespace FEBuilderGBA
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button AutoUpdateButton;
         private System.Windows.Forms.Button UpdateCoreButton;
-        private System.Windows.Forms.Button UpdatePatch2Button;
+        private System.Windows.Forms.Button UpdatePatch2GitButton;
         private System.Windows.Forms.Button OpenBrowserButton;
         private System.Windows.Forms.Button IgnoreButton;
         private System.Windows.Forms.PictureBox FormIcon;

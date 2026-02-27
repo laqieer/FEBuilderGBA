@@ -26,6 +26,7 @@ namespace FEBuilderGBA
         string URL;
         UpdateInfo UpdateInfoData;
         UpdateInfo.PackageType PackageType;
+        private string _gitExe = null;  // cached in InitSplitPackage
 
         public void Init(string version, string url)
         {
@@ -36,44 +37,49 @@ namespace FEBuilderGBA
 
             // Legacy mode: hide split-package buttons, keep the single auto-update button
             this.UpdateCoreButton.Visible = false;
-            this.UpdatePatch2Button.Visible = false;
+            this.UpdatePatch2GitButton.Visible = false;
             this.AutoUpdateButton.Text = "全自動でアップデートします";
         }
 
         /// <summary>
         /// Initialize with split package support — shows individual Core / Patch2 / Full buttons.
+        /// When git is available, the Git Patch2 button replaces the zip Patch2 button and
+        /// the Full button is hidden (Core + Git Patch2 covers it).
         /// Buttons are stacked dynamically so there are no blank gaps.
         /// </summary>
         public void InitSplitPackage(UpdateInfo updateInfo)
         {
             this.UpdateInfoData = updateInfo;
 
+            // Detect git once and cache it
+            _gitExe = GitUtil.FindGitExecutable();
+            bool useGit = (_gitExe != null);
+
             // --- stack update buttons from y=182 downward ---
             int y = 182;
             const int btnH   = 34;
             const int btnGap = 6;
 
-            // Full / legacy button
+            // Full / legacy button — hidden when git is available
             bool hasFull = !string.IsNullOrEmpty(updateInfo.URL_FULL);
-            this.AutoUpdateButton.Visible  = hasFull;
-            this.AutoUpdateButton.Enabled  = hasFull;
+            this.AutoUpdateButton.Visible  = hasFull && !useGit;
+            this.AutoUpdateButton.Enabled  = hasFull && !useGit;
             this.AutoUpdateButton.Text     = "全部を更新します (Core + Patch2)";
             this.AutoUpdateButton.Location = new System.Drawing.Point(17, y);
-            if (hasFull) y += btnH + btnGap;
+            if (hasFull && !useGit) y += btnH + btnGap;
 
-            // Core-only button
+            // Core-only button — always shown
             bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
             this.UpdateCoreButton.Visible  = hasCore;
             this.UpdateCoreButton.Enabled  = hasCore;
             this.UpdateCoreButton.Location = new System.Drawing.Point(17, y);
             if (hasCore) y += btnH + btnGap;
 
-            // Patch2-only button
-            bool hasPatch2 = !string.IsNullOrEmpty(updateInfo.URL_PATCH2);
-            this.UpdatePatch2Button.Visible  = hasPatch2;
-            this.UpdatePatch2Button.Enabled  = hasPatch2;
-            this.UpdatePatch2Button.Location = new System.Drawing.Point(17, y);
-            if (hasPatch2) y += btnH + btnGap;
+            // Git Patch2 button — shown when git is found
+            this.UpdatePatch2GitButton.Visible  = useGit;
+            this.UpdatePatch2GitButton.Enabled  = useGit;
+            this.UpdatePatch2GitButton.Location = new System.Drawing.Point(17, y);
+            if (useGit) y += btnH + btnGap;
 
             // Push OpenBrowser and Ignore below all visible update buttons
             // (keep at least the original gap from y=182 so layout isn't cramped)
@@ -102,11 +108,8 @@ namespace FEBuilderGBA
             sb.AppendLine("アップデートが利用可能です:");
             sb.AppendLine();
 
-            string remoteCore   = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE   ?? updateInfo.URL_FULL, 0);
-            string remotePatch2 = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_PATCH2 ?? updateInfo.URL_FULL, 1);
-
+            string remoteCore = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE ?? updateInfo.URL_FULL);
             sb.AppendLine($"プログラム本体: {updateInfo.VERSION_CORE} → {remoteCore}");
-            sb.AppendLine($"パッチデータ:   {updateInfo.VERSION_PATCH2} → {remotePatch2}");
 
             return sb.ToString();
         }
@@ -116,13 +119,6 @@ namespace FEBuilderGBA
             this.URL = this.UpdateInfoData.URL_CORE;
             this.PackageType = UpdateInfo.PackageType.CoreOnly;
             AutoUpdateStandard(e);
-        }
-
-        private void UpdatePatch2Button_Click(object sender, EventArgs e)
-        {
-            this.URL = this.UpdateInfoData.URL_PATCH2;
-            this.PackageType = UpdateInfo.PackageType.Patch2Only;
-            AutoUpdatePatch2Only(e);
         }
 
         private void AutoUpdateButton_Click(object sender, EventArgs e)
@@ -140,16 +136,34 @@ namespace FEBuilderGBA
             AutoUpdateStandard(e);
         }
 
+        private void UpdatePatch2GitButton_Click(object sender, EventArgs e)
+            => AutoUpdatePatch2Git(e);
+
         /// <summary>
-        /// Handle PATCH2-only updates (no application restart needed)
+        /// Update patch2 data via git clone (first time) or git fetch+reset (subsequent).
+        /// No application restart is needed — the data is reloaded on next launch.
         /// </summary>
-        private void AutoUpdatePatch2Only(EventArgs e)
+        private void AutoUpdatePatch2Git(EventArgs e)
         {
             if (InputFormRef.IsPleaseWaitDialog(this))
             {
                 return;
             }
 
+            // Resolve git executable
+            string gitExe = GitUtil.FindGitExecutable();
+            if (gitExe == null)
+            {
+                DialogResult dr = R.ShowQ(
+                    "Gitがインストールされていません。\r\n" +
+                    "https://git-scm.com からインストールしてください。\r\n\r\n" +
+                    "ダウンロードページをブラウザで開きますか？");
+                if (dr == DialogResult.Yes)
+                    U.OpenURLOrFile("https://git-scm.com");
+                return;
+            }
+
+            // Unsaved ROM check
             if (Program.ROM != null && Program.ROM.Modified)
             {
                 DialogResult dr = R.ShowQ("未保存の変更があるようです。\r\n保存してもよろしいですか？");
@@ -163,147 +177,66 @@ namespace FEBuilderGBA
                 }
             }
 
+            string patchPath = Path.Combine(Program.BaseDirectory, "config", "patch2");
+
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
             {
-                string ext = OptionForm.update_source() == 1 ? ".zip" : ".7z";
-                string updateArchive = Path.Combine(Program.BaseDirectory, "dltemp_patch2_" + DateTime.Now.Ticks.ToString() + ext);
+                var gitLog = new System.Text.StringBuilder();
 
-                // Download
-                try
+                if (GitUtil.IsGitRepo(patchPath))
                 {
-                    U.DownloadFile(updateArchive, this.URL, pleaseWait);
+                    // UPDATE PATH: fetch + reset
+                    pleaseWait.DoEvents("Git: fetch --depth=1 origin ...");
+                    int code = GitUtil.Update(gitExe, patchPath, null, gitLog);
+                    if (code != 0)
+                    {
+                        R.ShowStopError("Gitによる更新に失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
+                            code, gitLog.ToString().Trim());
+                        this.Close();
+                        return;
+                    }
                 }
-                catch (Exception ee)
+                else
                 {
-                    BrokenDownload(ee);
-                    this.Close();
-                    return;
-                }
+                    // FIRST-TIME PATH: clone
+                    string backupPath = null;
+                    if (Directory.Exists(patchPath))
+                    {
+                        backupPath = Path.Combine(Program.BaseDirectory, "config",
+                            "_patch2_backup_" + DateTime.Now.Ticks.ToString());
+                        pleaseWait.DoEvents("Backing up existing patch2 data...");
+                        Directory.Move(patchPath, backupPath);
+                    }
 
-                if (!File.Exists(updateArchive))
-                {
-                    BrokenDownload(R._("ダウンロードしたファイルがありません。"));
-                    this.Close();
-                    return;
-                }
-
-                pleaseWait.DoEvents("Extract...");
-
-                // Extract PATCH2 package to temporary directory first
-                string tempExtractPath = Path.Combine(Program.BaseDirectory, "_temp_patch2_extract");
-                U.mkdir(tempExtractPath);
-
-                try
-                {
-                    string r = ArchSevenZip.Extract(updateArchive, tempExtractPath, isHide: false,
-                        (current, total, file, elapsed, remaining) =>
+                    pleaseWait.DoEvents("Git: clone --depth=1 ...");
+                    int code = GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patchPath, null, gitLog);
+                    if (code != 0)
+                    {
+                        // Restore backup on failure
+                        if (backupPath != null)
                         {
-                            string progress = string.Format("Extract... ({0}/{1}) - {2}",
-                                current, total, file);
-                            pleaseWait.DoEvents(progress);
-                        });
-
-                    if (r != "")
-                    {
-                        BrokenDownload(R._("ダウンロードしたファイルを解凍できませんでした。") + "\r\n" + r);
-                        this.Close();
-                        return;
-                    }
-                }
-                catch (Exception ee)
-                {
-                    BrokenDownload(ee);
-                    this.Close();
-                    return;
-                }
-
-                pleaseWait.DoEvents("Installing patch data...");
-
-                // Copy extracted files to config/patch2/
-                try
-                {
-                    // upload-artifact@v4 may preserve full workspace-relative paths
-                    // (config/patch2/FE6/...) or strip the directory prefix (FE6/...
-                    // directly at extract root). Search all likely locations.
-                    string sourcePatch2 = FindPatch2Source(tempExtractPath);
-                    string targetPatch2 = Path.Combine(Program.BaseDirectory, "config", "patch2");
-
-                    if (sourcePatch2 == null)
-                    {
-                        BrokenDownload(R._("パッチデータが見つかりませんでした。"));
+                            if (Directory.Exists(patchPath))
+                                Directory.Delete(patchPath, true);
+                            Directory.Move(backupPath, patchPath);
+                        }
+                        R.ShowStopError("Gitによるクローンに失敗しました。\r\n終了コード: {0}\r\n\r\n{1}",
+                            code, gitLog.ToString().Trim());
                         this.Close();
                         return;
                     }
 
-                    // Backup current patch2 directory
-                    string backupPath = Path.Combine(Program.BaseDirectory, "config", "_patch2_backup_" + DateTime.Now.Ticks);
-                    if (Directory.Exists(targetPatch2))
+                    // Success — remove backup
+                    if (backupPath != null)
                     {
-                        Directory.Move(targetPatch2, backupPath);
+                        try { Directory.Delete(backupPath, true); }
+                        catch { }
                     }
-
-                    // Copy new patch2 data
-                    U.DirectoryCopy(sourcePatch2, targetPatch2, true);
-
-                    // Clean up backup after successful copy
-                    if (Directory.Exists(backupPath))
-                    {
-                        Directory.Delete(backupPath, true);
-                    }
-
-                    // Clean up temp directory
-                    Directory.Delete(tempExtractPath, true);
-
-                    // Delete download archive
-                    File.Delete(updateArchive);
-
-                    R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには、アプリケーションを再起動してください。");
-                }
-                catch (Exception ee)
-                {
-                    BrokenDownload(R._("パッチデータのインストール中にエラーが発生しました。\r\n{0}", ee.ToString()));
-                    this.Close();
-                    return;
                 }
             }
 
+            R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには再起動してください。");
             this.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.Close();
-        }
-
-        /// <summary>
-        /// Locates the patch2 data root inside an extraction directory.
-        /// Handles three possible upload-artifact@v4 path structures:
-        ///   1. Full workspace-relative path preserved: extractRoot/config/patch2/FE6/...
-        ///   2. Recursive any-depth match: extractRoot/.../patch2/FE6/...
-        ///   3. Prefix stripped: extractRoot/FE6/... (config/patch2/ stripped)
-        /// Returns null if patch2 data cannot be found.
-        /// </summary>
-        private static string FindPatch2Source(string extractRoot)
-        {
-            // Case 1: upload-artifact preserved full workspace path
-            string direct = Path.Combine(extractRoot, "config", "patch2");
-            if (Directory.Exists(direct) && Directory.GetFileSystemEntries(direct).Length > 0)
-                return direct;
-
-            // Case 2: search recursively for any directory named "patch2"
-            try
-            {
-                string[] candidates = Directory.GetDirectories(extractRoot, "patch2", SearchOption.AllDirectories);
-                if (candidates.Length > 0 && Directory.GetFileSystemEntries(candidates[0]).Length > 0)
-                    return candidates[0];
-            }
-            catch { }
-
-            // Case 3: upload-artifact stripped config/patch2/ prefix;
-            // ROM-version subdirs (FE6, FE7J, …) land directly at extractRoot
-            string[] romVersions = { "FE6", "FE7J", "FE7U", "FE8J", "FE8U" };
-            bool looksLikePatch2Root = Array.Exists(romVersions,
-                v => Directory.Exists(Path.Combine(extractRoot, v)));
-            if (looksLikePatch2Root)
-                return extractRoot;
-
-            return null;
         }
 
         /// <summary>

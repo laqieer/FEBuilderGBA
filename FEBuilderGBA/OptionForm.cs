@@ -173,6 +173,8 @@ namespace FEBuilderGBA
             U.SelectedIndexSafety(func_felint_check_song_tie_eot, U.BoolToInt(felint_check_song_tie_eot()));
             U.SelectedIndexSafety(RunTestMessage, (int)U.atoi(Program.Config.at("RunTestMessage")));
 
+            git_path_textbox.Text = Program.Config.at("git_path", "git");
+
             ChangeColorWriteButtonWhenChangingSetting();
             InputFormRef.WriteButtonToYellow(this.WriteButton, false);
             ERROR_IsOldEA.Text += R._("最新版は{0}です。", CurrentEAVersion);
@@ -254,6 +256,7 @@ namespace FEBuilderGBA
             Program.Config["FECLIB"] = FECLIB.Text;
             Program.Config["srccode_texteditor"] = srccode_texteditor.Text;
             Program.Config["srccode_directory"] = srccode_directory.Text;
+            Program.Config["git_path"] = git_path_textbox.Text;
 
             Program.Config["Color_Control_BackColor"] = Color_Control_BackColor_button.BackColor.Name;
             Program.Config["Color_Control_ForeColor"] = Color_Control_ForeColor_button.BackColor.Name;
@@ -887,6 +890,11 @@ namespace FEBuilderGBA
         public static int release_source()
         {
             return (int)U.atoi(Program.Config.at("func_release_source", "0"));
+        }
+
+        public static string git_path()
+        {
+            return Program.Config.at("git_path", "git");
         }
 
 
@@ -1803,6 +1811,12 @@ namespace FEBuilderGBA
         private void midfix4agb_DoubleClick(object sender, EventArgs e)
         {
             midfix4agb_button.PerformClick();
+        }
+
+        private void git_path_button_Click(object sender, EventArgs e)
+        {
+            string r = EXESearch("git.exe|git.exe|");
+            if (r != "") git_path_textbox.Text = r;
         }
 
         private void srccode_texteditor_button_Click(object sender, EventArgs e)

@@ -6,23 +6,16 @@ namespace FEBuilderGBA.Tests
     public class UpdateCheckSplitPackageTests
     {
         [Theory]
-        [InlineData("https://example.com/FEBuilderGBA_FULL_20260226.00_20260225.12.7z", 0, "20260226.00")]
-        [InlineData("https://example.com/FEBuilderGBA_FULL_20260226.00_20260225.12.7z", 1, "20260225.12")]
-        [InlineData("https://example.com/FEBuilderGBA_CORE_20260226.15.7z", 0, "20260226.15")]
-        [InlineData("https://example.com/FEBuilderGBA_CORE_20260226.15.7z", 1, "20260226.15")]
-        [InlineData("https://example.com/FEBuilderGBA_PATCH2_20260227.00.7z", 0, "20260227.00")]
-        [InlineData("https://example.com/FEBuilderGBA_PATCH2_20260227.00.7z", 1, "20260227.00")]
-        [InlineData("https://example.com/FEBuilderGBA_20260226.00.7z", 0, "20260226.00")]
-        [InlineData("https://example.com/FEBuilderGBA_20260226.00.7z", 1, "20260226.00")]
-        [InlineData("", 0, "00000000.00")]
-        [InlineData(null, 0, "00000000.00")]
-        [InlineData("https://example.com/invalid.7z", 0, "00000000.00")]
-        public void ExtractVersionFromUrl_ParsesCorrectly(string url, int versionIndex, string expected)
+        [InlineData("https://example.com/FEBuilderGBA_CORE_20260226.15.7z",  "20260226.15")]
+        [InlineData("https://example.com/FEBuilderGBA_CORE_20260226.15.zip", "20260226.15")]
+        [InlineData("https://example.com/FEBuilderGBA_20260226.00.7z",        "20260226.00")]
+        [InlineData("https://example.com/FEBuilderGBA_20260226.00.zip",       "20260226.00")]
+        [InlineData("",                                                         "00000000.00")]
+        [InlineData(null,                                                       "00000000.00")]
+        [InlineData("https://example.com/invalid.7z",                          "00000000.00")]
+        public void ExtractVersionFromUrl_ParsesCorrectly(string url, string expected)
         {
-            // Act
-            string result = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, versionIndex);
-
-            // Assert
+            string result = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
             Assert.Equal(expected, result);
         }
 
@@ -34,7 +27,6 @@ namespace FEBuilderGBA.Tests
             {
                 URL_FULL = "https://example.com/FEBuilderGBA_20260226.00.7z",
                 URL_CORE = "",
-                URL_PATCH2 = ""
             };
 
             // Act
@@ -47,17 +39,14 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
-        public void GetDownloadUrl_WithSplitPackages_PrefersCoreWhenOnlyCoreNeedsUpdate()
+        public void GetDownloadUrl_WithCoreUrl_ReturnsCoreWhenCoreNeedsUpdate()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            // Set current versions via reflection
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260225.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260226.00");
 
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z";
             updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260226.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260226.00.7z";
+            updateInfo.URL_FULL = "";
 
             // Act
             UpdateInfo.PackageType packageType;
@@ -69,90 +58,21 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
-        public void GetDownloadUrl_WithSplitPackages_PrefersPatch2WhenOnlyPatch2NeedsUpdate()
+        public void GetDownloadUrl_FallsBackToFullWhenCoreUrlMissing()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            // Set current versions via reflection
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260225.00");
-
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z";
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260226.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260226.00.7z";
-
-            // Act
-            UpdateInfo.PackageType packageType;
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out packageType);
-
-            // Assert
-            Assert.Equal("https://example.com/FEBuilderGBA_PATCH2_20260226.00.7z", url);
-            Assert.Equal(UpdateInfo.PackageType.Patch2Only, packageType);
-        }
-
-        [Fact]
-        public void GetDownloadUrl_WithSplitPackages_PrefersFullWhenBothNeedUpdate()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            // Set current versions via reflection
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260225.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260225.00");
 
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z";
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260226.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260226.00.7z";
+            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_20260226.00.7z";
+            updateInfo.URL_CORE = "";
 
             // Act
             UpdateInfo.PackageType packageType;
             string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out packageType);
 
             // Assert
-            Assert.Equal("https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z", url);
-            Assert.Equal(UpdateInfo.PackageType.Full, packageType);
-        }
-
-        [Fact]
-        public void GetDownloadUrl_WithMissingCorePackage_FallsBackToFull()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            // Set current versions via reflection
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260225.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260226.00");
-
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z";
-            updateInfo.URL_CORE = ""; // Missing CORE package
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260226.00.7z";
-
-            // Act
-            UpdateInfo.PackageType packageType;
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out packageType);
-
-            // Assert
-            Assert.Equal("https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z", url);
-            Assert.Equal(UpdateInfo.PackageType.Full, packageType);
-        }
-
-        [Fact]
-        public void GetDownloadUrl_WithMissingPatch2Package_FallsBackToFull()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            // Set current versions via reflection
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260225.00");
-
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z";
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260226.00.7z";
-            updateInfo.URL_PATCH2 = ""; // Missing PATCH2 package
-
-            // Act
-            UpdateInfo.PackageType packageType;
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out packageType);
-
-            // Assert
-            Assert.Equal("https://example.com/FEBuilderGBA_FULL_20260226.00_20260226.00.7z", url);
+            Assert.Equal("https://example.com/FEBuilderGBA_20260226.00.7z", url);
             Assert.Equal(UpdateInfo.PackageType.Full, packageType);
         }
     }

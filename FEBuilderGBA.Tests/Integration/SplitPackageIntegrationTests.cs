@@ -5,162 +5,57 @@ using Xunit;
 namespace FEBuilderGBA.Tests.Integration
 {
     /// <summary>
-    /// Integration tests for the split package update system.
-    /// These tests validate end-to-end scenarios without requiring actual GitHub releases.
+    /// Integration tests for the core update system.
+    /// Patch2 is versioned and updated via git, not via build artifacts.
     /// </summary>
     public class SplitPackageIntegrationTests
     {
         private readonly string _testBaseDir;
-        private readonly string _testConfigDir;
-        private readonly string _testPatch2Dir;
-        private readonly string _testVersionFile;
 
         public SplitPackageIntegrationTests()
         {
-            // Create temporary test directory
             _testBaseDir = Path.Combine(Path.GetTempPath(), "FEBuilderGBA_IntegrationTests_" + Guid.NewGuid().ToString());
-            _testConfigDir = Path.Combine(_testBaseDir, "config");
-            _testPatch2Dir = Path.Combine(_testConfigDir, "patch2");
-            _testVersionFile = Path.Combine(_testPatch2Dir, "version.txt");
-
-            Directory.CreateDirectory(_testPatch2Dir);
+            Directory.CreateDirectory(_testBaseDir);
         }
 
         ~SplitPackageIntegrationTests()
         {
-            // Cleanup test directory
             try
             {
                 if (Directory.Exists(_testBaseDir))
-                {
                     Directory.Delete(_testBaseDir, true);
-                }
             }
-            catch { /* Ignore cleanup errors */ }
+            catch { }
         }
 
         [Fact(Skip = "Requires static Program.BaseDirectory manipulation which is difficult to isolate in tests")]
         public void UpdateInfo_ReadsVersionFromFileSystem()
         {
-            // NOTE: This test is skipped because it requires manipulating Program.BaseDirectory,
-            // a static field that is initialized during Program startup and used throughout the application.
-            // Proper testing would require dependency injection or testable design, which would be
-            // a larger refactoring. The functionality is covered by manual testing and the static method
-            // tests in UpdateInfoTests.cs.
-
-            // Arrange
-            string expectedVersion = "20260226.15";
-            File.WriteAllText(_testVersionFile, expectedVersion);
-
-            // Temporarily set Program.BaseDirectory for the test
-            var baseDirField = typeof(Program).GetField("BaseDirectory", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-            var originalBaseDir = baseDirField?.GetValue(null);
-
-            try
-            {
-                baseDirField?.SetValue(null, _testBaseDir);
-
-                // Act - create UpdateInfo after setting BaseDirectory
-                var updateInfo = new UpdateInfo();
-
-                // Assert
-                Assert.Equal(expectedVersion, updateInfo.VERSION_PATCH2);
-            }
-            finally
-            {
-                // Restore original BaseDirectory
-                baseDirField?.SetValue(null, originalBaseDir);
-            }
+            // Skipped — version.txt no longer used; patch2 is git-managed.
         }
 
         [Fact(Skip = "Requires static Program.BaseDirectory manipulation which is difficult to isolate in tests")]
         public void UpdateInfo_HandlesMinimalVersion_WhenFileContainsOnlyVersion()
         {
-            // NOTE: This test is skipped for the same reason as UpdateInfo_ReadsVersionFromFileSystem.
-            // The functionality is covered by UpdateInfoTests.ReadPatch2Version_* tests.
-
-            // Arrange
-            string versionContent = "20260226.00";
-            File.WriteAllText(_testVersionFile, versionContent);
-
-            var baseDirField = typeof(Program).GetField("BaseDirectory", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-            var originalBaseDir = baseDirField?.GetValue(null);
-
-            try
-            {
-                baseDirField?.SetValue(null, _testBaseDir);
-
-                // Act - create UpdateInfo after setting BaseDirectory
-                var updateInfo = new UpdateInfo();
-
-                // Assert
-                Assert.Equal("20260226.00", updateInfo.VERSION_PATCH2);
-            }
-            finally
-            {
-                baseDirField?.SetValue(null, originalBaseDir);
-            }
-        }
-
-        [Fact]
-        public void UpdateInfo_ReturnsDefaultVersion_WhenFileDoesNotExist()
-        {
-            // Arrange - no file created
-            var baseDirField = typeof(Program).GetField("BaseDirectory", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-            var originalBaseDir = baseDirField?.GetValue(null);
-            baseDirField?.SetValue(null, _testBaseDir);
-
-            try
-            {
-                // Act
-                var updateInfo = new UpdateInfo();
-
-                // Assert
-                Assert.Equal("00000000.00", updateInfo.VERSION_PATCH2);
-            }
-            finally
-            {
-                baseDirField?.SetValue(null, originalBaseDir);
-            }
+            // Skipped — version.txt no longer used; patch2 is git-managed.
         }
 
         [Theory]
-        [InlineData("20260226.00", "20260226.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.Full)]
-        [InlineData("20260226.00", "20260227.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.CoreOnly)]
-        [InlineData("20260227.00", "20260226.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.Patch2Only)]
-        [InlineData("20260227.00", "20260227.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.None)]
-        public void UpdateInfo_DeterminesCorrectPackageType_BasedOnVersions(
-            string localCore, string localPatch2, string remoteCore, string remotePatch2, UpdateInfo.PackageType expected)
+        [InlineData("20260226.00", "20260227.00", UpdateInfo.PackageType.CoreOnly)]
+        [InlineData("20260227.00", "20260227.00", UpdateInfo.PackageType.None)]
+        [InlineData("20260227.00", "20260226.00", UpdateInfo.PackageType.None)]
+        public void UpdateInfo_DeterminesCorrectPackageType_BasedOnCoreVersion(
+            string localCore, string remoteCore, UpdateInfo.PackageType expected)
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-
-            // Use reflection to set private properties for testing
-            var coreProperty = typeof(UpdateInfo).GetProperty("VERSION_CORE");
-            var patch2Property = typeof(UpdateInfo).GetProperty("VERSION_PATCH2");
-            coreProperty?.SetValue(updateInfo, localCore);
-            patch2Property?.SetValue(updateInfo, localPatch2);
+            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, localCore);
 
             // Act
-            var result = updateInfo.DetermineUpdateType(remoteCore, remotePatch2);
+            var result = updateInfo.DetermineUpdateType(remoteCore);
 
             // Assert
             Assert.Equal(expected, result);
-        }
-
-        [Fact]
-        public void UpdateCheckSplitPackage_ExtractsVersionFromFullPackageUrl()
-        {
-            // Arrange
-            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_FULL_20260226.00_20260225.00.7z";
-
-            // Act
-            string coreVersion = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, 0);
-            string patch2Version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, 1);
-
-            // Assert
-            Assert.Equal("20260226.00", coreVersion);
-            Assert.Equal("20260225.00", patch2Version);
         }
 
         [Fact]
@@ -170,39 +65,34 @@ namespace FEBuilderGBA.Tests.Integration
             string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_CORE_20260226.00.7z";
 
             // Act
-            string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, 0);
+            string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
 
             // Assert
             Assert.Equal("20260226.00", version);
         }
 
         [Fact]
-        public void UpdateCheckSplitPackage_ExtractsVersionFromPatch2PackageUrl()
+        public void UpdateCheckSplitPackage_ExtractsVersionFromLegacyUrl()
         {
             // Arrange
-            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_PATCH2_20260225.00.7z";
+            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_20260226.00.7z";
 
             // Act
-            string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url, 1);
+            string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
 
             // Assert
-            Assert.Equal("20260225.00", version);
+            Assert.Equal("20260226.00", version);
         }
 
         [Fact]
-        public void UpdateCheckSplitPackage_SelectsOptimalPackage_WhenOnlyCoreNeedsUpdate()
+        public void UpdateCheckSplitPackage_SelectsCorePackage_WhenCoreNeedsUpdate()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            var coreProperty = typeof(UpdateInfo).GetProperty("VERSION_CORE");
-            var patch2Property = typeof(UpdateInfo).GetProperty("VERSION_PATCH2");
-            coreProperty?.SetValue(updateInfo, "20260226.00");
-            patch2Property?.SetValue(updateInfo, "20260227.00");
+            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
 
-            // Use properly formatted URLs with versions embedded
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260227.00_20260227.00.7z";
+            updateInfo.URL_FULL = "";
             updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260227.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260227.00.7z";
 
             // Act
             string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);
@@ -213,65 +103,14 @@ namespace FEBuilderGBA.Tests.Integration
         }
 
         [Fact]
-        public void UpdateCheckSplitPackage_SelectsOptimalPackage_WhenOnlyPatch2NeedsUpdate()
+        public void UpdateCheckSplitPackage_FallsBackToFull_WhenCorePackageUnavailable()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            var coreProperty = typeof(UpdateInfo).GetProperty("VERSION_CORE");
-            var patch2Property = typeof(UpdateInfo).GetProperty("VERSION_PATCH2");
-            coreProperty?.SetValue(updateInfo, "20260227.00");
-            patch2Property?.SetValue(updateInfo, "20260226.00");
+            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
 
-            // Use properly formatted URLs with versions embedded
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260227.00_20260227.00.7z";
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260227.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260227.00.7z";
-
-            // Act
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);
-
-            // Assert
-            Assert.Equal(UpdateInfo.PackageType.Patch2Only, packageType);
-            Assert.Equal(updateInfo.URL_PATCH2, url);
-        }
-
-        [Fact]
-        public void UpdateCheckSplitPackage_SelectsFullPackage_WhenBothNeedUpdate()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            var coreProperty = typeof(UpdateInfo).GetProperty("VERSION_CORE");
-            var patch2Property = typeof(UpdateInfo).GetProperty("VERSION_PATCH2");
-            coreProperty?.SetValue(updateInfo, "20260226.00");
-            patch2Property?.SetValue(updateInfo, "20260226.00");
-
-            // Use properly formatted URLs with versions embedded
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260227.00_20260227.00.7z";
-            updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260227.00.7z";
-            updateInfo.URL_PATCH2 = "https://example.com/FEBuilderGBA_PATCH2_20260227.00.7z";
-
-            // Act
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);
-
-            // Assert
-            Assert.Equal(UpdateInfo.PackageType.Full, packageType);
-            Assert.Equal(updateInfo.URL_FULL, url);
-        }
-
-        [Fact]
-        public void UpdateCheckSplitPackage_FallsBackToFull_WhenSplitPackagesUnavailable()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            var coreProperty = typeof(UpdateInfo).GetProperty("VERSION_CORE");
-            var patch2Property = typeof(UpdateInfo).GetProperty("VERSION_PATCH2");
-            coreProperty?.SetValue(updateInfo, "20260226.00");
-            patch2Property?.SetValue(updateInfo, "20260227.00");
-
-            // Use properly formatted URL with versions embedded
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_FULL_20260227.00_20260227.00.7z";
-            updateInfo.URL_CORE = null; // Core package unavailable
-            updateInfo.URL_PATCH2 = null; // Patch2 package unavailable
+            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_20260227.00.7z";
+            updateInfo.URL_CORE = null;
 
             // Act
             string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);
@@ -286,10 +125,9 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             string sourceDir = Path.Combine(_testBaseDir, "source");
-            string destDir = Path.Combine(_testBaseDir, "dest");
+            string destDir   = Path.Combine(_testBaseDir, "dest");
             Directory.CreateDirectory(sourceDir);
 
-            // Create test files
             File.WriteAllText(Path.Combine(sourceDir, "file1.txt"), "content1");
             File.WriteAllText(Path.Combine(sourceDir, "file2.txt"), "content2");
 
@@ -308,8 +146,8 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             string sourceDir = Path.Combine(_testBaseDir, "source");
-            string destDir = Path.Combine(_testBaseDir, "dest");
-            string subDir = Path.Combine(sourceDir, "subdir");
+            string destDir   = Path.Combine(_testBaseDir, "dest");
+            string subDir    = Path.Combine(sourceDir, "subdir");
             Directory.CreateDirectory(subDir);
 
             File.WriteAllText(Path.Combine(sourceDir, "root.txt"), "root");
@@ -329,12 +167,12 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             string sourceDir = Path.Combine(_testBaseDir, "source");
-            string destDir = Path.Combine(_testBaseDir, "dest");
+            string destDir   = Path.Combine(_testBaseDir, "dest");
             Directory.CreateDirectory(sourceDir);
             Directory.CreateDirectory(destDir);
 
             File.WriteAllText(Path.Combine(sourceDir, "file.txt"), "new content");
-            File.WriteAllText(Path.Combine(destDir, "file.txt"), "old content");
+            File.WriteAllText(Path.Combine(destDir,   "file.txt"), "old content");
 
             // Act
             U.DirectoryCopy(sourceDir, destDir, false);
@@ -348,7 +186,7 @@ namespace FEBuilderGBA.Tests.Integration
         {
             // Arrange
             string sourceDir = Path.Combine(_testBaseDir, "nonexistent");
-            string destDir = Path.Combine(_testBaseDir, "dest");
+            string destDir   = Path.Combine(_testBaseDir, "dest");
 
             // Act & Assert
             Assert.Throws<DirectoryNotFoundException>(() => U.DirectoryCopy(sourceDir, destDir, false));

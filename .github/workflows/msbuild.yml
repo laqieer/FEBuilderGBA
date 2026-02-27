@@ -123,38 +123,18 @@ jobs:
         mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
         mv FEBuilderGBA/bin/Release/*.dll .
         mv FEBuilderGBA/bin/Release/*.json .
-        # Move config directory with all subdirectories (data, translate, patch2)
-        # First remove the submodule config directory, then move the build output config
+        # Move config directory (data, translate) — patch2 is git-managed, not bundled
         if (Test-Path "FEBuilderGBA/bin/Release/config") {
           if (Test-Path "config") {
             Remove-Item -Path "config" -Recurse -Force
           }
           mv FEBuilderGBA/bin/Release/config .
         }
-        echo "`n*Build $build_time from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
-
-    - uses: actions/upload-artifact@v4.3.5
-      with:
-        name: ${{ github.event.repository.name }}_${{ env.build_time }}
-        path: |
-          *.exe
-          *.dll
-          *.json
-          config/
-          README*.md
-
-    - name: Upload Patch2 Artifact
-      uses: actions/upload-artifact@v4.3.5
-      with:
-        name: ${{ github.event.repository.name }}_PATCH2_${{ env.build_time }}
-        path: config/patch2/
-
-    - name: Remove patch2 for Core package
-      shell: pwsh
-      run: |
+        # Remove patch2 from artifact — users update it via git
         if (Test-Path "config/patch2") {
           Remove-Item "config/patch2" -Recurse -Force
         }
+        echo "`n*Build $build_time from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
 
     - name: Upload Core Artifact
       uses: actions/upload-artifact@v4.3.5

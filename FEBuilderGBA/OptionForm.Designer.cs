@@ -30,6 +30,10 @@
         {
             tabControl1 = new System.Windows.Forms.TabControl();
             tabPagePath = new System.Windows.Forms.TabPage();
+            git_path_button = new System.Windows.Forms.Button();
+            git_path_textbox = new TextBoxEx();
+            label_git_path = new System.Windows.Forms.Label();
+            X_EXPLAIN_GIT = new System.Windows.Forms.Label();
             midfix4agb_button = new System.Windows.Forms.Button();
             midfix4agb = new TextBoxEx();
             label4 = new System.Windows.Forms.Label();
@@ -326,6 +330,10 @@
             // tabPagePath
             // 
             tabPagePath.BackColor = System.Drawing.SystemColors.Control;
+            tabPagePath.Controls.Add(git_path_button);
+            tabPagePath.Controls.Add(git_path_textbox);
+            tabPagePath.Controls.Add(label_git_path);
+            tabPagePath.Controls.Add(X_EXPLAIN_GIT);
             tabPagePath.Controls.Add(midfix4agb_button);
             tabPagePath.Controls.Add(midfix4agb);
             tabPagePath.Controls.Add(label4);
@@ -368,9 +376,51 @@
             tabPagePath.Size = new System.Drawing.Size(1118, 932);
             tabPagePath.TabIndex = 0;
             tabPagePath.Text = "パス";
-            // 
+            //
+            // X_EXPLAIN_GIT
+            //
+            X_EXPLAIN_GIT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            X_EXPLAIN_GIT.Location = new System.Drawing.Point(10, 840);
+            X_EXPLAIN_GIT.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            X_EXPLAIN_GIT.Name = "X_EXPLAIN_GIT";
+            X_EXPLAIN_GIT.Size = new System.Drawing.Size(1096, 40);
+            X_EXPLAIN_GIT.TabIndex = 72;
+            X_EXPLAIN_GIT.Text = "Gitを使用する場合は、git.exeのパスを設定してください。空欄または\"git\"はPATHを使用します。";
+            X_EXPLAIN_GIT.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            //
+            // label_git_path
+            //
+            label_git_path.AutoSize = true;
+            label_git_path.Location = new System.Drawing.Point(14, 894);
+            label_git_path.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            label_git_path.Name = "label_git_path";
+            label_git_path.Size = new System.Drawing.Size(35, 32);
+            label_git_path.TabIndex = 73;
+            label_git_path.Text = "git";
+            //
+            // git_path_textbox
+            //
+            git_path_textbox.ErrorMessage = "";
+            git_path_textbox.Location = new System.Drawing.Point(304, 888);
+            git_path_textbox.Margin = new System.Windows.Forms.Padding(2);
+            git_path_textbox.Name = "git_path_textbox";
+            git_path_textbox.Placeholder = "";
+            git_path_textbox.Size = new System.Drawing.Size(684, 39);
+            git_path_textbox.TabIndex = 74;
+            //
+            // git_path_button
+            //
+            git_path_button.Location = new System.Drawing.Point(994, 884);
+            git_path_button.Margin = new System.Windows.Forms.Padding(2);
+            git_path_button.Name = "git_path_button";
+            git_path_button.Size = new System.Drawing.Size(110, 38);
+            git_path_button.TabIndex = 75;
+            git_path_button.Text = "参照";
+            git_path_button.UseVisualStyleBackColor = true;
+            git_path_button.Click += git_path_button_Click;
+            //
             // midfix4agb_button
-            // 
+            //
             midfix4agb_button.Location = new System.Drawing.Point(994, 784);
             midfix4agb_button.Margin = new System.Windows.Forms.Padding(2);
             midfix4agb_button.Name = "midfix4agb_button";
@@ -3704,6 +3754,10 @@
         private System.Windows.Forms.Label explain_func_update_source;
         private System.Windows.Forms.ComboBox func_release_source;
         private System.Windows.Forms.Label explain_func_release_source;
+        private System.Windows.Forms.Label X_EXPLAIN_GIT;
+        private System.Windows.Forms.Label label_git_path;
+        private TextBoxEx git_path_textbox;
+        private System.Windows.Forms.Button git_path_button;
         // Unused fields - kept for backwards compatibility with Designer
         // private System.Windows.Forms.ComboBox comboBox1;
         // private System.Windows.Forms.Label label75;

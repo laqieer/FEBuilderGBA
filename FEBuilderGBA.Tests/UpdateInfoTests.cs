@@ -1,20 +1,18 @@
 using Xunit;
 using System;
-using System.IO;
 
 namespace FEBuilderGBA.Tests
 {
     public class UpdateInfoTests
     {
         [Fact]
-        public void Constructor_InitializesVersions()
+        public void Constructor_InitializesVersionCore()
         {
             // Arrange & Act
             var updateInfo = new UpdateInfo();
 
             // Assert
             Assert.NotNull(updateInfo.VERSION_CORE);
-            Assert.NotNull(updateInfo.VERSION_PATCH2);
             Assert.True(UpdateInfo.IsValidVersion(updateInfo.VERSION_CORE) || updateInfo.VERSION_CORE == "00000000.00");
         }
 
@@ -59,22 +57,18 @@ namespace FEBuilderGBA.Tests
         }
 
         [Theory]
-        [InlineData("20260226.00", "20260226.00", "20260227.00", "20260226.00", UpdateInfo.PackageType.CoreOnly)]
-        [InlineData("20260226.00", "20260226.00", "20260226.00", "20260227.00", UpdateInfo.PackageType.Patch2Only)]
-        [InlineData("20260226.00", "20260226.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.Full)]
-        [InlineData("20260227.00", "20260226.00", "20260226.00", "20260226.00", UpdateInfo.PackageType.None)]
-        [InlineData("20260227.00", "20260227.00", "20260227.00", "20260227.00", UpdateInfo.PackageType.None)]
+        [InlineData("20260226.00", "20260227.00", UpdateInfo.PackageType.CoreOnly)]
+        [InlineData("20260227.00", "20260226.00", UpdateInfo.PackageType.None)]
+        [InlineData("20260227.00", "20260227.00", UpdateInfo.PackageType.None)]
         public void DetermineUpdateType_ReturnsCorrectType(
-            string localCore, string localPatch2, string remoteCore, string remotePatch2, UpdateInfo.PackageType expected)
+            string localCore, string remoteCore, UpdateInfo.PackageType expected)
         {
             // Arrange
             var updateInfo = new UpdateInfo();
-            // Override both VERSION_CORE and VERSION_PATCH2 for testing (using reflection)
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, localCore);
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, localPatch2);
 
             // Act
-            var result = updateInfo.DetermineUpdateType(remoteCore, remotePatch2);
+            var result = updateInfo.DetermineUpdateType(remoteCore);
 
             // Assert
             Assert.Equal(expected, result);
@@ -88,15 +82,13 @@ namespace FEBuilderGBA.Tests
             {
                 URL_FULL = "http://example.com/full.7z",
                 URL_CORE = "http://example.com/core.7z",
-                URL_PATCH2 = "http://example.com/patch2.7z"
             };
 
             // Act & Assert
-            Assert.Equal("http://example.com/full.7z", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Full));
-            Assert.Equal("http://example.com/core.7z", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.CoreOnly));
-            Assert.Equal("http://example.com/patch2.7z", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Patch2Only));
-            Assert.Equal("", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.None));
-            Assert.Equal("", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Unknown));
+            Assert.Equal("http://example.com/full.7z",  updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Full));
+            Assert.Equal("http://example.com/core.7z",  updateInfo.GetDownloadUrl(UpdateInfo.PackageType.CoreOnly));
+            Assert.Equal("",                             updateInfo.GetDownloadUrl(UpdateInfo.PackageType.None));
+            Assert.Equal("",                             updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Unknown));
         }
 
         [Fact]
@@ -107,79 +99,26 @@ namespace FEBuilderGBA.Tests
             {
                 URL_FULL = "http://example.com/full.7z",
                 URL_CORE = "",
-                URL_PATCH2 = null
             };
 
             // Act & Assert
             Assert.True(updateInfo.HasUrl(UpdateInfo.PackageType.Full));
             Assert.False(updateInfo.HasUrl(UpdateInfo.PackageType.CoreOnly));
-            Assert.False(updateInfo.HasUrl(UpdateInfo.PackageType.Patch2Only));
         }
 
         [Fact]
-        public void GetVersionDisplay_ReturnsFormattedString()
+        public void GetVersionDisplay_ShowsCore()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
-            typeof(UpdateInfo).GetProperty("VERSION_PATCH2").SetValue(updateInfo, "20260225.12");
 
             // Act
             string display = updateInfo.GetVersionDisplay();
 
             // Assert
             Assert.Contains("20260226.00", display);
-            Assert.Contains("20260225.12", display);
             Assert.Contains("Core:", display);
-            Assert.Contains("Patch2:", display);
-        }
-
-        [Fact]
-        public void ReadPatch2Version_ReturnsDefaultForMissingFile()
-        {
-            // This test assumes the version.txt might not exist in test environment
-            // or tests the fallback behavior
-
-            // Act
-            string version = UpdateInfo.ReadPatch2Version();
-
-            // Assert
-            Assert.NotNull(version);
-            // Should return either valid version or default "00000000.00"
-            Assert.True(
-                UpdateInfo.IsValidVersion(version),
-                $"Expected valid version format but got: {version}"
-            );
-        }
-
-        [Theory]
-        [InlineData("20260226.00")]
-        [InlineData("20250101.23")]
-        [InlineData("20241231.15")]
-        public void WritePatch2Version_CreatesValidFile(string version)
-        {
-            // This test would require mocking Program.BaseDirectory or using a temp directory
-            // For now, just test that the method signature is correct
-            // Actual file I/O testing should be done in integration tests
-
-            // Arrange
-            string testDir = Path.Combine(Path.GetTempPath(), "FEBuilderGBA_Test_" + Guid.NewGuid().ToString());
-            string versionFile = Path.Combine(testDir, "config", "patch2", "version.txt");
-
-            try
-            {
-                // Setup: temporarily override Program.BaseDirectory would be needed
-                // For unit test, we'll skip actual file write and just validate format
-                Assert.True(UpdateInfo.IsValidVersion(version));
-            }
-            finally
-            {
-                // Cleanup
-                if (Directory.Exists(testDir))
-                {
-                    Directory.Delete(testDir, true);
-                }
-            }
         }
     }
 }
