@@ -115,6 +115,18 @@
             this.gba_mus_riper_TextBox = new FEBuilderGBA.TextBoxEx();
             this.labelEx6 = new FEBuilderGBA.LabelEx();
             this.labelEx7 = new FEBuilderGBA.LabelEx();
+            this.Step6Page = new System.Windows.Forms.TabPage();
+            this.Step6PrevButton = new System.Windows.Forms.Button();
+            this.GitTextBox = new FEBuilderGBA.TextBoxEx();
+            this.RefGitButton = new System.Windows.Forms.Button();
+            this.Step6NextButton = new System.Windows.Forms.Button();
+            this.DownloadGitButton = new System.Windows.Forms.Button();
+            this.SkipGitButton = new System.Windows.Forms.Button();
+            this.labelEx8 = new FEBuilderGBA.LabelEx();
+            this.labelEx9 = new FEBuilderGBA.LabelEx();
+            this.label28 = new System.Windows.Forms.Label();
+            this.label29 = new System.Windows.Forms.Label();
+            this.label30 = new System.Windows.Forms.Label();
             this.SettingNowPage = new System.Windows.Forms.TabPage();
             this.label3 = new System.Windows.Forms.Label();
             this.labelEx5 = new FEBuilderGBA.LabelEx();
@@ -131,6 +143,7 @@
             this.Step3Page.SuspendLayout();
             this.Step4Page.SuspendLayout();
             this.Step5Page.SuspendLayout();
+            this.Step6Page.SuspendLayout();
             this.SettingNowPage.SuspendLayout();
             this.EndPage.SuspendLayout();
             this.SuspendLayout();
@@ -152,6 +165,7 @@
             this.MainTab.Controls.Add(this.Step3Page);
             this.MainTab.Controls.Add(this.Step4Page);
             this.MainTab.Controls.Add(this.Step5Page);
+            this.MainTab.Controls.Add(this.Step6Page);
             this.MainTab.Controls.Add(this.SettingNowPage);
             this.MainTab.Controls.Add(this.EndPage);
             this.MainTab.Location = new System.Drawing.Point(4, -1);
@@ -1029,7 +1043,7 @@
             this.labelEx6.Name = "labelEx6";
             this.labelEx6.Size = new System.Drawing.Size(75, 18);
             this.labelEx6.TabIndex = 19;
-            this.labelEx6.Text = "Step 5/5";
+            this.labelEx6.Text = "Step 5/6";
             // 
             // labelEx7
             // 
@@ -1039,7 +1053,132 @@
             this.labelEx7.Size = new System.Drawing.Size(686, 61);
             this.labelEx7.TabIndex = 12;
             this.labelEx7.Text = "音楽を変換するユーティリティを設定してください。";
-            // 
+            //
+            // Step6Page
+            //
+            this.Step6Page.BackColor = System.Drawing.SystemColors.Control;
+            this.Step6Page.Controls.Add(this.Step6PrevButton);
+            this.Step6Page.Controls.Add(this.label28);
+            this.Step6Page.Controls.Add(this.GitTextBox);
+            this.Step6Page.Controls.Add(this.RefGitButton);
+            this.Step6Page.Controls.Add(this.Step6NextButton);
+            this.Step6Page.Controls.Add(this.label29);
+            this.Step6Page.Controls.Add(this.DownloadGitButton);
+            this.Step6Page.Controls.Add(this.label30);
+            this.Step6Page.Controls.Add(this.SkipGitButton);
+            this.Step6Page.Controls.Add(this.labelEx8);
+            this.Step6Page.Controls.Add(this.labelEx9);
+            this.Step6Page.Location = new System.Drawing.Point(4, 28);
+            this.Step6Page.Name = "Step6Page";
+            this.Step6Page.Size = new System.Drawing.Size(860, 591);
+            this.Step6Page.TabIndex = 9;
+            this.Step6Page.Text = "Step6Page";
+            //
+            // Step6PrevButton
+            //
+            this.Step6PrevButton.Location = new System.Drawing.Point(776, 54);
+            this.Step6PrevButton.Name = "Step6PrevButton";
+            this.Step6PrevButton.Size = new System.Drawing.Size(80, 36);
+            this.Step6PrevButton.TabIndex = 120;
+            this.Step6PrevButton.Text = "戻る";
+            this.Step6PrevButton.UseVisualStyleBackColor = true;
+            this.Step6PrevButton.Click += new System.EventHandler(this.Step6PrevButton_Click);
+            //
+            // label28
+            //
+            this.label28.AutoSize = true;
+            this.label28.Location = new System.Drawing.Point(13, 160);
+            this.label28.Name = "label28";
+            this.label28.Size = new System.Drawing.Size(30, 18);
+            this.label28.TabIndex = 110;
+            this.label28.Text = "git";
+            //
+            // GitTextBox
+            //
+            this.GitTextBox.ErrorMessage = "";
+            this.GitTextBox.Location = new System.Drawing.Point(146, 156);
+            this.GitTextBox.Name = "GitTextBox";
+            this.GitTextBox.Placeholder = "";
+            this.GitTextBox.Size = new System.Drawing.Size(559, 25);
+            this.GitTextBox.TabIndex = 111;
+            //
+            // RefGitButton
+            //
+            this.RefGitButton.Location = new System.Drawing.Point(725, 152);
+            this.RefGitButton.Name = "RefGitButton";
+            this.RefGitButton.Size = new System.Drawing.Size(88, 31);
+            this.RefGitButton.TabIndex = 112;
+            this.RefGitButton.Text = "参照";
+            this.RefGitButton.UseVisualStyleBackColor = true;
+            this.RefGitButton.Click += new System.EventHandler(this.RefGitButton_Click);
+            //
+            // Step6NextButton
+            //
+            this.Step6NextButton.Location = new System.Drawing.Point(575, 210);
+            this.Step6NextButton.Name = "Step6NextButton";
+            this.Step6NextButton.Size = new System.Drawing.Size(238, 36);
+            this.Step6NextButton.TabIndex = 113;
+            this.Step6NextButton.Text = "設定して完了する";
+            this.Step6NextButton.UseVisualStyleBackColor = true;
+            this.Step6NextButton.Click += new System.EventHandler(this.Step6NextButton_Click);
+            //
+            // label29
+            //
+            this.label29.AutoSize = true;
+            this.label29.Location = new System.Drawing.Point(24, 260);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(63, 18);
+            this.label29.TabIndex = 114;
+            this.label29.Text = "または、";
+            //
+            // DownloadGitButton
+            //
+            this.DownloadGitButton.Location = new System.Drawing.Point(18, 285);
+            this.DownloadGitButton.Name = "DownloadGitButton";
+            this.DownloadGitButton.Size = new System.Drawing.Size(795, 36);
+            this.DownloadGitButton.TabIndex = 115;
+            this.DownloadGitButton.Text = "最新版のGitを自動でダウンロードしてインストールします。";
+            this.DownloadGitButton.UseVisualStyleBackColor = true;
+            this.DownloadGitButton.Click += new System.EventHandler(this.DownloadGitButton_Click);
+            //
+            // label30
+            //
+            this.label30.AutoSize = true;
+            this.label30.Location = new System.Drawing.Point(24, 336);
+            this.label30.Name = "label30";
+            this.label30.Size = new System.Drawing.Size(63, 18);
+            this.label30.TabIndex = 116;
+            this.label30.Text = "または、";
+            //
+            // SkipGitButton
+            //
+            this.SkipGitButton.Location = new System.Drawing.Point(18, 360);
+            this.SkipGitButton.Name = "SkipGitButton";
+            this.SkipGitButton.Size = new System.Drawing.Size(795, 36);
+            this.SkipGitButton.TabIndex = 117;
+            this.SkipGitButton.Text = "設定しない";
+            this.SkipGitButton.UseVisualStyleBackColor = true;
+            this.SkipGitButton.Click += new System.EventHandler(this.SkipGitButton_Click);
+            //
+            // labelEx8
+            //
+            this.labelEx8.AutoSize = true;
+            this.labelEx8.ErrorMessage = "";
+            this.labelEx8.Location = new System.Drawing.Point(781, 26);
+            this.labelEx8.Name = "labelEx8";
+            this.labelEx8.Size = new System.Drawing.Size(75, 18);
+            this.labelEx8.TabIndex = 19;
+            this.labelEx8.Text = "Step 6/6";
+            //
+            // labelEx9
+            //
+            this.labelEx9.ErrorMessage = "";
+            this.labelEx9.Location = new System.Drawing.Point(3, 42);
+            this.labelEx9.Name = "labelEx9";
+            this.labelEx9.Size = new System.Drawing.Size(770, 100);
+            this.labelEx9.TabIndex = 12;
+            this.labelEx9.Text = "Git（バージョン管理システム）を設定してください。\r\nGitはパッチデータ（config/patch2）の更新に使用されます。\r\nインストールすると、最新のパッチデータを簡単に取得できます。";
+            //
             // SettingNowPage
             // 
             this.SettingNowPage.BackColor = System.Drawing.SystemColors.Control;
@@ -1136,6 +1275,8 @@
             this.Step4Page.PerformLayout();
             this.Step5Page.ResumeLayout(false);
             this.Step5Page.PerformLayout();
+            this.Step6Page.ResumeLayout(false);
+            this.Step6Page.PerformLayout();
             this.SettingNowPage.ResumeLayout(false);
             this.SettingNowPage.PerformLayout();
             this.EndPage.ResumeLayout(false);
@@ -1239,5 +1380,17 @@
         private System.Windows.Forms.Label label27;
         private TextBoxEx midfix4agb_TextBox;
         private System.Windows.Forms.Button BlackBG2Button;
+        private System.Windows.Forms.TabPage Step6Page;
+        private System.Windows.Forms.Button Step6PrevButton;
+        private TextBoxEx GitTextBox;
+        private System.Windows.Forms.Button RefGitButton;
+        private System.Windows.Forms.Button Step6NextButton;
+        private System.Windows.Forms.Button DownloadGitButton;
+        private System.Windows.Forms.Button SkipGitButton;
+        private LabelEx labelEx8;
+        private LabelEx labelEx9;
+        private System.Windows.Forms.Label label28;
+        private System.Windows.Forms.Label label29;
+        private System.Windows.Forms.Label label30;
     }
 }

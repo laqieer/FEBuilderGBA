@@ -29,6 +29,7 @@ namespace FEBuilderGBA
             gba_mus_riper_TextBox.Text = Program.Config.at("gba_mus_riper");
             sox_TextBox.Text = Program.Config.at("sox");
             midfix4agb_TextBox.Text = Program.Config.at("midfix4agb");
+            GitTextBox.Text = Program.Config.at("git_path");
 
             this.LANG_EN_Button.Text = "English"; ///No Translate
             this.LANG_JP_Button.Text = "日本語"; ///No Translate
@@ -81,6 +82,14 @@ namespace FEBuilderGBA
             ,DO_NOT_SELECT
         }
         Step5_Enum Step5;
+
+        enum Step6_Enum
+        {
+            Path
+            ,DOWNLOAD_GIT
+            ,DO_NOT_SELECT
+        }
+        Step6_Enum Step6;
 
         void GotoPage2()
         {
@@ -176,6 +185,28 @@ namespace FEBuilderGBA
             SetFocusIfEnable(midfix4agb_TextBox, DownloadMusictool, Step5NextButton);
         }
 
+        void GotoPage6()
+        {
+            if (string.IsNullOrEmpty(GitTextBox.Text))
+            {
+                string found = GitUtil.FindGitExecutable();
+                if (!string.IsNullOrEmpty(found))
+                    GitTextBox.Text = found;
+            }
+            this.MainTab.SelectedTab = this.Step6Page;
+            if (GitUtil.FindGitExecutable() != null)
+            {
+                Step6NextButton.Focus();
+            }
+            else
+            {
+                string def = R._("(ディフォルト)");
+                if (DownloadGitButton.Text.IndexOf(def) < 0)
+                    DownloadGitButton.Text += def;
+                DownloadGitButton.Focus();
+            }
+        }
+
         private void Step4NextButton_Click(object sender, EventArgs e)
         {
             if (!File.Exists(DebuggerTextBox.Text))
@@ -263,6 +294,7 @@ namespace FEBuilderGBA
                 SettingStep3();
                 SettingStep4();
                 SettingStep5();
+                SettingStep6();
 
                 OptionForm f = new OptionForm();
                 f.AutoClose();
@@ -796,19 +828,19 @@ namespace FEBuilderGBA
                 return;
             }
             this.Step5 = Step5_Enum.Path;
-            Setting();
+            GotoPage6();
         }
 
         private void button7_Click(object sender, EventArgs e)
         {
             this.Step5 = Step5_Enum.DOWNLOAD_BOTH;
-            Setting();
+            GotoPage6();
         }
 
         private void button6_Click(object sender, EventArgs e)
         {
             this.Step5 = Step5_Enum.DO_NOT_SELECT;
-            Setting();
+            GotoPage6();
         }
 
         private void Refgba_mus_riperButton_Click(object sender, EventArgs e)
@@ -838,6 +870,104 @@ namespace FEBuilderGBA
             }
         }
 
+        private void Step6PrevButton_Click(object sender, EventArgs e)
+        {
+            this.MainTab.SelectedTab = this.Step5Page;
+        }
+
+        private void Step6NextButton_Click(object sender, EventArgs e)
+        {
+            if (!GitUtil.ProbeGit(GitTextBox.Text))
+            {
+                return;
+            }
+            this.Step6 = Step6_Enum.Path;
+            Setting();
+        }
+
+        private void DownloadGitButton_Click(object sender, EventArgs e)
+        {
+            this.Step6 = Step6_Enum.DOWNLOAD_GIT;
+            Setting();
+        }
+
+        private void SkipGitButton_Click(object sender, EventArgs e)
+        {
+            this.Step6 = Step6_Enum.DO_NOT_SELECT;
+            Setting();
+        }
+
+        private void RefGitButton_Click(object sender, EventArgs e)
+        {
+            string r = OptionForm.EXESearch("git.exe|git.exe|");
+            if (r != "")
+            {
+                this.GitTextBox.Text = r;
+            }
+        }
+
+        void SettingStep6()
+        {
+            if (this.Step6 == Step6_Enum.DO_NOT_SELECT)
+                return;
+
+            string gitPath = "";
+            if (this.Step6 == Step6_Enum.Path)
+            {
+                gitPath = this.GitTextBox.Text;
+            }
+            else if (this.Step6 == Step6_Enum.DOWNLOAD_GIT)
+            {
+                this.SettingPleaseWait.DoEvents("Gitインストーラーのダウンロード先を取得中...");
+                string installerUrl = GitInstaller.GetLatestInstallerUrl();
+                if (string.IsNullOrEmpty(installerUrl))
+                {
+                    R.ShowStopError("Gitインストーラーのダウンロード先が取得できませんでした。\r\nhttps://git-scm.com から手動でインストールしてください。");
+                    return;
+                }
+
+                string tempInstaller = Path.GetTempFileName() + ".exe";
+                try
+                {
+                    U.HttpDownload(tempInstaller, installerUrl, U.GetURLBaseDir(installerUrl), this.SettingPleaseWait);
+                }
+                catch (Exception ex)
+                {
+                    try { File.Delete(tempInstaller); } catch { }
+                    R.ShowStopError("Gitインストーラーのダウンロードに失敗しました。\r\n{0}", ex.Message);
+                    return;
+                }
+
+                this.SettingPleaseWait.DoEvents("Gitをインストール中... (しばらくかかります)");
+                try
+                {
+                    Process p = new Process();
+                    p.StartInfo.FileName = tempInstaller;
+                    p.StartInfo.Arguments = "/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES";
+                    p.StartInfo.UseShellExecute = true;
+                    p.Start();
+                    p.WaitForExit();
+                    if (p.ExitCode != 0)
+                    {
+                        try { File.Delete(tempInstaller); } catch { }
+                        R.ShowStopError("Gitのインストールに失敗しました。終了コード: {0}", p.ExitCode);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    try { File.Delete(tempInstaller); } catch { }
+                    R.ShowStopError("Gitのインストールに失敗しました。\r\n{0}", ex.Message);
+                    return;
+                }
+                try { File.Delete(tempInstaller); } catch { }
+
+                this.SettingPleaseWait.DoEvents("Gitのインストールが完了しました。");
+                gitPath = GitUtil.FindGitExecutable() ?? "git";
+            }
+
+            Program.Config["git_path"] = gitPath;
+        }
 
 
     }
