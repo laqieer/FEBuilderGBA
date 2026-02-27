@@ -55,18 +55,14 @@ namespace FEBuilderGBA
             _gitExe = GitUtil.FindGitExecutable();
             bool useGit = (_gitExe != null);
 
+            // Always hide the legacy Full button in split-package mode
+            this.AutoUpdateButton.Visible = false;
+            this.AutoUpdateButton.Enabled = false;
+
             // --- stack update buttons from y=182 downward ---
             int y = 182;
             const int btnH   = 34;
             const int btnGap = 6;
-
-            // Full / legacy button — hidden when git is available
-            bool hasFull = !string.IsNullOrEmpty(updateInfo.URL_FULL);
-            this.AutoUpdateButton.Visible  = hasFull && !useGit;
-            this.AutoUpdateButton.Enabled  = hasFull && !useGit;
-            this.AutoUpdateButton.Text     = "全部を更新します (Core + Patch2)";
-            this.AutoUpdateButton.Location = new System.Drawing.Point(17, y);
-            if (hasFull && !useGit) y += btnH + btnGap;
 
             // Core-only button — always shown
             bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
@@ -108,7 +104,7 @@ namespace FEBuilderGBA
             sb.AppendLine("アップデートが利用可能です:");
             sb.AppendLine();
 
-            string remoteCore = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE ?? updateInfo.URL_FULL);
+            string remoteCore = UpdateCheckSplitPackage.ExtractVersionFromUrl(updateInfo.URL_CORE);
             sb.AppendLine($"プログラム本体: {updateInfo.VERSION_CORE} → {remoteCore}");
 
             return sb.ToString();
@@ -123,16 +119,7 @@ namespace FEBuilderGBA
 
         private void AutoUpdateButton_Click(object sender, EventArgs e)
         {
-            if (this.UpdateInfoData != null)
-            {
-                // Split package mode: this button downloads the full package
-                this.URL = this.UpdateInfoData.URL_FULL;
-                this.PackageType = UpdateInfo.PackageType.Full;
-                AutoUpdateStandard(e);
-                return;
-            }
-
-            // Legacy single-package mode
+            // Legacy single-package mode (Init(), not InitSplitPackage())
             AutoUpdateStandard(e);
         }
 

@@ -80,15 +80,13 @@ namespace FEBuilderGBA.Tests
             // Arrange
             var updateInfo = new UpdateInfo
             {
-                URL_FULL = "http://example.com/full.7z",
                 URL_CORE = "http://example.com/core.7z",
             };
 
             // Act & Assert
-            Assert.Equal("http://example.com/full.7z",  updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Full));
-            Assert.Equal("http://example.com/core.7z",  updateInfo.GetDownloadUrl(UpdateInfo.PackageType.CoreOnly));
-            Assert.Equal("",                             updateInfo.GetDownloadUrl(UpdateInfo.PackageType.None));
-            Assert.Equal("",                             updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Unknown));
+            Assert.Equal("http://example.com/core.7z", updateInfo.GetDownloadUrl(UpdateInfo.PackageType.CoreOnly));
+            Assert.Equal("",                            updateInfo.GetDownloadUrl(UpdateInfo.PackageType.None));
+            Assert.Equal("",                            updateInfo.GetDownloadUrl(UpdateInfo.PackageType.Unknown));
         }
 
         [Fact]
@@ -97,13 +95,12 @@ namespace FEBuilderGBA.Tests
             // Arrange
             var updateInfo = new UpdateInfo
             {
-                URL_FULL = "http://example.com/full.7z",
-                URL_CORE = "",
+                URL_CORE = "http://example.com/core.7z",
             };
 
             // Act & Assert
-            Assert.True(updateInfo.HasUrl(UpdateInfo.PackageType.Full));
-            Assert.False(updateInfo.HasUrl(UpdateInfo.PackageType.CoreOnly));
+            Assert.True(updateInfo.HasUrl(UpdateInfo.PackageType.CoreOnly));
+            Assert.False(updateInfo.HasUrl(UpdateInfo.PackageType.None));
         }
 
         [Fact]

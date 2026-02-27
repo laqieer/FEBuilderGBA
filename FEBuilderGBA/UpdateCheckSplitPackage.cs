@@ -96,7 +96,7 @@ namespace FEBuilderGBA
 
             if (coreMatch.Success && coreMatch.Groups.Count >= 3)
             {
-                updateInfo.URL_CORE   = coreMatch.Groups[1].Value;
+                updateInfo.URL_CORE      = coreMatch.Groups[1].Value;
                 string remoteCoreVersion = coreMatch.Groups[2].Value;
 
                 UpdateInfo.PackageType packageType = updateInfo.DetermineUpdateType(remoteCoreVersion);
@@ -111,26 +111,8 @@ namespace FEBuilderGBA
             }
             else
             {
-                // Fall back to legacy single-package format (.7z or .zip)
-                string legacyPattern = @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip))""";
-                Match legacyMatch    = RegexCache.Match(contents, legacyPattern);
-
-                if (legacyMatch.Success && legacyMatch.Groups.Count >= 3)
-                {
-                    updateInfo.URL_FULL = legacyMatch.Groups[1].Value;
-                    string version      = legacyMatch.Groups[2].Value;
-
-                    if (UpdateInfo.CompareVersions(updateInfo.VERSION_CORE, version) >= 0)
-                        return R._("現在のバージョンが最新です。version:{0}", updateInfo.VERSION_CORE);
-
-                    return ""; // success
-                }
-                else
-                {
-                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
-                        + "browser_download_url not found" + "\r\n"
-                        + "contents:\r\n" + contents;
-                }
+                return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                    + "CORE package not found in release assets";
             }
         }
 
@@ -139,33 +121,13 @@ namespace FEBuilderGBA
         // ---------------------------------------------------------------------------
 
         /// <summary>
-        /// Gets the appropriate download URL based on what needs updating.
+        /// Gets the core download URL and determines the package type.
         /// </summary>
         public static string GetDownloadUrl(UpdateInfo updateInfo, out UpdateInfo.PackageType packageType)
         {
-            // Legacy: URL_FULL is the only option
-            if (!string.IsNullOrEmpty(updateInfo.URL_FULL) &&
-                string.IsNullOrEmpty(updateInfo.URL_CORE))
-            {
-                packageType = UpdateInfo.PackageType.Full;
-                return updateInfo.URL_FULL;
-            }
-
-            string remoteCoreVer = ExtractVersionFromUrl(updateInfo.URL_CORE ?? updateInfo.URL_FULL);
+            string remoteCoreVer = ExtractVersionFromUrl(updateInfo.URL_CORE);
             packageType = updateInfo.DetermineUpdateType(remoteCoreVer);
-
-            if (packageType == UpdateInfo.PackageType.CoreOnly && !string.IsNullOrEmpty(updateInfo.URL_CORE))
-                return updateInfo.URL_CORE;
-            else if (!string.IsNullOrEmpty(updateInfo.URL_FULL))
-            {
-                packageType = UpdateInfo.PackageType.Full;
-                return updateInfo.URL_FULL;
-            }
-            else
-            {
-                packageType = UpdateInfo.PackageType.CoreOnly;
-                return updateInfo.URL_CORE;
-            }
+            return updateInfo.URL_CORE;
         }
 
         /// <summary>
@@ -180,11 +142,6 @@ namespace FEBuilderGBA
             Match coreMatch = RegexCache.Match(url, @"FEBuilderGBA_CORE_(\d{8}\.\d{2})\.(7z|zip)");
             if (coreMatch.Success && coreMatch.Groups.Count >= 2)
                 return coreMatch.Groups[1].Value;
-
-            // Legacy: FEBuilderGBA_20260226.00.(7z|zip)
-            Match legacyMatch = RegexCache.Match(url, @"FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip)");
-            if (legacyMatch.Success && legacyMatch.Groups.Count >= 2)
-                return legacyMatch.Groups[1].Value;
 
             return "00000000.00";
         }

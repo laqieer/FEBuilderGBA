@@ -15,11 +15,6 @@ namespace FEBuilderGBA
         public string VERSION_CORE { get; private set; }
 
         /// <summary>
-        /// Download URL for full package (legacy single-package format)
-        /// </summary>
-        public string URL_FULL { get; set; }
-
-        /// <summary>
         /// Download URL for core application only
         /// </summary>
         public string URL_CORE { get; set; }
@@ -30,7 +25,6 @@ namespace FEBuilderGBA
         public enum PackageType
         {
             Unknown,
-            Full,        // Legacy single-package update
             CoreOnly,    // Core application needs update
             None         // Already up to date
         }
@@ -73,10 +67,8 @@ namespace FEBuilderGBA
         {
             switch (type)
             {
-                case PackageType.Full:
-                    return URL_FULL;
                 case PackageType.CoreOnly:
-                    return URL_CORE ?? URL_FULL;
+                    return URL_CORE;
                 default:
                     return "";
             }

@@ -72,26 +72,12 @@ namespace FEBuilderGBA.Tests.Integration
         }
 
         [Fact]
-        public void UpdateCheckSplitPackage_ExtractsVersionFromLegacyUrl()
-        {
-            // Arrange
-            string url = "https://github.com/laqieer/FEBuilderGBA/releases/download/20260226.00/FEBuilderGBA_20260226.00.7z";
-
-            // Act
-            string version = UpdateCheckSplitPackage.ExtractVersionFromUrl(url);
-
-            // Assert
-            Assert.Equal("20260226.00", version);
-        }
-
-        [Fact]
         public void UpdateCheckSplitPackage_SelectsCorePackage_WhenCoreNeedsUpdate()
         {
             // Arrange
             var updateInfo = new UpdateInfo();
             typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
 
-            updateInfo.URL_FULL = "";
             updateInfo.URL_CORE = "https://example.com/FEBuilderGBA_CORE_20260227.00.7z";
 
             // Act
@@ -100,24 +86,6 @@ namespace FEBuilderGBA.Tests.Integration
             // Assert
             Assert.Equal(UpdateInfo.PackageType.CoreOnly, packageType);
             Assert.Equal(updateInfo.URL_CORE, url);
-        }
-
-        [Fact]
-        public void UpdateCheckSplitPackage_FallsBackToFull_WhenCorePackageUnavailable()
-        {
-            // Arrange
-            var updateInfo = new UpdateInfo();
-            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "20260226.00");
-
-            updateInfo.URL_FULL = "https://example.com/FEBuilderGBA_20260227.00.7z";
-            updateInfo.URL_CORE = null;
-
-            // Act
-            string url = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out var packageType);
-
-            // Assert
-            Assert.Equal(UpdateInfo.PackageType.Full, packageType);
-            Assert.Equal(updateInfo.URL_FULL, url);
         }
 
         [Fact]
