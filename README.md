@@ -2,6 +2,7 @@ README
 ===
 
 [![MSBuild](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/msbuild.yml)
+[![E2E Tests](https://github.com/laqieer/FEBuilderGBA/actions/workflows/e2e.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/e2e.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/laqieer/FEBuilderGBA)](https://github.com/laqieer/FEBuilderGBA/releases/latest)
 [<img src="https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg" height="16" style="height: 16px; vertical-align: sub">Nightly Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
 [![codecov](https://codecov.io/gh/laqieer/FEBuilderGBA/branch/master/graph/badge.svg)](https://codecov.io/gh/laqieer/FEBuilderGBA)
@@ -28,7 +29,8 @@ git submodule update --init --recursive
 
 ## Testing & Coverage
 
-- ✅ **397 tests** passing (0 skipped)
+- ✅ **397 unit/integration tests** passing (0 skipped)
+- ✅ **13 E2E tests** passing (CLI + GUI automation)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -36,6 +38,52 @@ git submodule update --init --recursive
   - UpdateInfo version tracking and comparison
   - Core package download logic
   - Integration tests for update system
+  - E2E CLI tests (`--version` flag, exit codes, output content)
+  - E2E GUI tests (startup window detection, child controls, graceful shutdown)
+
+## E2E Automation Tests
+
+The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`) that covers both CLI and GUI behavior by launching the real application executable.
+
+### Test Categories
+
+| Test File | What it tests |
+|-----------|--------------|
+| `Tests/CliTests.cs` | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
+| `Tests/GuiStartupTests.cs` | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
+| `Tests/DiagnosticTests.cs` | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
+
+### Running E2E Tests Locally
+
+**Prerequisites:**  Build the main app first.
+
+```bash
+# Build the main application (Release, x86)
+msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
+
+# Run E2E tests
+dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86 -- xunit.parallelizeTestCollections=false
+```
+
+Or point to an already-built binary:
+
+```bash
+export FEBUILDERGBA_EXE=/path/to/FEBuilderGBA.exe
+dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
+```
+
+### CI/CD Integration
+
+E2E tests run on a dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) separate from the main build pipeline. This prevents long-running GUI tests (~30 s each) from blocking the primary CI.
+
+**Artifacts produced:**
+- `e2e-test-report` — JUnit XML test report
+- `e2e-screenshots` — PNG screenshots captured during startup and close tests
+
+**Implementation notes:**
+- Tests run sequentially (`xunit.parallelizeTestCollections=false`) — each GUI test launches an exclusive app process
+- Window detection uses `Process.MainWindowHandle` + WinForms class name (`WindowsForms10.Window*`) for locale-independence — the app shows a Chinese "初始设置向导" (Init Wizard) on first run, so title-based detection would be locale-specific
+- Win32 `GetWindowText` P/Invoke uses `CharSet.Unicode` to correctly handle CJK characters
 
 ## 🔄 Update System
 

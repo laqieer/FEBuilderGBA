@@ -54,6 +54,14 @@ namespace FEBuilderGBA
             //外部プロセスからの書き換え監視等の開始
             UpdateWatcher = new ROMUpdateWatcher();
 
+            // --version doesn't need a ROM loaded — exit early before WelcomeForm
+            if (ArgsDic.ContainsKey("--version"))
+            {
+                Program.IsCommandLine = true;
+                Environment.Exit(VersionForm.CommandLineVersion());
+                return;
+            }
+
             string forceversion = U.at(ArgsDic, "--force-version");//強制バージョン指定 --force-version=FE8J
             if (ArgsDic.ContainsKey("--lastrom"))
             {

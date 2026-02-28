@@ -1,0 +1,74 @@
+name: E2E Tests
+
+# Run E2E tests separately from the main build pipeline so long-running
+# GUI automation doesn't block normal CI.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:      # allow manual trigger
+
+jobs:
+  e2e:
+    name: E2E Automation
+    runs-on: windows-latest     # Windows runner has a virtual display for WinForms GUI
+
+    steps:
+      # ---------------------------------------------------------------- checkout
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ---------------------------------------------------------------- .NET SDK
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # ---------------------------------------------------------------- Build main app
+      # Use msbuild with .sln so the platform mapping (Release|x86 → Release|Any CPU)
+      # puts the output in bin\Release\ (same as the main msbuild.yml workflow).
+      - name: Restore & Build FEBuilderGBA (Release x86)
+        run: |
+          msbuild FEBuilderGBA.sln `
+            /p:Configuration=Release /p:Platform=x86 `
+            /t:restore,build `
+            /m
+
+      # ---------------------------------------------------------------- Restore E2E project
+      - name: Restore E2E test project
+        run: dotnet restore FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
+
+      # ---------------------------------------------------------------- Run E2E tests
+      - name: Run E2E tests
+        env:
+          # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
+          FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe
+          FEBUILDERGBA_SCREENSHOT_DIR: ${{ github.workspace }}\e2e-screenshots
+        run: |
+          dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj `
+            --configuration Release `
+            -p:Platform=x86 `
+            --logger "junit;LogFilePath=${{ github.workspace }}\e2e-results\e2e-results.xml" `
+            --results-directory "${{ github.workspace }}\e2e-results" `
+            --no-restore `
+            -- xunit.parallelizeTestCollections=false
+        # Note: parallelism disabled — GUI tests need to launch exclusive app processes
+
+      # ---------------------------------------------------------------- Upload artifacts
+      - name: Upload E2E test report (JUnit XML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-report
+          path: ${{ github.workspace }}\e2e-results\*.xml
+
+      - name: Upload E2E screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: ${{ github.workspace }}\e2e-screenshots\
+          if-no-files-found: ignore
