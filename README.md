@@ -69,20 +69,29 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 # Build the main application (Release, x86)
 msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
 
-# Run E2E tests
-dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86 -- xunit.parallelizeTestCollections=false
+# Run without ROMs — 13 passed, 35 skipped (fast, ~20 s)
+ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
+
+# Run with ROMs — all 48 tests execute
+ROMS_DIR=/path/to/roms dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
 ```
+
+ROM files expected in `ROMS_DIR`: `FE6.gba`, `FE7J.gba`, `FE7U.gba`, `FE8J.gba`, `FE8U.gba`.
+
+If `ROMS_DIR` is **not set at all**, `RomLocator` falls back to a `roms/` directory beside `FEBuilderGBA.sln` (useful during local development).  Set `ROMS_DIR=""` to explicitly suppress that fallback and force all ROM tests to skip.
 
 Or point to an already-built binary:
 
 ```bash
 export FEBUILDERGBA_EXE=/path/to/FEBuilderGBA.exe
-dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
+ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
 ```
 
 ### CI/CD Integration
 
 E2E tests run on a dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) separate from the main build pipeline. This prevents long-running GUI tests (~30 s each) from blocking the primary CI.
+
+ROM-based tests are gated on the `ROMS_URL` repository secret.  When the secret is present the workflow downloads `roms.zip`, extracts it to `${{ github.workspace }}/roms`, and sets `ROMS_DIR` for the test run.  When the secret is absent (forks, external PRs) the `ROMS_DIR` env var is still passed but points to a non-existent path, so all 35 ROM tests skip cleanly.
 
 **Artifacts produced:**
 - `e2e-test-report` — TRX test report (viewable via the **E2E Test Results** check-run posted by `dorny/test-reporter`)
@@ -93,6 +102,7 @@ E2E tests run on a dedicated GitHub Actions workflow (`.github/workflows/e2e.yml
 - Window detection uses `Process.MainWindowHandle` + WinForms class name (`WindowsForms10.Window*`) for locale-independence — the app shows a Chinese "初始设置向导" (Init Wizard) on first run, so title-based detection would be locale-specific
 - Win32 `GetWindowText` P/Invoke uses `CharSet.Unicode` to correctly handle CJK characters
 - `AppRunner.Run()` calls `WaitForExit()` (no-param) after `WaitForExit(timeout)` to flush async `OutputDataReceived` events before reading captured stdout
+- `RomLocator` treats any explicit `ROMS_DIR` value (even empty string) as an override — only when the variable is **absent** from the environment does the walk-up fallback activate
 
 ## 🔄 Update System
 
