@@ -77,13 +77,14 @@ dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
 E2E tests run on a dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) separate from the main build pipeline. This prevents long-running GUI tests (~30 s each) from blocking the primary CI.
 
 **Artifacts produced:**
-- `e2e-test-report` — JUnit XML test report
+- `e2e-test-report` — TRX test report (viewable via the **E2E Test Results** check-run posted by `dorny/test-reporter`)
 - `e2e-screenshots` — PNG screenshots captured during startup and close tests
 
 **Implementation notes:**
-- Tests run sequentially (`xunit.parallelizeTestCollections=false`) — each GUI test launches an exclusive app process
+- Tests run sequentially — each GUI test launches an exclusive app process
 - Window detection uses `Process.MainWindowHandle` + WinForms class name (`WindowsForms10.Window*`) for locale-independence — the app shows a Chinese "初始设置向导" (Init Wizard) on first run, so title-based detection would be locale-specific
 - Win32 `GetWindowText` P/Invoke uses `CharSet.Unicode` to correctly handle CJK characters
+- `AppRunner.Run()` calls `WaitForExit()` (no-param) after `WaitForExit(timeout)` to flush async `OutputDataReceived` events before reading captured stdout
 
 ## 🔄 Update System
 
