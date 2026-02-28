@@ -58,6 +58,10 @@ jobs:
       # step is skipped and ROM-based tests auto-skip via Assert.Skip().
       - name: Download ROMs
         if: env.HAVE_ROMS == 'true'
+        # continue-on-error: a failed download (bad URL, network hiccup, expired link)
+        # must NOT block the test run.  ROM tests auto-skip when roms/ is absent;
+        # the 13 non-ROM tests should always execute regardless.
+        continue-on-error: true
         env:
           ROMS_URL: ${{ secrets.ROMS_URL }}
         shell: pwsh
@@ -137,7 +141,9 @@ jobs:
       # ---------------------------------------------------------------- Publish test results as check-run
       - name: Publish E2E test results
         uses: dorny/test-reporter@v1
-        if: always()
+        # Only run when a TRX file actually exists; dorny/test-reporter@v1 errors
+        # out (even with fail-on-error: false) when the path glob matches no files.
+        if: always() && hashFiles('FEBuilderGBA.E2ETests/TestResults/*.trx') != ''
         with:
           name: E2E Test Results
           path: "FEBuilderGBA.E2ETests/TestResults/*.trx"
