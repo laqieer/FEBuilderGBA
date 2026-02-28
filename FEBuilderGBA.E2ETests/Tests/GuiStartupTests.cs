@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using FEBuilderGBA.E2ETests.Helpers;
@@ -76,9 +77,23 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = LaunchAndWaitForStartup();
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            // The main window should have a non-empty title
-            _process!.Refresh();
-            Assert.False(string.IsNullOrWhiteSpace(_process.MainWindowTitle),
+            // Process.MainWindowTitle is unreliable on some machines/CI runners —
+            // the OS may not update it before we read it.  Poll all process windows
+            // via Win32 GetWindowText until at least one has a non-empty title.
+            var sw = Stopwatch.StartNew();
+            string title = string.Empty;
+            do
+            {
+                Thread.Sleep(300);
+                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process!.Id))
+                {
+                    string t = WinAutomation.GetTitle(w);
+                    if (!string.IsNullOrWhiteSpace(t)) { title = t; break; }
+                }
+            }
+            while (string.IsNullOrWhiteSpace(title) && sw.ElapsedMilliseconds < 15_000);
+
+            Assert.False(string.IsNullOrWhiteSpace(title),
                 "Expected a non-empty window title on startup");
         }
 

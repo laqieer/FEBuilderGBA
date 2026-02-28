@@ -17,6 +17,11 @@ jobs:
   e2e:
     name: E2E Automation
     runs-on: windows-latest     # Windows runner has a virtual display for WinForms GUI
+    env:
+      # Pre-compute a boolean flag from the secret so step `if:` conditions can
+      # test it.  The `secrets` context is NOT accessible directly in `if:`
+      # expressions — only job/step `env:` and a handful of other contexts are.
+      HAVE_ROMS: ${{ secrets.ROMS_URL != '' }}
 
     steps:
       # ---------------------------------------------------------------- checkout
@@ -52,7 +57,7 @@ jobs:
       # If the secret is absent (e.g. forks, PRs from external contributors) this
       # step is skipped and ROM-based tests auto-skip via Assert.Skip().
       - name: Download ROMs
-        if: ${{ secrets.ROMS_URL != '' }}
+        if: env.HAVE_ROMS == 'true'
         env:
           ROMS_URL: ${{ secrets.ROMS_URL }}
         shell: pwsh
