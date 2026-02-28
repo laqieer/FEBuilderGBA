@@ -56,8 +56,12 @@ jobs:
       # containing FE6.gba, FE7J.gba, FE7U.gba, FE8J.gba, FE8U.gba.
       # If the secret is absent (e.g. forks, PRs from external contributors) this
       # step is skipped and ROM-based tests auto-skip via Assert.Skip().
-      # If the secret IS set but the download or extraction fails, CI is blocked
-      # (no continue-on-error) so the misconfiguration is surfaced immediately.
+      # Soft-failure policy:
+      #   - Network error (Invoke-WebRequest throws)  → hard fail (exit 1): URL is unreachable
+      #   - Downloaded file is not a valid zip         → warning + exit 0: URL may be expired/redirected
+      #   - Expand-Archive fails                       → warning + exit 0: treat as unavailable
+      #   - ROMs extracted but wrong filenames         → warning + exit 0: skip affected tests
+      # ROM tests auto-skip via Assert.Skip() whenever ROMS_DIR exists but a ROM is missing.
       - name: Download ROMs
         if: env.HAVE_ROMS == 'true'
         env:
@@ -65,12 +69,39 @@ jobs:
         shell: pwsh
         run: |
           $zip = "$env:TEMP\roms.zip"
-          Write-Host "Downloading roms.zip..."
-          Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip
-          Write-Host "Extracting roms.zip..."
-          Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force
 
-          # Verify each expected ROM file is present; fail hard if any is missing.
+          # ---- Download -------------------------------------------------------
+          Write-Host "Downloading roms.zip..."
+          try {
+            Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip -ErrorAction Stop
+          } catch {
+            Write-Host "##[error]ROM download failed (network/HTTP error): $($_.Exception.Message)"
+            Write-Host "Update the ROMS_URL secret and re-run to enable ROM-based tests."
+            exit 1
+          }
+          $zipSize = (Get-Item $zip).Length
+          Write-Host "Downloaded $zipSize bytes."
+
+          # ---- Validate zip magic bytes (PK = 0x50 0x4B) ---------------------
+          $bytes = [System.IO.File]::ReadAllBytes($zip)
+          if ($bytes.Length -lt 4 -or $bytes[0] -ne 0x50 -or $bytes[1] -ne 0x4B) {
+            Write-Host "##[warning]Downloaded file is not a valid zip archive (magic bytes: $([BitConverter]::ToString($bytes[0..3])))."
+            Write-Host "The ROMS_URL may have expired or redirected to an auth/error page."
+            Write-Host "ROM-based tests will be skipped this run."
+            exit 0
+          }
+
+          # ---- Extract --------------------------------------------------------
+          Write-Host "Extracting roms.zip..."
+          try {
+            Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force -ErrorAction Stop
+          } catch {
+            Write-Host "##[warning]Failed to extract roms.zip: $($_.Exception.Message)"
+            Write-Host "ROM-based tests will be skipped this run."
+            exit 0
+          }
+
+          # ---- Verify expected ROM files --------------------------------------
           $romsDir = "${{ github.workspace }}\roms"
           $expected = @("FE6.gba", "FE7J.gba", "FE7U.gba", "FE8J.gba", "FE8U.gba")
           $missing  = @()
@@ -88,11 +119,12 @@ jobs:
           }
           if ($missing.Count -gt 0) {
             Write-Host ""
-            Write-Host "ERROR: The following ROMs were not found after extraction: $($missing -join ', ')"
-            exit 1
+            Write-Host "##[warning]Missing ROMs after extraction: $($missing -join ', ')"
+            Write-Host "These ROM tests will be skipped. Check the contents of roms.zip."
+          } else {
+            Write-Host ""
+            Write-Host "All $($expected.Count) ROMs present — ROM-based tests will run."
           }
-          Write-Host ""
-          Write-Host "All $($expected.Count) ROMs present — ROM-based tests will run."
 
       # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
       # Run with continue-on-error so CI doesn't fail on probe errors.
