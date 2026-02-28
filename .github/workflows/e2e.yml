@@ -82,16 +82,38 @@ jobs:
           $zipSize = (Get-Item $zip).Length
           Write-Host "Downloaded $zipSize bytes."
 
-          # ---- Validate zip magic bytes (PK = 0x50 0x4B) ---------------------
-          $bytes = [System.IO.File]::ReadAllBytes($zip)
-          if ($bytes.Length -lt 4 -or $bytes[0] -ne 0x50 -or $bytes[1] -ne 0x4B) {
-            Write-Host "##[warning]Downloaded file is not a valid zip archive (magic bytes: $([BitConverter]::ToString($bytes[0..3])))."
-            Write-Host "The ROMS_URL may have expired or redirected to an auth/error page."
+          # ---- Validate zip: magic bytes then ZipFile::OpenRead() ---------------
+          # Level 1: magic bytes — fast check; HTML/error pages fail immediately.
+          $header = [System.IO.File]::ReadAllBytes($zip)[0..3]
+          if ($header[0] -ne 0x50 -or $header[1] -ne 0x4B) {
+            Write-Host "##[warning]Downloaded file is not a valid zip archive."
+            Write-Host "  Magic bytes: $([BitConverter]::ToString($header))  (expected 50-4B-03-04)"
+            Write-Host "  File size : $zipSize bytes"
+            Write-Host "  ROMS_URL may have expired or redirected to an auth/error page."
+            Write-Host "ROM-based tests will be skipped this run."
+            exit 0
+          }
+
+          # Level 2: open as ZipArchive — detects truncated or structurally corrupt zips.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          Write-Host ""
+          Write-Host "=== Zip contents ==="
+          try {
+            $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+            foreach ($entry in $za.Entries) {
+              Write-Host ("  {0,-20}  {1,12:N0} bytes" -f $entry.FullName, $entry.Length)
+            }
+            $entryCount = $za.Entries.Count
+            $za.Dispose()
+            Write-Host "  --- $entryCount entries total ---"
+          } catch {
+            Write-Host "##[warning]Zip magic bytes are valid but ZipFile::OpenRead failed: $($_.Exception.Message)"
             Write-Host "ROM-based tests will be skipped this run."
             exit 0
           }
 
           # ---- Extract --------------------------------------------------------
+          Write-Host ""
           Write-Host "Extracting roms.zip..."
           try {
             Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force -ErrorAction Stop
