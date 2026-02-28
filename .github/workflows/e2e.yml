@@ -45,6 +45,50 @@ jobs:
       - name: Restore E2E test project
         run: dotnet restore FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
 
+      # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
+      # Run with continue-on-error so CI doesn't fail on probe errors.
+      # Output shows whether --version works and whether the GUI starts cleanly.
+      - name: Diagnostic - probe app startup
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = "${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Host "ERROR: exe not found at $exe"
+            exit 1
+          }
+          Write-Host "Exe size: $((Get-Item $exe).Length) bytes"
+          Write-Host "Config dir exists: $(Test-Path (Split-Path $exe -Parent | Join-Path -ChildPath 'config'))"
+
+          Write-Host ""
+          Write-Host "=== --version test (headless) ==="
+          $verOut = "$env:TEMP\febuildergba-ver.txt"
+          $p = Start-Process $exe -ArgumentList "--version" `
+               -NoNewWindow -Wait -PassThru `
+               -RedirectStandardOutput $verOut `
+               -RedirectStandardError "$env:TEMP\febuildergba-ver-err.txt"
+          Write-Host "Exit code: $($p.ExitCode)"
+          if (Test-Path $verOut) {
+            Write-Host "Stdout: $(Get-Content $verOut -Raw -ErrorAction SilentlyContinue)"
+          }
+
+          Write-Host ""
+          Write-Host "=== GUI startup probe (10s) ==="
+          $p2 = Start-Process $exe -PassThru
+          for ($i = 0; $i -lt 10; $i++) {
+            Start-Sleep 1
+            $p2.Refresh()
+            if ($p2.HasExited) {
+              Write-Host "App exited at ${i}s with code $($p2.ExitCode)"
+              break
+            }
+            Write-Host "[${i}s] still running — MainWindowTitle='$($p2.MainWindowTitle)'"
+          }
+          if (-not $p2.HasExited) {
+            Write-Host "App running after 10s — killing"
+            try { $p2.Kill() } catch {}
+          }
+
       # ---------------------------------------------------------------- Run E2E tests
       - name: Run E2E tests
         env:

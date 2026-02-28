@@ -19,11 +19,24 @@ namespace FEBuilderGBA
         {
             System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
 
+            //オプション引数 --mode=foo とかを、dic["--mode"]="foo" みたいに変換します.
+            ArgsDic = U.OptionMap(args, "--rom");
+
+            // --version must be the very first check — before any UI/GDI+ initialization
+            // so it works even in headless/CI environments where WinForms would crash.
+            if (ArgsDic.ContainsKey("--version"))
+            {
+                Program.IsCommandLine = true;
+                // BaseDirectory is needed for MakeVersionMessage ROM path; initialise
+                // it here so the output is correct even without full startup.
+                Program.BaseDirectory = MakeBaseDirectory();
+                Environment.Exit(VersionForm.CommandLineVersion());
+                return;
+            }
+
             // Set app-wide default font before any forms are created
             Application.SetDefaultFont(new Font("Microsoft Sans Serif", 8.25f));
 
-            //オプション引数 --mode=foo とかを、dic["--mode"]="foo" みたいに変換します. 
-            ArgsDic = U.OptionMap(args, "--rom");
             //メインスレッド判定に利用するためにスレッドIDを保存
             MainThreadID = System.Threading.Thread.CurrentThread.ManagedThreadId;
 #if !DEBUG
@@ -53,14 +66,6 @@ namespace FEBuilderGBA
 
             //外部プロセスからの書き換え監視等の開始
             UpdateWatcher = new ROMUpdateWatcher();
-
-            // --version doesn't need a ROM loaded — exit early before WelcomeForm
-            if (ArgsDic.ContainsKey("--version"))
-            {
-                Program.IsCommandLine = true;
-                Environment.Exit(VersionForm.CommandLineVersion());
-                return;
-            }
 
             string forceversion = U.at(ArgsDic, "--force-version");//強制バージョン指定 --force-version=FE8J
             if (ArgsDic.ContainsKey("--lastrom"))
