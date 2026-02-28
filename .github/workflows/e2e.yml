@@ -27,6 +27,10 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
+      # ---------------------------------------------------------------- MSBuild
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+
       # ---------------------------------------------------------------- Build main app
       # Use msbuild with .sln so the platform mapping (Release|x86 → Release|Any CPU)
       # puts the output in bin\Release\ (same as the main msbuild.yml workflow).
