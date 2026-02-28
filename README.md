@@ -98,9 +98,10 @@ ROM-based tests are gated on the `ROMS_URL` repository secret.  When the secret 
 - `e2e-screenshots` — PNG screenshots captured during startup and close tests
 
 **Implementation notes:**
-- Tests run sequentially — each GUI test launches an exclusive app process
-- Window detection uses `Process.MainWindowHandle` + WinForms class name (`WindowsForms10.Window*`) for locale-independence — the app shows a Chinese "初始设置向导" (Init Wizard) on first run, so title-based detection would be locale-specific
-- Win32 `GetWindowText` P/Invoke uses `CharSet.Unicode` to correctly handle CJK characters
+- Tests run sequentially (`[assembly: CollectionBehavior(DisableTestParallelization = true)]`) — each GUI test launches an exclusive app process; concurrent launches cause window-detection races
+- Window detection polls **all process windows** via `EnumWindows` rather than relying on `Process.MainWindowHandle`, which can point to a transient splash/startup dialog before the main editor form appears
+- Win32 `GetWindowText` P/Invoke uses `CharSet.Unicode` to correctly handle CJK characters; title-based detection is avoided for startup state (the app shows a Chinese "初始设置向导" Init Wizard on first run)
+- CLI argument values must use `--key=value` (equals) syntax — `Program.ArgsDic` is built by `U.OptionMap` which only recognises the `=` separator (space-separated values are only picked up via a `File.Exists` fallback, which does not apply to output paths that don't yet exist)
 - `AppRunner.Run()` calls `WaitForExit()` (no-param) after `WaitForExit(timeout)` to flush async `OutputDataReceived` events before reading captured stdout
 - `RomLocator` treats any explicit `ROMS_DIR` value (even empty string) as an override — only when the variable is **absent** from the environment does the walk-up fallback activate
 
