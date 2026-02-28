@@ -25,11 +25,20 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
         static RomLocator()
         {
-            // Priority 1: ROMS_DIR env var (CI injects this after downloading roms.zip)
+            // Priority 1: ROMS_DIR env var (CI injects this after downloading roms.zip).
+            // If the variable is present at all (even empty / non-existent path) we treat
+            // it as an explicit override and skip the walk-up fallback entirely.
+            // This lets callers suppress ROM discovery with ROMS_DIR="" or
+            // ROMS_DIR=/nonexistent without the test falling back to a local roms/ dir.
             string? envDir = Environment.GetEnvironmentVariable("ROMS_DIR");
-            if (!string.IsNullOrEmpty(envDir) && Directory.Exists(envDir))
+            bool envExplicitlySet = envDir != null;   // null → not set; "" → explicitly set
+
+            if (envExplicitlySet)
             {
-                RomsDir = envDir;
+                // Use env-var path only if it actually exists; otherwise no ROMs.
+                if (!string.IsNullOrEmpty(envDir) && Directory.Exists(envDir))
+                    RomsDir = envDir;
+                // else: ROMS_DIR was set but path is empty/missing → RomsDir stays null
             }
             else
             {
