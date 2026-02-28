@@ -269,6 +269,11 @@ Key data structure differences between ROM versions:
 
 Always check `Program.ROM.RomInfo.version` when implementing version-specific logic.
 
+## Workflow Preferences
+
+- **Always push after every commit** — run `git push` immediately after `git commit`, no separate prompt needed
+- **Always update docs and README** — reflect any code changes in README.md (and relevant docs) before committing
+
 ## Important Patterns
 
 ### Thread Safety
