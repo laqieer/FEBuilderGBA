@@ -28,47 +28,47 @@ git submodule update --init --recursive
 
 ## Testing & Coverage
 
-- ✅ **408 tests** passing (410 total, 2 skipped)
+- ✅ **384 tests** passing (0 skipped)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
   - Unit tests for core utilities (RegexCache, LZ77, U, TextEscape)
   - UpdateInfo version tracking and comparison
-  - Split package download logic
+  - Core package download logic
   - Integration tests for update system
 
-## 🔄 Smart Update System
+## 🔄 Update System
 
-FEBuilderGBA features an intelligent **split package update system** that reduces download sizes by up to 90%:
+FEBuilderGBA uses a two-track update model that keeps the application and patch data independent:
 
 ### How It Works
 
-The application tracks two version numbers independently:
-- **Core Version**: The application executable and libraries (FEBuilderGBA.exe, DLLs)
-- **Patch2 Version**: The patch database (~44,000 patch files in `config/patch2/`)
+| Component | What it contains | How it updates |
+|-----------|-----------------|----------------|
+| **Core** | FEBuilderGBA.exe, DLLs, config data | Download `FEBuilderGBA_YYYYMMDD.HH.zip` from GitHub Releases or nightly.link |
+| **Patch2** | ~44,000 patch files in `config/patch2/` | `git fetch` + `git reset --hard` via the built-in Git updater |
 
-When you check for updates, the system automatically:
-1. Detects which components have new versions
-2. Downloads only what's changed:
-   - **PATCH2 Package** (~10-20MB) - If only patches were updated
-   - **CORE Package** (~10-20MB) - If only the application was updated
-   - **FULL Package** (~60-80MB) - If both were updated or for fresh installs
+When you check for updates the app compares the remote version against the local assembly build date and shows only the relevant update button(s).
+
+### Updating Patch2 via Git
+
+Patch2 is a [git submodule](https://github.com/laqieer/FEBuilderGBA-patch2) updated independently of core releases.
+
+- **In-app:** Tools → Check for Updates → "Gitでパッチデータを更新します"
+- **Manual:** `cd config/patch2 && git pull`
+- **First run:** The app detects missing patch2 directories and offers to clone them automatically. If Git is not installed, empty directories are created so the app still starts.
 
 ### Benefits
 
-- ✅ **70-90% smaller downloads** for incremental updates
-- ✅ **Faster updates** - Download and install in seconds, not minutes
-- ✅ **No restart required** for patch-only updates
-- ✅ **Automatic fallback** to full package if split packages unavailable
-- ✅ **Fully backward compatible** with older versions
+- ✅ **Incremental patch updates** — only changed patch files are transferred via git
+- ✅ **Faster patch updates** — no ZIP download or extraction required
+- ✅ **Offline-friendly** — patch2 can be updated separately from the core app
+- ✅ **Git history** — full audit trail of every patch data change
 
 ### Version Information
 
-Check your current versions:
-- **Core:** Click "Help" → "About" to see application version
-- **Patch2:** See `config/patch2/version.txt` for patch database version
-
-The update system is enabled by default and requires no configuration.
+- **Core version:** Help → About
+- **Patch2 version:** `git -C config/patch2 log -1 --format="%h %s"`
 
 [This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
