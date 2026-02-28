@@ -51,25 +51,48 @@ jobs:
             /t:restore,build `
             /m
 
-      # ---------------------------------------------------------------- Download ROMs (optional, gated on ROMS_URL secret)
+      # ---------------------------------------------------------------- Download ROMs (gated on ROMS_URL secret)
       # The secret ROMS_URL points to a roms.zip that extracts a roms/ directory
       # containing FE6.gba, FE7J.gba, FE7U.gba, FE8J.gba, FE8U.gba.
       # If the secret is absent (e.g. forks, PRs from external contributors) this
       # step is skipped and ROM-based tests auto-skip via Assert.Skip().
+      # If the secret IS set but the download or extraction fails, CI is blocked
+      # (no continue-on-error) so the misconfiguration is surfaced immediately.
       - name: Download ROMs
         if: env.HAVE_ROMS == 'true'
-        # continue-on-error: a failed download (bad URL, network hiccup, expired link)
-        # must NOT block the test run.  ROM tests auto-skip when roms/ is absent;
-        # the 13 non-ROM tests should always execute regardless.
-        continue-on-error: true
         env:
           ROMS_URL: ${{ secrets.ROMS_URL }}
         shell: pwsh
         run: |
           $zip = "$env:TEMP\roms.zip"
+          Write-Host "Downloading roms.zip..."
           Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip
+          Write-Host "Extracting roms.zip..."
           Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force
-          Get-ChildItem "${{ github.workspace }}\roms" | ForEach-Object { Write-Host "  $($_.Name)" }
+
+          # Verify each expected ROM file is present; fail hard if any is missing.
+          $romsDir = "${{ github.workspace }}\roms"
+          $expected = @("FE6.gba", "FE7J.gba", "FE7U.gba", "FE8J.gba", "FE8U.gba")
+          $missing  = @()
+          Write-Host ""
+          Write-Host "=== ROM verification ==="
+          foreach ($name in $expected) {
+            $path = Join-Path $romsDir $name
+            if (Test-Path $path) {
+              $size = (Get-Item $path).Length
+              Write-Host "  [OK] $name  ($size bytes)"
+            } else {
+              Write-Host "  [MISSING] $name"
+              $missing += $name
+            }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Host ""
+            Write-Host "ERROR: The following ROMs were not found after extraction: $($missing -join ', ')"
+            exit 1
+          }
+          Write-Host ""
+          Write-Host "All $($expected.Count) ROMs present — ROM-based tests will run."
 
       # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
       # Run with continue-on-error so CI doesn't fail on probe errors.
