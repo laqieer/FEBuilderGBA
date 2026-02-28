@@ -28,7 +28,7 @@ git submodule update --init --recursive
 
 ## Testing & Coverage
 
-- ✅ **384 tests** passing (0 skipped)
+- ✅ **397 tests** passing (0 skipped)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
