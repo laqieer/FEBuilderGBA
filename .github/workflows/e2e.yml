@@ -21,37 +21,26 @@ jobs:
         with:
           submodules: recursive
 
-      # ---------------------------------------------------------------- .NET SDK
-      - name: Setup .NET 9 (x64 SDK)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      # FEBuilderGBA.exe is built as x86 (PlatformTarget=x86) and its apphost requires
-      # the x86 .NET 9 WindowsDesktop runtime.  The step above installs x64 only.
-      - name: Setup .NET 9 (x86 runtime for WinExe launch)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-          architecture: 'x86'
-
       # ---------------------------------------------------------------- MSBuild
+      # NOTE: setup-dotnet is intentionally omitted.  The windows-latest runner ships
+      # with .NET 9 (x64 SDK + x86 runtime pre-installed).  Adding setup-dotnet@v4
+      # overrides DOTNET_ROOT to an x64-only installation directory, which causes
+      # FEBuilderGBA.exe (x86 WinExe) to fail with FrameworkNotFound (0x80008082).
+      # The msbuild.yml workflow confirms the pre-installed dotnet is sufficient.
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
 
-      # ---------------------------------------------------------------- Build main app
-      # Use msbuild with .sln so the platform mapping (Release|x86 → Release|Any CPU)
-      # puts the output in bin\Release\ (same as the main msbuild.yml workflow).
-      - name: Restore & Build FEBuilderGBA (Release x86)
+      # ---------------------------------------------------------------- Build main app + E2E tests
+      # msbuild via .sln builds BOTH FEBuilderGBA and FEBuilderGBA.E2ETests.
+      # Solution platform mapping:
+      #   Release|x86 → FEBuilderGBA      : Release|Any CPU → bin\Release\
+      #   Release|x86 → FEBuilderGBA.E2ETests: Release|Any CPU → bin\Release\net9.0-windows\
+      - name: Restore & Build (Release x86)
         run: |
           msbuild FEBuilderGBA.sln `
             /p:Configuration=Release /p:Platform=x86 `
             /t:restore,build `
             /m
-
-      # ---------------------------------------------------------------- Restore E2E project
-      - name: Restore E2E test project
-        run: dotnet restore FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -p:Platform=x86
 
       # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
       # Run with continue-on-error so CI doesn't fail on probe errors.
@@ -67,6 +56,10 @@ jobs:
           }
           Write-Host "Exe size: $((Get-Item $exe).Length) bytes"
           Write-Host "Config dir exists: $(Test-Path (Split-Path $exe -Parent | Join-Path -ChildPath 'config'))"
+
+          Write-Host ""
+          Write-Host "=== .NET runtime info ==="
+          dotnet --list-runtimes
 
           Write-Host ""
           Write-Host "=== --version test (headless) ==="
@@ -98,6 +91,8 @@ jobs:
           }
 
       # ---------------------------------------------------------------- Run E2E tests
+      # --no-build: msbuild already built everything; dotnet test just runs the tests.
+      # No -p:Platform=x86 needed — the binary is already built as x86.
       - name: Run E2E tests
         env:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
@@ -106,12 +101,12 @@ jobs:
         run: |
           dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj `
             --configuration Release `
-            -p:Platform=x86 `
+            --no-build `
+            --verbosity normal `
             --logger "junit;LogFilePath=${{ github.workspace }}\e2e-results\e2e-results.xml" `
-            --results-directory "${{ github.workspace }}\e2e-results" `
-            --no-restore `
-            -- xunit.parallelizeTestCollections=false
-        # Note: parallelism disabled — GUI tests need to launch exclusive app processes
+            --results-directory "${{ github.workspace }}\e2e-results"
+        # Note: xunit test collections run sequentially by default when each test
+        # launches its own exclusive app process.
 
       # ---------------------------------------------------------------- Upload artifacts
       - name: Upload E2E test report (JUnit XML)
