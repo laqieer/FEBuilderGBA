@@ -100,6 +100,14 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 try { p.Kill(entireProcessTree: true); } catch { }
                 p.WaitForExit(2_000);
             }
+            else
+            {
+                // After WaitForExit(int) returns, async output handlers may not have
+                // finished reading buffered data yet.  Call the no-param overload to
+                // flush all pending OutputDataReceived / ErrorDataReceived events.
+                // See: https://learn.microsoft.com/dotnet/api/system.diagnostics.process.waitforexit
+                p.WaitForExit();
+            }
 
             return (p.ExitCode, sb_out.ToString(), sb_err.ToString());
         }
