@@ -276,6 +276,22 @@ Always check `Program.ROM.RomInfo.version` when implementing version-specific lo
 - **Always commit as `laqieer <laqieer@126.com>`** — never use the zhiwenzhu identity for any commit in this repo or its submodules
 - **After creating or cloning any git repo**, immediately set: `git config user.name "laqieer" && git config user.email "laqieer@126.com"`
 
+## Pre-Commit Checklist (MANDATORY)
+
+For **every** code change, follow this checklist in order before committing:
+
+1. **Add unit tests** (in `FEBuilderGBA.Tests/`) covering the changed logic
+2. **Add E2E tests** (in `FEBuilderGBA.E2ETests/`) if the change affects CLI behaviour, GUI startup, or ROM handling
+3. **Run tests locally** — all must pass before committing:
+   ```bash
+   dotnet test FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj
+   dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj --configuration Release --no-build
+   ```
+4. **Update README and docs** to reflect the change
+5. **Commit and push**
+6. **Watch CI/CD** — after the push, wait for the E2E pipeline to finish, then inspect the results
+7. **Fix any CI failures** and repeat from step 1 until all tests pass in CI
+
 ## Important Patterns
 
 ### Thread Safety
