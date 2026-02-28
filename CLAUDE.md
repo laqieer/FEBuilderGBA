@@ -4,7 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy games, written in C# WinForms targeting .NET 6.0. It supports editing five ROM variants: FE6 (Japan), FE7J/FE7U (Japan/US), and FE8J/FE8U (Japan/US).
+FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy games, written in C# WinForms targeting .NET 9.0. It supports editing five ROM variants: FE6 (Japan), FE7J/FE7U (Japan/US), and FE8J/FE8U (Japan/US).
+
+### Solution Structure
+```
+FEBuilderGBA.sln
+├── FEBuilderGBA.Core/        # net9.0 — Cross-platform core library (ROM, Undo, utilities)
+├── FEBuilderGBA/             # net9.0-windows — WinForms GUI application
+├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests
+└── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
+```
+
+**FEBuilderGBA.Core** contains platform-independent logic: ROM manipulation (`Rom.cs`, `ROMFE*.cs`), undo system (`Undo.cs`), utility functions (`U.cs`), logging (`Log.cs`), and shared state (`CoreState.cs`). It defines abstraction interfaces (`IAppServices`, `IEtcCache`, `ISystemTextEncoder`, `IAsmMapCache`) so Core code can call platform-specific services without depending on WinForms.
 
 ## Build & Development Commands
 
@@ -19,6 +30,9 @@ msbuild /m /p:Configuration=Debug /p:Platform=x86 /t:build /restore FEBuilderGBA
 
 # Build for x64
 msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderGBA.sln
+
+# Build Core library only (cross-platform, no WinForms dependency)
+dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj
 ```
 
 ### Running
@@ -84,9 +98,13 @@ ROMFEINFO (Abstract base class - 450+ properties defining ROM data locations)
 
 Each ROM class defines 450+ address pointers for game data locations (units, classes, items, maps, graphics, text, music, etc.). Version detection occurs via binary signature matching in ROM headers.
 
-**Key Files:**
-- `Rom.cs` - Core ROM manipulation logic
+**Key Files (in FEBuilderGBA.Core/):**
+- `Rom.cs` - Core ROM manipulation logic (ROMFEINFO base class + ROM class)
 - `ROMFE6JP.cs`, `ROMFE7JP.cs`, `ROMFE7U.cs`, `ROMFE8JP.cs`, `ROMFE8U.cs` - Version-specific data
+- `CoreState.cs` - Central static state holder (replaces Program.cs static fields for Core code)
+- `Undo.cs` - Multi-level undo system
+- `IAppServices.cs` - Abstraction for platform-dependent services (dialogs, etc.)
+- `U.cs` - Pure utility functions (internal, used by Core types)
 
 ### Main Entry Point & Initialization
 

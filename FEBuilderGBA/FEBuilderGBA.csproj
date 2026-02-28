@@ -168,6 +168,9 @@
     <Content Include="Icon1.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.VisualBasic" Version="10.3.0" />
     <PackageReference Include="SharpCompress" Version="0.38.0" />
     <PackageReference Include="System.DirectoryServices" Version="9.0.4" />
@@ -186,6 +189,15 @@
     <Compile Remove="ImageSystemHoverColorForm.cs" />
     <Compile Remove="ImageSystemHoverColorForm.Designer.cs" />
     <Compile Remove="NewEventASM.cs" />
+    <!-- Files moved to FEBuilderGBA.Core -->
+    <Compile Remove="Rom.cs" />
+    <Compile Remove="ROMFE0.cs" />
+    <Compile Remove="ROMFE6JP.cs" />
+    <Compile Remove="ROMFE7JP.cs" />
+    <Compile Remove="ROMFE7U.cs" />
+    <Compile Remove="ROMFE8JP.cs" />
+    <Compile Remove="ROMFE8U.cs" />
+    <Compile Remove="Undo.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>
