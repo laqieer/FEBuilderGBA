@@ -28,18 +28,6 @@ namespace FEBuilderGBA.Tests.Integration
             catch { }
         }
 
-        [Fact(Skip = "Requires static Program.BaseDirectory manipulation which is difficult to isolate in tests")]
-        public void UpdateInfo_ReadsVersionFromFileSystem()
-        {
-            // Skipped — version.txt no longer used; patch2 is git-managed.
-        }
-
-        [Fact(Skip = "Requires static Program.BaseDirectory manipulation which is difficult to isolate in tests")]
-        public void UpdateInfo_HandlesMinimalVersion_WhenFileContainsOnlyVersion()
-        {
-            // Skipped — version.txt no longer used; patch2 is git-managed.
-        }
-
         [Theory]
         [InlineData("20260226.00", "20260227.00", UpdateInfo.PackageType.CoreOnly)]
         [InlineData("20260227.00", "20260227.00", UpdateInfo.PackageType.None)]
