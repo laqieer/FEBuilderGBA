@@ -58,9 +58,9 @@ msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderG
 
 ### Dependencies
 
-The application requires these runtime files (copied from Debug build):
-- `config/` directory - Contains all game data definitions, patches, translations
-- `7-zip32.dll` (optional) - Native archive handling for maximum speed
+The application requires these runtime files (copied to output by MSBuild targets):
+- `config/` directory - Contains all game data definitions, patches, translations (copied from repo-root `config/`)
+- `7-zip32.dll` (optional) - Native archive handling for maximum speed (source: `FEBuilderGBA/lib/`)
 
 Archive handling:
 - **If 7-zip32.dll exists**: Uses native DLL (very fast, no progress reporting)

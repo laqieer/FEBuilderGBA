@@ -263,4 +263,13 @@
     <Message Text="  - patch2/ (from config/patch2 submodule)" Importance="high" />
     <Message Text="========================================" Importance="high" />
   </Target>
+
+  <!-- Copy optional native 7-zip32.dll to build output -->
+  <Target Name="CopyNativeLibs" AfterTargets="Build"
+          Condition="Exists('$(MSBuildProjectDirectory)\lib\7-zip32.dll')">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\lib\7-zip32.dll"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+    <Message Text="✓ Copied 7-zip32.dll to output" Importance="high" />
+  </Target>
 </Project>
