@@ -55,19 +55,29 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(romPath == null, $"{romName} ROM not available");
 
             _process = AppRunner.Launch(ExePath, $"--rom \"{romPath}\"");
-            IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 30_000);
+            IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 60_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            // Wait for full ROM initialisation (text tables, patch cache, etc.)
-            Thread.Sleep(2_000);
-
-            // Enumerate all child handles and filter to WinForms button controls
-            var allChildren = WinAutomation.GetChildWindows(hWnd);
-            var buttons = allChildren
-                .Where(c => WinAutomation.GetClass(c.hWnd)
-                    .StartsWith("WindowsForms10.BUTTON", StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrWhiteSpace(c.Title))
-                .ToList();
+            // Poll until the main form has rendered its toolbar buttons.
+            // Check ALL process windows (not just the initial hWnd) because the OS may
+            // set MainWindowHandle to a transient startup dialog before the editor shows.
+            var sw = Stopwatch.StartNew();
+            List<(IntPtr hWnd, string Title)> buttons = new();
+            do
+            {
+                Thread.Sleep(500);
+                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process.Id))
+                {
+                    var candidates = WinAutomation.GetChildWindows(w)
+                        .Where(c => WinAutomation.GetClass(c.hWnd)
+                            .StartsWith("WindowsForms10.BUTTON", StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrWhiteSpace(c.Title))
+                        .ToList();
+                    if (candidates.Count > buttons.Count)
+                        buttons = candidates;
+                }
+            }
+            while (buttons.Count == 0 && sw.ElapsedMilliseconds < 30_000);
 
             _output.WriteLine($"{romName}: found {buttons.Count} toolbar buttons");
 

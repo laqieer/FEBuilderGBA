@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using FEBuilderGBA.E2ETests.Helpers;
@@ -64,8 +65,22 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 30_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            _process!.Refresh();
-            Assert.False(string.IsNullOrWhiteSpace(_process.MainWindowTitle),
+            // The initial hWnd may appear before the title has been set.
+            // Poll all process windows until at least one has a non-empty title.
+            var titleSw = Stopwatch.StartNew();
+            string title = string.Empty;
+            do
+            {
+                Thread.Sleep(300);
+                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process.Id))
+                {
+                    string t = WinAutomation.GetTitle(w);
+                    if (!string.IsNullOrWhiteSpace(t)) { title = t; break; }
+                }
+            }
+            while (string.IsNullOrWhiteSpace(title) && titleSw.ElapsedMilliseconds < 30_000);
+
+            Assert.False(string.IsNullOrWhiteSpace(title),
                 $"{romName}: expected non-empty window title after ROM load");
         }
 
@@ -81,10 +96,23 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 30_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            // Give the main form time to fully populate its controls
-            Thread.Sleep(2_000);
+            // Poll ALL process windows for the one with the most children.
+            // WaitForAnyAppWindow may return a transient splash window; the actual
+            // main editor form may be a different top-level window.
+            var sw = Stopwatch.StartNew();
+            List<(IntPtr hWnd, string Title)> children = new();
+            do
+            {
+                Thread.Sleep(500);
+                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process.Id))
+                {
+                    var c = WinAutomation.GetChildWindows(w);
+                    if (c.Count > children.Count)
+                        children = c;
+                }
+            }
+            while (children.Count < 10 && sw.ElapsedMilliseconds < 30_000);
 
-            var children = WinAutomation.GetChildWindows(hWnd);
             Assert.True(children.Count >= 10,
                 $"{romName}: expected at least 10 child controls (main form vs wizard), " +
                 $"found {children.Count}");

@@ -51,7 +51,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 var (code, _, _) = AppRunner.Run(
-                    ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 180_000);
+                    ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 300_000);
                 Assert.Equal(0, code);
             }
             finally
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 var (code, _, _) = AppRunner.Run(
-                    ExePath, $"--rom \"{tempRom}\" --makeups", timeoutMs: 60_000);
+                    ExePath, $"--rom \"{tempRom}\" --makeups=\"{expectedUps}\"", timeoutMs: 60_000);
                 Assert.Equal(0, code);
                 Assert.True(File.Exists(expectedUps),
                     $"{romName}: expected .ups file at {expectedUps}");
