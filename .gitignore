@@ -1,4 +1,5 @@
 *.gba
+/roms/
 r
 FEBuilderGBA/bin/Debug/*.exe
 FEBuilderGBA/bin/Debug/*.pdb

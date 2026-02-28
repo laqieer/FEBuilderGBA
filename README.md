@@ -30,7 +30,7 @@ git submodule update --init --recursive
 ## Testing & Coverage
 
 - ✅ **397 unit/integration tests** passing (0 skipped)
-- ✅ **13 E2E tests** passing (CLI + GUI automation)
+- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **48 E2E tests** passing with all 5 ROMs
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -40,6 +40,9 @@ git submodule update --init --recursive
   - Integration tests for update system
   - E2E CLI tests (`--version` flag, exit codes, output content)
   - E2E GUI tests (startup window detection, child controls, graceful shutdown)
+  - ROM-based E2E CLI tests (`--lint`, `--rebuild`, `--makeups` × 5 ROMs — skipped without ROMs)
+  - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)
+  - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
 
 ## E2E Automation Tests
 
@@ -47,11 +50,16 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 
 ### Test Categories
 
-| Test File | What it tests |
-|-----------|--------------|
-| `Tests/CliTests.cs` | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
-| `Tests/GuiStartupTests.cs` | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
-| `Tests/DiagnosticTests.cs` | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
+| Test File | ROMs required | What it tests |
+|-----------|--------------|--------------|
+| `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
+| `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
+| `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
+| `Tests/RomCliTests.cs` | Yes (×5) | `--lint`, `--rebuild`, `--makeups` against each of the 5 real ROMs — 15 tests, skipped without ROMs |
+| `Tests/RomGuiTests.cs` | Yes (×5) | Main form loads per ROM: window appears, non-empty title, ≥10 child controls — 15 tests, skipped without ROMs |
+| `Tests/FormSmokeTests.cs` | Yes (×5) | All toolbar buttons clicked per ROM; verifies ≥1 opens a form — 5 tests, skipped without ROMs |
+
+**Without ROMs:** 13 passed, 35 skipped. **With all 5 ROMs:** 48 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 

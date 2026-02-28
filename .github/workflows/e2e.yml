@@ -46,6 +46,22 @@ jobs:
             /t:restore,build `
             /m
 
+      # ---------------------------------------------------------------- Download ROMs (optional, gated on ROMS_URL secret)
+      # The secret ROMS_URL points to a roms.zip that extracts a roms/ directory
+      # containing FE6.gba, FE7J.gba, FE7U.gba, FE8J.gba, FE8U.gba.
+      # If the secret is absent (e.g. forks, PRs from external contributors) this
+      # step is skipped and ROM-based tests auto-skip via Assert.Skip().
+      - name: Download ROMs
+        if: ${{ secrets.ROMS_URL != '' }}
+        env:
+          ROMS_URL: ${{ secrets.ROMS_URL }}
+        shell: pwsh
+        run: |
+          $zip = "$env:TEMP\roms.zip"
+          Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force
+          Get-ChildItem "${{ github.workspace }}\roms" | ForEach-Object { Write-Host "  $($_.Name)" }
+
       # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
       # Run with continue-on-error so CI doesn't fail on probe errors.
       # Output shows whether --version works and whether the GUI starts cleanly.
@@ -103,6 +119,7 @@ jobs:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
           FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe
           FEBUILDERGBA_SCREENSHOT_DIR: ${{ github.workspace }}\e2e-screenshots
+          ROMS_DIR: ${{ github.workspace }}\roms
         run: |
           dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj `
             --configuration Release `
