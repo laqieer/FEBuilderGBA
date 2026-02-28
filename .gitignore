@@ -39,4 +39,6 @@ FEBuilderGBA/obj
 coverage-report/
 FEBuilderGBA.Tests/bin/
 FEBuilderGBA.Tests/obj/
+FEBuilderGBA.E2ETests/bin/
+FEBuilderGBA.E2ETests/obj/
 FEBuilderGBA/bin/Debug/FEBuilderGBA
