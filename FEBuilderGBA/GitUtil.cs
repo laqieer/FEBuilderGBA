@@ -7,7 +7,21 @@ namespace FEBuilderGBA
 {
     public static class GitUtil
     {
-        public const string Patch2RemoteUrl = "https://github.com/laqieer/FEBuilderGBA-patch2.git";
+        public const string Patch2RemoteUrl      = "https://github.com/laqieer/FEBuilderGBA-patch2.git";
+        public const string Patch2RemoteUrlGitee = "https://gitee.com/laqieer/FEBuilderGBA-patch2.git";
+
+        /// <summary>
+        /// Returns the appropriate patch2 remote URL based on the user's release_source setting.
+        /// Mirrors UseChinaMainlandMirror() logic: uses Gitee when release_source==2,
+        /// or when release_source==0 (auto) and the UI language is Chinese.
+        /// </summary>
+        public static string GetPatch2RemoteUrl()
+        {
+            int releaseSource = OptionForm.release_source();
+            string lang = OptionForm.lang();
+            bool useGitee = (releaseSource == 2) || (releaseSource == 0 && lang == "zh");
+            return useGitee ? Patch2RemoteUrlGitee : Patch2RemoteUrl;
+        }
 
         /// <summary>
         /// Returns path to git exe, or null if not found.
@@ -162,12 +176,19 @@ namespace FEBuilderGBA
         /// <summary>
         /// git fetch --progress --depth=1 origin  +  git reset --hard FETCH_HEAD
         /// --progress forces git to emit progress lines even when stderr is redirected.
+        /// If remoteUrl is provided the origin remote is updated first, allowing seamless
+        /// switching between GitHub and Gitee without re-cloning.
         /// Returns exit code of the final step.
         /// </summary>
         public static int Update(string gitExe, string repoPath,
                                  Action<string> outputCallback = null,
-                                 StringBuilder outputLog = null)
+                                 StringBuilder outputLog = null,
+                                 string remoteUrl = null)
         {
+            // Switch origin to the preferred source (GitHub ↔ Gitee) before fetching
+            if (!string.IsNullOrEmpty(remoteUrl))
+                RunGit(gitExe, string.Format("remote set-url origin \"{0}\"", remoteUrl), repoPath);
+
             int code = RunGit(gitExe, "fetch --progress --depth=1 origin", repoPath, outputCallback, outputLog);
             if (code != 0)
                 return code;

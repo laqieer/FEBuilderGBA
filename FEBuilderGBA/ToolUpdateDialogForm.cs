@@ -177,12 +177,14 @@ namespace FEBuilderGBA
                         System.Threading.Interlocked.Exchange(ref lastLine[0], line);
                 };
 
+                string patch2RemoteUrl = GitUtil.GetPatch2RemoteUrl();
+
                 if (GitUtil.IsGitRepo(patchPath))
                 {
                     // UPDATE PATH: run git on background task, poll for progress on main thread
                     pleaseWait.DoEvents("Git: fetch --progress --depth=1 origin ...");
                     var task = System.Threading.Tasks.Task.Run(
-                        () => GitUtil.Update(gitExe, patchPath, progress, gitLog));
+                        () => GitUtil.Update(gitExe, patchPath, progress, gitLog, patch2RemoteUrl));
                     PollGitProgress(task, pleaseWait, lastLine);
 
                     if (task.Result != 0)
@@ -207,7 +209,7 @@ namespace FEBuilderGBA
 
                     pleaseWait.DoEvents("Git: clone --progress --depth=1 ...");
                     var task = System.Threading.Tasks.Task.Run(
-                        () => GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patchPath, progress, gitLog));
+                        () => GitUtil.Clone(gitExe, patch2RemoteUrl, patchPath, progress, gitLog));
                     PollGitProgress(task, pleaseWait, lastLine);
 
                     if (task.Result != 0)

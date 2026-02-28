@@ -58,6 +58,14 @@ Patch2 is a [git submodule](https://github.com/laqieer/FEBuilderGBA-patch2) upda
 - **Manual:** `cd config/patch2 && git pull`
 - **First run:** The app detects missing patch2 directories and offers to clone them automatically. If Git is not installed, empty directories are created so the app still starts.
 
+The app automatically selects the patch2 git source based on your **Options → Release Source** setting — the same setting that controls where the core update is downloaded from:
+
+| Release Source setting | Patch2 git remote used |
+|------------------------|------------------------|
+| Auto (Chinese language detected) | `gitee.com/laqieer/FEBuilderGBA-patch2` |
+| Gitee | `gitee.com/laqieer/FEBuilderGBA-patch2` |
+| GitHub / Nightly | `github.com/laqieer/FEBuilderGBA-patch2` |
+
 ### Benefits
 
 - ✅ **Incremental patch updates** — only changed patch files are transferred via git

@@ -667,10 +667,11 @@ namespace FEBuilderGBA
                     try
                     {
                         int code;
+                        string remoteUrl = GitUtil.GetPatch2RemoteUrl();
                         if (GitUtil.IsGitRepo(patch2Root))
-                            code = GitUtil.Update(gitExe, patch2Root, null);
+                            code = GitUtil.Update(gitExe, patch2Root, null, null, remoteUrl);
                         else
-                            code = GitUtil.Clone(gitExe, GitUtil.Patch2RemoteUrl, patch2Root, null);
+                            code = GitUtil.Clone(gitExe, remoteUrl, patch2Root, null);
                         success = (code == 0);
                     }
                     catch { }
