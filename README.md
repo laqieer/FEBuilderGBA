@@ -91,7 +91,18 @@ ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Re
 
 E2E tests run on a dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) separate from the main build pipeline. This prevents long-running GUI tests (~30 s each) from blocking the primary CI.
 
-ROM-based tests are gated on the `ROMS_URL` repository secret.  When the secret is present the workflow downloads `roms.zip`, extracts it to `${{ github.workspace }}/roms`, and sets `ROMS_DIR` for the test run.  When the secret is absent (forks, external PRs) the `ROMS_DIR` env var is still passed but points to a non-existent path, so all 35 ROM tests skip cleanly.
+ROM-based tests are gated on the `ROMS_URL` repository secret.  When the secret is present the workflow attempts to download `roms.zip`, validate it, extract it, and set `ROMS_DIR` for the test run.  When the secret is absent (forks, external PRs) the Download ROMs step is skipped entirely and all 35 ROM tests skip cleanly.
+
+**ROM download — tiered failure policy:**
+| Situation | Behaviour |
+|-----------|-----------|
+| `ROMS_URL` secret absent | Step skipped; ROM tests skip via `Assert.Skip()` |
+| Network/HTTP error (unreachable URL) | Hard fail → pipeline blocked |
+| Downloaded file not a valid zip (magic bytes ≠ `PK`) | Warning + exit 0; ROM tests skip |
+| Zip structurally corrupt (`ZipFile::OpenRead` fails) | Warning + exit 0; ROM tests skip |
+| Zip valid, all 5 ROMs extracted | All 48 tests run |
+
+The step lists every zip entry with its uncompressed size before extraction, so the log shows exactly what is inside `roms.zip`.
 
 **Artifacts produced:**
 - `e2e-test-report` — TRX test report (viewable via the **E2E Test Results** check-run posted by `dorny/test-reporter`)
