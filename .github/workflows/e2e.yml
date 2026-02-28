@@ -9,6 +9,10 @@ on:
     branches: [ master ]
   workflow_dispatch:      # allow manual trigger
 
+permissions:
+  contents: read
+  checks: write            # required by dorny/test-reporter to post check-runs
+
 jobs:
   e2e:
     name: E2E Automation
@@ -92,7 +96,8 @@ jobs:
 
       # ---------------------------------------------------------------- Run E2E tests
       # --no-build: msbuild already built everything; dotnet test just runs the tests.
-      # No -p:Platform=x86 needed — the binary is already built as x86.
+      # Uses TRX logger (same as msbuild.yml) — JunitXml.TestLogger v3.1.12 has a
+      # known bug that returns exit code 1 even when all tests pass.
       - name: Run E2E tests
         env:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
@@ -103,18 +108,28 @@ jobs:
             --configuration Release `
             --no-build `
             --verbosity normal `
-            --logger "junit;LogFilePath=${{ github.workspace }}\e2e-results\e2e-results.xml" `
-            --results-directory "${{ github.workspace }}\e2e-results"
+            --logger "trx;LogFileName=e2e-results.trx"
         # Note: xunit test collections run sequentially by default when each test
         # launches its own exclusive app process.
 
+      # ---------------------------------------------------------------- Publish test results as check-run
+      - name: Publish E2E test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E Test Results
+          path: "FEBuilderGBA.E2ETests/TestResults/*.trx"
+          reporter: dotnet-trx
+          fail-on-error: false
+
       # ---------------------------------------------------------------- Upload artifacts
-      - name: Upload E2E test report (JUnit XML)
+      - name: Upload E2E test report (TRX)
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-test-report
-          path: ${{ github.workspace }}\e2e-results\*.xml
+          path: "FEBuilderGBA.E2ETests/TestResults/*.trx"
+          if-no-files-found: ignore
 
       - name: Upload E2E screenshots
         uses: actions/upload-artifact@v4
