@@ -22,10 +22,18 @@ jobs:
           submodules: recursive
 
       # ---------------------------------------------------------------- .NET SDK
-      - name: Setup .NET 9
+      - name: Setup .NET 9 (x64 SDK)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+
+      # FEBuilderGBA.exe is built as x86 (PlatformTarget=x86) and its apphost requires
+      # the x86 .NET 9 WindowsDesktop runtime.  The step above installs x64 only.
+      - name: Setup .NET 9 (x86 runtime for WinExe launch)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          architecture: 'x86'
 
       # ---------------------------------------------------------------- MSBuild
       - name: Add MSBuild to PATH
