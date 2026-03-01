@@ -51,11 +51,11 @@ namespace FEBuilderGBA
         }
         static string GetLogFilename()
         {
-            return System.IO.Path.Combine(Program.BaseDirectory, "config","log", "log.txt");
+            return System.IO.Path.Combine(Program.BaseDirectory ?? ".", "config","log", "log.txt");
         }
         static string GetOldLogFilename(int num)
         {
-            return System.IO.Path.Combine(Program.BaseDirectory, "config","log","log."+num+".txt.7z");
+            return System.IO.Path.Combine(Program.BaseDirectory ?? ".", "config","log","log."+num+".txt.7z");
         }
         private static Object thisLock = new Object();  
         public static void SyncLog()
@@ -165,7 +165,7 @@ namespace FEBuilderGBA
 
         public static void TouchLogDirectory()
         {
-            string dir = Path.Combine(Program.BaseDirectory, "config", "log");
+            string dir = Path.Combine(Program.BaseDirectory ?? ".", "config", "log");
             if (!Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);

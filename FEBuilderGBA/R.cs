@@ -150,7 +150,7 @@ namespace FEBuilderGBA
         }
         public static void ShowStopError(string str,Exception ex)
         {
-            ShowStopError("{0}\r\n\r\n{1}:\r\n{2}", ex.GetType().ToString(), ex.ToString());
+            ShowStopError("{0}\r\n\r\n{1}:\r\n{2}", str, ex.GetType().ToString(), ex.ToString());
         }
 
         //警告メッセージ OKだけ

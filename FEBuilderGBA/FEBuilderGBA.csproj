@@ -219,6 +219,7 @@
     <Compile Remove="TranslateManager.cs" />
     <Compile Remove="ExportFunction.cs" />
     <Compile Remove="DisASMTrumb.cs" />
+    <Compile Remove="Mod.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>
