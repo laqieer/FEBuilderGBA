@@ -44,7 +44,7 @@ namespace FEBuilderGBA
         {
             uint pointer = U.toPointer(addr);
             AsmMapFile asmMap = Program.AsmMapFileAsmCache.GetAsmMapFile(); 
-            AsmMapFile.AsmMapSt p ;
+            AsmMapSt p ;
 
             //カーソル値のデータのヒントを与える.
             string hint = "";

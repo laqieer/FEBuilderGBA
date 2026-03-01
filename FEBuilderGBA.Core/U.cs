@@ -1663,6 +1663,47 @@ namespace FEBuilderGBA
             }
         }
 
+        public static void append_u32(List<byte> data, uint a)
+        {
+            data.Add((byte)((a & 0xFF)));
+            data.Add((byte)((a & 0xFF00) >> 8));
+            data.Add((byte)((a & 0xFF0000) >> 16));
+            data.Add((byte)((a & 0xFF000000) >> 24));
+        }
+
+        public static uint GetMaxValue(List<uint> list)
+        {
+            if (list.Count == 0)
+            {
+                return 0;
+            }
+            int index = GetMaxIndex(list);
+            return list[index];
+        }
+        public static int GetMaxIndex(List<uint> list)
+        {
+            uint max = 0;
+            int maxIndex = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i] > max)
+                {
+                    max = list[i];
+                    maxIndex = i;
+                }
+            }
+            return maxIndex;
+        }
+
+        public static string SA(string name)
+        {
+            if (name == "")
+            {
+                return "";
+            }
+            return " " + name;
+        }
+
         public static string cut(string text, string need, string endneed)
         {
             int i = text.IndexOf(need);

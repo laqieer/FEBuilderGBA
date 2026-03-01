@@ -439,7 +439,7 @@ namespace FEBuilderGBA
             }
 
             AsmMapFile map = GetAsmMapFile();
-            AsmMapFile.AsmMapSt a;
+            AsmMapSt a;
             if (!map.TryGetValue(U.toPointer(plainAddr), out a))
             {
                 return "";
@@ -486,7 +486,7 @@ namespace FEBuilderGBA
 
             AsmMapFile map = GetAsmMapFile();
 
-            AsmMapFile.AsmMapSt a;
+            AsmMapSt a;
             if (!map.TryGetValue(U.toPointer(plainAddr), out a))
             {
                 return "";
@@ -511,7 +511,7 @@ namespace FEBuilderGBA
             uint plainAddr = DisassemblerTrumb.ProgramAddrToPlain(num);
 
             AsmMapFile map = GetAsmMapFile();
-            AsmMapFile.AsmMapSt a;
+            AsmMapSt a;
             if (!map.TryGetValue(U.toPointer(plainAddr), out a))
             {
                 return false;

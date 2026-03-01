@@ -149,7 +149,7 @@ namespace FEBuilderGBA
                 }
             }
         }
-        public static void AppendASMDATATextID(List<UseValsID> list, AsmMapFile.AsmMapSt p,uint startaddr, uint sizeof_)
+        public static void AppendASMDATATextID(List<UseValsID> list, AsmMapSt p,uint startaddr, uint sizeof_)
         {
             uint end = startaddr + p.Length;
             for (uint addr = startaddr; addr < end; addr += sizeof_ )

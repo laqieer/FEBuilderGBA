@@ -11018,7 +11018,7 @@ namespace FEBuilderGBA
             uint a = U.toPointer(addr);
             uint add_addr = a + newSize;
 
-            Dictionary<uint, AsmMapFile.AsmMapSt> map = Program.AsmMapFileAsmCache.GetAsmMapFile().GetAsmMap();
+            Dictionary<uint, AsmMapSt> map = Program.AsmMapFileAsmCache.GetAsmMapFile().GetAsmMap();
             foreach (var pair in map)
             {
                 if (pair.Value.IsFreeArea)

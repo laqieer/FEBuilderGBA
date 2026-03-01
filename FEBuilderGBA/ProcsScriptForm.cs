@@ -111,9 +111,9 @@ namespace FEBuilderGBA
         {//5 or 6 or 7 or 8 or 9 or A or Dは、内部にProcsをネストする
             return (code >= 0x5 && code <= 0xA) || code == 0xD;
         }
-        static Dictionary<uint, AsmMapFile.AsmMapSt> GetKnownArea()
+        static Dictionary<uint, AsmMapSt> GetKnownArea()
         {
-            Dictionary<uint, AsmMapFile.AsmMapSt> knownArea = new Dictionary<uint, AsmMapFile.AsmMapSt>();
+            Dictionary<uint, AsmMapSt> knownArea = new Dictionary<uint, AsmMapSt>();
             AsmMapFile.ROMInfoLoadResource(knownArea,isWithOutProcs: true);
 
             return knownArea;
@@ -132,7 +132,7 @@ namespace FEBuilderGBA
                 this.ProcsNameByAddr = MakeProcNameByAddr(this.ProcsName);
                 this.List = list;
 
-                Dictionary<uint, AsmMapFile.AsmMapSt> knownArea = GetKnownArea();
+                Dictionary<uint, AsmMapSt> knownArea = GetKnownArea();
                 
                 for (int i = 0; i < ldrmap.Count; i++)
                 {

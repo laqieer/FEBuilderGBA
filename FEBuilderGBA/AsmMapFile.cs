@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace FEBuilderGBA
 {
-    public class AsmMapFile
+    public class AsmMapFile : IAsmMapFile
     {
         public AsmMapFile()
         {
@@ -256,25 +256,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public class AsmMapSt
-        {
-            //public uint Pointer;  keyに移動
-            public string Name = "";
-            public string ResultAndArgs = "";
-            public string TypeName = "";
-            public uint Length = 0;
-            public bool IsPointer = false;
-            public bool IsFreeArea = false;
-
-            public string ToStringInfo()
-            {
-                if (ResultAndArgs != "")
-                {
-                    return Name + " " + ResultAndArgs;
-                }
-                return Name;
-            }
-        };
+        // AsmMapSt is now a top-level public class (IAsmMapFile.cs in Core).
         Dictionary<uint, AsmMapSt> AsmMap = new Dictionary<uint, AsmMapSt>(0x5000);
 
         public Dictionary<uint, AsmMapSt> GetAsmMap()
@@ -1163,13 +1145,13 @@ namespace FEBuilderGBA
             return this.AsmMap.ContainsKey(pointer);
         }
 
-        public bool TryGetValue(uint pointer, out AsmMapFile.AsmMapSt out_p)
+        public bool TryGetValue(uint pointer, out AsmMapSt out_p)
         {
             return this.AsmMap.TryGetValue(pointer,out out_p);
         }
         public string GetInfoFull(uint pointer)
         {
-            AsmMapFile.AsmMapSt p ;
+            AsmMapSt p ;
             if (!TryGetValue(pointer, out p))
             {
                 return "";

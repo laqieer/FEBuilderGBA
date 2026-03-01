@@ -136,7 +136,7 @@ namespace FEBuilderGBA
                 Program.CommentCache.MakeAddressList(structlist);
                 asmMapFile.AppendMAP(structlist);
 
-                Dictionary<uint, AsmMapFile.AsmMapSt> asmmap = asmMapFile.GetAsmMap();
+                Dictionary<uint, AsmMapSt> asmmap = asmMapFile.GetAsmMap();
                 foreach (var pair in asmmap)
                 {
                     if (pair.Key == 0x0 || pair.Key == U.NOT_FOUND)
@@ -525,7 +525,7 @@ namespace FEBuilderGBA
 
 
                 string line;
-                Dictionary<uint, AsmMapFile.AsmMapSt> asmmap = asmMapFile.GetAsmMap();
+                Dictionary<uint, AsmMapSt> asmmap = asmMapFile.GetAsmMap();
                 foreach (var pair in asmmap)
                 {
                     if (pair.Key == 0x0 || pair.Key == U.NOT_FOUND)

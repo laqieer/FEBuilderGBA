@@ -797,7 +797,7 @@ namespace FEBuilderGBA
 
             string hint = "";
             AsmMapFile asmMap = Program.AsmMapFileAsmCache.GetAsmMapFile();
-            AsmMapFile.AsmMapSt p;
+            AsmMapSt p;
             if (asmMap.TryGetValue(pointer, out p))
             {
                 hint = p.ToStringInfo();

@@ -216,7 +216,7 @@ namespace FEBuilderGBA
         string WhatIs(uint addr)
         {
             uint pointer = U.toPointer(addr);
-            Dictionary<uint, AsmMapFile.AsmMapSt> asmMapList = this.AsmMapFile.GetAsmMap();
+            Dictionary<uint, AsmMapSt> asmMapList = this.AsmMapFile.GetAsmMap();
             foreach (var pair in asmMapList)
             {
                 if (pointer >= pair.Key && pointer < pair.Key + pair.Value.Length)
