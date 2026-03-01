@@ -572,13 +572,12 @@ namespace FEBuilderGBA
             ImageSystemIconForm.ClearCache();
 
             //EVENTとASMのキャッシュをクリア
-            // In CLI mode, skip the expensive AsmMapFileAsmCache build — it parses
-            // all ASM map files synchronously and can take minutes. CLI commands
-            // (--lint, --rebuild, etc.) don't need the disassembler symbol cache.
+            AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
             if (!IsCommandLine)
             {
-                AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
-                //asm mapキャッシュの更新.
+                // In CLI mode, skip the expensive background cache rebuild — it parses
+                // all ASM map files and can take minutes. CLI commands (--lint, --rebuild,
+                // etc.) only need the base symbol table built by the constructor.
                 AsmMapFileAsmCache.ClearCache();
             }
 
