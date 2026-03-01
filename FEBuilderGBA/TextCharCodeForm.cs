@@ -166,7 +166,7 @@ namespace FEBuilderGBA
         {
             string name = "TextCharCode";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
 
         void PostWriteHandler(object sender, EventArgs e)

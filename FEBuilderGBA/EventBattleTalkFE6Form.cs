@@ -135,11 +135,11 @@ namespace FEBuilderGBA
             string name = "EventBattleTalkFE6Form";
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_2", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_2", new uint[] { });
             }
         }
         public static void MakeCheckError(List<FELint.ErrorSt> errors)

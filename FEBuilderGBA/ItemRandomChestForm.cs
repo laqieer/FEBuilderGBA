@@ -65,7 +65,7 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(pointer);
 
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
         private void OnPreWrite(object sender, EventArgs e)
         {

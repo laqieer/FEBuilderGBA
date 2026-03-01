@@ -99,7 +99,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Haiku", new uint[] { 8 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Haiku", new uint[] { 8 });
 
             List<uint> tracelist = new List<uint>();
             uint addr = InputFormRef.BaseAddress;

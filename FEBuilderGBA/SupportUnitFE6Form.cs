@@ -168,7 +168,7 @@ namespace FEBuilderGBA
         {
             string name = "SupportUnitFE6";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
         public void JumpToAddr(uint search_addr)
         {

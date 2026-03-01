@@ -129,34 +129,34 @@ namespace FEBuilderGBA
             string name = "CCItem";
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_item_hero_crest_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_item_knight_crest_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_item_orion_bolt_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_elysian_whip_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_guiding_ring_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_fallen_contract_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_master_seal_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_ocean_seal_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_moon_bracelet_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.cc_sun_bracelet_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
 
         private void X_IER_PATCH_Click(object sender, EventArgs e)

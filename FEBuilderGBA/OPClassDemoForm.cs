@@ -128,7 +128,7 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "OPClassDemo", new uint[] { 0, 8 ,24 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "OPClassDemo", new uint[] { 0, 8 ,24 });
 
                 uint addr = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
@@ -148,11 +148,11 @@ namespace FEBuilderGBA
 
                     InputFormRef N1_InputFormRef = N1_Init(null);
                     N1_InputFormRef.ReInitPointer(addr + 8);
-                    FEBuilderGBA.Address.AddAddress(list, N1_InputFormRef, "OPClassDemo_JPName", new uint[] {  });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N1_InputFormRef, "OPClassDemo_JPName", new uint[] {  });
 
                     InputFormRef N2_InputFormRef = N2_Init(null);
                     N2_InputFormRef.ReInitPointer(addr + 24);
-                    FEBuilderGBA.Address.AddAddress(list, N2_InputFormRef, "OPClassDemo_Anime", new uint[] {  });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N2_InputFormRef, "OPClassDemo_Anime", new uint[] {  });
                 }
             }
         }

@@ -200,7 +200,7 @@ namespace FEBuilderGBA
         {
             string selfname = "BattleTerrain";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, selfname, new uint[] { 12, 16});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, selfname, new uint[] { 12, 16});
 
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++ , addr += InputFormRef.BlockSize)

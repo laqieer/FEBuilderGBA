@@ -630,7 +630,7 @@ namespace FEBuilderGBA
                     return;
                 }
                 InputFormRef = Init(null, basetextP);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "SkillConfigSkillSystem", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "SkillConfigSkillSystem", new uint[] { });
 
                 uint anime = Program.ROM.p32(baseanimeP);
                 FEBuilderGBA.Address.AddAddressInstantIFR(list, baseanimeP, 4, InputFormRef.DataCount, "SkillAnime", new uint[] { 0 });

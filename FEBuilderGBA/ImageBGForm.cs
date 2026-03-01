@@ -276,7 +276,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list,bool isPointerOnly)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "BG", new uint[] { 0 , 4 , 8 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "BG", new uint[] { 0 , 4 , 8 });
             bool isBG256ColorPatch = (PatchUtil.BG256Color() == PatchUtil.BG256ColorPatch.BG256Color);
 
             uint addr = InputFormRef.BaseAddress;
@@ -322,7 +322,7 @@ namespace FEBuilderGBA
                         , name + " IMAGE"
                         , isPointerOnly
                         , FEBuilderGBA.Address.DataTypeEnum.LZ77IMG);
-                    FEBuilderGBA.Address.AddHeaderTSAPointer(list
+                    FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                         , addr + 4
                         , name + " TSA"
                         , isPointerOnly

@@ -93,15 +93,15 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "dic_main", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "dic_main", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N1_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "dic_chaptor", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "dic_chaptor", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N2_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "dic_title", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "dic_title", new uint[] { });
             }
         }
 

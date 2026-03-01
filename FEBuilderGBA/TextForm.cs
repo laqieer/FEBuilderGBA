@@ -2154,7 +2154,7 @@ namespace FEBuilderGBA
             string name = "Text";
             InputFormRef InputFormRef = Init(null);
             UpdateDataCountCache(InputFormRef);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 }, Address.DataTypeEnum.TEXTPOINTERS);
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 }, Address.DataTypeEnum.TEXTPOINTERS);
 
             name = "Text ";
             FETextDecode textdecoder = new FETextDecode();

@@ -153,6 +153,8 @@ namespace FEBuilderGBA.Tests.Unit
             public string At(uint num, string def = "") => _data.TryGetValue(num, out var v) ? v : def;
             public string S_At(uint num) => _data.TryGetValue(num, out var v) ? " " + v : "";
             public bool TryGetValue(uint num, out string out_data) => _data.TryGetValue(num, out out_data);
+            public void Update(uint addr, string comment) => _data[addr] = comment;
+            public void Remove(uint addr) => _data.Remove(addr);
             public void Set(uint num, string val) => _data[num] = val;
         }
 

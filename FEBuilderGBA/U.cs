@@ -2613,7 +2613,7 @@ namespace FEBuilderGBA
                 ProcsScriptForm.MakeAllDataLength(structlist, ldrmap);
 
                 if (InputFormRef.DoEvents(null, "AppendAllASMStructPointersList EventScript")) return;
-                EventScript.MakeEventASMMAPList(structlist); //イベントから呼び出される特殊指定の領域を調べます.
+                EventScriptWinForms.MakeEventASMMAPList(structlist); //イベントから呼び出される特殊指定の領域を調べます.
 
                 if (InputFormRef.DoEvents(null, "AppendAllASMStructPointersList EventFunctionPointerForm")) return;
                 EventFunctionPointerForm.MakeAllDataLength(structlist);

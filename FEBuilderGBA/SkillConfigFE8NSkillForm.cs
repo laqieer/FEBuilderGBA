@@ -314,7 +314,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                FEBuilderGBA.Address.AddAddress(list, ifr
+                FEBuilderGBA.AddressWinForms.AddAddress(list, ifr
                     , "SkillConfigFE8N" + U.ToHexString(i)
                     , new uint[] { });
             }

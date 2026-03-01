@@ -148,7 +148,7 @@ namespace FEBuilderGBA
             string name = "OPPrologue";
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4});
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4});
 
                 FEBuilderGBA.Address.AddPointer(list
                     , Program.ROM.RomInfo.op_prologue_palette_color_pointer

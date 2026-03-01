@@ -54,13 +54,13 @@ namespace FEBuilderGBA
             //イベント命令にあるASM命令
             {
                 List<Address> list = new List<Address>(0x40);
-                EventScript.MakeEventASMMAPList(list, false, "", true);
+                EventScriptWinForms.MakeEventASMMAPList(list, false, "", true);
                 map.AppendMAP(list);
             }
             //イベント命令にあるEVENT命令
             {
                 List<Address> list = new List<Address>(0x40);
-                EventScript.MakeEventASMMAPList(list, true, "", true);
+                EventScriptWinForms.MakeEventASMMAPList(list, true, "", true);
                 map.AppendMAP(list, "EVENT");
             }
             map.MakeNearSearchSortedList();

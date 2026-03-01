@@ -129,7 +129,7 @@ namespace FEBuilderGBA
             string name = "SoundRoom";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , name
                 , new uint[] { 8, 12 }

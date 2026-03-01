@@ -107,7 +107,7 @@ namespace FEBuilderGBA
 
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInit(script_addr);
-            FEBuilderGBA.Address.AddAddress(recycle
+            FEBuilderGBA.AddressWinForms.AddAddress(recycle
                 , InputFormRef
                 , "FE7MoveData"
                 , new uint[] { });

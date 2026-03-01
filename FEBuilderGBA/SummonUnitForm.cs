@@ -50,7 +50,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list,bool isPointerOnly)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list,InputFormRef, "Summon", new uint[]{});
+            FEBuilderGBA.AddressWinForms.AddAddress(list,InputFormRef, "Summon", new uint[]{});
         }
 
         //リストが拡張されたとき

@@ -132,7 +132,7 @@ namespace FEBuilderGBA
             string name = "OPClassAlphaName";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 });
 
             uint p = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, p += InputFormRef.BlockSize)

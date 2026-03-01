@@ -440,7 +440,7 @@ namespace FEBuilderGBA
             }
             {
                 InputFormRef ifr = Border_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, ifr, "WorldmapCountyBorder", new uint[] { 0, 4 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, ifr, "WorldmapCountyBorder", new uint[] { 0, 4 });
 
                 uint addr = ifr.BaseAddress;
                 for (int i = 0; i < ifr.DataCount; i++, addr += ifr.BlockSize)
@@ -450,7 +450,7 @@ namespace FEBuilderGBA
                         , name + " IMAGE"
                         , isPointerOnly
                         , FEBuilderGBA.Address.DataTypeEnum.POINTER);
-                    FEBuilderGBA.Address.AddROMTCSPointer(list, 0 + addr
+                    FEBuilderGBA.AddressWinForms.AddROMTCSPointer(list, 0 + addr
                         , name + " ROMTCS"
                         , isPointerOnly
                         );
@@ -459,7 +459,7 @@ namespace FEBuilderGBA
             {
                 string name = "WorldMapIconData";
                 InputFormRef InputFormRef = ICON_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 4 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 4 });
             }
         }
 

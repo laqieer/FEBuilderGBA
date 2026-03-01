@@ -60,7 +60,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AIPerformStaff", new uint[] { 4 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AIPerformStaff", new uint[] { 4 });
 
             List<AddrResult> arlist = InputFormRef.MakeList();
             FEBuilderGBA.Address.AddFunctions(list, arlist, 4, "AIPerformStaff_ASM_");

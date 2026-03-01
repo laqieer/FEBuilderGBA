@@ -172,8 +172,8 @@ namespace FEBuilderGBA
                 N1_InputFormRef.ReInitPointer(pointer, 1);
                 InputFormRef.ReInit(addr + 20); //ヘッダーの20バイト以降にTSAのデータがある
 
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, basename, new uint[] { 8});
-                FEBuilderGBA.Address.AddAddress(list, N1_InputFormRef, basename, new uint[] { 4,16 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, basename, new uint[] { 8});
+                FEBuilderGBA.AddressWinForms.AddAddress(list, N1_InputFormRef, basename, new uint[] { 4,16 });
                 if (N1_InputFormRef.DataCount >= 1)
                 {
                     string name = basename + " HEADER";
@@ -195,7 +195,7 @@ namespace FEBuilderGBA
                 {
                     string name = basename + "" + U.To0xHexString(i);
 
-                    FEBuilderGBA.Address.AddHeaderTSAPointer(list
+                    FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                         , addr + 8
                         , name + " TSA"
                         , isPointerOnly

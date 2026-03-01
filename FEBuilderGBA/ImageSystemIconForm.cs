@@ -868,7 +868,7 @@ namespace FEBuilderGBA
                     , Program.ROM.RomInfo.systemmenu_common_image_pointer
                     , "systemmenu_goal image"
                     , Address.DataTypeEnum.LZ77IMG);
-                FEBuilderGBA.Address.AddHeaderTSAPointer(list
+                FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                     , Program.ROM.RomInfo.systemmenu_goal_tsa_pointer
                     , "systemmenu_goal tsa",isPointerOnly
                     );
@@ -887,7 +887,7 @@ namespace FEBuilderGBA
                 , Program.ROM.RomInfo.systemmenu_common_image_pointer
                 , "systemmenu_common image"
                 , Address.DataTypeEnum.LZ77IMG);
-            FEBuilderGBA.Address.AddHeaderTSAPointer(list
+            FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                 , Program.ROM.RomInfo.systemmenu_terrain_tsa_pointer
                 , "systemmenu_common tsa", isPointerOnly);
             FEBuilderGBA.Address.AddAddress(list,palette
@@ -896,7 +896,7 @@ namespace FEBuilderGBA
                 , "systemmenu_common"
                 , Address.DataTypeEnum.LZ77IMG);
 
-            FEBuilderGBA.Address.AddHeaderTSAPointer(list
+            FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                 , Program.ROM.RomInfo.systemmenu_name_tsa_pointer
                 , "systemmenu_name tsa", isPointerOnly);
 
@@ -907,7 +907,7 @@ namespace FEBuilderGBA
                 , Program.ROM.RomInfo.systemmenu_battlepreview_image_pointer
                 , "systemmenu_battlepreview image"
                 , Address.DataTypeEnum.LZ77IMG);
-            FEBuilderGBA.Address.AddHeaderTSAPointer(list
+            FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                 , Program.ROM.RomInfo.systemmenu_battlepreview_tsa_pointer
                 , "systemmenu_battlepreview tsa", isPointerOnly);
             FEBuilderGBA.Address.AddAddress(list,palette
@@ -972,7 +972,7 @@ namespace FEBuilderGBA
                 , Address.DataTypeEnum.PAL);
 
 
-            FEBuilderGBA.Address.AddHeaderTSAPointer(list
+            FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                 , Program.ROM.RomInfo.system_tsa_16color_304x240_pointer
                 , "system_tsa_16color_304x240", isPointerOnly);
         }

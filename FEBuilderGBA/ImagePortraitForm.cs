@@ -1520,7 +1520,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list,bool isPointerOnly)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Portrait", new uint[] { 0 , 4, 8, 12, 16});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Portrait", new uint[] { 0 , 4, 8, 12, 16});
 
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)

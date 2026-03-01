@@ -126,7 +126,7 @@ namespace FEBuilderGBA
             string name = "ItemWeaponEffect";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 8 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 8 });
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++ ,addr += InputFormRef.BlockSize)
             {

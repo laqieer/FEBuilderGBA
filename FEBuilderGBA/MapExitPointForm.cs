@@ -285,7 +285,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MapExit", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MapExit", new uint[] { 0 });
             
             uint mapmax = MapSettingForm.GetDataCount();
             for (uint mapid = 0; mapid < mapmax; mapid++)
@@ -307,14 +307,14 @@ namespace FEBuilderGBA
                     N_InputFormRef.ReInitPointer(exit_addr);
 
                     string name = "MapExit map:" + U.To0xHexString(mapid);
-                    FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, name, new uint[] {  });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, name, new uint[] {  });
                 }
             }
 
             //NPC離脱
             InputFormRef.ReInit(
                 Program.ROM.p32(Program.ROM.RomInfo.map_exit_point_pointer) + (4 * Program.ROM.RomInfo.map_exit_point_npc_blockadd));
-            FEBuilderGBA.Address.AddAddressButIgnorePointer(list, InputFormRef, "MapExit NPC", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddressButIgnorePointer(list, InputFormRef, "MapExit NPC", new uint[] { 0 });
 
             mapmax = MapSettingForm.GetDataCount();
             for (uint mapid = 0; mapid < mapmax; mapid++)
@@ -336,7 +336,7 @@ namespace FEBuilderGBA
                     N_InputFormRef.ReInitPointer(exit_addr);
 
                     string name = "MapExit map:" + U.To0xHexString(mapid) + " NPC";
-                    FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, name, new uint[] {  });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, name, new uint[] {  });
                 }
             }
         }

@@ -283,7 +283,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list, bool isPointerOnly)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "CG", new uint[] { 4, 8,12 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "CG", new uint[] { 4, 8,12 });
 
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
@@ -300,7 +300,7 @@ namespace FEBuilderGBA
                         , isPointerOnly
                         , FEBuilderGBA.Address.DataTypeEnum.LZ77IMG);
 
-                    FEBuilderGBA.Address.AddHeaderTSAPointer(list
+                    FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                         , addr + 8
                         , name + " TSA"
                         , isPointerOnly);
@@ -330,7 +330,7 @@ namespace FEBuilderGBA
                         , name + " IMAGE_HEADER"
                         , FEBuilderGBA.Address.DataTypeEnum.POINTER);
 
-                    FEBuilderGBA.Address.AddHeaderTSAPointer(list
+                    FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list
                         , addr + 8
                         , name + " TSA"
                         , isPointerOnly);

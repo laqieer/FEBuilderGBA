@@ -878,7 +878,7 @@ namespace FEBuilderGBA
            InputFormRef InputFormRef = Init(null);
            InputFormRef.ReInitPointer(battleAnimeSettingPointer);
 
-           FEBuilderGBA.Address.AddAddress(list, InputFormRef
+           FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef
                , selfname, new uint[] { });
        }
 
@@ -917,13 +917,13 @@ namespace FEBuilderGBA
                InputFormRef.ReInitPointer(pointer);
 
                selfname = "BattleAnimeSeting:" + U.To0xHexString(cid);
-               FEBuilderGBA.Address.AddAddress(list,InputFormRef
+               FEBuilderGBA.AddressWinForms.AddAddress(list,InputFormRef
                    , selfname, new uint[] { });
            }
 
            selfname = "BattleAnime";
            InputFormRef N_InputFormRef = N_Init(null);
-           FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, selfname, new uint[] {12,16,20,24,28 });
+           FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, selfname, new uint[] {12,16,20,24,28 });
 
             //戦闘アニメーションはlz77圧縮の中にポインタがある特殊形式です
             addr = N_InputFormRef.BaseAddress;

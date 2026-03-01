@@ -686,7 +686,7 @@ namespace FEBuilderGBA
             string name = "Class";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 52 , 56, 60, 64 , 68, 72, 76});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 52 , 56, 60, 64 , 68, 72, 76});
 
             //移動コスト
             uint addr = InputFormRef.BaseAddress;

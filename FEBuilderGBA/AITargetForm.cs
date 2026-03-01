@@ -74,7 +74,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AI3", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AI3", new uint[] { });
         }
 
         private void ExplainLink_Click(object sender, EventArgs e)

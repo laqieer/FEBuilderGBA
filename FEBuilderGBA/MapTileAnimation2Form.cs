@@ -196,7 +196,7 @@ namespace FEBuilderGBA
             {
                 InputFormRef.ReInit(urList[n].addr);
                 string name = urList[n].name;
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 });
 
                 uint p = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++, p += InputFormRef.BlockSize)
@@ -474,7 +474,7 @@ namespace FEBuilderGBA
             List<Address> recycle = new List<Address>();
 
             //古いデータをリサイクルリストに入れる.
-            FEBuilderGBA.Address.AddAddress(recycle
+            FEBuilderGBA.AddressWinForms.AddAddress(recycle
                 , ifr
                 , ""
                 , new uint[] { 0 });

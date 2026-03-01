@@ -50,7 +50,7 @@ namespace FEBuilderGBA
             string name = "ItemWeaponTriangle";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
     }
 }

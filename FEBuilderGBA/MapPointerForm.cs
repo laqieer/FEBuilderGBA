@@ -602,30 +602,30 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null, IsPlistSplits());
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.CONFIG));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS", new uint[] { 0 });
             List<AddrResult> configList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.ANIMATION)); //ANIMATION2と共有
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_ANIMATION", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_ANIMATION", new uint[] { 0 });
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.OBJECT)); //PALETTEと共有
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_OBJECT", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_OBJECT", new uint[] { 0 });
             List<AddrResult> objList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.MAP));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_MAP", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_MAP", new uint[] { 0 });
             List<AddrResult> mapList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.EVENT));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_EVENT", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_EVENT", new uint[] { 0 });
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.CHANGE));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_CHANGE", new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_CHANGE", new uint[] { 0 });
 
             if (Program.ROM.RomInfo.version == 6)
             {
                 InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.CHANGE));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_WMAP_EVENT", new uint[] { 0 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MAPPOINTERS_WMAP_EVENT", new uint[] { 0 });
             }
 
             List<AddrResult> mapSetting = MapSettingForm.MakeMapIDList();

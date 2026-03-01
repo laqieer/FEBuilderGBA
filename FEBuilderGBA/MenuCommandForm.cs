@@ -190,7 +190,7 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(pointer);
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , "MENU"
                 , new uint[] {0, 12, 16, 20, 24, 28, 32 }

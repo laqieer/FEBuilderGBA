@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AIStealItem", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AIStealItem", new uint[] { });
         }
     }
 }

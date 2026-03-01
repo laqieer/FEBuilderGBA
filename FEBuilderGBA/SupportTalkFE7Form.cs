@@ -77,7 +77,7 @@ namespace FEBuilderGBA
             string name = "SupportTalkFE7";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list,InputFormRef, name , new uint[]{});
+            FEBuilderGBA.AddressWinForms.AddAddress(list,InputFormRef, name , new uint[]{});
         }
 
         private void SupportTalkFE7Form_Load(object sender, EventArgs e)

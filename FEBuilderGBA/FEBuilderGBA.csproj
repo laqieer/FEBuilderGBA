@@ -220,6 +220,14 @@
     <Compile Remove="ExportFunction.cs" />
     <Compile Remove="DisASMTrumb.cs" />
     <Compile Remove="Mod.cs" />
+    <Compile Remove="Address.cs" />
+    <Compile Remove="RecycleAddress.cs" />
+    <Compile Remove="MagicSplitUtil.cs" />
+    <Compile Remove="SymbolUtil.cs" />
+    <Compile Remove="EventScript.cs" />
+    <Compile Remove="EtcCache.cs" />
+    <Compile Remove="SystemTextEncoder.cs" />
+    <Compile Remove="GrowSimulator.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

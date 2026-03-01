@@ -131,7 +131,7 @@ namespace FEBuilderGBA
             string name = "EventFunctionPointer";
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.event_function_pointer_table_pointer));
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , name
                 , new uint[] { 0 }
@@ -142,7 +142,7 @@ namespace FEBuilderGBA
 
             name = "EventFunctionPointer Worldmap";
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.event_function_pointer_table2_pointer));
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , name
                 , new uint[] { 0 }

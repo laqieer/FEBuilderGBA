@@ -432,7 +432,7 @@ namespace FEBuilderGBA
                 N_InputFormRef.ReInitPointer(pointer);
 
                 string name = "MapChange map:" + U.To0xHexString(mapid) ;
-                FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, name, new uint[] { 8 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, name, new uint[] { 8 });
 
                 uint addr = N_InputFormRef.BaseAddress;
                 for (int i = 0; i < N_InputFormRef.DataCount; i++, addr += N_InputFormRef.BlockSize)

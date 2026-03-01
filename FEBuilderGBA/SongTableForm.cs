@@ -247,7 +247,7 @@ namespace FEBuilderGBA
             string selfname = "SongTable";
             InputFormRef InputFormRef = Init(null);
 
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, selfname, new uint[] { 0 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, selfname, new uint[] { 0 });
             uint songpointer = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, songpointer += InputFormRef.BlockSize)
             {

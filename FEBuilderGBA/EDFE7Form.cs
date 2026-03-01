@@ -155,23 +155,23 @@ namespace FEBuilderGBA
             string name = "EDFE7Form";
             {
                 InputFormRef InputFormRef = N3_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_1", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_1", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N1_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_2", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_2", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N2_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_3a", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_3a", new uint[] { });
 
                 InputFormRef.ReInitPointer
                     ((Program.ROM.RomInfo.ed_3b_pointer));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_3b", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_3b", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N4_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + "_4", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + "_4", new uint[] { });
             }
         }
         public static void MakeVarsIDArray(List<UseValsID> list)

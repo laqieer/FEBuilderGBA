@@ -143,13 +143,13 @@ namespace FEBuilderGBA
        {
            InputFormRef InputFormRef = Init(null);
            InputFormRef N2_InputFormRef = N2_Init(null);
-           FEBuilderGBA.Address.AddAddress(list, N2_InputFormRef, "UnitCustomBattle", new uint[] { 0 });
+           FEBuilderGBA.AddressWinForms.AddAddress(list, N2_InputFormRef, "UnitCustomBattle", new uint[] { 0 });
 
            uint p = N2_InputFormRef.BaseAddress;
            for (int i = 0; i < N2_InputFormRef.DataCount; i++, p += N2_InputFormRef.BlockSize)
            {
                InputFormRef.ReInitPointer(p);
-               FEBuilderGBA.Address.AddAddress(list, InputFormRef, "UnitCustomBattle" + U.To0xHexString(i), new uint[] { });
+               FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "UnitCustomBattle" + U.To0xHexString(i), new uint[] { });
            }
        }
 

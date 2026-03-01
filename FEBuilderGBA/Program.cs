@@ -512,6 +512,14 @@ namespace FEBuilderGBA
             CoreState.GitPath = OptionForm.git_path();
             CoreState.ReleaseSource = OptionForm.release_source();
 
+            // Wire Core callbacks to WinForms implementations
+            CoreState.AppendBinaryData = InputFormRef.AppendBinaryData;
+            CoreState.EventScriptPatchLoader = PatchForm.MakeEventScript;
+            CoreState.GetLevelMaxCaps = PatchUtil.GetLevelMaxCaps;
+            CoreState.IsHighClass = ClassForm.isHighClass;
+            CoreState.GetCCCount = CCBranchForm.GetCCCount;
+            CoreState.TextEncoding = (TextEncodingEnum)OptionForm.textencoding();
+
             //数を求める部分はあまりにたくさん呼び出すのでキャッシュすることにしました.
             InputFormRef.ClearCacheDataCount();
             //パッチのインストールの是非の判定 FE8には策パッチがあるのでキャッシュする.
@@ -662,6 +670,7 @@ namespace FEBuilderGBA
         static void ReLoadEventScript()
         {
             FlagCache = new EtcCacheFLag();
+            CoreState.FlagCache = FlagCache;
             UseTextIDCache = new EtcCacheTextID();
             LintCache = new EtcCache("lint_");
             CommentCache = new EtcCache("comment_");
@@ -670,17 +679,21 @@ namespace FEBuilderGBA
             CoreState.CommentCache = CommentCache;
             CoreState.WorkSupportCache = WorkSupportCache;
             ExportFunction = new ExportFunction();
+            CoreState.ExportFunction = ExportFunction;
             TextEscape = new FEBuilderGBA.TextEscape();
             CoreState.TextEscape = TextEscape;
 
             EventScript = new EventScript();
             EventScript.Load(EventScript.EventScriptType.Event);
+            CoreState.EventScript = EventScript;
 
             ProcsScript = new EventScript(8);
             ProcsScript.Load(EventScript.EventScriptType.Procs);
+            CoreState.ProcsScript = ProcsScript;
 
             AIScript = new EventScript(16);
             AIScript.Load(EventScript.EventScriptType.AI);
+            CoreState.AIScript = AIScript;
         }
         static void ReLoadMod()
         {

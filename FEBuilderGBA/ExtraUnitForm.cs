@@ -62,7 +62,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "ExtraUnit", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "ExtraUnit", new uint[] { });
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
             {

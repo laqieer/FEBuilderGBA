@@ -5,7 +5,7 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    class EtcCacheFLag
+    public class EtcCacheFLag
     {
         Dictionary<uint, string> EtcFlag;
         Dictionary<uint, string> Flag;

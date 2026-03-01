@@ -143,7 +143,7 @@ namespace FEBuilderGBA
                 InputFormRef InputFormRef = Init(null);
                 InputFormRef.ReInitPointer((addlist[n]));
                 string name = "StatusParam" + n;
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4 , 12 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4 , 12 });
 
                 uint p = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++, p += InputFormRef.BlockSize)

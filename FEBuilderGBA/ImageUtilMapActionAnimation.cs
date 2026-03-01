@@ -455,7 +455,7 @@ namespace FEBuilderGBA
 
             InputFormRef ifr = Init(null);
             ifr.ReInit(anime_address, (n - anime_address) / 12 );
-            FEBuilderGBA.Address.AddAddress(recycle
+            FEBuilderGBA.AddressWinForms.AddAddress(recycle
                 , ifr
                 , basename
                 , new uint[]{ 4, 8}

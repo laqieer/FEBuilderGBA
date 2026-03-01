@@ -157,23 +157,23 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MonsterWMapProbability", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MonsterWMapProbability", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N1_Init(null);
                 InputFormRef.ReInitPointer((Program.ROM.RomInfo.monster_wmap_stage_1_pointer));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MonsterWMapStageEirika", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MonsterWMapStageEirika", new uint[] { });
 
                 InputFormRef.ReInitPointer((Program.ROM.RomInfo.monster_wmap_stage_2_pointer));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MonsterWMapStageEphraim", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MonsterWMapStageEphraim", new uint[] { });
             }
             {
                 InputFormRef InputFormRef = N2_Init(null);
                 InputFormRef.ReInitPointer((Program.ROM.RomInfo.monster_wmap_probability_1_pointer));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MonsterWMapProbabilityEirika", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MonsterWMapProbabilityEirika", new uint[] { });
 
                 InputFormRef.ReInitPointer((Program.ROM.RomInfo.monster_wmap_probability_2_pointer));
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MonsterWMapProbabilityEphraim", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MonsterWMapProbabilityEphraim", new uint[] { });
             }
             {
                 List<uint> tracelist = new List<uint>();

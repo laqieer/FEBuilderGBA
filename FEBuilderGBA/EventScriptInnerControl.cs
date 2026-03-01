@@ -155,7 +155,7 @@ namespace FEBuilderGBA
         bool CheckSystemFunctionalEvent(uint addr)
         {
             List<Address> list = new List<Address>(0x40);
-            EventScript.MakeEventASMMAPList(list, true, "", true);
+            EventScriptWinForms.MakeEventASMMAPList(list, true, "", true);
 
             foreach (Address a in list)
             {

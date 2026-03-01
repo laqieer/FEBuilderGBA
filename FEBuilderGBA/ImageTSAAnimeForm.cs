@@ -219,7 +219,7 @@ namespace FEBuilderGBA
                 string basename = "TSAANIME " + U.at(pair.Value, 1) + " ";
                 InputFormRef.ReInit(addr, count);
 
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, basename, new uint[] { 0 , 4, 8});
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, basename, new uint[] { 0 , 4, 8});
 
                 for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
                 {

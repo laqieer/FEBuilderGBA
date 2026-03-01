@@ -6607,7 +6607,7 @@ namespace FEBuilderGBA
                         uint a = Program.ROM.p32(p);
                         if (U.isSafetyOffset(a))
                         {
-                            FEBuilderGBA.Address.AddHeaderTSAPointer(list, p
+                            FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list, p
                                 , patchname + " HEADERTSA " + n, false);
                         }
                     }
@@ -6646,7 +6646,7 @@ namespace FEBuilderGBA
                         uint a = Program.ROM.p32(p);
                         if (U.isSafetyOffset(a))
                         {
-                            FEBuilderGBA.Address.AddAPPointer(list
+                            FEBuilderGBA.AddressWinForms.AddAPPointer(list
                                 , p
                                 , patchname + " AP " + n
                                 , isPointerOnly);
@@ -6657,7 +6657,7 @@ namespace FEBuilderGBA
                         uint a = Program.ROM.p32(p);
                         if (U.isSafetyOffset(a))
                         {
-                            FEBuilderGBA.Address.AddROMTCSPointer(list
+                            FEBuilderGBA.AddressWinForms.AddROMTCSPointer(list
                                 , p
                                 , patchname + " ROMTCS " + n
                                 , isPointerOnly);
@@ -6668,7 +6668,7 @@ namespace FEBuilderGBA
                         uint a = Program.ROM.p32(p);
                         if (U.isSafetyOffset(a))
                         {
-                            FEBuilderGBA.Address.AddProcsPointer(list
+                            FEBuilderGBA.AddressWinForms.AddProcsPointer(list
                                 , p
                                 , patchname + " PROCS " + n
                                 , isPointerOnly);
@@ -6801,7 +6801,7 @@ namespace FEBuilderGBA
                 uint a = Program.ROM.u32(p);
                 if (U.isSafetyPointer(a))
                 {
-                    FEBuilderGBA.Address.AddHeaderTSAPointer(list, p, patch.Name + "@HEADERTSA_POINTER", false);
+                    FEBuilderGBA.AddressWinForms.AddHeaderTSAPointer(list, p, patch.Name + "@HEADERTSA_POINTER", false);
                 }
             }
             p = atOffset(patch.Param, "ZHEADERTSA_POINTER", basedir: basedir);

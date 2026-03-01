@@ -122,7 +122,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "ForceSorite", new uint[]{0});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "ForceSorite", new uint[]{0});
 
             uint addrp = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, addrp += InputFormRef.BlockSize)
@@ -136,7 +136,7 @@ namespace FEBuilderGBA
                 InputFormRef N_InputFormRef = N_Init(null);
                 N_InputFormRef.ReInitPointer(addrp);
 
-                FEBuilderGBA.Address.AddAddress(list,N_InputFormRef , "ForceSorite", new uint[]{} );
+                FEBuilderGBA.AddressWinForms.AddAddress(list,N_InputFormRef , "ForceSorite", new uint[]{} );
             }
         }
     }

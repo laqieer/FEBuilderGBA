@@ -97,7 +97,7 @@ namespace FEBuilderGBA
 
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(script_pointer);
-            FEBuilderGBA.Address.AddAddress(recycle
+            FEBuilderGBA.AddressWinForms.AddAddress(recycle
                 , InputFormRef
                 , ""
                 , new uint[] {} 

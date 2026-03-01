@@ -139,7 +139,7 @@ namespace FEBuilderGBA
             string name = "ChapterTitleImage";
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 });
 
                 uint addr = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++ , addr += InputFormRef.BlockSize)

@@ -72,7 +72,7 @@ namespace FEBuilderGBA
         {
             int datcount = (int)ClassForm.DataCount();
             InputFormRef InputFormRef = N_Init(null, datcount);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "CCClassAlphaName", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "CCClassAlphaName", new uint[] { });
         }
 
     }

@@ -190,7 +190,7 @@ namespace FEBuilderGBA
         {
             string name = "WorldMapPoint";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 12, 16 , 20});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 12, 16 , 20});
         }
 
         private void MapPictureBox_Load(object sender, EventArgs e)

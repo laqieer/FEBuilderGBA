@@ -70,7 +70,7 @@ namespace FEBuilderGBA
             string name = "MapMiniMapTerrain";
 
             InputFormRef ifr = Init(null);
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , ifr
                 , name
                 , new uint[] { 0 }

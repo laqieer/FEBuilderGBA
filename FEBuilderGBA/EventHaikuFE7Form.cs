@@ -150,7 +150,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Haiku", new uint[] { 8 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Haiku", new uint[] { 8 });
 
             List<uint> tracelist = new List<uint>();
             uint addr = InputFormRef.BaseAddress;
@@ -179,7 +179,7 @@ namespace FEBuilderGBA
             {
                 N1_InputFormRef.ReInitPointer(pointers[n]);
                 string name = "Haiku tutorial_" + n;
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 4 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 4 });
                 addr = N1_InputFormRef.BaseAddress;
                 for (int i = 0; i < N1_InputFormRef.DataCount; i++, addr += N1_InputFormRef.BlockSize)
                 {

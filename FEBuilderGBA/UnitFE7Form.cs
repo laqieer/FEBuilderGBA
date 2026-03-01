@@ -326,7 +326,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Unit", new uint[] { 44 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Unit", new uint[] { 44 });
         }
 
         public static uint GetHighClassFE7(uint uid)

@@ -295,11 +295,11 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "ArenaEnemyWeapon", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "ArenaEnemyWeapon", new uint[] { });
             }
             {
                 InputFormRef N_InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, "ArenaEnemyWeapon", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, "ArenaEnemyWeapon", new uint[] { });
             }
         }
 

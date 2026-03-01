@@ -67,7 +67,7 @@ namespace FEBuilderGBA
             string name = "TerrainEng";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
         public static void MakeVarsIDArray(List<UseValsID> list)
         {

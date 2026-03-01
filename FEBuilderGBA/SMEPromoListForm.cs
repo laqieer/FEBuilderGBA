@@ -67,7 +67,7 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(pointer);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, strname, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, strname, new uint[] { });
         }
 
         private void SMEPromoListForm_Load(object sender, EventArgs e)

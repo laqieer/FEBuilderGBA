@@ -329,7 +329,7 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Item", new uint[] { 12 , 16 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Item", new uint[] { 12 , 16 });
 
                 //SkillSystemsによる 特効リワーク
                 PatchUtil.class_type_enum effectivenesRework = PatchUtil.SearchClassType();

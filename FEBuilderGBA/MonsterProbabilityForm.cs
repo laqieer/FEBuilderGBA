@@ -58,7 +58,7 @@ namespace FEBuilderGBA
             {
                 string name = "MonsterProbabilityForm";
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             }
         }
         public static Bitmap DrawUnitsList(uint index, int iconSize, out string errorMessage)

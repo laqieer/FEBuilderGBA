@@ -254,7 +254,7 @@ namespace FEBuilderGBA
         {
             int datcount = (int)ClassForm.DataCount();
             InputFormRef InputFormRef = Init(null, datcount);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "CCBranch", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "CCBranch", new uint[] { });
         }
 
         private void WriteButton_Click(object sender, EventArgs e)

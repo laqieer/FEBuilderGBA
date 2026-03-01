@@ -618,7 +618,7 @@ namespace FEBuilderGBA
 
             string name = "UnitForm";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 44 });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 44 });
 
 
             //支援データのポインタを書きこむ

@@ -88,7 +88,7 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "Haiku", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "Haiku", new uint[] { });
             }
         }
         public static void MakeCheckError(List<FELint.ErrorSt> errors)

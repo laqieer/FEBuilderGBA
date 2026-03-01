@@ -52,7 +52,7 @@ namespace FEBuilderGBA
                     continue;
                 }
                 InputFormRef.ReInitPointer(pointers[i]);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + U.ToHexString(i), new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name + U.ToHexString(i), new uint[] { });
             }
         }
         public static List<AddrResult> MakeListByUseTerrain(uint terrainid)
@@ -201,7 +201,7 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(pointer);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, strname, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, strname, new uint[] { });
         }
         static uint GetFilterIndexOfAddr(uint addr)
         {

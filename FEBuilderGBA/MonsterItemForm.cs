@@ -197,17 +197,17 @@ namespace FEBuilderGBA
             {
                 string name = "MonsterItemForm";
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             }
             {
                 string name = "MonsterItemFormProbability";
                 InputFormRef InputFormRef = N1_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             }
             {
                 string name = "MonsterItemFormTable";
                 InputFormRef InputFormRef = N2_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
             }
         }
 

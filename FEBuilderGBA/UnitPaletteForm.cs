@@ -151,10 +151,10 @@ namespace FEBuilderGBA
             string name = "UnitPalette";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
 
             InputFormRef N_InputFormRef = N_Init(null);
-            FEBuilderGBA.Address.AddAddress(list, N_InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, N_InputFormRef, name, new uint[] { });
         }
 
         private void UnitPaletteForm_Shown(object sender, EventArgs e)

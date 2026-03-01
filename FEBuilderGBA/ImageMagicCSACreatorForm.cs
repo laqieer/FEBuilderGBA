@@ -430,7 +430,7 @@ namespace FEBuilderGBA
                 InputFormRef = Init(null,dimaddr,no_dimaddr, spellDataCount, csaSpellTable, effectDic);
 
                 name = "Magic";
-                FEBuilderGBA.Address.AddAddress(list
+                FEBuilderGBA.AddressWinForms.AddAddress(list
                     , InputFormRef
                     , name,new uint[]{0}
                     );

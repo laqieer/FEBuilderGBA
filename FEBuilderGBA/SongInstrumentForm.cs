@@ -210,7 +210,7 @@ namespace FEBuilderGBA
             //楽器リスト本体
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(voca_basepointer);
-            FEBuilderGBA.Address.AddAddress(recycle
+            FEBuilderGBA.AddressWinForms.AddAddress(recycle
                 , InputFormRef
                 , basename
                 , new uint[] { 4, 8 }

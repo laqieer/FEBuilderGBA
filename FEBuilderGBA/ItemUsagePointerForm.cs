@@ -304,7 +304,7 @@ namespace FEBuilderGBA
                 }
 
                 string name = "ItemUsageP" + n;
-                FEBuilderGBA.Address.AddAddress(list
+                FEBuilderGBA.AddressWinForms.AddAddress(list
                     , InputFormRef
                     , name
                     , new uint[] { 0 }

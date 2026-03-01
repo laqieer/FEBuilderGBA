@@ -249,7 +249,7 @@ namespace FEBuilderGBA
             List<uint> tracelist = new List<uint>();
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "WorldMapEvent Before", new uint[] { 0});
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "WorldMapEvent Before", new uint[] { 0});
 
                 uint p = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++, p += InputFormRef.BlockSize)
@@ -261,7 +261,7 @@ namespace FEBuilderGBA
             }
             {
                 InputFormRef InputFormRef = N_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "WorldMapEvent After", new uint[] { 0 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "WorldMapEvent After", new uint[] { 0 });
 
                 uint p = InputFormRef.BaseAddress;
                 for (int i = 0; i < InputFormRef.DataCount; i++, p += InputFormRef.BlockSize)

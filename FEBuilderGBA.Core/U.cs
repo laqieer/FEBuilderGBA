@@ -1731,5 +1731,75 @@ namespace FEBuilderGBA
             a = a.Replace("&#45;", "-");
             return a;
         }
+
+        // --- Methods moved from WinForms U.cs for Core migration (batch 11) ---
+
+        public static bool isSafetyLength(uint addr, uint length)
+        {
+            uint a = addr + length;
+            if (a < 0x02000000 && a >= 0x00000100 && a <= CoreState.ROM.Data.Length)
+            {
+                if (length < 0x00200000)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static uint Sub(uint a, uint b)
+        {
+            if (a <= b)
+            {
+                return 0;
+            }
+            return a - b;
+        }
+
+        public static uint Grep4EndByDmp(string filename, uint start_offset, uint plus)
+        {
+            if (!File.Exists(filename))
+            {
+                return U.NOT_FOUND;
+            }
+            byte[] bin = File.ReadAllBytes(filename);
+            return U.GrepEnd(CoreState.ROM.Data, bin, start_offset, 0, 4, plus, true);
+        }
+
+        public static void WriteAllText(string path, string contents)
+        {
+            try
+            {
+                File.WriteAllText(path, contents);
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError(e.ToString());
+            }
+        }
+
+        public static void WriteAllText(string path, string contents, Encoding encoding)
+        {
+            try
+            {
+                File.WriteAllText(path, contents, encoding);
+            }
+            catch (Exception e)
+            {
+                R.ShowStopError(e.ToString());
+            }
+        }
+
+        public static string GetFilenameExt(string filename)
+        {
+            try
+            {
+                return Path.GetExtension(filename).ToUpper();
+            }
+            catch (ArgumentException)
+            {
+                return "";
+            }
+        }
     }
 }

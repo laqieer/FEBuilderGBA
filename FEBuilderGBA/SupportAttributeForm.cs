@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         {
             string name = "SupportAttribute";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
     }
 }

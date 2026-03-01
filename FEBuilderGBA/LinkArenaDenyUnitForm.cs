@@ -44,7 +44,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "LinkAreaDenyUnitForm", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "LinkAreaDenyUnitForm", new uint[] { });
         }
 
         private void ArenaClassForm_Load(object sender, EventArgs e)

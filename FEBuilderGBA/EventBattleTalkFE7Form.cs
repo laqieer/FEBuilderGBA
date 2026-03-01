@@ -135,7 +135,7 @@ namespace FEBuilderGBA
         {
             {
                 InputFormRef InputFormRef = Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "EventBattleTalk1", new uint[] { 8 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "EventBattleTalk1", new uint[] { 8 });
 
                 List<uint> tracelist = new List<uint>();
                 uint addr = InputFormRef.BaseAddress;
@@ -160,7 +160,7 @@ namespace FEBuilderGBA
             }
             {
                 InputFormRef InputFormRef = N1_Init(null);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "EventBattleTalk2", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "EventBattleTalk2", new uint[] { });
             }
         }
 

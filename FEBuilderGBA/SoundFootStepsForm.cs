@@ -124,7 +124,7 @@ namespace FEBuilderGBA
 
             InputFormRef ifr = Init(null);
             ReInit(ifr);
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , ifr
                 , name
                 , new uint[] { 0 }

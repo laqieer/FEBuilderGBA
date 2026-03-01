@@ -65,7 +65,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "TacticianAffinity", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "TacticianAffinity", new uint[] { });
         }
 
         private void TacticianAffinityFE7_Load(object sender, EventArgs e)

@@ -78,7 +78,7 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef;
             {
                 InputFormRef = Init(null, assignLevelUpP);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "SkillAssignmentUnitSkillSystem", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "SkillAssignmentUnitSkillSystem", new uint[] { });
 
                 Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
                 InputFormRef N1_InputFormRef = N1_Init(null);
@@ -97,7 +97,7 @@ namespace FEBuilderGBA
                     }
 
                     N1_InputFormRef.ReInitPointer(assignLevelUpAddr);
-                    FEBuilderGBA.Address.AddAddress(list, N1_InputFormRef, "SkillAssignmentUnitSkillSystem.Levelup" + i, new uint[] { });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N1_InputFormRef, "SkillAssignmentUnitSkillSystem.Levelup" + i, new uint[] { });
                 }
             }
         }

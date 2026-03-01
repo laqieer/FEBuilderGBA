@@ -75,7 +75,7 @@ namespace FEBuilderGBA
         {
             string name = "SoundRoomFE6";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 4 , 8});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 4 , 8});
         }
         public static void MakeVarsIDArray(List<UseValsID> list)
         {

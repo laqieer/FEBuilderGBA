@@ -221,30 +221,30 @@ namespace FEBuilderGBA
             if (from == "ja")
             {
                 from_n = 0;
-                from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.Shift_JIS,rom_f);
+                from_tbl = new SystemTextEncoder(TextEncodingEnum.Shift_JIS,rom_f);
             }
             else if (from == "en")
             {
                 from_n = 1;
                 if (rom_f.RomInfo.version == 6)
                 {
-                    from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.EN_TBL, rom_f);
+                    from_tbl = new SystemTextEncoder(TextEncodingEnum.EN_TBL, rom_f);
                 }
                 else
                 {
-                    from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.Shift_JIS, rom_f);
+                    from_tbl = new SystemTextEncoder(TextEncodingEnum.Shift_JIS, rom_f);
                 }
                 trimEnd1F = false;
             }
             else if (from == "zh" || from == "zh-CN")
             {
                 from_n = 0;
-                from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.ZH_TBL, rom_f);
+                from_tbl = new SystemTextEncoder(TextEncodingEnum.ZH_TBL, rom_f);
             }
             else if (from == "ko" || from == "ko-KR")
             {
                 from_n = 0;
-                from_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.KO_TBL, rom_f);
+                from_tbl = new SystemTextEncoder(TextEncodingEnum.KO_TBL, rom_f);
             }
             else
             {//fromが対応外.
@@ -255,29 +255,29 @@ namespace FEBuilderGBA
             if (to == "ja")
             {
                 to_n = 0;
-                to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.Shift_JIS,rom_t);
+                to_tbl = new SystemTextEncoder(TextEncodingEnum.Shift_JIS,rom_t);
             }
             else if (to == "en")
             {
                 to_n = 1;
                 if (rom_t.RomInfo.version == 6)
                 {
-                    to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.EN_TBL, rom_t);
+                    to_tbl = new SystemTextEncoder(TextEncodingEnum.EN_TBL, rom_t);
                 }
                 else
                 {
-                    to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.Shift_JIS, rom_t);
+                    to_tbl = new SystemTextEncoder(TextEncodingEnum.Shift_JIS, rom_t);
                 }
             }
             else if (to == "zh" || to == "zh-CN")
             {
                 to_n = 0;
-                to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.ZH_TBL, rom_t);
+                to_tbl = new SystemTextEncoder(TextEncodingEnum.ZH_TBL, rom_t);
             }
             else if (to == "ko" || to == "ko-KR")
             {
                 to_n = 0;
-                to_tbl = new SystemTextEncoder(OptionForm.textencoding_enum.KO_TBL, rom_t);
+                to_tbl = new SystemTextEncoder(TextEncodingEnum.KO_TBL, rom_t);
             }
             else
             {//toが対応外.
@@ -692,7 +692,7 @@ namespace FEBuilderGBA
             //from
             if (Program.ROM.RomInfo.is_multibyte)
             {
-                if (OptionForm.textencoding() == OptionForm.textencoding_enum.ZH_TBL)
+                if ((TextEncodingEnum)OptionForm.textencoding() == TextEncodingEnum.ZH_TBL)
                 {//中国語
                     out_from = 2;
                 }

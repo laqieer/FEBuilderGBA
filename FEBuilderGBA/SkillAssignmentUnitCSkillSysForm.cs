@@ -111,7 +111,7 @@ namespace FEBuilderGBA
 
 
                 InputFormRef = Init(null, assignUnitP);
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, "SkillAssignmentUnitSkillSystem", new uint[] { });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "SkillAssignmentUnitSkillSystem", new uint[] { });
 
                 uint assignLevelUpP = SkillConfigCSkillSystem09xForm.GetPrCharLevelUpSkillTable();
                 if (assignLevelUpP == U.NOT_FOUND)
@@ -140,7 +140,7 @@ namespace FEBuilderGBA
 
                     N1_InputFormRef.ReInitPointer(assignLevelUpAddr);
                     string name = "SkillAssignmentUnitSkillSystem.Levelup" + i;
-                    FEBuilderGBA.Address.AddAddress(list, N1_InputFormRef, name, new uint[] { });
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, N1_InputFormRef, name, new uint[] { });
                 }
             }
         }

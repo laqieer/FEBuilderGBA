@@ -371,7 +371,7 @@ namespace FEBuilderGBA
         {
             string name = "MoveUnitIcon";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 , 4});
 
             uint addr = InputFormRef.BaseAddress;
             for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
@@ -384,7 +384,7 @@ namespace FEBuilderGBA
                     , isPointerOnly
                     , FEBuilderGBA.Address.DataTypeEnum.LZ77IMG);
 
-                FEBuilderGBA.Address.AddAPPointer(list
+                FEBuilderGBA.AddressWinForms.AddAPPointer(list
                     , addr + 4
                     , name + " AP"
                     , isPointerOnly);

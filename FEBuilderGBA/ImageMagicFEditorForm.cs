@@ -434,7 +434,7 @@ namespace FEBuilderGBA
                 InputFormRef = Init(null, dimaddr, no_dimaddr, spellDataCount, csaSpellTable, effectDic);
 
                 name = "Magic";
-                FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { 0 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { 0 });
 
                 //追加魔法テーブル(結構無駄な構造ですが、仕方ない)
                 FEBuilderGBA.Address.AddAddress(list

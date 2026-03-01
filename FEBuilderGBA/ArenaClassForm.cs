@@ -73,13 +73,13 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.arena_class_near_weapon_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AreaClassForm near weapon", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AreaClassForm near weapon", new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.arena_class_far_weapon_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AreaClassForm far weapon", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AreaClassForm far weapon", new uint[] { });
 
             InputFormRef.ReInitPointer((Program.ROM.RomInfo.arena_class_magic_weapon_pointer));
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AreaClassForm magic weapon", new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "AreaClassForm magic weapon", new uint[] { });
         }
 
         private void ArenaClassForm_Load(object sender, EventArgs e)

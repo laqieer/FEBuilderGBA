@@ -47,7 +47,7 @@ namespace FEBuilderGBA
         {
             string name = "SoundRoomCG";
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] {  });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] {  });
         }
 
         private void SoundRoomCGForm_Load(object sender, EventArgs e)

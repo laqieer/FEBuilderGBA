@@ -1777,14 +1777,14 @@ namespace FEBuilderGBA
         {
             if (Program.ROM.RomInfo.version <= 7)
             {
-                FEBuilderGBA.Address.AddAddress(recycle
+                FEBuilderGBA.AddressWinForms.AddAddress(recycle
                     , InputFormRef
                     , basename + " EVENT UNIT"
                     , new uint[] {} );
             }
             else
             {
-                FEBuilderGBA.Address.AddAddress(recycle
+                FEBuilderGBA.AddressWinForms.AddAddress(recycle
                     , InputFormRef
                     , basename + " EVENT UNIT"
                     , new uint[] { 8 });

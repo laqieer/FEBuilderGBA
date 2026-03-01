@@ -1046,11 +1046,11 @@ namespace FEBuilderGBA
             Debug.Assert(ifr.BlockSize == g_ICON_LIST_SIZE);
             if (ifr.BlockSize == 20)
             {//sizeof(20)
-                FEBuilderGBA.Address.AddAddress(list, ifr, "SkillConfigFE8NVer2", new uint[] { 4, 8, 12 , 16});
+                FEBuilderGBA.AddressWinForms.AddAddress(list, ifr, "SkillConfigFE8NVer2", new uint[] { 4, 8, 12 , 16});
             }
             else
             {//sizeof(16)
-                FEBuilderGBA.Address.AddAddress(list, ifr, "SkillConfigFE8NVer2", new uint[] { 4, 8, 12 });
+                FEBuilderGBA.AddressWinForms.AddAddress(list, ifr, "SkillConfigFE8NVer2", new uint[] { 4, 8, 12 });
             }
 
             if (g_AnimeBaseAddress != 0)
@@ -1101,13 +1101,13 @@ namespace FEBuilderGBA
                     ifr_n2.ReInitPointer(addr + 8);
                     ifr_n3.ReInitPointer(addr + 12);
 
-                    FEBuilderGBA.Address.AddAddress(list,ifr_n1 
+                    FEBuilderGBA.AddressWinForms.AddAddress(list,ifr_n1 
                         ,  "SkillUnit:" + U.To0xHexString(i)
                         , new uint[] {} );
-                    FEBuilderGBA.Address.AddAddress(list, ifr_n2
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, ifr_n2
                         , "SkillClass:" + U.To0xHexString(i)
                         , new uint[] { });
-                    FEBuilderGBA.Address.AddAddress(list, ifr_n3
+                    FEBuilderGBA.AddressWinForms.AddAddress(list, ifr_n3
                         , "SkillItem:" + U.To0xHexString(i)
                         , new uint[] { });
 
@@ -1120,7 +1120,7 @@ namespace FEBuilderGBA
                     if (ifr_n4 != null)
                     {
                         ifr_n4.ReInitPointer(addr + 16);
-                        FEBuilderGBA.Address.AddAddress(list, ifr_n4
+                        FEBuilderGBA.AddressWinForms.AddAddress(list, ifr_n4
                             , "SkillItem2:" + U.To0xHexString(i)
                             , new uint[] { });
 

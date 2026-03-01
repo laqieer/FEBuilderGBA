@@ -90,7 +90,7 @@ namespace FEBuilderGBA
             string name = "UnitActionFunctionPointer";
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInitPointer(SearchActionPointer());
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , name
                 , new uint[] { 0 }

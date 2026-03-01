@@ -220,7 +220,7 @@ namespace FEBuilderGBA
 
             InputFormRef InputFormRef;
             InputFormRef = Init(null, AnimeP);
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MapActionAnimation", new uint[] {0});
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, "MapActionAnimation", new uint[] {0});
 
             animeBaseAddress += InputFormRef.BlockSize; //skip empty 00
             for (uint i = 1; i < InputFormRef.DataCount; i++, animeBaseAddress += InputFormRef.BlockSize)

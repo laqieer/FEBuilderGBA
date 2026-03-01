@@ -138,7 +138,7 @@ namespace FEBuilderGBA
             string name = "MapLoadFunction";
 
             InputFormRef InputFormRef = Init(null);
-            FEBuilderGBA.Address.AddAddress(list
+            FEBuilderGBA.AddressWinForms.AddAddress(list
                 , InputFormRef
                 , name
                 , new uint[] { 0 }

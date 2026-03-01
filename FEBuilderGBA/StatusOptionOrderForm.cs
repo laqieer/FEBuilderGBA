@@ -50,7 +50,7 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
             string name = "GameOptionOrder";
-            FEBuilderGBA.Address.AddAddress(list, InputFormRef, name, new uint[] { });
+            FEBuilderGBA.AddressWinForms.AddAddress(list, InputFormRef, name, new uint[] { });
         }
         
         //書き込みボタンを押したとき
