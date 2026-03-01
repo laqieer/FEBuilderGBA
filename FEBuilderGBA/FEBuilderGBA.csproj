@@ -213,6 +213,11 @@
     <Compile Remove="GitUtil.cs" />
     <Compile Remove="EtcCacheFLag.cs" />
     <Compile Remove="ArchSevenZip.cs" />
+    <Compile Remove="UpdateInfo.cs" />
+    <Compile Remove="TranslateGoogle.cs" />
+    <Compile Remove="TranslateGoogle2.cs" />
+    <Compile Remove="TranslateManager.cs" />
+    <Compile Remove="ExportFunction.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

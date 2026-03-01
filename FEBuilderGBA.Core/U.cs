@@ -1662,5 +1662,33 @@ namespace FEBuilderGBA
                 return "";
             }
         }
+
+        public static string cut(string text, string need, string endneed)
+        {
+            int i = text.IndexOf(need);
+            if (i < 0) return "";
+            string a = text.Substring(i + need.Length);
+
+            i = a.IndexOf(endneed);
+            if (i < 0) return "";
+            return a.Substring(0, i);
+        }
+        public static string cut(string text, string endneed)
+        {
+            int i = text.IndexOf(endneed);
+            if (i < 0) return "";
+            return text.Substring(0, i);
+        }
+
+        public static string unhtmlspecialchars(string inStr)
+        {
+            string a = inStr;
+            a = a.Replace("&gt;", ">");
+            a = a.Replace("&lt;", "<");
+            a = a.Replace("&quot;", "\"");
+            a = a.Replace("&apos;", "'");
+            a = a.Replace("&#45;", "-");
+            return a;
+        }
     }
 }
