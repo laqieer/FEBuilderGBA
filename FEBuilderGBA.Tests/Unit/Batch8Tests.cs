@@ -5,6 +5,7 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Tests.Unit
 {
+    [Collection("SharedState")]
     public class Batch8Tests
     {
         // ---- AsmMapSt (top-level data class) ----

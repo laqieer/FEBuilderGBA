@@ -4,6 +4,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Tests
 {
+    [Collection("SharedState")]
     public class GitUtilTests : IDisposable
     {
         // Save/restore CoreState to avoid leaking into other test classes

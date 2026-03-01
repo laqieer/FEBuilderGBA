@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Tests.Unit
     /// Tests for batch 4 Core migration: GitInstaller, GitUtil (now using CoreState),
     /// CoreState.GitPath/ReleaseSource properties, and Core U.HttpGet.
     /// </summary>
+    [Collection("SharedState")]
     public class CoreBatch4Tests : IDisposable
     {
         private readonly string _savedLanguage;

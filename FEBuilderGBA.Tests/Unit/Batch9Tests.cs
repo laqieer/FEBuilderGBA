@@ -5,6 +5,7 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Tests.Unit
 {
+    [Collection("SharedState")]
     public class Batch9Tests
     {
         // ---- R (Core facade) ----
