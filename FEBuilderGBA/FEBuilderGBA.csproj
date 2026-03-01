@@ -205,6 +205,10 @@
     <Compile Remove="TextEscape.cs" />
     <Compile Remove="SystemTextEncoderTBLEncode.cs" />
     <Compile Remove="SystemTextEncoderArabianTBLEncode.cs" />
+    <Compile Remove="MultiByteJPUtil.cs" />
+    <Compile Remove="MyTranslateResource.cs" />
+    <Compile Remove="MyTranslateResourceLow.cs" />
+    <Compile Remove="EtcCacheResource.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

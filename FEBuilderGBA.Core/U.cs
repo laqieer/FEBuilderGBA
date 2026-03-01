@@ -9,7 +9,9 @@ using System.Text.RegularExpressions;
 namespace FEBuilderGBA
 {
     // Core utility methods — pure logic, no UI/Drawing dependencies.
-    // WinForms U.cs removes these methods and inherits them via the Core reference.
+    // WinForms has its own U class (internal) that shadows this one via CS0436.
+    // Tests see this internal U transitively through WinForms → Core reference
+    // (InternalsVisibleTo is configured in the Core csproj).
     internal static class U
     {
         public const uint NOT_FOUND = 0xFFFFFFFF;
@@ -1246,6 +1248,378 @@ namespace FEBuilderGBA
                 r = r.Replace(table[i + 1], table[i]);
             }
             return r;
+        }
+
+        // ---- OtherLangLine single-param overload (uses CoreState.ROM) ----
+
+        [MethodImpl(256)]
+        public static bool OtherLangLine(string line)
+        {
+            return OtherLangLine(line, CoreState.ROM);
+        }
+
+        // ---- Dictionary helpers ----
+
+        public static uint[] DicKeys(Dictionary<uint, string> dic)
+        {
+            var k = dic.Keys;
+            uint[] keys = new uint[k.Count];
+            k.CopyTo(keys, 0);
+            return keys;
+        }
+        public static string[] DicKeys(Dictionary<string, string> dic)
+        {
+            var k = dic.Keys;
+            string[] keys = new string[k.Count];
+            k.CopyTo(keys, 0);
+            return keys;
+        }
+
+        // ---- Path helpers ----
+
+        //aaa.bbb.ccc.gba -> aaa
+        public static string GetFirstPeriodFilename(string fullfilename)
+        {
+            string filename = Path.GetFileName(fullfilename);
+            int a = filename.IndexOf('.');
+            if (a < 0)
+            {
+                return fullfilename;
+            }
+            string dir = Path.GetDirectoryName(filename);
+            return Path.Combine(dir, filename.Substring(0, a));
+        }
+
+        public static bool mkdir(string dir)
+        {
+            if (Directory.Exists(dir))
+            {
+                try
+                {
+                    Directory.Delete(dir, true);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e.ToString());
+                    return false;
+                }
+            }
+            Directory.CreateDirectory(dir);
+            return true;
+        }
+
+        // ---- File validation helpers ----
+
+        public static bool IsRequiredFileExist(string filename)
+        {
+            if (!File.Exists(filename))
+            {
+                if (CoreState.ROM != null && CoreState.ROM.RomInfo.version == 0)
+                {
+                    return false;
+                }
+                CoreState.Services.ShowError(string.Format(
+                    "Required config file not found. Please re-download.\n{0}",
+                    filename.Replace("_ALL.txt", "_*.txt")));
+                Debug.Assert(false);
+                return false;
+            }
+            return true;
+        }
+
+        public static bool CanWriteFileRetry(string path)
+        {
+            if (!File.Exists(path))
+            {
+                return true;
+            }
+            bool isRetry = true;
+            do
+            {
+                try
+                {
+                    using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                    {
+                        isRetry = false;
+                    }
+                }
+                catch (Exception)
+                {
+                    if (!CoreState.Services.ShowQuestion(
+                        string.Format("Cannot write to file. Retry?\nFile: {0}", path)))
+                    {
+                        return false;
+                    }
+                }
+            }
+            while (isRetry);
+            return true;
+        }
+
+        // ---- Config path construction ----
+
+        public static bool CanSecondLanguageEnglish(string lang)
+        {
+            if (lang == "en") return false;
+            if (lang == "ja") return false;
+            return true;
+        }
+
+        public static string ConfigDataFilename(string type)
+        {
+            return ConfigDataFilename(type, CoreState.ROM);
+        }
+
+        public static string ConfigDataFilename(string type, ROM rom)
+        {
+            string lang = CoreState.Language ?? "en";
+            bool canSecondLanguageEnglish = CanSecondLanguageEnglish(lang);
+            string fullfilename;
+            if (rom != null)
+            {
+                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + "." + lang + ".txt");
+                if (File.Exists(fullfilename)) return fullfilename;
+                if (canSecondLanguageEnglish)
+                {
+                    fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".en.txt");
+                    if (File.Exists(fullfilename)) return fullfilename;
+                }
+                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + rom.RomInfo.TitleToFilename + ".txt");
+                if (File.Exists(fullfilename)) return fullfilename;
+            }
+
+            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL." + lang + ".txt");
+            if (File.Exists(fullfilename)) return fullfilename;
+            if (canSecondLanguageEnglish)
+            {
+                fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.en.txt");
+                if (File.Exists(fullfilename)) return fullfilename;
+            }
+            fullfilename = Path.Combine(CoreState.BaseDirectory, "config", "data", type + "ALL.txt");
+            return fullfilename;
+        }
+
+        public static string ConfigEtcFilename(string type, ROM rom)
+        {
+            string romtitle = "";
+            if (rom == null)
+            {
+                romtitle = "_";
+            }
+            else if (rom.IsVirtualROM)
+            {
+                romtitle = "_Virtial_" + rom.RomInfo.VersionToFilename;
+            }
+            else
+            {
+                romtitle = U.GetFirstPeriodFilename(rom.Filename);
+            }
+            return Path.Combine(CoreState.BaseDirectory, "config", "etc", romtitle, type + ".txt");
+        }
+
+        public static string ConfigEtcFilename(string type, string romBaseFilename)
+        {
+            string romtitle = U.GetFirstPeriodFilename(romBaseFilename);
+            return Path.Combine(CoreState.BaseDirectory, "config", "etc", romtitle, type + ".txt");
+        }
+
+        public static string ConfigEtcFilename(string type)
+        {
+            return ConfigEtcFilename(type, CoreState.ROM);
+        }
+
+        public static string ConfigEtcDir()
+        {
+            return Path.GetDirectoryName(ConfigEtcFilename("", CoreState.ROM));
+        }
+
+        // ---- TSV / dictionary resource loaders ----
+
+        public static Dictionary<uint, string> LoadDicResource(string fullfilename)
+        {
+            Dictionary<uint, string> dic = new Dictionary<uint, string>();
+            if (!U.IsRequiredFileExist(fullfilename))
+            {
+                return dic;
+            }
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('=');
+                        dic[U.atoh(sp[0])] = U.at(sp, 1);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+            return dic;
+        }
+
+        public static Dictionary<uint, string> LoadTSVResource1(string fullfilename, bool isRequired = true)
+        {
+            Dictionary<uint, string> dic = new Dictionary<uint, string>();
+            if (isRequired)
+            {
+                if (!U.IsRequiredFileExist(fullfilename)) return dic;
+            }
+            else
+            {
+                if (!File.Exists(fullfilename)) return dic;
+            }
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('\t');
+                        if (sp.Length < 2) continue;
+                        dic[U.atoh(sp[0])] = sp[1];
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+            return dic;
+        }
+
+        public static Dictionary<string, string> LoadTSVResourcePair2(string fullfilename, bool isRequired = true)
+        {
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+            if (isRequired)
+            {
+                if (!U.IsRequiredFileExist(fullfilename)) return dic;
+            }
+            else
+            {
+                if (!File.Exists(fullfilename)) return dic;
+            }
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('\t');
+                        if (sp.Length < 2) continue;
+                        dic[sp[0]] = sp[1];
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+            return dic;
+        }
+
+        // ---- TSV / dictionary resource savers ----
+
+        public static void SaveTSVResource1(string fullfilename, Dictionary<uint, string> data)
+        {
+            string dir = Path.GetDirectoryName(fullfilename);
+            if (!Directory.Exists(dir))
+            {
+                U.mkdir(dir);
+            }
+            if (!U.CanWriteFileRetry(fullfilename))
+            {
+                return;
+            }
+            try
+            {
+                using (StreamWriter w = new StreamWriter(fullfilename))
+                {
+                    foreach (var pair in data)
+                    {
+                        string line = U.ToHexString(pair.Key) + "\t" + pair.Value;
+                        w.WriteLine(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot write to file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+        }
+
+        public static void SaveTSVResourcePair2(string fullfilename, Dictionary<string, string> data)
+        {
+            string dir = Path.GetDirectoryName(fullfilename);
+            if (!Directory.Exists(dir))
+            {
+                U.mkdir(dir);
+            }
+            if (!U.CanWriteFileRetry(fullfilename))
+            {
+                return;
+            }
+            try
+            {
+                using (StreamWriter w = new StreamWriter(fullfilename))
+                {
+                    foreach (var pair in data)
+                    {
+                        string line = pair.Key + "\t" + pair.Value;
+                        w.WriteLine(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot write to file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+        }
+
+        public static void SaveConfigEtcTSV1(string type, Dictionary<uint, string> dic, string romBaseFilename)
+        {
+            string fullfilename = U.ConfigEtcFilename(type, romBaseFilename);
+            if (dic.Count <= 0)
+            {
+                if (File.Exists(fullfilename)) File.Delete(fullfilename);
+                return;
+            }
+            U.SaveTSVResource1(fullfilename, dic);
+        }
+
+        public static void SaveConfigEtcTSVPair(string type, Dictionary<string, string> dic, string romBaseFilename)
+        {
+            string fullfilename = U.ConfigEtcFilename(type, romBaseFilename);
+            if (dic.Count <= 0)
+            {
+                if (File.Exists(fullfilename)) File.Delete(fullfilename);
+                return;
+            }
+            U.SaveTSVResourcePair2(fullfilename, dic);
+        }
+
+        public static Dictionary<uint, string> LoadConfigEtcTSV1(string type)
+        {
+            return U.LoadTSVResource1(U.ConfigEtcFilename(type), false);
         }
     }
 }

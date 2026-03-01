@@ -66,6 +66,12 @@ namespace FEBuilderGBA
         public static Dictionary<string, string> ArgsDic { get; set; }
 
         /// <summary>
+        /// Current UI language code (e.g. "en", "ja", "zh").
+        /// Set by OptionForm at startup. Used by ConfigDataFilename for lang-specific resources.
+        /// </summary>
+        public static string Language { get; set; } = "en";
+
+        /// <summary>
         /// Platform-specific service provider (dialogs, clipboard, etc.).
         /// Must be set before any Core code that shows messages.
         /// </summary>

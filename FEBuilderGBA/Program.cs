@@ -30,6 +30,7 @@ namespace FEBuilderGBA
                 // BaseDirectory is needed for MakeVersionMessage ROM path; initialise
                 // it here so the output is correct even without full startup.
                 Program.BaseDirectory = MakeBaseDirectory();
+                CoreState.BaseDirectory = Program.BaseDirectory;
                 Environment.Exit(VersionForm.CommandLineVersion());
                 return;
             }
@@ -47,6 +48,7 @@ namespace FEBuilderGBA
 
             //自プロセスのパスから、ベースディレクトリを特定します.
             Program.BaseDirectory = MakeBaseDirectory();
+            CoreState.BaseDirectory = Program.BaseDirectory;
 
             Log.TouchLogDirectory();
 
@@ -386,6 +388,7 @@ namespace FEBuilderGBA
                 if (r)
                 {
                     ROM = rom;
+                    CoreState.ROM = rom;
                     return true;
                 }
                 if (U.GetFileSize(fullfilename) >= 1024 * 1024 * 8)
@@ -404,6 +407,7 @@ namespace FEBuilderGBA
                 if (r)
                 {
                     ROM = rom;
+                    CoreState.ROM = rom;
                     return true;
                 }
                 version = forceversion;
@@ -464,6 +468,7 @@ namespace FEBuilderGBA
             LastSelectedFilename = new LastSelectedFilename(srcfilename);
 
             ROM = rom;
+            CoreState.ROM = rom;
             rom.SetVirtualROMFlag(srcfilename);
             InitSystem("");
             return true;
@@ -476,6 +481,8 @@ namespace FEBuilderGBA
 
             //Undoバッファの準備
             Undo = new Undo();
+            CoreState.Undo = Undo;
+            CoreState.Language = OptionForm.lang();
 
 
             //数を求める部分はあまりにたくさん呼び出すのでキャッシュすることにしました.
