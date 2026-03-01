@@ -20,15 +20,20 @@ namespace FEBuilderGBA.Tests.Unit
     public class CoreBatch3Tests : IDisposable
     {
         private readonly string _tempDir;
+        private readonly IAppServices _savedServices;
 
         public CoreBatch3Tests()
         {
             _tempDir = Path.Combine(Path.GetTempPath(), "FEBuilderGBA_CoreBatch3_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_tempDir);
+            _savedServices = CoreState.Services;
         }
 
         public void Dispose()
         {
+            // Restore CoreState.Services to avoid leaking mock into other test classes
+            CoreState.Services = _savedServices;
+
             if (Directory.Exists(_tempDir))
             {
                 Directory.Delete(_tempDir, true);
