@@ -432,7 +432,7 @@ namespace FEBuilderGBA
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
         {
             HideFloatingControlpanel();
-            EventScriptUtil.UpdateRelatedLine(this.AddressList, this.EventAsm);
+            EventScriptUtilWinForms.UpdateRelatedLine(this.AddressList, this.EventAsm);
         }
 
 

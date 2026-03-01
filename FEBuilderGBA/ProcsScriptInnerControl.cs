@@ -104,7 +104,7 @@ namespace FEBuilderGBA
         private void Script_SelectedIndexChanged(object sender, EventArgs e)
         {
             HideFloatingControlpanel();
-            EventScriptUtil.UpdateRelatedLine(this.Script, this.ProcsScript);
+            EventScriptUtilWinForms.UpdateRelatedLine(this.Script, this.ProcsScript);
         }
         private void OneLineDisassembler()
         {

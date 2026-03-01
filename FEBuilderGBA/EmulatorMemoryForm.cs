@@ -1279,7 +1279,7 @@ namespace FEBuilderGBA
         private void RunningEventListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             //対応するラベルのハイライト
-            EventScriptUtil.UpdateRelatedLine(this.RunningEventListBox, this.DisplayEventAsm);
+            EventScriptUtilWinForms.UpdateRelatedLine(this.RunningEventListBox, this.DisplayEventAsm);
         }
         private Size DrawRunningEventList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
