@@ -16,6 +16,8 @@ namespace FEBuilderGBA
     {
         static public void ClearCache()
         {
+            // Also clear caches in Core's PatchDetection (used by FETextEncode/FETextDecode).
+            PatchDetection.ClearAllCaches();
             g_Cache_portrait_extends = portrait_extends.NoCache;
             g_Cache_skill_system_enum = skill_system_enum.NoCache;
             g_Cache_draw_font_enum = draw_font_enum.NoCache;

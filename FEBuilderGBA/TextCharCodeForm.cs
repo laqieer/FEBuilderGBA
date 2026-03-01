@@ -177,7 +177,7 @@ namespace FEBuilderGBA
         public static void RebuildAllData(ToolTextCharRecreate recreate, Undo.UndoData undodata)
         {
             InputFormRef InputFormRef = Init(null);
-            List<ToolTextCharRecreate.CharCounter> list = recreate.GetSortedList();
+            List<FETextEncode.CharCounter> list = recreate.GetSortedList();
 
             int i = 0;
             uint addr = InputFormRef.BaseAddress;
@@ -202,7 +202,7 @@ namespace FEBuilderGBA
         public static void RebuildEmpty(ToolTextCharRecreate recreate, Undo.UndoData undodata)
         {
             InputFormRef InputFormRef = Init(null);
-            List<ToolTextCharRecreate.CharCounter> list = recreate.GetSortedList();
+            List<FETextEncode.CharCounter> list = recreate.GetSortedList();
 
             List<AddrResult> stringList = TextForm.MakeItemList();
             Dictionary<uint, FETextDecode.huffman_count_st> dic = GetUsedCharDic(stringList, InputFormRef);

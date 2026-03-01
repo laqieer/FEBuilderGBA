@@ -158,9 +158,21 @@ namespace FEBuilderGBA.Tests.Unit
 
         private class TestTextEncoder : ISystemTextEncoder
         {
+            public string Decode(byte[] str)
+            {
+                return System.Text.Encoding.ASCII.GetString(str);
+            }
             public string Decode(byte[] str, int start, int len)
             {
                 return System.Text.Encoding.ASCII.GetString(str, start, len);
+            }
+            public byte[] Encode(string str)
+            {
+                return System.Text.Encoding.ASCII.GetBytes(str);
+            }
+            public System.Collections.Generic.Dictionary<string, uint> GetTBLEncodeDicLow()
+            {
+                return new System.Collections.Generic.Dictionary<string, uint>();
             }
         }
 

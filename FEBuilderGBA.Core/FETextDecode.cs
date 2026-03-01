@@ -5,29 +5,29 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    class FETextDecode
+    public class FETextDecode
     {
         ROM ROM = null;
-        SystemTextEncoder SystemTextEncoder = null;
-        PatchUtil.PRIORITY_CODE PriorityCode;
+        ISystemTextEncoder SystemTextEncoder = null;
+        PatchDetection.PRIORITY_CODE PriorityCode;
 
         public FETextDecode()
         {
-            this.ROM = Program.ROM;
-            this.SystemTextEncoder = Program.SystemTextEncoder;
-            this.PriorityCode = PatchUtil.SearchPriorityCode();
+            this.ROM = CoreState.ROM;
+            this.SystemTextEncoder = CoreState.SystemTextEncoder;
+            this.PriorityCode = PatchDetection.SearchPriorityCode();
         }
-        public FETextDecode(ROM rom,SystemTextEncoder encoder)
+        public FETextDecode(ROM rom, ISystemTextEncoder encoder)
         {
             this.ROM = rom;
             this.SystemTextEncoder = encoder;
-            if (rom == Program.ROM)
+            if (rom == CoreState.ROM)
             {
-                this.PriorityCode = PatchUtil.SearchPriorityCode();
+                this.PriorityCode = PatchDetection.SearchPriorityCode();
             }
             else
             {
-                this.PriorityCode = PatchUtil.SearchPriorityCode(rom);
+                this.PriorityCode = PatchDetection.SearchPriorityCode(rom);
             }
         }
 
@@ -129,7 +129,7 @@ namespace FEBuilderGBA
         }
         int AppendSJIS(List<byte> str,byte code,byte code2)
         {
-            if ( this.PriorityCode == PatchUtil.PRIORITY_CODE.LAT1)
+            if ( this.PriorityCode == PatchDetection.PRIORITY_CODE.LAT1)
             {//SJISと 1バイトUnicodeは範囲が重複するので、どちらかを優先しないといけない.
                 if (U.IsEnglishSPCode(code))
                 {//英語版FEにはUnicodeの1バイトだけ表記があるらしい.
@@ -144,7 +144,7 @@ namespace FEBuilderGBA
 
         bool IsStrangeSmallFontMapping(byte code, byte code2)
         {
-            if (this.PriorityCode != PatchUtil.PRIORITY_CODE.SJIS)
+            if (this.PriorityCode != PatchDetection.PRIORITY_CODE.SJIS)
             {
                 return false;
             }
@@ -165,7 +165,7 @@ namespace FEBuilderGBA
 
         public String UnHffmanPatchDecodeLow(byte[] srcdata)
         {
-            PatchUtil.TextEngineRework_enum textEngineRework = PatchUtil.SearchTextEngineReworkPatch();
+            PatchDetection.TextEngineRework_enum textEngineRework = PatchDetection.SearchTextEngineReworkPatch();
 
             List<byte> str = new List<byte>();
             int length = srcdata.Length;
@@ -176,7 +176,7 @@ namespace FEBuilderGBA
                 if (length > i + 1)
                 {
                     byte code2 = srcdata[i + 1];
-                    if (this.PriorityCode == PatchUtil.PRIORITY_CODE.UTF8)
+                    if (this.PriorityCode == PatchDetection.PRIORITY_CODE.UTF8)
                     {
                         if (U.IsUTF8_LAT1SpecialFont(code, code2))
                         {//LAT1の特殊コードのエリア
@@ -212,7 +212,7 @@ namespace FEBuilderGBA
                         AppendAtmarkCode(str, code2); //@000d
                         i+=2;
 
-                        if (textEngineRework == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+                        if (textEngineRework == PatchDetection.TextEngineRework_enum.TeqTextEngineRework)
                         {
                             i += TeqTextEngineRework(str, code2, srcdata, i);
                         }
@@ -245,7 +245,7 @@ namespace FEBuilderGBA
                     continue;
                 }
                 //特殊Unicode
-                if (this.PriorityCode == PatchUtil.PRIORITY_CODE.LAT1 && U.IsEnglishSPCode(code))
+                if (this.PriorityCode == PatchDetection.PRIORITY_CODE.LAT1 && U.IsEnglishSPCode(code))
                 {//英語版FEにはUnicodeの1バイトだけ表記があるらしい.
                     AppendAtmarkCode(str, code); //@000Fとかのコード
                     i += 1;
@@ -569,7 +569,7 @@ namespace FEBuilderGBA
                 if (length > len + 1)
                 {
                     byte code2 = srcdata[len + 1];
-                    if (this.PriorityCode == PatchUtil.PRIORITY_CODE.UTF8)
+                    if (this.PriorityCode == PatchDetection.PRIORITY_CODE.UTF8)
                     {
                         if (U.IsUTF8_LAT1SpecialFont(code, code2))
                         {//LAT1の特殊コードのエリア
@@ -591,7 +591,7 @@ namespace FEBuilderGBA
                     }
                 }
 
-                if (this.PriorityCode == PatchUtil.PRIORITY_CODE.LAT1)
+                if (this.PriorityCode == PatchDetection.PRIORITY_CODE.LAT1)
                 {//英語版FE
                     if (U.IsEnglishSPCode(code))
                     {//英語版FEにはUnicodeの1バイトだけ表記があるらしい.

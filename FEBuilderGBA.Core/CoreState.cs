@@ -18,11 +18,14 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
-    /// Minimal interface for text encoder needed by Core (Rom.getString).
+    /// Interface for text encoder needed by Core (Rom.getString, FETextEncode, FETextDecode).
     /// </summary>
     public interface ISystemTextEncoder
     {
+        string Decode(byte[] str);
         string Decode(byte[] str, int start, int len);
+        byte[] Encode(string str);
+        Dictionary<string, uint> GetTBLEncodeDicLow();
     }
 
     /// <summary>
@@ -57,7 +60,7 @@ namespace FEBuilderGBA
         public static object EventScript { get; set; }
         public static object ProcsScript { get; set; }
         public static object AIScript { get; set; }
-        public static object FETextEncoder { get; set; }
+        public static FETextEncode FETextEncoder { get; set; }
         public static TextEscape TextEscape { get; set; }
         public static object UseTextIDCache { get; set; }
         public static object FlagCache { get; set; }

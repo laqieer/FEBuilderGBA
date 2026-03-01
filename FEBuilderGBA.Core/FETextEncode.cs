@@ -5,8 +5,15 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    class FETextEncode
+    public class FETextEncode
     {
+        public class CharCounter
+        {
+            public uint mojiBin;
+            public int count;
+            public int length;
+        }
+
         public int DataSize { get; private set; }
         public struct huffman_value_st{
             public uint bit;
@@ -27,7 +34,7 @@ namespace FEBuilderGBA
         }
         public void RebuildHuffmanMap()
         {
-            if (Program.ROM.RomInfo.version == 0)
+            if (CoreState.ROM.RomInfo.version == 0)
             {
                 huffman_map = new Dictionary<uint, huffman_value_st>();
                 huffman_map[0] = new huffman_value_st();
@@ -35,8 +42,8 @@ namespace FEBuilderGBA
             }
 
             this.huffman_map = new Dictionary<uint, huffman_value_st>();
-            uint tree_data_base = Program.ROM.p32p(Program.ROM.RomInfo.mask_point_base_pointer);
-            this.tree_base = Program.ROM.p32(Program.ROM.RomInfo.mask_pointer);
+            uint tree_data_base = CoreState.ROM.p32p(CoreState.ROM.RomInfo.mask_point_base_pointer);
+            this.tree_base = CoreState.ROM.p32(CoreState.ROM.RomInfo.mask_pointer);
             make_huffman_map(tree_data_base, 1);
 
             if (! this.huffman_map.ContainsKey(0))
@@ -46,7 +53,7 @@ namespace FEBuilderGBA
 
             //EOF
             huffman_value_st huffman_value = this.huffman_map[0];
-            if (Program.ROM.RomInfo.is_multibyte)
+            if (CoreState.ROM.RomInfo.is_multibyte)
             {
                 if (huffman_value.bitcount < 8)
                 {
@@ -76,7 +83,7 @@ namespace FEBuilderGBA
 
             uint bitcount = 0;
 
-            byte[] sjisstr = Program.SystemTextEncoder.Encode(str); 
+            byte[] sjisstr = CoreState.SystemTextEncoder.Encode(str); 
             int length = sjisstr.Length;
 
             List<byte> dest = new List<byte>(length*3);
@@ -142,7 +149,7 @@ namespace FEBuilderGBA
 
 		String show_sjis(byte[] sjisstr,int nowi,int nexti)
 		{
-            return Program.SystemTextEncoder.Decode(sjisstr, nowi, nexti - nowi);
+            return CoreState.SystemTextEncoder.Decode(sjisstr, nowi, nexti - nowi);
 		}
 		byte countBitMinus1(uint bit)
 		{
@@ -232,8 +239,8 @@ namespace FEBuilderGBA
 
         byte[] convert_unHuffman_code_to_binary(byte[] sjisstr)
         {
-            PatchUtil.PRIORITY_CODE priorityCode = PatchUtil.SearchPriorityCode();
-            PatchUtil.TextEngineRework_enum textEngineRework = PatchUtil.SearchTextEngineReworkPatch();
+            PatchDetection.PRIORITY_CODE priorityCode = PatchDetection.SearchPriorityCode();
+            PatchDetection.TextEngineRework_enum textEngineRework = PatchDetection.SearchTextEngineReworkPatch();
 
             List<byte> ret = new List<byte>();
             for (int i = 0; i < sjisstr.Length; )
@@ -265,7 +272,7 @@ namespace FEBuilderGBA
                         ret.Add((byte)(code1));     //@0080
                         ret.Add((byte)(code2));    //@0000
 
-                        if (textEngineRework == PatchUtil.TextEngineRework_enum.TeqTextEngineRework)
+                        if (textEngineRework == PatchDetection.TextEngineRework_enum.TeqTextEngineRework)
                         {
                             i += TeqTextEngineRework(ret, code2, sjisstr, i);
                         }
@@ -324,12 +331,12 @@ namespace FEBuilderGBA
                 {
                     byte code1 = sjisstr[i];
                     byte code2 = sjisstr[i + 1];
-                    if (priorityCode == PatchUtil.PRIORITY_CODE.UTF8 
+                    if (priorityCode == PatchDetection.PRIORITY_CODE.UTF8 
                         && code1 >= 0xC0 && code1 >= 0x80)
                     {
                         i += U.AppendUTF8(ret, sjisstr, i);
                     }
-                    else if (priorityCode == PatchUtil.PRIORITY_CODE.SJIS
+                    else if (priorityCode == PatchDetection.PRIORITY_CODE.SJIS
                         && U.isSJIS1stCode(code1) && U.isSJIS2ndCode(code2))
                     {
                         ret.Add(sjisstr[i]); i++;
@@ -467,11 +474,11 @@ namespace FEBuilderGBA
 
             for (uint i = 0; i < 2; i++)
 			{
-		        uint tree_ = (uint) Program.ROM.u16(tree_data + (i*2) );
+		        uint tree_ = (uint) CoreState.ROM.u16(tree_data + (i*2) );
 		        uint tree_next_data = this.tree_base	+	(tree_ * 4);
                 uint bit = (bit_deps << 1) + i;
 
-	            uint src_data = Program.ROM.u32(tree_next_data);
+	            uint src_data = CoreState.ROM.u32(tree_next_data);
 			    if( (src_data & 0x80000000) > 0)
 	            {
 	                uint code = src_data & 0xFFFF;
@@ -548,11 +555,11 @@ namespace FEBuilderGBA
                 return;
             }
 
-            byte[] sjisstr = Program.SystemTextEncoder.Encode(str);
+            byte[] sjisstr = CoreState.SystemTextEncoder.Encode(str);
             outByte = convert_unHuffman_code_to_binary(sjisstr);
         }
 
-        public void StringCount(string str, Dictionary<uint, ToolTextCharRecreate.CharCounter> charCounterMap)
+        public void StringCount(string str, Dictionary<uint, CharCounter> charCounterMap)
         {
             str = ConvertSPMoji(str);
             if (str == "")
@@ -560,7 +567,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            byte[] sjisstr = Program.SystemTextEncoder.Encode(str); 
+            byte[] sjisstr = CoreState.SystemTextEncoder.Encode(str); 
             int length = sjisstr.Length;
 
             for (int i = 0; i <= length; )
@@ -573,10 +580,10 @@ namespace FEBuilderGBA
                 int nexti = string_to_code_next(sjisstr, i, out code);
                 i = nexti;
 
-                ToolTextCharRecreate.CharCounter p;
+                CharCounter p;
                 if (! charCounterMap.TryGetValue(code, out p))
                 {
-                    p = new ToolTextCharRecreate.CharCounter();
+                    p = new CharCounter();
                     charCounterMap[code] = p;
                     p.mojiBin = code;
                 }
@@ -585,7 +592,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public void StringCountEN(string str, Dictionary<uint, ToolTextCharRecreate.CharCounter> charCounterMap)
+        public void StringCountEN(string str, Dictionary<uint, CharCounter> charCounterMap)
         {
             str = ConvertSPMoji(str);
             if (str == "")
@@ -593,7 +600,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            byte[] sjisstr = Program.SystemTextEncoder.Encode(str);
+            byte[] sjisstr = CoreState.SystemTextEncoder.Encode(str);
             int length = sjisstr.Length;
 
             for (int i = 0; i <= length; )
@@ -621,10 +628,10 @@ namespace FEBuilderGBA
                     }
                 }
 
-                ToolTextCharRecreate.CharCounter p;
+                CharCounter p;
                 if (!charCounterMap.TryGetValue(code, out p))
                 {
-                    p = new ToolTextCharRecreate.CharCounter();
+                    p = new CharCounter();
                     charCounterMap[code] = p;
                     p.mojiBin = code;
                 }
@@ -650,9 +657,9 @@ namespace FEBuilderGBA
         {
             g_RepalceSPCode = new List<string>();
             g_RepalceSPCode.Add("\r\n"); g_RepalceSPCode.Add("@0001");
-            if (Program.ROM.RomInfo.is_multibyte)
+            if (CoreState.ROM.RomInfo.is_multibyte)
             {
-                if (Program.ROM.RomInfo.version == 8)
+                if (CoreState.ROM.RomInfo.version == 8)
                 {
                     g_RepalceSPCode.Add("(ｻﾝﾀﾞｰｽﾄｰﾑ)"); g_RepalceSPCode.Add("нопр");///No Translate
                     g_RepalceSPCode.Add("(ﾌｫﾚｽﾄﾅｲﾄ)"); g_RepalceSPCode.Add("⊂⊃┌┐");///No Translate
@@ -664,13 +671,13 @@ namespace FEBuilderGBA
                     g_RepalceSPCode.Add("(ﾄﾞﾗｺﾞﾝｿﾞﾝﾋﾞ)"); g_RepalceSPCode.Add("≠≡≦≧");///No Translate
                     g_RepalceSPCode.Add("(ｺﾞｰｺﾞﾝの卵)"); g_RepalceSPCode.Add("∪∫∬∴");///No Translate
                 }
-                else if (Program.ROM.RomInfo.version == 7)
+                else if (CoreState.ROM.RomInfo.version == 7)
                 {
                     g_RepalceSPCode.Add("(ｻﾝﾀﾞｰｽﾄｰﾑ)"); g_RepalceSPCode.Add("⑮⑯⑰⑱⑲⑳α");///No Translate
                     g_RepalceSPCode.Add("(ﾌｧﾙｺﾝﾅｲﾄ)"); g_RepalceSPCode.Add("⑧⑨⑩⑪⑫⑬⑭");///No Translate
                     g_RepalceSPCode.Add("(ﾄﾞﾗｺﾞﾝﾏｽﾀｰ)"); g_RepalceSPCode.Add("①②③④⑤⑥⑦");///No Translate
                 }
-                else if (Program.ROM.RomInfo.version == 6)
+                else if (CoreState.ROM.RomInfo.version == 6)
                 {
                     g_RepalceSPCode.Add("(ｻﾝﾀﾞｰｽﾄｰﾑ)"); g_RepalceSPCode.Add("①②③④⑤⑥⑦");///No Translate
                     g_RepalceSPCode.Add("(ﾌｧﾙｺﾝﾅｲﾄ)"); g_RepalceSPCode.Add("ⅠⅡⅢⅣⅤⅥⅦ");///No Translate
@@ -679,8 +686,8 @@ namespace FEBuilderGBA
             }
             else
             {
-                PatchUtil.PRIORITY_CODE priorityCode = PatchUtil.SearchPriorityCode();
-                if (priorityCode != PatchUtil.PRIORITY_CODE.UTF8)
+                PatchDetection.PRIORITY_CODE priorityCode = PatchDetection.SearchPriorityCode();
+                if (priorityCode != PatchDetection.PRIORITY_CODE.UTF8)
                 {
 //                    g_RepalceSPCode.Add("\u0090"); g_RepalceSPCode.Add("@0090");///No Translate
 //                    g_RepalceSPCode.Add("\u0091"); g_RepalceSPCode.Add("@0091");///No Translate

@@ -7,7 +7,7 @@ using System.Text;
 namespace FEBuilderGBA
 {
     // SystemTextEncoderTBLEncodeInterface moved to FEBuilderGBA.Core
-    public class SystemTextEncoder
+    public class SystemTextEncoder : ISystemTextEncoder
     {
         Encoding Encoder;
         SystemTextEncoderTBLEncodeInterface TBLEncode;
