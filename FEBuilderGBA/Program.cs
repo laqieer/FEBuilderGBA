@@ -35,6 +35,13 @@ namespace FEBuilderGBA
                 return;
             }
 
+            // Detect CLI mode early — before InitSystem — so heavy GUI-only
+            // initialisation (e.g. AsmMapFileAsmCache) can be skipped.
+            if (HasCommandLineCommand(ArgsDic))
+            {
+                Program.IsCommandLine = true;
+            }
+
             // Set app-wide default font before any forms are created
             Application.SetDefaultFont(new Font("Microsoft Sans Serif", 8.25f));
 
@@ -78,7 +85,7 @@ namespace FEBuilderGBA
             {
                 MainFormUtil.Open(null, ArgsDic["--rom"], false, forceversion);
             }
-            
+
             {
                 //自動アップデートがやりたいので、初期化だけはやろうか...
                 WelcomeForm f = (WelcomeForm)InputFormRef.JumpFormLow<WelcomeForm>();
@@ -127,6 +134,25 @@ namespace FEBuilderGBA
             }
             //ログの書き込み
             Log.SyncLog();
+        }
+
+        /// <summary>
+        /// Returns true if any CLI command flag is present in the argument dictionary.
+        /// Used to set IsCommandLine early, before InitSystem, so that expensive
+        /// GUI-only initialisation (AsmMapFileAsmCache) can be skipped.
+        /// </summary>
+        static bool HasCommandLineCommand(Dictionary<string, string> args)
+        {
+            return args.ContainsKey("--lint")
+                || args.ContainsKey("--rebuild")
+                || args.ContainsKey("--makeups")
+                || args.ContainsKey("--disasm")
+                || args.ContainsKey("--translate")
+                || args.ContainsKey("--pointercalc")
+                || args.ContainsKey("--songexchange")
+                || args.ContainsKey("--decreasecolor")
+                || args.ContainsKey("--convertmap1picture")
+                || args.ContainsKey("--version");
         }
 
         static bool ProcCommandLine()
@@ -486,7 +512,6 @@ namespace FEBuilderGBA
             CoreState.GitPath = OptionForm.git_path();
             CoreState.ReleaseSource = OptionForm.release_source();
 
-
             //数を求める部分はあまりにたくさん呼び出すのでキャッシュすることにしました.
             InputFormRef.ClearCacheDataCount();
             //パッチのインストールの是非の判定 FE8には策パッチがあるのでキャッシュする.
@@ -497,7 +522,6 @@ namespace FEBuilderGBA
                 //変更監視
                 UpdateWatcher.RegistMain(fullfilename);
             }
-
 
             //tbl適応判定
             OptionForm.AutoUpdateTBLOption();
@@ -548,9 +572,15 @@ namespace FEBuilderGBA
             ImageSystemIconForm.ClearCache();
 
             //EVENTとASMのキャッシュをクリア
-            AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
-            //asm mapキャッシュの更新.
-            AsmMapFileAsmCache.ClearCache();
+            // In CLI mode, skip the expensive AsmMapFileAsmCache build — it parses
+            // all ASM map files synchronously and can take minutes. CLI commands
+            // (--lint, --rebuild, etc.) don't need the disassembler symbol cache.
+            if (!IsCommandLine)
+            {
+                AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
+                //asm mapキャッシュの更新.
+                AsmMapFileAsmCache.ClearCache();
+            }
 
             //RAM
             ReBuildRAM();
