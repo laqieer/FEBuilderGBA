@@ -53,7 +53,7 @@ namespace FEBuilderGBA
         public static object ProcsScript { get; set; }
         public static object AIScript { get; set; }
         public static object FETextEncoder { get; set; }
-        public static object TextEscape { get; set; }
+        public static TextEscape TextEscape { get; set; }
         public static object UseTextIDCache { get; set; }
         public static object FlagCache { get; set; }
         public static object ResourceCache { get; set; }

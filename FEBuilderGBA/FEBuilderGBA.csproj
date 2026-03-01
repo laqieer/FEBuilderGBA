@@ -24,8 +24,8 @@
 	<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 	<Deterministic>false</Deterministic>
 	<ApplicationDefaultFont>Microsoft Sans Serif, 8.25pt</ApplicationDefaultFont>
-	<!-- Suppress warnings for Windows-only application -->
-	<NoWarn>$(NoWarn);CA1416;CS7035</NoWarn>
+	<!-- Suppress warnings for Windows-only application and Core type overlap (CS0436) -->
+	<NoWarn>$(NoWarn);CA1416;CS7035;CS0436</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -198,6 +198,13 @@
     <Compile Remove="ROMFE8JP.cs" />
     <Compile Remove="ROMFE8U.cs" />
     <Compile Remove="Undo.cs" />
+    <Compile Remove="LZ77.cs" />
+    <Compile Remove="RegexCache.cs" />
+    <Compile Remove="TinySegmenter.cs" />
+    <Compile Remove="Elf.cs" />
+    <Compile Remove="TextEscape.cs" />
+    <Compile Remove="SystemTextEncoderTBLEncode.cs" />
+    <Compile Remove="SystemTextEncoderArabianTBLEncode.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

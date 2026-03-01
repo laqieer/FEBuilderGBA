@@ -69,7 +69,14 @@ namespace FEBuilderGBA
             }
 
             //パッチで追加される新しいエスケープシーケンス
-            Program.TextEscape.MargeExstraEscapeList(this.EscapeList);
+            foreach (var t in Program.TextEscape.GetAddEscapeMappingSnapshot())
+            {
+                TextEscape te = new TextEscape();
+                te.Code = t.Key;
+                te.Info = t.Value.info + t.Value.feditorAdv;
+                te.Category = "";
+                this.EscapeList.Add(te);
+            }
         }
 
         bool IsDetail;

@@ -50,12 +50,10 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void CanAccessRegexCacheClass()
         {
-            // Try to access RegexCache class
-            var assemblyPath = Path.Combine(AppContext.BaseDirectory, "FEBuilderGBA.dll");
-            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
-
-            var type = assembly.GetType("FEBuilderGBA.RegexCache");
+            // RegexCache moved to FEBuilderGBA.Core — verify it's accessible as a public type
+            var type = typeof(FEBuilderGBA.RegexCache);
             Assert.NotNull(type);
+            Assert.True(type.IsAbstract && type.IsSealed); // static class
         }
     }
 }

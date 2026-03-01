@@ -6,14 +6,7 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    public interface SystemTextEncoderTBLEncodeInterface
-    {
-        string Decode(byte[] str);
-        string Decode(byte[] str, int start, int len);
-        byte[] Encode(string str);
-
-        Dictionary<string, uint> GetEncodeDicLow();
-    }
+    // SystemTextEncoderTBLEncodeInterface moved to FEBuilderGBA.Core
     public class SystemTextEncoder
     {
         Encoding Encoder;

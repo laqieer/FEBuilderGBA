@@ -9,6 +9,7 @@
          shared source files contain guarded Windows-only code paths -->
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
+  <!-- InternalsVisibleTo is in Properties/AssemblyInfo.cs (GenerateAssemblyInfo=false) -->
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.38.0" />
   </ItemGroup>

@@ -1110,5 +1110,142 @@ namespace FEBuilderGBA
                         data.Length, U.ToHexString(data.Length), addr, U.ToHexString(addr)));
             }
         }
+
+        // ---- Text encoding helpers (used by SystemTextEncoder, FETextDecode) ----
+
+        [MethodImpl(256)]
+        public static bool isSJIS1stCode(byte c)
+        {
+            return (0x81 <= c && c <= 0x9f) || (0xe0 <= c && c <= 0xfc);
+        }
+
+        [MethodImpl(256)]
+        public static bool isSJIS2ndCode(byte c)
+        {
+            return (0x40 <= c && c <= 0x7e) || (0x80 <= c && c <= 0xfc);
+        }
+
+        public static bool IsEnglishSPCode(byte code)
+        {
+            return (code >= 0x80 && code <= 0xFF);
+        }
+
+        public static bool IsUTF8_LAT1SpecialFont(byte code, byte code2)
+        {
+            return code >= 0xC0 && code <= 0xDF && code2 >= 0x80 && code2 <= 0xBF;
+        }
+
+        public static bool isUTF8PreCode(byte code, byte code2)
+        {
+            return code >= 0xE0 && code2 >= 0x80;
+        }
+
+        public static int AppendUTF8(List<byte> str, byte[] srcdata, int pos)
+        {
+            byte code = srcdata[pos];
+            if (code >= 0xF0 && pos + 3 < srcdata.Length)
+            {
+                str.Add(srcdata[pos]);
+                str.Add(srcdata[pos + 1]);
+                str.Add(srcdata[pos + 2]);
+                str.Add(srcdata[pos + 3]);
+                return 4;
+            }
+            else if (code >= 0xE0 && pos + 2 < srcdata.Length)
+            {
+                str.Add(srcdata[pos]);
+                str.Add(srcdata[pos + 1]);
+                str.Add(srcdata[pos + 2]);
+                return 3;
+            }
+            else if (code >= 0xC0 && pos + 1 < srcdata.Length)
+            {
+                str.Add(srcdata[pos]);
+                str.Add(srcdata[pos + 1]);
+                return 2;
+            }
+            str.Add(srcdata[pos]);
+            return 1;
+        }
+
+        public static void append_u16(List<byte> data, uint a)
+        {
+            data.Add((byte)(a & 0xFF));
+            data.Add((byte)((a & 0xFF00) >> 8));
+        }
+
+        public static void append_u8(List<byte> data, uint a)
+        {
+            data.Add((byte)a);
+        }
+
+        public static byte[] SkipAtMark(string str, uint pos, Encoding SJISEncoder)
+        {
+            Debug.Assert(str.Substring((int)pos, 1) == "@");
+            uint len = (uint)str.Length;
+            if (len - pos > 4)
+            {
+                len = 5 + pos;
+            }
+            uint i;
+            for (i = pos + 1; i < len; i++)
+            {
+                char c = str[(int)i];
+                if ((c >= '0' && c <= '9') || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')
+                {
+                    continue;
+                }
+                break;
+            }
+            string key = str.Substring((int)pos, (int)(i - pos));
+            byte[] sjisstr = SJISEncoder.GetBytes(key);
+            return sjisstr;
+        }
+
+        // ---- Table replacement (used by TextEscape) ----
+
+        public static string table_replace(string target, string[] table)
+        {
+            if (table == null) { Debug.Assert(false); return target; }
+            string r = target;
+            for (int i = 0; i < table.Length; i += 2)
+            {
+                r = r.Replace(table[i], table[i + 1]);
+            }
+            return r;
+        }
+
+        public static string table_replace_rev(string target, string[] table)
+        {
+            if (table == null) { Debug.Assert(false); return target; }
+            string r = target;
+            for (int i = 0; i < table.Length; i += 2)
+            {
+                r = r.Replace(table[i + 1], table[i]);
+            }
+            return r;
+        }
+
+        public static string table_replace(string target, List<string> table)
+        {
+            if (table == null) { Debug.Assert(false); return target; }
+            string r = target;
+            for (int i = 0; i < table.Count; i += 2)
+            {
+                r = r.Replace(table[i], table[i + 1]);
+            }
+            return r;
+        }
+
+        public static string table_replace_rev(string target, List<string> table)
+        {
+            if (table == null) { Debug.Assert(false); return target; }
+            string r = target;
+            for (int i = 0; i < table.Count; i += 2)
+            {
+                r = r.Replace(table[i + 1], table[i]);
+            }
+            return r;
+        }
     }
 }
