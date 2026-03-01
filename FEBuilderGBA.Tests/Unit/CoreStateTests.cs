@@ -33,6 +33,43 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void IEtcCache_ReadMethods_Work()
+        {
+            var cache = new TestEtcCache();
+            cache.Set(0x100, "TestComment");
+
+            Assert.True(cache.CheckFast(0x100));
+            Assert.False(cache.CheckFast(0x200));
+            Assert.Equal("TestComment", cache.At(0x100));
+            Assert.Equal("default", cache.At(0x200, "default"));
+            Assert.Equal(" TestComment", cache.S_At(0x100));
+            Assert.Equal("", cache.S_At(0x200));
+
+            Assert.True(cache.TryGetValue(0x100, out string val));
+            Assert.Equal("TestComment", val);
+            Assert.False(cache.TryGetValue(0x200, out _));
+        }
+
+        [Fact]
+        public void IEtcCache_CanBeAssignedToCoreState()
+        {
+            var saved = CoreState.CommentCache;
+            try
+            {
+                var cache = new TestEtcCache();
+                cache.Set(42, "hello");
+                CoreState.CommentCache = cache;
+
+                Assert.NotNull(CoreState.CommentCache);
+                Assert.Equal("hello", CoreState.CommentCache.At(42));
+            }
+            finally
+            {
+                CoreState.CommentCache = saved;
+            }
+        }
+
+        [Fact]
         public void CoreInterfaces_ISystemTextEncoder_CanBeImplemented()
         {
             ISystemTextEncoder encoder = new TestTextEncoder();
@@ -108,8 +145,14 @@ namespace FEBuilderGBA.Tests.Unit
         // --- Test implementations ---
         private class TestEtcCache : IEtcCache
         {
+            private readonly Dictionary<uint, string> _data = new();
             public void RemoveOverRange(uint range) { }
             public void RemoveRange(uint start, uint end) { }
+            public bool CheckFast(uint num) => _data.ContainsKey(num);
+            public string At(uint num, string def = "") => _data.TryGetValue(num, out var v) ? v : def;
+            public string S_At(uint num) => _data.TryGetValue(num, out var v) ? " " + v : "";
+            public bool TryGetValue(uint num, out string out_data) => _data.TryGetValue(num, out out_data);
+            public void Set(uint num, string val) => _data[num] = val;
         }
 
         private class TestTextEncoder : ISystemTextEncoder

@@ -38,7 +38,7 @@ git submodule update --init --recursive
 
 ## Testing & Coverage
 
-- ✅ **483 unit/integration tests** passing (0 skipped)
+- ✅ **485 unit/integration tests** passing (0 skipped)
 - ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **48 E2E tests** passing with all 5 ROMs
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)

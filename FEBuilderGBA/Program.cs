@@ -635,8 +635,12 @@ namespace FEBuilderGBA
             LintCache = new EtcCache("lint_");
             CommentCache = new EtcCache("comment_");
             WorkSupportCache = new EtcCache("worksupport_");
+            CoreState.LintCache = LintCache;
+            CoreState.CommentCache = CommentCache;
+            CoreState.WorkSupportCache = WorkSupportCache;
             ExportFunction = new ExportFunction();
             TextEscape = new FEBuilderGBA.TextEscape();
+            CoreState.TextEscape = TextEscape;
 
             EventScript = new EventScript();
             EventScript.Load(EventScript.EventScriptType.Event);

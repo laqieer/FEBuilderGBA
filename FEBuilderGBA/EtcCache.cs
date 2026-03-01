@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Windows.Forms;
 using System.IO;
 using System.Text;
 using System.Runtime.CompilerServices;
 
 namespace FEBuilderGBA
 {
-    class EtcCache
+    class EtcCache : IEtcCache
     {
         public EtcCache(string type)
         {

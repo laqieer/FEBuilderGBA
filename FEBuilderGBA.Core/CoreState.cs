@@ -4,12 +4,17 @@ using System.Collections.Generic;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// Minimal interface for cache classes (EtcCache) needed by Core.
+    /// Interface for cache classes (EtcCache) needed by Core.
+    /// Write methods used by Undo; read methods used by DisASMTrumb, etc.
     /// </summary>
     public interface IEtcCache
     {
         void RemoveOverRange(uint range);
         void RemoveRange(uint start, uint end);
+        bool CheckFast(uint num);
+        string At(uint num, string def = "");
+        string S_At(uint num);
+        bool TryGetValue(uint num, out string out_data);
     }
 
     /// <summary>
