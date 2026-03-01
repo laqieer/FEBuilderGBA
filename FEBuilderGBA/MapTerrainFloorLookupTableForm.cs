@@ -55,9 +55,9 @@ namespace FEBuilderGBA
                 FEBuilderGBA.Address.AddAddress(list, InputFormRef, name + U.ToHexString(i), new uint[] { });
             }
         }
-        public static List<U.AddrResult> MakeListByUseTerrain(uint terrainid)
+        public static List<AddrResult> MakeListByUseTerrain(uint terrainid)
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
 
             InputFormRef InputFormRef = Init(null);
             var terrain_set_list = U.DictionaryToValuesList(InputFormRef.GetTerrainSetDic());
@@ -73,7 +73,7 @@ namespace FEBuilderGBA
                     continue;
                 }
                 InputFormRef.ReInitPointer(pointers[i]);
-                List<U.AddrResult> a = InputFormRef.MakeList((uint addr) =>
+                List<AddrResult> a = InputFormRef.MakeList((uint addr) =>
                 {
                     uint icon = Program.ROM.u8(addr + 0);
                     icon = icon - 1;

@@ -559,14 +559,14 @@ namespace FEBuilderGBA
             return UnitForm.GetUnitName(uid);
         }
         //ユニットリストを得る
-        public static List<U.AddrResult> MakeUnitList()
+        public static List<AddrResult> MakeUnitList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
 
         //ユニットリストを得る
-        public static List<U.AddrResult> MakeUnitList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakeUnitList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);

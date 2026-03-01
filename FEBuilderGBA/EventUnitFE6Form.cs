@@ -97,7 +97,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            List<U.AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
+            List<AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
             U.ConvertListBox(list, ref this.EVENT_LISTBOX);
 
             //未記帳の拡張した領域があれば追加する.
@@ -119,7 +119,7 @@ namespace FEBuilderGBA
             //ディフォルトは別
             PosSyncUpdateComboBox.SelectedIndex = 1;
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
             if (!U.isSafetyOffset(ar.addr))
             {
                 this.MapPictureBox.ClearAllPoint();
@@ -169,7 +169,7 @@ namespace FEBuilderGBA
         {
             for (uint i = starti; i < endi; i++)
             {
-                List<U.AddrResult> eventlist = EventCondForm.MakeUnitPointer(i);
+                List<AddrResult> eventlist = EventCondForm.MakeUnitPointer(i);
                 for (int n = 0; n < eventlist.Count; n++)
                 {
                     if (eventlist[n].addr == addr)
@@ -282,7 +282,7 @@ namespace FEBuilderGBA
             this.EVENTUNIT_AFTER_COORD.SetToolTipEx(this.X_Tooltip);
             MapPictureBox.SetDefaultIcon(ImageSystemIconForm.Blank16());
         }
-        public static List<U.AddrResult> MakeList(uint addr)
+        public static List<AddrResult> MakeList(uint addr)
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInit(addr);
@@ -291,7 +291,7 @@ namespace FEBuilderGBA
         public void DrawAllUnits()
         {
             MapPictureBox.ClearStaticItem();
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             for (int i = 0; i < list.Count; i++)
             {
                 if (AddressList.SelectedIndex == i)
@@ -510,8 +510,8 @@ namespace FEBuilderGBA
         private void EventUnitForm_CheckDuplicatePlayerUnits(object sender, EventArgs e)
         {
             uint mapid = (uint)MAP_LISTBOX.SelectedIndex;
-            U.AddrResult selectEventAR = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
-            U.AddrResult selectUnitAR = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult selectEventAR = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
+            AddrResult selectUnitAR = InputFormRef.SelectToAddrResult(this.AddressList);
 
             uint unitID = (uint)B0.Value;
             uint unitGrow = (uint)B3.Value;

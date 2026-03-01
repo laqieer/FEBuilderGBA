@@ -41,13 +41,13 @@ namespace FEBuilderGBA
                 }
                 , (int i, uint addr) =>
                 {
-                    return new U.AddrResult(addr, (addr).ToString("X08"));
+                    return new AddrResult(addr, (addr).ToString("X08"));
                 }
             );
                 
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

@@ -145,7 +145,7 @@ namespace FEBuilderGBA
             //ポインタの書き込み
             this.WriteButton.PerformClick();
         }
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

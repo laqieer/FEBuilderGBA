@@ -76,20 +76,20 @@ namespace FEBuilderGBA
             return InputFormRef.DataCount;
         }
 
-        public static List<U.AddrResult> MakeWorldMapPointList()
+        public static List<AddrResult> MakeWorldMapPointList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
-        public static List<U.AddrResult> MakeWorldMapPointList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakeWorldMapPointList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);
         }
 
-        public static List<U.AddrResult> GetShopAddr(uint addr)
+        public static List<AddrResult> GetShopAddr(uint addr)
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
             uint textid = Program.ROM.u16(addr + 28);
 
             uint shopaddr;
@@ -97,21 +97,21 @@ namespace FEBuilderGBA
             if (U.isSafetyOffset( shopaddr ) )
             {
                 string name = TextForm.Direct(textid) + " " + R._("武器屋");
-                ret.Add(new U.AddrResult(shopaddr,name , addr + 12));
+                ret.Add(new AddrResult(shopaddr,name , addr + 12));
             }
 
             shopaddr = Program.ROM.p32(addr + 16);
             if (U.isSafetyOffset( shopaddr ) )
             {
                 string name = TextForm.Direct(textid) + " " + R._("道具屋");
-                ret.Add(new U.AddrResult(shopaddr,name , addr + 16));
+                ret.Add(new AddrResult(shopaddr,name , addr + 16));
             }   
 
             shopaddr = Program.ROM.p32(addr + 20);
             if (U.isSafetyOffset( shopaddr ) )
             {
                 string name = TextForm.Direct(textid) + " " + R._("秘密の店");
-                ret.Add(new U.AddrResult(shopaddr,name , addr + 20));
+                ret.Add(new AddrResult(shopaddr,name , addr + 20));
             }
 
             return ret;

@@ -292,7 +292,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             if (Program.ROM.RomInfo.version == 7
                 && !Program.ROM.RomInfo.is_multibyte)

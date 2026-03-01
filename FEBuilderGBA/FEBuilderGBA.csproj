@@ -211,6 +211,8 @@
     <Compile Remove="EtcCacheResource.cs" />
     <Compile Remove="GitInstaller.cs" />
     <Compile Remove="GitUtil.cs" />
+    <Compile Remove="EtcCacheFLag.cs" />
+    <Compile Remove="ArchSevenZip.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

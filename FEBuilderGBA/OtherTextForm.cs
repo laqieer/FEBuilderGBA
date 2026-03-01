@@ -26,7 +26,7 @@ namespace FEBuilderGBA
             this.AddressList.BeginUpdate();
             this.AddressList.Items.Clear();
 
-            List<U.AddrResult> list = MakeOtherTextMap();
+            List<AddrResult> list = MakeOtherTextMap();
             for (int i = 0; i < list.Count; i++)
             {
                 this.AddressList.Items.Add(list[i].name);
@@ -37,9 +37,9 @@ namespace FEBuilderGBA
             this.AddressList.SelectedIndex = selected;
         }
 
-        static List<U.AddrResult> MakeOtherTextMap()
+        static List<AddrResult> MakeOtherTextMap()
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             string fullfilename = U.ConfigDataFilename("other_text_");
             if (!U.IsRequiredFileExist(fullfilename))
             {
@@ -65,7 +65,7 @@ namespace FEBuilderGBA
                     uint p_str = Program.ROM.p32(addr);
                     string str = U.ToHexString(p_str) + " " + Program.ROM.getString(p_str);
 
-                    list.Add(new U.AddrResult(addr,str,p_str));
+                    list.Add(new AddrResult(addr,str,p_str));
                 }
             }
             return list;
@@ -95,14 +95,14 @@ namespace FEBuilderGBA
             this.BlockSize.Text = length.ToString();
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             return MakeOtherTextMap();
         }
 
         private void TextWriteButton_Click(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(AddressList, AddressList.SelectedIndex);
+            AddrResult ar = InputFormRef.SelectToAddrResult(AddressList, AddressList.SelectedIndex);
             if (ar.isNULL())
             {
                 return;
@@ -132,7 +132,7 @@ namespace FEBuilderGBA
         {
             string name = "OtherText";
 
-            List<U.AddrResult> textlist = MakeOtherTextMap();
+            List<AddrResult> textlist = MakeOtherTextMap();
             for (int i = 0; i < textlist.Count; i++)
             {
                 uint p = textlist[i].addr;

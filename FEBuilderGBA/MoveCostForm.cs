@@ -77,12 +77,12 @@ namespace FEBuilderGBA
                 {
                     if (i == 0)
                     {
-                        return new U.AddrResult(0, "");
+                        return new AddrResult(0, "");
                     }
                     uint p = ClassForm.GetMoveCostAddrLow(addr,(uint)self.FilterComboBox.SelectedIndex);
                     
                     string name = U.ToHexString(i) + " " + ClassForm.GetClassNameLow(addr);
-                    return new U.AddrResult(p, name);
+                    return new AddrResult(p, name);
                 }
                 );
         }
@@ -111,7 +111,7 @@ namespace FEBuilderGBA
 
             uint selectAddr = (uint)this.Address.Value;
 
-            List<U.AddrResult> list = 
+            List<AddrResult> list = 
                 ClassForm.MakeClassList((uint addr) =>
                 {
                     uint p = ClassForm.GetMoveCostAddrLow(addr, (uint)this.FilterComboBox.SelectedIndex);
@@ -183,7 +183,7 @@ namespace FEBuilderGBA
         static void MakeCheckErrorOneAvoid(FELint.Type type
             , uint addr
             , uint cid
-            , List<U.AddrResult> classList
+            , List<AddrResult> classList
             , List<FELint.ErrorSt> errors)
         {
             if (addr == 0)
@@ -222,7 +222,7 @@ namespace FEBuilderGBA
         static void MakeCheckErrorOneMove(FELint.Type type
             ,uint addr
             ,uint cid
-            ,List<U.AddrResult> classList
+            ,List<AddrResult> classList
             ,List<FELint.ErrorSt> errors)
         {
             if (addr == 0)
@@ -303,7 +303,7 @@ namespace FEBuilderGBA
             bool isFE6 = (Program.ROM.RomInfo.version == 6);
             InputFormRef InputFormRef = Init(null);
 
-            List<U.AddrResult> classList = ClassForm.MakeClassList();
+            List<AddrResult> classList = ClassForm.MakeClassList();
             for (uint cid = 1; cid < classList.Count; cid++)
             {
                 uint class_addr = classList[(int)cid].addr;

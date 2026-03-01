@@ -66,7 +66,7 @@ namespace FEBuilderGBA
 
         private void JUMP_TO_BATTLEANIME_Click(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             uint id = U.atoh(ar.name) - 1;
 
             InputFormRef.JumpTo(null, id, "BATTLEANIME", new string[] { "ANIMEID"});

@@ -85,7 +85,7 @@ namespace FEBuilderGBA
             return TextForm.Direct(textid);
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

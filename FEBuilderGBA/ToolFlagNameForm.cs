@@ -28,7 +28,7 @@ namespace FEBuilderGBA
         void Init()
         {
             this.BaseFlag = U.LoadDicResource(U.ConfigDataFilename("flag_"));
-            List<U.AddrResult> list = Program.FlagCache.MakeList();
+            List<AddrResult> list = Program.FlagCache.MakeList();
 
             this.AddressList.BeginUpdate();
             this.AddressList.Items.Clear();
@@ -42,7 +42,7 @@ namespace FEBuilderGBA
 
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             if (ar.isNULL())
             {
                 this.FlagNameTextBox.Text = "";
@@ -54,7 +54,7 @@ namespace FEBuilderGBA
         }
         private void WriteButton_Click(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             if (ar.isNULL())
             {
                 return;
@@ -82,7 +82,7 @@ namespace FEBuilderGBA
             WriteButton.PerformClick();
 
             //元に戻す.
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             if (ar.isNULL())
             {
                 return;
@@ -111,7 +111,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             InputFormRef.ExpandsEventArgs args = new InputFormRef.ExpandsEventArgs();
             args.NewBaseAddress = ar.addr;
 

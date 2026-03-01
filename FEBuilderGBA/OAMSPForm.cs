@@ -33,10 +33,10 @@ namespace FEBuilderGBA
                 List<Address> listOAM12 = new List<Address>();
                 MakeAllDataLength(this.ListOAM, listOAM12, ldrmap);
 
-                List<U.AddrResult> list = new List<U.AddrResult>();
+                List<AddrResult> list = new List<AddrResult>();
                 for (int i = 0; i < this.ListOAM.Count; i++)
                 {
-                    list.Add(new U.AddrResult((uint)i, this.ListOAM[i].Info));
+                    list.Add(new AddrResult((uint)i, this.ListOAM[i].Info));
                     this.AddressList.Items.Add(this.ListOAM[i].Info);
                 }
                 this.AddressList.Tag = list;

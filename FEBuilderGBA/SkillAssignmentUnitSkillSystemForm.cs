@@ -408,7 +408,7 @@ namespace FEBuilderGBA
 
 
             InputFormRef InputFormRef = Init(null, assignUnitP);
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             if (uid < 0 || uid >= list.Count)
             {
                 return 0;

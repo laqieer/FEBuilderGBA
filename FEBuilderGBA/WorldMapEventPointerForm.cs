@@ -82,12 +82,12 @@ namespace FEBuilderGBA
                 );
         }
 
-        public static List<U.AddrResult> MakeBeforeEventList()
+        public static List<AddrResult> MakeBeforeEventList()
         {
             InputFormRef InputFormRef = N_Init(null);
             return InputFormRef.MakeList();
         }
-        public static List<U.AddrResult> MakeAfterEventList()
+        public static List<AddrResult> MakeAfterEventList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
@@ -136,9 +136,9 @@ namespace FEBuilderGBA
             U.SelectedIndexSafety(this.N_AddressList, value);
         }
 
-        public static List<U.AddrResult> MakeEventScriptPointer()
+        public static List<AddrResult> MakeEventScriptPointer()
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             InputFormRef InputFormRef = Init(null);
 
             uint addr = InputFormRef.BaseAddress;
@@ -147,7 +147,7 @@ namespace FEBuilderGBA
                 uint event_addr = Program.ROM.p32(addr);
                 if (U.isSafetyOffset(event_addr))
                 {
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                         event_addr
                         , i.ToString()
                         , 0
@@ -165,7 +165,7 @@ namespace FEBuilderGBA
                 uint event_addr = Program.ROM.p32(addr);
                 if (U.isSafetyOffset(event_addr))
                 {
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                         event_addr
                         , i.ToString()
                         , 1

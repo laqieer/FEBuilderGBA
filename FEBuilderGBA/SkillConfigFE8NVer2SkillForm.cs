@@ -690,7 +690,7 @@ namespace FEBuilderGBA
 
             InputFormRef InputFormRef = Init(null);
 
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             for (int n = 0; n < list.Count; n++)
             {
                 uint addr = list[n].addr;
@@ -727,7 +727,7 @@ namespace FEBuilderGBA
             InputFormRef N2_InputFormRef = N2_Init(null);
 
             int skillCount = 0;
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             for (int i = 1; i < list.Count; i++)
             {
                 uint classAddr = Program.ROM.p32(list[i].addr + 8);
@@ -738,7 +738,7 @@ namespace FEBuilderGBA
 
                 bool found = false;
                 N2_InputFormRef.ReInit(classAddr);
-                List<U.AddrResult> classList = N2_InputFormRef.MakeList();
+                List<AddrResult> classList = N2_InputFormRef.MakeList();
                 for (int n = 0; n < classList.Count; n++)
                 {
                     uint classID = Program.ROM.u8(classList[n].addr);
@@ -798,7 +798,7 @@ namespace FEBuilderGBA
             InputFormRef N1_InputFormRef = N1_Init(null);
 
             int skillCount = 0;
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             for (int i = 1; i < list.Count; i++)
             {
                 if (b38 == i || b39 == i || b49 == i)

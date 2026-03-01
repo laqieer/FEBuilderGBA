@@ -97,7 +97,7 @@ namespace FEBuilderGBA
                 {
                     uint   songheader = Program.ROM.p32(addr+0);
                     string name = U.ToHexString(i) + " " + SongTableForm.GetSongName((uint)i);
-                    return new U.AddrResult(songheader, name);
+                    return new AddrResult(songheader, name);
                 }
                 );
         }

@@ -46,10 +46,10 @@ namespace FEBuilderGBA
                     uint ITEMSTATBOOSTER = Program.ROM.u32(addr + 12);
                     if (! U.isPointer(ITEMSTATBOOSTER))
                     {
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
 
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = U.toOffset( ITEMSTATBOOSTER );
 
                     uint id = Program.ROM.u16(addr);
@@ -75,7 +75,7 @@ namespace FEBuilderGBA
         {
             //該当アイテム.
             uint selectaddress = (uint)this.Address.Value;
-            List<U.AddrResult>  list = ItemForm.MakeItemList( (uint addr) =>
+            List<AddrResult>  list = ItemForm.MakeItemList( (uint addr) =>
             {
                 uint ITEMSTATBOOSTER = Program.ROM.p32(addr + 12);
                 return (selectaddress == ITEMSTATBOOSTER);

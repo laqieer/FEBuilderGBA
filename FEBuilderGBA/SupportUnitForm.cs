@@ -267,7 +267,7 @@ namespace FEBuilderGBA
             //リストを縮めた場合も考慮したい.
             uint newaddr_limit =(uint)(newaddr + (eearg.BlockSize * newcount));
 
-            List<U.AddrResult> unitlist = UnitForm.MakeUnitList();
+            List<AddrResult> unitlist = UnitForm.MakeUnitList();
 
             Undo.UndoData undodata = Program.Undo.NewUndoData("ChangeSupportPointer");
             int i ;

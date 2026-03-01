@@ -47,10 +47,10 @@ namespace FEBuilderGBA
                     uint itemCritical = Program.ROM.u32(addr + 16);
                     if (!U.isPointer(itemCritical))
                     {
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
 
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = U.toOffset(itemCritical);
 
                     uint id = Program.ROM.u16(addr);
@@ -80,7 +80,7 @@ namespace FEBuilderGBA
                 {
                     uint class_type = Program.ROM.u16(addr + 2);
 
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = addr;
 
                     ar.name = U.ToHexString(class_type) + " " + ClassForm.GetClassType(class_type);
@@ -98,7 +98,7 @@ namespace FEBuilderGBA
         {
             //該当アイテム.
             uint selectaddress = (uint)this.Address.Value;
-            List<U.AddrResult> list = ItemForm.MakeItemList( (uint addr) =>
+            List<AddrResult> list = ItemForm.MakeItemList( (uint addr) =>
             {
                 uint itemCritical = Program.ROM.p32(addr + 16);
                 return (selectaddress == itemCritical);
@@ -108,7 +108,7 @@ namespace FEBuilderGBA
 
             this.N_InputFormRef.ReInit(selectaddress);
         }
-        public static List<U.AddrResult> MakeCriticalClassList(uint addr)
+        public static List<AddrResult> MakeCriticalClassList(uint addr)
         {
             InputFormRef N_InputFormRef = N_Init(null);
             N_InputFormRef.ReInit(addr);

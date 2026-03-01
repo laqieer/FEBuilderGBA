@@ -69,7 +69,7 @@ namespace FEBuilderGBA
 
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
         {
-            List<U.AddrResult> list = this.InputFormRef.MakeList();
+            List<AddrResult> list = this.InputFormRef.MakeList();
             uint class_id = (uint)this.AddressList.SelectedIndex;
             if (class_id >= this.InputFormRef.DataCount)
             {
@@ -115,7 +115,7 @@ namespace FEBuilderGBA
 
         private void UpdateClass(object sender, EventArgs e)
         {
-            List<U.AddrResult> list = this.InputFormRef.MakeList();
+            List<AddrResult> list = this.InputFormRef.MakeList();
             uint class_id = (uint)this.AddressList.SelectedIndex;
 
             //現在選択しているクラスCCから派生するCCを取得
@@ -198,7 +198,7 @@ namespace FEBuilderGBA
 
             int datcount = (int)ClassForm.DataCount();
             InputFormRef  InputFormRef = Init(null, datcount);
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             if (shien_classs_id > 0 && shien_classs_id < list.Count)
             {
                 uint up_cc_class1 = Program.ROM.u8(list[(int)shien_classs_id].addr + 0);

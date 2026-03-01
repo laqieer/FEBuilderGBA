@@ -30,7 +30,7 @@ namespace FEBuilderGBA
             }
 
             //最初の一つを残して全消去
-            List<U.AddrResult> alist = OPClassFontForm.MakeList();
+            List<AddrResult> alist = OPClassFontForm.MakeList();
             if (alist.Count <= 1)
             {
                 return ;

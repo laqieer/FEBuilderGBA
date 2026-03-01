@@ -335,7 +335,7 @@ namespace FEBuilderGBA
                 , DataTypeEnum.CSTRING));
         }
 
-        public static void AddFunctions(List<Address> list, List<U.AddrResult> arlist, uint offset, string appendName)
+        public static void AddFunctions(List<Address> list, List<AddrResult> arlist, uint offset, string appendName)
         {
             for (int i = 0; i < arlist.Count; i++)
             {

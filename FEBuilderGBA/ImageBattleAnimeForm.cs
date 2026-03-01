@@ -557,7 +557,7 @@ namespace FEBuilderGBA
 
        public static string GetBattleAnimeHint(uint search_animeindex)
        {
-           List<U.AddrResult> classlist = ClassForm.MakeClassList();
+           List<AddrResult> classlist = ClassForm.MakeClassList();
            for (int cid = 0; cid < classlist.Count; cid++)
            {
                uint addr = ClassForm.GetBattleAnimeAddrWhereID((uint)cid);
@@ -904,7 +904,7 @@ namespace FEBuilderGBA
            InputFormRef InputFormRef = Init(null);
 
            uint addr;
-           List<U.AddrResult> classList = ClassForm.MakeClassList();
+           List<AddrResult> classList = ClassForm.MakeClassList();
            for (uint cid = 0; cid < classList.Count; cid++)
            {
                uint pointer;
@@ -975,7 +975,7 @@ namespace FEBuilderGBA
                ra.SubRecycle(list);
            }
        }
-       public static List<U.AddrResult> MakeBattleList()
+       public static List<AddrResult> MakeBattleList()
        {
            InputFormRef N_InputFormRef = N_Init(null);
            return N_InputFormRef.MakeList();
@@ -1013,8 +1013,8 @@ namespace FEBuilderGBA
        //斧使いが、手斧のモーションを持っているかテストする.
        static void MakeCheckErrorAxs(InputFormRef ifr
            , InputFormRef N_ifr
-           , List<U.AddrResult> axsItems
-           , List<U.AddrResult> classList
+           , List<AddrResult> axsItems
+           , List<AddrResult> classList
            , uint cid
            , List<FELint.ErrorSt> errors)
         {
@@ -1022,7 +1022,7 @@ namespace FEBuilderGBA
             uint axsMotionID = 0;
             List<uint> axsList = new List<uint>();
 
-            List<U.AddrResult> list = ifr.MakeList();
+            List<AddrResult> list = ifr.MakeList();
             for (int i = 0; i < list.Count; i++)
             {
                 uint b0 = Program.ROM.u8(list[i].addr);
@@ -1113,8 +1113,8 @@ namespace FEBuilderGBA
             //そのため、FE7,FE8だけチェックします.
                InputFormRef InputFormRef = Init(null);
 
-               List<U.AddrResult> handAxsItems = ItemForm.MakeItemListByHandAxs();
-               List<U.AddrResult> classList = ClassForm.MakeClassList();
+               List<AddrResult> handAxsItems = ItemForm.MakeItemListByHandAxs();
+               List<AddrResult> classList = ClassForm.MakeClassList();
                for (uint cid = 1; cid < classList.Count; cid++)
                {
                    uint pointer;

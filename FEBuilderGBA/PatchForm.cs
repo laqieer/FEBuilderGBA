@@ -5582,7 +5582,7 @@ namespace FEBuilderGBA
         //メニューを追加している場合、追加したメニューの場所を追跡する
         static void AppendMenuPatch(PatchSt patch, List<BinMapping> binMappings)
         {
-            List<U.AddrResult> list;
+            List<AddrResult> list;
             foreach (var pair in patch.Param)
             {
                 string[] sp = pair.Key.Split(':');
@@ -5605,7 +5605,7 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                foreach(U.AddrResult ar in list)
+                foreach(AddrResult ar in list)
                 {
                     uint f = MenuCommandForm.GetEffectAddrByAddr(ar.addr);
                     if (f != U.NOT_FOUND)

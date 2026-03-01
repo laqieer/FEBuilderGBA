@@ -241,7 +241,7 @@ namespace FEBuilderGBA
 
         public static void MakeCheckError(uint mapid, List<FELint.ErrorSt> errors)
         {
-            List<U.AddrResult> list = MakeList(mapid);//効率は悪いが理解しやすさからマップ単位で見ましょう.
+            List<AddrResult> list = MakeList(mapid);//効率は悪いが理解しやすさからマップ単位で見ましょう.
             if (list.Count >= 0x12)
             {
                 errors.Add(new FELint.ErrorSt(FELint.Type.MAPEXIT, U.NOT_FOUND
@@ -249,29 +249,29 @@ namespace FEBuilderGBA
             }
         }
 
-        public static List<U.AddrResult> MakeList(uint mapid)
+        public static List<AddrResult> MakeList(uint mapid)
         {
             InputFormRef InputFormRef = Init(null);
-            List<U.AddrResult> map_arlist = InputFormRef.MakeList();
+            List<AddrResult> map_arlist = InputFormRef.MakeList();
             if (map_arlist.Count <= mapid)
             {
-                return new List<U.AddrResult>();
+                return new List<AddrResult>();
             }
 
             uint addr = map_arlist[(int)mapid].addr;
             if (! U.isSafetyOffset(addr))
             {
-                return new List<U.AddrResult>();
+                return new List<AddrResult>();
             }
             addr = Program.ROM.p32(addr);
             if (!U.isSafetyOffset(addr))
             {
-                return new List<U.AddrResult>();
+                return new List<AddrResult>();
             }
 
             InputFormRef N_InputFormRef = N_Init(null);
             N_InputFormRef.ReInit(addr);
-            List<U.AddrResult> arlist = N_InputFormRef.MakeList();
+            List<AddrResult> arlist = N_InputFormRef.MakeList();
 
             return arlist;
         }

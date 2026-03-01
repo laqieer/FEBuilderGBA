@@ -18,7 +18,7 @@ namespace FEBuilderGBA
             Explain();
             InputFormRef.OwnerDrawColorCombo(L_8_COMBO);
 
-            List<U.AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
+            List<AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
             U.ConvertComboBox(menuDefineList,ref FilterComboBox);
 
             this.InputFormRef = Init(this);
@@ -167,7 +167,7 @@ namespace FEBuilderGBA
             return U.NOT_FOUND;
         }
 
-        public static List<U.AddrResult> MakeListPointer(uint pointer = U.NOT_FOUND)
+        public static List<AddrResult> MakeListPointer(uint pointer = U.NOT_FOUND)
         {
             InputFormRef InputFormRef = Init(null);
             if (pointer != U.NOT_FOUND)

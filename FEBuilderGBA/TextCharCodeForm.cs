@@ -84,7 +84,7 @@ namespace FEBuilderGBA
             }
         }
 
-        static Dictionary<uint, FETextDecode.huffman_count_st> GetUsedCharDic(List<U.AddrResult> list, InputFormRef ifr)
+        static Dictionary<uint, FETextDecode.huffman_count_st> GetUsedCharDic(List<AddrResult> list, InputFormRef ifr)
         {
             Dictionary<uint, FETextDecode.huffman_count_st> dic = new Dictionary<uint, FETextDecode.huffman_count_st>();
             //初期値を入れる.
@@ -110,7 +110,7 @@ namespace FEBuilderGBA
 
         private void SEARCH_COUNT_BUTTON_Click(object sender, EventArgs e)
         {
-            List<U.AddrResult> list = TextForm.MakeItemList();
+            List<AddrResult> list = TextForm.MakeItemList();
             Dictionary<uint, FETextDecode.huffman_count_st> dic = GetUsedCharDic(list, InputFormRef);
 
             SEARCH_COUNT_LIST.BeginUpdate();
@@ -204,7 +204,7 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             List<ToolTextCharRecreate.CharCounter> list = recreate.GetSortedList();
 
-            List<U.AddrResult> stringList = TextForm.MakeItemList();
+            List<AddrResult> stringList = TextForm.MakeItemList();
             Dictionary<uint, FETextDecode.huffman_count_st> dic = GetUsedCharDic(stringList, InputFormRef);
 
             int i = 0;

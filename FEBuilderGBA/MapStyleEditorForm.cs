@@ -61,7 +61,7 @@ namespace FEBuilderGBA
             IsInit = true;
 
             //マップIDリストを作る.
-            List < U.AddrResult > maplist = MapSettingForm.MakeMapIDList();
+            List < AddrResult > maplist = MapSettingForm.MakeMapIDList();
             //マップスタイルリストを作る
             this.MapEditConf = MapEditorForm.MakeMapStyleList(maplist);
             //マップスタイルリストを作る
@@ -69,7 +69,7 @@ namespace FEBuilderGBA
 
             U.SelectedIndexSafety(this.MapStyle, 0);
 
-            List<U.AddrResult> terrainList = MapTerrainNameForm.MakeList();
+            List<AddrResult> terrainList = MapTerrainNameForm.MakeList();
             U.ConvertComboBox(terrainList, ref this.ConfigTerrain);
 
             //マップオブジェクト

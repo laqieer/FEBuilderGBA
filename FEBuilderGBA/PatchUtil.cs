@@ -677,7 +677,7 @@ namespace FEBuilderGBA
         }
         static NIMAP_enum SearchNIMAPLow()
         {
-            List<U.AddrResult> iset = PatchUtil.SearchInstrumentSet(100);
+            List<AddrResult> iset = PatchUtil.SearchInstrumentSet(100);
             for (int i = 0; i < iset.Count; i++)
             {
                 string name = iset[i].name;
@@ -1780,8 +1780,8 @@ namespace FEBuilderGBA
             return addr;
         }
 
-        static List<U.AddrResult> g_InstrumentSet = null;
-        public static List<U.AddrResult> SearchInstrumentSet(uint currentData)
+        static List<AddrResult> g_InstrumentSet = null;
+        public static List<AddrResult> SearchInstrumentSet(uint currentData)
         {
             if (g_InstrumentSet == null)
             {
@@ -1790,10 +1790,10 @@ namespace FEBuilderGBA
             return g_InstrumentSet;
         }
 
-        static List<U.AddrResult> SearchInstrumentSetLow(string filename, uint currentData)
+        static List<AddrResult> SearchInstrumentSetLow(string filename, uint currentData)
         {
-            List<U.AddrResult> iset = new List<U.AddrResult>();
-            iset.Add(new U.AddrResult(currentData, U.ToHexString(U.toPointer(currentData)) + "=Current"));
+            List<AddrResult> iset = new List<AddrResult>();
+            iset.Add(new AddrResult(currentData, U.ToHexString(U.toPointer(currentData)) + "=Current"));
 
             bool hasNimap2 = false;
 
@@ -1854,7 +1854,7 @@ namespace FEBuilderGBA
                 }
 
                 v = U.toPointer(v);
-                iset.Add(new U.AddrResult(v, U.ToHexString(v) + "=" + sp[0]));
+                iset.Add(new AddrResult(v, U.ToHexString(v) + "=" + sp[0]));
             }
             return iset;
         }

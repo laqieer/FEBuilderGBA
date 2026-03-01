@@ -68,7 +68,7 @@ namespace FEBuilderGBA
         }
 
         //地名リストを作る.
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             if (!Program.ROM.RomInfo.is_multibyte)
             {

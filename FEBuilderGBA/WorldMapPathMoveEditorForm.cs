@@ -54,7 +54,7 @@ namespace FEBuilderGBA
         }
         void MakePathCombo()
         {
-            List<U.AddrResult> list = WorldMapPathForm.MakeList();
+            List<AddrResult> list = WorldMapPathForm.MakeList();
             U.ConvertComboBox(list, ref this.PathType);
         }
 
@@ -75,7 +75,7 @@ namespace FEBuilderGBA
             }
 
             //拠点を追加
-            List<U.AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
+            List<AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
             for (int i = 0; i < arlist.Count; i++)
             {
                 MapPictureBox.StaticItem item = WorldMapPointForm.DrawBasePointAddr(arlist[i].addr);

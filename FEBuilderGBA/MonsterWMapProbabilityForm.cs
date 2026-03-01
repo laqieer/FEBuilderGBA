@@ -192,7 +192,7 @@ namespace FEBuilderGBA
 
         void N2_BaseNameUpdate(object sender,EventArgs e)
         {
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             if (list.Count <= 8)
             {
                 return ;

@@ -33,13 +33,13 @@ namespace FEBuilderGBA
                 {
                     uint textid = Program.ROM.u16(addr);
 
-                    return new U.AddrResult(addr, (textid).ToString("X08"));
+                    return new AddrResult(addr, (textid).ToString("X08"));
                 }
             );
                 
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

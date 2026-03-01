@@ -16,7 +16,7 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
-            List<U.AddrResult> animeList = MakeTileAnimation2();
+            List<AddrResult> animeList = MakeTileAnimation2();
             U.ConvertComboBox(animeList, ref FilterComboBox);
 
             this.InputFormRef = Init(this);
@@ -52,10 +52,10 @@ namespace FEBuilderGBA
             InputFormRef.WriteButtonToYellow(this.WriteButton, true);
         }
 
-        static List<U.AddrResult> MakeTileAnimation2()
+        static List<AddrResult> MakeTileAnimation2()
         {
             Dictionary<uint, bool> alreadFound = new Dictionary<uint, bool>();
-            List<U.AddrResult> ret_list = new List<U.AddrResult>();
+            List<AddrResult> ret_list = new List<AddrResult>();
             uint mapmax = MapSettingForm.GetDataCount();
             for (uint i = 0; i < mapmax; i++)
             {
@@ -75,7 +75,7 @@ namespace FEBuilderGBA
                 {
                     name += R._("(破損)");
                 }
-                U.AddrResult ar = new U.AddrResult(addr, name, plist.anime2_plist);
+                AddrResult ar = new AddrResult(addr, name, plist.anime2_plist);
                 ret_list.Add(ar);
 
                 alreadFound[plist.anime2_plist] = true;
@@ -128,7 +128,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, FilterComboBox.SelectedIndex);
+            AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, FilterComboBox.SelectedIndex);
             if (ar.isNULL())
             {
                 return;
@@ -155,7 +155,7 @@ namespace FEBuilderGBA
             uint addr = U.NOT_FOUND;
             for (int i = 0; i < FilterComboBox.Items.Count; i++)
             {
-                U.AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, i);
+                AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, i);
                 if (ar.isNULL())
                 {
                     continue;
@@ -176,7 +176,7 @@ namespace FEBuilderGBA
             this.InputFormRef.ReInit(addr);
         }
 
-        public static List<U.AddrResult> MakeList(uint addr = U.NOT_FOUND)
+        public static List<AddrResult> MakeList(uint addr = U.NOT_FOUND)
         {
             InputFormRef InputFormRef = Init(null);
             if (addr != U.NOT_FOUND)
@@ -191,7 +191,7 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
 
-            List<U.AddrResult> urList = MakeTileAnimation2();
+            List<AddrResult> urList = MakeTileAnimation2();
             for (int n = 0; n < urList.Count; n++)
             {
                 InputFormRef.ReInit(urList[n].addr);
@@ -412,7 +412,7 @@ namespace FEBuilderGBA
 
         private void ImportAllButton_Click(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, FilterComboBox.SelectedIndex);
+            AddrResult ar = InputFormRef.SelectToAddrResult(FilterComboBox, FilterComboBox.SelectedIndex);
             if (ar.isNULL())
             {
                 R.ShowStopError("タイルアニメーションのPLISTを特定できません");
@@ -463,7 +463,7 @@ namespace FEBuilderGBA
 
             //リストを読み直し.
             int selected = FilterComboBox.SelectedIndex;
-            List<U.AddrResult> animeList = MakeTileAnimation2();
+            List<AddrResult> animeList = MakeTileAnimation2();
             U.ConvertComboBox(animeList, ref FilterComboBox);
 
             //現在地を再選択して、リストを描画する.

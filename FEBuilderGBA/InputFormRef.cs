@@ -5412,7 +5412,7 @@ namespace FEBuilderGBA
         //データが存在するか?
         public Func<int ,uint, bool> IsDataExistsCallback { get; private set; }
         //一覧リストの項目を作る.
-        public Func<int, uint, U.AddrResult> LoopCallback { get; private set; }
+        public Func<int, uint, AddrResult> LoopCallback { get; private set; }
         //次のデータアドレスへ
         public Func<uint, uint> NextAddrCallback { get; private set; }
 
@@ -5470,11 +5470,11 @@ namespace FEBuilderGBA
         }
         public static uint SelectToAddr(ListBox list, int SelectedIndex)
         {
-            if (!(list.Tag is List<U.AddrResult>))
+            if (!(list.Tag is List<AddrResult>))
             {
                 return U.NOT_FOUND;
             }
-            List<U.AddrResult> addresslist = (List<U.AddrResult>)list.Tag;
+            List<AddrResult> addresslist = (List<AddrResult>)list.Tag;
             if (SelectedIndex < 0)
             {
                 return U.NOT_FOUND;
@@ -5485,34 +5485,34 @@ namespace FEBuilderGBA
             }
             return addresslist[SelectedIndex].addr;
         }
-        public static U.AddrResult SelectToAddrResult(ListBox list)
+        public static AddrResult SelectToAddrResult(ListBox list)
         {
             return SelectToAddrResult(list, list.SelectedIndex);
         }
-        public static U.AddrResult SelectToAddrResult(ListBox list, int SelectedIndex)
+        public static AddrResult SelectToAddrResult(ListBox list, int SelectedIndex)
         {
-            if (!(list.Tag is List<U.AddrResult>))
+            if (!(list.Tag is List<AddrResult>))
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
-            List<U.AddrResult> addresslist = (List<U.AddrResult>)list.Tag;
+            List<AddrResult> addresslist = (List<AddrResult>)list.Tag;
             if (SelectedIndex < 0)
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
             if (SelectedIndex >= addresslist.Count)
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
             return addresslist[SelectedIndex];
         }
         public static uint SelectToAddr(ComboBox list, int SelectedIndex)
         {
-            if (!(list.Tag is List<U.AddrResult>))
+            if (!(list.Tag is List<AddrResult>))
             {
                 return U.NOT_FOUND;
             }
-            List<U.AddrResult> addresslist = (List<U.AddrResult>)list.Tag;
+            List<AddrResult> addresslist = (List<AddrResult>)list.Tag;
             if (SelectedIndex < 0)
             {
                 return U.NOT_FOUND;
@@ -5523,32 +5523,32 @@ namespace FEBuilderGBA
             }
             return addresslist[SelectedIndex].addr;
         }
-        public static U.AddrResult SelectToAddrResult(ComboBox list, int SelectedIndex)
+        public static AddrResult SelectToAddrResult(ComboBox list, int SelectedIndex)
         {
-            if (!(list.Tag is List<U.AddrResult>))
+            if (!(list.Tag is List<AddrResult>))
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
-            List<U.AddrResult> addresslist = (List<U.AddrResult>)list.Tag;
+            List<AddrResult> addresslist = (List<AddrResult>)list.Tag;
             if (SelectedIndex < 0)
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
             if (SelectedIndex >= addresslist.Count)
             {
-                return new U.AddrResult();
+                return new AddrResult();
             }
             return addresslist[SelectedIndex];
         }
         public static uint AddrToSelect(ListBox list, uint addr)
         {
-            if (!(list.Tag is List<U.AddrResult>))
+            if (!(list.Tag is List<AddrResult>))
             {
                 return U.NOT_FOUND;
             }
 
             addr = U.toOffset(addr);
-            List<U.AddrResult> addresslist = (List<U.AddrResult>)list.Tag;
+            List<AddrResult> addresslist = (List<AddrResult>)list.Tag;
             for (int i = 0; i < addresslist.Count; i++)
             {
                 if (addresslist[i].addr == addr)
@@ -5648,7 +5648,7 @@ namespace FEBuilderGBA
                 , blocksize
                 , (uint addr) => { return addr + blocksize; }
                 , (int i, uint addr) => { return i < 1; }
-                , (int i, uint addr) => { return new U.AddrResult(addr, U.ToHexString(i) ); }
+                , (int i, uint addr) => { return new AddrResult(addr, U.ToHexString(i) ); }
                 );
         }
         public InputFormRef(Form self, String prefix, uint basepointer, uint blocksize
@@ -5661,7 +5661,7 @@ namespace FEBuilderGBA
                 , blocksize
                 , (uint addr) => { return addr + blocksize; }
                 , (int i, uint addr) => { return i < 1; }
-                , (int i, uint addr) => { return new U.AddrResult(addr, loopcallback(i, addr)); }
+                , (int i, uint addr) => { return new AddrResult(addr, loopcallback(i, addr)); }
                 );
         }
     
@@ -5677,7 +5677,7 @@ namespace FEBuilderGBA
                 , blocksize
                 , (uint addr) => { return addr + blocksize; }
                 , isDataExistsCallback
-                , (int i, uint addr) => { return new U.AddrResult(addr, loopcallback(i, addr)); }
+                , (int i, uint addr) => { return new AddrResult(addr, loopcallback(i, addr)); }
                 );
         }
 
@@ -5697,12 +5697,12 @@ namespace FEBuilderGBA
                 , blocksize
                 , (uint addr) => { return addr + blocksize; }
                 , isDataExistsCallback
-                , (int i, uint addr) => { return new U.AddrResult(addr, loopcallback(i, addr)); }
+                , (int i, uint addr) => { return new AddrResult(addr, loopcallback(i, addr)); }
                 );
         }
         public InputFormRef(Form self, String prefix, uint basepointer, uint blocksize
             , Func<int, uint, bool> isDataExistsCallback
-            , Func<int, uint, U.AddrResult> loopcallback
+            , Func<int, uint, AddrResult> loopcallback
             )
         {
             Init(self
@@ -5721,7 +5721,7 @@ namespace FEBuilderGBA
             ,List<String> unionPrefixList
             ,uint basepointer, uint blocksize
             ,Func<int, uint, bool> isDataExistsCallback
-            ,Func<int, uint, U.AddrResult> loopcallback
+            ,Func<int, uint, AddrResult> loopcallback
             )
         {
             Init(self
@@ -5740,7 +5740,7 @@ namespace FEBuilderGBA
             , uint basepointer, uint blocksize
             , Func<uint, uint> nextAddrCallback
             , Func<int, uint, bool> isDataExistsCallback
-            , Func<int, uint, U.AddrResult> loopcallback
+            , Func<int, uint, AddrResult> loopcallback
             )
         {
             Init(self
@@ -5795,7 +5795,7 @@ namespace FEBuilderGBA
             , uint basepointer, uint blocksize
             , Func<uint ,uint > nextAddrCallback
             , Func<int, uint, bool> isDataExistsCallback
-            , Func<int, uint, U.AddrResult> loopcallback
+            , Func<int, uint, AddrResult> loopcallback
             )
         {
             this.BasePointer = U.toOffset(basepointer);
@@ -6667,8 +6667,8 @@ namespace FEBuilderGBA
                 return;
             }
 
-            U.AddrResult a = SelectToAddrResult(this.AddressList, selected);
-            U.AddrResult b;
+            AddrResult a = SelectToAddrResult(this.AddressList, selected);
+            AddrResult b;
             if (isDown)
             {
                 if (selected + 1 >= this.AddressList.Items.Count)
@@ -6730,8 +6730,8 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            U.AddrResult targetAR = SelectToAddrResult(this.AddressList, targetIndex);
-            U.AddrResult startAR = SelectToAddrResult(this.AddressList, startIndex);
+            AddrResult targetAR = SelectToAddrResult(this.AddressList, targetIndex);
+            AddrResult startAR = SelectToAddrResult(this.AddressList, startIndex);
 
             Undo.UndoData undodata = Program.Undo.NewUndoData(this.SelfForm, "D&D");
 
@@ -6798,7 +6798,7 @@ namespace FEBuilderGBA
                 return "";
             }
             uint addr = this.BaseAddress + (id * this.BlockSize);
-            U.AddrResult ar = this.LoopCallback((int)id, addr);
+            AddrResult ar = this.LoopCallback((int)id, addr);
             if (ar.isNULL())
             {
                 return "";
@@ -6902,7 +6902,7 @@ namespace FEBuilderGBA
             }
             //リストボックスで選択した項目からアドレスに変換する表
             //(フィルタがあるので単純計算でも止まらないことがあるので、表を作る.)
-            List<U.AddrResult> selectAddress = new List<U.AddrResult>();
+            List<AddrResult> selectAddress = new List<AddrResult>();
 
             //終端
             uint limitter = (uint)Program.ROM.Data.Length;
@@ -6917,7 +6917,7 @@ namespace FEBuilderGBA
             {//探索する
                 for (int i = 0; i < limitsize; i++)
                 {
-                    U.AddrResult ar = this.LoopCallback(i, addr);
+                    AddrResult ar = this.LoopCallback(i, addr);
                     if (!ar.isNULL())
                     {
                         this.AddressList.Items.Add(ar.name);
@@ -11207,9 +11207,9 @@ namespace FEBuilderGBA
         }
 
         //アイテムリストを得る
-        public List<U.AddrResult> MakeList()
+        public List<AddrResult> MakeList()
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
 
             uint addr = (uint)this.BaseAddress;
             int limitsize = (int)this.DataCount;
@@ -11228,7 +11228,7 @@ namespace FEBuilderGBA
 
             for (int i = 0; i < limitsize; i++)
             {
-                U.AddrResult ar = this.LoopCallback(i, addr);
+                AddrResult ar = this.LoopCallback(i, addr);
                 if (!ar.isNULL())
                 {
                     ret.Add(ar);
@@ -11245,9 +11245,9 @@ namespace FEBuilderGBA
             return ret;
         }
         //アイテムリストを得る
-        public List<U.AddrResult> MakeList(Func<uint, bool> condCallback)
+        public List<AddrResult> MakeList(Func<uint, bool> condCallback)
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
 
             uint addr = (uint)this.BaseAddress;
             int limitsize = (int)this.DataCount;
@@ -11264,7 +11264,7 @@ namespace FEBuilderGBA
                 bool cr = condCallback(addr);
                 if (cr)
                 {
-                    U.AddrResult ar = this.LoopCallback(i, addr);
+                    AddrResult ar = this.LoopCallback(i, addr);
                     if (!ar.isNULL())
                     {
                         ret.Add(ar);
@@ -11280,9 +11280,9 @@ namespace FEBuilderGBA
             }
             return ret;
         }
-        public List<U.AddrResult> MakeList(Func<U.AddrResult,U.AddrResult> condCallback)
+        public List<AddrResult> MakeList(Func<AddrResult,AddrResult> condCallback)
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
 
             uint addr = (uint)this.BaseAddress;
             int limitsize = (int)this.DataCount;
@@ -11296,10 +11296,10 @@ namespace FEBuilderGBA
 
             for (int i = 0; i < limitsize; i++)
             {
-                U.AddrResult ar = this.LoopCallback(i, addr);
+                AddrResult ar = this.LoopCallback(i, addr);
                 if (!ar.isNULL())
                 {
-                    U.AddrResult cr = condCallback(ar);
+                    AddrResult cr = condCallback(ar);
                     if (!cr.isNULL())
                     {
                         ret.Add(cr);
@@ -11316,7 +11316,7 @@ namespace FEBuilderGBA
             return ret;
         }
 
-        public static void AppendNameString(List<U.AddrResult> list
+        public static void AppendNameString(List<AddrResult> list
             , string pre_name,string before_name = "")
         {
             for (int i = 0; i < list.Count; i++)

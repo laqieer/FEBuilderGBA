@@ -81,7 +81,7 @@ namespace FEBuilderGBA
         }
         private void P16_ValueChanged(object sender, EventArgs e)
         {
-            List<U.AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)P16.Value);
+            List<AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)P16.Value);
             U.ConvertListBox(arlist, ref CLASS_LISTBOX);
         }
 

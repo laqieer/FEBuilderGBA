@@ -132,7 +132,7 @@ namespace FEBuilderGBA
         void InitFlag()
         {
             this.UpdateCheckDataFlag = new byte[0x24];
-            List<U.AddrResult> list = Program.FlagCache.MakeList();
+            List<AddrResult> list = Program.FlagCache.MakeList();
             int limit = list.Count;
             if (limit > 0 && Program.ROM.RomInfo.version == 8)
             {//0xFFFFを飛ばす

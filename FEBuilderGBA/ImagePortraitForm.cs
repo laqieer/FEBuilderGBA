@@ -597,14 +597,14 @@ namespace FEBuilderGBA
             }
         }
         //顔画像リストを得る
-        public static List<U.AddrResult> MakePortraitList()
+        public static List<AddrResult> MakePortraitList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
 
         //顔画像リストを得る
-        public static List<U.AddrResult> MakePortraitList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakePortraitList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);
@@ -1705,7 +1705,7 @@ namespace FEBuilderGBA
             AddressList_SelectedIndexChanged(sender, e);
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             if (Program.ROM.RomInfo.version == 6)
             {//FE6

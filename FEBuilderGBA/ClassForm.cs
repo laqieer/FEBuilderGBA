@@ -361,14 +361,14 @@ namespace FEBuilderGBA
         }
 
         //クラスリストを得る
-        public static List<U.AddrResult> MakeClassList()
+        public static List<AddrResult> MakeClassList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
 
         //クラスリストを得る
-        public static List<U.AddrResult> MakeClassList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakeClassList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);

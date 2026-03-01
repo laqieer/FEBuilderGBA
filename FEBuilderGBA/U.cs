@@ -801,37 +801,13 @@ namespace FEBuilderGBA
             return "???";
         }
 
-        public class AddrResult
-        {
-            public uint addr;
-            public string name;
-            public uint tag;
+        // AddrResult is now a top-level public class (AddrResult.cs in Core).
 
-            public bool isNULL()
-            {
-                return addr == 0 || name == null;
-            }
-            public AddrResult(uint addr, string name)
-            {
-                this.addr = addr;
-                this.name = name;
-            }
-            public AddrResult(uint addr, string name,uint tag)
-            {
-                this.addr = addr;
-                this.name = name;
-                this.tag = tag;
-            }
-            public AddrResult()
-            {
-            }
-        };
-
-        public static void ConvertListBox(List<U.AddrResult> list, ref ListBoxEx listbox)
+        public static void ConvertListBox(List<AddrResult> list, ref ListBoxEx listbox)
         {
             listbox.BeginUpdate();
             listbox.Items.Clear();
-            foreach (U.AddrResult ar in list)
+            foreach (AddrResult ar in list)
             {
                 if (!ar.isNULL())
                 {
@@ -841,11 +817,11 @@ namespace FEBuilderGBA
             listbox.Tag = list;
             listbox.EndUpdate();
         }
-        public static void ConvertComboBox(List<U.AddrResult> list,ref ComboBox listbox)
+        public static void ConvertComboBox(List<AddrResult> list,ref ComboBox listbox)
         {
             listbox.BeginUpdate();
             listbox.Items.Clear();
-            foreach (U.AddrResult ar in list)
+            foreach (AddrResult ar in list)
             {
                 if (!ar.isNULL())
                 {
@@ -876,7 +852,7 @@ namespace FEBuilderGBA
 
             listbox.EndUpdate();
         }
-        public static uint FindList(List<U.AddrResult> list, uint addr)
+        public static uint FindList(List<AddrResult> list, uint addr)
         {
             int max = list.Count;
             for (int i = 0; i < max; i++)
@@ -888,7 +864,7 @@ namespace FEBuilderGBA
             }
             return U.NOT_FOUND;
         }
-        public static uint FindList(List<U.AddrResult> list, string name)
+        public static uint FindList(List<AddrResult> list, string name)
         {
             int max = list.Count;
             for (int i = 0; i < max; i++)

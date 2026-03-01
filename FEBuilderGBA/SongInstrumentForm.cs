@@ -900,7 +900,7 @@ namespace FEBuilderGBA
             ImportGBAWave(N18_P4);
         }
 
-        public static List<U.AddrResult> MakeList(uint addr)
+        public static List<AddrResult> MakeList(uint addr)
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInit(addr);
@@ -1095,7 +1095,7 @@ namespace FEBuilderGBA
                 sb.Append(U.ToHexString(Program.ROM.u8(addr + 11)));
             }
 
-            U.AddrResult ar = ifr.LoopCallback(index, addr);
+            AddrResult ar = ifr.LoopCallback(index, addr);
             if (!ar.isNULL())
             {
                 sb.Append("\t//");

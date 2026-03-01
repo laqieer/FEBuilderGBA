@@ -60,17 +60,17 @@ namespace FEBuilderGBA
                 {
                     if (i == 0)
                     {
-                        return new U.AddrResult(0, "");
+                        return new AddrResult(0, "");
                     }
 
                     int filter = FilerFE6ToFE8(self.FilterComboBox.SelectedIndex);
                     uint p = ClassForm.GetMoveCostAddrLow(addr, (uint)filter);
                     if (p == 0)
                     {
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
                     string name = U.ToHexString(i) + " " + ClassForm.GetClassNameLow(addr);
-                    return new U.AddrResult(p, name);
+                    return new AddrResult(p, name);
                 }
                 );
         }
@@ -123,7 +123,7 @@ namespace FEBuilderGBA
 
             uint selectAddr = (uint)this.Address.Value;
 
-            List<U.AddrResult> list = 
+            List<AddrResult> list = 
                 ClassForm.MakeClassList((uint addr) =>
                 {
                     uint p = ClassForm.GetMoveCostAddrLow(addr, (uint)filter);

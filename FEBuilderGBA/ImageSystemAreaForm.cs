@@ -79,7 +79,7 @@ namespace FEBuilderGBA
             this.InputFormRef.ReInit(addr);
         }
 
-        public static List<U.AddrResult> MakeList(uint addr = U.NOT_FOUND)
+        public static List<AddrResult> MakeList(uint addr = U.NOT_FOUND)
         {
             InputFormRef InputFormRef = Init(null);
             if (addr != U.NOT_FOUND)

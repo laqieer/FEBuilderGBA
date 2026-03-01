@@ -156,7 +156,7 @@ namespace FEBuilderGBA
        //他のクラスでこのデータを参照しているか?
        bool UpdateIndependencePanel(uint current_addr,int current_index)
        {
-           List<U.AddrResult> list = this.N2_InputFormRef.MakeList();
+           List<AddrResult> list = this.N2_InputFormRef.MakeList();
            for (int i = 0; i < list.Count; i++)
            {
                if (i == current_index)

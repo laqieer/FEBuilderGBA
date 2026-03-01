@@ -146,7 +146,7 @@ namespace FEBuilderGBA
             return InputFormRef.IDToAddr(song_id);
         }
 
-        public static List<U.AddrResult> MakeItemList()
+        public static List<AddrResult> MakeItemList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

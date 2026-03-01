@@ -137,7 +137,7 @@ namespace FEBuilderGBA
             for (int i = 0 ; i < pointers.Length ; i ++)
             {
                 InputFormRef.ReInitPointer(pointers[i]);
-                List<U.AddrResult> list = InputFormRef.MakeList();
+                List<AddrResult> list = InputFormRef.MakeList();
                 for (int n = 0; n < list.Count ; n++)
                 {
                     uint addr = list[n].addr;

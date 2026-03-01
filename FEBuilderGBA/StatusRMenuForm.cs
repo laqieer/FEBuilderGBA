@@ -116,7 +116,7 @@ namespace FEBuilderGBA
                     ListFounder(addr, ref rmenulist, ref already);
 
                     string str = U.ToHexString(i) + " " + GetMenuName(addr);
-                    return new U.AddrResult(addr, str);
+                    return new AddrResult(addr, str);
                 }
                 );
         }

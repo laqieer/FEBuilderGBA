@@ -24,8 +24,8 @@ namespace FEBuilderGBA
             {
                 U.SelectedIndexSafety(this.BattleFocus, 0);
 
-                List<U.AddrResult> list = ImageBattleTerrainForm.MakeList();
-                list.Insert(0, new U.AddrResult(1, R._("00 表示しない")));
+                List<AddrResult> list = ImageBattleTerrainForm.MakeList();
+                list.Insert(0, new AddrResult(1, R._("00 表示しない")));
                 U.ConvertComboBox(list, ref this.BattleTerrain);
 
                 if (Program.ROM.RomInfo.version == 8)
@@ -42,25 +42,25 @@ namespace FEBuilderGBA
                 }
             }
             {
-                List<U.AddrResult> list = ImageBattleBGForm.MakeList();
-                list.Insert(0, new U.AddrResult(1, R._("00 マップを表示")));
-                list.Insert(1, new U.AddrResult(0x100, R._("100 パレット0")));
-                list.Insert(2, new U.AddrResult(0x101, R._("101 黒単色")));
+                List<AddrResult> list = ImageBattleBGForm.MakeList();
+                list.Insert(0, new AddrResult(1, R._("00 マップを表示")));
+                list.Insert(1, new AddrResult(0x100, R._("100 パレット0")));
+                list.Insert(2, new AddrResult(0x101, R._("101 黒単色")));
                 U.ConvertComboBox(list, ref this.BattleBG);
 
                 U.SelectedIndexSafety(this.BattleBG, 0x4 + 3 - 1);
             }
             {
-                List<U.AddrResult> list = new List<U.AddrResult>();
-                list.Add(new U.AddrResult(1, R._("00 表示しない")));
-                list.Add(new U.AddrResult(2, R._("01 戦闘画面")));
+                List<AddrResult> list = new List<AddrResult>();
+                list.Add(new AddrResult(1, R._("00 表示しない")));
+                list.Add(new AddrResult(2, R._("01 戦闘画面")));
                 U.ConvertComboBox(list, ref this.BattleScreen);
 
                 U.SelectedIndexSafety(this.BattleScreen, 0x1);
             }
             {
-                List<U.AddrResult> list = ImageBattleAnimeForm.MakeBattleList();
-                list.Insert(0, new U.AddrResult(1, R._("00 表示しない")));
+                List<AddrResult> list = ImageBattleAnimeForm.MakeBattleList();
+                list.Insert(0, new AddrResult(1, R._("00 表示しない")));
                 U.ConvertComboBox(list, ref this.TargetEnemy);
                 U.ConvertComboBox(list, ref this.PlayerUnit);
 

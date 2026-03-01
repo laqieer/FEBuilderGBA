@@ -2609,7 +2609,7 @@ namespace FEBuilderGBA
             for(uint mapid = 0 ; mapid < maxcount; mapid++)
             {
                 //イベント命令　一覧の取得
-                List<U.AddrResult> list = EventCondForm.MakeEventScriptPointer(mapid);
+                List<AddrResult> list = EventCondForm.MakeEventScriptPointer(mapid);
                 for (int i = 0; i < list.Count; i++)
                 {
                     if (list[i].addr == addr)
@@ -2621,7 +2621,7 @@ namespace FEBuilderGBA
 
             //ワールドマップイベントの可能性
             {
-                List<U.AddrResult> list = WorldMapEventPointerForm.MakeEventScriptPointer();
+                List<AddrResult> list = WorldMapEventPointerForm.MakeEventScriptPointer();
                 for (int i = 0; i < list.Count; i++)
                 {
                     if (list[i].addr == addr)

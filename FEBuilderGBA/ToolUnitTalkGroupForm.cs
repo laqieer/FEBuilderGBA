@@ -39,7 +39,7 @@ namespace FEBuilderGBA
             text = R._("会話グループ") + ":" + U.ToHexString(index);
             bounds.X += U.DrawText(text, g, normalFont, brush, isWithDraw, bounds);
 
-            List<U.AddrResult> units = UnitForm.MakeUnitList();
+            List<AddrResult> units = UnitForm.MakeUnitList();
             int unitMax = Math.Min(units.Count, (int)UnitForm.MAX_PLAYER_UNIT_ID+1); //戦績が選べるのは 0x45まで
             for (int i = 0; i < unitMax; i++)
             {

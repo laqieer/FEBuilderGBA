@@ -833,6 +833,17 @@ namespace FEBuilderGBA
             }
             catch (Exception) { return 0; }
         }
+        public static string GetRelativePath(string uri1, string uri2)
+        {
+            Uri u1 = new Uri(uri1);
+            Uri u2 = new Uri(uri2);
+            Uri relativeUri = u1.MakeRelativeUri(u2);
+            string relativePath = relativeUri.ToString();
+            relativePath = relativePath.Replace('/', '\\');
+            relativePath = Uri.UnescapeDataString(relativePath);
+            return relativePath;
+        }
+
         public static string getVersion()
         {
             var asm = typeof(U).Assembly;
@@ -1067,24 +1078,14 @@ namespace FEBuilderGBA
             return list;
         }
 
-        // ---- AddrResult (used by many Core + UI files) ------------------------
-        public class AddrResult
-        {
-            public uint addr;
-            public string name;
-            public uint tag;
-            public bool isNULL() { return addr == 0 || name == null; }
-            public AddrResult(uint addr, string name) { this.addr = addr; this.name = name; }
-            public AddrResult(uint addr, string name, uint tag) { this.addr = addr; this.name = name; this.tag = tag; }
-            public AddrResult() { }
-        }
-        public static uint FindList(List<U.AddrResult> list, uint addr)
+        // AddrResult is now a top-level public class (AddrResult.cs in Core).
+        public static uint FindList(List<AddrResult> list, uint addr)
         {
             int max = list.Count;
             for (int i = 0; i < max; i++) { if (list[i].addr == addr) return (uint)i; }
             return U.NOT_FOUND;
         }
-        public static uint FindList(List<U.AddrResult> list, string name)
+        public static uint FindList(List<AddrResult> list, string name)
         {
             int max = list.Count;
             for (int i = 0; i < max; i++) { if (list[i].name == name) return (uint)i; }

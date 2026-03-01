@@ -586,7 +586,7 @@ namespace FEBuilderGBA
             }
 
             InputFormRef InputFormRef = Init(null, assignClassP);
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             if (cid >= list.Count)
             {
                 return 0;
@@ -752,7 +752,7 @@ namespace FEBuilderGBA
             InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
             N1_InputFormRef.ReInit(levelupList);
 
-            List<U.AddrResult> levelupSkillList = N1_InputFormRef.MakeList();
+            List<AddrResult> levelupSkillList = N1_InputFormRef.MakeList();
             for (int i = 0; i < levelupSkillList.Count; i++)
             {
                 uint levelUpSkillAddr = levelupSkillList[i].addr;

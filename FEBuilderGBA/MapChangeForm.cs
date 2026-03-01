@@ -45,7 +45,7 @@ namespace FEBuilderGBA
                     uint change_plist_addr = MapPointerForm.PlistToOffsetAddr(MapPointerForm.PLIST_TYPE.CHANGE , plist.mapchange_plist);
                     string name = MapSettingForm.GetMapName((uint)i);
 
-                    return new U.AddrResult(change_plist_addr, name, (uint)i);
+                    return new AddrResult(change_plist_addr, name, (uint)i);
                 }
                 );
         }
@@ -75,7 +75,7 @@ namespace FEBuilderGBA
         }
         private void AddressList_SelectedIndexChanged(object sender, EventArgs e)
         {
-            U.AddrResult  ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult  ar = InputFormRef.SelectToAddrResult(this.AddressList);
             uint mapid = ar.tag;
             MapPictureBox.LoadMap(mapid);
             this.MapPictureBox.ClearAllPoint();
@@ -143,7 +143,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             uint mapid = ar.tag;
             int width = (int)N_B3.Value;
             int height = (int)N_B4.Value;
@@ -246,7 +246,7 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             uint mapid = ar.tag;
 
             MapEditorForm f = (MapEditorForm)InputFormRef.JumpForm<MapEditorForm>(U.NOT_FOUND);

@@ -54,7 +54,7 @@ namespace FEBuilderGBA
         public InputFormRef InputFormRef;
         static InputFormRef Init(Form self, bool isPLISTSplit)
         {
-            List<U.AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
+            List<AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
             uint limit;
             if (isPLISTSplit)
             {//plistはbyteで参照するため、255までしかありえない
@@ -105,7 +105,7 @@ namespace FEBuilderGBA
                 );
             return ifr;
         }
-        static string GetPListNameSplited(uint plist, uint baseaddr, List<U.AddrResult> mapSetting)
+        static string GetPListNameSplited(uint plist, uint baseaddr, List<AddrResult> mapSetting)
         {
             //分割している場合
             if (plist == 0)
@@ -174,7 +174,7 @@ namespace FEBuilderGBA
         }
 
         //分割していない場合
-        static string GetPListNameNotSplite(uint plist, List<U.AddrResult> mapSetting)
+        static string GetPListNameNotSplite(uint plist, List<AddrResult> mapSetting)
         {
             if (plist == 0)
             {//0番はnull
@@ -603,18 +603,18 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null, IsPlistSplits());
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.CONFIG));
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS", new uint[] { 0 });
-            List<U.AddrResult> configList = InputFormRef.MakeList();
+            List<AddrResult> configList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.ANIMATION)); //ANIMATION2と共有
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_ANIMATION", new uint[] { 0 });
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.OBJECT)); //PALETTEと共有
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_OBJECT", new uint[] { 0 });
-            List<U.AddrResult> objList = InputFormRef.MakeList();
+            List<AddrResult> objList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.MAP));
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_MAP", new uint[] { 0 });
-            List<U.AddrResult> mapList = InputFormRef.MakeList();
+            List<AddrResult> mapList = InputFormRef.MakeList();
 
             InputFormRef.ReInitPointer(GetBasePointer(PLIST_TYPE.EVENT));
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_EVENT", new uint[] { 0 });
@@ -628,7 +628,7 @@ namespace FEBuilderGBA
                 FEBuilderGBA.Address.AddAddress(list, InputFormRef, "MAPPOINTERS_WMAP_EVENT", new uint[] { 0 });
             }
 
-            List<U.AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
+            List<AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
             for (int mapid = 0; mapid < mapSetting.Count; mapid++)
             {
                 MapSettingForm.PLists plists = MapSettingForm.GetMapPListsWhereAddr(mapSetting[mapid].addr);
@@ -870,7 +870,7 @@ namespace FEBuilderGBA
             InputFormRef.ReInitPointer(GetBasePointer(type));
 
             byte[] newArray = new byte[4 * (256)];
-            List<U.AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
+            List<AddrResult> mapSetting = MapSettingForm.MakeMapIDList();
             int mapmax = mapSetting.Count;
             for (int mapid = 0; mapid < mapmax; mapid++)
             {

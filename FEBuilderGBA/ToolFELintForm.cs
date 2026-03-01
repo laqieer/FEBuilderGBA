@@ -30,7 +30,7 @@ namespace FEBuilderGBA
 
         private Size DrawErrorList(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             uint mapid = ar.addr;
 
             SolidBrush brush = new SolidBrush(lb.ForeColor);
@@ -67,10 +67,10 @@ namespace FEBuilderGBA
 
             U.echo("Check...");
 
-            List<U.AddrResult> errorMapUI = ScanWithoutUI(null,false);
+            List<AddrResult> errorMapUI = ScanWithoutUI(null,false);
             for (int i = 0; i < errorMapUI.Count; i++)
             {
-                U.AddrResult ar = errorMapUI[i];
+                AddrResult ar = errorMapUI[i];
                 string text = "//" + R._("エラー:{0}個のエラーがあります", ar.tag);
                 U.echo(ar.name + text);
             }
@@ -84,10 +84,10 @@ namespace FEBuilderGBA
         }
 
 
-        static List<U.AddrResult> ScanWithoutUI(InputFormRef.AutoPleaseWait pleaseWait,bool useIgnoreData)
+        static List<AddrResult> ScanWithoutUI(InputFormRef.AutoPleaseWait pleaseWait,bool useIgnoreData)
         {
-            List<U.AddrResult> errorMapUI = new List<U.AddrResult>();
-            List<U.AddrResult> maps = MapSettingForm.MakeMapIDList();
+            List<AddrResult> errorMapUI = new List<AddrResult>();
+            List<AddrResult> maps = MapSettingForm.MakeMapIDList();
 
             List<DisassemblerTrumb.LDRPointer> ldrmap;
             ldrmap = DisassemblerTrumb.MakeLDRMap(Program.ROM.Data, 0x100);
@@ -107,7 +107,7 @@ namespace FEBuilderGBA
 
                 if (errorList.Count > 0)
                 {//エラーがある
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = FELint.SYSTEM_MAP_ID;
                     ar.name = R._("システム");
                     ar.tag = (uint)errorList.Count;
@@ -124,7 +124,7 @@ namespace FEBuilderGBA
                 }
 
                 uint mapid = (uint)i;
-                U.AddrResult ar = new U.AddrResult();
+                AddrResult ar = new AddrResult();
 
                 //このマップのエラースキャン
                 List<FELint.ErrorSt> errorList = FELint.ScanMAP(mapid, ldrmap);
@@ -173,7 +173,7 @@ namespace FEBuilderGBA
             //スキャン中
             MainTab.SelectedTab = tabPageScan;
 
-            List<U.AddrResult> errorMapUI ;
+            List<AddrResult> errorMapUI ;
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
             {
                 errorMapUI = ScanWithoutUI(pleaseWait, showAllError);
@@ -198,7 +198,7 @@ namespace FEBuilderGBA
             //エラーがあるよ.
             AddressList.BeginUpdate();
             AddressList.Items.Clear();
-            foreach (U.AddrResult ar in errorMapUI)
+            foreach (AddrResult ar in errorMapUI)
             {
                 AddressList.Items.Add(ar.name);
             }
@@ -226,7 +226,7 @@ namespace FEBuilderGBA
 
         void EnterEvent()
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             if (ar.name == null)
             {
                 return;

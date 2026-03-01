@@ -171,7 +171,7 @@ namespace FEBuilderGBA
             this.OpenSourceButton.Show();
             this.SelectSourceButton.Show();
         }
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

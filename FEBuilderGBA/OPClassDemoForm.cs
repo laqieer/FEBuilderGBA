@@ -118,7 +118,7 @@ namespace FEBuilderGBA
             N2_InputFormRef.ReInit((uint)this.P24.Value);
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();

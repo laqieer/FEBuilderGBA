@@ -33,7 +33,7 @@ namespace FEBuilderGBA
                 for (uint mapid = 0; mapid < maxcount; mapid++)
                 {
                     //イベント命令　一覧の取得(開始イベントと終了イベントのみ)
-                    List<U.AddrResult> eventlist = EventCondForm.MakeEventScriptPointerStartAndEndEventOnly(mapid);
+                    List<AddrResult> eventlist = EventCondForm.MakeEventScriptPointerStartAndEndEventOnly(mapid);
                     for (int i = 0; i < eventlist.Count; i++)
                     {
                         if (!U.isSafetyOffset(eventlist[i].addr))

@@ -73,7 +73,7 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             FEBuilderGBA.Address.AddAddress(list, InputFormRef, "AIPerformItem", new uint[] { 4 });
 
-            List<U.AddrResult> arlist = InputFormRef.MakeList();
+            List<AddrResult> arlist = InputFormRef.MakeList();
             FEBuilderGBA.Address.AddFunctions(list, arlist, 4, "AIPerformItem_ASM_");
         }
 

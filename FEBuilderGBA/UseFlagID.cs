@@ -34,10 +34,10 @@ namespace FEBuilderGBA
 
         public static void AppendFlagID(List<UseFlagID> list, FELint.Type dataType, InputFormRef ifr, uint flagIDPlus, uint chapterIDPlus)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 uint id = Program.ROM.u16(ar.addr + flagIDPlus);
                 if (id == 0)
                 {
@@ -55,10 +55,10 @@ namespace FEBuilderGBA
 
         public static void AppendFlagIDFixedMapID(List<UseFlagID> list, FELint.Type dataType, InputFormRef ifr, uint flagIDPlus, uint chapterIDPlus)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 uint id = Program.ROM.u16(ar.addr + flagIDPlus);
                 if (id == 0)
                 {

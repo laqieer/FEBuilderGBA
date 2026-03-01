@@ -148,18 +148,18 @@ namespace FEBuilderGBA
         }
 
         //全データの取得
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
         //全データの取得(アイテムIDのリストで取得)
-        public static Dictionary<uint, U.AddrResult> MakeDic()
+        public static Dictionary<uint, AddrResult> MakeDic()
         {
-            Dictionary<uint, U.AddrResult> ret = new Dictionary<uint, U.AddrResult>();
+            Dictionary<uint, AddrResult> ret = new Dictionary<uint, AddrResult>();
 
             InputFormRef InputFormRef = Init(null);
-            List<U.AddrResult>  list = InputFormRef.MakeList();
+            List<AddrResult>  list = InputFormRef.MakeList();
             for (int i = 0; i < list.Count; i++)
             {
                 uint id = Program.ROM.u8(list[i].addr + 0);

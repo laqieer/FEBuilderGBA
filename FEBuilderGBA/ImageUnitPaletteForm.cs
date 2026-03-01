@@ -144,7 +144,7 @@ namespace FEBuilderGBA
                 uint unit_palette_color_pointer = Program.ROM.p32(Program.ROM.RomInfo.unit_palette_color_pointer);
                 uint unit_palette_class_pointer = Program.ROM.p32(Program.ROM.RomInfo.unit_palette_class_pointer);
 
-                List<U.AddrResult> list = new List<U.AddrResult>();
+                List<AddrResult> list = new List<AddrResult>();
                 for (int i = 0; i < Program.ROM.RomInfo.unit_maxcount; i++)
                 {
                     for (uint n = 0; n < 7; n++)
@@ -162,7 +162,7 @@ namespace FEBuilderGBA
                         uint cid = Program.ROM.u8(unit_palette_class_pointer + n);
                         string name = U.ToHexString(uid) + " " + UnitForm.GetUnitName(uid) + " -> " + U.ToHexString(cid) + " " + ClassForm.GetClassName(cid);
 
-                        list.Add(new U.AddrResult(cid, name, uid));
+                        list.Add(new AddrResult(cid, name, uid));
                     }
 
                     unit_palette_color_pointer += 7;
@@ -172,7 +172,7 @@ namespace FEBuilderGBA
             }
             else
             {//FE7 , FE6 はユニットの部分に色指定がある
-                List<U.AddrResult> list = new List<U.AddrResult>();
+                List<AddrResult> list = new List<AddrResult>();
                 for (int i = 0; i < Program.ROM.RomInfo.unit_maxcount; i++)
                 {
                     uint uid = (uint)i;
@@ -183,13 +183,13 @@ namespace FEBuilderGBA
                     {
                         uint cid = UnitForm.GetClassID(uid);
                         string name = U.ToHexString(uid) + " " + UnitForm.GetUnitName(uid) + " -> " + U.ToHexString(cid) + " " + ClassForm.GetClassName(cid);
-                        list.Add(new U.AddrResult(cid, name,uid));
+                        list.Add(new AddrResult(cid, name,uid));
                     }
                     else if (paletteid2 > 0 && paletteid2 - 1 == selectindex)
                     {
                         uint cid = UnitForm.GetHighClass(uid);
                         string name = U.ToHexString(uid) + " " + UnitForm.GetUnitName(uid) + " -> " + U.ToHexString(cid) + " " + ClassForm.GetClassName(cid);
-                        list.Add(new U.AddrResult(cid, name,uid));
+                        list.Add(new AddrResult(cid, name,uid));
                     }
                 }
                 U.ConvertListBox(list, ref UNITCLASS_LIST);

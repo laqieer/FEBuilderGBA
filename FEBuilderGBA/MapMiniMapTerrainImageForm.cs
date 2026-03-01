@@ -76,7 +76,7 @@ namespace FEBuilderGBA
                 , new uint[] { 0 }
                 , FEBuilderGBA.Address.DataTypeEnum.InputFormRef_ASM);
 
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             FEBuilderGBA.Address.AddFunctions(list, arlist, 0, name);
         }
 

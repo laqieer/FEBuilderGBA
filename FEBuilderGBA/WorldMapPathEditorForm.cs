@@ -40,7 +40,7 @@ namespace FEBuilderGBA
         }
         void MakePathCombo()
         {
-            List<U.AddrResult> list = WorldMapPathForm.MakeList();
+            List<AddrResult> list = WorldMapPathForm.MakeList();
             U.ConvertComboBox(list, ref this.PathType);
         }
         void MakePATHCHIPLIST()
@@ -80,7 +80,7 @@ namespace FEBuilderGBA
                 return ;
             }
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.PathType, this.PathType.SelectedIndex);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.PathType, this.PathType.SelectedIndex);
             uint addr = ar.addr;
             if (!U.isSafetyOffset(addr))
             {
@@ -212,7 +212,7 @@ namespace FEBuilderGBA
             }
 
             //拠点を追加.
-            List<U.AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
+            List<AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
             for (int i = 0; i < arlist.Count; i++)
             {
                 WorldMapPointForm.DrawBasePointAddr(MapCache,arlist[i].addr);
@@ -414,7 +414,7 @@ namespace FEBuilderGBA
             U.append_u8(data, 0x0);
             U.append_u8(data, 0x0);
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.PathType, this.PathType.SelectedIndex);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.PathType, this.PathType.SelectedIndex);
             if (!U.isSafetyOffset(ar.addr))
             {
                 return;

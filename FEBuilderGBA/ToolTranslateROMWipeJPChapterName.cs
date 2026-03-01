@@ -28,7 +28,7 @@ namespace FEBuilderGBA
             }
 
             //最後の一つを残して全消去
-            List<U.AddrResult> alist = ImageChapterTitleForm.MakeList();
+            List<AddrResult> alist = ImageChapterTitleForm.MakeList();
             if (alist.Count <= 1)
             {
                 return ;

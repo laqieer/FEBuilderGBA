@@ -450,7 +450,7 @@ namespace FEBuilderGBA
                     }
                     , (int i, uint addr) =>
                     {
-                        return new U.AddrResult(addr, (addr).ToString("X08"));
+                        return new AddrResult(addr, (addr).ToString("X08"));
                     }
                     );
             }
@@ -849,9 +849,9 @@ namespace FEBuilderGBA
         }
 
         //店 スキャン.
-        public static List<U.AddrResult> MakeShopPointerListBox(uint mapcond_addr)
+        public static List<AddrResult> MakeShopPointerListBox(uint mapcond_addr)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
 
             for (int i = 0; i < MapCond.Count; i++)
             {
@@ -883,16 +883,16 @@ namespace FEBuilderGBA
                     string name = Program.ROM.RomInfo.get_shop_name(shop_object);
                     if (name != "")
                     {
-                        list.Add(new U.AddrResult(shop_addr, name , addr + 4));
+                        list.Add(new AddrResult(shop_addr, name , addr + 4));
                     }
                 }
             }
             return list;
         }
 
-        public static List<U.AddrResult> MakePointerListBox(uint mapid,CONDTYPE filter_condtype)
+        public static List<AddrResult> MakePointerListBox(uint mapid,CONDTYPE filter_condtype)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             uint mapcond_addr = MapSettingForm.GetEventAddrWhereMapID(mapid);
             if (!U.isSafetyOffset(mapcond_addr))
             {
@@ -928,7 +928,7 @@ namespace FEBuilderGBA
                     || filter_condtype == CONDTYPE.UNKNOWN
                     )
                 {
-                    list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)filter_condtype));
+                    list.Add(new AddrResult(addr, MapCond[i].Name, (uint)filter_condtype));
                 }
                 else if (filter_condtype == CONDTYPE.TURN)
                 {
@@ -941,7 +941,7 @@ namespace FEBuilderGBA
 
                         uint type = Program.ROM.u8(addr);
 
-                        list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
+                        list.Add(new AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
                         if (Program.ROM.RomInfo.version == 7
                             && type == 1)
                         {//信じられないがFE7は12バイトの短いターンイベントが存在する
@@ -962,7 +962,7 @@ namespace FEBuilderGBA
                             break;
                         }
 
-                        list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
+                        list.Add(new AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
                     }
                 }
                 else if (filter_condtype == CONDTYPE.TRAP)
@@ -974,7 +974,7 @@ namespace FEBuilderGBA
                             break;
                         }
 
-                        list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
+                        list.Add(new AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
                     }
                 }
                 else if (filter_condtype == CONDTYPE.OBJECT)
@@ -986,7 +986,7 @@ namespace FEBuilderGBA
                             break;
                         }
 
-                        list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
+                        list.Add(new AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
                     }
                 }
                 else
@@ -998,7 +998,7 @@ namespace FEBuilderGBA
                             break;
                         }
 
-                        list.Add(new U.AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
+                        list.Add(new AddrResult(addr, MapCond[i].Name, (uint)((n << 8) + (uint)filter_condtype)));
                     }
                 }
             }
@@ -1127,7 +1127,7 @@ namespace FEBuilderGBA
             }
 
 
-            List<U.AddrResult> list = MakePointerListBox(mapid, CONDTYPE.OBJECT);
+            List<AddrResult> list = MakePointerListBox(mapid, CONDTYPE.OBJECT);
             for (int i = 0; i < list.Count; i++)
             {
                 uint addr = list[i].addr;
@@ -1489,7 +1489,7 @@ namespace FEBuilderGBA
         }
 
 
-        static void CheckAlien4(List<U.AddrResult> list, List<FELint.ErrorSt> errors, EventCondForm.CONDTYPE cond)
+        static void CheckAlien4(List<AddrResult> list, List<FELint.ErrorSt> errors, EventCondForm.CONDTYPE cond)
         {
             if (list.Count <= 0)
             {
@@ -1561,10 +1561,10 @@ namespace FEBuilderGBA
 
 
         //配置イベントだけのリストを作る.
-        public static List<U.AddrResult> MakeUnitPointer(uint mapid)
+        public static List<AddrResult> MakeUnitPointer(uint mapid)
         {
             List<uint> tracelist = new List<uint>();
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             bool isFE7 = Program.ROM.RomInfo.version == 7;
             uint rom_length = (uint)Program.ROM.Data.Length;
 
@@ -1721,7 +1721,7 @@ namespace FEBuilderGBA
                     ) 
                     && U.FindList(list, addr) == U.NOT_FOUND)
                 {//1011121314151617 配置関係
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                         addr
                         , MapCond[i].Name
                         , mapid
@@ -1740,7 +1740,7 @@ namespace FEBuilderGBA
         }
 
 
-        public static uint MakeUnitPointerEventScan(ref List<U.AddrResult> list,  string name, uint event_addr, uint start_mapid,  List<uint> tracelist )
+        public static uint MakeUnitPointerEventScan(ref List<AddrResult> list,  string name, uint event_addr, uint start_mapid,  List<uint> tracelist )
         {
             uint mapid = start_mapid;
             int unknown_count = 0;
@@ -1812,7 +1812,7 @@ namespace FEBuilderGBA
                                 }
                                 if (U.isSafetyOffset(v) && U.FindList(list, v) == U.NOT_FOUND)
                                 {
-                                    list.Add(new U.AddrResult(
+                                    list.Add(new AddrResult(
                                             v
                                         , name
                                         , mapid
@@ -1839,7 +1839,7 @@ namespace FEBuilderGBA
         }
 
         //アイテムを取得できるイベントのスキャン
-        public static void MakeGiveItemEventScan(ref List<U.AddrResult> list, uint event_addr, List<uint> tracelist)
+        public static void MakeGiveItemEventScan(ref List<AddrResult> list, uint event_addr, List<uint> tracelist)
         {
             int unknown_count = 0;
             uint lastBranchAddr = 0;
@@ -1893,7 +1893,7 @@ namespace FEBuilderGBA
                             if (arg.Type == EventScript.ArgType.ITEM)
                             {
                                 uint itemid = EventScript.GetArgValue(code, arg);
-                                list.Add(new U.AddrResult(itemid, "GIVE_ITEM"));
+                                list.Add(new AddrResult(itemid, "GIVE_ITEM"));
                             }
                         }
                     }
@@ -1911,9 +1911,9 @@ namespace FEBuilderGBA
         }
 
         //FE7のチュートリアルイベントの一覧の取得
-        public static List<U.AddrResult> MakeEventScriptForFE7Tutorial(uint mapid)
+        public static List<AddrResult> MakeEventScriptForFE7Tutorial(uint mapid)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             Debug.Assert(Program.ROM.RomInfo.version == 7);
 
             if (mapid > 0x30)
@@ -1953,7 +1953,7 @@ namespace FEBuilderGBA
                         continue;
                     }
 
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                             event_addr
                         , "Tutorial FE7"
                         , mapid
@@ -1965,9 +1965,9 @@ namespace FEBuilderGBA
 
 
         //イベント命令　一覧の取得
-        public static List<U.AddrResult> MakeEventScriptPointer(uint mapid)
+        public static List<AddrResult> MakeEventScriptPointer(uint mapid)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             bool isFE7 = Program.ROM.RomInfo.version == 7;
 
             uint mapcond_addr = MapSettingForm.GetEventAddrWhereMapID(mapid);
@@ -2007,7 +2007,7 @@ namespace FEBuilderGBA
                         uint event_addr = Program.ROM.p32(addr + 4);
                         if (U.isSafetyOffset(event_addr))
                         {
-                            list.Add(new U.AddrResult(
+                            list.Add(new AddrResult(
                                   event_addr
                                 , MapCond[i].Name
                                 , mapid
@@ -2043,7 +2043,7 @@ namespace FEBuilderGBA
                         {
                             continue;
                         }
-                        list.Add(new U.AddrResult(
+                        list.Add(new AddrResult(
                               event_addr
                             , MapCond[i].Name
                             , mapid
@@ -2075,7 +2075,7 @@ namespace FEBuilderGBA
                         }
                         else
                         {//店以外
-                            list.Add(new U.AddrResult(
+                            list.Add(new AddrResult(
                                   event_addr
                                 , MapCond[i].Name
                                 , mapid
@@ -2102,7 +2102,7 @@ namespace FEBuilderGBA
                             continue;
                         }
 
-                        list.Add(new U.AddrResult(
+                        list.Add(new AddrResult(
                              event_addr
                             , MapCond[i].Name
                             , mapid
@@ -2127,7 +2127,7 @@ namespace FEBuilderGBA
                         {
                             continue;
                         }
-                        list.Add(new U.AddrResult(
+                        list.Add(new AddrResult(
                              event_addr
                             , MapCond[i].Name
                             , mapid
@@ -2137,7 +2137,7 @@ namespace FEBuilderGBA
                 else if (condtype == CONDTYPE.START_EVENT
                     ||   condtype == CONDTYPE.END_EVENT)
                 {//18,19 開始イベント 終了イベント
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                         addr
                         , MapCond[i].Name
                         , mapid
@@ -2149,9 +2149,9 @@ namespace FEBuilderGBA
         }
 
         //イベント命令　一覧の取得(開始イベントと終了イベントのみ)
-        public static List<U.AddrResult> MakeEventScriptPointerStartAndEndEventOnly(uint mapid)
+        public static List<AddrResult> MakeEventScriptPointerStartAndEndEventOnly(uint mapid)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
 
             uint mapcond_addr = MapSettingForm.GetEventAddrWhereMapID(mapid);
             if (!U.isSafetyOffset(mapcond_addr))
@@ -2173,7 +2173,7 @@ namespace FEBuilderGBA
                         continue;
                     }
 
-                    list.Add(new U.AddrResult(
+                    list.Add(new AddrResult(
                         addr
                         , MapCond[i].Name
                         , mapid
@@ -2934,7 +2934,7 @@ namespace FEBuilderGBA
             uint start_mapid = (uint)this.MAP_LISTBOX.SelectedIndex;
             List<uint> tracelist = new List<uint>();
 
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             uint mapid = MakeUnitPointerEventScan(ref list, "", event_addr, start_mapid, tracelist);
             int len = list.Count;
             for (int i = 0; i < len; i++)
@@ -2959,7 +2959,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            List<U.AddrResult> arlist = EventUnitForm.MakeList(addr);
+            List<AddrResult> arlist = EventUnitForm.MakeList(addr);
             for (int k = 0; k < arlist.Count; k++)
             {
                 uint assign = U.ParseUnitGrowAssign(Program.ROM.u8(arlist[k].addr + 3));
@@ -3248,7 +3248,7 @@ namespace FEBuilderGBA
 
         private Size DrawEventListTurn(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (ar.isNULL())
             {
                 return new Size(listbounds.X, listbounds.Y);
@@ -3378,7 +3378,7 @@ namespace FEBuilderGBA
                 ,Items //アイテム
             };
             public TypeEnum Type;
-            public List<U.AddrResult> List;
+            public List<AddrResult> List;
         }
         static Dictionary<uint,EventRelationIcons> EventRelationIconsCache = new Dictionary<uint,EventRelationIcons>();
 
@@ -3388,7 +3388,7 @@ namespace FEBuilderGBA
             EventRelationIconsCache.Clear();
         }
 
-        int DrawEventRelationIcons(U.AddrResult ar, bool isTurnEvent, Graphics g, Font font, SolidBrush brush, Rectangle bounds, bool isWithDraw)
+        int DrawEventRelationIcons(AddrResult ar, bool isTurnEvent, Graphics g, Font font, SolidBrush brush, Rectangle bounds, bool isWithDraw)
         {
             uint start_mapid = (uint)this.MAP_LISTBOX.SelectedIndex;
 
@@ -3403,7 +3403,7 @@ namespace FEBuilderGBA
                 if (isTurnEvent)
                 {
                     icons.Type = EventRelationIcons.TypeEnum.Units;
-                    icons.List = new List<U.AddrResult>();
+                    icons.List = new List<AddrResult>();
                     MakeUnitPointerEventScan(ref icons.List, "units", event_addr, start_mapid, tracelist);
 
                     if (icons.List.Count <= 0)
@@ -3419,8 +3419,8 @@ namespace FEBuilderGBA
                     if (IsShopObjectType(objtype) && U.isSafetyOffset(event_addr))
                     {//店
                         icons.Type = EventRelationIcons.TypeEnum.Shop;
-                        icons.List = new List<U.AddrResult>();
-                        icons.List.Add(new U.AddrResult(event_addr, "Shop"));
+                        icons.List = new List<AddrResult>();
+                        icons.List.Add(new AddrResult(event_addr, "Shop"));
                     }
                     else if (IsChestObjectType(objtype))
                     {//宝箱
@@ -3428,14 +3428,14 @@ namespace FEBuilderGBA
                         if (type == 0x05 && U.isSafetyOffset(event_addr))
                         {//ランダム箱
                             icons.Type = EventRelationIcons.TypeEnum.Shop; //便宜上店扱い
-                            icons.List = new List<U.AddrResult>();
-                            icons.List.Add(new U.AddrResult(event_addr, "RandomChest"));
+                            icons.List = new List<AddrResult>();
+                            icons.List.Add(new AddrResult(event_addr, "RandomChest"));
                         }
                         else
                         {//宝箱
 
                             icons.Type = EventRelationIcons.TypeEnum.Items;
-                            icons.List = new List<U.AddrResult>();
+                            icons.List = new List<AddrResult>();
 
                             uint contents = Program.ROM.u32(ar.addr + 4);
                             uint item_id = contents & 0xff;
@@ -3447,14 +3447,14 @@ namespace FEBuilderGBA
                                     gold = (contents >> 16) & 0xffff;
                                 }
 
-                                icons.List.Add(new U.AddrResult(item_id, "Chest" , gold));
+                                icons.List.Add(new AddrResult(item_id, "Chest" , gold));
                             }
                         }
                     }
                     else
                     {//それ以外
                         icons.Type = EventRelationIcons.TypeEnum.Units;
-                        icons.List = new List<U.AddrResult>();
+                        icons.List = new List<AddrResult>();
                         MakeUnitPointerEventScan(ref icons.List, "units", event_addr, start_mapid, tracelist);
 
                         if (icons.List.Count <= 0)
@@ -3551,7 +3551,7 @@ namespace FEBuilderGBA
                         break;
                     }
 
-                    U.AddrResult data = icons.List[i];
+                    AddrResult data = icons.List[i];
 
                     Bitmap icon = ItemForm.DrawIcon(data.addr); //便宜上 addr を利用する.
                     U.MakeTransparent(icon);
@@ -3574,7 +3574,7 @@ namespace FEBuilderGBA
 
         private Size DrawEventListTalk(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (ar.isNULL())
             {
                 return new Size(listbounds.X, listbounds.Y);
@@ -3692,7 +3692,7 @@ namespace FEBuilderGBA
         }
         private Size DrawEventListAlways(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (ar.isNULL())
             {
                 return new Size(listbounds.X, listbounds.Y);
@@ -4136,7 +4136,7 @@ namespace FEBuilderGBA
 
         private Size DrawEventListObject(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (ar.isNULL())
             {
                 return new Size(listbounds.X, listbounds.Y);
@@ -4256,7 +4256,7 @@ namespace FEBuilderGBA
 
         private Size DrawEventListTrap(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (ar.isNULL())
             {
                 return new Size(listbounds.X, listbounds.Y);
@@ -4407,7 +4407,7 @@ namespace FEBuilderGBA
             return new Size(bounds.X, bounds.Y);
         }
 
-        public static int DrawComment(U.AddrResult ar, Graphics g, Font font, bool isWithDraw, Rectangle bounds)
+        public static int DrawComment(AddrResult ar, Graphics g, Font font, bool isWithDraw, Rectangle bounds)
         {
             uint eventPointer = Program.ROM.u32(ar.addr + 4);
             return DrawComment(eventPointer, g, font, isWithDraw, bounds);
@@ -4434,7 +4434,7 @@ namespace FEBuilderGBA
         }
 
         //達成フラグの描画
-        public static int DrawAchievementFlag(U.AddrResult ar, Graphics g, Font font, bool isWithDraw, Rectangle bounds)
+        public static int DrawAchievementFlag(AddrResult ar, Graphics g, Font font, bool isWithDraw, Rectangle bounds)
         {
             return DrawAchievementFlag(ar.addr, g, font, isWithDraw, bounds);
         }
@@ -4797,18 +4797,18 @@ namespace FEBuilderGBA
             {
                 if (InputFormRef.DoEvents(null, "MakeVarsIDArray "+ U.ToHexString(mapid))) return;
 
-                List<U.AddrResult> eventCondList = MakeEventScriptPointer(mapid);
+                List<AddrResult> eventCondList = MakeEventScriptPointer(mapid);
 
                 if (Program.ROM.RomInfo.version == 7)
                 {
-                    List<U.AddrResult> tutorialCondList = MakeEventScriptForFE7Tutorial(mapid);
+                    List<AddrResult> tutorialCondList = MakeEventScriptForFE7Tutorial(mapid);
                     eventCondList.AddRange(tutorialCondList);
                 }
 
                 int count = eventCondList.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    U.AddrResult ar = eventCondList[i];
+                    AddrResult ar = eventCondList[i];
                     string info = "MAP " + U.ToHexString(mapid) + " " + ar.name;
                     EventCondForm.MakeVarsIDEventScan(list, ar.addr, info , tracelist);
                 }
@@ -4847,7 +4847,7 @@ namespace FEBuilderGBA
         }
         public static uint GetEndEvent(uint mapid)
         {
-            List<U.AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.END_EVENT);
+            List<AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.END_EVENT);
             if (arlist.Count <= 0)
             {
                 return U.NOT_FOUND;
@@ -4856,7 +4856,7 @@ namespace FEBuilderGBA
         }
         public static uint GetPlayerUnits(uint mapid)
         {
-            List<U.AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.PLAYER_UNIT);
+            List<AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.PLAYER_UNIT);
             if (arlist.Count <= 0)
             {
                 return U.NOT_FOUND;
@@ -4865,7 +4865,7 @@ namespace FEBuilderGBA
         }
         public static uint GetEnemyUnits(uint mapid)
         {
-            List<U.AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.ENEMY_UNIT);
+            List<AddrResult> arlist = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.ENEMY_UNIT);
             if (arlist.Count <= 0)
             {
                 return U.NOT_FOUND;
@@ -4878,11 +4878,11 @@ namespace FEBuilderGBA
             uint mapmax = MapSettingForm.GetDataCount();
             for (uint mapid = 0; mapid < mapmax; mapid++)
             {
-                List<U.AddrResult> eventCondList = MakeEventScriptPointer(mapid);
+                List<AddrResult> eventCondList = MakeEventScriptPointer(mapid);
                 int count = eventCondList.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    U.AddrResult ar = eventCondList[i];
+                    AddrResult ar = eventCondList[i];
                     if (ar.addr == event_addr)
                     {
                         return true;
@@ -5061,16 +5061,16 @@ namespace FEBuilderGBA
 
         static void MakeFlagIDArrayOne(uint mapid, uint event_addr, uint index, List<UseFlagID> flaglist)
         {
-            List<U.AddrResult> list = new List<U.AddrResult>();
+            List<AddrResult> list = new List<AddrResult>();
             List<uint> tracelist = new List<uint>();
             MakeFlagIDEventScan(ref list, event_addr, tracelist);
-            foreach (U.AddrResult ar in list)
+            foreach (AddrResult ar in list)
             {
                 UseFlagID.AppendUseFlagID(flaglist, FELint.Type.EVENTSCRIPT, U.atoi(ar.name),"", ar.addr, mapid, ar.tag);
             }
         }
 
-        static void MakeFlagIDEventScan(ref List<U.AddrResult> list, uint event_addr, List<uint> tracelist)
+        static void MakeFlagIDEventScan(ref List<AddrResult> list, uint event_addr, List<uint> tracelist)
         {
             uint lastBranchAddr = 0;
             int unknown_count = 0;
@@ -5137,7 +5137,7 @@ namespace FEBuilderGBA
 
                                 if (U.FindList(list, v) == U.NOT_FOUND)
                                 {
-                                    list.Add(new U.AddrResult(
+                                    list.Add(new AddrResult(
                                           v
                                         , event_addr.ToString()
                                         , addr
@@ -5161,7 +5161,7 @@ namespace FEBuilderGBA
 
             List<uint> tracelist = new List<uint>();
 
-            List<U.AddrResult> list;
+            List<AddrResult> list;
             list = MakePointerListBox(mapid, CONDTYPE.OBJECT);
             for (int i = 0; i < list.Count; i++)
             {

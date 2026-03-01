@@ -366,8 +366,8 @@ namespace FEBuilderGBA
                 }
             }
 
-            U.AddrResult[] addr_array;
-            addr_array = new U.AddrResult[ifr.DataCount];
+            AddrResult[] addr_array;
+            addr_array = new AddrResult[ifr.DataCount];
             for (int i = 0; i < ifr.DataCount; i++)
             {
                 addr_array[i] = InputFormRef.SelectToAddrResult(listbox, i);
@@ -376,7 +376,7 @@ namespace FEBuilderGBA
 
             for (int i = 0; i < addr_array.Length; i++)
             {
-                U.AddrResult ar = addr_array[i];
+                AddrResult ar = addr_array[i];
                 if (ar.isNULL())
                 {
                     continue;
@@ -553,10 +553,10 @@ namespace FEBuilderGBA
                 }
             }
 
-            U.AddrResult[] addr_array;
+            AddrResult[] addr_array;
             if (target == U.NOT_FOUND)
             {
-                addr_array = new U.AddrResult[ifr.DataCount];
+                addr_array = new AddrResult[ifr.DataCount];
                 for (int i = 0; i < ifr.DataCount; i++)
                 {
                     addr_array[i] = InputFormRef.SelectToAddrResult(listbox, i);
@@ -564,7 +564,7 @@ namespace FEBuilderGBA
             }
             else
             {
-                addr_array = new U.AddrResult[] { InputFormRef.SelectToAddrResult(listbox, (int)target) };
+                addr_array = new AddrResult[] { InputFormRef.SelectToAddrResult(listbox, (int)target) };
             }
             sb.AppendLine();
             sb.AppendLine("PUSH");
@@ -574,7 +574,7 @@ namespace FEBuilderGBA
             for (int i = 0; i < addr_array.Length; i++)
             {
                 string line = "";
-                U.AddrResult ar = addr_array[i];
+                AddrResult ar = addr_array[i];
                 if (ar.isNULL())
                 {
                     continue;
@@ -949,7 +949,7 @@ namespace FEBuilderGBA
             }
             else if (linktype == "UNIT")
             {
-                List<U.AddrResult> list = UnitForm.MakeUnitList();
+                List<AddrResult> list = UnitForm.MakeUnitList();
                 data = MakeNMMDropDownListInner(list);
             }
             else if (linktype == "CLASS")
@@ -1089,7 +1089,7 @@ namespace FEBuilderGBA
             return sb.ToString();
         }
 
-        string MakeNMMDropDownListInner(List<U.AddrResult> list)
+        string MakeNMMDropDownListInner(List<AddrResult> list)
         {
             if (list.Count <= 0)
             {

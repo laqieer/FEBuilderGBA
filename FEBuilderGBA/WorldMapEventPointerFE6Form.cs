@@ -37,7 +37,7 @@ namespace FEBuilderGBA
                 }
                 , (int i, uint addr) =>
                 {
-                    U.AddrResult r = new U.AddrResult();
+                    AddrResult r = new AddrResult();
 
                     uint worldmapEventPlist = MapSettingForm.GetWorldMapEventIDWhereAddr(addr);
                     if (worldmapEventPlist <= 0)
@@ -57,7 +57,7 @@ namespace FEBuilderGBA
 
         }
 
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = N_Init(null);
             return InputFormRef.MakeList();

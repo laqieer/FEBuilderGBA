@@ -193,18 +193,18 @@ namespace FEBuilderGBA
 
 
         //アイテムリストを得る
-        public static List<U.AddrResult> MakeItemList()
+        public static List<AddrResult> MakeItemList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
         //アイテムリストを得る
-        public static List<U.AddrResult> MakeItemList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakeItemList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);
         }
-        public static List<U.AddrResult> MakeItemListByUseIcon(uint iconid)
+        public static List<AddrResult> MakeItemListByUseIcon(uint iconid)
         {
             bool first = true;
             InputFormRef InputFormRef = Init(null);
@@ -219,13 +219,13 @@ namespace FEBuilderGBA
             });
         }
         //手斧だけのリストを作る.
-        public static List<U.AddrResult> MakeItemListByHandAxs()
+        public static List<AddrResult> MakeItemListByHandAxs()
         {
             bool useWeaponLockArray = PatchUtil.SearchVennouWeaponLockArray();
 
             InputFormRef InputFormRef = Init(null);
-            List<U.AddrResult> src = InputFormRef.MakeList();
-            List<U.AddrResult> dest = new List<U.AddrResult>();
+            List<AddrResult> src = InputFormRef.MakeList();
+            List<AddrResult> dest = new List<AddrResult>();
             for (int i = 0; i < src.Count; i++)
             {
                 uint b7 = Program.ROM.u8(src[i].addr + 7);
@@ -294,12 +294,12 @@ namespace FEBuilderGBA
         {
             if (PatchUtil.SearchClassType() == PatchUtil.class_type_enum.SkillSystems_Rework)
             {//SkillSystemsによる 特効リワーク
-                List<U.AddrResult> arlist = ItemEffectivenessSkillSystemsReworkForm.MakeCriticalClassList((uint)P16.Value);
+                List<AddrResult> arlist = ItemEffectivenessSkillSystemsReworkForm.MakeCriticalClassList((uint)P16.Value);
                 U.ConvertListBox(arlist, ref CLASS_LISTBOX);
             }
             else
             {
-                List<U.AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)P16.Value);
+                List<AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)P16.Value);
                 U.ConvertListBox(arlist, ref CLASS_LISTBOX);
             }
         }
@@ -372,7 +372,7 @@ namespace FEBuilderGBA
                     {
                         if (effectivenesRework == FEBuilderGBA.PatchUtil.class_type_enum.SkillSystems_Rework)
                         {
-                            List<U.AddrResult> arlist = ItemEffectivenessSkillSystemsReworkForm.MakeCriticalClassList((uint)itemEffectiveness);
+                            List<AddrResult> arlist = ItemEffectivenessSkillSystemsReworkForm.MakeCriticalClassList((uint)itemEffectiveness);
                             FEBuilderGBA.Address.AddAddress(list, itemEffectiveness
                                 , (uint)(arlist.Count + 1)  * 4
                                 , addr + 16
@@ -381,7 +381,7 @@ namespace FEBuilderGBA
                         }
                         else
                         {
-                            List<U.AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)itemEffectiveness);
+                            List<AddrResult> arlist = ItemEffectivenessForm.MakeCriticalClassList((uint)itemEffectiveness);
                             FEBuilderGBA.Address.AddAddress(list, itemEffectiveness
                                 , (uint)(arlist.Count + 1)
                                 , addr + 16
@@ -558,7 +558,7 @@ namespace FEBuilderGBA
             return false;
         }
         static void MakeCheckErrorWeaponRange(
-              Dictionary<uint, U.AddrResult> itemWeaponEffectDic
+              Dictionary<uint, AddrResult> itemWeaponEffectDic
             , uint item_addr
             , uint id
             ,List<FELint.ErrorSt> errors)
@@ -567,7 +567,7 @@ namespace FEBuilderGBA
             uint flag1 = Program.ROM.u8(item_addr + 8);
             bool equipped = ((flag1 & 0x01) == 0x01) ;
 
-            U.AddrResult ar;
+            AddrResult ar;
             if (!itemWeaponEffectDic.TryGetValue(id, out ar))
             {//間接効果がないとまずい
                 if (equipped)
@@ -639,7 +639,7 @@ namespace FEBuilderGBA
                     , R._("アイテムデータが極端に少ないです。破損している可能性があります。")));
             }
 
-            Dictionary<uint, U.AddrResult> itemWeaponEffectDic = ItemWeaponEffectForm.MakeDic();
+            Dictionary<uint, AddrResult> itemWeaponEffectDic = ItemWeaponEffectForm.MakeDic();
 
             uint item_addr = InputFormRef.BaseAddress;
             for (uint i = 0; i < InputFormRef.DataCount; i++, item_addr += InputFormRef.BlockSize)

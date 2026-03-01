@@ -32,7 +32,7 @@ namespace FEBuilderGBA
             U.SetIcon(LoadButton, Properties.Resources.icon_upload);
         }
 
-        public static List<MapEditConfst> MakeMapStyleList(List<U.AddrResult> maplist)
+        public static List<MapEditConfst> MakeMapStyleList(List<AddrResult> maplist)
         {
             //マップエディタのマップスタイル
             List < MapEditConfst >  mapeditconf = PreLoadResource(U.ConfigDataFilename("mapstyle_"));
@@ -113,7 +113,7 @@ namespace FEBuilderGBA
         }
 
         //マップリスト
-        List<U.AddrResult> MapList;
+        List<AddrResult> MapList;
         List<MapChangeForm.ChangeSt> ChangeList;
 
         //マップチップ

@@ -306,7 +306,7 @@ namespace FEBuilderGBA
             InputFormRef.JumpForm<PointerToolForm>();
         }
 
-        List<U.AddrResult> EventAddrList;
+        List<AddrResult> EventAddrList;
 
         public class UnitsAddr
         {
@@ -315,12 +315,12 @@ namespace FEBuilderGBA
             public List<uint> items_addr;
         };
         List<UnitsAddr> UnitsAddrList;
-        List<U.AddrResult> ExitPointList;
-        List<U.AddrResult> MapObjectList;
-        List<U.AddrResult> MapTrapList;
+        List<AddrResult> ExitPointList;
+        List<AddrResult> MapObjectList;
+        List<AddrResult> MapTrapList;
         Point MapTransporter; //FE7のみ　輸送隊の位置(エリウッド編) yusoutai
 
-        List<U.AddrResult> TurnZouenList;
+        List<AddrResult> TurnZouenList;
 
         const uint FELINTBUZY_MESSAGE = 0xEECCCC00;
         const uint SYSTEMERROR_MESSAGE = 0xEEDDDD00;
@@ -336,7 +336,7 @@ namespace FEBuilderGBA
             ExitPointList = MapExitPointForm.MakeList(mapid);
 
             //ユニット配置
-            List<U.AddrResult> units = EventCondForm.MakeUnitPointer(mapid);
+            List<AddrResult> units = EventCondForm.MakeUnitPointer(mapid);
             //ユニットを表示
             UnitsAddrList = DrawUnits(units, mapid);
             //マップオブジェクトリスト
@@ -433,13 +433,13 @@ namespace FEBuilderGBA
             }
 
             //右側のイベントリストを作ります.
-            this.EventAddrList = new List<U.AddrResult>();
+            this.EventAddrList = new List<AddrResult>();
 
             //システムエラーのチェック.
             List<FELint.ErrorSt>  systemErrorList = Program.AsmMapFileAsmCache.GetFELintCache(FELint.SYSTEM_MAP_ID);
             if (systemErrorList == null )
             {//準備中という表記を出す.
-                this.EventAddrList.Add(new U.AddrResult(FELINTBUZY_MESSAGE, R._("計測中..."), FELINTBUZY_MESSAGE));
+                this.EventAddrList.Add(new AddrResult(FELINTBUZY_MESSAGE, R._("計測中..."), FELINTBUZY_MESSAGE));
                 if (! Program.AsmMapFileAsmCache.IsBusyThread())
                 {//なぜ解析スレッドは停止しているのにnullになるケースがあるらしい
                     //もう一回作るように指示
@@ -448,7 +448,7 @@ namespace FEBuilderGBA
             }
             else if (systemErrorList.Count > 0)
             {//エラーを表示する.
-                this.EventAddrList.Add(new U.AddrResult(SYSTEMERROR_MESSAGE, R._("{0}個のエラーがあります", systemErrorList.Count), SYSTEMERROR_MESSAGE));
+                this.EventAddrList.Add(new AddrResult(SYSTEMERROR_MESSAGE, R._("{0}個のエラーがあります", systemErrorList.Count), SYSTEMERROR_MESSAGE));
             }
 
             //章内のエラーのチェック
@@ -458,11 +458,11 @@ namespace FEBuilderGBA
             }
             else if (mapErrorList.Count > 0)
             {
-                this.EventAddrList.Add(new U.AddrResult(MAPERROR_MESSAGE, R._("{0}個のエラーがあります", mapErrorList.Count), MAPERROR_MESSAGE));
+                this.EventAddrList.Add(new AddrResult(MAPERROR_MESSAGE, R._("{0}個のエラーがあります", mapErrorList.Count), MAPERROR_MESSAGE));
             }
 
             //開始イベント
-            List<U.AddrResult> eventList = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.START_EVENT);
+            List<AddrResult> eventList = EventCondForm.MakePointerListBox(mapid, EventCondForm.CONDTYPE.START_EVENT);
             this.EventAddrList.AddRange(eventList);
 
             //終了イベント
@@ -488,7 +488,7 @@ namespace FEBuilderGBA
                 uint addr = WorldMapEventPointerFE6Form.GetEventByMapID(mapid);
                 if (addr != U.NOT_FOUND)
                 {
-                    this.EventAddrList.Add(new U.AddrResult(addr, "WorldMapEvent", WORLDMAP_EVENT));
+                    this.EventAddrList.Add(new AddrResult(addr, "WorldMapEvent", WORLDMAP_EVENT));
                 }
             }
             else if (Program.ROM.RomInfo.version == 7)
@@ -496,7 +496,7 @@ namespace FEBuilderGBA
                 uint addr = WorldMapEventPointerFE7Form.GetEventByMapID(mapid);
                 if (addr != U.NOT_FOUND)
                 {
-                    this.EventAddrList.Add(new U.AddrResult(addr, "WorldMapEvent", WORLDMAP_EVENT));
+                    this.EventAddrList.Add(new AddrResult(addr, "WorldMapEvent", WORLDMAP_EVENT));
                 }
             }
             else
@@ -509,7 +509,7 @@ namespace FEBuilderGBA
                 //前か後のどちらかがあればいい
                 if (addr != U.NOT_FOUND)
                 {
-                    this.EventAddrList.Add(new U.AddrResult(addr, "WorldMapBeforeEvent", WORLDMAP_EVENT));
+                    this.EventAddrList.Add(new AddrResult(addr, "WorldMapBeforeEvent", WORLDMAP_EVENT));
                 }
             }
 
@@ -517,7 +517,7 @@ namespace FEBuilderGBA
         }
 
         //ユニット配置を検索して取得.
-        List<UnitsAddr> DrawUnits(List<U.AddrResult> units, uint mapid)
+        List<UnitsAddr> DrawUnits(List<AddrResult> units, uint mapid)
         {
             List<UnitsAddr> list = new List<UnitsAddr>();
 
@@ -557,7 +557,7 @@ namespace FEBuilderGBA
                     p.items = new List<MapPictureBox.StaticItem>();
                     p.items_addr = new List<uint>();
  
-                    List<U.AddrResult> arlist = EventUnitForm.MakeList(p.addr);
+                    List<AddrResult> arlist = EventUnitForm.MakeList(p.addr);
                     for (int k = 0; k < arlist.Count; k ++)
                     {
                         uint assign = U.ParseUnitGrowAssign(Program.ROM.u8(arlist[k].addr + 3));
@@ -839,7 +839,7 @@ namespace FEBuilderGBA
             {
                 return new Size(listbounds.X, listbounds.Y);
             }
-            U.AddrResult ar = this.EventAddrList[index];
+            AddrResult ar = this.EventAddrList[index];
 
             SolidBrush brush = new SolidBrush(lb.ForeColor);
 
@@ -1121,7 +1121,7 @@ namespace FEBuilderGBA
             }
             uint mapid = (uint)MAP_LISTBOX.SelectedIndex;
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.EventList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.EventList);
             uint tag = (uint)(ar.tag & 0xff);
 
             if (ar.tag == SYSTEMERROR_MESSAGE)
@@ -1353,10 +1353,10 @@ namespace FEBuilderGBA
             InputFormRef.JumpForm<EmulatorMemoryForm>();
         }
 
-        static List<U.AddrResult> ScanTurnZouen(List<U.AddrResult> eventList, uint mapid)
+        static List<AddrResult> ScanTurnZouen(List<AddrResult> eventList, uint mapid)
         {
             List<uint> tracelist = new List<uint>();
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
             for (int i = 0; i < eventList.Count; i++)
             {
                 uint addr = eventList[i].addr;
@@ -1371,13 +1371,13 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                List<U.AddrResult> unitlist = new List<U.AddrResult>();
+                List<AddrResult> unitlist = new List<AddrResult>();
                 EventCondForm.MakeUnitPointerEventScan(ref unitlist, "turn", event_addr, mapid, tracelist);
 
                 if (unitlist.Count > 0)
                 {
                     //とりあえず一番最初のやつを選択.
-                    ret.Add(new U.AddrResult(addr, "", unitlist[0].addr));
+                    ret.Add(new AddrResult(addr, "", unitlist[0].addr));
                 }
             }
             return ret;

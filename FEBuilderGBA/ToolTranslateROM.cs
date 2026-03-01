@@ -641,7 +641,7 @@ namespace FEBuilderGBA
                 {
                     using (StreamWriter writer = new StreamWriter(writeTextFileName))
                     {
-                        List<U.AddrResult> list = TextForm.MakeItemList();
+                        List<AddrResult> list = TextForm.MakeItemList();
                         for (int i = 0; i < list.Count; i++)
                         {
                             if (! ExportFilterArray.ContainsKey(i))
@@ -662,7 +662,7 @@ namespace FEBuilderGBA
 
                     //テキスト
                     {
-                        List<U.AddrResult> list = TextForm.MakeItemList();
+                        List<AddrResult> list = TextForm.MakeItemList();
                         for (int i = 0; i < list.Count; i++)
                         {
                             if (ExportFilterArray != null && ExportFilterArray[i] != false)
@@ -679,7 +679,7 @@ namespace FEBuilderGBA
                     //メニュー1
                     if (Program.ROM.RomInfo.is_multibyte)
                     {
-                        List<U.AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
+                        List<AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
                         for (int n = 0; n < menuDefineList.Count; n++)
                         {
                             if (!U.isSafetyOffset(menuDefineList[n].addr + 8))
@@ -691,7 +691,7 @@ namespace FEBuilderGBA
                             {
                                 continue;
                             }
-                            List<U.AddrResult> list = MenuCommandForm.MakeListPointer(p);
+                            List<AddrResult> list = MenuCommandForm.MakeListPointer(p);
                             for (int i = 0; i < list.Count; i++)
                             {
                                 if (!U.isSafetyOffset(list[i].addr))
@@ -715,7 +715,7 @@ namespace FEBuilderGBA
                     //地形
                     if (Program.ROM.RomInfo.is_multibyte)
                     {
-                        List<U.AddrResult> list = MapTerrainNameForm.MakeList();
+                        List<AddrResult> list = MapTerrainNameForm.MakeList();
                         for (int i = 0; i < list.Count; i++)
                         {
                             if (!U.isSafetyOffset(list[i].addr))
@@ -739,7 +739,7 @@ namespace FEBuilderGBA
                     //FE7のサウンドルームは、日本語直地
                     if (Program.ROM.RomInfo.is_multibyte && Program.ROM.RomInfo.version == 7)
                     {
-                        List<U.AddrResult> list = SoundRoomForm.MakeList();
+                        List<AddrResult> list = SoundRoomForm.MakeList();
                         for (int i = 0; i < list.Count; i++)
                         {
                             if (!U.isSafetyOffset(list[i].addr))
@@ -760,7 +760,7 @@ namespace FEBuilderGBA
                     }
                     //その他文字列
                     {
-                        List<U.AddrResult> list = OtherTextForm.MakeList();
+                        List<AddrResult> list = OtherTextForm.MakeList();
                         for (int i = 0; i < list.Count; i++)
                         {
                             if (!U.isSafetyOffset(list[i].addr))

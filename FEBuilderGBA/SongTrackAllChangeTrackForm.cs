@@ -17,7 +17,7 @@ namespace FEBuilderGBA
             U.AddCancelButton(this);
         }
 
-        List<U.AddrResult> SongInstrumentList;
+        List<AddrResult> SongInstrumentList;
         List<SongUtil.ChangeVoiceSt> ChangeVoices;
         public void Init(uint instaddr,List<SongUtil.Track> tracks)
         {

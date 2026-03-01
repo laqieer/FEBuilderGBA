@@ -88,21 +88,21 @@ namespace FEBuilderGBA
                     {
                         if (i < Program.ROM.RomInfo.magic_effect_original_data_count)
                         {//もともとのデータ
-                            return new U.AddrResult();
+                            return new AddrResult();
                         }
                         else
                         {
-                            return new U.AddrResult(csaaddress, name + " EMPTY", addr);
+                            return new AddrResult(csaaddress, name + " EMPTY", addr);
                         }
                     }
                     if (
                         dataaddr == dimAddr 
                      || dataaddr == no_dimAddr)
                     {
-                        return new U.AddrResult(csaaddress, name, addr);
+                        return new AddrResult(csaaddress, name, addr);
                     }
                     //もともとのデータ
-                    return new U.AddrResult();
+                    return new AddrResult();
                 }
                 );
         }
@@ -138,7 +138,7 @@ namespace FEBuilderGBA
         {
             ShowFrameUpDown.Value = 0;
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             uint dim = Program.ROM.p32(ar.tag);
             if ( dim == this.DimAddr )
             {
@@ -338,7 +338,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.AddressList);
             Debug.Assert(ar.tag != 0);
             if (!U.CheckZeroAddressWriteHigh(ar.tag))
             {
@@ -387,10 +387,10 @@ namespace FEBuilderGBA
             }
 
             InputFormRef = Init(from, dimaddr, no_dimaddr, spellDataCount, csaSpellTable, effectDic);
-            List<U.AddrResult> ret = InputFormRef.MakeList();
+            List<AddrResult> ret = InputFormRef.MakeList();
             for (int i = 0; i < ret.Count; i++)
             {
-                U.AddrResult ar = ret[i];
+                AddrResult ar = ret[i];
                 if (ar.name.IndexOf(" EMPTY") >= 0)
                 {
                     continue;

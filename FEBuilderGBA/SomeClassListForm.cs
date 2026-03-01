@@ -54,8 +54,8 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             InputFormRef.ReInit(addr);
 
-            List<U.AddrResult> list = InputFormRef.MakeList();
-            foreach(U.AddrResult ar in list)
+            List<AddrResult> list = InputFormRef.MakeList();
+            foreach(AddrResult ar in list)
             {
                 sb.Append(',');
                 sb.Append(ar.name);

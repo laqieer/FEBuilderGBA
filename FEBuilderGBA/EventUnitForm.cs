@@ -223,7 +223,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            List<U.AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
+            List<AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
             //未記帳の拡張した領域があれば追加する. もし記帳していたらNewDataから削除する.
             EventUnitForm.AppendNoWriteNewData(list, mapid);
             U.ConvertListBox(list, ref this.EVENT_LISTBOX);
@@ -241,7 +241,7 @@ namespace FEBuilderGBA
 
         private void EVENT_LISTBOX_SelectedIndexChanged(object sender, EventArgs e)
         {
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
+            AddrResult ar = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
             if (!U.isSafetyOffset(ar.addr))
             {
                 this.MapPictureBox.ClearAllPoint();
@@ -296,7 +296,7 @@ namespace FEBuilderGBA
         {
             for (uint i = starti; i < endi; i++)
             {
-                List<U.AddrResult> eventlist = EventCondForm.MakeUnitPointer(i);
+                List<AddrResult> eventlist = EventCondForm.MakeUnitPointer(i);
                 for (int n = 0; n < eventlist.Count; n++)
                 {
                     if (eventlist[n].addr == addr)
@@ -430,7 +430,7 @@ namespace FEBuilderGBA
             LinkMapFocusFunction(null, null);
         }
 
-        public static List<U.AddrResult> MakeList(uint addr)
+        public static List<AddrResult> MakeList(uint addr)
         {
             if (Program.ROM.RomInfo.version >= 8)
             {
@@ -451,7 +451,7 @@ namespace FEBuilderGBA
         public void DrawAllUnits()
         {
             MapPictureBox.ClearStaticItem();
-            List<U.AddrResult> list = InputFormRef.MakeList();
+            List<AddrResult> list = InputFormRef.MakeList();
             for (int i = 0; i < list.Count; i++)
             {
                 if (AddressList.SelectedIndex == i)
@@ -1251,7 +1251,7 @@ namespace FEBuilderGBA
             {
                 return new Size(listbounds.X, listbounds.Y);
             }
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             Rectangle bounds = listbounds;
 
             int lineHeight = (int)lb.Font.Height;
@@ -1335,7 +1335,7 @@ namespace FEBuilderGBA
 /*
             //コメントの描画
             string comment;
-            U.AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
+            AddrResult ar = InputFormRef.SelectToAddrResult(lb, index);
             if (Program.CommentCache.TryGetValue(ar.addr, out comment))
             {
                 SolidBrush commentBrush = new SolidBrush(OptionForm.Color_Comment_ForeColor());
@@ -1457,7 +1457,7 @@ namespace FEBuilderGBA
         {
             Bitmap map = MapSettingForm.DrawMap(mapid);
     
-            List<U.AddrResult> list = MakeList(unit_addr);
+            List<AddrResult> list = MakeList(unit_addr);
             for (int i = 0; i < list.Count; i++)
             {
                 //とりあえず、移動後座標だけ描画する.
@@ -1657,7 +1657,7 @@ namespace FEBuilderGBA
         }
 
         //新規に確保した領域
-        static List<U.AddrResult> NewAllocData = new List<U.AddrResult>();
+        static List<AddrResult> NewAllocData = new List<AddrResult>();
         private void NewButton_Click(object sender, EventArgs e)
         {
             EventUnitForm.CreateNewData(EVENT_LISTBOX, MAP_LISTBOX.SelectedIndex);
@@ -1685,10 +1685,10 @@ namespace FEBuilderGBA
             Undo.UndoData undodata = Program.Undo.NewUndoData("EevntUnit NEW");
             uint newaddr = InputFormRef.AppendBinaryData(data, undodata);
 
-            U.AddrResult newData = new U.AddrResult(newaddr, "NEW", (uint)mapid);
+            AddrResult newData = new AddrResult(newaddr, "NEW", (uint)mapid);
             NewAllocData.Add(newData);
 
-            List<U.AddrResult> arlist = (List<U.AddrResult>)event_listbox.Tag;
+            List<AddrResult> arlist = (List<AddrResult>)event_listbox.Tag;
             arlist.Add(newData);
             event_listbox.Items.Add("NEW");
             Program.Undo.Push(undodata);
@@ -1697,7 +1697,7 @@ namespace FEBuilderGBA
             event_listbox.SelectedIndex = event_listbox.Items.Count - 1;
         }
         //未記帳の拡張した領域があれば追加する.(記帳済みのデータがあったら消す)
-        public static void AppendNoWriteNewData(List<U.AddrResult> list,uint mapid)
+        public static void AppendNoWriteNewData(List<AddrResult> list,uint mapid)
         {
             for (int i = 0; i < NewAllocData.Count; i++)
             {
@@ -1724,7 +1724,7 @@ namespace FEBuilderGBA
         }
         public static void ClearNewData()
         {
-            NewAllocData = new List<U.AddrResult>();
+            NewAllocData = new List<AddrResult>();
         }
         public static bool IsEventUnitReserve(ref uint addr)
         {
@@ -1745,7 +1745,7 @@ namespace FEBuilderGBA
         //未記帳領域があれば利用しているリストに追記する
         public static void RecycleReserveUnits(ref List<Address> recycle)
         {
-            foreach (U.AddrResult ar in NewAllocData)
+            foreach (AddrResult ar in NewAllocData)
             {
                 InputFormRef InputFormRef = Init(null);
                 InputFormRef.ReInit(ar.addr);
@@ -1789,7 +1789,7 @@ namespace FEBuilderGBA
                     , basename + " EVENT UNIT"
                     , new uint[] { 8 });
 
-                List<U.AddrResult> list = InputFormRef.MakeList();
+                List<AddrResult> list = InputFormRef.MakeList();
                 for (int i = 0; i < list.Count; i++)
                 {
                     uint addr = list[i].addr;
@@ -2415,8 +2415,8 @@ namespace FEBuilderGBA
         private void EventUnitForm_CheckDuplicatePlayerUnits(object sender, EventArgs e)
         {
             uint mapid = (uint)MAP_LISTBOX.SelectedIndex;
-            U.AddrResult selectEventAR = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
-            U.AddrResult selectUnitAR = InputFormRef.SelectToAddrResult(this.AddressList);
+            AddrResult selectEventAR = InputFormRef.SelectToAddrResult(this.EVENT_LISTBOX);
+            AddrResult selectUnitAR = InputFormRef.SelectToAddrResult(this.AddressList);
 
             uint unitID = (uint)B0.Value;
             uint unitGrow = (uint)B3.Value;
@@ -2461,7 +2461,7 @@ namespace FEBuilderGBA
             {//自軍配置なので判別不能. 重複が普通にありうる.
                 return "";
             }
-            List<U.AddrResult> list = MakeList(selectEventAddr);
+            List<AddrResult> list = MakeList(selectEventAddr);
             for (int i = 0; i < list.Count; i++)
             {
                 uint addr = list[i].addr;
@@ -2635,8 +2635,8 @@ namespace FEBuilderGBA
             uint mapmax = MapSettingForm.GetDataCount();
             for (uint mapid = 0; mapid < mapmax; mapid++)
             {
-                List<U.AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
-                foreach (U.AddrResult ar in list)
+                List<AddrResult> list = EventCondForm.MakeUnitPointer(mapid);
+                foreach (AddrResult ar in list)
                 {
                     InputFormRef InputFormRef = Init(null);
                     InputFormRef.ReInit(ar.addr);

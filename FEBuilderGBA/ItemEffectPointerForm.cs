@@ -73,7 +73,7 @@ namespace FEBuilderGBA
                 , new uint[] { 0 }
                 , FEBuilderGBA.Address.DataTypeEnum.InputFormRef_MIX);
 
-            List<U.AddrResult> arlist = InputFormRef.MakeList();
+            List<AddrResult> arlist = InputFormRef.MakeList();
             int limit = Math.Min((int)Program.ROM.RomInfo.magic_effect_original_data_count
                 , arlist.Count); //0x48以降は魔法テーブルです.
 

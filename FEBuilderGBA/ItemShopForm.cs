@@ -60,10 +60,10 @@ namespace FEBuilderGBA
             g_ShopListCache = null;
         }
 
-        static List<U.AddrResult>  g_ShopListCache = null;
-        static List<U.AddrResult> MakeShopList()
+        static List<AddrResult>  g_ShopListCache = null;
+        static List<AddrResult> MakeShopList()
         {
-            List<U.AddrResult> ret = g_ShopListCache;
+            List<AddrResult> ret = g_ShopListCache;
             if (ret == null)
             {
                 ret = MakeShopListLow();
@@ -80,16 +80,16 @@ namespace FEBuilderGBA
             }
             return ret;
         }
-        static List<U.AddrResult> MakeShopListLow()
+        static List<AddrResult> MakeShopListLow()
         {
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
             uint p;
 
             //編成準備店.
             p = Program.ROM.RomInfo.item_shop_hensei_pointer;
             if (p != 0)
             {
-                ret.Add(new U.AddrResult(
+                ret.Add(new AddrResult(
                       Program.ROM.p32(p)
                     , R._("編成準備店")
                     , p));
@@ -97,12 +97,12 @@ namespace FEBuilderGBA
             if (Program.ROM.RomInfo.version >= 8)
             {
                 //まずワールドマップイベントをスキャン.
-                List<U.AddrResult> worldmaplist = WorldMapPointForm.MakeWorldMapPointList();
+                List<AddrResult> worldmaplist = WorldMapPointForm.MakeWorldMapPointList();
                 for(uint i = 0 ; i < worldmaplist.Count ; i ++)
                 {
-                    List<U.AddrResult> shops =
+                    List<AddrResult> shops =
                         WorldMapPointForm.GetShopAddr( U.toOffset(worldmaplist[(int)i].addr) );
-                    foreach (U.AddrResult shop in shops)
+                    foreach (AddrResult shop in shops)
                     {
                         if ( Program.ROM.u8(shop.addr) == 0 )
                         {//店に品物がない.
@@ -113,7 +113,7 @@ namespace FEBuilderGBA
                     }
                 }
             }
-            List<U.AddrResult> maplist = MapSettingForm.MakeMapIDList();
+            List<AddrResult> maplist = MapSettingForm.MakeMapIDList();
             for (int n = 0; n < maplist.Count; n++)
             {
                 uint addr = MapSettingForm.GetEventAddrWhereMapID((uint)n);
@@ -123,8 +123,8 @@ namespace FEBuilderGBA
                 }
                 string mapname = MapSettingForm.GetMapName((uint)n);
 
-                List<U.AddrResult> shops = EventCondForm.MakeShopPointerListBox(addr);
-                foreach (U.AddrResult shop in shops)
+                List<AddrResult> shops = EventCondForm.MakeShopPointerListBox(addr);
+                foreach (AddrResult shop in shops)
                 {
                     if (Program.ROM.u8(shop.addr) == 0)
                     {//店に品物がない.
@@ -167,7 +167,7 @@ namespace FEBuilderGBA
         public static void MakeAllDataLength(List<Address> list)
         {
             string name = "Shop";
-            List<U.AddrResult> shop_arlist = MakeShopList();
+            List<AddrResult> shop_arlist = MakeShopList();
             for (int i = 0; i < shop_arlist.Count; i++)
             {
                 uint shop_addr = shop_arlist[i].addr;

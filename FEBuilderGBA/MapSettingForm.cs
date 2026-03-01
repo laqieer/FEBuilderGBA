@@ -543,13 +543,13 @@ namespace FEBuilderGBA
 
 
         //マップ名List.
-        public static List<U.AddrResult> MakeMapIDList()
+        public static List<AddrResult> MakeMapIDList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
         }
         //マップ名List.
-        public static List<U.AddrResult> MakeMapIDList(Func<uint, bool> condCallback)
+        public static List<AddrResult> MakeMapIDList(Func<uint, bool> condCallback)
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList(condCallback);

@@ -1524,7 +1524,7 @@ namespace FEBuilderGBA
             }
         }
 
-        public static List<U.AddrResult> MakeItemList()
+        public static List<AddrResult> MakeItemList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
@@ -1559,10 +1559,10 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             UpdateDataCountCache(InputFormRef);
 
-            List<U.AddrResult> arlist = InputFormRef.MakeList();
+            List<AddrResult> arlist = InputFormRef.MakeList();
             for (int i = 0; i < arlist.Count; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
 
                 int size;
                 string str = textdecoder.DecodeAddr(ar.addr, out size);
@@ -1599,7 +1599,7 @@ namespace FEBuilderGBA
                 findstr = U.CleanupFindString(findstr, isJP);
 
                 FETextDecode textdecoder = new FETextDecode();
-                List<U.AddrResult> result = InputFormRef.MakeList((U.AddrResult ar) =>
+                List<AddrResult> result = InputFormRef.MakeList((AddrResult ar) =>
                 {
                     int size;
                     string str = textdecoder.DecodeAddr(ar.addr, out size);
@@ -1607,7 +1607,7 @@ namespace FEBuilderGBA
                     int hitpos = U.CleanupFindString(str, isJP).IndexOf(findstr);
                     if (hitpos < 0)
                     {//NO HIT
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
                     string name;
                     if (str.Length - hitpos >= 40)
@@ -1619,7 +1619,7 @@ namespace FEBuilderGBA
                         name = ar.name + " " + U.substr(str,hitpos);
                     }
 
-                    return new U.AddrResult(ar.addr, name, ar.tag);
+                    return new AddrResult(ar.addr, name, ar.tag);
                 });
 
                 SearchResultListBox.Items.Clear();
@@ -2158,7 +2158,7 @@ namespace FEBuilderGBA
 
             name = "Text ";
             FETextDecode textdecoder = new FETextDecode();
-            List<U.AddrResult> arlist = InputFormRef.MakeList();
+            List<AddrResult> arlist = InputFormRef.MakeList();
             for(int i = 0 ; i < arlist.Count ; i++)
             {
                 int size = 0;
@@ -3629,11 +3629,11 @@ namespace FEBuilderGBA
 
                 FETextDecode textdecoder = new FETextDecode();
                 uint id = 0;
-                List<U.AddrResult> result = InputFormRef.MakeList((U.AddrResult ar) =>
+                List<AddrResult> result = InputFormRef.MakeList((AddrResult ar) =>
                 {
                     if ( textmap.ContainsKey(id++))
                     {//HIT
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
                     
                     int size;
@@ -3650,7 +3650,7 @@ namespace FEBuilderGBA
                     }
 
                     Debug.Print(name.Replace(" ","\t").Replace("\r\n"," ") + "\t{J}");
-                    return new U.AddrResult(ar.addr, name, ar.tag);
+                    return new AddrResult(ar.addr, name, ar.tag);
                 });
 
                 SearchResultListBox.Items.Clear();

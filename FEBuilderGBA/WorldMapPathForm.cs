@@ -173,7 +173,7 @@ namespace FEBuilderGBA
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.DataCount;
         }
-        public static List<U.AddrResult> MakeList()
+        public static List<AddrResult> MakeList()
         {
             InputFormRef InputFormRef = Init(null);
             return InputFormRef.MakeList();
@@ -196,7 +196,7 @@ namespace FEBuilderGBA
             }
 
             //拠点を追加
-            List<U.AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
+            List<AddrResult> arlist = WorldMapPointForm.MakeWorldMapPointList();
             for (int i = 0; i < arlist.Count; i++)
             {
                 MapPictureBox.StaticItem item = WorldMapPointForm.DrawBasePointAddr(arlist[i].addr);

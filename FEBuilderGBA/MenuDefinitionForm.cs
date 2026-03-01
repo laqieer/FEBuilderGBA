@@ -42,7 +42,7 @@ namespace FEBuilderGBA
             {
                 return "";
             }
-            List<U.AddrResult> menuList = MenuCommandForm.MakeListPointer(addr);
+            List<AddrResult> menuList = MenuCommandForm.MakeListPointer(addr);
 
             string ret = "";
             for (int i = 0; i < menuList.Count; i++ )
@@ -52,11 +52,11 @@ namespace FEBuilderGBA
             return U.substr(ret,1);
         }
 
-        public static List<U.AddrResult> MakeListAll()
+        public static List<AddrResult> MakeListAll()
         {
             uint[] pointers = GetPointers();
 
-            List<U.AddrResult> ret = new List<U.AddrResult>();
+            List<AddrResult> ret = new List<AddrResult>();
             InputFormRef InputFormRef = Init(null);
 
             for (int n = 0; n < pointers.Length; n++)
@@ -66,7 +66,7 @@ namespace FEBuilderGBA
                     continue;
                 }
                 InputFormRef.ReInitPointer(pointers[n]);
-                List<U.AddrResult> list = InputFormRef.MakeList();
+                List<AddrResult> list = InputFormRef.MakeList();
                 ret.AddRange(list);
             }
 
@@ -83,7 +83,7 @@ namespace FEBuilderGBA
 
         public static string GetMenuNameWhereMenuCommandID(uint num)
         {
-            List<U.AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
+            List<AddrResult> menuDefineList = MenuDefinitionForm.MakeListAll();
             for (int n = 0; n < menuDefineList.Count; n++)
             {
                 if (!U.isSafetyOffset(menuDefineList[n].addr + 8))
@@ -95,7 +95,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                List<U.AddrResult> list = MenuCommandForm.MakeListPointer(p);
+                List<AddrResult> list = MenuCommandForm.MakeListPointer(p);
                 for (int i = 0; i < list.Count; i++)
                 {
                     if (!U.isSafetyOffset(list[i].addr))

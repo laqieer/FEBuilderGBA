@@ -57,10 +57,10 @@ namespace FEBuilderGBA
 
         static void AppendVarsID_Low(List<UseValsID> list, FELint.Type dataType, InputFormRef ifr, uint[] textIDIndexes,TargetTypeEnum targetType)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 for (int n = 0; n < textIDIndexes.Length; n++)
                 {
                     uint id = Program.ROM.u16(ar.addr + textIDIndexes[n]);
@@ -74,10 +74,10 @@ namespace FEBuilderGBA
         }
         static void AppendVarsID_Byte_Low(List<UseValsID> list, FELint.Type dataType, InputFormRef ifr, uint[] textIDIndexes, TargetTypeEnum targetType)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 for (int n = 0; n < textIDIndexes.Length; n++)
                 {
                     uint id = Program.ROM.u8(ar.addr + textIDIndexes[n]);
@@ -106,10 +106,10 @@ namespace FEBuilderGBA
         }
         public static void AppendTextID(List<UseValsID> list, FELint.Type dataType, InputFormRef ifr, uint[] textIDIndexes, uint eventIndex, List<uint> tracelist)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 for (int n = 0; n < textIDIndexes.Length; n++)
                 {
                     uint id = Program.ROM.u16(ar.addr + textIDIndexes[n]);
@@ -129,10 +129,10 @@ namespace FEBuilderGBA
 
         public static void AppendTextIDPP(List<UseValsID> list, FELint.Type dataType, InputFormRef ifr, uint[] textIDIndexes)
         {
-            List<U.AddrResult> arlist = ifr.MakeList();
+            List<AddrResult> arlist = ifr.MakeList();
             for (int i = 0; i < ifr.DataCount; i++)
             {
-                U.AddrResult ar = arlist[i];
+                AddrResult ar = arlist[i];
                 for (int n = 0; n < textIDIndexes.Length; n++)
                 {
                     uint pointer = Program.ROM.p32(ar.addr + textIDIndexes[n]);

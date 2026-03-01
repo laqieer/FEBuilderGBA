@@ -47,10 +47,10 @@ namespace FEBuilderGBA
                     uint itemCritical = Program.ROM.u32(addr + 16);
                     if (!U.isPointer(itemCritical))
                     {
-                        return new U.AddrResult();
+                        return new AddrResult();
                     }
 
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = U.toOffset(itemCritical);
 
                     uint id = Program.ROM.u16(addr);
@@ -75,7 +75,7 @@ namespace FEBuilderGBA
                 {
                     uint class_id = Program.ROM.u8(addr);
 
-                    U.AddrResult ar = new U.AddrResult();
+                    AddrResult ar = new AddrResult();
                     ar.addr = addr;
 
                     ar.name = U.ToHexString(class_id) + " " + ClassForm.GetClassName(class_id);
@@ -93,7 +93,7 @@ namespace FEBuilderGBA
         {
             //該当アイテム.
             uint selectaddress = (uint)this.Address.Value;
-            List<U.AddrResult> list = ItemForm.MakeItemList( (uint addr) =>
+            List<AddrResult> list = ItemForm.MakeItemList( (uint addr) =>
             {
                 uint itemCritical = Program.ROM.p32(addr + 16);
                 return (selectaddress == itemCritical);
@@ -106,7 +106,7 @@ namespace FEBuilderGBA
             //他のアイテムでこのデータを参照しているならば、独立ボタンを出す.
             IndependencePanel.Visible = UpdateIndependencePanel();
         }
-        public static List<U.AddrResult> MakeCriticalClassList(uint addr)
+        public static List<AddrResult> MakeCriticalClassList(uint addr)
         {
             InputFormRef N_InputFormRef = N_Init(null);
             N_InputFormRef.ReInit(addr);
@@ -168,9 +168,9 @@ namespace FEBuilderGBA
         void ReselectItem(uint itemid)
         {
             this.InputFormRef.ReloadAddressList();
-            List<U.AddrResult> arlist = InputFormRef.MakeList();
+            List<AddrResult> arlist = InputFormRef.MakeList();
             int count = 0;
-            foreach (U.AddrResult ar in arlist)
+            foreach (AddrResult ar in arlist)
             {
                 if (U.atoh(ar.name) == itemid)
                 {
