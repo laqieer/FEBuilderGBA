@@ -602,10 +602,12 @@ namespace FEBuilderGBA
         public static void ReBuildFETextEncoder()
         {
             FETextEncoder = new FETextEncode();
+            CoreState.FETextEncoder = FETextEncoder;
         }
         static void ReBuildSystemTextEncoder()
         {
             SystemTextEncoder = new SystemTextEncoder();
+            CoreState.SystemTextEncoder = SystemTextEncoder;
         }
         static void ReLoadTranslateResource()
         {
