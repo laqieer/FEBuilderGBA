@@ -4,47 +4,50 @@ using Xunit;
 
 namespace FEBuilderGBA.Tests
 {
-    public class GitUtilTests
+    public class GitUtilTests : IDisposable
     {
+        // Save/restore CoreState to avoid leaking into other test classes
+        private readonly string _savedLanguage;
+        private readonly int _savedReleaseSource;
+        private readonly string _savedGitPath;
+
+        public GitUtilTests()
+        {
+            _savedLanguage = CoreState.Language;
+            _savedReleaseSource = CoreState.ReleaseSource;
+            _savedGitPath = CoreState.GitPath;
+        }
+
+        public void Dispose()
+        {
+            CoreState.Language = _savedLanguage;
+            CoreState.ReleaseSource = _savedReleaseSource;
+            CoreState.GitPath = _savedGitPath;
+        }
+
         // -----------------------------------------------------------------------
         // GetPatch2RemoteUrl — mirrors UseChinaMainlandMirror() logic
         // -----------------------------------------------------------------------
 
-        // Helper: set Program.Config and reset OptionForm's lang cache.
-        private static void SetConfig(string releaseSource, string lang)
+        // Helper: set CoreState properties for testing.
+        private static void SetCoreState(int releaseSource, string lang)
         {
-            var cfg = new Config();
-            cfg["func_release_source"] = releaseSource;
-            // Set func_lang explicitly (ja/en/zh) so lang_low() returns immediately
-            // without hitting Program.BaseDirectory for translate file detection.
-            cfg["func_lang"] = lang;
-
-            typeof(Program)
-                .GetProperty("Config",
-                    System.Reflection.BindingFlags.Public |
-                    System.Reflection.BindingFlags.Static)
-                .SetValue(null, cfg);
-
-            // Clear the static lang cache so the new config value is picked up
-            typeof(OptionForm)
-                .GetField("g_Cache_lang",
-                    System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Static)
-                .SetValue(null, null);
+            CoreState.ReleaseSource = releaseSource;
+            CoreState.Language = lang;
         }
 
         [Theory]
-        [InlineData("0", "ja",  false)]  // Auto + Japanese  → GitHub
-        [InlineData("0", "en",  false)]  // Auto + English   → GitHub
-        [InlineData("0", "zh",  true)]   // Auto + Chinese   → Gitee  (auto-detect)
-        [InlineData("1", "ja",  false)]  // GitHub explicit  → GitHub
-        [InlineData("1", "zh",  false)]  // GitHub explicit overrides lang
-        [InlineData("2", "ja",  true)]   // Gitee explicit   → Gitee
-        [InlineData("2", "zh",  true)]   // Gitee + Chinese  → Gitee
+        [InlineData(0, "ja",  false)]  // Auto + Japanese  → GitHub
+        [InlineData(0, "en",  false)]  // Auto + English   → GitHub
+        [InlineData(0, "zh",  true)]   // Auto + Chinese   → Gitee  (auto-detect)
+        [InlineData(1, "ja",  false)]  // GitHub explicit  → GitHub
+        [InlineData(1, "zh",  false)]  // GitHub explicit overrides lang
+        [InlineData(2, "ja",  true)]   // Gitee explicit   → Gitee
+        [InlineData(2, "zh",  true)]   // Gitee + Chinese  → Gitee
         public void GetPatch2RemoteUrl_ReturnsCorrectSource(
-            string releaseSource, string lang, bool expectGitee)
+            int releaseSource, string lang, bool expectGitee)
         {
-            SetConfig(releaseSource, lang);
+            SetCoreState(releaseSource, lang);
 
             string url = GitUtil.GetPatch2RemoteUrl();
 

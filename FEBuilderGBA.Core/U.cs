@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
@@ -1620,6 +1622,44 @@ namespace FEBuilderGBA
         public static Dictionary<uint, string> LoadConfigEtcTSV1(string type)
         {
             return U.LoadTSVResource1(U.ConfigEtcFilename(type), false);
+        }
+
+        // ---- HTTP helpers (cross-platform, using HttpClient) ----
+
+        static readonly HttpClient s_httpClient = CreateHttpClient();
+
+        static HttpClient CreateHttpClient()
+        {
+            var handler = new HttpClientHandler();
+            handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            var client = new HttpClient(handler);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("FEBuilderGBA/1.0");
+            client.Timeout = TimeSpan.FromSeconds(30);
+            return client;
+        }
+
+        /// <summary>
+        /// Simple synchronous HTTP GET returning the response body as string.
+        /// Cross-platform replacement for WinForms' U.HttpGet that uses legacy HttpWebRequest.
+        /// </summary>
+        public static string HttpGet(string url, string referer = "", System.Net.CookieContainer cookie = null)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (!string.IsNullOrEmpty(referer))
+                    request.Headers.Referrer = new Uri(referer);
+
+                using var response = s_httpClient.Send(request);
+                response.EnsureSuccessStatusCode();
+                using var stream = response.Content.ReadAsStream();
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                return reader.ReadToEnd();
+            }
+            catch
+            {
+                return "";
+            }
         }
     }
 }

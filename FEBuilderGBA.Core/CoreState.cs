@@ -72,6 +72,18 @@ namespace FEBuilderGBA
         public static string Language { get; set; } = "en";
 
         /// <summary>
+        /// Path to the git executable (e.g. "git" or "C:\Program Files\Git\cmd\git.exe").
+        /// Set from OptionForm.git_path() at startup and when options are saved.
+        /// </summary>
+        public static string GitPath { get; set; } = "git";
+
+        /// <summary>
+        /// Release source preference: 0 = auto, 1 = GitHub, 2 = Gitee.
+        /// Set from OptionForm.release_source() at startup and when options are saved.
+        /// </summary>
+        public static int ReleaseSource { get; set; } = 0;
+
+        /// <summary>
         /// Platform-specific service provider (dialogs, clipboard, etc.).
         /// Must be set before any Core code that shows messages.
         /// </summary>

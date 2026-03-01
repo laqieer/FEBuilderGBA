@@ -209,6 +209,8 @@
     <Compile Remove="MyTranslateResource.cs" />
     <Compile Remove="MyTranslateResourceLow.cs" />
     <Compile Remove="EtcCacheResource.cs" />
+    <Compile Remove="GitInstaller.cs" />
+    <Compile Remove="GitUtil.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

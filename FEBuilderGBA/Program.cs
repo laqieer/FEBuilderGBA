@@ -483,6 +483,8 @@ namespace FEBuilderGBA
             Undo = new Undo();
             CoreState.Undo = Undo;
             CoreState.Language = OptionForm.lang();
+            CoreState.GitPath = OptionForm.git_path();
+            CoreState.ReleaseSource = OptionForm.release_source();
 
 
             //数を求める部分はあまりにたくさん呼び出すのでキャッシュすることにしました.
