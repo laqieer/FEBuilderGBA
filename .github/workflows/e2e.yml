@@ -202,7 +202,7 @@ jobs:
       # Uses TRX logger (same as msbuild.yml) — JunitXml.TestLogger v3.1.12 has a
       # known bug that returns exit code 1 even when all tests pass.
       - name: Run E2E tests
-        timeout-minutes: 20
+        timeout-minutes: 25
         env:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
           FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe

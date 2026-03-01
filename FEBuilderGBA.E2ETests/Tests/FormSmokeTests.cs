@@ -66,7 +66,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
             // Wait for main form to fully load, then close any unexpected dialogs
             // (e.g., file browser dialogs that may appear during initialization).
-            Thread.Sleep(3_000);
+            Thread.Sleep(2_000);
             var mainWindows = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
             WinAutomation.CloseUnexpectedWindows(_process.Id, mainWindows);
             Thread.Sleep(1_000);
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.E2ETests.Tests
                 var before = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
 
                 WinAutomation.ClickButton(btnHWnd);
-                Thread.Sleep(2_000);
+                Thread.Sleep(500);
 
                 // Detect newly opened windows
                 var after = WinAutomation.GetProcessWindows(_process.Id);
