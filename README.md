@@ -39,7 +39,7 @@ git submodule update --init --recursive
 ## Testing & Coverage
 
 - ✅ **522 unit/integration tests** passing (0 skipped)
-- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **48 E2E tests** passing with all 5 ROMs
+- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **45 E2E tests** passing with all 5 ROMs
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -49,7 +49,7 @@ git submodule update --init --recursive
   - Integration tests for update system
   - E2E CLI tests (`--version` flag, exit codes, output content)
   - E2E GUI tests (startup window detection, child controls, graceful shutdown)
-  - ROM-based E2E CLI tests (`--lint`, `--rebuild`, `--makeups` × 5 ROMs — skipped without ROMs)
+  - ROM-based E2E CLI tests (`--lint`, `--makeups` × 5 ROMs, `--rebuild` × 2 representative ROMs — skipped without ROMs)
   - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)
   - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
 
@@ -64,11 +64,11 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
 | `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
 | `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
-| `Tests/RomCliTests.cs` | Yes (×5) | `--lint`, `--rebuild`, `--makeups` against each of the 5 real ROMs — 15 tests, skipped without ROMs |
+| `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |
 | `Tests/RomGuiTests.cs` | Yes (×5) | Main form loads per ROM: window appears, non-empty title, ≥10 child controls — 15 tests, skipped without ROMs |
 | `Tests/FormSmokeTests.cs` | Yes (×5) | All toolbar buttons clicked per ROM; verifies ≥1 opens a form — 5 tests, skipped without ROMs |
 
-**Without ROMs:** 13 passed, 35 skipped. **With all 5 ROMs:** 48 passed, 0 skipped.
+**Without ROMs:** 13 passed, 32 skipped. **With all 5 ROMs:** 45 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 
@@ -78,10 +78,10 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 # Build the main application (Release, x86)
 msbuild FEBuilderGBA.sln /p:Configuration=Release /p:Platform=x86 /t:build /restore
 
-# Run without ROMs — 13 passed, 35 skipped (fast, ~20 s)
+# Run without ROMs — 13 passed, 32 skipped (fast, ~20 s)
 ROMS_DIR="" dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
 
-# Run with ROMs — all 48 tests execute
+# Run with ROMs — all 45 tests execute
 ROMS_DIR=/path/to/roms dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj -c Release --no-build
 ```
 
@@ -109,7 +109,7 @@ ROM-based tests are gated on the `ROMS_URL` repository secret.  When the secret 
 | Network/HTTP error (unreachable URL) | Hard fail → pipeline blocked |
 | Downloaded file not a valid zip (magic bytes ≠ `PK`) | Warning + exit 0; ROM tests skip |
 | Zip structurally corrupt (`ZipFile::OpenRead` fails) | Warning + exit 0; ROM tests skip |
-| Zip valid, all 5 ROMs extracted | All 48 tests run |
+| Zip valid, all 5 ROMs extracted | All 45 tests run |
 
 The step lists every zip entry with its uncompressed size before extraction, so the log shows exactly what is inside `roms.zip`.
 

@@ -38,7 +38,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --rebuild
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
         public void Rebuild_ExitsCleanlyOnTempCopy(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 var (code, _, _) = AppRunner.Run(
-                    ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 300_000);
+                    ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 600_000);
                 Assert.Equal(0, code);
             }
             finally

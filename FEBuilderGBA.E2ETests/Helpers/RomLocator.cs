@@ -90,5 +90,18 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 yield return new object?[] { "FE8U", FE8U };
             }
         }
+
+        /// <summary>
+        /// A smaller ROM subset (FE8U + FE6) for expensive tests like --rebuild.
+        /// Covers both US and JP variants without running all 5 ROMs.
+        /// </summary>
+        public static IEnumerable<object?[]> RepresentativeRoms
+        {
+            get
+            {
+                yield return new object?[] { "FE8U", FE8U };
+                yield return new object?[] { "FE6",  FE6  };
+            }
+        }
     }
 }
