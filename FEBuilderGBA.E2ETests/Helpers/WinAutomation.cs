@@ -205,11 +205,13 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
-        /// Click a button control by sending BM_CLICK.
+        /// Click a button control by posting BM_CLICK.
+        /// Uses PostMessage (asynchronous) rather than SendMessage to avoid
+        /// blocking indefinitely when the button handler opens a modal dialog.
         /// </summary>
         public static void ClickButton(IntPtr buttonHWnd)
         {
-            SendMessage(buttonHWnd, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
+            PostMessage(buttonHWnd, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
         }
 
         /// <summary>
@@ -218,6 +220,23 @@ namespace FEBuilderGBA.E2ETests.Helpers
         public static void CloseWindow(IntPtr hWnd)
         {
             PostMessage(hWnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        /// <summary>
+        /// Close all top-level windows belonging to the given process
+        /// that are NOT in the <paramref name="keepWindows"/> set.
+        /// This is useful for dismissing unexpected modal dialogs
+        /// (e.g., file browser dialogs) that may block the main form.
+        /// </summary>
+        public static void CloseUnexpectedWindows(int processId, HashSet<IntPtr>? keepWindows = null)
+        {
+            foreach (IntPtr w in GetProcessWindows(processId))
+            {
+                if (keepWindows != null && keepWindows.Contains(w))
+                    continue;
+                if (IsWindowVisible(w))
+                    PostMessage(w, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+            }
         }
     }
 }

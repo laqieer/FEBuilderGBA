@@ -26,6 +26,12 @@ namespace FEBuilderGBA.E2ETests.Tests
         private readonly ITestOutputHelper _output;
         private Process? _process;
 
+        /// <summary>
+        /// Maximum time (ms) the entire button-clicking loop may run per ROM.
+        /// Prevents indefinite hangs when a button opens a blocking modal dialog.
+        /// </summary>
+        private const int ButtonLoopTimeoutMs = 120_000; // 2 minutes per ROM
+
         public FormSmokeTests(ITestOutputHelper output)
         {
             _output = output;
@@ -58,6 +64,13 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 60_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
+            // Wait for main form to fully load, then close any unexpected dialogs
+            // (e.g., file browser dialogs that may appear during initialization).
+            Thread.Sleep(3_000);
+            var mainWindows = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
+            WinAutomation.CloseUnexpectedWindows(_process.Id, mainWindows);
+            Thread.Sleep(1_000);
+
             // Poll until the main form has rendered its toolbar buttons.
             // Check ALL process windows (not just the initial hWnd) because the OS may
             // set MainWindowHandle to a transient startup dialog before the editor shows.
@@ -82,8 +95,17 @@ namespace FEBuilderGBA.E2ETests.Tests
             _output.WriteLine($"{romName}: found {buttons.Count} toolbar buttons");
 
             int opened = 0;
+            var loopSw = Stopwatch.StartNew();
             foreach (var (btnHWnd, btnText) in buttons)
             {
+                // Safety: abort if we've been clicking buttons too long
+                if (loopSw.ElapsedMilliseconds > ButtonLoopTimeoutMs)
+                {
+                    _output.WriteLine($"{romName}: button loop timeout ({ButtonLoopTimeoutMs}ms) — " +
+                        $"stopping after {opened} forms opened");
+                    break;
+                }
+
                 // Snapshot of top-level windows before the click
                 var before = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
 
@@ -106,6 +128,10 @@ namespace FEBuilderGBA.E2ETests.Tests
                     }
                     Thread.Sleep(500);
                 }
+
+                // Close any unexpected windows that may have appeared
+                // (file dialogs, error popups, etc.)
+                WinAutomation.CloseUnexpectedWindows(_process.Id, before);
             }
 
             _output.WriteLine($"{romName}: {opened}/{buttons.Count} buttons opened a form");
