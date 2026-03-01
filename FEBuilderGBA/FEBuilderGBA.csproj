@@ -229,6 +229,7 @@
     <Compile Remove="SystemTextEncoder.cs" />
     <Compile Remove="GrowSimulator.cs" />
     <Compile Remove="EventScriptUtil.cs" />
+    <Compile Remove="Config.cs" />
     <EmbeddedResource Remove="ImageSystemHoverColorForm.resx" />
     <EmbeddedResource Remove="RMenuHelpForm.resx" />
   </ItemGroup>

@@ -76,7 +76,7 @@ namespace FEBuilderGBA
         public static IAsmMapCache AsmMapFileAsmCache { get; set; }
 
         // ---- Types now in Core (concrete) ----
-        public static object Config { get; set; }
+        public static Config Config { get; set; }
         public static EventScript EventScript { get; set; }
         public static EventScript ProcsScript { get; set; }
         public static EventScript AIScript { get; set; }

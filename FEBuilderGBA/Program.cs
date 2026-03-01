@@ -60,8 +60,9 @@ namespace FEBuilderGBA
             Log.TouchLogDirectory();
 
             //設定の読み込み
-            Config = new Config();
+            Config = new ConfigWinForms();
             Config.Load(System.IO.Path.Combine(BaseDirectory, "config", "config.xml"));
+            CoreState.Config = Config;
             Config.UpdateShortcutKeys();
 
             //システム側のテキストエンコード いかにしてUnicodeにするかどうか.
@@ -808,7 +809,7 @@ namespace FEBuilderGBA
         public static EventScript ProcsScript { get; private set; }
         public static EventScript AIScript { get; private set; }
         public static Undo Undo { get; private set; }
-        public static Config Config { get; private set; }
+        public static ConfigWinForms Config { get; private set; }
         public static ROMUpdateWatcher UpdateWatcher { get; private set; }
         public static FETextEncode FETextEncoder { get; private set; }
         public static SystemTextEncoder SystemTextEncoder { get; private set; }
