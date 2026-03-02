@@ -14,8 +14,8 @@ FEBuilderGBA.sln
 ├── FEBuilderGBA.CLI/         # net9.0 — Cross-platform CLI (--version, --help, --makeups)
 ├── FEBuilderGBA.SkiaSharp/   # net9.0 — SkiaSharp IImageService implementation
 ├── FEBuilderGBA.Avalonia/    # net9.0 — Cross-platform Avalonia UI preview
-├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (715 tests)
-├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (21 tests)
+├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (749 tests)
+├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (73 tests)
 └── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
 ```
 

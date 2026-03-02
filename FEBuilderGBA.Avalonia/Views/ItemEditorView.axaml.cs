@@ -1,3 +1,4 @@
+using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -21,14 +22,28 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
-            var items = _vm.LoadItemList();
-            ItemList.SetItems(items);
+            try
+            {
+                var items = _vm.LoadItemList();
+                ItemList.SetItems(items);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.LoadList failed: {0}", ex.Message);
+            }
         }
 
         void OnItemSelected(uint addr)
         {
-            _vm.LoadItem(addr);
-            UpdateUI();
+            try
+            {
+                _vm.LoadItem(addr);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.OnItemSelected failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address)

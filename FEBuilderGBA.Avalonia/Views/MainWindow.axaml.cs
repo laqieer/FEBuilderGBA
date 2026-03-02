@@ -64,26 +64,68 @@ namespace FEBuilderGBA.Avalonia.Views
 
             CoreState.ROM = rom;
 
+            // Wire headless caches so Core code doesn't NullRef
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+            CoreState.LintCache ??= new HeadlessEtcCache();
+            CoreState.WorkSupportCache ??= new HeadlessEtcCache();
+
+            // Wire text encoder — with HeadlessSystemTextEncoder fallback
+            if (CoreState.SystemTextEncoder == null || CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
+            {
+                try
+                {
+                    CoreState.SystemTextEncoder = new SystemTextEncoder(CoreState.TextEncoding, CoreState.ROM);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
+                    CoreState.SystemTextEncoder ??= new HeadlessSystemTextEncoder();
+                }
+            }
+
+            // Init Huffman text encoder
+            if (CoreState.FETextEncoder == null)
+            {
+                try { CoreState.FETextEncoder = new FETextEncode(); }
+                catch (Exception ex) { Log.Error("Failed to init FETextEncode: {0}", ex.Message); }
+            }
+
+            // Init text escape
+            CoreState.TextEscape ??= new TextEscape();
+
+            // Init flag cache
+            if (CoreState.FlagCache == null)
+            {
+                try { CoreState.FlagCache = new EtcCacheFLag(); }
+                catch (Exception ex) { Log.Error("Failed to init FlagCache: {0}", ex.Message); }
+            }
+
+            // Init export function + undo
+            CoreState.ExportFunction ??= new ExportFunction();
+            CoreState.Undo ??= new Undo();
+
+            // Init event scripts
             try
             {
-                if (CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
-                    CoreState.SystemTextEncoder = new SystemTextEncoder(CoreState.TextEncoding, CoreState.ROM);
-                CoreState.FETextEncoder ??= new FETextEncode();
-                CoreState.TextEscape ??= new TextEscape();
-                CoreState.FlagCache ??= new EtcCacheFLag();
-                CoreState.ExportFunction ??= new ExportFunction();
-                CoreState.Undo ??= new Undo();
-
-                CoreState.EventScript ??= new EventScript();
-                CoreState.EventScript.Load(EventScript.EventScriptType.Event);
-                CoreState.ProcsScript ??= new EventScript();
-                CoreState.ProcsScript.Load(EventScript.EventScriptType.Procs);
-                CoreState.AIScript ??= new EventScript();
-                CoreState.AIScript.Load(EventScript.EventScriptType.AI);
+                if (CoreState.EventScript == null)
+                {
+                    CoreState.EventScript = new EventScript();
+                    CoreState.EventScript.Load(EventScript.EventScriptType.Event);
+                }
+                if (CoreState.ProcsScript == null)
+                {
+                    CoreState.ProcsScript = new EventScript();
+                    CoreState.ProcsScript.Load(EventScript.EventScriptType.Procs);
+                }
+                if (CoreState.AIScript == null)
+                {
+                    CoreState.AIScript = new EventScript();
+                    CoreState.AIScript.Load(EventScript.EventScriptType.AI);
+                }
             }
             catch (Exception ex)
             {
-                Log.Error("Init error: {0}", ex.Message);
+                Log.Error("Failed to init EventScripts: {0}", ex.Message);
             }
 
             // Update UI

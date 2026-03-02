@@ -39,6 +39,7 @@ namespace FEBuilderGBA
 
         public static draw_font_enum SearchDrawFontPatch()
         {
+            if (CoreState.ROM?.RomInfo == null) return draw_font_enum.NO;
             if (g_Cache_draw_font_enum == draw_font_enum.NoCache)
             {
                 g_Cache_draw_font_enum = SearchDrawFontPatch(CoreState.ROM);
@@ -81,6 +82,7 @@ namespace FEBuilderGBA
 
         public static PRIORITY_CODE SearchPriorityCode()
         {
+            if (CoreState.ROM?.RomInfo == null) return PRIORITY_CODE.LAT1;
             if (CoreState.ROM.RomInfo.is_multibyte)
             {
                 return PRIORITY_CODE.SJIS;
@@ -139,12 +141,14 @@ namespace FEBuilderGBA
 
         public static bool SearchPatchBool(PatchTableSt[] table)
         {
+            if (CoreState.ROM?.RomInfo == null) return false;
             PatchTableSt p = SearchPatch(table);
             return p.addr != 0;
         }
 
         public static PatchTableSt SearchPatch(PatchTableSt[] table)
         {
+            if (CoreState.ROM?.RomInfo == null) return default;
             string version = CoreState.ROM.RomInfo.VersionToFilename;
             foreach (PatchTableSt t in table)
             {

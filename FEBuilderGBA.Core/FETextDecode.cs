@@ -15,7 +15,10 @@ namespace FEBuilderGBA
         {
             this.ROM = CoreState.ROM;
             this.SystemTextEncoder = CoreState.SystemTextEncoder;
-            this.PriorityCode = PatchDetection.SearchPriorityCode();
+            if (CoreState.ROM?.RomInfo == null)
+                this.PriorityCode = PatchDetection.PRIORITY_CODE.LAT1;
+            else
+                this.PriorityCode = PatchDetection.SearchPriorityCode();
         }
         public FETextDecode(ROM rom, ISystemTextEncoder encoder)
         {
@@ -34,8 +37,16 @@ namespace FEBuilderGBA
         //ワンライナー
         public static String Direct(uint id)
         {
-            FETextDecode d = new FETextDecode();
-            return d.Decode(id);
+            try
+            {
+                FETextDecode d = new FETextDecode();
+                return d.Decode(id);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("FETextDecode.Direct(" + id + ") failed: " + ex.Message);
+                return "???";
+            }
         }
 
         public String Decode(uint id)

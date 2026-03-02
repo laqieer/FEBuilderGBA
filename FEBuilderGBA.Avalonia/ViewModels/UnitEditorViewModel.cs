@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -51,7 +52,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr + dataSize > (uint)rom.Data.Length) break;
 
                 uint nameId = rom.u16(addr + 0);
-                string name = U.ToHexString(i) + " " + FETextDecode.Direct(nameId);
+                string decoded;
+                try { decoded = FETextDecode.Direct(nameId); }
+                catch { decoded = "???"; }
+                string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -68,7 +72,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             NameId = rom.u16(addr + 0);
-            Name = FETextDecode.Direct(NameId);
+            try { Name = FETextDecode.Direct(NameId); }
+            catch { Name = "???"; }
 
             // Offsets vary by version — use FE8U layout as base
             if (rom.RomInfo.version == 6)

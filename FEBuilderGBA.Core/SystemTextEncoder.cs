@@ -145,38 +145,31 @@ namespace FEBuilderGBA
             return false;
         }
 
+        static readonly Encoding FallbackEncoding = Encoding.GetEncoding("iso-8859-1");
+
         public string Decode(byte[] str)
         {
-            if (this.Encoder == null)
-            {
-                return this.TBLEncode.Decode(str);
-            }
-            else
-            {
+            if (this.Encoder != null)
                 return this.Encoder.GetString(str);
-            }
+            if (this.TBLEncode != null)
+                return this.TBLEncode.Decode(str);
+            return FallbackEncoding.GetString(str);
         }
         public string Decode(byte[] str,int start,int len)
         {
-            if (this.Encoder == null)
-            {
+            if (this.Encoder != null)
+                return this.Encoder.GetString(str, start, len);
+            if (this.TBLEncode != null)
                 return this.TBLEncode.Decode(str, start, len);
-            }
-            else
-            {
-                return this.Encoder.GetString(str, start,len);
-            }
+            return FallbackEncoding.GetString(str, start, len);
         }
         public byte[] Encode(string str)
         {
-            if (this.Encoder == null)
-            {
-                return this.TBLEncode.Encode(str);
-            }
-            else
-            {
+            if (this.Encoder != null)
                 return this.Encoder.GetBytes(str);
-            }
+            if (this.TBLEncode != null)
+                return this.TBLEncode.Encode(str);
+            return FallbackEncoding.GetBytes(str);
         }
 
         public Dictionary<string, uint> GetTBLEncodeDicLow()

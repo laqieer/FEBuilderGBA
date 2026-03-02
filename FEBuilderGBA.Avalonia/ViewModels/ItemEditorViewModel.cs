@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -46,7 +47,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr + dataSize > (uint)rom.Data.Length) break;
 
                 uint nameId = rom.u16(addr + 0);
-                string name = U.ToHexString(i) + " " + FETextDecode.Direct(nameId);
+                string decoded;
+                try { decoded = FETextDecode.Direct(nameId); }
+                catch { decoded = "???"; }
+                string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -65,7 +69,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             NameId = rom.u16(addr + 0);
             DescId = rom.u16(addr + 2);
             UseDescId = rom.u16(addr + 4);
-            Name = FETextDecode.Direct(NameId);
+            try { Name = FETextDecode.Direct(NameId); }
+            catch { Name = "???"; }
 
             // Item struct layout (FE8U-style)
             // 0x00: Name ID (2)

@@ -55,5 +55,41 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(dic);
             Assert.Empty(dic);
         }
+
+        // ---- SystemTextEncoder fallback tests (WU3) ----
+
+        [Fact]
+        public void SystemTextEncoder_Decode_FallbackWhenBothNull()
+        {
+            // Source verification: SystemTextEncoder.Decode() has FallbackEncoding path
+            var src = File.ReadAllText(FindCoreFile("SystemTextEncoder.cs"));
+            Assert.Contains("FallbackEncoding", src);
+        }
+
+        [Fact]
+        public void SystemTextEncoder_Encode_FallbackWhenBothNull()
+        {
+            var src = File.ReadAllText(FindCoreFile("SystemTextEncoder.cs"));
+            // Encode method checks both Encoder and TBLEncode for null
+            Assert.Contains("if (this.TBLEncode != null)", src);
+            Assert.Contains("return FallbackEncoding.GetBytes(str)", src);
+        }
+
+        [Fact]
+        public void SystemTextEncoder_HasFallbackEncodingField()
+        {
+            var src = File.ReadAllText(FindCoreFile("SystemTextEncoder.cs"));
+            Assert.Contains("static readonly Encoding FallbackEncoding", src);
+            Assert.Contains("iso-8859-1", src);
+        }
+
+        static string FindCoreFile(string filename)
+        {
+            var dir = AppContext.BaseDirectory;
+            while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                dir = Path.GetDirectoryName(dir);
+            if (dir == null) throw new InvalidOperationException("Cannot find solution root");
+            return Path.Combine(dir, "FEBuilderGBA.Core", filename);
+        }
     }
 }
