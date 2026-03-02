@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>FEBuilderGBA.SkiaSharp</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="3.116.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+  </ItemGroup>
+</Project>

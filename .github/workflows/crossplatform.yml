@@ -1,0 +1,56 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET 9.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Build Core library
+      run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release
+
+    - name: Build CLI
+      if: hashFiles('FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj') != ''
+      run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
+
+    - name: Build SkiaSharp backend
+      if: hashFiles('FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj') != ''
+      run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release
+
+    - name: Build Avalonia project
+      if: hashFiles('FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj') != ''
+      run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+
+    - name: Run Core tests
+      if: hashFiles('FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj') != ''
+      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --logger "trx;LogFileName=core-tests.trx"
+
+    - name: CLI smoke test
+      if: hashFiles('FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj') != ''
+      run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --version
+
+    - name: Upload test results
+      if: always() && hashFiles('**/core-tests.trx') != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}
+        path: '**/core-tests.trx'

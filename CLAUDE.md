@@ -11,8 +11,11 @@ FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy ga
 FEBuilderGBA.sln
 ├── FEBuilderGBA.Core/        # net9.0 — Cross-platform core library (ROM, Undo, utilities)
 ├── FEBuilderGBA/             # net9.0-windows — WinForms GUI application
+├── FEBuilderGBA.CLI/         # net9.0 — Cross-platform CLI (--version, --help, --makeups)
+├── FEBuilderGBA.SkiaSharp/   # net9.0 — SkiaSharp IImageService implementation
 ├── FEBuilderGBA.Avalonia/    # net9.0 — Cross-platform Avalonia UI preview
-├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests
+├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (715 tests)
+├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (21 tests)
 └── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
 ```
 
@@ -34,6 +37,14 @@ msbuild /m /p:Configuration=Release /p:Platform=x64 /t:build /restore FEBuilderG
 
 # Build Core library only (cross-platform, no WinForms dependency)
 dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj
+
+# Build cross-platform projects (CLI, SkiaSharp, Avalonia)
+dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj
+dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
+dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
+
+# Run cross-platform tests
+dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ```
 
 ### Running

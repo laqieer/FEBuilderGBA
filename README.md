@@ -6,6 +6,7 @@ README
 [![GitHub Release](https://img.shields.io/github/v/release/laqieer/FEBuilderGBA)](https://github.com/laqieer/FEBuilderGBA/releases/latest)
 [<img src="https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg" height="16" style="height: 16px; vertical-align: sub">Nightly Build](https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master)
 [![codecov](https://codecov.io/gh/laqieer/FEBuilderGBA/branch/master/graph/badge.svg)](https://codecov.io/gh/laqieer/FEBuilderGBA)
+[![Cross-Platform](https://github.com/laqieer/FEBuilderGBA/actions/workflows/crossplatform.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/crossplatform.yml)
 
 Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [<img src="[https://raw.githubusercontent.com/oprypin/nightly.link/master/logo.svg](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)" height="16" style="height: 16px; vertical-align: sub">Gitee Go Build](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
 
@@ -15,10 +16,13 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 
 | Project | Target | Description |
 |---------|--------|-------------|
-| `FEBuilderGBA.Core` | net9.0 | Cross-platform core library (ROM, Undo, LZ77, text encoding, Huffman codec, patch detection, translation, cache, git, archive, event ASM, disassembler, export, mod, address, event script, EtcCache, symbol util, magic split, grow simulator, system text encoder, config persistence, GDB socket, event script util, EA lyn dump parser, lint core types/validation, logging facade, utilities) |
+| `FEBuilderGBA.Core` | net9.0 | Cross-platform core library (ROM, Undo, LZ77, text encoding, Huffman codec, patch detection, translation, cache, git, archive, event ASM, disassembler, export, mod, address, event script, EtcCache, symbol util, magic split, grow simulator, system text encoder, config persistence, GDB socket, event script util, EA lyn dump parser, lint core types/validation, UPS patch, image service abstraction, path utilities, logging facade, utilities) |
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
+| `FEBuilderGBA.CLI` | net9.0 | Cross-platform CLI tool (`--version`, `--help`, `--makeups`) |
+| `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp implementation of IImageService (GBA 4bpp/8bpp tiles, palette conversion) |
 | `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI preview (scaffold -- File/Open ROM, menu bar, status bar) |
 | `FEBuilderGBA.Tests` | net9.0-windows | Unit and integration tests |
+| `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (runs on Linux/macOS/Windows) |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
 
 ### Cloning the Repository
@@ -37,9 +41,54 @@ git submodule update --init --recursive
 
 **Note:** The patch repository ([FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2)) is maintained separately for independent versioning and faster updates.
 
+### Cross-Platform Build (Linux / macOS / Windows)
+
+The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net9.0` and build on any platform:
+
+```bash
+# Build Core library
+dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj
+
+# Build cross-platform CLI
+dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj
+
+# Run CLI
+dotnet run --project FEBuilderGBA.CLI -- --version
+dotnet run --project FEBuilderGBA.CLI -- --makeups=out.ups --rom=modified.gba --fromrom=original.gba
+
+# Build SkiaSharp image backend
+dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
+
+# Build Avalonia GUI (preview scaffold)
+dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
+
+# Run cross-platform tests
+dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
+```
+
+### Architecture Diagram
+
+```
+FEBuilderGBA.sln
+├── FEBuilderGBA.Core/           net9.0    (cross-platform core)
+│   ├── IAppServices.cs                     Platform abstraction
+│   ├── IImageService.cs                    Image service abstraction
+│   ├── Rom.cs / ROMFE*.cs                  ROM manipulation
+│   ├── UPSUtil.cs                          UPS patch creation
+│   ├── FELintCore.cs                       Lint validation
+│   └── PathUtil.cs                         Cross-platform paths
+├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI)
+├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
+├── FEBuilderGBA.Avalonia/       net9.0    (GUI scaffold)
+├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
+├── FEBuilderGBA.Tests/          net9.0-windows (unit tests)
+├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform tests)
+└── FEBuilderGBA.E2ETests/       net9.0-windows (E2E tests)
+```
+
 ## Testing & Coverage
 
-- ✅ **631 unit/integration tests** passing (0 skipped)
+- ✅ **736 unit/integration tests** passing (715 WinForms + 21 Core cross-platform)
 - ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **45 E2E tests** passing with all 5 ROMs
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)

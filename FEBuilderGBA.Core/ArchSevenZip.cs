@@ -75,8 +75,8 @@ namespace FEBuilderGBA
         {
             try
             {
-                string basedir1 = Path.GetDirectoryName(a7z) + "\\";
-                string basedir2 = Path.GetDirectoryName(dir) + "\\";
+                string basedir1 = Path.GetDirectoryName(a7z) + Path.DirectorySeparatorChar;
+                string basedir2 = Path.GetDirectoryName(dir) + Path.DirectorySeparatorChar;
                 if (basedir1 == basedir2)
                 {
                     string a7z_relativePath = U.GetRelativePath(basedir1, a7z);
@@ -229,8 +229,8 @@ namespace FEBuilderGBA
         {
             try
             {
-                string basedir1 = Path.GetDirectoryName(a7z) + "\\";
-                string basedir2 = Path.GetDirectoryName(target) + "\\";
+                string basedir1 = Path.GetDirectoryName(a7z) + Path.DirectorySeparatorChar;
+                string basedir2 = Path.GetDirectoryName(target) + Path.DirectorySeparatorChar;
 
                 if (basedir1 == basedir2)
                 {

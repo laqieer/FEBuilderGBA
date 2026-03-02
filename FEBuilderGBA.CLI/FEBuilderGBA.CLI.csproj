@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>FEBuilderGBA.CLI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FEBuilderGBA.Tests" />
+  </ItemGroup>
+  <!-- Copy config/ directory to output -->
+  <ItemGroup>
+    <Content Include="..\config\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

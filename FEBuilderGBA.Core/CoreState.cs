@@ -117,6 +117,12 @@ namespace FEBuilderGBA
         /// </summary>
         public static IAppServices Services { get; set; } = new HeadlessAppServices();
 
+        /// <summary>
+        /// Cross-platform image service for GBA graphics operations.
+        /// Set by the host application (WinForms, Avalonia, CLI).
+        /// </summary>
+        public static IImageService ImageService { get; set; }
+
         // ---- Text encoding ----
         /// <summary>
         /// Current text encoding mode. Set by WinForms from OptionForm.textencoding().

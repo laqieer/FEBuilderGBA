@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+  </ItemGroup>
+  <!-- Copy config/ to output for tests that need config files (conditional) -->
+  <Target Name="CopyConfig" AfterTargets="Build" Condition="Exists('..\config\config.xml')">
+    <ItemGroup>
+      <ConfigFiles Include="..\config\config.xml" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutputPath)\config" />
+    <Copy SourceFiles="@(ConfigFiles)" DestinationFolder="$(OutputPath)\config" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

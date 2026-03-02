@@ -37,6 +37,8 @@
       <Private>true</Private>
       <CopyLocalSatelliteAssemblies>true</CopyLocalSatelliteAssemblies>
     </ProjectReference>
+    <ProjectReference Include="..\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj" />
+    <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
 
   <Target Name="CopyDependencies" AfterTargets="Build">

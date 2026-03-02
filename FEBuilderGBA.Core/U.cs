@@ -839,7 +839,7 @@ namespace FEBuilderGBA
             Uri u2 = new Uri(uri2);
             Uri relativeUri = u1.MakeRelativeUri(u2);
             string relativePath = relativeUri.ToString();
-            relativePath = relativePath.Replace('/', '\\');
+            relativePath = relativePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
             relativePath = Uri.UnescapeDataString(relativePath);
             return relativePath;
         }
