@@ -11,8 +11,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="FEBuilderGBA.Tests" />
   </ItemGroup>
-  <!-- Copy config/ directory to output -->
+  <!-- Copy config/ directory to output, excluding patch2 (installed separately via git) -->
   <ItemGroup>
-    <Content Include="..\config\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
