@@ -118,10 +118,21 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = LaunchAndWaitForStartup();
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            // WelcomeForm / InitWizard both have multiple child controls (buttons, labels)
-            var children = WinAutomation.GetChildWindows(hWnd);
-            Assert.True(children.Count >= 2,
-                $"Expected at least 2 child controls, found {children.Count}");
+            // WelcomeForm / InitWizard both have multiple child controls (buttons, labels).
+            // The window handle may appear before all child controls are created,
+            // so poll until enough controls are found (same pattern as title test).
+            var sw = Stopwatch.StartNew();
+            int childCount = 0;
+            do
+            {
+                Thread.Sleep(300);
+                var children = WinAutomation.GetChildWindows(hWnd);
+                childCount = children.Count;
+            }
+            while (childCount < 2 && sw.ElapsedMilliseconds < 15_000);
+
+            Assert.True(childCount >= 2,
+                $"Expected at least 2 child controls, found {childCount}");
         }
 
         [Fact]
