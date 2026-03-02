@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
+        Title="FEBuilderGBA (Avalonia Preview)"
+        Width="800" Height="600">
+    <DockPanel>
+        <!-- Menu Bar -->
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open ROM..." Click="OpenRom_Click"/>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="Exit_Click"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Status Bar -->
+        <Border DockPanel.Dock="Bottom" Background="#F0F0F0" Padding="8,4">
+            <TextBlock x:Name="StatusText" Text="No ROM loaded"/>
+        </Border>
+
+        <!-- Main Content -->
+        <Border Padding="20">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                <TextBlock Text="FEBuilderGBA" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="Cross-Platform Preview (Avalonia)" FontSize="16" HorizontalAlignment="Center" Foreground="Gray"/>
+                <TextBlock Text="Cross-platform GUI coming soon." FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+                <TextBlock Text="Use the CLI for headless operations on Linux/macOS." FontSize="12" HorizontalAlignment="Center" Foreground="Gray"/>
+            </StackPanel>
+        </Border>
+    </DockPanel>
+</Window>

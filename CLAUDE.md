@@ -11,6 +11,7 @@ FEBuilderGBA is a comprehensive ROM hacking suite for Fire Emblem GBA trilogy ga
 FEBuilderGBA.sln
 ├── FEBuilderGBA.Core/        # net9.0 — Cross-platform core library (ROM, Undo, utilities)
 ├── FEBuilderGBA/             # net9.0-windows — WinForms GUI application
+├── FEBuilderGBA.Avalonia/    # net9.0 — Cross-platform Avalonia UI preview
 ├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests
 └── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
 ```

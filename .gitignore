@@ -8,6 +8,10 @@ FEBuilderGBA/bin/x64
 FEBuilderGBA.Core/bin/
 FEBuilderGBA.Core/obj/
 
+# Avalonia build outputs
+FEBuilderGBA.Avalonia/bin/
+FEBuilderGBA.Avalonia/obj/
+
 # Test build outputs
 FEBuilderGBA.Tests/bin/
 FEBuilderGBA.Tests/obj/
