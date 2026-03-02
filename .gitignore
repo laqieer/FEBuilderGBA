@@ -5,6 +5,8 @@
 FEBuilderGBA/bin/
 FEBuilderGBA/obj/
 FEBuilderGBA/bin/x64
+FEBuilderGBA.Core/bin/
+FEBuilderGBA.Core/obj/
 
 # Test build outputs
 FEBuilderGBA.Tests/bin/
@@ -15,6 +17,13 @@ FEBuilderGBA.E2ETests/obj/
 # Test results and coverage
 **/TestResults/
 coverage-report/
+
+# Temp files
+lint_stdout.txt
+lint_stderr.txt
+
+# Stale release folder
+r/
 
 # IDE / editor
 .vs/
