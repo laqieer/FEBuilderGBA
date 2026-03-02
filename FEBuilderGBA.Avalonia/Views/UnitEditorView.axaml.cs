@@ -85,5 +85,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
             }
         }
+
+        /// <summary>Select the first item in the list (for smoke testing).</summary>
+        public void SelectFirstItem()
+        {
+            UnitList.SelectFirst();
+        }
     }
 }

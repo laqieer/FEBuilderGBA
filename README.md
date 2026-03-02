@@ -65,6 +65,12 @@ dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
 # Build Avalonia GUI
 dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
 
+# Run Avalonia GUI with a ROM
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba
+
+# Run Avalonia smoke test (loads ROM, opens editors, selects items, verifies no crash)
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --smoke-test
+
 # Cross-platform publish (self-contained)
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
 

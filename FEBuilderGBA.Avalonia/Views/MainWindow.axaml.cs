@@ -1,9 +1,11 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -18,24 +20,50 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             WindowManager.Instance.MainWindow = this;
+            Opened += MainWindow_Opened;
         }
 
-        private async void OpenRom_Click(object? sender, RoutedEventArgs e)
+        private async void MainWindow_Opened(object? sender, EventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
-            if (string.IsNullOrEmpty(path)) return;
+            // Auto-load ROM if --rom was specified
+            if (!string.IsNullOrEmpty(App.StartupRomPath))
+            {
+                bool ok = LoadRomFile(App.StartupRomPath);
+                if (!ok)
+                {
+                    if (App.SmokeTestMode)
+                    {
+                        Environment.ExitCode = 2;
+                        Close();
+                        return;
+                    }
+                    await MessageBoxWindow.Show(this, $"Failed to load ROM: {App.StartupRomPath}", "Error", MessageBoxMode.Ok);
+                    return;
+                }
 
-            // Load ROM
+                // If smoke test mode, run the editor selection test
+                if (App.SmokeTestMode)
+                {
+                    // Use a short delay so the window is fully initialized
+                    await Task.Delay(200);
+                    RunSmokeTest();
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load a ROM file and initialize all subsystems.
+        /// Returns true on success.
+        /// </summary>
+        public bool LoadRomFile(string path)
+        {
             ROM rom = new ROM();
             bool ok = rom.Load(path, out string version);
-            if (!ok)
-            {
-                await MessageBoxWindow.Show(this, $"Failed to load ROM: {version}", "Error", MessageBoxMode.Ok);
-                return;
-            }
+            if (!ok) return false;
+
             CoreState.ROM = rom;
 
-            // Full init: wire text encoder, Huffman, event scripts
             try
             {
                 if (CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
@@ -65,6 +93,67 @@ namespace FEBuilderGBA.Avalonia.Views
             EditorPanel.IsVisible = true;
             SaveMenuItem.IsEnabled = true;
             LintMenuItem.IsEnabled = true;
+
+            return true;
+        }
+
+        private void RunSmokeTest()
+        {
+            try
+            {
+                // Test 1: Open Unit Editor and select the first item
+                var unitEditor = WindowManager.Instance.Open<UnitEditorView>();
+
+                // Test 2: Open Item Editor and select the first item
+                var itemEditor = WindowManager.Instance.Open<ItemEditorView>();
+
+                // Give the windows time to load their lists, then select items
+                Dispatcher.UIThread.Post(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(500);
+
+                        // Select first item in each editor (index 0)
+                        unitEditor.SelectFirstItem();
+                        await Task.Delay(200);
+
+                        itemEditor.SelectFirstItem();
+                        await Task.Delay(200);
+
+                        // If we got here without crashing, the smoke test passed
+                        Environment.ExitCode = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("Smoke test failed: {0}", ex.Message);
+                        Environment.ExitCode = 1;
+                    }
+                    finally
+                    {
+                        WindowManager.Instance.CloseAll();
+                        Close();
+                    }
+                }, DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Smoke test failed: {0}", ex.Message);
+                Environment.ExitCode = 1;
+                Close();
+            }
+        }
+
+        private async void OpenRom_Click(object? sender, RoutedEventArgs e)
+        {
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (string.IsNullOrEmpty(path)) return;
+
+            bool ok = LoadRomFile(path);
+            if (!ok)
+            {
+                await MessageBoxWindow.Show(this, "Failed to load ROM.", "Error", MessageBoxMode.Ok);
+            }
         }
 
         private void SaveRom_Click(object? sender, RoutedEventArgs e)

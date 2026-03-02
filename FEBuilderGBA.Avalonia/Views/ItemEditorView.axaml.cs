@@ -67,5 +67,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.WriteItem();
             CoreState.Services.ShowInfo("Item data written.");
         }
+
+        /// <summary>Select the first item in the list (for smoke testing).</summary>
+        public void SelectFirstItem()
+        {
+            ItemList.SelectFirst();
+        }
     }
 }

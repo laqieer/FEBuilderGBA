@@ -10,6 +10,12 @@ namespace FEBuilderGBA.Avalonia
 {
     public partial class App : Application
     {
+        /// <summary>ROM path passed via --rom command line argument.</summary>
+        public static string? StartupRomPath { get; set; }
+
+        /// <summary>When true, run editor smoke test and exit.</summary>
+        public static bool SmokeTestMode { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -41,12 +47,30 @@ namespace FEBuilderGBA.Avalonia
                 CoreState.Config = config;
             }
 
+            // Parse command line arguments
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
+                ParseArgs(desktop.Args);
                 desktop.MainWindow = new Views.MainWindow();
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        static void ParseArgs(string[]? args)
+        {
+            if (args == null) return;
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--rom" && i + 1 < args.Length)
+                {
+                    StartupRomPath = args[++i];
+                }
+                else if (args[i] == "--smoke-test")
+                {
+                    SmokeTestMode = true;
+                }
+            }
         }
     }
 }

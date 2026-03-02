@@ -57,6 +57,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
+            // Bounds check: item data extends to at least addr + 0x20 (offset 0x1E + 2 bytes)
+            uint minSize = 0x20;
+            if (addr + minSize > (uint)rom.Data.Length) return;
+
             CurrentAddr = addr;
             NameId = rom.u16(addr + 0);
             DescId = rom.u16(addr + 2);
