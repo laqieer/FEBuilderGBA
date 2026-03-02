@@ -76,7 +76,8 @@ namespace FEBuilderGBA.Avalonia.Controls
                 _filteredIndices.Clear();
                 for (int i = 0; i < _items.Count; i++)
                 {
-                    string display = _items[i].name ?? $"0x{_items[i].addr:X08}";
+                    string label = _items[i].name ?? $"#{i}";
+                    string display = $"0x{_items[i].addr:X08} {label}";
                     if (filter != null && !display.Contains(filter, StringComparison.OrdinalIgnoreCase))
                         continue;
                     _displayItems.Add(display);

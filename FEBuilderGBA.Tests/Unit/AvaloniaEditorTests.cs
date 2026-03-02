@@ -68,6 +68,14 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void AddressListControl_DisplayIncludesAddress()
+        {
+            // List items must show the ROM address for easy identification
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("0x{_items[i].addr:X08}", src);
+        }
+
+        [Fact]
         public void AddressListControl_HasSelectFirstMethod()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
