@@ -86,7 +86,7 @@ namespace FEBuilderGBA
         public static EtcCacheFLag FlagCache { get; set; }
         public static object ResourceCache { get; set; }
         public static ExportFunction ExportFunction { get; set; }
-        public static object Mod { get; set; }
+        public static Mod Mod { get; set; }
 
         // ---- Simple value types ----
         public static string BaseDirectory { get; set; }
