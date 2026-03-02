@@ -3,6 +3,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <RootNamespace>FEBuilderGBA.Avalonia</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -13,5 +14,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+    <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
+  </ItemGroup>
+  <!-- Copy config/ directory to output -->
+  <ItemGroup>
+    <Content Include="..\config\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

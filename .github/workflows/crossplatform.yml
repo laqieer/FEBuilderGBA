@@ -29,28 +29,71 @@ jobs:
       run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release
 
     - name: Build CLI
-      if: hashFiles('FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj') != ''
       run: dotnet build FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release
 
     - name: Build SkiaSharp backend
-      if: hashFiles('FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj') != ''
       run: dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj -c Release
 
     - name: Build Avalonia project
-      if: hashFiles('FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj') != ''
       run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
 
     - name: Run Core tests
-      if: hashFiles('FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj') != ''
       run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --logger "trx;LogFileName=core-tests.trx"
 
     - name: CLI smoke test
-      if: hashFiles('FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj') != ''
       run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --version
 
+    - name: CLI help test
+      run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --help
+
     - name: Upload test results
-      if: always() && hashFiles('**/core-tests.trx') != ''
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.os }}
         path: '**/core-tests.trx'
+        if-no-files-found: ignore
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET 9.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Publish CLI
+      run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }}
+
+    - name: Publish Avalonia
+      run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }}
+
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-${{ matrix.rid }}
+        path: publish/cli-${{ matrix.rid }}
+
+    - name: Upload Avalonia artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: avalonia-${{ matrix.rid }}
+        path: publish/avalonia-${{ matrix.rid }}

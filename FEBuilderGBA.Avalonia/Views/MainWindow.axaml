@@ -2,33 +2,71 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
         Title="FEBuilderGBA (Avalonia Preview)"
-        Width="800" Height="600">
-    <DockPanel>
-        <!-- Menu Bar -->
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_Open ROM..." Click="OpenRom_Click"/>
-                <Separator/>
-                <MenuItem Header="E_xit" Click="Exit_Click"/>
-            </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="_About" Click="About_Click"/>
-            </MenuItem>
-        </Menu>
+        Width="900" Height="700">
+  <DockPanel>
+    <!-- Menu Bar -->
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="_Open ROM..." Click="OpenRom_Click" />
+        <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" />
+        <Separator />
+        <MenuItem Header="E_xit" Click="Exit_Click" />
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Tools">
+        <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem Header="_About" Click="About_Click" />
+      </MenuItem>
+    </Menu>
 
-        <!-- Status Bar -->
-        <Border DockPanel.Dock="Bottom" Background="#F0F0F0" Padding="8,4">
-            <TextBlock x:Name="StatusText" Text="No ROM loaded"/>
-        </Border>
+    <!-- Status Bar -->
+    <Border DockPanel.Dock="Bottom" Background="#E8E8E8" Padding="8,4">
+      <TextBlock Name="StatusText" Text="No ROM loaded" />
+    </Border>
 
-        <!-- Main Content -->
-        <Border Padding="20">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
-                <TextBlock Text="FEBuilderGBA" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Cross-Platform Preview (Avalonia)" FontSize="16" HorizontalAlignment="Center" Foreground="Gray"/>
-                <TextBlock Text="Cross-platform GUI coming soon." FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0"/>
-                <TextBlock Text="Use the CLI for headless operations on Linux/macOS." FontSize="12" HorizontalAlignment="Center" Foreground="Gray"/>
-            </StackPanel>
-        </Border>
-    </DockPanel>
+    <!-- Main Content -->
+    <ScrollViewer>
+      <StackPanel Margin="16" Spacing="16">
+        <!-- Title -->
+        <TextBlock Text="FEBuilderGBA" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
+        <TextBlock Name="VersionLabel" Text="Cross-Platform Preview (Avalonia)" FontSize="14"
+                   HorizontalAlignment="Center" Foreground="Gray" />
+
+        <!-- No ROM placeholder -->
+        <TextBlock Name="NoRomLabel" Text="Open a ROM file to begin editing."
+                   FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0" />
+
+        <!-- Editor Buttons Grid (visible when ROM loaded) -->
+        <StackPanel Name="EditorPanel" IsVisible="False" Spacing="16">
+          <!-- Units & Classes -->
+          <TextBlock Text="Characters" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Items -->
+          <TextBlock Text="Items" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Graphics -->
+          <TextBlock Text="Graphics" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Image Viewer" Click="OpenImageViewer_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Tools -->
+          <TextBlock Text="Tools" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </Window>

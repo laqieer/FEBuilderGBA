@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Dialogs.MessageBoxWindow"
+        Title="FEBuilderGBA"
+        Width="400" Height="200"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+  <Grid RowDefinitions="*,Auto" Margin="16">
+    <ScrollViewer Grid.Row="0" Margin="0,0,0,16">
+      <TextBlock Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+    </ScrollViewer>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Name="OkButton" Content="OK" Width="80" Click="OkButton_Click" />
+      <Button Name="YesButton" Content="Yes" Width="80" Click="YesButton_Click" IsVisible="False" />
+      <Button Name="NoButton" Content="No" Width="80" Click="NoButton_Click" IsVisible="False" />
+    </StackPanel>
+  </Grid>
+</Window>

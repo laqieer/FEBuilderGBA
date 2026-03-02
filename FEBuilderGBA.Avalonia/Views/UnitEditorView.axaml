@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.UnitEditorView"
+        Title="Unit Editor" Width="800" Height="600">
+  <Grid ColumnDefinitions="250,*">
+    <!-- Address List -->
+    <controls:AddressListControl Grid.Column="0" Name="UnitList" Margin="4" />
+
+    <!-- Properties -->
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Unit Editor" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" FormatString="X" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" FormatString="X" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Level:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="HP:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="HPBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Str/Mag:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="StrBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Skill:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="SklBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Speed:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="SpdBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Defense:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="DefBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Resistance:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="ResBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Luck:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="LckBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Constitution:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="ConBox" Minimum="0" Maximum="255" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" Name="WriteButton" />
+          <Button Content="Undo" Click="Undo_Click" Name="UndoButton" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

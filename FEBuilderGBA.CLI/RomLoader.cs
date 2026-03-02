@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using FEBuilderGBA;
 
 namespace FEBuilderGBA.CLI
@@ -18,6 +19,9 @@ namespace FEBuilderGBA.CLI
             string baseDir = CoreState.BaseDirectory;
             if (string.IsNullOrEmpty(baseDir))
                 throw new InvalidOperationException("CoreState.BaseDirectory must be set before calling InitEnvironment.");
+
+            // Register code pages for Shift-JIS, etc.
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             // Load config
             string configPath = Path.Combine(baseDir, "config", "config.xml");
@@ -49,6 +53,101 @@ namespace FEBuilderGBA.CLI
             }
             CoreState.ROM = rom;
             return true;
+        }
+
+        /// <summary>
+        /// Full initialization after ROM is loaded.
+        /// Wires caches, Huffman tree, text encoding, event scripts, flag cache, etc.
+        /// Call this after LoadRom() succeeds for commands that need full ROM access.
+        /// </summary>
+        public static void InitFull()
+        {
+            if (CoreState.ROM == null)
+                throw new InvalidOperationException("CoreState.ROM must be set before calling InitFull.");
+
+            // Wire headless caches so Core code doesn't NullRef
+            if (CoreState.CommentCache == null)
+                CoreState.CommentCache = new HeadlessEtcCache();
+            if (CoreState.LintCache == null)
+                CoreState.LintCache = new HeadlessEtcCache();
+            if (CoreState.WorkSupportCache == null)
+                CoreState.WorkSupportCache = new HeadlessEtcCache();
+
+            // Wire text encoder
+            if (CoreState.SystemTextEncoder == null)
+            {
+                try
+                {
+                    CoreState.SystemTextEncoder = new SystemTextEncoder(CoreState.TextEncoding, CoreState.ROM);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
+                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
+                }
+            }
+
+            // Init Huffman text encoder
+            if (CoreState.FETextEncoder == null)
+            {
+                try
+                {
+                    CoreState.FETextEncoder = new FETextEncode();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to init FETextEncode (Huffman tree): {0}", ex.Message);
+                }
+            }
+
+            // Init text escape
+            if (CoreState.TextEscape == null)
+                CoreState.TextEscape = new TextEscape();
+
+            // Init flag cache
+            if (CoreState.FlagCache == null)
+            {
+                try
+                {
+                    CoreState.FlagCache = new EtcCacheFLag();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Failed to init FlagCache: {0}", ex.Message);
+                }
+            }
+
+            // Init export function
+            if (CoreState.ExportFunction == null)
+                CoreState.ExportFunction = new ExportFunction();
+
+            // Init undo
+            if (CoreState.Undo == null)
+                CoreState.Undo = new Undo();
+
+            // Init event scripts
+            try
+            {
+                if (CoreState.EventScript == null)
+                {
+                    CoreState.EventScript = new EventScript();
+                    CoreState.EventScript.Load(EventScript.EventScriptType.Event);
+                }
+                if (CoreState.ProcsScript == null)
+                {
+                    CoreState.ProcsScript = new EventScript();
+                    CoreState.ProcsScript.Load(EventScript.EventScriptType.Procs);
+                }
+                if (CoreState.AIScript == null)
+                {
+                    CoreState.AIScript = new EventScript();
+                    CoreState.AIScript.Load(EventScript.EventScriptType.AI);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Failed to init EventScripts: {0}", ex.Message);
+            }
         }
     }
 }

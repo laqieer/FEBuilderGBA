@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.ItemEditorView"
+        Title="Item Editor" Width="800" Height="600">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="ItemList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Item Editor" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" FormatString="X" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Weapon Type:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" FormatString="X" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Rank:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="RankBox" Minimum="0" Maximum="255" FormatString="X" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Might:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="MightBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Hit:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Weight:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="WeightBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Crit:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Range:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="RangeBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Uses:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Price:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

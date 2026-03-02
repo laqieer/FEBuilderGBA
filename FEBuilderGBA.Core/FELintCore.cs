@@ -104,6 +104,13 @@ namespace FEBuilderGBA
             ,FELINT_SYSTEM_ERROR
         }
 
+        /// <summary>Error severity level.</summary>
+        public enum ErrorType
+        {
+            ERROR,
+            WARNING,
+        }
+
         /// <summary>Lint error record.</summary>
         public class ErrorSt
         {
@@ -111,12 +118,20 @@ namespace FEBuilderGBA
             public uint Addr { get; private set; }
             public string ErrorMessage { get; private set; }
             public uint Tag { get; private set; }
+            public ErrorType Severity { get; private set; }
+
+            /// <summary>Alias for ErrorMessage for convenience.</summary>
+            public string Info => ErrorMessage;
 
             public ErrorSt(Type datatype, uint addr, string message, uint tag = U.NOT_FOUND)
+                : this(datatype, addr, message, ErrorType.ERROR, tag) { }
+
+            public ErrorSt(Type datatype, uint addr, string message, ErrorType severity, uint tag = U.NOT_FOUND)
             {
                 this.DataType = datatype;
                 this.Addr = addr;
                 this.ErrorMessage = message;
+                this.Severity = severity;
                 this.Tag = tag;
             }
         }

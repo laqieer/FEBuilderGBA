@@ -5,3 +5,4 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("FEBuilderGBA")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.CLI")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Core.Tests")]
+[assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia")]
