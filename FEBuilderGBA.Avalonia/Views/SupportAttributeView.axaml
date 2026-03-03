@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.SupportAttributeView"
+        Title="Support Attribute (Read-Only)" Width="800" Height="500">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Support Attribute (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Affinity Type:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="AffinityTypeLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Attack Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="AttackBonusLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Defense Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="DefenseBonusLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Hit Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="HitBonusLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Avoid Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="AvoidBonusLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Crit Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Name="CritBonusLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Crit Avoid Bonus:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Name="CritAvoidBonusLabel" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

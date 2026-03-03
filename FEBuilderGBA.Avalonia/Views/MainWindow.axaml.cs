@@ -270,6 +270,221 @@ namespace FEBuilderGBA.Avalonia.Views
             WindowManager.Instance.Open<SupportUnitEditorView>();
         }
 
+        private void OpenSupportAttribute_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SupportAttributeView>();
+        }
+
+        private void OpenSupportTalk_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SupportTalkView>();
+        }
+
+        private void OpenItemWeaponEffect_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemWeaponEffectViewerView>();
+        }
+
+        private void OpenItemStatBonuses_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemStatBonusesViewerView>();
+        }
+
+        private void OpenItemEffectiveness_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemEffectivenessViewerView>();
+        }
+
+        private void OpenItemPromotion_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemPromotionViewerView>();
+        }
+
+        private void OpenItemShop_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemShopViewerView>();
+        }
+
+        private void OpenItemWeaponTriangle_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemWeaponTriangleViewerView>();
+        }
+
+        private void OpenItemUsagePointer_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemUsagePointerViewerView>();
+        }
+
+        private void OpenItemEffectPointer_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemEffectPointerViewerView>();
+        }
+
+        private void OpenEventCond_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<EventCondView>();
+        }
+
+        private void OpenMapChange_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MapChangeView>();
+        }
+
+        private void OpenMapExitPoint_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MapExitPointView>();
+        }
+
+        private void OpenMapPointer_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MapPointerView>();
+        }
+
+        private void OpenMapTileAnimation_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MapTileAnimationView>();
+        }
+
+        private void OpenSystemIcon_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SystemIconViewerView>();
+        }
+
+        private void OpenItemIcon_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ItemIconViewerView>();
+        }
+
+        private void OpenSystemHoverColor_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SystemHoverColorViewerView>();
+        }
+
+        private void OpenBattleBG_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<BattleBGViewerView>();
+        }
+
+        private void OpenBattleTerrain_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<BattleTerrainViewerView>();
+        }
+
+        private void OpenChapterTitle_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ChapterTitleViewerView>();
+        }
+
+        private void OpenBigCG_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<BigCGViewerView>();
+        }
+
+        private void OpenOPClassDemo_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<OPClassDemoViewerView>();
+        }
+
+        private void OpenOPClassFont_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<OPClassFontViewerView>();
+        }
+
+        private void OpenOPPrologue_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<OPPrologueViewerView>();
+        }
+
+        private void OpenSoundBossBGM_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SoundBossBGMViewerView>();
+        }
+
+        private void OpenSoundFootSteps_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SoundFootStepsViewerView>();
+        }
+
+        private void OpenSoundRoom_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SoundRoomViewerView>();
+        }
+
+        private void OpenArenaClass_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ArenaClassViewerView>();
+        }
+
+        private void OpenArenaEnemyWeapon_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ArenaEnemyWeaponViewerView>();
+        }
+
+        private void OpenLinkArenaDenyUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<LinkArenaDenyUnitViewerView>();
+        }
+
+        private void OpenMonsterProbability_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MonsterProbabilityViewerView>();
+        }
+
+        private void OpenMonsterItem_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MonsterItemViewerView>();
+        }
+
+        private void OpenMonsterWMapProbability_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MonsterWMapProbabilityViewerView>();
+        }
+
+        private void OpenSummonUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SummonUnitViewerView>();
+        }
+
+        private void OpenSummonsDemonKing_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SummonsDemonKingViewerView>();
+        }
+
+        private void OpenMenuDefinition_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MenuDefinitionView>();
+        }
+
+        private void OpenMenuCommand_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MenuCommandView>();
+        }
+
+        private void OpenED_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<EDView>();
+        }
+
+        private void OpenEDStaffRoll_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<EDStaffRollView>();
+        }
+
+        private void OpenWorldMapPoint_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<WorldMapPointView>();
+        }
+
+        private void OpenWorldMapBGM_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<WorldMapBGMView>();
+        }
+
+        private void OpenWorldMapEventPointer_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<WorldMapEventPointerView>();
+        }
+
         private void Lint_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;

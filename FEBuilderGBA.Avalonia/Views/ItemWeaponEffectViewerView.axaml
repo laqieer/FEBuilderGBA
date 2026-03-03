@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.ItemWeaponEffectViewerView"
+        Title="Item Weapon Effect (Read-Only)" Width="800" Height="500">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Item Weapon Effect (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Item ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="ItemIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Anim Type:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="AnimTypeLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Effect ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="EffectIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Map Effect Pointer:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="MapEffectLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Damage Effect:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="DamageEffectLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Motion:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Name="MotionLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Hit Color:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Name="HitColorLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Unknown (byte 1):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="1" Name="Unknown1Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown (byte 3):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="1" Name="Unknown3Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Unknown (bytes 6-7):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Name="Unknown6Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Unknown (byte 15):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="11" Grid.Column="1" Name="Unknown15Label" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

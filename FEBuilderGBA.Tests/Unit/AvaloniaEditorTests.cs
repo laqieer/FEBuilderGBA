@@ -304,5 +304,664 @@ namespace FEBuilderGBA.Tests.Unit
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SupportUnitEditorView.axaml.cs"));
             Assert.Contains("public void SelectFirstItem()", src);
         }
+
+        // ================================================================== Batch 2 editors
+
+        // ------------------------------------------------------------------ Item Weapon Effect Viewer
+        [Fact]
+        public void ItemWeaponEffectView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemWeaponEffectViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemWeaponEffectViewModel_UsesItemEffectPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemWeaponEffectViewerViewModel.cs"));
+            Assert.Contains("item_effect_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Stat Bonuses Viewer
+        [Fact]
+        public void ItemStatBonusesView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemStatBonusesViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemStatBonusesViewModel_UsesItemPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemStatBonusesViewerViewModel.cs"));
+            Assert.Contains("item_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Effectiveness Viewer
+        [Fact]
+        public void ItemEffectivenessView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEffectivenessViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemEffectivenessViewModel_UsesEffectivenessAddress()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEffectivenessViewerViewModel.cs"));
+            Assert.Contains("weapon_effectiveness_2x3x_address", src);
+        }
+
+        // ------------------------------------------------------------------ Item Promotion Viewer
+        [Fact]
+        public void ItemPromotionView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemPromotionViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemPromotionViewModel_UsesPromotionPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemPromotionViewerViewModel.cs"));
+            Assert.Contains("item_promotion1_array_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Shop Viewer
+        [Fact]
+        public void ItemShopView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemShopViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemShopViewModel_UsesShopPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemShopViewerViewModel.cs"));
+            Assert.Contains("item_shop_hensei_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Weapon Triangle Viewer
+        [Fact]
+        public void ItemWeaponTriangleView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemWeaponTriangleViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemWeaponTriangleViewModel_UsesCorneredPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemWeaponTriangleViewerViewModel.cs"));
+            Assert.Contains("item_cornered_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Usage Pointer Viewer
+        [Fact]
+        public void ItemUsagePointerView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemUsagePointerViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemUsagePointerViewModel_UsesUsabilityPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemUsagePointerViewerViewModel.cs"));
+            Assert.Contains("item_usability_array_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Effect Pointer Viewer
+        [Fact]
+        public void ItemEffectPointerView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEffectPointerViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemEffectPointerViewModel_UsesEffectPointerTable()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEffectPointerViewerViewModel.cs"));
+            Assert.Contains("item_effect_pointer_table_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Support Attribute Viewer
+        [Fact]
+        public void SupportAttributeView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SupportAttributeView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SupportAttributeViewModel_UsesSupportAttributePointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SupportAttributeViewModel.cs"));
+            Assert.Contains("support_attribute_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Support Talk Viewer
+        [Fact]
+        public void SupportTalkView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SupportTalkView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SupportTalkViewModel_UsesSupportTalkPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SupportTalkViewModel.cs"));
+            Assert.Contains("support_talk_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Event Condition Viewer
+        [Fact]
+        public void EventCondView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EventCondView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void EventCondViewModel_UsesMapSettingCore()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "EventCondViewModel.cs"));
+            Assert.Contains("MapSettingCore", src);
+        }
+
+        // ------------------------------------------------------------------ Map Change Viewer
+        [Fact]
+        public void MapChangeView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MapChangeView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MapChangeViewModel_UsesMapChangePointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapChangeViewModel.cs"));
+            Assert.Contains("map_mapchange_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Map Exit Point Viewer
+        [Fact]
+        public void MapExitPointView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MapExitPointView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MapExitPointViewModel_UsesExitPointPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapExitPointViewModel.cs"));
+            Assert.Contains("map_exit_point_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Map Pointer Viewer
+        [Fact]
+        public void MapPointerView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MapPointerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MapPointerViewModel_UsesMapPointerPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapPointerViewModel.cs"));
+            Assert.Contains("map_map_pointer_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Map Tile Animation Viewer
+        [Fact]
+        public void MapTileAnimationView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MapTileAnimationView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MapTileAnimationViewModel_UsesMapTileAnimePointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapTileAnimationViewModel.cs"));
+            Assert.Contains("map_tileanime1_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Arena Class Viewer
+        [Fact]
+        public void ArenaClassView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ArenaClassViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ArenaClassViewModel_UsesArenaPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ArenaClassViewerViewModel.cs"));
+            Assert.Contains("arena_class_near_weapon_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Arena Enemy Weapon Viewer
+        [Fact]
+        public void ArenaEnemyWeaponView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ArenaEnemyWeaponViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ArenaEnemyWeaponViewModel_UsesArenaWeaponPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ArenaEnemyWeaponViewerViewModel.cs"));
+            Assert.Contains("arena_enemy_weapon_basic_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Link Arena Deny Unit Viewer
+        [Fact]
+        public void LinkArenaDenyUnitView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "LinkArenaDenyUnitViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void LinkArenaDenyUnitViewModel_UsesDenyUnitPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "LinkArenaDenyUnitViewerViewModel.cs"));
+            Assert.Contains("link_arena_deny_unit_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Monster Probability Viewer
+        [Fact]
+        public void MonsterProbabilityView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MonsterProbabilityViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MonsterProbabilityViewModel_UsesMonsterPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MonsterProbabilityViewerViewModel.cs"));
+            Assert.Contains("monster_probability_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Monster Item Viewer
+        [Fact]
+        public void MonsterItemView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MonsterItemViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MonsterItemViewModel_UsesMonsterItemPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MonsterItemViewerViewModel.cs"));
+            Assert.Contains("monster_item_item_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Monster WMap Probability Viewer
+        [Fact]
+        public void MonsterWMapProbabilityView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MonsterWMapProbabilityViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MonsterWMapProbabilityViewModel_UsesWMapPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MonsterWMapProbabilityViewerViewModel.cs"));
+            Assert.Contains("monster_wmap_base_point_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Summon Unit Viewer
+        [Fact]
+        public void SummonUnitView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SummonUnitViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SummonUnitViewModel_UsesSummonPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SummonUnitViewerViewModel.cs"));
+            Assert.Contains("summon_unit_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Summons Demon King Viewer
+        [Fact]
+        public void SummonsDemonKingView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SummonsDemonKingViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SummonsDemonKingViewModel_UsesDemonKingPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SummonsDemonKingViewerViewModel.cs"));
+            Assert.Contains("summons_demon_king_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Sound Boss BGM Viewer
+        [Fact]
+        public void SoundBossBGMView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SoundBossBGMViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SoundBossBGMViewModel_UsesBossBGMPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SoundBossBGMViewerViewModel.cs"));
+            Assert.Contains("sound_boss_bgm_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Sound Foot Steps Viewer
+        [Fact]
+        public void SoundFootStepsView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SoundFootStepsViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SoundFootStepsViewModel_UsesFootStepsPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SoundFootStepsViewerViewModel.cs"));
+            Assert.Contains("sound_foot_steps_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Sound Room Viewer
+        [Fact]
+        public void SoundRoomView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SoundRoomViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SoundRoomViewModel_UsesSoundRoomDatasize()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SoundRoomViewerViewModel.cs"));
+            Assert.Contains("sound_room_datasize", src);
+        }
+
+        // ------------------------------------------------------------------ Menu Definition Viewer
+        [Fact]
+        public void MenuDefinitionView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MenuDefinitionView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MenuDefinitionViewModel_UsesMenuDefinitionPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MenuDefinitionViewModel.cs"));
+            Assert.Contains("menu_definiton_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Menu Command Viewer
+        [Fact]
+        public void MenuCommandView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MenuCommandView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void MenuCommandViewModel_UsesMenuCommand()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MenuCommandViewModel.cs"));
+            Assert.Contains("MenuCommand_", src);
+        }
+
+        // ------------------------------------------------------------------ ED Viewer
+        [Fact]
+        public void EDView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EDView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void EDViewModel_UsesEDPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "EDViewModel.cs"));
+            Assert.Contains("ed_1_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ ED Staff Roll Viewer
+        [Fact]
+        public void EDStaffRollView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EDStaffRollView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void EDStaffRollViewModel_UsesStaffRollPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "EDStaffRollViewModel.cs"));
+            Assert.Contains("ed_staffroll_image_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ World Map Point Viewer
+        [Fact]
+        public void WorldMapPointView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WorldMapPointView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void WorldMapPointViewModel_UsesWorldMapPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "WorldMapPointViewModel.cs"));
+            Assert.Contains("worldmap_point_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ World Map BGM Viewer
+        [Fact]
+        public void WorldMapBGMView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WorldMapBGMView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void WorldMapBGMViewModel_UsesWorldMapBGMPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "WorldMapBGMViewModel.cs"));
+            Assert.Contains("worldmap_bgm_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ World Map Event Pointer Viewer
+        [Fact]
+        public void WorldMapEventPointerView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WorldMapEventPointerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void WorldMapEventPointerViewModel_UsesWorldMapEventPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "WorldMapEventPointerViewModel.cs"));
+            Assert.Contains("map_worldmapevent_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ System Icon Viewer
+        [Fact]
+        public void SystemIconView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SystemIconViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void SystemIconViewModel_UsesSystemIconPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SystemIconViewerViewModel.cs"));
+            Assert.Contains("system_icon_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Item Icon Viewer
+        [Fact]
+        public void ItemIconView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemIconViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ItemIconViewModel_UsesWeaponIconPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemIconViewerViewModel.cs"));
+            Assert.Contains("system_weapon_icon_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ System Hover Color Viewer
+        [Fact]
+        public void SystemHoverColorView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SystemHoverColorViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        // ------------------------------------------------------------------ Battle BG Viewer
+        [Fact]
+        public void BattleBGView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "BattleBGViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void BattleBGViewModel_UsesBattleBGPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "BattleBGViewerViewModel.cs"));
+            Assert.Contains("battle_bg_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Battle Terrain Viewer
+        [Fact]
+        public void BattleTerrainView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "BattleTerrainViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void BattleTerrainViewModel_UsesBattleTerrainPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "BattleTerrainViewerViewModel.cs"));
+            Assert.Contains("battle_terrain_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Chapter Title Viewer
+        [Fact]
+        public void ChapterTitleView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ChapterTitleViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void ChapterTitleViewModel_UsesChapterTitlePointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ChapterTitleViewerViewModel.cs"));
+            Assert.Contains("image_chapter_title_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ Big CG Viewer
+        [Fact]
+        public void BigCGView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "BigCGViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void BigCGViewModel_UsesBigCGPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "BigCGViewerViewModel.cs"));
+            Assert.Contains("bigcg_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ OP Class Demo Viewer
+        [Fact]
+        public void OPClassDemoView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OPClassDemoViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void OPClassDemoViewModel_UsesOPClassDemoPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "OPClassDemoViewerViewModel.cs"));
+            Assert.Contains("op_class_demo_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ OP Class Font Viewer
+        [Fact]
+        public void OPClassFontView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OPClassFontViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void OPClassFontViewModel_UsesOPClassFontPointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "OPClassFontViewerViewModel.cs"));
+            Assert.Contains("op_class_font_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ OP Prologue Viewer
+        [Fact]
+        public void OPPrologueView_HasSelectFirstItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OPPrologueViewerView.axaml.cs"));
+            Assert.Contains("public void SelectFirstItem()", src);
+        }
+
+        [Fact]
+        public void OPPrologueViewModel_UsesOPProloguePointer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "OPPrologueViewerViewModel.cs"));
+            Assert.Contains("op_prologue_image_pointer", src);
+        }
+
+        // ------------------------------------------------------------------ MainWindow has all new buttons
+        [Fact]
+        public void MainWindow_HasAllBatch2Buttons()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("OpenItemWeaponEffect_Click", src);
+            Assert.Contains("OpenArenaClass_Click", src);
+            Assert.Contains("OpenMonsterProbability_Click", src);
+            Assert.Contains("OpenSummonUnit_Click", src);
+            Assert.Contains("OpenSoundBossBGM_Click", src);
+            Assert.Contains("OpenMenuDefinition_Click", src);
+            Assert.Contains("OpenED_Click", src);
+            Assert.Contains("OpenWorldMapPoint_Click", src);
+            Assert.Contains("OpenSystemIcon_Click", src);
+            Assert.Contains("OpenBattleBG_Click", src);
+            Assert.Contains("OpenChapterTitle_Click", src);
+            Assert.Contains("OpenOPClassDemo_Click", src);
+        }
     }
 }

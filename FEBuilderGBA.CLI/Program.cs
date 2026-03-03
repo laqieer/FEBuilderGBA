@@ -111,28 +111,38 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --version                Show version information");
             Console.WriteLine("  --help, -h               Show this help message");
             Console.WriteLine("  --rom=<path>             Specify ROM file to load");
+            Console.WriteLine("  --force-version=<VER>    Force ROM version detection (FE6, FE7J, FE7U, FE8J, FE8U)");
             Console.WriteLine("  --makeups=<path>         Create UPS patch (requires --rom and --fromrom)");
             Console.WriteLine("  --applyups=<path>        Apply UPS patch (requires --rom and --patch)");
             Console.WriteLine("  --lint                   Run lint checks on ROM (requires --rom)");
             Console.WriteLine("  --disasm=<path>          Disassemble ROM to file (requires --rom)");
             Console.WriteLine("  --decreasecolor          Quantize image palette (requires --in, --out, --paletteno)");
+            Console.WriteLine("    --noScale              Do not scale colors to GBA 5-bit range");
+            Console.WriteLine("    --noReserve1stColor    Do not reserve palette slot 0 for transparency");
+            Console.WriteLine("    --ignoreTSA            Ignore TSA tile deduplication constraints");
             Console.WriteLine("  --pointercalc            Search pointer references (requires --rom, --target, --address)");
             Console.WriteLine("  --rebuild                Rebuild/defragment ROM (requires --rom, --fromrom)");
             Console.WriteLine("  --songexchange           Copy song between ROMs (requires --rom, --fromrom, --fromsong, --tosong)");
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in, --outImg, --outTSA)");
-            Console.WriteLine("  --translate              Translate ROM text (not yet fully supported)");
+            Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
+            Console.WriteLine("    --out=<path>           Export text to TSV file");
+            Console.WriteLine("    --in=<path>            Import text from TSV file (write not yet supported)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  FEBuilderGBA.CLI --version");
             Console.WriteLine("  FEBuilderGBA.CLI --makeups=patch.ups --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --applyups=output.gba --rom=original.gba --patch=patch.ups");
             Console.WriteLine("  FEBuilderGBA.CLI --lint --rom=rom.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --lint --rom=rom.gba --force-version=FE8U");
             Console.WriteLine("  FEBuilderGBA.CLI --disasm=output.asm --rom=rom.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16");
+            Console.WriteLine("  FEBuilderGBA.CLI --decreasecolor --in=input.png --out=output.png --paletteno=16 --noScale --noReserve1stColor");
             Console.WriteLine("  FEBuilderGBA.CLI --pointercalc --rom=source.gba --target=target.gba --address=0x100,0x200");
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
         }
 
         static int RunMakeUps(Dictionary<string, string> argsDic)
@@ -249,7 +259,8 @@ namespace FEBuilderGBA.CLI
             RomLoader.InitEnvironment();
 
             string romPath = argsDic["--rom"];
-            if (!RomLoader.LoadRom(romPath))
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
                 return 1;
 
             RomLoader.InitFull();
@@ -290,7 +301,8 @@ namespace FEBuilderGBA.CLI
             RomLoader.InitEnvironment();
 
             string romPath = argsDic["--rom"];
-            if (!RomLoader.LoadRom(romPath))
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
                 return 1;
 
             RomLoader.InitFull();
@@ -320,6 +332,20 @@ namespace FEBuilderGBA.CLI
             if (argsDic.ContainsKey("--paletteno") && !string.IsNullOrEmpty(argsDic["--paletteno"]))
                 int.TryParse(argsDic["--paletteno"], out maxColors);
 
+            // Parse optional flags
+            // NOTE: DecreaseColorCore.Quantize does not currently accept these parameters.
+            // They are parsed here for future use when the Quantize API is extended.
+            bool noScale = argsDic.ContainsKey("--noScale");
+            bool noReserve1stColor = argsDic.ContainsKey("--noReserve1stColor");
+            bool ignoreTSA = argsDic.ContainsKey("--ignoreTSA");
+
+            if (noScale)
+                Console.WriteLine("  Flag: --noScale (color scaling disabled)");
+            if (noReserve1stColor)
+                Console.WriteLine("  Flag: --noReserve1stColor (palette slot 0 not reserved for transparency)");
+            if (ignoreTSA)
+                Console.WriteLine("  Flag: --ignoreTSA (TSA tile constraints ignored)");
+
             if (!File.Exists(inputPath))
             {
                 Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
@@ -345,6 +371,8 @@ namespace FEBuilderGBA.CLI
             int width = image.Width;
             int height = image.Height;
 
+            // TODO: Pass noScale, noReserve1stColor, ignoreTSA to Quantize when the API
+            // is extended to support these options. Currently they are informational only.
             var result = DecreaseColorCore.Quantize(rgba, width, height, maxColors);
             if (result == null)
             {
@@ -539,7 +567,8 @@ namespace FEBuilderGBA.CLI
             }
 
             RomLoader.InitEnvironment();
-            if (!RomLoader.LoadRom(destPath))
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(destPath, forceVersion))
                 return 1;
 
             byte[] sourceData = File.ReadAllBytes(sourcePath);
@@ -650,12 +679,78 @@ namespace FEBuilderGBA.CLI
 
         static int RunTranslate(Dictionary<string, string> argsDic)
         {
-            // Stub: Translation requires heavily WinForms-coupled logic that has not yet been
-            // extracted to Core. This is marked as a stretch goal.
-            Console.Error.WriteLine("The --translate command is not yet fully supported in the cross-platform CLI.");
-            Console.Error.WriteLine("Translation requires complex text encoding logic that is still being extracted.");
-            Console.Error.WriteLine("For now, please use the WinForms GUI version for translation tasks.");
-            return 1;
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --translate requires --rom=<rom_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            RomLoader.InitEnvironment();
+
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            RomLoader.InitFull();
+
+            bool hasOut = argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]);
+            bool hasIn = argsDic.ContainsKey("--in") && !string.IsNullOrEmpty(argsDic["--in"]);
+
+            if (!hasOut && !hasIn)
+            {
+                // Default: dump text count info
+                uint textCount = TranslateCore.GetTextCount(CoreState.ROM);
+                Console.WriteLine($"ROM: {romPath}");
+                Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+                Console.WriteLine($"Text entries: {textCount}");
+                Console.WriteLine();
+                Console.WriteLine("Use --out=<path.tsv> to export text, or --in=<path.tsv> to import.");
+                return 0;
+            }
+
+            if (hasOut)
+            {
+                string outputPath = argsDic["--out"];
+                Console.WriteLine($"Dumping text from ROM: {romPath}");
+
+                var entries = TranslateCore.DumpTexts(CoreState.ROM);
+                TranslateCore.ExportToTSV(entries, outputPath);
+
+                Console.WriteLine($"Exported {entries.Count} text entries to: {outputPath}");
+                return 0;
+            }
+
+            if (hasIn)
+            {
+                string inputPath = argsDic["--in"];
+                if (!File.Exists(inputPath))
+                {
+                    Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
+                    return 1;
+                }
+
+                Console.WriteLine($"Importing text from: {inputPath}");
+                var entries = TranslateCore.ImportFromTSV(inputPath);
+                Console.WriteLine($"Parsed {entries.Count} text entries from TSV.");
+
+                int written = TranslateCore.WriteTexts(CoreState.ROM, entries);
+                if (written == 0)
+                {
+                    Console.Error.WriteLine("Warning: Text write-back is not yet implemented in the cross-platform CLI.");
+                    Console.Error.WriteLine("The TSV was parsed successfully, but no changes were written to the ROM.");
+                    Console.Error.WriteLine("Use the WinForms GUI for full text import support.");
+                    return 1;
+                }
+
+                Console.WriteLine($"Wrote {written} text entries to ROM.");
+                CoreState.ROM.Save(romPath, true);
+                Console.WriteLine($"ROM saved: {romPath}");
+                return 0;
+            }
+
+            return 0;
         }
 
         /// <summary>

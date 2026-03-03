@@ -147,6 +147,75 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("RunTranslate", src);
         }
 
+        [Fact]
+        public void ParseArgs_ForceVersionFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--force-version=FE8U", "--rom=test.gba" });
+            Assert.Equal("FE8U", dic["--force-version"]);
+            Assert.Equal("test.gba", dic["--rom"]);
+        }
+
+        [Fact]
+        public void ParseArgs_DecreaseColorSubFlags()
+        {
+            var dic = CliProgram.ParseArgs(new[] {
+                "--decreasecolor", "--in=test.png", "--out=out.png",
+                "--noScale", "--noReserve1stColor", "--ignoreTSA"
+            });
+            Assert.True(dic.ContainsKey("--noScale"));
+            Assert.True(dic.ContainsKey("--noReserve1stColor"));
+            Assert.True(dic.ContainsKey("--ignoreTSA"));
+        }
+
+        [Fact]
+        public void ParseArgs_TranslateWithOutFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--translate", "--rom=test.gba", "--out=texts.tsv" });
+            Assert.True(dic.ContainsKey("--translate"));
+            Assert.Equal("texts.tsv", dic["--out"]);
+        }
+
+        [Fact]
+        public void ParseArgs_TranslateWithInFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--translate", "--rom=test.gba", "--in=texts.tsv" });
+            Assert.True(dic.ContainsKey("--translate"));
+            Assert.Equal("texts.tsv", dic["--in"]);
+        }
+
+        [Fact]
+        public void CliProgram_HasForceVersionInHelp()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--force-version", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasDecreaseColorSubFlagsInHelp()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--noScale", src);
+            Assert.Contains("--noReserve1stColor", src);
+            Assert.Contains("--ignoreTSA", src);
+        }
+
+        [Fact]
+        public void CliProgram_TranslateCommandUsesTranslateCore()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("TranslateCore.DumpTexts", src);
+            Assert.Contains("TranslateCore.ExportToTSV", src);
+            Assert.Contains("TranslateCore.ImportFromTSV", src);
+        }
+
+        [Fact]
+        public void RomLoader_LoadRom_HasForceVersionOverload()
+        {
+            var src = System.IO.File.ReadAllText(GetRomLoaderPath());
+            Assert.Contains("LoadForceVersion", src);
+            Assert.Contains("forceVersion", src);
+        }
+
         private static string GetCliProgramPath()
         {
             var dir = System.AppContext.BaseDirectory;
@@ -154,6 +223,15 @@ namespace FEBuilderGBA.Tests.Unit
                 dir = System.IO.Path.GetDirectoryName(dir);
             if (dir == null) throw new System.InvalidOperationException("Cannot find solution root");
             return System.IO.Path.Combine(dir, "FEBuilderGBA.CLI", "Program.cs");
+        }
+
+        private static string GetRomLoaderPath()
+        {
+            var dir = System.AppContext.BaseDirectory;
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
+                dir = System.IO.Path.GetDirectoryName(dir);
+            if (dir == null) throw new System.InvalidOperationException("Cannot find solution root");
+            return System.IO.Path.Combine(dir, "FEBuilderGBA.CLI", "RomLoader.cs");
         }
     }
 }

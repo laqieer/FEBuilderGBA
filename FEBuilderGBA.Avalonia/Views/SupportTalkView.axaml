@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.SupportTalkView"
+        Title="Support Talk (Read-Only)" Width="800" Height="500">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Support Talk (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID 1:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="UnitId1Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit ID 2:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="UnitId2Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Text ID (C):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="TextIdCLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Text ID (B):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="TextIdBLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Text ID (A):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="TextIdALabel" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

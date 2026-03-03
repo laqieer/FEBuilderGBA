@@ -1,0 +1,59 @@
+using System;
+using System.Collections.Generic;
+
+namespace FEBuilderGBA.Avalonia.ViewModels
+{
+    public class MapPointerViewModel : ViewModelBase
+    {
+        uint _currentAddr;
+        uint _mapDataPointer;
+        bool _isLoaded;
+
+        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public uint MapDataPointer { get => _mapDataPointer; set => SetField(ref _mapDataPointer, value); }
+        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+
+        public List<AddrResult> LoadMapPointerList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.map_map_pointer_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint limit = rom.RomInfo.map_map_pointer_list_default_size;
+            if (limit == 0) limit = 256;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < limit; i++)
+            {
+                uint addr = (uint)(baseAddr + i * 4);
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint pointer = rom.u32(addr);
+                string ptrStr = U.isPointer(pointer)
+                    ? "0x" + pointer.ToString("X08")
+                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
+                string name = U.ToHexString(i) + " Map " + ptrStr;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        public void LoadMapPointer(uint addr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            if (addr + 3 >= (uint)rom.Data.Length) return;
+
+            CurrentAddr = addr;
+            MapDataPointer = rom.u32(addr);
+
+            IsLoaded = true;
+        }
+    }
+}

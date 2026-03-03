@@ -38,6 +38,16 @@ namespace FEBuilderGBA.CLI
         /// </summary>
         public static bool LoadRom(string romPath)
         {
+            return LoadRom(romPath, null);
+        }
+
+        /// <summary>
+        /// Load a ROM file and set up CoreState.ROM, optionally forcing version detection.
+        /// </summary>
+        /// <param name="romPath">Path to the ROM file.</param>
+        /// <param name="forceVersion">Force version string (e.g. "FE8U", "FE7J", "FE6"). Null for auto-detect.</param>
+        public static bool LoadRom(string romPath, string forceVersion)
+        {
             if (!File.Exists(romPath))
             {
                 CoreState.Services.ShowError($"ROM file not found: {romPath}");
@@ -45,12 +55,28 @@ namespace FEBuilderGBA.CLI
             }
 
             ROM rom = new ROM();
-            bool ok = rom.Load(romPath, out string version);
-            if (!ok)
+            bool ok;
+
+            if (!string.IsNullOrEmpty(forceVersion))
             {
-                CoreState.Services.ShowError($"Failed to load ROM: {romPath} (version: {version})");
-                return false;
+                // Use ROM.LoadForceVersion which maps version strings to internal codes
+                ok = rom.LoadForceVersion(romPath, forceVersion);
+                if (!ok)
+                {
+                    CoreState.Services.ShowError($"Failed to load ROM with forced version '{forceVersion}': {romPath}");
+                    return false;
+                }
             }
+            else
+            {
+                ok = rom.Load(romPath, out string version);
+                if (!ok)
+                {
+                    CoreState.Services.ShowError($"Failed to load ROM: {romPath} (version: {version})");
+                    return false;
+                }
+            }
+
             CoreState.ROM = rom;
             return true;
         }

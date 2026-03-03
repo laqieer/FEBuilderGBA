@@ -48,6 +48,8 @@
             <Button Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
             <Button Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
             <Button Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
+            <Button Content="Support Attribute" Click="OpenSupportAttribute_Click" Margin="4" MinWidth="100" />
+            <Button Content="Support Talk" Click="OpenSupportTalk_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Items -->
@@ -55,6 +57,14 @@
           <WrapPanel Orientation="Horizontal">
             <Button Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
             <Button Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
+            <Button Content="Weapon Effect" Click="OpenItemWeaponEffect_Click" Margin="4" MinWidth="100" />
+            <Button Content="Stat Bonuses" Click="OpenItemStatBonuses_Click" Margin="4" MinWidth="100" />
+            <Button Content="Effectiveness" Click="OpenItemEffectiveness_Click" Margin="4" MinWidth="100" />
+            <Button Content="Promotion" Click="OpenItemPromotion_Click" Margin="4" MinWidth="100" />
+            <Button Content="Shop" Click="OpenItemShop_Click" Margin="4" MinWidth="100" />
+            <Button Content="Weapon Triangle" Click="OpenItemWeaponTriangle_Click" Margin="4" MinWidth="100" />
+            <Button Content="Usage Pointer" Click="OpenItemUsagePointer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Effect Pointer" Click="OpenItemEffectPointer_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Maps -->
@@ -63,6 +73,11 @@
             <Button Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
             <Button Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
             <Button Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
+            <Button Content="Event Conditions" Click="OpenEventCond_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Changes" Click="OpenMapChange_Click" Margin="4" MinWidth="100" />
+            <Button Content="Exit Points" Click="OpenMapExitPoint_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Pointers" Click="OpenMapPointer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Tile Animation" Click="OpenMapTileAnimation_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Text -->
@@ -76,12 +91,70 @@
           <WrapPanel Orientation="Horizontal">
             <Button Content="Image Viewer" Click="OpenImageViewer_Click" Margin="4" MinWidth="100" />
             <Button Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
+            <Button Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
+            <Button Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
+            <Button Content="Hover Colors" Click="OpenSystemHoverColor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle BG" Click="OpenBattleBG_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Terrain" Click="OpenBattleTerrain_Click" Margin="4" MinWidth="100" />
+            <Button Content="Chapter Title" Click="OpenChapterTitle_Click" Margin="4" MinWidth="100" />
+            <Button Content="CG Viewer" Click="OpenBigCG_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Class Demo" Click="OpenOPClassDemo_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Class Font" Click="OpenOPClassFont_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Prologue" Click="OpenOPPrologue_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Audio -->
           <TextBlock Text="Audio" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
+            <Button Content="Boss BGM" Click="OpenSoundBossBGM_Click" Margin="4" MinWidth="100" />
+            <Button Content="Footsteps" Click="OpenSoundFootSteps_Click" Margin="4" MinWidth="100" />
+            <Button Content="Sound Room" Click="OpenSoundRoom_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Arena -->
+          <TextBlock Text="Arena" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Arena Class" Click="OpenArenaClass_Click" Margin="4" MinWidth="100" />
+            <Button Content="Arena Enemy Weapon" Click="OpenArenaEnemyWeapon_Click" Margin="4" MinWidth="100" />
+            <Button Content="Link Arena Deny" Click="OpenLinkArenaDenyUnit_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Monsters -->
+          <TextBlock Text="Monsters" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
+            <Button Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
+            <Button Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Summons -->
+          <TextBlock Text="Summons" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
+            <Button Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Menus -->
+          <TextBlock Text="Menus" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
+            <Button Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Credits -->
+          <TextBlock Text="Credits" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
+            <Button Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- World Map -->
+          <TextBlock Text="World Map" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Map Points" Click="OpenWorldMapPoint_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map BGM" Click="OpenWorldMapBGM_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Tools -->
