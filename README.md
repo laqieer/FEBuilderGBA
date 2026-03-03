@@ -63,7 +63,8 @@ dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target
 dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
 dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
 dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --rom=rom.gba --in=map.png
-dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --fromrom=source.gba --text=data.txt
+dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.tsv
+dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
@@ -115,11 +116,12 @@ FEBuilderGBA.sln
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
-  - Unit tests for core utilities (RegexCache, LZ77, U, TextEscape, CoreState, Elf, SystemTextEncoderTBLEncode, MultiByteJPUtil, MyTranslateResource, EtcCacheResource, GitUtil, GitInstaller, AddrResult, ArchSevenZip, NewEventASM, ExportFunction, UpdateInfo, TranslateManager, DisassemblerTrumb, AsmMapSt, GbaBiosCall, R, Log, Mod, PatchDetection, FETextEncode, FETextDecode)
+  - Unit tests for core utilities (RegexCache, LZ77, U, TextEscape, CoreState, Elf, SystemTextEncoderTBLEncode, MultiByteJPUtil, MyTranslateResource, EtcCacheResource, GitUtil, GitInstaller, AddrResult, ArchSevenZip, NewEventASM, ExportFunction, UpdateInfo, TranslateManager, DisassemblerTrumb, AsmMapSt, GbaBiosCall, R, Log, Mod, PatchDetection, FETextEncode, FETextDecode, TranslateCore, DecreaseColorCore sub-flags)
   - UpdateInfo version tracking and comparison
   - Core package download logic
   - Integration tests for update system
-  - E2E CLI tests (`--version` flag, exit codes, output content)
+  - E2E CLI tests (`--version` flag, exit codes, output content, `--help` coverage)
+  - CLI arg parsing tests (all 13 commands with complete argument sets)
   - E2E GUI tests (startup window detection, child controls, graceful shutdown)
   - ROM-based E2E CLI tests (`--lint`, `--makeups` × 5 ROMs, `--rebuild` × 2 representative ROMs — skipped without ROMs)
   - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)

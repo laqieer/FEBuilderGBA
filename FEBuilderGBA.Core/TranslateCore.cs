@@ -121,25 +121,149 @@ namespace FEBuilderGBA
         /// Write translated text entries back to ROM.
         /// Returns the number of entries successfully written.
         ///
-        /// TODO: FETextEncode.Encode() returns encoded bytes via out parameter, but
-        /// writing them back to the ROM text table requires updating the pointer table
-        /// and finding free space for the new encoded data. This is complex logic that
-        /// lives in the WinForms TextForm.WriteText() method and depends on InputFormRef
-        /// for free-space allocation. A full implementation would need to extract that
-        /// free-space allocation logic to Core first.
+        /// Strategy:
+        /// 1. Encode text via Huffman (or UnHuffman fallback if char not in dictionary)
+        /// 2. If encoded data fits in the original space, overwrite in place
+        /// 3. If too large, append to ROM end and update pointer
         /// </summary>
         public static int WriteTexts(ROM rom, List<(uint textId, string text)> entries)
         {
             if (rom?.RomInfo == null) return 0;
             if (CoreState.FETextEncoder == null) return 0;
 
-            // TODO: Writing text back to ROM requires:
-            // 1. Encode text via FETextEncode.Encode() or UnHuffmanEncode()
-            // 2. Find free space in ROM for the encoded data
-            // 3. Update the pointer in the text table
-            // This logic is currently tied to WinForms InputFormRef free-space management.
-            // For now, this is a no-op placeholder.
-            return 0;
+            uint textBase = rom.p32(rom.RomInfo.text_pointer);
+            if (!U.isSafetyOffset(textBase, rom))
+            {
+                textBase = rom.RomInfo.text_recover_address;
+            }
+            if (!U.isSafetyOffset(textBase, rom)) return 0;
+
+            uint textCount = GetTextCount(rom);
+            if (textCount == 0) return 0;
+
+            int written = 0;
+            var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+
+            foreach (var (textId, text) in entries)
+            {
+                if (textId >= textCount) continue;
+
+                uint writePointer = textBase + (textId * 4);
+                if (!U.isSafetyOffset(writePointer, rom)) continue;
+
+                // Encode the text
+                byte[] encoded;
+                bool useUnHuffman = false;
+                string error = CoreState.FETextEncoder.Encode(text, out encoded);
+                if (error != null && error.Length > 0)
+                {
+                    // Huffman encoding failed — try UnHuffman fallback
+                    CoreState.FETextEncoder.UnHuffmanEncode(text, out encoded);
+                    useUnHuffman = true;
+                }
+                if (encoded == null || encoded.Length == 0)
+                {
+                    // Empty text: point to same as text ID 0
+                    uint text0Pointer = rom.u32(textBase);
+                    rom.write_u32(writePointer, text0Pointer);
+                    written++;
+                    continue;
+                }
+
+                // Get original data size by decoding current text
+                uint currentPointerValue = rom.u32(writePointer);
+                uint originalSize = 0;
+                bool currentIsUnHuffman = FETextEncode.IsUnHuffmanPatchPointer(currentPointerValue);
+                uint currentDataAddr;
+                if (currentIsUnHuffman)
+                {
+                    currentDataAddr = U.toOffset(FETextEncode.ConvertUnHuffmanPatchToPointer(currentPointerValue));
+                }
+                else if (U.isPointer(currentPointerValue))
+                {
+                    currentDataAddr = U.toOffset(currentPointerValue);
+                }
+                else
+                {
+                    currentDataAddr = 0;
+                }
+
+                if (currentDataAddr > 0 && U.isSafetyOffset(currentDataAddr, rom))
+                {
+                    // Decode to get data size
+                    try
+                    {
+                        int dataSize;
+                        if (currentIsUnHuffman)
+                            decoder.UnHffmanPatchDecode(currentDataAddr, out dataSize);
+                        else
+                            decoder.Decode(textId, out dataSize);
+                        originalSize = (uint)Math.Max(0, dataSize);
+                    }
+                    catch
+                    {
+                        originalSize = 0;
+                    }
+                }
+
+                if (originalSize > 20000)
+                {
+                    // Suspiciously large — skip reuse
+                    originalSize = 0;
+                    currentDataAddr = 0;
+                }
+
+                if (currentDataAddr > 0 && originalSize >= (uint)encoded.Length)
+                {
+                    // Fits in original space — overwrite in place
+                    rom.write_range(currentDataAddr, encoded);
+                    // Zero-fill remaining space
+                    if (originalSize > (uint)encoded.Length)
+                    {
+                        rom.write_fill(currentDataAddr + (uint)encoded.Length,
+                            originalSize - (uint)encoded.Length, 0x00);
+                    }
+                    // Update pointer (may need to switch huffman/unhuffman flag)
+                    if (useUnHuffman)
+                        rom.write_u32(writePointer, FETextEncode.ConvertPointerToUnHuffmanPatchPointer(U.toPointer(currentDataAddr)));
+                    else
+                        rom.write_u32(writePointer, U.toPointer(currentDataAddr));
+                }
+                else
+                {
+                    // Need new space — append to ROM end
+                    uint paddedSize = U.Padding4((uint)encoded.Length) + 4;
+                    uint newAddr = U.Padding4((uint)rom.Data.Length);
+
+                    if (newAddr + paddedSize >= 0x02000000)
+                    {
+                        // Would exceed 32MB limit — skip
+                        continue;
+                    }
+
+                    // Resize ROM to accommodate new data
+                    rom.write_resize_data(newAddr + paddedSize);
+
+                    // Clear old data if we had a valid address
+                    if (currentDataAddr > 0 && originalSize > 0 && U.isSafetyOffset(currentDataAddr, rom))
+                    {
+                        rom.write_fill(currentDataAddr, originalSize, 0x00);
+                    }
+
+                    // Write encoded text at new address
+                    rom.write_range(newAddr, encoded);
+
+                    // Update pointer
+                    if (useUnHuffman)
+                        rom.write_u32(writePointer, FETextEncode.ConvertPointerToUnHuffmanPatchPointer(U.toPointer(newAddr)));
+                    else
+                        rom.write_p32(writePointer, newAddr);
+                }
+
+                written++;
+            }
+
+            return written;
         }
     }
 }

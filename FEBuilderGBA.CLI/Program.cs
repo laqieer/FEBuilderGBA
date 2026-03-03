@@ -126,7 +126,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --convertmap1picture     Convert image to map tiles (requires --in, --outImg, --outTSA)");
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
-            Console.WriteLine("    --in=<path>            Import text from TSV file (write not yet supported)");
+            Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  FEBuilderGBA.CLI --version");
@@ -333,8 +333,6 @@ namespace FEBuilderGBA.CLI
                 int.TryParse(argsDic["--paletteno"], out maxColors);
 
             // Parse optional flags
-            // NOTE: DecreaseColorCore.Quantize does not currently accept these parameters.
-            // They are parsed here for future use when the Quantize API is extended.
             bool noScale = argsDic.ContainsKey("--noScale");
             bool noReserve1stColor = argsDic.ContainsKey("--noReserve1stColor");
             bool ignoreTSA = argsDic.ContainsKey("--ignoreTSA");
@@ -371,9 +369,7 @@ namespace FEBuilderGBA.CLI
             int width = image.Width;
             int height = image.Height;
 
-            // TODO: Pass noScale, noReserve1stColor, ignoreTSA to Quantize when the API
-            // is extended to support these options. Currently they are informational only.
-            var result = DecreaseColorCore.Quantize(rgba, width, height, maxColors);
+            var result = DecreaseColorCore.Quantize(rgba, width, height, maxColors, noScale, noReserve1stColor, ignoreTSA);
             if (result == null)
             {
                 Console.Error.WriteLine("Error: Quantization failed.");
@@ -738,9 +734,8 @@ namespace FEBuilderGBA.CLI
                 int written = TranslateCore.WriteTexts(CoreState.ROM, entries);
                 if (written == 0)
                 {
-                    Console.Error.WriteLine("Warning: Text write-back is not yet implemented in the cross-platform CLI.");
-                    Console.Error.WriteLine("The TSV was parsed successfully, but no changes were written to the ROM.");
-                    Console.Error.WriteLine("Use the WinForms GUI for full text import support.");
+                    Console.Error.WriteLine("Warning: No text entries were written to the ROM.");
+                    Console.Error.WriteLine("The TSV was parsed but all entries were out of range or failed to encode.");
                     return 1;
                 }
 

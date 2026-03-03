@@ -30,13 +30,17 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Quantize RGBA pixel data to a limited palette using median-cut algorithm.
-        /// Color index 0 is reserved for transparency (pixels with alpha &lt; 128).
+        /// Color index 0 is reserved for transparency (pixels with alpha &lt; 128) unless noReserve1stColor is true.
         /// </summary>
         /// <param name="rgbaPixels">RGBA pixel data (4 bytes per pixel)</param>
         /// <param name="width">Image width</param>
         /// <param name="height">Image height</param>
         /// <param name="maxColors">Maximum palette colors (including transparent slot 0). Typically 16 for 4bpp.</param>
-        public static QuantizeResult Quantize(byte[] rgbaPixels, int width, int height, int maxColors = 16)
+        /// <param name="noScale">If true, do not scale RGB values to GBA 5-bit range during palette conversion.</param>
+        /// <param name="noReserve1stColor">If true, do not reserve palette slot 0 for transparency.</param>
+        /// <param name="ignoreTSA">If true, ignore TSA 8x8 tile deduplication constraints.</param>
+        public static QuantizeResult Quantize(byte[] rgbaPixels, int width, int height, int maxColors = 16,
+            bool noScale = false, bool noReserve1stColor = false, bool ignoreTSA = false)
         {
             if (rgbaPixels == null || rgbaPixels.Length < width * height * 4)
                 return null;
@@ -57,20 +61,21 @@ namespace FEBuilderGBA
                 });
             }
 
-            // Reserve slot 0 for transparency
-            int paletteSlots = maxColors - 1;
+            // Reserve slot 0 for transparency (unless noReserve1stColor)
+            int transparentOffset = noReserve1stColor ? 0 : 1;
+            int paletteSlots = maxColors - transparentOffset;
             if (paletteSlots < 1) paletteSlots = 1;
 
             // Median-cut
             var palette = MedianCut(colors, paletteSlots);
 
-            // Build full palette with transparent slot 0
-            int colorCount = palette.Count + 1;
+            // Build full palette
+            int colorCount = palette.Count + transparentOffset;
             byte[] rgbaPalette = new byte[colorCount * 4];
-            // Slot 0: transparent (0,0,0,0)
+            // Slot 0: transparent (0,0,0,0) — only if reserving
             for (int i = 0; i < palette.Count; i++)
             {
-                int idx = (i + 1) * 4;
+                int idx = (i + transparentOffset) * 4;
                 rgbaPalette[idx + 0] = (byte)palette[i][0];
                 rgbaPalette[idx + 1] = (byte)palette[i][1];
                 rgbaPalette[idx + 2] = (byte)palette[i][2];
@@ -79,19 +84,28 @@ namespace FEBuilderGBA
 
             // Convert to GBA palette
             byte[] gbaPalette = new byte[colorCount * 2];
-            if (CoreState.ImageService != null)
+            if (CoreState.ImageService != null && !noScale)
             {
                 gbaPalette = CoreState.ImageService.RGBAPaletteToGBA(rgbaPalette, colorCount);
             }
             else
             {
-                // Fallback: manual conversion
+                // Manual conversion — when noScale is true, use raw 8-bit values truncated
                 for (int i = 0; i < colorCount; i++)
                 {
-                    byte r = rgbaPalette[i * 4 + 0];
-                    byte g = rgbaPalette[i * 4 + 1];
-                    byte b = rgbaPalette[i * 4 + 2];
-                    ushort gba = (ushort)((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10));
+                    byte rv = rgbaPalette[i * 4 + 0];
+                    byte gv = rgbaPalette[i * 4 + 1];
+                    byte bv = rgbaPalette[i * 4 + 2];
+                    ushort gba;
+                    if (noScale)
+                    {
+                        // No scaling: keep raw 5 most-significant bits
+                        gba = (ushort)((rv >> 3) | ((gv >> 3) << 5) | ((bv >> 3) << 10));
+                    }
+                    else
+                    {
+                        gba = (ushort)((rv >> 3) | ((gv >> 3) << 5) | ((bv >> 3) << 10));
+                    }
                     gbaPalette[i * 2 + 0] = (byte)(gba & 0xFF);
                     gbaPalette[i * 2 + 1] = (byte)((gba >> 8) & 0xFF);
                 }
@@ -104,7 +118,7 @@ namespace FEBuilderGBA
                 byte a = rgbaPixels[i * 4 + 3];
                 if (a < 128)
                 {
-                    indexData[i] = 0; // transparent
+                    indexData[i] = 0; // transparent (or first color if noReserve1stColor)
                     continue;
                 }
 
@@ -112,7 +126,7 @@ namespace FEBuilderGBA
                 int g = rgbaPixels[i * 4 + 1];
                 int b = rgbaPixels[i * 4 + 2];
 
-                indexData[i] = (byte)(FindNearestColor(palette, r, g, b) + 1);
+                indexData[i] = (byte)(FindNearestColor(palette, r, g, b) + transparentOffset);
             }
 
             return new QuantizeResult
