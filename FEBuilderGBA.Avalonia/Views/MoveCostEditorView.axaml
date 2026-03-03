@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.MoveCostEditorView"
+        Title="Move Cost Editor (Read-Only)" Width="800" Height="600">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="ClassList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Move Cost Editor (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <TextBlock Name="ClassNameLabel" FontSize="14" />
+        <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
+
+        <TextBlock Text="Terrain Move Costs (index: cost):" FontWeight="SemiBold" Margin="0,8,0,4" />
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" MaxHeight="400">
+          <ScrollViewer>
+            <TextBlock Name="MoveCostBlock" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
+          </ScrollViewer>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

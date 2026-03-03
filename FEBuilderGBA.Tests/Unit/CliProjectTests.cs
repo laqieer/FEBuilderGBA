@@ -96,5 +96,64 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal("modified.gba", dic["--rom"]);
             Assert.Equal("original.gba", dic["--fromrom"]);
         }
+
+        // ------------------------------------------------------------------ CLI command source verification
+
+        [Fact]
+        public void CliProgram_HasDecreaseColorCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--decreasecolor", src);
+            Assert.Contains("RunDecreaseColor", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasPointerCalcCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--pointercalc", src);
+            Assert.Contains("RunPointerCalc", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasRebuildCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--rebuild", src);
+            Assert.Contains("RunRebuild", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasSongExchangeCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--songexchange", src);
+            Assert.Contains("RunSongExchange", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasConvertMap1PictureCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--convertmap1picture", src);
+            Assert.Contains("RunConvertMap1Picture", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasTranslateCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--translate", src);
+            Assert.Contains("RunTranslate", src);
+        }
+
+        private static string GetCliProgramPath()
+        {
+            var dir = System.AppContext.BaseDirectory;
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
+                dir = System.IO.Path.GetDirectoryName(dir);
+            if (dir == null) throw new System.InvalidOperationException("Cannot find solution root");
+            return System.IO.Path.Combine(dir, "FEBuilderGBA.CLI", "Program.cs");
+        }
     }
 }

@@ -16,11 +16,11 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 
 | Project | Target | Description |
 |---------|--------|-------------|
-| `FEBuilderGBA.Core` | net9.0 | Cross-platform core library (ROM, Undo, LZ77, text encoding, Huffman codec, patch detection, translation, cache, git, archive, event ASM, disassembler, export, mod, address, event script, EtcCache, symbol util, magic split, grow simulator, system text encoder, config persistence, GDB socket, event script util, EA lyn dump parser, lint core types/validation, UPS patch, image service abstraction, path utilities, logging facade, utilities, HeadlessEtcCache, HeadlessSystemTextEncoder, MapSettingCore, StructMetadata, FELintScanner, DisassemblerCore, ImageUtilCore, DecreaseColorCore) |
+| `FEBuilderGBA.Core` | net9.0 | Cross-platform core library (ROM, Undo, LZ77, text encoding, Huffman codec, patch detection, translation, cache, git, archive, event ASM, disassembler, export, mod, address, event script, EtcCache, symbol util, magic split, grow simulator, system text encoder, config persistence, GDB socket, event script util, EA lyn dump parser, lint core types/validation, UPS patch, image service abstraction, path utilities, logging facade, utilities, HeadlessEtcCache, HeadlessSystemTextEncoder, MapSettingCore, StructMetadata, FELintScanner, DisassemblerCore, ImageUtilCore, DecreaseColorCore, PointerCalcCore, RebuildCore, SongExchangeCore, MapConvertCore) |
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
-| `FEBuilderGBA.CLI` | net9.0 | Cross-platform CLI tool (`--version`, `--help`, `--makeups`, `--applyups`, `--lint`, `--disasm`) |
+| `FEBuilderGBA.CLI` | net9.0 | Cross-platform CLI tool (`--version`, `--help`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`) |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp implementation of IImageService (GBA 4bpp/8bpp tiles, palette conversion) |
-| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, unit/item editors with read/write, image viewer, lint runner, categorized navigation) |
+| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, 12 editors: unit, item, class, CC branch, terrain name editors with read/write; map settings, text, song table, portrait, move cost, support unit viewers; image viewer; lint runner; categorized navigation) |
 | `FEBuilderGBA.Tests` | net9.0-windows | Unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (runs on Linux/macOS/Windows) |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
@@ -58,6 +58,12 @@ dotnet run --project FEBuilderGBA.CLI -- --makeups=out.ups --rom=modified.gba --
 dotnet run --project FEBuilderGBA.CLI -- --applyups=output.gba --rom=original.gba --patch=patch.ups
 dotnet run --project FEBuilderGBA.CLI -- --lint --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --disasm=output.asm --rom=rom.gba
+dotnet run --project FEBuilderGBA.CLI -- --decreasecolor --rom=rom.gba --in=input.png --out=output.png --paletteno=0
+dotnet run --project FEBuilderGBA.CLI -- --pointercalc --rom=source.gba --target=target.gba --address=0x1234
+dotnet run --project FEBuilderGBA.CLI -- --rebuild --rom=modified.gba --fromrom=vanilla.gba
+dotnet run --project FEBuilderGBA.CLI -- --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=1 --tosong=2
+dotnet run --project FEBuilderGBA.CLI -- --convertmap1picture --rom=rom.gba --in=map.png
+dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --fromrom=source.gba --text=data.txt
 
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
@@ -88,10 +94,14 @@ FEBuilderGBA.sln
 │   ├── Rom.cs / ROMFE*.cs                  ROM manipulation
 │   ├── UPSUtil.cs                          UPS patch creation
 │   ├── FELintCore.cs                       Lint validation
-│   └── PathUtil.cs                         Cross-platform paths
-├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI)
+│   ├── PathUtil.cs                         Cross-platform paths
+│   ├── PointerCalcCore.cs                 Pointer search engine
+│   ├── RebuildCore.cs                     ROM defragmentation
+│   ├── SongExchangeCore.cs                Song exchange between ROMs
+│   └── MapConvertCore.cs                  Map tile conversion
+├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 13 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI)
+├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 12 editors)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
 ├── FEBuilderGBA.Tests/          net9.0-windows (unit tests)
 ├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform tests)
@@ -100,7 +110,7 @@ FEBuilderGBA.sln
 
 ## Testing & Coverage
 
-- ✅ **822 unit/integration tests** passing (749 WinForms + 73 Core cross-platform)
+- ✅ **888 unit/integration tests** passing (775 WinForms + 113 Core cross-platform)
 - ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **45 E2E tests** passing with all 5 ROMs
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)

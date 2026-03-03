@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.SupportUnitEditorView"
+        Title="Support Unit Editor (Read-Only)" Width="800" Height="500">
+  <Grid ColumnDefinitions="250,*">
+    <controls:AddressListControl Grid.Column="0" Name="SupportList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Support Unit Editor (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
+        <TextBlock Name="UnitNameLabel" FontSize="14" />
+
+        <TextBlock Text="Support Partners:" FontWeight="SemiBold" Margin="0,8,0,4" />
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <TextBlock Name="PartnersBlock" FontSize="13" TextWrapping="Wrap" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

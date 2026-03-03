@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        x:Class="FEBuilderGBA.Avalonia.Views.TextViewerView"
+        Title="Text Viewer (Read-Only)" Width="900" Height="600">
+  <Grid ColumnDefinitions="300,*">
+    <controls:AddressListControl Grid.Column="0" Name="TextList" Margin="4" />
+
+    <ScrollViewer Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <TextBlock Text="Text Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+
+        <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
+
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <TextBlock Name="DecodedTextBlock" TextWrapping="Wrap" FontSize="14" />
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

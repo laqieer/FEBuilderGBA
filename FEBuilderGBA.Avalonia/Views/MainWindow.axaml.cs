@@ -225,6 +225,51 @@ namespace FEBuilderGBA.Avalonia.Views
             WindowManager.Instance.Open<ImageViewerView>();
         }
 
+        private void OpenClasses_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<ClassEditorView>();
+        }
+
+        private void OpenMapSettings_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MapSettingView>();
+        }
+
+        private void OpenTextViewer_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<TextViewerView>();
+        }
+
+        private void OpenCCBranch_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<CCBranchEditorView>();
+        }
+
+        private void OpenTerrainNames_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<TerrainNameEditorView>();
+        }
+
+        private void OpenSongTable_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SongTableView>();
+        }
+
+        private void OpenPortraits_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<PortraitViewerView>();
+        }
+
+        private void OpenMoveCost_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<MoveCostEditorView>();
+        }
+
+        private void OpenSupportUnits_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<SupportUnitEditorView>();
+        }
+
         private void Lint_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;

@@ -46,18 +46,42 @@
           <TextBlock Text="Characters" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
+            <Button Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
+            <Button Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Items -->
           <TextBlock Text="Items" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
+            <Button Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Maps -->
+          <TextBlock Text="Maps" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
+            <Button Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
+            <Button Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Text -->
+          <TextBlock Text="Text" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Text Viewer" Click="OpenTextViewer_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Graphics -->
           <TextBlock Text="Graphics" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Image Viewer" Click="OpenImageViewer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Audio -->
+          <TextBlock Text="Audio" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Tools -->
