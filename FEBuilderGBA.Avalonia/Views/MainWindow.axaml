@@ -157,10 +157,195 @@
             <Button Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
+          <!-- Image Editors -->
+          <TextBlock Text="Image Editors" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Portrait Editor" Click="OpenImagePortrait_Click" Margin="4" MinWidth="100" />
+            <Button Content="Portrait (FE6)" Click="OpenImagePortraitFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Portrait Import" Click="OpenImagePortraitImporter_Click" Margin="4" MinWidth="100" />
+            <Button Content="BG Editor" Click="OpenImageBG_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Anim" Click="OpenImageBattleAnime_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Anim Pal" Click="OpenImageBattleAnimePallet_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle BG Edit" Click="OpenImageBattleBG_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Screen" Click="OpenImageBattleScreen_Click" Margin="4" MinWidth="100" />
+            <Button Content="CG Editor" Click="OpenImageCG_Click" Margin="4" MinWidth="100" />
+            <Button Content="CG (FE7U)" Click="OpenImageCGFE7U_Click" Margin="4" MinWidth="100" />
+            <Button Content="Unit Palette" Click="OpenImageUnitPalette_Click" Margin="4" MinWidth="100" />
+            <Button Content="Wait Icon" Click="OpenImageUnitWaitIcon_Click" Margin="4" MinWidth="100" />
+            <Button Content="Move Icon" Click="OpenImageUnitMoveIcon_Click" Margin="4" MinWidth="100" />
+            <Button Content="System Area" Click="OpenImageSystemArea_Click" Margin="4" MinWidth="100" />
+            <Button Content="Generic Enemy" Click="OpenImageGenericEnemyPortrait_Click" Margin="4" MinWidth="100" />
+            <Button Content="ROM Anime" Click="OpenImageRomAnime_Click" Margin="4" MinWidth="100" />
+            <Button Content="TSA Editor" Click="OpenImageTSAEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="TSA Anime" Click="OpenImageTSAAnime_Click" Margin="4" MinWidth="100" />
+            <Button Content="TSA Anime 2" Click="OpenImageTSAAnime2_Click" Margin="4" MinWidth="100" />
+            <Button Content="Palette" Click="OpenImagePallet_Click" Margin="4" MinWidth="100" />
+            <Button Content="Magic FEditor" Click="OpenImageMagicFEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="CSA Creator" Click="OpenImageMagicCSACreator_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Action Anim" Click="OpenImageMapActionAnimation_Click" Margin="4" MinWidth="100" />
+            <Button Content="Color Reduce" Click="OpenDecreaseColorTSATool_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Event Script Editors -->
+          <TextBlock Text="Event Scripts" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Event Script" Click="OpenEventScript_Click" Margin="4" MinWidth="100" />
+            <Button Content="Event Unit" Click="OpenEventUnit_Click" Margin="4" MinWidth="100" />
+            <Button Content="Event Unit (FE6)" Click="OpenEventUnitFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Event Unit (FE7)" Click="OpenEventUnitFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Unit Color" Click="OpenEventUnitColor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Item Drop" Click="OpenEventUnitItemDrop_Click" Margin="4" MinWidth="100" />
+            <Button Content="New Alloc" Click="OpenEventUnitNewAlloc_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Talk" Click="OpenEventBattleTalk_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Talk (FE6)" Click="OpenEventBattleTalkFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Talk (FE7)" Click="OpenEventBattleTalkFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Battle Data (FE7)" Click="OpenEventBattleDataFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Haiku" Click="OpenEventHaiku_Click" Margin="4" MinWidth="100" />
+            <Button Content="Haiku (FE6)" Click="OpenEventHaikuFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Haiku (FE7)" Click="OpenEventHaikuFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Change Evt" Click="OpenEventMapChange_Click" Margin="4" MinWidth="100" />
+            <Button Content="Force Sortie" Click="OpenEventForceSortie_Click" Margin="4" MinWidth="100" />
+            <Button Content="Force Sortie (FE7)" Click="OpenEventForceSortieFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Func Pointer" Click="OpenEventFunctionPointer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Func Ptr (FE7)" Click="OpenEventFunctionPointerFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
+            <Button Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
+            <Button Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- AI Script Editors -->
+          <TextBlock Text="AI Scripts" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
+            <Button Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
+            <Button Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Map Editors (Advanced) -->
+          <TextBlock Text="Map Editors" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
+            <Button Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
+            <Button Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
+            <Button Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
+            <Button Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
+            <Button Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
+            <Button Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
+            <Button Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
+            <Button Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Audio (Advanced) -->
+          <TextBlock Text="Audio (Advanced)" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Song Track" Click="OpenSongTrack_Click" Margin="4" MinWidth="100" />
+            <Button Content="Instrument" Click="OpenSongInstrument_Click" Margin="4" MinWidth="100" />
+            <Button Content="Direct Sound" Click="OpenSongInstrumentDirectSound_Click" Margin="4" MinWidth="100" />
+            <Button Content="Wave Import" Click="OpenSongInstrumentImportWave_Click" Margin="4" MinWidth="100" />
+            <Button Content="MIDI Import" Click="OpenSongTrackImportMidi_Click" Margin="4" MinWidth="100" />
+            <Button Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
+            <Button Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Unit/Class Specialized -->
+          <TextBlock Text="Unit/Class Specialized" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Unit (FE6)" Click="OpenUnitFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Action Pointer" Click="OpenUnitActionPointer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Custom Anim" Click="OpenUnitCustomBattleAnime_Click" Margin="4" MinWidth="100" />
+            <Button Content="Height" Click="OpenUnitIncreaseHeight_Click" Margin="4" MinWidth="100" />
+            <Button Content="Unit Palette" Click="OpenUnitPalette_Click" Margin="4" MinWidth="100" />
+            <Button Content="Class (FE6)" Click="OpenClassFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Class OP Demo" Click="OpenClassOPDemo_Click" Margin="4" MinWidth="100" />
+            <Button Content="Class OP Font" Click="OpenClassOPFont_Click" Margin="4" MinWidth="100" />
+            <Button Content="Extra Unit" Click="OpenExtraUnit_Click" Margin="4" MinWidth="100" />
+            <Button Content="Extra (FE8U)" Click="OpenExtraUnitFE8U_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Text/Translation -->
+          <TextBlock Text="Text/Translation" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Text Editor" Click="OpenTextMain_Click" Margin="4" MinWidth="100" />
+            <Button Content="Other Text" Click="OpenOtherText_Click" Margin="4" MinWidth="100" />
+            <Button Content="C-String" Click="OpenCString_Click" Margin="4" MinWidth="100" />
+            <Button Content="Font Editor" Click="OpenFontEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Font ZH" Click="OpenFontZH_Click" Margin="4" MinWidth="100" />
+            <Button Content="Dev Translate" Click="OpenDevTranslate_Click" Margin="4" MinWidth="100" />
+            <Button Content="ROM Translate" Click="OpenToolTranslateROM_Click" Margin="4" MinWidth="100" />
+            <Button Content="Text Escape" Click="OpenTextEscapeEditor_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Patch/Mod Management -->
+          <TextBlock Text="Patches" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Patch Manager" Click="OpenPatchManager_Click" Margin="4" MinWidth="100" />
+            <Button Content="Custom Build" Click="OpenToolCustomBuild_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Skill Systems -->
+          <TextBlock Text="Skill Systems" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
+            <Button Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
+            <Button Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- World Map (Advanced) -->
+          <TextBlock Text="World Map (Advanced)" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Map Paths" Click="OpenWorldMapPath_Click" Margin="4" MinWidth="100" />
+            <Button Content="Path Editor" Click="OpenWorldMapPathEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Image" Click="OpenWorldMapImage_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Image (FE6)" Click="OpenWorldMapImageFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Map Image (FE7)" Click="OpenWorldMapImageFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Events (FE6)" Click="OpenWorldMapEventPointerFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Events (FE7)" Click="OpenWorldMapEventPointerFE7_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Structural Data -->
+          <TextBlock Text="Structural Data" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Cmd85 Pointer" Click="OpenCommand85Pointer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Spell Menu Ext" Click="OpenFE8SpellMenuExtends_Click" Margin="4" MinWidth="100" />
+            <Button Content="Status Option" Click="OpenStatusOption_Click" Margin="4" MinWidth="100" />
+            <Button Content="OAM Sprite" Click="OpenOAMSP_Click" Margin="4" MinWidth="100" />
+            <Button Content="Struct Dump" Click="OpenDumpStructSelectDialog_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
           <!-- Tools -->
           <TextBlock Text="Tools" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
+            <Button Content="Undo History" Click="OpenToolUndo_Click" Margin="4" MinWidth="100" />
+            <Button Content="FELint GUI" Click="OpenToolFELint_Click" Margin="4" MinWidth="100" />
+            <Button Content="ROM Rebuild" Click="OpenToolROMRebuild_Click" Margin="4" MinWidth="100" />
+            <Button Content="LZ77 Tool" Click="OpenToolLZ77_Click" Margin="4" MinWidth="100" />
+            <Button Content="ROM Diff" Click="OpenToolDiff_Click" Margin="4" MinWidth="100" />
+            <Button Content="UPS Create" Click="OpenToolUPSPatchSimple_Click" Margin="4" MinWidth="100" />
+            <Button Content="UPS Apply" Click="OpenToolUPSOpenSimple_Click" Margin="4" MinWidth="100" />
+            <Button Content="Flag Names" Click="OpenToolFlagName_Click" Margin="4" MinWidth="100" />
+            <Button Content="Flag Usage" Click="OpenToolUseFlag_Click" Margin="4" MinWidth="100" />
+            <Button Content="Talk Groups" Click="OpenToolUnitTalkGroup_Click" Margin="4" MinWidth="100" />
+            <Button Content="ASM Insert" Click="OpenToolASMInsert_Click" Margin="4" MinWidth="100" />
+            <Button Content="Hex Editor" Click="OpenHexEditor_Click" Margin="4" MinWidth="100" />
+            <Button Content="Disassembler" Click="OpenDisASM_Click" Margin="4" MinWidth="100" />
+            <Button Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
+            <Button Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
+            <Button Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
         </StackPanel>
       </StackPanel>

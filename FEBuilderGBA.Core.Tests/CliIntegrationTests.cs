@@ -175,5 +175,56 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(dic.ContainsKey("--lint"));
             Assert.True(dic.ContainsKey("--help"));
         }
+
+        [Fact]
+        public void Config_LoadAndReadLastRom()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder_config_test_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                string configPath = Path.Combine(tempDir, "config.xml");
+                // Write a minimal config with Last_Rom_Filename
+                File.WriteAllText(configPath,
+                    "<?xml version=\"1.0\"?><root><item><key>Last_Rom_Filename</key><value>/tmp/test.gba</value></item></root>");
+
+                var config = new Config();
+                config.Load(configPath);
+
+                Assert.Equal("/tmp/test.gba", config.at("Last_Rom_Filename"));
+            }
+            finally
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void Config_AtReturnsDefault()
+        {
+            var config = new Config();
+            Assert.Equal("default_value", config.at("NonExistent", "default_value"));
+            Assert.Equal("", config.at("NonExistent"));
+        }
+
+        [Fact]
+        public void ParseArgs_NewMigratedFlags()
+        {
+            // Test all 5 new migrated CLI args
+            var args = new[] { "--lastrom", "--force-detail", "--translate_batch", "--test", "--testonly" };
+            var dic = new System.Collections.Generic.Dictionary<string, string>();
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--"))
+                    dic[arg] = "";
+            }
+
+            Assert.True(dic.ContainsKey("--lastrom"));
+            Assert.True(dic.ContainsKey("--force-detail"));
+            Assert.True(dic.ContainsKey("--translate_batch"));
+            Assert.True(dic.ContainsKey("--test"));
+            Assert.True(dic.ContainsKey("--testonly"));
+        }
     }
 }

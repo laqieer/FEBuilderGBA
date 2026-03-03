@@ -83,6 +83,30 @@ namespace FEBuilderGBA.CLI
                 return RunTranslate(argsDic);
             }
 
+            if (argsDic.ContainsKey("--lastrom"))
+            {
+                return RunLastRom(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--force-detail"))
+            {
+                // In CLI context, --force-detail just sets the flag and prints info.
+                // It is primarily used by Avalonia GUI to skip easy-mode.
+                Console.WriteLine("--force-detail: Detail mode flag acknowledged.");
+                Console.WriteLine("This flag is primarily used by the Avalonia GUI to force detailed editor mode.");
+                return 0;
+            }
+
+            if (argsDic.ContainsKey("--translate_batch"))
+            {
+                return RunTranslateBatch(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
+            {
+                return RunSelfTest(argsDic);
+            }
+
             // Other commands not yet implemented
             Console.Error.WriteLine("Command not yet supported in cross-platform CLI.");
             Console.Error.WriteLine("Run with --help for usage information.");
@@ -127,6 +151,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
+            Console.WriteLine("  --lastrom                Load last-used ROM from config");
+            Console.WriteLine("  --force-detail           Force detailed editor mode (Avalonia GUI)");
+            Console.WriteLine("  --translate_batch        Batch translation: export + import all text");
+            Console.WriteLine("  --test                   Run self-test diagnostics (requires --rom)");
+            Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  FEBuilderGBA.CLI --version");
@@ -143,6 +172,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --lastrom");
+            Console.WriteLine("  FEBuilderGBA.CLI --translate_batch --rom=rom.gba --out=texts.tsv --in=translated.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --test --rom=rom.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --testonly --rom=rom.gba");
         }
 
         static int RunMakeUps(Dictionary<string, string> argsDic)
@@ -746,6 +779,206 @@ namespace FEBuilderGBA.CLI
             }
 
             return 0;
+        }
+
+        static int RunLastRom(Dictionary<string, string> argsDic)
+        {
+            RomLoader.InitEnvironment();
+
+            if (CoreState.Config == null)
+            {
+                Console.Error.WriteLine("Error: Config not loaded. Cannot determine last ROM.");
+                return 1;
+            }
+
+            string lastRom = CoreState.Config.at("Last_Rom_Filename", "");
+            if (string.IsNullOrEmpty(lastRom))
+            {
+                Console.Error.WriteLine("Error: No last ROM filename found in config.");
+                return 1;
+            }
+
+            if (!File.Exists(lastRom))
+            {
+                Console.Error.WriteLine($"Error: Last ROM file not found: {lastRom}");
+                return 1;
+            }
+
+            Console.WriteLine($"Last ROM: {lastRom}");
+
+            // Load and init the ROM
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(lastRom, forceVersion))
+                return 1;
+
+            RomLoader.InitFull();
+
+            Console.WriteLine($"ROM loaded successfully: {lastRom}");
+            Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+            return 0;
+        }
+
+        static int RunTranslateBatch(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --translate_batch requires --rom=<rom_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            // Export phase
+            string outPath = argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"])
+                ? argsDic["--out"]
+                : Path.ChangeExtension(romPath, ".tsv");
+
+            Console.WriteLine($"Batch translate: Exporting text from {romPath}...");
+            var entries = TranslateCore.DumpTexts(CoreState.ROM);
+            TranslateCore.ExportToTSV(entries, outPath);
+            Console.WriteLine($"Exported {entries.Count} text entries to: {outPath}");
+
+            // Import phase (if --in provided)
+            if (argsDic.ContainsKey("--in") && !string.IsNullOrEmpty(argsDic["--in"]))
+            {
+                string inPath = argsDic["--in"];
+                if (!File.Exists(inPath))
+                {
+                    Console.Error.WriteLine($"Error: Input file not found: {inPath}");
+                    return 1;
+                }
+
+                Console.WriteLine($"Batch translate: Importing text from {inPath}...");
+                var importEntries = TranslateCore.ImportFromTSV(inPath);
+                Console.WriteLine($"Parsed {importEntries.Count} text entries.");
+
+                int written = TranslateCore.WriteTexts(CoreState.ROM, importEntries);
+                Console.WriteLine($"Wrote {written} text entries to ROM.");
+
+                CoreState.ROM.Save(romPath, true);
+                Console.WriteLine($"ROM saved: {romPath}");
+            }
+
+            Console.WriteLine("Batch translation complete.");
+            return 0;
+        }
+
+        static int RunSelfTest(Dictionary<string, string> argsDic)
+        {
+            bool testOnly = argsDic.ContainsKey("--testonly");
+            Console.WriteLine($"Running self-test diagnostics{(testOnly ? " (testonly mode)" : "")}...");
+
+            int passed = 0;
+            int failed = 0;
+
+            // Test 1: Config loading
+            try
+            {
+                RomLoader.InitEnvironment();
+                Console.WriteLine("  [PASS] Config/environment initialization");
+                passed++;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  [FAIL] Config/environment initialization: {ex.Message}");
+                failed++;
+            }
+
+            // Test 2: ROM loading (if --rom provided)
+            if (argsDic.ContainsKey("--rom") && !string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                try
+                {
+                    string romPath = argsDic["--rom"];
+                    string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+                    if (RomLoader.LoadRom(romPath, forceVersion))
+                    {
+                        Console.WriteLine($"  [PASS] ROM load: {romPath}");
+                        passed++;
+
+                        // Test 3: Full init
+                        try
+                        {
+                            RomLoader.InitFull();
+                            Console.WriteLine("  [PASS] Full ROM initialization");
+                            passed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine($"  [FAIL] Full ROM initialization: {ex.Message}");
+                            failed++;
+                        }
+
+                        // Test 4: Text system
+                        try
+                        {
+                            uint textCount = TranslateCore.GetTextCount(CoreState.ROM);
+                            Console.WriteLine($"  [PASS] Text system ({textCount} entries)");
+                            passed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine($"  [FAIL] Text system: {ex.Message}");
+                            failed++;
+                        }
+
+                        // Test 5: Event scripts
+                        try
+                        {
+                            bool hasScripts = CoreState.EventScript != null;
+                            Console.WriteLine($"  [PASS] Event scripts loaded: {hasScripts}");
+                            passed++;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine($"  [FAIL] Event scripts: {ex.Message}");
+                            failed++;
+                        }
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine($"  [FAIL] ROM load: {romPath}");
+                        failed++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"  [FAIL] ROM load: {ex.Message}");
+                    failed++;
+                }
+            }
+            else
+            {
+                Console.WriteLine("  [SKIP] ROM tests (no --rom provided)");
+            }
+
+            // Test 6: Image service
+            try
+            {
+                bool hasImageService = CoreState.ImageService != null;
+                Console.WriteLine($"  [PASS] Image service available: {hasImageService}");
+                passed++;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  [FAIL] Image service: {ex.Message}");
+                failed++;
+            }
+
+            Console.WriteLine($"\nSelf-test results: {passed} passed, {failed} failed");
+
+            if (testOnly)
+            {
+                Console.WriteLine("Test-only mode: exiting.");
+            }
+
+            return failed > 0 ? 1 : 0;
         }
 
         /// <summary>

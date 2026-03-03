@@ -216,6 +216,108 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("forceVersion", src);
         }
 
+        // ------------------------------------------------------------------ New CLI args (cross-platform migration)
+
+        [Fact]
+        public void ParseArgs_LastRomFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--lastrom" });
+            Assert.True(dic.ContainsKey("--lastrom"));
+        }
+
+        [Fact]
+        public void ParseArgs_ForceDetailFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--force-detail" });
+            Assert.True(dic.ContainsKey("--force-detail"));
+        }
+
+        [Fact]
+        public void ParseArgs_TranslateBatchFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--translate_batch", "--rom=test.gba", "--out=texts.tsv" });
+            Assert.True(dic.ContainsKey("--translate_batch"));
+            Assert.Equal("test.gba", dic["--rom"]);
+        }
+
+        [Fact]
+        public void ParseArgs_TestFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--test", "--rom=test.gba" });
+            Assert.True(dic.ContainsKey("--test"));
+        }
+
+        [Fact]
+        public void ParseArgs_TestOnlyFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--testonly", "--rom=test.gba" });
+            Assert.True(dic.ContainsKey("--testonly"));
+        }
+
+        [Fact]
+        public void CliProgram_HasLastRomCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--lastrom", src);
+            Assert.Contains("RunLastRom", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasForceDetailCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--force-detail", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasTranslateBatchCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--translate_batch", src);
+            Assert.Contains("RunTranslateBatch", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasTestCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--test", src);
+            Assert.Contains("RunSelfTest", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasTestOnlyCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--testonly", src);
+        }
+
+        [Fact]
+        public void CliProgram_LastRomReadsConfig()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("Last_Rom_Filename", src);
+        }
+
+        [Fact]
+        public void CliProgram_TranslateBatchExportsAndImports()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("TranslateCore.DumpTexts", src);
+            Assert.Contains("TranslateCore.WriteTexts", src);
+        }
+
+        [Fact]
+        public void CliProgram_HelpShowsNewCommands()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--lastrom", src);
+            Assert.Contains("--force-detail", src);
+            Assert.Contains("--translate_batch", src);
+            Assert.Contains("--test", src);
+            Assert.Contains("--testonly", src);
+        }
+
         private static string GetCliProgramPath()
         {
             var dir = System.AppContext.BaseDirectory;

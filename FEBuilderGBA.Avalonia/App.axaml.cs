@@ -16,6 +16,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run editor smoke test and exit.</summary>
         public static bool SmokeTestMode { get; set; }
 
+        /// <summary>When true, force detailed editor mode (skip easy mode).</summary>
+        public static bool ForceDetailMode { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -69,6 +72,26 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i] == "--smoke-test")
                 {
                     SmokeTestMode = true;
+                }
+                else if (args[i] == "--force-detail")
+                {
+                    ForceDetailMode = true;
+                }
+                else if (args[i] == "--lastrom")
+                {
+                    // Load last ROM from config
+                    if (CoreState.Config != null)
+                    {
+                        string lastRom = CoreState.Config.at("Last_Rom_Filename", "");
+                        if (!string.IsNullOrEmpty(lastRom) && File.Exists(lastRom))
+                        {
+                            StartupRomPath = lastRom;
+                        }
+                    }
+                }
+                else if (args[i].StartsWith("--rom="))
+                {
+                    StartupRomPath = args[i].Substring("--rom=".Length);
                 }
             }
         }

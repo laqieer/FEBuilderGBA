@@ -69,5 +69,23 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Failed to init SystemTextEncoder", cliSource);
             Assert.Contains("Failed to init SystemTextEncoder", MainWindowSource);
         }
+
+        [Fact]
+        public void AppAxamlCs_HasForceDetailFlag()
+        {
+            var appSource = File.ReadAllText(
+                Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "App.axaml.cs"));
+            Assert.Contains("ForceDetailMode", appSource);
+            Assert.Contains("--force-detail", appSource);
+        }
+
+        [Fact]
+        public void AppAxamlCs_HasLastRomSupport()
+        {
+            var appSource = File.ReadAllText(
+                Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "App.axaml.cs"));
+            Assert.Contains("--lastrom", appSource);
+            Assert.Contains("Last_Rom_Filename", appSource);
+        }
     }
 }

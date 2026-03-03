@@ -963,5 +963,163 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OpenChapterTitle_Click", src);
             Assert.Contains("OpenOPClassDemo_Click", src);
         }
+
+        // ================================================================== Migration batch - all new editors
+
+        [Theory]
+        [InlineData("ImagePortrait")]
+        [InlineData("ImagePortraitFE6")]
+        [InlineData("ImageBG")]
+        [InlineData("ImageBattleAnime")]
+        [InlineData("ImageCG")]
+        [InlineData("ImageTSAEditor")]
+        [InlineData("ImagePallet")]
+        [InlineData("EventScript")]
+        [InlineData("EventUnit")]
+        [InlineData("EventBattleTalk")]
+        [InlineData("EventHaiku")]
+        [InlineData("EventForceSortie")]
+        [InlineData("EventAssembler")]
+        [InlineData("ProcsScript")]
+        [InlineData("AIScript")]
+        [InlineData("AIASMCoordinate")]
+        [InlineData("AITarget")]
+        [InlineData("MapEditor")]
+        [InlineData("MapStyleEditor")]
+        [InlineData("MapTerrainBGLookup")]
+        [InlineData("SongTrack")]
+        [InlineData("SongInstrument")]
+        [InlineData("SongExchange")]
+        [InlineData("UnitFE6")]
+        [InlineData("ClassFE6")]
+        [InlineData("ExtraUnit")]
+        [InlineData("TextMain")]
+        [InlineData("CString")]
+        [InlineData("FontEditor")]
+        [InlineData("PatchManager")]
+        [InlineData("SkillAssignmentUnitSkillSystem")]
+        [InlineData("SkillConfigSkillSystem")]
+        [InlineData("WorldMapPath")]
+        [InlineData("WorldMapImage")]
+        [InlineData("Command85Pointer")]
+        [InlineData("OAMSP")]
+        [InlineData("ToolUndo")]
+        [InlineData("ToolFELint")]
+        [InlineData("HexEditor")]
+        [InlineData("DisASM")]
+        [InlineData("GrowSimulator")]
+        [InlineData("Options")]
+        public void MigratedEditor_ViewExists(string editorName)
+        {
+            string viewPath = Path.Combine(AvaloniaDir, "Views", $"{editorName}View.axaml.cs");
+            Assert.True(File.Exists(viewPath), $"View file missing: {viewPath}");
+        }
+
+        [Theory]
+        [InlineData("ImagePortrait")]
+        [InlineData("EventScript")]
+        [InlineData("AIScript")]
+        [InlineData("MapEditor")]
+        [InlineData("SongTrack")]
+        [InlineData("UnitFE6")]
+        [InlineData("TextMain")]
+        [InlineData("PatchManager")]
+        [InlineData("SkillAssignmentUnitSkillSystem")]
+        [InlineData("WorldMapPath")]
+        [InlineData("Command85Pointer")]
+        [InlineData("ToolUndo")]
+        [InlineData("HexEditor")]
+        [InlineData("GrowSimulator")]
+        public void MigratedEditor_ViewModelExists(string editorName)
+        {
+            string vmPath = Path.Combine(AvaloniaDir, "ViewModels", $"{editorName}ViewModel.cs");
+            Assert.True(File.Exists(vmPath), $"ViewModel file missing: {vmPath}");
+        }
+
+        [Theory]
+        [InlineData("ImagePortrait")]
+        [InlineData("EventScript")]
+        [InlineData("AIScript")]
+        [InlineData("MapEditor")]
+        [InlineData("SongTrack")]
+        [InlineData("UnitFE6")]
+        [InlineData("TextMain")]
+        [InlineData("PatchManager")]
+        [InlineData("WorldMapPath")]
+        [InlineData("HexEditor")]
+        public void MigratedEditor_ImplementsIEditorView(string editorName)
+        {
+            string viewPath = Path.Combine(AvaloniaDir, "Views", $"{editorName}View.axaml.cs");
+            var src = File.ReadAllText(viewPath);
+            Assert.Contains("IEditorView", src);
+            Assert.Contains("SelectFirstItem", src);
+            Assert.Contains("NavigateTo", src);
+        }
+
+        [Theory]
+        [InlineData("ImagePortrait")]
+        [InlineData("EventScript")]
+        [InlineData("AIScript")]
+        [InlineData("MapEditor")]
+        [InlineData("SongTrack")]
+        [InlineData("UnitFE6")]
+        [InlineData("TextMain")]
+        [InlineData("PatchManager")]
+        [InlineData("WorldMapPath")]
+        [InlineData("HexEditor")]
+        public void MigratedEditor_HasAxamlFile(string editorName)
+        {
+            string axamlPath = Path.Combine(AvaloniaDir, "Views", $"{editorName}View.axaml");
+            Assert.True(File.Exists(axamlPath), $"AXAML file missing: {axamlPath}");
+        }
+
+        [Fact]
+        public void MainWindow_HasAllMigratedEditorButtons()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            // Image editors
+            Assert.Contains("OpenImagePortrait_Click", src);
+            Assert.Contains("OpenImageBG_Click", src);
+            Assert.Contains("OpenImageTSAEditor_Click", src);
+            // Event editors
+            Assert.Contains("OpenEventScript_Click", src);
+            Assert.Contains("OpenEventUnit_Click", src);
+            Assert.Contains("OpenProcsScript_Click", src);
+            // AI editors
+            Assert.Contains("OpenAIScript_Click", src);
+            Assert.Contains("OpenAITarget_Click", src);
+            // Map editors
+            Assert.Contains("OpenMapEditor_Click", src);
+            Assert.Contains("OpenMapStyleEditor_Click", src);
+            // Audio
+            Assert.Contains("OpenSongTrack_Click", src);
+            Assert.Contains("OpenSongExchange_Click", src);
+            // Tools
+            Assert.Contains("OpenToolUndo_Click", src);
+            Assert.Contains("OpenHexEditor_Click", src);
+            Assert.Contains("OpenDisASM_Click", src);
+            Assert.Contains("OpenOptions_Click", src);
+        }
+
+        [Fact]
+        public void MainWindow_HasAllMigratedEditorClickHandlers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // Verify click handlers exist for migrated categories
+            Assert.Contains("OpenImagePortrait_Click", src);
+            Assert.Contains("OpenEventScript_Click", src);
+            Assert.Contains("OpenAIScript_Click", src);
+            Assert.Contains("OpenMapEditor_Click", src);
+            Assert.Contains("OpenSongTrack_Click", src);
+            Assert.Contains("OpenUnitFE6_Click", src);
+            Assert.Contains("OpenTextMain_Click", src);
+            Assert.Contains("OpenPatchManager_Click", src);
+            Assert.Contains("OpenSkillAssignmentUnitSkillSystem_Click", src);
+            Assert.Contains("OpenWorldMapPath_Click", src);
+            Assert.Contains("OpenCommand85Pointer_Click", src);
+            Assert.Contains("OpenToolUndo_Click", src);
+            Assert.Contains("OpenHexEditor_Click", src);
+            Assert.Contains("OpenOptions_Click", src);
+        }
     }
 }
