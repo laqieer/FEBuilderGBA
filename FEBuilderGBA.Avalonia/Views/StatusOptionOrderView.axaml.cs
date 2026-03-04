@@ -5,17 +5,54 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class StatusOptionOrderView : Window, IEditorView
+    public partial class StatusOptionOrderView : Window, IEditorView, IDataVerifiableView
     {
+        readonly StatusOptionOrderViewModel _vm = new();
+
         public string ViewTitle => "Status Option Order";
-        public bool IsLoaded => false;
+        public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public StatusOptionOrderView()
         {
             InitializeComponent();
+            EntryList.SelectedAddressChanged += OnSelected;
+            Opened += (_, _) => LoadList();
         }
 
-        public void NavigateTo(uint address) { }
-        public void SelectFirstItem() { }
+        void LoadList()
+        {
+            try
+            {
+                var items = _vm.LoadStatusOptionOrderList();
+                EntryList.SetItems(items);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("StatusOptionOrderView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void OnSelected(uint addr)
+        {
+            try
+            {
+                _vm.LoadStatusOptionOrder(addr);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("StatusOptionOrderView.OnSelected failed: {0}", ex.Message);
+            }
+        }
+
+        void UpdateUI()
+        {
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            OptionIdLabel.Text = $"0x{_vm.OptionId:X02} ({_vm.OptionId})";
+        }
+
+        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

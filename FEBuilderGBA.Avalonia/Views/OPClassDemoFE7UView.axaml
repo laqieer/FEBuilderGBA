@@ -5,13 +5,24 @@
         Title="OP Class Demo (FE7U) (Read-Only)" Width="800" Height="500">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="OP Class Demo (FE7U) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <TextBlock Name="UnavailableLabel" Text="" Foreground="Orange" />
+
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID (u8@11):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="ClassIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation Type (u8@12):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="AnimTypeLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Battle Anime (u8@13):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="BattleAnimeLabel" VerticalAlignment="Center" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

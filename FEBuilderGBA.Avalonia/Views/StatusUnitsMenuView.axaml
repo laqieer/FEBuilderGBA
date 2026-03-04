@@ -5,13 +5,23 @@
         Title="Status Units Menu (Read-Only)" Width="800" Height="500">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Status Units Menu (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Order (u32@0):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="OrderLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Text ID (u32@4):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="TextIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Text ID 2 (u32@12):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="TextId2Label" VerticalAlignment="Center" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

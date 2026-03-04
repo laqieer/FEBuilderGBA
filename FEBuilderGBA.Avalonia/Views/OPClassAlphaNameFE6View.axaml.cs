@@ -5,17 +5,57 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPClassAlphaNameFE6View : Window, IEditorView
+    public partial class OPClassAlphaNameFE6View : Window, IEditorView, IDataVerifiableView
     {
+        readonly OPClassAlphaNameFE6ViewModel _vm = new();
+
         public string ViewTitle => "OP Class Alpha Name (FE6)";
-        public bool IsLoaded => false;
+        public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public OPClassAlphaNameFE6View()
         {
             InitializeComponent();
+            EntryList.SelectedAddressChanged += OnSelected;
+            Opened += (_, _) => LoadList();
         }
 
-        public void NavigateTo(uint address) { }
-        public void SelectFirstItem() { }
+        void LoadList()
+        {
+            try
+            {
+                var items = _vm.LoadList();
+                EntryList.SetItems(items);
+                if (!string.IsNullOrEmpty(_vm.UnavailableMessage))
+                    UnavailableLabel.Text = _vm.UnavailableMessage;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OPClassAlphaNameFE6View.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void OnSelected(uint addr)
+        {
+            try
+            {
+                _vm.LoadEntry(addr);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OPClassAlphaNameFE6View.OnSelected failed: {0}", ex.Message);
+            }
+        }
+
+        void UpdateUI()
+        {
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            NamePointerLabel.Text = $"0x{_vm.NamePointer:X08}";
+            AlphaNameLabel.Text = _vm.AlphaName;
+        }
+
+        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }
