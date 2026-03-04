@@ -1,10 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.DisASMDumpAllArgGrepView"
-        Title="Disassembly Dump Grep" Width="600" Height="450"
+        Title="Disassembly Argument Grep" Width="700" Height="500"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Disassembly Dump Grep" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock Text="Disassembly Argument Grep" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
+    <TextBlock Text="Search disassembly output by argument pattern." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
+    <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="Pattern:" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <TextBox x:Name="GrepPatternInput" Width="350" Watermark="Enter search pattern..." />
+      <Button Content="Search" Width="80" Click="Search_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <TextBox x:Name="ResultsBox" IsReadOnly="True" AcceptsReturn="True"
+             FontFamily="Consolas, Courier New, monospace" FontSize="12"
+             TextWrapping="NoWrap" />
+  </DockPanel>
 </Window>

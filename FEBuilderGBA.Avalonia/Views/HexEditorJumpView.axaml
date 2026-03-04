@@ -1,10 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HexEditorJumpView"
-        Title="Hex Editor Jump" Width="600" Height="450"
-        WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Hex Editor Jump" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+        Title="Hex Editor - Jump to Address" Width="400" Height="220"
+        WindowStartupLocation="CenterOwner" CanResize="False">
+  <DockPanel Margin="16">
+    <TextBlock Text="Jump to Address" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
+    <TextBlock Text="Enter a hexadecimal address to jump to (e.g. 0x08000000)." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button Content="Jump" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" VerticalAlignment="Top">
+      <TextBlock Text="Address:" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0" />
+      <TextBox x:Name="AddressInput" Grid.Column="1" Watermark="0x00000000" />
+    </Grid>
+  </DockPanel>
 </Window>

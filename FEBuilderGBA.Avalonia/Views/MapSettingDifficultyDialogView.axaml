@@ -1,10 +1,23 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapSettingDifficultyDialogView"
-        Title="Map Setting - Difficulty" Width="500" Height="400"
-        WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Map Setting - Difficulty" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+        Title="Map Setting - Difficulty" Width="420" Height="320"
+        WindowStartupLocation="CenterOwner" CanResize="False">
+  <DockPanel Margin="16">
+    <TextBlock Text="Difficulty Settings" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
+    <TextBlock Text="Configure the difficulty parameters for this map." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button Content="OK" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <StackPanel Spacing="8" VerticalAlignment="Top">
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+        <TextBlock Text="Difficulty Level:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
+        <NumericUpDown x:Name="DifficultyLevelInput" Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
+        <TextBlock Text="Enemy Level Bonus:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
+        <NumericUpDown x:Name="EnemyLevelBonusInput" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="255" Value="0" />
+      </Grid>
+      <CheckBox x:Name="HardModeCheckBox" Content="Hard Mode Enabled" Margin="0,4,0,0" />
+    </StackPanel>
+  </DockPanel>
 </Window>

@@ -1,10 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HexEditorSearchView"
-        Title="Hex Editor Search" Width="600" Height="450"
-        WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Hex Editor Search" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+        Title="Hex Editor - Search" Width="450" Height="250"
+        WindowStartupLocation="CenterOwner" CanResize="False">
+  <DockPanel Margin="16">
+    <TextBlock Text="Hex Search" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
+    <TextBlock Text="Enter a hex byte pattern to search for (e.g. FF 00 1A 2B)." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
+    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
+      <Button Content="Search" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" VerticalAlignment="Top">
+      <TextBlock Text="Pattern:" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0" />
+      <TextBox x:Name="SearchInput" Grid.Column="1" Watermark="FF 00 1A 2B" />
+    </Grid>
+  </DockPanel>
 </Window>

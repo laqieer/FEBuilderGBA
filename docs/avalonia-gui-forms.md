@@ -3,8 +3,8 @@
 This document lists all GUI forms (views) in `FEBuilderGBA.Avalonia` that are
 accessible from `MainWindow` and tracks their E2E test coverage status.
 
-**Total forms:** 273
-**E2E Covered:** 273 / 273
+**Total forms:** 302
+**E2E Covered:** 302 / 302
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -91,14 +91,14 @@ actual ROM data at the correct addresses and offsets.
 | 53 | MapTileAnimation2View | E2E COVERED | - |
 | 54 | MapLoadFunctionView | E2E COVERED | - |
 | 55 | MapTerrainNameEngView | E2E COVERED | - |
-| 56 | MapEditorAddMapChangeDialogView | E2E COVERED | - |
-| 57 | MapEditorMarSizeDialogView | E2E COVERED | - |
-| 58 | MapEditorResizeDialogView | E2E COVERED | - |
-| 59 | MapPointerNewPLISTPopupView | E2E COVERED | - |
-| 60 | MapStyleEditorAppendPopupView | E2E COVERED | - |
-| 61 | MapStyleEditorWarningOverrideView | E2E COVERED | - |
-| 62 | MapStyleEditorImportImageOptionView | E2E COVERED | - |
-| 63 | MapSettingDifficultyDialogView | E2E COVERED | - |
+| 56 | MapEditorAddMapChangeDialogView | E2E COVERED | YES |
+| 57 | MapEditorMarSizeDialogView | E2E COVERED | YES |
+| 58 | MapEditorResizeDialogView | E2E COVERED | YES |
+| 59 | MapPointerNewPLISTPopupView | E2E COVERED | YES |
+| 60 | MapStyleEditorAppendPopupView | E2E COVERED | YES |
+| 61 | MapStyleEditorWarningOverrideView | E2E COVERED | YES |
+| 62 | MapStyleEditorImportImageOptionView | E2E COVERED | YES |
+| 63 | MapSettingDifficultyDialogView | E2E COVERED | YES |
 
 ## Event Script Editors
 
@@ -358,11 +358,11 @@ actual ROM data at the correct addresses and offsets.
 | 250 | LogViewerView | E2E COVERED | - |
 | 251 | GrowSimulatorView | E2E COVERED | - |
 | 252 | OptionsView | E2E COVERED | - |
-| 253 | DisASMDumpAllView | E2E COVERED | - |
-| 254 | DisASMDumpAllArgGrepView | E2E COVERED | - |
-| 255 | HexEditorJumpView | E2E COVERED | - |
-| 256 | HexEditorMarkView | E2E COVERED | - |
-| 257 | HexEditorSearchView | E2E COVERED | - |
+| 253 | DisASMDumpAllView | E2E COVERED | YES |
+| 254 | DisASMDumpAllArgGrepView | E2E COVERED | YES |
+| 255 | HexEditorJumpView | E2E COVERED | YES |
+| 256 | HexEditorMarkView | E2E COVERED | YES |
+| 257 | HexEditorSearchView | E2E COVERED | YES |
 | 258 | PointerToolView | E2E COVERED | - |
 | 259 | PointerToolBatchInputView | E2E COVERED | - |
 | 260 | PointerToolCopyToView | E2E COVERED | - |
