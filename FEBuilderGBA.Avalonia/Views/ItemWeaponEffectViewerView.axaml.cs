@@ -6,8 +6,9 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemWeaponEffectViewerView : Window, IEditorView
+    public partial class ItemWeaponEffectViewerView : Window, IEditorView, IDataVerifiableView
     {
+        public ViewModelBase? DataViewModel => _vm;
         readonly ItemWeaponEffectViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Weapon Effect";

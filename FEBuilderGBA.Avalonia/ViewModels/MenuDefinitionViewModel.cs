@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MenuDefinitionViewModel : ViewModelBase
+    public class MenuDefinitionViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -51,6 +52,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TextId = rom.u16(addr + 4);
             HandlerPtr = rom.u32(addr + 8);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadMenuDefinitionList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["TextId"] = $"0x{TextId:X04}",
+                ["HandlerPtr"] = $"0x{HandlerPtr:X08}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+            };
         }
     }
 }

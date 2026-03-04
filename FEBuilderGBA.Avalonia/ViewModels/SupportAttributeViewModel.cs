@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class SupportAttributeViewModel : ViewModelBase
+    public class SupportAttributeViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _affinityType;
@@ -70,6 +71,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CritAvoidBonus = rom.u8(addr + 6);
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadSupportAttributeList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["AffinityType"] = $"0x{AffinityType:X02}",
+                ["AttackBonus"] = $"0x{AttackBonus:X02}",
+                ["DefenseBonus"] = $"0x{DefenseBonus:X02}",
+                ["HitBonus"] = $"0x{HitBonus:X02}",
+                ["AvoidBonus"] = $"0x{AvoidBonus:X02}",
+                ["CritBonus"] = $"0x{CritBonus:X02}",
+                ["CritAvoidBonus"] = $"0x{CritAvoidBonus:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+            };
         }
     }
 }

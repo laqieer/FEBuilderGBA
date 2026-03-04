@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextViewerView : Window, IEditorView
+    public partial class TextViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly TextViewerViewModel _vm = new();
 
@@ -72,5 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             TextList.SelectFirst();
         }
+
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

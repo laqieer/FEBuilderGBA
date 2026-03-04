@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PortraitViewerView : Window, IEditorView
+    public partial class PortraitViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly PortraitViewerViewModel _vm = new();
 
         public string ViewTitle => "Portrait Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public PortraitViewerView()
         {

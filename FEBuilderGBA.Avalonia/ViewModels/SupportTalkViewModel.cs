@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class SupportTalkViewModel : ViewModelBase
+    public class SupportTalkViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _unitId1;
@@ -67,6 +68,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TextIdA = rom.u16(addr + 8);
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadSupportTalkList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["UnitId1"] = $"0x{UnitId1:X02}",
+                ["UnitId2"] = $"0x{UnitId2:X02}",
+                ["TextIdC"] = $"0x{TextIdC:X04}",
+                ["TextIdB"] = $"0x{TextIdB:X04}",
+                ["TextIdA"] = $"0x{TextIdA:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
+            };
         }
     }
 }

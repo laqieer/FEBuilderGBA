@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ItemEditorViewModel : ViewModelBase
+    public class ItemEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _name = "";
@@ -98,6 +99,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Price = rom.u16(addr + 0x1E);
 
             CanWrite = true;
+        }
+
+        public int GetListCount() => LoadItemList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["NameId"] = $"0x{NameId:X04}",
+                ["DescId"] = $"0x{DescId:X04}",
+                ["UseDescId"] = $"0x{UseDescId:X04}",
+                ["WeaponType"] = $"0x{WeaponType:X02}",
+                ["Rank"] = $"0x{Rank:X02}",
+                ["Might"] = $"0x{Might:X02}",
+                ["Hit"] = $"0x{Hit:X02}",
+                ["Weight"] = $"0x{Weight:X02}",
+                ["Crit"] = $"0x{Crit:X02}",
+                ["Range"] = $"0x{Range:X02}",
+                ["Uses"] = $"0x{Uses:X02}",
+                ["Price"] = $"0x{Price:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 0x07):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 0x11):X02}",
+                ["u8@0x17"] = $"0x{rom.u8(a + 0x17):X02}",
+                ["u8@0x18"] = $"0x{rom.u8(a + 0x18):X02}",
+                ["u8@0x19"] = $"0x{rom.u8(a + 0x19):X02}",
+                ["u8@0x1A"] = $"0x{rom.u8(a + 0x1A):X02}",
+                ["u8@0x1B"] = $"0x{rom.u8(a + 0x1B):X02}",
+                ["u8@0x1C"] = $"0x{rom.u8(a + 0x1C):X02}",
+                ["u16@0x1E"] = $"0x{rom.u16(a + 0x1E):X04}",
+            };
         }
 
         public void WriteItem()

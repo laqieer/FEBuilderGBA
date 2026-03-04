@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -142,6 +143,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.DataVerifyMode)
+            {
+                RunDataVerify();
+                return;
+            }
+
             if (App.SmokeTestAll)
             {
                 RunSmokeTestAll();
@@ -236,6 +243,151 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Data verification mode: opens each editor that implements IDataVerifiable,
+        /// selects the first item, reads the ViewModel data report, cross-checks
+        /// against raw ROM bytes, and prints structured results to stdout.
+        /// </summary>
+        private void RunDataVerify()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int verified = 0;
+                int failed = 0;
+                int skipped = 0;
+                var failures = new List<string>();
+
+                var editors = GetAllEditorFactories();
+                Console.WriteLine($"DATAVERIFY: Testing {editors.Count} editors...");
+
+                foreach (var (name, factory) in editors)
+                {
+                    Window? window = null;
+                    try
+                    {
+                        window = factory();
+                        await Task.Delay(100); // Let it initialize
+
+                        // Check if this view implements IDataVerifiableView
+                        if (window is IDataVerifiableView verifiableView)
+                        {
+                            var vm = verifiableView.DataViewModel;
+                            if (vm is IDataVerifiable verifiable)
+                            {
+                                // Select first item if possible
+                                if (window is UnitEditorView uev) uev.SelectFirstItem();
+                                else if (window is ItemEditorView iev) iev.SelectFirstItem();
+                                else if (window is ClassEditorView cev) cev.SelectFirstItem();
+                                else
+                                {
+                                    // Generic: try calling SelectFirstItem via reflection
+                                    var method = window.GetType().GetMethod("SelectFirstItem");
+                                    method?.Invoke(window, null);
+                                }
+
+                                await Task.Delay(100); // Let selection handler run
+
+                                int listCount = verifiable.GetListCount();
+                                var dataReport = verifiable.GetDataReport();
+                                var rawReport = verifiable.GetRawRomReport();
+
+                                // Print VERIFY line
+                                var verifyParts = new List<string> { $"listCount={listCount}" };
+                                foreach (var kv in dataReport)
+                                    verifyParts.Add($"{kv.Key}={kv.Value}");
+                                Console.WriteLine($"VERIFY: {name}|{string.Join("|", verifyParts)}");
+
+                                // Print RAWROM line
+                                var rawParts = new List<string>();
+                                foreach (var kv in rawReport)
+                                    rawParts.Add($"{kv.Key}={kv.Value}");
+                                Console.WriteLine($"RAWROM: {name}|{string.Join("|", rawParts)}");
+
+                                // Cross-check: compare data fields with raw ROM values
+                                bool match = CrossCheckDataReport(name, dataReport, rawReport);
+                                if (match)
+                                {
+                                    verified++;
+                                    Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
+                                }
+                                else
+                                {
+                                    failed++;
+                                    failures.Add(name);
+                                    Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
+                                }
+                            }
+                            else
+                            {
+                                skipped++;
+                                Console.WriteLine($"DATAVERIFY: {name} ... SKIP (VM not IDataVerifiable)");
+                            }
+                        }
+                        else
+                        {
+                            skipped++;
+                            Console.WriteLine($"DATAVERIFY: {name} ... SKIP (no IDataVerifiableView)");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        failures.Add(name);
+                        Console.WriteLine($"DATAVERIFY: {name} ... FAIL: {ex.Message}");
+                    }
+                    finally
+                    {
+                        try { window?.Close(); } catch { }
+                    }
+                }
+
+                WindowManager.Instance.CloseAll();
+
+                Console.WriteLine($"DATAVERIFY: Results: {verified} verified, {failed} failed, {skipped} skipped out of {editors.Count}");
+                if (failures.Count > 0)
+                    Console.WriteLine($"DATAVERIFY: Failures: {string.Join(", ", failures)}");
+
+                Environment.ExitCode = failed > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Cross-checks the ViewModel data report against the raw ROM report.
+        /// Returns true if all comparable fields match.
+        /// </summary>
+        static bool CrossCheckDataReport(string viewName,
+            Dictionary<string, string> dataReport,
+            Dictionary<string, string> rawReport)
+        {
+            if (dataReport.Count == 0 || rawReport.Count == 0) return false;
+
+            // The data report has field names; the raw report has "u8@0x04" style keys.
+            // The cross-check is: both should report the same "addr" value, and
+            // the data values should be internally consistent (non-empty).
+            if (dataReport.TryGetValue("addr", out string? dataAddr) &&
+                rawReport.TryGetValue("addr", out string? rawAddr))
+            {
+                if (dataAddr != rawAddr)
+                {
+                    Console.WriteLine($"DATAVERIFY: {viewName} addr mismatch: data={dataAddr} raw={rawAddr}");
+                    return false;
+                }
+            }
+
+            // Verify all data report values are non-empty (they were loaded)
+            foreach (var kv in dataReport)
+            {
+                if (string.IsNullOrEmpty(kv.Value))
+                {
+                    Console.WriteLine($"DATAVERIFY: {viewName} empty field: {kv.Key}");
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>

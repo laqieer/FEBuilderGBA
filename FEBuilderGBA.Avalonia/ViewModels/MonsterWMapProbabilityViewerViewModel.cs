@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MonsterWMapProbabilityViewerViewModel : ViewModelBase
+    public class MonsterWMapProbabilityViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -46,6 +47,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             BasePointId = rom.u8(addr);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadMonsterWMapProbabilityList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["BasePointId"] = $"0x{BasePointId:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a):X02}",
+            };
         }
     }
 }

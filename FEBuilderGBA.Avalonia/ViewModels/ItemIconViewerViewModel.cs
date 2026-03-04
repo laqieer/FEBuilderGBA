@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ItemIconViewerViewModel : ViewModelBase
+    public class ItemIconViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -85,6 +86,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return image.GetPixelData();
             }
             catch { return null; }
+        }
+
+        public int GetListCount() => LoadItemIconList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["ImagePointer"] = $"0x{ImagePointer:X08}",
+                ["PalettePointer"] = $"0x{PalettePointer:X08}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["ImagePointer"] = $"0x{rom.RomInfo.system_weapon_icon_pointer:X08}",
+                ["PalettePointer"] = $"0x{rom.RomInfo.system_weapon_icon_palette_pointer:X08}",
+            };
         }
     }
 }

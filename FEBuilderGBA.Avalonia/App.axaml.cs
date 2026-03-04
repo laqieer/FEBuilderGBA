@@ -22,6 +22,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, force detailed editor mode (skip easy mode).</summary>
         public static bool ForceDetailMode { get; set; }
 
+        /// <summary>When true, run data verification mode: open editors, load first item, verify data against raw ROM.</summary>
+        public static bool DataVerifyMode { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -84,6 +87,11 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i] == "--force-detail")
                 {
                     ForceDetailMode = true;
+                }
+                else if (args[i] == "--data-verify")
+                {
+                    SmokeTestMode = true;
+                    DataVerifyMode = true;
                 }
                 else if (args[i] == "--lastrom")
                 {

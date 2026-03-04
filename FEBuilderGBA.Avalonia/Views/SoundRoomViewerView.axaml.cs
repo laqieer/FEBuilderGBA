@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundRoomViewerView : Window, IEditorView
+    public partial class SoundRoomViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SoundRoomViewerViewModel _vm = new();
 
@@ -57,5 +57,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

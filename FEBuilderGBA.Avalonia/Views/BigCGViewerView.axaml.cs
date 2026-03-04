@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BigCGViewerView : Window, IEditorView
+    public partial class BigCGViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly BigCGViewerViewModel _vm = new();
 
         public string ViewTitle => "Big CG Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public BigCGViewerView()
         {

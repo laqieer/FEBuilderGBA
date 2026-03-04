@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class WorldMapBGMViewModel : ViewModelBase
+    public class WorldMapBGMViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -54,6 +55,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SongId1 = rom.u16(addr + 0);
             SongId2 = rom.u16(addr + 2);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadWorldMapBGMList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["SongId1"] = $"0x{SongId1:X04}",
+                ["SongId2"] = $"0x{SongId2:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+            };
         }
     }
 }

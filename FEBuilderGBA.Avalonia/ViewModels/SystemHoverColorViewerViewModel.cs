@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -8,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// The systemhover_gradation_palette_pointer is defined only in WinForms ROMFEINFO,
     /// not in Core, so this viewer shows a placeholder message.
     /// </summary>
-    public class SystemHoverColorViewerViewModel : ViewModelBase
+    public class SystemHoverColorViewerViewModel : ViewModelBase, IDataVerifiable
     {
         bool _isLoaded;
         string _statusMessage = "System hover color data is not available in the cross-platform Core library.";
@@ -33,6 +34,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             StatusMessage = "System hover color/gradation palette data requires the WinForms version.\n"
                 + "This property (systemhover_gradation_palette_pointer) has not been migrated to Core.";
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadHoverColorList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["StatusMessage"] = StatusMessage,
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            // No ROM data available for this stub viewer
+            return new Dictionary<string, string>();
         }
     }
 }

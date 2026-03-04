@@ -7,12 +7,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportUnitEditorView : Window, IEditorView
+    public partial class SupportUnitEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportUnitEditorViewModel _vm = new();
 
         public string ViewTitle => "Support Unit Editor";
         public bool IsLoaded => _vm.CanWrite;
+        public ViewModelBase? DataViewModel => _vm;
 
         public SupportUnitEditorView()
         {

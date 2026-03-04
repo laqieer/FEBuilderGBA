@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class SoundRoomViewerViewModel : ViewModelBase
+    public class SoundRoomViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -69,6 +70,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 TextId = 0;
             }
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadSoundRoomList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["SongId"] = $"0x{SongId:X04}",
+                ["Raw4"] = $"0x{Raw4:X08}",
+                ["Raw8"] = $"0x{Raw8:X08}",
+                ["TextId"] = $"0x{TextId:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            uint dataSize = rom.RomInfo.sound_room_datasize;
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+            };
+            if (dataSize >= 16)
+            {
+                report["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}";
+            }
+            return report;
         }
     }
 }

@@ -83,6 +83,9 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba
 # Run Avalonia smoke test (loads ROM, opens editors, selects items, verifies no crash)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --smoke-test
 
+# Run Avalonia data verification (loads ROM, opens editors, cross-checks ViewModel data vs raw ROM)
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --data-verify
+
 # Cross-platform publish (self-contained)
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
 
@@ -133,6 +136,7 @@ FEBuilderGBA.sln
   - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
   - Avalonia editor smoke tests: Unit/Item editor selection (× 5 ROMs — skipped without ROMs)
   - Avalonia all-editors smoke test: all 185 GUI editors open/close (× 5 ROMs — skipped without ROMs)
+  - Avalonia data verification: `--data-verify` mode cross-checks ViewModel fields against raw ROM bytes for 50+ editors (× 5 ROMs — skipped without ROMs)
 
 ## E2E Automation Tests
 

@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class TextViewerViewModel : ViewModelBase
+    public class TextViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentId;
         string _decodedText = "";
@@ -64,6 +65,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 DecodedText = "(decode error)";
             }
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadTextList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["CurrentId"] = $"0x{CurrentId:X04}",
+                ["DecodedText"] = DecodedText ?? "",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || CurrentId == 0) return new Dictionary<string, string>();
+            uint textPtr = rom.RomInfo.text_pointer;
+            if (textPtr == 0) return new Dictionary<string, string>();
+            uint baseAddr = rom.p32(textPtr);
+            if (!U.isSafetyOffset(baseAddr)) return new Dictionary<string, string>();
+            uint a = (uint)(baseAddr + CurrentId * 4);
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a):X08}",
+            };
         }
     }
 }

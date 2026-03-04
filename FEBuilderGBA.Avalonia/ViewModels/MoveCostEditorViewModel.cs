@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MoveCostEditorViewModel : ViewModelBase
+    public class MoveCostEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _className = "";
@@ -109,6 +110,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             MoveCosts = costs;
             CanWrite = true;
+        }
+
+        public int GetListCount() => LoadClassList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+            };
+            for (int i = 0; i < MoveCosts.Length; i++)
+            {
+                report[$"MoveCost[0x{i:X02}]"] = $"0x{MoveCosts[i]:X02}";
+            }
+            return report;
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+            };
+
+            // Read the move cost pointer from class struct
+            uint moveCostPtrOffset = (rom.RomInfo.version == 6) ? 52u : 48u;
+            if (a + moveCostPtrOffset + 3 < (uint)rom.Data.Length)
+            {
+                report[$"u32@0x{moveCostPtrOffset:X02}"] = $"0x{rom.u32(a + moveCostPtrOffset):X08}";
+            }
+            return report;
         }
     }
 }

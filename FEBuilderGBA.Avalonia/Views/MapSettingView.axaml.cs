@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapSettingView : Window, IEditorView
+    public partial class MapSettingView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapSettingViewModel _vm = new();
 
         public string ViewTitle => "Map Settings";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapSettingView()
         {

@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventCondView : Window, IEditorView
+    public partial class EventCondView : Window, IEditorView, IDataVerifiableView
     {
         readonly EventCondViewModel _vm = new();
 
         public string ViewTitle => "Event Condition";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public EventCondView()
         {

@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MenuCommandViewModel : ViewModelBase
+    public class MenuCommandViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -80,6 +81,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EffectPtr = rom.u32(addr + 0x10);
             MenuCommandId = rom.u16(addr + 0x12);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadMenuCommandList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["UsabilityPtr"] = $"0x{UsabilityPtr:X08}",
+                ["EffectPtr"] = $"0x{EffectPtr:X08}",
+                ["MenuCommandId"] = $"0x{MenuCommandId:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x0C"] = $"0x{rom.u32(a + 0xC):X08}",
+                ["u32@0x10"] = $"0x{rom.u32(a + 0x10):X08}",
+                ["u16@0x12"] = $"0x{rom.u16(a + 0x12):X04}",
+            };
         }
     }
 }

@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class EDStaffRollViewModel : ViewModelBase
+    public class EDStaffRollViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -51,6 +52,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DataPointer = rom.u32(addr);
             PalettePointer = rom.u32(addr + 4);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadEDStaffRollList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["DataPointer"] = $"0x{DataPointer:X08}",
+                ["PalettePointer"] = $"0x{PalettePointer:X08}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+            };
         }
     }
 }

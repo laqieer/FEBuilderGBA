@@ -7,12 +7,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveCostEditorView : Window, IEditorView
+    public partial class MoveCostEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly MoveCostEditorViewModel _vm = new();
 
         public string ViewTitle => "Move Cost Editor";
         public bool IsLoaded => _vm.CanWrite;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MoveCostEditorView()
         {

@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SystemHoverColorViewerView : Window, IEditorView
+    public partial class SystemHoverColorViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SystemHoverColorViewerViewModel _vm = new();
 
         public string ViewTitle => "System Hover Color Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public SystemHoverColorViewerView()
         {

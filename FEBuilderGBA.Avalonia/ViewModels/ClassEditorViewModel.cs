@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ClassEditorViewModel : ViewModelBase
+    public class ClassEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _name = "";
@@ -102,6 +103,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Mov = rom.u8(addr + 17);
 
             CanWrite = true;
+        }
+
+        public int GetListCount() => LoadClassList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["NameId"] = $"0x{NameId:X04}",
+                ["DescId"] = $"0x{DescId:X04}",
+                ["ClassNumber"] = $"0x{ClassNumber:X02}",
+                ["BaseHp"] = $"0x{BaseHp:X02}",
+                ["BaseStr"] = $"0x{BaseStr:X02}",
+                ["BaseSkl"] = $"0x{BaseSkl:X02}",
+                ["BaseSpd"] = $"0x{BaseSpd:X02}",
+                ["BaseDef"] = $"0x{BaseDef:X02}",
+                ["BaseRes"] = $"0x{BaseRes:X02}",
+                ["Mov"] = $"0x{Mov:X02}",
+                ["GrowHp"] = $"0x{GrowHp:X02}",
+                ["GrowStr"] = $"0x{GrowStr:X02}",
+                ["GrowSkl"] = $"0x{GrowSkl:X02}",
+                ["GrowSpd"] = $"0x{GrowSpd:X02}",
+                ["GrowDef"] = $"0x{GrowDef:X02}",
+                ["GrowRes"] = $"0x{GrowRes:X02}",
+                ["GrowLck"] = $"0x{GrowLck:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
+                ["u8@0x1C"] = $"0x{rom.u8(a + 28):X02}",
+                ["u8@0x1D"] = $"0x{rom.u8(a + 29):X02}",
+                ["u8@0x1E"] = $"0x{rom.u8(a + 30):X02}",
+                ["u8@0x1F"] = $"0x{rom.u8(a + 31):X02}",
+                ["u8@0x20"] = $"0x{rom.u8(a + 32):X02}",
+                ["u8@0x21"] = $"0x{rom.u8(a + 33):X02}",
+            };
         }
 
         public void WriteClass()

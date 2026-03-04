@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MapSettingViewModel : ViewModelBase
+    public class MapSettingViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _name = "";
@@ -80,6 +81,49 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadMapSettingList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["TilesetPLIST"] = $"0x{TilesetPLIST:X02}",
+                ["MapPLIST"] = $"0x{MapPLIST:X02}",
+                ["PalettePLIST"] = $"0x{PalettePLIST:X02}",
+                ["Weather"] = $"0x{Weather:X02}",
+                ["ChapterNameId"] = $"0x{ChapterNameId:X04}",
+                ["ObjType"] = $"0x{ObjType:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+            };
+            if (rom.RomInfo.version == 6)
+            {
+                report["u16@0x00"] = $"0x{rom.u16(a + 0):X04}";
+            }
+            else
+            {
+                report["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}";
+                uint dataSize = rom.RomInfo.map_setting_datasize;
+                if (dataSize >= 0x74)
+                    report["u16@0x70"] = $"0x{rom.u16(a + 0x70):X04}";
+            }
+            return report;
         }
     }
 }

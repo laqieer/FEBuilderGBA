@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class CCBranchEditorViewModel : ViewModelBase
+    public class CCBranchEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _className = "";
@@ -94,6 +95,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             rom.write_u8(CurrentAddr + 0, PromotionClass1);
             rom.write_u8(CurrentAddr + 1, PromotionClass2);
+        }
+
+        public int GetListCount() => LoadCCBranchList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["PromotionClass1"] = $"0x{PromotionClass1:X02}",
+                ["PromotionClass2"] = $"0x{PromotionClass2:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+            };
         }
     }
 }

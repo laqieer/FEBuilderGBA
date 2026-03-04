@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class SupportUnitEditorViewModel : ViewModelBase
+    public class SupportUnitEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _unitName = "";
@@ -129,6 +130,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             Supports = supports;
             CanWrite = true;
+        }
+
+        public int GetListCount() => LoadSupportUnitList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+            };
+            foreach (var s in Supports)
+            {
+                report[$"Partner[{s.Index}].Id"] = $"0x{s.PartnerId:X02}";
+            }
+            return report;
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+            };
+            // Read raw bytes for partner entries (each 2 bytes)
+            for (int i = 0; i < 7; i++)
+            {
+                uint offset = (uint)(i * 2);
+                if (a + offset + 1 >= (uint)rom.Data.Length) break;
+                report[$"u8@0x{offset:X02}"] = $"0x{rom.u8(a + offset):X02}";
+            }
+            return report;
         }
     }
 }

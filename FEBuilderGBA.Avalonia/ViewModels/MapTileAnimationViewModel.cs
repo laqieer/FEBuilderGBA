@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MapTileAnimationViewModel : ViewModelBase
+    public class MapTileAnimationViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _animPointer;
@@ -84,6 +85,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadMapTileAnimationList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["AnimPointer"] = $"0x{AnimPointer:X08}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+            };
         }
     }
 }

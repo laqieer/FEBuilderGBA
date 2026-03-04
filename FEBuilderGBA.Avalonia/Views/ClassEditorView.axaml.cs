@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassEditorView : Window, IEditorView
+    public partial class ClassEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly ClassEditorViewModel _vm = new();
 
@@ -94,6 +94,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.WriteClass();
             CoreState.Services.ShowInfo("Class data written.");
         }
+
+        public ViewModelBase? DataViewModel => _vm;
 
         public void SelectFirstItem()
         {

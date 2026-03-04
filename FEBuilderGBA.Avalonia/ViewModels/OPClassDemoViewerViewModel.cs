@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class OPClassDemoViewerViewModel : ViewModelBase
+    public class OPClassDemoViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -51,6 +52,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AnimationType = rom.u8(addr + 0x0F);
             BattleAnime = rom.u8(addr + 16);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadOPClassDemoList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["ClassId"] = $"0x{ClassId:X02}",
+                ["AnimationType"] = $"0x{AnimationType:X02}",
+                ["BattleAnime"] = $"0x{BattleAnime:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 0x0F):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+            };
         }
     }
 }

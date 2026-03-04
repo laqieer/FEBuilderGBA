@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BattleBGViewerView : Window, IEditorView
+    public partial class BattleBGViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly BattleBGViewerViewModel _vm = new();
 
         public string ViewTitle => "Battle Background Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public BattleBGViewerView()
         {

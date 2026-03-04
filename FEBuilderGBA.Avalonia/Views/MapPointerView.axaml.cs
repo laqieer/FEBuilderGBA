@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapPointerView : Window, IEditorView
+    public partial class MapPointerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapPointerViewModel _vm = new();
 
         public string ViewTitle => "Map Pointer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapPointerView()
         {

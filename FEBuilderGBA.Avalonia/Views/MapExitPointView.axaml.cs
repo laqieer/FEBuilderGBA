@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapExitPointView : Window, IEditorView
+    public partial class MapExitPointView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapExitPointViewModel _vm = new();
 
         public string ViewTitle => "Map Exit Point";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapExitPointView()
         {

@@ -6,8 +6,9 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemPromotionViewerView : Window, IEditorView
+    public partial class ItemPromotionViewerView : Window, IEditorView, IDataVerifiableView
     {
+        public ViewModelBase? DataViewModel => _vm;
         readonly ItemPromotionViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Promotion";

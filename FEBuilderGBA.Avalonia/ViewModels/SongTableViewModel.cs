@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class SongTableViewModel : ViewModelBase
+    public class SongTableViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _songIndex;
@@ -70,6 +71,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadSongList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["HeaderPointer"] = $"0x{HeaderPointer:X08}",
+                ["TrackCount"] = $"0x{TrackCount:X02}",
+                ["Priority"] = $"0x{Priority:X02}",
+                ["Reverb"] = $"0x{Reverb:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+            };
         }
     }
 }

@@ -6,8 +6,9 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemShopViewerView : Window, IEditorView
+    public partial class ItemShopViewerView : Window, IEditorView, IDataVerifiableView
     {
+        public ViewModelBase? DataViewModel => _vm;
         readonly ItemShopViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Shop";

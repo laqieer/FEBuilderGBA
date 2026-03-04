@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class CCBranchEditorView : Window, IEditorView
+    public partial class CCBranchEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly CCBranchEditorViewModel _vm = new();
 
         public string ViewTitle => "CC Branch Editor";
         public bool IsLoaded => _vm.CanWrite;
+        public ViewModelBase? DataViewModel => _vm;
 
         public CCBranchEditorView()
         {

@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class WorldMapPointViewModel : ViewModelBase
+    public class WorldMapPointViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
@@ -56,6 +57,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Y = rom.u16(addr + 2);
             NameTextId = rom.u16(addr + 28);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadWorldMapPointList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["X"] = $"0x{X:X04}",
+                ["Y"] = $"0x{Y:X04}",
+                ["NameTextId"] = $"0x{NameTextId:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u16@0x1C"] = $"0x{rom.u16(a + 28):X04}",
+            };
         }
     }
 }

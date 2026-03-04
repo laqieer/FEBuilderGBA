@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPPrologueViewerView : Window, IEditorView
+    public partial class OPPrologueViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPPrologueViewerViewModel _vm = new();
 
         public string ViewTitle => "OP Prologue Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public OPPrologueViewerView()
         {

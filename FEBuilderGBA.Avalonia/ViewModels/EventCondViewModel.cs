@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class EventCondViewModel : ViewModelBase
+    public class EventCondViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _mapDataSize;
@@ -54,6 +55,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             RawBytes = sb.ToString();
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadEventCondList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["MapDataSize"] = $"0x{MapDataSize:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            uint bytesToRead = Math.Min(MapDataSize, 32);
+            if (a + bytesToRead > (uint)rom.Data.Length)
+                bytesToRead = (uint)rom.Data.Length - a;
+            var report = new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+            };
+            for (uint i = 0; i < bytesToRead; i++)
+            {
+                report[$"u8@0x{i:X02}"] = $"0x{rom.u8(a + i):X02}";
+            }
+            return report;
         }
     }
 }

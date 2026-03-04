@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitEditorView : Window, IEditorView
+    public partial class UnitEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly UnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -100,6 +100,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
             }
         }
+
+        public ViewModelBase? DataViewModel => _vm;
 
         /// <summary>Select the first item in the list (for smoke testing).</summary>
         public void SelectFirstItem()

@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MenuCommandView : Window, IEditorView
+    public partial class MenuCommandView : Window, IEditorView, IDataVerifiableView
     {
         readonly MenuCommandViewModel _vm = new();
 
         public string ViewTitle => "Menu Command";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MenuCommandView()
         {

@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OPClassFontViewerView : Window, IEditorView
+    public partial class OPClassFontViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPClassFontViewerViewModel _vm = new();
 
         public string ViewTitle => "OP Class Font Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public OPClassFontViewerView()
         {

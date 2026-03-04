@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MonsterWMapProbabilityViewerView : Window, IEditorView
+    public partial class MonsterWMapProbabilityViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MonsterWMapProbabilityViewerViewModel _vm = new();
 
@@ -54,5 +54,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

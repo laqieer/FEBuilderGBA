@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTableView : Window, IEditorView
+    public partial class SongTableView : Window, IEditorView, IDataVerifiableView
     {
         readonly SongTableViewModel _vm = new();
 
@@ -64,5 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             SongList.SelectFirst();
         }
+
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

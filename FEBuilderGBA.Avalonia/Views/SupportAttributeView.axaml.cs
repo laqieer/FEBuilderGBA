@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportAttributeView : Window, IEditorView
+    public partial class SupportAttributeView : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportAttributeViewModel _vm = new();
 
@@ -67,5 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             EntryList.SelectFirst();
         }
+
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

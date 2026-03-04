@@ -6,13 +6,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SystemIconViewerView : Window, IEditorView
+    public partial class SystemIconViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SystemIconViewerViewModel _vm = new();
         uint _selectedIndex;
 
         public string ViewTitle => "System Icon Viewer";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public SystemIconViewerView()
         {

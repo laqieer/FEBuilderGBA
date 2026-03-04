@@ -4,7 +4,7 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class UnitEditorViewModel : ViewModelBase
+    public class UnitEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _selectedId;
@@ -105,6 +105,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             CanWrite = true;
+        }
+
+        public int GetListCount() => LoadUnitList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["NameId"] = $"0x{NameId:X04}",
+                ["ClassId"] = $"0x{ClassId:X02}",
+                ["Level"] = $"0x{Level:X02}",
+                ["HP"] = $"0x{HP:X02}",
+                ["Str"] = $"0x{Str:X02}",
+                ["Skl"] = $"0x{Skl:X02}",
+                ["Spd"] = $"0x{Spd:X02}",
+                ["Def"] = $"0x{Def:X02}",
+                ["Res"] = $"0x{Res:X02}",
+                ["Lck"] = $"0x{Lck:X02}",
+                ["Con"] = $"0x{Con:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+            };
         }
 
         public void WriteUnit()

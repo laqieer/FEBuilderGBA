@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TerrainNameEditorView : Window, IEditorView
+    public partial class TerrainNameEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly TerrainNameEditorViewModel _vm = new();
 
         public string ViewTitle => "Terrain Name Editor";
         public bool IsLoaded => _vm.CanWrite;
+        public ViewModelBase? DataViewModel => _vm;
 
         public TerrainNameEditorView()
         {

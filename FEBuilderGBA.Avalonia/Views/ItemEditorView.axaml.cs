@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEditorView : Window, IEditorView
+    public partial class ItemEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly ItemEditorViewModel _vm = new();
 
@@ -82,6 +82,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.WriteItem();
             CoreState.Services.ShowInfo("Item data written.");
         }
+
+        public ViewModelBase? DataViewModel => _vm;
 
         /// <summary>Select the first item in the list (for smoke testing).</summary>
         public void SelectFirstItem()

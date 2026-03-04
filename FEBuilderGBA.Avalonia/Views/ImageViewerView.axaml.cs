@@ -1,9 +1,15 @@
 using global::Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageViewerView : Window
+    public partial class ImageViewerView : Window, IDataVerifiableView
     {
+        readonly ImageViewerViewModel _vm = new();
+
+        public ViewModelBase? DataViewModel => _vm;
+
         public ImageViewerView()
         {
             InitializeComponent();

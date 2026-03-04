@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ItemWeaponTriangleViewerViewModel : ViewModelBase
+    public class ItemWeaponTriangleViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _weaponType1;
@@ -60,6 +61,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Penalty = rom.u8(addr + 3);
 
             IsLoaded = true;
+        }
+
+        public int GetListCount() => LoadItemWeaponTriangleList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["WeaponType1"] = $"0x{WeaponType1:X02}",
+                ["WeaponType2"] = $"0x{WeaponType2:X02}",
+                ["Bonus"] = $"0x{Bonus:X02}",
+                ["Penalty"] = $"0x{Penalty:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+            };
         }
     }
 }
