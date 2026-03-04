@@ -309,7 +309,11 @@ namespace FEBuilderGBA.Avalonia.Views
                                 bool match = CrossCheckDataReport(name, dataReport, rawReport);
 
                                 // UI check: verify NumericUpDown controls display values
-                                bool uiOk = CheckNumericUpDownsDisplayValues(name, window);
+                                // Only check when data was loaded (listCount > 0) — some editors
+                                // have no data for certain ROM versions (e.g. CCBranch on FE6)
+                                bool uiOk = listCount > 0
+                                    ? CheckNumericUpDownsDisplayValues(name, window)
+                                    : true;
 
                                 if (match && uiOk)
                                 {

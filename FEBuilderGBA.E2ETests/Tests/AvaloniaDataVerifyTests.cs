@@ -120,35 +120,37 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
                 ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
 
-            // Core editors with NumericUpDown must have UIVERIFY lines showing OK
+            // Core editors (Unit/Item/Class) exist in all ROM versions
             Assert.Contains("UIVERIFY: UnitEditorView|", stdout);
             Assert.Contains("UIVERIFY: ItemEditorView|", stdout);
             Assert.Contains("UIVERIFY: ClassEditorView|", stdout);
 
-            // None should have emptyNUDs
+            // Core editors must NOT have emptyNUDs
             Assert.DoesNotContain("UIVERIFY: UnitEditorView|emptyNUDs=", stdout);
             Assert.DoesNotContain("UIVERIFY: ItemEditorView|emptyNUDs=", stdout);
             Assert.DoesNotContain("UIVERIFY: ClassEditorView|emptyNUDs=", stdout);
 
-            // No UI_EMPTY failures
+            // No UI_EMPTY failures for any editor
+            // (editors with no data for the current ROM skip the UI check)
             Assert.DoesNotContain("UI_EMPTY", stdout);
         }
 
         /// <summary>
-        /// Verifies that CCBranch and TerrainName editors also display NumericUpDown values.
-        /// These editors had FormatString="X" on ALL their NumericUpDown controls.
+        /// Verifies that CCBranch and TerrainName editors display NumericUpDown values
+        /// on FE8U (where both editors have data). Some ROM versions (FE6) may not
+        /// have CC Branch data, so this test only runs against FE8U.
         /// </summary>
-        [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
-        public void Avalonia_DataVerify_CCBranchAndTerrainDisplayValues(string romName, string? romPath)
+        [SkippableFact]
+        public void Avalonia_DataVerify_CCBranchAndTerrainDisplayValues_FE8U()
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
-            Skip.If(romPath == null, $"{romName} ROM not available");
+            var fe8uPath = RomLocator.FE8U;
+            Skip.If(fe8uPath == null, "FE8U ROM not available");
 
             var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+                ExePath!, $"--rom \"{fe8uPath}\" --data-verify", timeoutMs: 300_000);
 
-            // These editors should also pass UIVERIFY
+            // On FE8U, both editors have data
             Assert.Contains("UIVERIFY: CCBranchEditorView|", stdout);
             Assert.Contains("UIVERIFY: TerrainNameEditorView|", stdout);
 
