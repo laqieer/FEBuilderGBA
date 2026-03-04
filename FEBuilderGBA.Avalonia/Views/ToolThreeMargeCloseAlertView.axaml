@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ToolThreeMargeCloseAlertView"
+        Title="Close Merge" Width="450" Height="200"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Close Merge Comparison" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Continue Merging" Width="130" Click="Cancel_Click" />
+      <Button Content="Discard Changes" Width="130" Click="No_Click" />
+      <Button Content="Force Close" Width="100" Click="Yes_Click" />
+    </StackPanel>
+    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
+               Text="The merge operation is not yet complete. How would you like to proceed?" />
+  </DockPanel>
+</Window>

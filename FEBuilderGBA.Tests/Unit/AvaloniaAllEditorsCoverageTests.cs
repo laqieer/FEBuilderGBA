@@ -1,7 +1,7 @@
 namespace FEBuilderGBA.Tests.Unit
 {
     /// <summary>
-    /// Verifies that all 302 Avalonia editor views opened from MainWindow
+    /// Verifies that all 322 Avalonia editor views opened from MainWindow
     /// are listed in the --smoke-test-all code path and in the documentation.
     /// </summary>
     public class AvaloniaAllEditorsCoverageTests
@@ -81,10 +81,10 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// Verify the doc lists exactly 302 editor views.
+        /// Verify the doc lists exactly 322 editor views.
         /// </summary>
         [Fact]
-        public void Documentation_Lists302Editors()
+        public void Documentation_Lists322Editors()
         {
             var docPath = Path.Combine(SolutionDir, "docs", "avalonia-gui-forms.md");
             var docContent = File.ReadAllText(docPath);
@@ -94,14 +94,14 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\|\s*\d+\s*\|\s*\w+View\s*\|");
             int count = viewPattern.Matches(docContent).Count;
 
-            Assert.Equal(302, count);
+            Assert.Equal(322, count);
         }
 
         /// <summary>
-        /// Verify GetAllEditorFactories has exactly 302 entries.
+        /// Verify GetAllEditorFactories has exactly 322 entries.
         /// </summary>
         [Fact]
-        public void SmokeTestFactories_Has302Entries()
+        public void SmokeTestFactories_Has322Entries()
         {
             var mainWindowSrc = File.ReadAllText(
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
             int count = factoryPattern.Matches(mainWindowSrc).Count;
 
-            Assert.Equal(302, count);
+            Assert.Equal(322, count);
         }
     }
 }

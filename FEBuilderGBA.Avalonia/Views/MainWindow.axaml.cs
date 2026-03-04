@@ -883,6 +883,34 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ToolUndoPopupDialogView", () => wm.Open<ToolUndoPopupDialogView>()),
                 ("OpenLastSelectedFileView", () => wm.Open<OpenLastSelectedFileView>()),
                 ("ToolUpdateDialogView", () => wm.Open<ToolUpdateDialogView>()),
+
+                // === Previously Unregistered On-Disk Views (WU19) ===
+                ("ToolAllWorkSupportView", () => wm.Open<ToolAllWorkSupportView>()),
+                ("ToolProblemReportView", () => wm.Open<ToolProblemReportView>()),
+                ("WorldMapPathMoveEditorView", () => wm.Open<WorldMapPathMoveEditorView>()),
+                ("MantAnimationView", () => wm.Open<MantAnimationView>()),
+                ("RAMRewriteToolView", () => wm.Open<RAMRewriteToolView>()),
+                ("MainSimpleMenuView", () => wm.Open<MainSimpleMenuView>()),
+                ("MainSimpleMenuEventErrorView", () => wm.Open<MainSimpleMenuEventErrorView>()),
+                ("MainSimpleMenuImageSubView", () => wm.Open<MainSimpleMenuImageSubView>()),
+
+                // === Small Dialog/Message Views (WU19-dialogs) ===
+                ("ToolEmulatorSetupMessageView", () => wm.Open<ToolEmulatorSetupMessageView>()),
+                ("ToolThreeMargeCloseAlertView", () => wm.Open<ToolThreeMargeCloseAlertView>()),
+                ("ToolClickWriteFloatControlPanelButtonView", () => wm.Open<ToolClickWriteFloatControlPanelButtonView>()),
+                ("ToolWorkSupport_UpdateQuestionDialogView", () => wm.Open<ToolWorkSupport_UpdateQuestionDialogView>()),
+                ("MainSimpleMenuEventErrorIgnoreErrorView", () => wm.Open<MainSimpleMenuEventErrorIgnoreErrorView>()),
+                ("ToolProblemReportSearchBackupView", () => wm.Open<ToolProblemReportSearchBackupView>()),
+                ("ToolProblemReportSearchSavView", () => wm.Open<ToolProblemReportSearchSavView>()),
+
+                // === Tool Support Views (WU19-tools) ===
+                ("ToolWorkSupportView", () => wm.Open<ToolWorkSupportView>()),
+                ("ToolWorkSupport_SelectUPSView", () => wm.Open<ToolWorkSupport_SelectUPSView>()),
+                ("ToolDiffDebugSelectView", () => wm.Open<ToolDiffDebugSelectView>()),
+
+                // === Specialized Views (WU19-specialized) ===
+                ("SMEPromoListView", () => wm.Open<SMEPromoListView>()),
+                ("ToolRunHintMessageView", () => wm.Open<ToolRunHintMessageView>()),
             };
         }
 

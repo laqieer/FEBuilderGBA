@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffDebugSelectView"
+        Title="Diff Debug Select" Width="700" Height="500"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Diff Debug - Select Backup" FontSize="20" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Compare Selected" Width="140" Click="Compare_Click" />
+      <Button Content="Test Play" Width="100" Click="TestPlay_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+
+    <Grid ColumnDefinitions="*,12,*">
+      <!-- Left: Backup list -->
+      <DockPanel Grid.Column="0">
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,8">
+          <TextBlock Text="Backup List (newest first)" FontWeight="SemiBold" />
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse..." Width="80" Margin="8,0,0,0" Click="BrowseOriginal_Click" />
+            <TextBox Text="{Binding PrefixFilter}" Watermark="Filter prefix..." />
+          </DockPanel>
+        </StackPanel>
+        <ListBox ItemsSource="{Binding BackupList}" SelectedIndex="{Binding SelectedIndex}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding}" FontSize="11" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <!-- Right: Info -->
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="Selected File Info" FontWeight="SemiBold" Margin="0,0,0,8" />
+        <TextBox Text="{Binding SelectedFileInfo}" IsReadOnly="True" AcceptsReturn="True"
+                 TextWrapping="Wrap" VerticalAlignment="Stretch" />
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</Window>

@@ -3,8 +3,8 @@
 This document lists all GUI forms (views) in `FEBuilderGBA.Avalonia` that are
 accessible from `MainWindow` and tracks their E2E test coverage status.
 
-**Total forms:** 302
-**E2E Covered:** 302 / 302
+**Total forms:** 322
+**E2E Covered:** 322 / 322
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -408,3 +408,23 @@ actual ROM data at the correct addresses and offsets.
 | 300 | ToolUpdateDialogView | E2E COVERED | - |
 | 301 | VersionView | E2E COVERED | - |
 | 302 | WelcomeView | E2E COVERED | - |
+| 303 | ToolAllWorkSupportView | E2E COVERED | - |
+| 304 | ToolProblemReportView | E2E COVERED | - |
+| 305 | WorldMapPathMoveEditorView | E2E COVERED | - |
+| 306 | MantAnimationView | E2E COVERED | - |
+| 307 | RAMRewriteToolView | E2E COVERED | - |
+| 308 | MainSimpleMenuView | E2E COVERED | - |
+| 309 | MainSimpleMenuEventErrorView | E2E COVERED | - |
+| 310 | MainSimpleMenuImageSubView | E2E COVERED | - |
+| 311 | ToolEmulatorSetupMessageView | E2E COVERED | - |
+| 312 | ToolThreeMargeCloseAlertView | E2E COVERED | - |
+| 313 | ToolClickWriteFloatControlPanelButtonView | E2E COVERED | - |
+| 314 | ToolWorkSupport_UpdateQuestionDialogView | E2E COVERED | - |
+| 315 | MainSimpleMenuEventErrorIgnoreErrorView | E2E COVERED | - |
+| 316 | ToolProblemReportSearchBackupView | E2E COVERED | - |
+| 317 | ToolProblemReportSearchSavView | E2E COVERED | - |
+| 318 | ToolWorkSupportView | E2E COVERED | - |
+| 319 | ToolWorkSupport_SelectUPSView | E2E COVERED | - |
+| 320 | ToolDiffDebugSelectView | E2E COVERED | - |
+| 321 | SMEPromoListView | E2E COVERED | - |
+| 322 | ToolRunHintMessageView | E2E COVERED | - |

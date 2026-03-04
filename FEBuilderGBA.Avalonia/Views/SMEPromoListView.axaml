@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.SMEPromoListView"
+        Title="SME Promo List" Width="600" Height="400"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="SME Promotion List" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <Grid ColumnDefinitions="200,12,*">
+      <!-- Left: Address list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Entries" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox ItemsSource="{Binding AddressList}" SelectedIndex="{Binding SelectedIndex}" />
+      </DockPanel>
+
+      <!-- Right: Editor -->
+      <StackPanel Grid.Column="2" Spacing="8">
+        <TextBlock Text="Promotion Mapping" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Base Class ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding B0}" Minimum="0" Maximum="255" Margin="0,0,0,4" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Base Class:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ClassName0}" IsReadOnly="True" Margin="0,0,0,4" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Promo Class ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding B1}" Minimum="0" Maximum="255" Margin="0,0,0,4" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Promo Class:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ClassName1}" IsReadOnly="True" />
+        </Grid>
+      </StackPanel>
+    </Grid>
+  </DockPanel>
+</Window>
