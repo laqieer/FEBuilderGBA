@@ -1,10 +1,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.TextBadCharPopupView"
-        Title="Text Bad Character" Width="500" Height="400"
+        Title="Bad Character Warning" Width="500" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Text Bad Character" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Bad Character Warning" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
+      <ScrollViewer>
+        <TextBlock Name="WarningTextBlock" TextWrapping="Wrap" />
+      </ScrollViewer>
+    </Border>
+  </DockPanel>
 </Window>

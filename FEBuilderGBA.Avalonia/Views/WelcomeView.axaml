@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.WelcomeView"
+        Title="Welcome" Width="500" Height="400"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="Welcome to FEBuilderGBA" FontSize="24" FontWeight="Bold" />
+    <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="14" Foreground="Gray" />
+    <Separator Margin="0,8" />
+    <TextBlock Text="Quick Start" FontSize="16" FontWeight="SemiBold" />
+    <TextBlock TextWrapping="Wrap"
+               Text="1. Open a Fire Emblem GBA ROM (.gba) using File > Open ROM." />
+    <TextBlock TextWrapping="Wrap"
+               Text="2. Select an editor from the main window to begin editing." />
+    <TextBlock TextWrapping="Wrap"
+               Text="3. Save your changes and create a UPS patch for distribution." />
+    <Separator Margin="0,8" />
+    <TextBlock TextWrapping="Wrap" Foreground="Gray"
+               Text="Supports FE6 (Binding Blade), FE7 (Blazing Blade), and FE8 (Sacred Stones) in both Japanese and US versions." />
+  </StackPanel>
+</Window>

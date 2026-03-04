@@ -1,19 +1,11 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer2SkillView"
-        Title="Skill Config (FE8N Ver2) (Read-Only)" Width="800" Height="500">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Skill Config (FE8N Ver2) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+        Title="Skill Configuration (FE8N v2)" Width="600" Height="400">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
+    <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
+      <TextBlock TextWrapping="Wrap" Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+    </Border>
+  </StackPanel>
 </Window>

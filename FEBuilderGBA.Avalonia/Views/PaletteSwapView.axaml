@@ -1,10 +1,23 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PaletteSwapView"
-        Title="Palette Swap" Width="600" Height="450"
+        Title="Palette Swap" Width="500" Height="350"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Palette Swap" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Palette Swap" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data." />
+    </Border>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Content="Swap" Width="80" Click="Swap_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+      <TextBlock Text="Source Palette:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
+      <NumericUpDown Grid.Row="0" Grid.Column="1" Name="SourceInput" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
+      <TextBlock Text="Destination Palette:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="DestInput" Minimum="0" Maximum="255" Value="0" />
+    </Grid>
+  </DockPanel>
 </Window>

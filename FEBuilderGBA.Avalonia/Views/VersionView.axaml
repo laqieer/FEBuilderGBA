@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.VersionView"
+        Title="Version Information" Width="400" Height="300"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="FEBuilderGBA" FontSize="24" FontWeight="Bold" />
+    <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="14" Foreground="Gray" />
+    <Separator Margin="0,8" />
+    <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Version:" FontWeight="SemiBold" />
+      <TextBlock Grid.Row="0" Grid.Column="1" Name="VersionLabel" />
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Build Date:" FontWeight="SemiBold" />
+      <TextBlock Grid.Row="1" Grid.Column="1" Name="BuildDateLabel" />
+    </Grid>
+    <Separator Margin="0,8" />
+    <TextBlock Text="A comprehensive ROM hacking suite for Fire Emblem GBA games." TextWrapping="Wrap" />
+  </StackPanel>
+</Window>

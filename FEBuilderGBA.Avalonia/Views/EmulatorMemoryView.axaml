@@ -1,10 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EmulatorMemoryView"
-        Title="Emulator Memory" Width="600" Height="450"
+        Title="Emulator Memory" Width="550" Height="300"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Emulator Memory" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Emulator Memory" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="#FFF8E1">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Platform Notice" FontWeight="Bold" FontSize="14" Foreground="DarkOrange" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version." />
+        <TextBlock TextWrapping="Wrap" Foreground="Gray"
+                   Text="This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality." />
+      </StackPanel>
+    </Border>
+  </DockPanel>
 </Window>

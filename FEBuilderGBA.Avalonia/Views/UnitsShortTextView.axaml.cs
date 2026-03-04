@@ -5,10 +5,12 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitsShortTextView : Window, IEditorView
+    public partial class UnitsShortTextView : Window, IEditorView, IDataVerifiableView
     {
+        readonly UnitsShortTextViewModel _vm = new();
+
         public string ViewTitle => "Units Short Text";
-        public bool IsLoaded => false;
+        public bool IsLoaded => _vm.IsLoaded;
 
         public UnitsShortTextView()
         {
@@ -17,5 +19,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

@@ -1,10 +1,54 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.UwordBitFlagView"
-        Title="Word Bit Flags" Width="500" Height="400"
+        Title="Word Bit Flags (32-bit)" Width="580" Height="620"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Word Bit Flags" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This editor is not yet implemented." Foreground="Gray" />
+  <StackPanel Margin="16" Spacing="6">
+    <TextBlock Text="Word Bit Flags (32-bit)" FontSize="18" FontWeight="Bold" />
+    <TextBlock Name="ValueLabel" Text="Value: 0x00000000" FontSize="14" FontFamily="Consolas" Margin="0,4,0,8" />
+    <Grid ColumnDefinitions="*,*">
+      <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+        <TextBlock Text="Bits 0-15" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <CheckBox Name="Bit0Box"  Content="Bit 0  (0x00000001)" />
+        <CheckBox Name="Bit1Box"  Content="Bit 1  (0x00000002)" />
+        <CheckBox Name="Bit2Box"  Content="Bit 2  (0x00000004)" />
+        <CheckBox Name="Bit3Box"  Content="Bit 3  (0x00000008)" />
+        <CheckBox Name="Bit4Box"  Content="Bit 4  (0x00000010)" />
+        <CheckBox Name="Bit5Box"  Content="Bit 5  (0x00000020)" />
+        <CheckBox Name="Bit6Box"  Content="Bit 6  (0x00000040)" />
+        <CheckBox Name="Bit7Box"  Content="Bit 7  (0x00000080)" />
+        <CheckBox Name="Bit8Box"  Content="Bit 8  (0x00000100)" />
+        <CheckBox Name="Bit9Box"  Content="Bit 9  (0x00000200)" />
+        <CheckBox Name="Bit10Box" Content="Bit 10 (0x00000400)" />
+        <CheckBox Name="Bit11Box" Content="Bit 11 (0x00000800)" />
+        <CheckBox Name="Bit12Box" Content="Bit 12 (0x00001000)" />
+        <CheckBox Name="Bit13Box" Content="Bit 13 (0x00002000)" />
+        <CheckBox Name="Bit14Box" Content="Bit 14 (0x00004000)" />
+        <CheckBox Name="Bit15Box" Content="Bit 15 (0x00008000)" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+        <TextBlock Text="Bits 16-31" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <CheckBox Name="Bit16Box" Content="Bit 16 (0x00010000)" />
+        <CheckBox Name="Bit17Box" Content="Bit 17 (0x00020000)" />
+        <CheckBox Name="Bit18Box" Content="Bit 18 (0x00040000)" />
+        <CheckBox Name="Bit19Box" Content="Bit 19 (0x00080000)" />
+        <CheckBox Name="Bit20Box" Content="Bit 20 (0x00100000)" />
+        <CheckBox Name="Bit21Box" Content="Bit 21 (0x00200000)" />
+        <CheckBox Name="Bit22Box" Content="Bit 22 (0x00400000)" />
+        <CheckBox Name="Bit23Box" Content="Bit 23 (0x00800000)" />
+        <CheckBox Name="Bit24Box" Content="Bit 24 (0x01000000)" />
+        <CheckBox Name="Bit25Box" Content="Bit 25 (0x02000000)" />
+        <CheckBox Name="Bit26Box" Content="Bit 26 (0x04000000)" />
+        <CheckBox Name="Bit27Box" Content="Bit 27 (0x08000000)" />
+        <CheckBox Name="Bit28Box" Content="Bit 28 (0x10000000)" />
+        <CheckBox Name="Bit29Box" Content="Bit 29 (0x20000000)" />
+        <CheckBox Name="Bit30Box" Content="Bit 30 (0x40000000)" />
+        <CheckBox Name="Bit31Box" Content="Bit 31 (0x80000000)" />
+      </StackPanel>
+    </Grid>
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+      <Button Content="OK" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
   </StackPanel>
 </Window>

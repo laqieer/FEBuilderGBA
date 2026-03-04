@@ -1,10 +1,24 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolSubtitleOverlayView"
-        Title="Subtitle Overlay" Width="600" Height="450"
+        Title="Subtitle Overlay" Width="650" Height="450"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Subtitle Overlay" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Subtitle Overlay" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Apply" Click="Apply_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="Subtitle Text:" FontWeight="SemiBold" />
+      <TextBox Name="SubtitleTextBox" AcceptsReturn="True" Height="100"
+               Watermark="Enter subtitle text..." />
+      <TextBlock Text="Preview:" FontWeight="SemiBold" Margin="0,8,0,0" />
+      <Border BorderBrush="Gray" BorderThickness="1" Background="Black" Height="200">
+        <TextBlock Name="PreviewTextBlock" Text="" Foreground="White"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                   Margin="0,0,0,20" FontSize="16" />
+      </Border>
+    </StackPanel>
+  </DockPanel>
 </Window>

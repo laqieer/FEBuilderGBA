@@ -1,10 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PaletteChangeColorsView"
-        Title="Palette Change Colors" Width="600" Height="450"
+        Title="Palette Change Colors" Width="500" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Palette Change Colors" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Palette Change Colors" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values." />
+    </Border>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Content="Apply" Width="80" Click="Apply_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="Color Grid (16 colors):" FontWeight="SemiBold" />
+      <Border Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="12" MinHeight="80">
+        <TextBlock Text="[Palette color grid - 16 color slots]" Foreground="Gray" />
+      </Border>
+      <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,*" Margin="0,4,0,0">
+        <TextBlock Text="R:" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,4,0" />
+        <NumericUpDown Grid.Column="1" Name="RedInput" Minimum="0" Maximum="31" Value="0" Margin="0,0,8,0" />
+        <TextBlock Text="G:" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,4,0" />
+        <NumericUpDown Grid.Column="3" Name="GreenInput" Minimum="0" Maximum="31" Value="0" Margin="0,0,8,0" />
+        <TextBlock Text="B:" VerticalAlignment="Center" Grid.Column="4" Margin="0,0,4,0" />
+        <NumericUpDown Grid.Column="5" Name="BlueInput" Minimum="0" Maximum="31" Value="0" />
+      </Grid>
+    </StackPanel>
+  </DockPanel>
 </Window>

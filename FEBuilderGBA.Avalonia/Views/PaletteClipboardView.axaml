@@ -1,10 +1,25 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PaletteClipboardView"
-        Title="Palette Clipboard" Width="600" Height="450"
+        Title="Palette Clipboard" Width="500" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Palette Clipboard" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Palette Clipboard" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+      <TextBlock TextWrapping="Wrap"
+                 Text="Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use." />
+    </Border>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Content="Copy Current" Click="Copy_Click" />
+      <Button Content="Paste" Click="Paste_Click" />
+      <Button Content="Clear" Click="Clear_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <StackPanel Spacing="8">
+      <TextBlock Text="Clipboard Contents:" FontWeight="SemiBold" />
+      <Border Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="12" MinHeight="60">
+        <TextBlock Name="ClipboardStatusLabel" Text="[No palette data in clipboard]" Foreground="Gray" />
+      </Border>
+    </StackPanel>
+  </DockPanel>
 </Window>

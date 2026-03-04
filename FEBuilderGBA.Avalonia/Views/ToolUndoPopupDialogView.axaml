@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoPopupDialogView"
+        Title="Undo" Width="400" Height="250"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="Undo" FontSize="24" FontWeight="Bold" />
+    <TextBlock Text="Undo Confirmation" FontSize="14" Foreground="Gray" />
+    <Separator Margin="0,8" />
+    <TextBlock TextWrapping="Wrap"
+               Text="Are you sure you want to undo the last operation? This will revert recent changes to the ROM data." />
+    <Separator Margin="0,8" />
+    <TextBlock TextWrapping="Wrap" Foreground="Gray"
+               Text="Note: Undo history is cleared when the ROM is saved or reloaded." />
+  </StackPanel>
+</Window>

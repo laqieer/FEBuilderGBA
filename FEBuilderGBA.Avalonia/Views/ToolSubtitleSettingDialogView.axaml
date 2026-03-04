@@ -1,10 +1,26 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolSubtitleSettingDialogView"
-        Title="Subtitle Setting" Width="600" Height="450"
+        Title="Subtitle Settings" Width="450" Height="350"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Subtitle Setting" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Subtitle Settings" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="OK" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <ScrollViewer>
+      <Grid RowDefinitions="Auto,8,Auto,8,Auto,8,Auto,8,Auto" ColumnDefinitions="Auto,8,*">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Font Name:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="0" Grid.Column="2" Name="FontNameTextBox" Text="Arial" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Font Size:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="2" Grid.Column="2" Name="FontSizeTextBox" Text="16" />
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Font Color:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="4" Grid.Column="2" Name="FontColorTextBox" Text="White" />
+        <TextBlock Grid.Row="6" Grid.Column="0" Text="Background Color:" VerticalAlignment="Center" />
+        <TextBox Grid.Row="6" Grid.Column="2" Name="BackgroundColorTextBox" Text="Black" />
+        <CheckBox Grid.Row="8" Grid.Column="2" Content="Show Background" IsChecked="True" Name="ShowBackgroundCheckBox" />
+      </Grid>
+    </ScrollViewer>
+  </DockPanel>
 </Window>

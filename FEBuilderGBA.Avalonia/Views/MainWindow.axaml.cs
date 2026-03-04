@@ -141,6 +141,14 @@ namespace FEBuilderGBA.Avalonia.Views
             UndoMenuItem.IsEnabled = true;
             LintMenuItem.IsEnabled = true;
 
+            // Show detected ROM version in status bar
+            try
+            {
+                string ver = CoreState.ROM.RomInfo?.VersionToFilename ?? "Unknown";
+                VersionDetectionLabel.Text = $"ROM: {ver}";
+            }
+            catch { VersionDetectionLabel.Text = ""; }
+
             // Remember last opened ROM
             if (CoreState.Config != null)
             {
@@ -838,6 +846,43 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("UbyteBitFlagView", () => wm.Open<UbyteBitFlagView>()),
                 ("UshortBitFlagView", () => wm.Open<UshortBitFlagView>()),
                 ("UwordBitFlagView", () => wm.Open<UwordBitFlagView>()),
+
+                // === Event Templates (WU15) ===
+                ("EventTemplate1View", () => wm.Open<EventTemplate1View>()),
+                ("EventTemplate2View", () => wm.Open<EventTemplate2View>()),
+                ("EventTemplate3View", () => wm.Open<EventTemplate3View>()),
+                ("EventTemplate4View", () => wm.Open<EventTemplate4View>()),
+                ("EventTemplate5View", () => wm.Open<EventTemplate5View>()),
+                ("EventTemplate6View", () => wm.Open<EventTemplate6View>()),
+                ("EventTemplateImplView", () => wm.Open<EventTemplateImplView>()),
+                ("EventFinalSerifFE7View", () => wm.Open<EventFinalSerifFE7View>()),
+                ("EventMoveDataFE7View", () => wm.Open<EventMoveDataFE7View>()),
+                ("EventTalkGroupFE7View", () => wm.Open<EventTalkGroupFE7View>()),
+
+                // === Audio Sub-Forms (WU16) ===
+                ("SongTrackChangeTrackView", () => wm.Open<SongTrackChangeTrackView>()),
+                ("SongTrackAllChangeTrackView", () => wm.Open<SongTrackAllChangeTrackView>()),
+                ("SongTrackImportSelectInstrumentView", () => wm.Open<SongTrackImportSelectInstrumentView>()),
+                ("SongTrackImportWaveView", () => wm.Open<SongTrackImportWaveView>()),
+
+                // === ED/Credits + Item Variants (WU17) ===
+                ("EDFE6View", () => wm.Open<EDFE6View>()),
+                ("EDFE7View", () => wm.Open<EDFE7View>()),
+                ("EDSensekiCommentView", () => wm.Open<EDSensekiCommentView>()),
+                ("ItemStatBonusesSkillSystemsView", () => wm.Open<ItemStatBonusesSkillSystemsView>()),
+                ("ItemStatBonusesVennoView", () => wm.Open<ItemStatBonusesVennoView>()),
+                ("ItemEffectivenessSkillSystemsReworkView", () => wm.Open<ItemEffectivenessSkillSystemsReworkView>()),
+                ("ItemRandomChestView", () => wm.Open<ItemRandomChestView>()),
+                ("MenuExtendSplitMenuView", () => wm.Open<MenuExtendSplitMenuView>()),
+
+                // === App Infrastructure (WU18) ===
+                ("VersionView", () => wm.Open<VersionView>()),
+                ("WelcomeView", () => wm.Open<WelcomeView>()),
+                ("ResourceView", () => wm.Open<ResourceView>()),
+                ("ToolInitWizardView", () => wm.Open<ToolInitWizardView>()),
+                ("ToolUndoPopupDialogView", () => wm.Open<ToolUndoPopupDialogView>()),
+                ("OpenLastSelectedFileView", () => wm.Open<OpenLastSelectedFileView>()),
+                ("ToolUpdateDialogView", () => wm.Open<ToolUpdateDialogView>()),
             };
         }
 
@@ -1400,5 +1445,88 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenSomeClassList_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SomeClassListView>();
         private void OpenVennouWeaponLock_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<VennouWeaponLockView>();
         private void OpenUnitsShortText_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<UnitsShortTextView>();
+
+        // ===================== WU15: Event Templates =====================
+        private void OpenEventTemplate1_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate1View>();
+        private void OpenEventTemplate2_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate2View>();
+        private void OpenEventTemplate3_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate3View>();
+        private void OpenEventTemplate4_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate4View>();
+        private void OpenEventTemplate5_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate5View>();
+        private void OpenEventTemplate6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTemplate6View>();
+        private void OpenEventFinalSerifFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventFinalSerifFE7View>();
+        private void OpenEventMoveDataFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventMoveDataFE7View>();
+        private void OpenEventTalkGroupFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventTalkGroupFE7View>();
+
+        // ===================== WU16: Audio Sub-Forms =====================
+        private void OpenSongTrackChangeTrack_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackChangeTrackView>();
+        private void OpenSongTrackAllChangeTrack_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackAllChangeTrackView>();
+        private void OpenSongTrackImportSelectInstrument_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackImportSelectInstrumentView>();
+        private void OpenSongTrackImportWave_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackImportWaveView>();
+
+        // ===================== WU17: ED/Item Variants =====================
+        private void OpenEDFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EDFE6View>();
+        private void OpenEDFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EDFE7View>();
+        private void OpenEDSensekiComment_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EDSensekiCommentView>();
+        private void OpenItemStatBonusesSkillSystems_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ItemStatBonusesSkillSystemsView>();
+        private void OpenItemStatBonusesVenno_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ItemStatBonusesVennoView>();
+        private void OpenItemEffectivenessSkillSystemsRework_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ItemEffectivenessSkillSystemsReworkView>();
+        private void OpenItemRandomChest_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ItemRandomChestView>();
+        private void OpenMenuExtendSplitMenu_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<MenuExtendSplitMenuView>();
+
+        // ===================== WU19: Help & External Tools =====================
+        private void OnlineManual_Click(object? sender, RoutedEventArgs e)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/wiki") { UseShellExecute = true }); }
+            catch { }
+        }
+
+        private void Discord_Click(object? sender, RoutedEventArgs e)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://discord.gg/febuilder") { UseShellExecute = true }); }
+            catch { }
+        }
+
+        private async void RunEmulator_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("Emulator_Path", "emulator");
+        }
+
+        private async void RunBinaryEditor_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("BinaryEditor_Path", "binary editor");
+        }
+
+        private async void RunSappy_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("Sappy_Path", "Sappy");
+        }
+
+        private async void RunCustomTool_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("CustomTool_Path", "custom tool");
+        }
+
+        private async System.Threading.Tasks.Task RunExternalTool(string configKey, string toolName)
+        {
+            string path = CoreState.Config?.at(configKey, "") ?? "";
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            {
+                await MessageBoxWindow.Show(this,
+                    $"No {toolName} configured. Set the path in Options first.",
+                    "External Tool", MessageBoxMode.Ok);
+                return;
+            }
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
+                if (CoreState.ROM != null && !string.IsNullOrEmpty(CoreState.ROM.Filename))
+                    psi.Arguments = $"\"{CoreState.ROM.Filename}\"";
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                await MessageBoxWindow.Show(this, $"Failed to run {toolName}: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
     }
 }

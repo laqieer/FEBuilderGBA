@@ -8,10 +8,39 @@
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Support Units (FE6) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Partner 0:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="Partner0Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Partner 1:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="Partner1Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Partner 2:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="Partner2Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Partner 3:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="Partner3Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Partner 4:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="Partner4Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Partner 5:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Name="Partner5Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Partner 6:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Name="Partner6Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Partner 7:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="1" Name="Partner7Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Partner 8:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="1" Name="Partner8Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Partner 9:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Name="Partner9Label" VerticalAlignment="Center" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

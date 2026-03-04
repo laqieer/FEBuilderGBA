@@ -1,10 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ErrorUnknownROMView"
-        Title="Unknown ROM Error" Width="500" Height="400"
+        Title="Unknown ROM - Select Version" Width="400" Height="380"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Unknown ROM Error" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Unknown ROM Version" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+    <TextBlock DockPanel.Dock="Top" Text="Could not detect the ROM version automatically. Please select the correct version:" TextWrapping="Wrap" Margin="0,0,0,16" />
+    <StackPanel Spacing="8">
+      <Button Content="FE6 (Binding Blade - Japan)" HorizontalAlignment="Stretch" Height="40" Click="FE6_Click" />
+      <Button Content="FE7J (Blazing Blade - Japan)" HorizontalAlignment="Stretch" Height="40" Click="FE7J_Click" />
+      <Button Content="FE7U (Blazing Blade - US)" HorizontalAlignment="Stretch" Height="40" Click="FE7U_Click" />
+      <Button Content="FE8J (Sacred Stones - Japan)" HorizontalAlignment="Stretch" Height="40" Click="FE8J_Click" />
+      <Button Content="FE8U (Sacred Stones - US)" HorizontalAlignment="Stretch" Height="40" Click="FE8U_Click" />
+      <Button Content="Unknown" HorizontalAlignment="Stretch" Height="40" Click="Unknown_Click" />
+    </StackPanel>
+  </DockPanel>
 </Window>

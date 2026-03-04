@@ -1,19 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.TextDicView"
-        Title="Text Dictionary (Read-Only)" Width="800" Height="500">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Text Dictionary (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+        Title="Text Dictionary" Width="700" Height="500"
+        WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Text Dictionary" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <TextBlock Text="Search:" VerticalAlignment="Center" />
+      <TextBox Name="SearchBox" Width="300" Watermark="Enter search term..." />
+      <Button Content="Search" Click="Search_Click" />
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <ListBox Name="ResultList" />
+  </DockPanel>
 </Window>

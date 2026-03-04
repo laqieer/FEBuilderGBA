@@ -1,10 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PatchFormUninstallDialogView"
-        Title="Patch Uninstall" Width="500" Height="400"
+        Title="Uninstall Patch" Width="450" Height="200"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Patch Uninstall" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Uninstall Patch" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Yes" Width="80" Click="Yes_Click" />
+      <Button Content="No" Width="80" Click="No_Click" />
+    </StackPanel>
+    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center">
+      <Run Text="Are you sure you want to uninstall the patch: " />
+      <Run Text="{Binding PatchName}" FontWeight="Bold" />
+      <Run Text="?" />
+    </TextBlock>
+  </DockPanel>
 </Window>

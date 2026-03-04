@@ -1,10 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HowDoYouLikePatch2View"
-        Title="Patch Feedback (Extended)" Width="500" Height="400"
+        Title="Patch Review (Extended)" Width="550" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Patch Feedback (Extended)" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Patch Review" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Apply" Width="80" Click="Apply_Click" />
+      <Button Content="Skip" Width="80" Click="Skip_Click" />
+    </StackPanel>
+    <ScrollViewer>
+      <TextBlock Name="MessageText" TextWrapping="Wrap" Text="{Binding PatchInfo}" />
+    </ScrollViewer>
+  </DockPanel>
 </Window>

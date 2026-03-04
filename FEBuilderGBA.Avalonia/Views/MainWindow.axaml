@@ -21,15 +21,28 @@
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
+        <Separator />
+        <MenuItem Header="_External Tools">
+          <MenuItem Header="Run _Emulator..." Click="RunEmulator_Click" />
+          <MenuItem Header="Run _Binary Editor..." Click="RunBinaryEditor_Click" />
+          <MenuItem Header="Run _Sappy..." Click="RunSappy_Click" />
+          <MenuItem Header="Run _Custom Tool..." Click="RunCustomTool_Click" />
+        </MenuItem>
       </MenuItem>
       <MenuItem Header="_Help">
+        <MenuItem Header="_Online Manual" Click="OnlineManual_Click" />
+        <MenuItem Header="_Discord Community" Click="Discord_Click" />
+        <Separator />
         <MenuItem Header="_About" Click="About_Click" />
       </MenuItem>
     </Menu>
 
     <!-- Status Bar -->
     <Border DockPanel.Dock="Bottom" Background="#E8E8E8" Padding="8,4">
-      <TextBlock Name="StatusText" Text="No ROM loaded" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Name="StatusText" Text="No ROM loaded" />
+        <TextBlock Grid.Column="1" Name="VersionDetectionLabel" Text="" Foreground="Gray" Margin="8,0,0,0" />
+      </Grid>
     </Border>
 
     <!-- Main Content -->
@@ -139,11 +152,21 @@
             <Button Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
+          <!-- Items (Specialized) -->
+          <TextBlock Text="Items (Specialized)" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Stat Bonuses (Skill)" Click="OpenItemStatBonusesSkillSystems_Click" Margin="4" MinWidth="100" />
+            <Button Content="Stat Bonuses (Venno)" Click="OpenItemStatBonusesVenno_Click" Margin="4" MinWidth="100" />
+            <Button Content="Effectiveness (Rework)" Click="OpenItemEffectivenessSkillSystemsRework_Click" Margin="4" MinWidth="100" />
+            <Button Content="Random Chest" Click="OpenItemRandomChest_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
           <!-- Menus -->
           <TextBlock Text="Menus" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
             <Button Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
+            <Button Content="Split Menu Ext" Click="OpenMenuExtendSplitMenu_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Credits -->
@@ -151,6 +174,9 @@
           <WrapPanel Orientation="Horizontal">
             <Button Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
             <Button Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
+            <Button Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- World Map -->
@@ -215,6 +241,15 @@
             <Button Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
             <Button Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
             <Button Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 1" Click="OpenEventTemplate1_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 2" Click="OpenEventTemplate2_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 3" Click="OpenEventTemplate3_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 4" Click="OpenEventTemplate4_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 5" Click="OpenEventTemplate5_Click" Margin="4" MinWidth="100" />
+            <Button Content="Template 6" Click="OpenEventTemplate6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Final Serif (FE7)" Click="OpenEventFinalSerifFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Move Data (FE7)" Click="OpenEventMoveDataFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Talk Group (FE7)" Click="OpenEventTalkGroupFE7_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- AI Script Editors -->
@@ -263,6 +298,10 @@
             <Button Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
             <Button Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
             <Button Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
+            <Button Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
+            <Button Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
+            <Button Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
+            <Button Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Unit/Class Specialized -->

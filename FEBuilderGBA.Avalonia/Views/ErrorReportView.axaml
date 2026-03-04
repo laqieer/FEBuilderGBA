@@ -1,10 +1,15 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ErrorReportView"
-        Title="Error Report" Width="500" Height="400"
+        Title="Error Report" Width="600" Height="450"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Error Report" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Error Report" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <ScrollViewer>
+      <TextBlock Name="MessageText" TextWrapping="Wrap" Text="{Binding ErrorText}" />
+    </ScrollViewer>
+  </DockPanel>
 </Window>

@@ -2,16 +2,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemFE6View"
-        Title="Items (FE6) (Read-Only)" Width="800" Height="500">
+        Title="Items (FE6) (Read-Only)" Width="800" Height="550">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Items (FE6) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="InfoLabel" Text="Select an entry from the list." Foreground="Gray" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="NameIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Description ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="DescIdLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Description ID 2:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="DescId2Label" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Item Type:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="ItemTypeLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Item Number:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="ItemNumberLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Stat Bonus Ptr:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Name="StatBonusPtrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Effectiveness Ptr:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Name="EffectivenessPtrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Price Per Use:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="1" Name="PricePerUseLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Uses:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="1" Name="UsesLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Weapon Effect:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Name="WeaponEffectLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Decoded Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="11" Grid.Column="1" Name="DecodedNameLabel" VerticalAlignment="Center" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

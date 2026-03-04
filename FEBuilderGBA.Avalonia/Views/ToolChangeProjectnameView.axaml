@@ -1,10 +1,19 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolChangeProjectnameView"
-        Title="Change Project Name" Width="600" Height="450"
+        Title="Change Project Name" Width="450" Height="250"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Change Project Name" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Change Project Name" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="OK" Width="80" Click="OK_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+    <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="Auto,8,*">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Current Name:" VerticalAlignment="Center" />
+      <TextBox Grid.Row="0" Grid.Column="2" Name="CurrentNameTextBox" IsReadOnly="True" />
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="New Name:" VerticalAlignment="Center" />
+      <TextBox Grid.Row="2" Grid.Column="2" Name="NewNameTextBox" Watermark="Enter new project name" />
+    </Grid>
+  </DockPanel>
 </Window>

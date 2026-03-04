@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ToolInitWizardView"
+        Title="Setup Wizard" Width="500" Height="400"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="12">
+    <TextBlock Text="Setup Wizard" FontSize="24" FontWeight="Bold" />
+    <TextBlock Text="Initial Configuration" FontSize="14" Foreground="Gray" />
+    <Separator Margin="0,8" />
+    <TextBlock Text="Setup Steps" FontSize="16" FontWeight="SemiBold" />
+    <TextBlock TextWrapping="Wrap"
+               Text="Step 1: Select your clean Fire Emblem GBA ROM file." />
+    <TextBlock TextWrapping="Wrap"
+               Text="Step 2: Choose your preferred language for the editor interface." />
+    <TextBlock TextWrapping="Wrap"
+               Text="Step 3: Configure paths for external tools (emulators, assemblers)." />
+    <TextBlock TextWrapping="Wrap"
+               Text="Step 4: Review settings and begin editing." />
+    <Separator Margin="0,8" />
+    <TextBlock TextWrapping="Wrap" Foreground="Gray"
+               Text="You can change these settings later from the Options menu." />
+  </StackPanel>
+</Window>

@@ -1,10 +1,26 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MoveToFreeSpaceView"
-        Title="Move to Free Space" Width="600" Height="450"
+        Title="Move to Free Space" Width="600" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Move to Free Space" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Move to Free Space" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Move" Click="Move_Click" />
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+    <ScrollViewer>
+      <StackPanel Spacing="8">
+        <TextBlock Text="This tool relocates data to free ROM space." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,8" />
+        <Grid RowDefinitions="Auto,8,Auto,8,Auto" ColumnDefinitions="Auto,8,*">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Current Address:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="0" Grid.Column="2" Name="CurrentAddressTextBox" Watermark="e.g. 0x08000000" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Free Space Address:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="2" Grid.Column="2" Name="FreeSpaceAddressTextBox" Watermark="e.g. 0x08F00000" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Data Size:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="4" Grid.Column="2" Name="DataSizeTextBox" Watermark="e.g. 0x100" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </Window>

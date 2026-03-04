@@ -3,8 +3,16 @@
         x:Class="FEBuilderGBA.Avalonia.Views.TextToSpeechView"
         Title="Text to Speech" Width="500" Height="400"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Text to Speech" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Text to Speech" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <TextBlock DockPanel.Dock="Top" Text="Enter or paste text to have it read aloud using the system TTS engine." Foreground="Gray" Margin="0,0,0,8" />
+    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,8,0,0">
+      <TextBlock Name="StatusLabel" Text="Ready" Foreground="Gray" />
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button Content="Speak" Width="80" Click="Speak_Click" />
+        <Button Content="Close" Width="80" Click="Close_Click" />
+      </StackPanel>
+    </StackPanel>
+    <TextBox Name="InputTextBox" AcceptsReturn="True" Watermark="Enter text here..." />
+  </DockPanel>
 </Window>

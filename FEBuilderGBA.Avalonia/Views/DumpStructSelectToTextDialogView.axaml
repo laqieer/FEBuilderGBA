@@ -1,10 +1,20 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.DumpStructSelectToTextDialogView"
-        Title="Dump Struct to Text" Width="500" Height="400"
+        Title="Dump Struct to Text" Width="650" Height="500"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Dump Struct to Text" FontSize="18" FontWeight="Bold" />
-    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
-  </StackPanel>
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Text="Dump Struct to Text" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+      <TextBlock Grid.Column="0" Text="File name: " VerticalAlignment="Center" />
+      <TextBox Grid.Column="1" Name="FileNameBox" IsReadOnly="True" />
+    </Grid>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+      <Button Content="Save to File..." Click="Save_Click" />
+      <Button Content="Close" Click="Close_Click" />
+    </StackPanel>
+    <TextBox Name="ContentBox" AcceptsReturn="True" IsReadOnly="True"
+             FontFamily="Consolas" FontSize="12"
+             TextWrapping="Wrap" />
+  </DockPanel>
 </Window>
