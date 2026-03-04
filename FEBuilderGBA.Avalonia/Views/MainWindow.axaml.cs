@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -141,6 +142,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.SmokeTestAll)
+            {
+                RunSmokeTestAll();
+                return;
+            }
+
             try
             {
                 // Test 1: Open Unit Editor and select the first item
@@ -184,6 +191,272 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = 1;
                 Close();
             }
+        }
+
+        /// <summary>
+        /// Smoke test that opens every editor accessible from MainWindow.
+        /// Opens each editor, lets it initialize, then closes it before moving on.
+        /// Reports per-editor pass/fail to stdout.
+        /// </summary>
+        private void RunSmokeTestAll()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int passed = 0;
+                int failed = 0;
+                var failures = new List<string>();
+
+                var editors = GetAllEditorFactories();
+                Console.WriteLine($"SMOKE: Testing {editors.Count} editors...");
+
+                foreach (var (name, factory) in editors)
+                {
+                    try
+                    {
+                        var window = factory();
+                        await Task.Delay(50);  // Let it initialize
+                        try { window.Close(); } catch { }
+                        passed++;
+                        Console.WriteLine($"SMOKE: {name} ... OK");
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        failures.Add(name);
+                        Console.WriteLine($"SMOKE: {name} ... FAIL: {ex.Message}");
+                    }
+                }
+
+                WindowManager.Instance.CloseAll();
+
+                Console.WriteLine($"SMOKE: Results: {passed} passed, {failed} failed out of {editors.Count}");
+                if (failures.Count > 0)
+                    Console.WriteLine($"SMOKE: Failures: {string.Join(", ", failures)}");
+
+                Environment.ExitCode = failed > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Returns a list of (name, factory) pairs for all editors opened from MainWindow.
+        /// </summary>
+        static List<(string Name, Func<Window> Factory)> GetAllEditorFactories()
+        {
+            var wm = WindowManager.Instance;
+            return new List<(string, Func<Window>)>
+            {
+                // Data Editors
+                ("UnitEditorView", () => wm.Open<UnitEditorView>()),
+                ("ItemEditorView", () => wm.Open<ItemEditorView>()),
+                ("ClassEditorView", () => wm.Open<ClassEditorView>()),
+                ("ClassFE6View", () => wm.Open<ClassFE6View>()),
+                ("CCBranchEditorView", () => wm.Open<CCBranchEditorView>()),
+                ("MoveCostEditorView", () => wm.Open<MoveCostEditorView>()),
+                ("TerrainNameEditorView", () => wm.Open<TerrainNameEditorView>()),
+                ("SupportUnitEditorView", () => wm.Open<SupportUnitEditorView>()),
+                ("SupportAttributeView", () => wm.Open<SupportAttributeView>()),
+                ("SupportTalkView", () => wm.Open<SupportTalkView>()),
+                ("UnitFE6View", () => wm.Open<UnitFE6View>()),
+                ("UnitActionPointerView", () => wm.Open<UnitActionPointerView>()),
+                ("UnitCustomBattleAnimeView", () => wm.Open<UnitCustomBattleAnimeView>()),
+                ("UnitIncreaseHeightView", () => wm.Open<UnitIncreaseHeightView>()),
+                ("UnitPaletteView", () => wm.Open<UnitPaletteView>()),
+                ("ClassOPDemoView", () => wm.Open<ClassOPDemoView>()),
+                ("ClassOPFontView", () => wm.Open<ClassOPFontView>()),
+                ("ExtraUnitView", () => wm.Open<ExtraUnitView>()),
+                ("ExtraUnitFE8UView", () => wm.Open<ExtraUnitFE8UView>()),
+
+                // Item Editors
+                ("ItemWeaponEffectViewerView", () => wm.Open<ItemWeaponEffectViewerView>()),
+                ("ItemStatBonusesViewerView", () => wm.Open<ItemStatBonusesViewerView>()),
+                ("ItemEffectivenessViewerView", () => wm.Open<ItemEffectivenessViewerView>()),
+                ("ItemPromotionViewerView", () => wm.Open<ItemPromotionViewerView>()),
+                ("ItemShopViewerView", () => wm.Open<ItemShopViewerView>()),
+                ("ItemWeaponTriangleViewerView", () => wm.Open<ItemWeaponTriangleViewerView>()),
+                ("ItemUsagePointerViewerView", () => wm.Open<ItemUsagePointerViewerView>()),
+                ("ItemEffectPointerViewerView", () => wm.Open<ItemEffectPointerViewerView>()),
+                ("ItemIconViewerView", () => wm.Open<ItemIconViewerView>()),
+
+                // Map Editors
+                ("MapSettingView", () => wm.Open<MapSettingView>()),
+                ("MapChangeView", () => wm.Open<MapChangeView>()),
+                ("MapExitPointView", () => wm.Open<MapExitPointView>()),
+                ("MapPointerView", () => wm.Open<MapPointerView>()),
+                ("MapTileAnimationView", () => wm.Open<MapTileAnimationView>()),
+                ("MapEditorView", () => wm.Open<MapEditorView>()),
+                ("MapSettingFE6View", () => wm.Open<MapSettingFE6View>()),
+                ("MapSettingFE7View", () => wm.Open<MapSettingFE7View>()),
+                ("MapSettingFE7UView", () => wm.Open<MapSettingFE7UView>()),
+                ("MapSettingDifficultyView", () => wm.Open<MapSettingDifficultyView>()),
+                ("MapStyleEditorView", () => wm.Open<MapStyleEditorView>()),
+                ("MapTerrainBGLookupView", () => wm.Open<MapTerrainBGLookupView>()),
+                ("MapTerrainFloorLookupView", () => wm.Open<MapTerrainFloorLookupView>()),
+                ("MapMiniMapTerrainImageView", () => wm.Open<MapMiniMapTerrainImageView>()),
+                ("MapTileAnimation1View", () => wm.Open<MapTileAnimation1View>()),
+                ("MapTileAnimation2View", () => wm.Open<MapTileAnimation2View>()),
+                ("MapLoadFunctionView", () => wm.Open<MapLoadFunctionView>()),
+                ("MapTerrainNameEngView", () => wm.Open<MapTerrainNameEngView>()),
+
+                // Event Script Editors
+                ("EventCondView", () => wm.Open<EventCondView>()),
+                ("EventScriptView", () => wm.Open<EventScriptView>()),
+                ("EventUnitView", () => wm.Open<EventUnitView>()),
+                ("EventUnitFE6View", () => wm.Open<EventUnitFE6View>()),
+                ("EventUnitFE7View", () => wm.Open<EventUnitFE7View>()),
+                ("EventUnitColorView", () => wm.Open<EventUnitColorView>()),
+                ("EventUnitItemDropView", () => wm.Open<EventUnitItemDropView>()),
+                ("EventUnitNewAllocView", () => wm.Open<EventUnitNewAllocView>()),
+                ("EventBattleTalkView", () => wm.Open<EventBattleTalkView>()),
+                ("EventBattleTalkFE6View", () => wm.Open<EventBattleTalkFE6View>()),
+                ("EventBattleTalkFE7View", () => wm.Open<EventBattleTalkFE7View>()),
+                ("EventBattleDataFE7View", () => wm.Open<EventBattleDataFE7View>()),
+                ("EventHaikuView", () => wm.Open<EventHaikuView>()),
+                ("EventHaikuFE6View", () => wm.Open<EventHaikuFE6View>()),
+                ("EventHaikuFE7View", () => wm.Open<EventHaikuFE7View>()),
+                ("EventMapChangeView", () => wm.Open<EventMapChangeView>()),
+                ("EventForceSortieView", () => wm.Open<EventForceSortieView>()),
+                ("EventForceSortieFE7View", () => wm.Open<EventForceSortieFE7View>()),
+                ("EventFunctionPointerView", () => wm.Open<EventFunctionPointerView>()),
+                ("EventFunctionPointerFE7View", () => wm.Open<EventFunctionPointerFE7View>()),
+                ("EventAssemblerView", () => wm.Open<EventAssemblerView>()),
+                ("ProcsScriptView", () => wm.Open<ProcsScriptView>()),
+                ("EventScriptTemplateView", () => wm.Open<EventScriptTemplateView>()),
+
+                // AI Script Editors
+                ("AIScriptView", () => wm.Open<AIScriptView>()),
+                ("AIASMCALLTALKView", () => wm.Open<AIASMCALLTALKView>()),
+                ("AIASMCoordinateView", () => wm.Open<AIASMCoordinateView>()),
+                ("AIASMRangeView", () => wm.Open<AIASMRangeView>()),
+                ("AIMapSettingView", () => wm.Open<AIMapSettingView>()),
+                ("AIPerformItemView", () => wm.Open<AIPerformItemView>()),
+                ("AIPerformStaffView", () => wm.Open<AIPerformStaffView>()),
+                ("AIStealItemView", () => wm.Open<AIStealItemView>()),
+                ("AITargetView", () => wm.Open<AITargetView>()),
+                ("AITilesView", () => wm.Open<AITilesView>()),
+                ("AIUnitsView", () => wm.Open<AIUnitsView>()),
+                ("AOERANGEView", () => wm.Open<AOERANGEView>()),
+
+                // Image Editors
+                ("ImageViewerView", () => wm.Open<ImageViewerView>()),
+                ("PortraitViewerView", () => wm.Open<PortraitViewerView>()),
+                ("ImagePortraitView", () => wm.Open<ImagePortraitView>()),
+                ("ImagePortraitFE6View", () => wm.Open<ImagePortraitFE6View>()),
+                ("ImagePortraitImporterView", () => wm.Open<ImagePortraitImporterView>()),
+                ("ImageBGView", () => wm.Open<ImageBGView>()),
+                ("ImageBattleAnimeView", () => wm.Open<ImageBattleAnimeView>()),
+                ("ImageBattleAnimePalletView", () => wm.Open<ImageBattleAnimePalletView>()),
+                ("ImageBattleBGView", () => wm.Open<ImageBattleBGView>()),
+                ("ImageBattleScreenView", () => wm.Open<ImageBattleScreenView>()),
+                ("ImageCGView", () => wm.Open<ImageCGView>()),
+                ("ImageCGFE7UView", () => wm.Open<ImageCGFE7UView>()),
+                ("ImageUnitPaletteView", () => wm.Open<ImageUnitPaletteView>()),
+                ("ImageUnitWaitIconView", () => wm.Open<ImageUnitWaitIconView>()),
+                ("ImageUnitMoveIconView", () => wm.Open<ImageUnitMoveIconView>()),
+                ("ImageSystemAreaView", () => wm.Open<ImageSystemAreaView>()),
+                ("ImageGenericEnemyPortraitView", () => wm.Open<ImageGenericEnemyPortraitView>()),
+                ("ImageRomAnimeView", () => wm.Open<ImageRomAnimeView>()),
+                ("ImageTSAEditorView", () => wm.Open<ImageTSAEditorView>()),
+                ("ImageTSAAnimeView", () => wm.Open<ImageTSAAnimeView>()),
+                ("ImageTSAAnime2View", () => wm.Open<ImageTSAAnime2View>()),
+                ("ImagePalletView", () => wm.Open<ImagePalletView>()),
+                ("ImageMagicFEditorView", () => wm.Open<ImageMagicFEditorView>()),
+                ("ImageMagicCSACreatorView", () => wm.Open<ImageMagicCSACreatorView>()),
+                ("ImageMapActionAnimationView", () => wm.Open<ImageMapActionAnimationView>()),
+                ("DecreaseColorTSAToolView", () => wm.Open<DecreaseColorTSAToolView>()),
+                ("SystemIconViewerView", () => wm.Open<SystemIconViewerView>()),
+                ("SystemHoverColorViewerView", () => wm.Open<SystemHoverColorViewerView>()),
+                ("BattleBGViewerView", () => wm.Open<BattleBGViewerView>()),
+                ("BattleTerrainViewerView", () => wm.Open<BattleTerrainViewerView>()),
+                ("ChapterTitleViewerView", () => wm.Open<ChapterTitleViewerView>()),
+                ("BigCGViewerView", () => wm.Open<BigCGViewerView>()),
+                ("OPClassDemoViewerView", () => wm.Open<OPClassDemoViewerView>()),
+                ("OPClassFontViewerView", () => wm.Open<OPClassFontViewerView>()),
+                ("OPPrologueViewerView", () => wm.Open<OPPrologueViewerView>()),
+
+                // Audio Editors
+                ("SongTableView", () => wm.Open<SongTableView>()),
+                ("SongTrackView", () => wm.Open<SongTrackView>()),
+                ("SongInstrumentView", () => wm.Open<SongInstrumentView>()),
+                ("SongInstrumentDirectSoundView", () => wm.Open<SongInstrumentDirectSoundView>()),
+                ("SongInstrumentImportWaveView", () => wm.Open<SongInstrumentImportWaveView>()),
+                ("SongTrackImportMidiView", () => wm.Open<SongTrackImportMidiView>()),
+                ("SongExchangeView", () => wm.Open<SongExchangeView>()),
+                ("SoundBossBGMViewerView", () => wm.Open<SoundBossBGMViewerView>()),
+                ("SoundFootStepsViewerView", () => wm.Open<SoundFootStepsViewerView>()),
+                ("SoundRoomViewerView", () => wm.Open<SoundRoomViewerView>()),
+                ("SoundRoomFE6View", () => wm.Open<SoundRoomFE6View>()),
+                ("SoundRoomCGView", () => wm.Open<SoundRoomCGView>()),
+
+                // Arena / Monster / Summon Editors
+                ("ArenaClassViewerView", () => wm.Open<ArenaClassViewerView>()),
+                ("ArenaEnemyWeaponViewerView", () => wm.Open<ArenaEnemyWeaponViewerView>()),
+                ("LinkArenaDenyUnitViewerView", () => wm.Open<LinkArenaDenyUnitViewerView>()),
+                ("MonsterProbabilityViewerView", () => wm.Open<MonsterProbabilityViewerView>()),
+                ("MonsterItemViewerView", () => wm.Open<MonsterItemViewerView>()),
+                ("MonsterWMapProbabilityViewerView", () => wm.Open<MonsterWMapProbabilityViewerView>()),
+                ("SummonUnitViewerView", () => wm.Open<SummonUnitViewerView>()),
+                ("SummonsDemonKingViewerView", () => wm.Open<SummonsDemonKingViewerView>()),
+
+                // Menu / ED / World Map Editors
+                ("MenuDefinitionView", () => wm.Open<MenuDefinitionView>()),
+                ("MenuCommandView", () => wm.Open<MenuCommandView>()),
+                ("EDView", () => wm.Open<EDView>()),
+                ("EDStaffRollView", () => wm.Open<EDStaffRollView>()),
+                ("WorldMapPointView", () => wm.Open<WorldMapPointView>()),
+                ("WorldMapBGMView", () => wm.Open<WorldMapBGMView>()),
+                ("WorldMapEventPointerView", () => wm.Open<WorldMapEventPointerView>()),
+                ("WorldMapPathView", () => wm.Open<WorldMapPathView>()),
+                ("WorldMapPathEditorView", () => wm.Open<WorldMapPathEditorView>()),
+                ("WorldMapImageView", () => wm.Open<WorldMapImageView>()),
+                ("WorldMapImageFE6View", () => wm.Open<WorldMapImageFE6View>()),
+                ("WorldMapImageFE7View", () => wm.Open<WorldMapImageFE7View>()),
+                ("WorldMapEventPointerFE6View", () => wm.Open<WorldMapEventPointerFE6View>()),
+                ("WorldMapEventPointerFE7View", () => wm.Open<WorldMapEventPointerFE7View>()),
+
+                // Text / Translation Editors
+                ("TextViewerView", () => wm.Open<TextViewerView>()),
+                ("TextMainView", () => wm.Open<TextMainView>()),
+                ("OtherTextView", () => wm.Open<OtherTextView>()),
+                ("CStringView", () => wm.Open<CStringView>()),
+                ("FontEditorView", () => wm.Open<FontEditorView>()),
+                ("FontZHView", () => wm.Open<FontZHView>()),
+                ("DevTranslateView", () => wm.Open<DevTranslateView>()),
+                ("ToolTranslateROMView", () => wm.Open<ToolTranslateROMView>()),
+                ("TextEscapeEditorView", () => wm.Open<TextEscapeEditorView>()),
+
+                // Structural Data
+                ("Command85PointerView", () => wm.Open<Command85PointerView>()),
+                ("FE8SpellMenuExtendsView", () => wm.Open<FE8SpellMenuExtendsView>()),
+                ("StatusOptionView", () => wm.Open<StatusOptionView>()),
+                ("OAMSPView", () => wm.Open<OAMSPView>()),
+                ("DumpStructSelectDialogView", () => wm.Open<DumpStructSelectDialogView>()),
+
+                // Patch / Skill Systems
+                ("PatchManagerView", () => wm.Open<PatchManagerView>()),
+                ("ToolCustomBuildView", () => wm.Open<ToolCustomBuildView>()),
+                ("SkillAssignmentUnitSkillSystemView", () => wm.Open<SkillAssignmentUnitSkillSystemView>()),
+                ("SkillAssignmentClassSkillSystemView", () => wm.Open<SkillAssignmentClassSkillSystemView>()),
+                ("SkillConfigSkillSystemView", () => wm.Open<SkillConfigSkillSystemView>()),
+
+                // Tools
+                ("ToolUndoView", () => wm.Open<ToolUndoView>()),
+                ("ToolFELintView", () => wm.Open<ToolFELintView>()),
+                ("ToolROMRebuildView", () => wm.Open<ToolROMRebuildView>()),
+                ("ToolLZ77View", () => wm.Open<ToolLZ77View>()),
+                ("ToolDiffView", () => wm.Open<ToolDiffView>()),
+                ("ToolUPSPatchSimpleView", () => wm.Open<ToolUPSPatchSimpleView>()),
+                ("ToolUPSOpenSimpleView", () => wm.Open<ToolUPSOpenSimpleView>()),
+                ("ToolFlagNameView", () => wm.Open<ToolFlagNameView>()),
+                ("ToolUseFlagView", () => wm.Open<ToolUseFlagView>()),
+                ("ToolUnitTalkGroupView", () => wm.Open<ToolUnitTalkGroupView>()),
+                ("ToolASMInsertView", () => wm.Open<ToolASMInsertView>()),
+                ("HexEditorView", () => wm.Open<HexEditorView>()),
+                ("DisASMView", () => wm.Open<DisASMView>()),
+                ("LogViewerView", () => wm.Open<LogViewerView>()),
+                ("GrowSimulatorView", () => wm.Open<GrowSimulatorView>()),
+                ("OptionsView", () => wm.Open<OptionsView>()),
+            };
         }
 
         private async void OpenRom_Click(object? sender, RoutedEventArgs e)

@@ -117,7 +117,7 @@ FEBuilderGBA.sln
 ## Testing & Coverage
 
 - ✅ **888 unit/integration tests** passing (775 WinForms + 113 Core cross-platform)
-- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **45 E2E tests** passing with all 5 ROMs
+- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **65 E2E tests** passing with all 5 ROMs (including 185-editor Avalonia smoke test)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -131,6 +131,8 @@ FEBuilderGBA.sln
   - ROM-based E2E CLI tests (`--lint`, `--makeups` × 5 ROMs, `--rebuild` × 2 representative ROMs — skipped without ROMs)
   - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)
   - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
+  - Avalonia editor smoke tests: Unit/Item editor selection (× 5 ROMs — skipped without ROMs)
+  - Avalonia all-editors smoke test: all 185 GUI editors open/close (× 5 ROMs — skipped without ROMs)
 
 ## E2E Automation Tests
 
@@ -147,8 +149,10 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |
 | `Tests/RomGuiTests.cs` | Yes (×5) | Main form loads per ROM: window appears, non-empty title, ≥10 child controls — 15 tests, skipped without ROMs |
 | `Tests/FormSmokeTests.cs` | Yes (×5) | All toolbar buttons clicked per ROM; verifies ≥1 opens a form — 5 tests, skipped without ROMs |
+| `Tests/AvaloniaEditorSmokeTests.cs` | Yes (×5) | Avalonia: ROM load + Unit/Item editor selection per ROM — 10 tests, skipped without ROMs |
+| `Tests/AvaloniaAllEditorsSmokeTests.cs` | Yes (×5) | Avalonia: all 185 GUI editors opened/closed per ROM via `--smoke-test-all` — 10 tests, skipped without ROMs ([docs/avalonia-gui-forms.md](docs/avalonia-gui-forms.md)) |
 
-**Without ROMs:** 13 passed, 32 skipped. **With all 5 ROMs:** 45 passed, 0 skipped.
+**Without ROMs:** 13 passed, 52 skipped. **With all 5 ROMs:** 65 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 

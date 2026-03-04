@@ -16,6 +16,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run editor smoke test and exit.</summary>
         public static bool SmokeTestMode { get; set; }
 
+        /// <summary>When true, run smoke test against ALL editors (not just Unit+Item).</summary>
+        public static bool SmokeTestAll { get; set; }
+
         /// <summary>When true, force detailed editor mode (skip easy mode).</summary>
         public static bool ForceDetailMode { get; set; }
 
@@ -72,6 +75,11 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i] == "--smoke-test")
                 {
                     SmokeTestMode = true;
+                }
+                else if (args[i] == "--smoke-test-all")
+                {
+                    SmokeTestMode = true;
+                    SmokeTestAll = true;
                 }
                 else if (args[i] == "--force-detail")
                 {
