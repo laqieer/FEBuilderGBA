@@ -161,5 +161,68 @@ namespace FEBuilderGBA.Tests.Unit
                 }
             }
         }
+
+        /// <summary>
+        /// The data-verify runner must output TEXTVERIFY lines for text encoding verification.
+        /// </summary>
+        [Fact]
+        public void MainWindow_HasTextVerify()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("VerifyTextEncoding", src);
+            Assert.Contains("TEXTVERIFY:", src);
+            Assert.Contains("is_multibyte", src);
+        }
+
+        /// <summary>
+        /// MainWindow.LoadRomFile must use ROM-aware HeadlessSystemTextEncoder as fallback.
+        /// </summary>
+        [Fact]
+        public void MainWindow_LoadRomFile_UsesRomAwareFallback()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("new HeadlessSystemTextEncoder(CoreState.ROM)", src);
+        }
+
+        /// <summary>
+        /// SystemTextEncoder.Build must register CodePagesEncodingProvider before using Shift_JIS.
+        /// </summary>
+        [Fact]
+        public void SystemTextEncoder_Build_RegistersCodePages()
+        {
+            var solutionDir = SolutionDir;
+            var src = File.ReadAllText(Path.Combine(solutionDir, "FEBuilderGBA.Core", "SystemTextEncoder.cs"));
+            // The RegisterProvider call must appear in Build() before GetEncoding("Shift_JIS")
+            int registerIdx = src.IndexOf("Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)");
+            int shiftJisIdx = src.IndexOf("Encoding.GetEncoding(\"Shift_JIS\")");
+            Assert.True(registerIdx >= 0, "SystemTextEncoder.Build must call RegisterProvider");
+            Assert.True(registerIdx < shiftJisIdx, "RegisterProvider must be called before GetEncoding(\"Shift_JIS\")");
+        }
+
+        /// <summary>
+        /// HeadlessSystemTextEncoder must have a ROM constructor for encoding auto-detection.
+        /// </summary>
+        [Fact]
+        public void HeadlessSystemTextEncoder_HasRomConstructor()
+        {
+            var solutionDir = SolutionDir;
+            var src = File.ReadAllText(Path.Combine(solutionDir, "FEBuilderGBA.Core", "HeadlessSystemTextEncoder.cs"));
+            Assert.Contains("public HeadlessSystemTextEncoder(ROM rom)", src);
+            Assert.Contains("DetectEncodingFromRom", src);
+            Assert.Contains("is_multibyte", src);
+            Assert.Contains("Shift_JIS", src);
+        }
+
+        /// <summary>
+        /// Core.csproj must have explicit System.Text.Encoding.CodePages dependency.
+        /// </summary>
+        [Fact]
+        public void CoreCsproj_HasCodePagesReference()
+        {
+            var solutionDir = SolutionDir;
+            var csproj = File.ReadAllText(Path.Combine(solutionDir, "FEBuilderGBA.Core", "FEBuilderGBA.Core.csproj"));
+            Assert.Contains("System.Text.Encoding.CodePages", csproj);
+        }
     }
 }
+

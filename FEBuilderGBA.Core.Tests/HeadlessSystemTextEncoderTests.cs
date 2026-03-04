@@ -56,6 +56,51 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(dic);
         }
 
+        // ---- Japanese text encoding tests ----
+
+        [Fact]
+        public void Constructor_WithShiftJIS_DecodesJapaneseText()
+        {
+            var encoder = new HeadlessSystemTextEncoder("Shift_JIS");
+            // エイリーク (Eirika) in Shift_JIS: 0x83 0x47 0x83 0x43 0x83 0x8A 0x81 0x5B 0x83 0x4E
+            byte[] sjisBytes = { 0x83, 0x47, 0x83, 0x43, 0x83, 0x8A, 0x81, 0x5B, 0x83, 0x4E };
+            string decoded = encoder.Decode(sjisBytes);
+            Assert.Contains("エ", decoded); // First character should be エ
+            Assert.DoesNotContain("\uFFFD", decoded); // No replacement characters
+        }
+
+        [Fact]
+        public void Default_Constructor_WithoutRom_UsesISO8859()
+        {
+            // Without a ROM loaded, defaults to ISO-8859-1
+            var saved = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var encoder = new HeadlessSystemTextEncoder();
+                Assert.Equal("iso-8859-1", encoder.EncodingName);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void EncodingName_Property_ReportsEncoding()
+        {
+            var encoder = new HeadlessSystemTextEncoder("Shift_JIS");
+            Assert.Equal("shift_jis", encoder.EncodingName);
+        }
+
+        [Fact]
+        public void EncodingName_ISO8859_ReportsCorrectly()
+        {
+            var encoder = new HeadlessSystemTextEncoder();
+            // Without ROM, should be iso-8859-1
+            Assert.Contains("8859", encoder.EncodingName);
+        }
+
         // ---- SystemTextEncoder fallback tests (WU3) ----
 
         [Fact]
@@ -81,6 +126,29 @@ namespace FEBuilderGBA.Core.Tests
             var src = File.ReadAllText(FindCoreFile("SystemTextEncoder.cs"));
             Assert.Contains("static readonly Encoding FallbackEncoding", src);
             Assert.Contains("iso-8859-1", src);
+        }
+
+        [Fact]
+        public void SystemTextEncoder_Build_RegistersCodePages()
+        {
+            var src = File.ReadAllText(FindCoreFile("SystemTextEncoder.cs"));
+            Assert.Contains("Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)", src);
+        }
+
+        [Fact]
+        public void HeadlessSystemTextEncoder_HasRomConstructor()
+        {
+            var src = File.ReadAllText(FindCoreFile("HeadlessSystemTextEncoder.cs"));
+            Assert.Contains("public HeadlessSystemTextEncoder(ROM rom)", src);
+            Assert.Contains("DetectEncodingFromRom", src);
+        }
+
+        [Fact]
+        public void HeadlessSystemTextEncoder_DetectsMultibyte()
+        {
+            var src = File.ReadAllText(FindCoreFile("HeadlessSystemTextEncoder.cs"));
+            Assert.Contains("is_multibyte", src);
+            Assert.Contains("Shift_JIS", src);
         }
 
         static string FindCoreFile(string filename)

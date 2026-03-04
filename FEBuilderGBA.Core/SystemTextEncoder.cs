@@ -27,6 +27,9 @@ namespace FEBuilderGBA
 
         public void Build(TextEncodingEnum textencoding, ROM rom)
         {
+            // Ensure code page encodings (Shift_JIS, etc.) are registered
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
             bool r = LoadTBL(textencoding, rom);
             if (r)
             {//TBLを利用.

@@ -157,5 +157,93 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.DoesNotContain("UIVERIFY: CCBranchEditorView|emptyNUDs=", stdout);
             Assert.DoesNotContain("UIVERIFY: TerrainNameEditorView|emptyNUDs=", stdout);
         }
+
+        /// <summary>
+        /// Verifies that text encoding is correctly initialized for all ROM types.
+        /// The TEXTVERIFY line should report the encoder type and status=OK.
+        /// </summary>
+        [SkippableTheory]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
+        public void Avalonia_DataVerify_TextEncodingInitialized(string romName, string? romPath)
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            Skip.If(romPath == null, $"{romName} ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+
+            // Must have TEXTVERIFY output
+            Assert.Contains("TEXTVERIFY: encoder=", stdout);
+
+            // Text decode must not produce replacement characters
+            Assert.DoesNotContain("status=REPLACEMENT_CHARS", stdout);
+
+            // Text decode must not be empty (text ID 1 always exists)
+            Assert.DoesNotContain("status=EMPTY", stdout);
+        }
+
+        /// <summary>
+        /// Verifies that Japanese ROMs (FE8J) decode text with actual CJK characters,
+        /// not garbled Latin characters from wrong encoding.
+        /// </summary>
+        [SkippableFact]
+        public void Avalonia_DataVerify_JapaneseTextHasCJK_FE8J()
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            var fe8jPath = RomLocator.FE8J;
+            Skip.If(fe8jPath == null, "FE8J ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{fe8jPath}\" --data-verify", timeoutMs: 300_000);
+
+            // Must have TEXTVERIFY lines
+            Assert.Contains("TEXTVERIFY: encoder=", stdout);
+            Assert.Contains("is_multibyte=True", stdout);
+
+            // Japanese ROM must decode to CJK characters, not garbled Latin
+            Assert.DoesNotContain("status=NO_CJK", stdout);
+            Assert.DoesNotContain("status=REPLACEMENT_CHARS", stdout);
+            Assert.Contains("hasCJK=True", stdout);
+        }
+
+        /// <summary>
+        /// Verifies that FE6 (Japanese) ROM text decoding works correctly.
+        /// </summary>
+        [SkippableFact]
+        public void Avalonia_DataVerify_JapaneseTextHasCJK_FE6()
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            var fe6Path = RomLocator.FE6;
+            Skip.If(fe6Path == null, "FE6 ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{fe6Path}\" --data-verify", timeoutMs: 300_000);
+
+            Assert.Contains("TEXTVERIFY: encoder=", stdout);
+            Assert.Contains("is_multibyte=True", stdout);
+            Assert.DoesNotContain("status=REPLACEMENT_CHARS", stdout);
+            Assert.Contains("hasCJK=True", stdout);
+        }
+
+        /// <summary>
+        /// Verifies that FE8U (English) ROM text decoding works correctly.
+        /// English ROMs should not have CJK but should decode OK.
+        /// </summary>
+        [SkippableFact]
+        public void Avalonia_DataVerify_EnglishTextDecodes_FE8U()
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            var fe8uPath = RomLocator.FE8U;
+            Skip.If(fe8uPath == null, "FE8U ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{fe8uPath}\" --data-verify", timeoutMs: 300_000);
+
+            Assert.Contains("TEXTVERIFY: encoder=", stdout);
+            Assert.Contains("is_multibyte=False", stdout);
+            Assert.Contains("status=OK", stdout);
+            Assert.DoesNotContain("status=REPLACEMENT_CHARS", stdout);
+        }
     }
 }
+

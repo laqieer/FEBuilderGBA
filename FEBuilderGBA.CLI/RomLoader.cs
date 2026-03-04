@@ -100,7 +100,7 @@ namespace FEBuilderGBA.CLI
                 CoreState.WorkSupportCache = new HeadlessEtcCache();
 
             // Wire text encoder
-            if (CoreState.SystemTextEncoder == null)
+            if (CoreState.SystemTextEncoder == null || CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
             {
                 try
                 {
@@ -109,7 +109,8 @@ namespace FEBuilderGBA.CLI
                 catch (Exception ex)
                 {
                     Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
-                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
+                    // Use ROM-aware fallback so JP ROMs get Shift_JIS, not ISO-8859-1
+                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(CoreState.ROM);
                 }
             }
 

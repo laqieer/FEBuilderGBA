@@ -81,7 +81,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
-                    CoreState.SystemTextEncoder ??= new HeadlessSystemTextEncoder();
+                    // Use ROM-aware fallback so JP ROMs get Shift_JIS, not ISO-8859-1
+                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(CoreState.ROM);
                 }
             }
 
@@ -354,6 +355,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 WindowManager.Instance.CloseAll();
 
+                // Text encoding verification: decode first text entry and check for garbled output
+                VerifyTextEncoding();
+
                 Console.WriteLine($"DATAVERIFY: Results: {verified} verified, {failed} failed, {skipped} skipped out of {editors.Count}");
                 if (failures.Count > 0)
                     Console.WriteLine($"DATAVERIFY: Failures: {string.Join(", ", failures)}");
@@ -435,6 +439,66 @@ namespace FEBuilderGBA.Avalonia.Views
 
             Console.WriteLine($"UIVERIFY: {viewName}|allNUDs={nuds.Count}|OK");
             return true;
+        }
+
+        /// <summary>
+        /// Verifies text encoding is correctly initialized by decoding text ID 1
+        /// and checking the result doesn't contain replacement characters (U+FFFD).
+        /// Prints TEXTVERIFY lines for E2E test parsing.
+        /// </summary>
+        static void VerifyTextEncoding()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            string encoderType = CoreState.SystemTextEncoder?.GetType().Name ?? "null";
+            string encoderDetail = "";
+            if (CoreState.SystemTextEncoder is HeadlessSystemTextEncoder hse)
+                encoderDetail = $"|encoding={hse.EncodingName}";
+
+            bool isMultibyte = rom.RomInfo.is_multibyte;
+            Console.WriteLine($"TEXTVERIFY: encoder={encoderType}{encoderDetail}|is_multibyte={isMultibyte}|version={rom.RomInfo.version}");
+
+            try
+            {
+                // Decode text ID 1 (typically the first character's name)
+                string decoded = FETextDecode.Direct(1);
+                bool hasReplacement = decoded.Contains('\uFFFD');
+                bool isEmpty = string.IsNullOrEmpty(decoded) || decoded == "???" || decoded == "(empty)";
+
+                // For JP ROMs (is_multibyte), text should contain CJK characters (U+3000-U+FF00 range)
+                bool hasCJK = false;
+                if (isMultibyte && !isEmpty)
+                {
+                    foreach (char c in decoded)
+                    {
+                        if (c >= 0x3000 && c <= 0xFF00)
+                        {
+                            hasCJK = true;
+                            break;
+                        }
+                    }
+                }
+
+                string status = "OK";
+                if (hasReplacement) status = "REPLACEMENT_CHARS";
+                else if (isEmpty) status = "EMPTY";
+                else if (isMultibyte && !hasCJK) status = "NO_CJK";
+
+                Console.WriteLine($"TEXTVERIFY: textId=1|decoded={EscapeForLog(decoded)}|status={status}|hasCJK={hasCJK}|hasReplacement={hasReplacement}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TEXTVERIFY: textId=1|error={ex.Message}");
+            }
+        }
+
+        static string EscapeForLog(string s)
+        {
+            if (s == null) return "(null)";
+            // Keep it short and escape control characters
+            if (s.Length > 60) s = s.Substring(0, 60) + "...";
+            return s.Replace("\r", "").Replace("\n", "\\n").Replace("|", "\\|");
         }
 
         /// <summary>
