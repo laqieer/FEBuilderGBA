@@ -1121,5 +1121,126 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OpenHexEditor_Click", src);
             Assert.Contains("OpenOptions_Click", src);
         }
+
+        // ------------------------------------------------------------------ NumericUpDown FormatString regression
+
+        /// <summary>
+        /// Avalonia NumericUpDown.Value is decimal? — the "X" hex format specifier
+        /// is not supported for decimal type and causes FormatException during rendering,
+        /// which prevents ALL NumericUpDown controls in the panel from displaying values.
+        /// This test ensures no AXAML file uses FormatString="X".
+        /// </summary>
+        [Fact]
+        public void NoAxamlFile_UsesHexFormatString_OnNumericUpDown()
+        {
+            var viewsDir = Path.Combine(AvaloniaDir, "Views");
+            var violations = new List<string>();
+
+            foreach (var file in Directory.GetFiles(viewsDir, "*.axaml"))
+            {
+                var content = File.ReadAllText(file);
+                if (content.Contains("FormatString=\"X\"") && content.Contains("NumericUpDown"))
+                {
+                    violations.Add(Path.GetFileName(file));
+                }
+            }
+
+            Assert.True(violations.Count == 0,
+                $"These AXAML files use FormatString=\"X\" on NumericUpDown (incompatible with decimal type): " +
+                string.Join(", ", violations));
+        }
+
+        [Fact]
+        public void UnitEditorView_NumericUpDownsHaveNoHexFormat()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", src);
+            // Must still have NumericUpDown controls
+            Assert.Contains("NumericUpDown", src);
+            Assert.Contains("NameIdBox", src);
+            Assert.Contains("ClassIdBox", src);
+            Assert.Contains("LevelBox", src);
+            Assert.Contains("HPBox", src);
+        }
+
+        [Fact]
+        public void ItemEditorView_NumericUpDownsHaveNoHexFormat()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", src);
+            Assert.Contains("NumericUpDown", src);
+            Assert.Contains("NameIdBox", src);
+            Assert.Contains("MightBox", src);
+        }
+
+        [Fact]
+        public void ClassEditorView_NumericUpDownsHaveNoHexFormat()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", src);
+            Assert.Contains("NumericUpDown", src);
+            Assert.Contains("NameIdBox", src);
+            Assert.Contains("BaseHpBox", src);
+        }
+
+        [Fact]
+        public void CCBranchEditorView_NumericUpDownsHaveNoHexFormat()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "CCBranchEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", src);
+            Assert.Contains("NumericUpDown", src);
+            Assert.Contains("Promo1Box", src);
+        }
+
+        [Fact]
+        public void TerrainNameEditorView_NumericUpDownsHaveNoHexFormat()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "TerrainNameEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", src);
+            Assert.Contains("NumericUpDown", src);
+            Assert.Contains("TextIdBox", src);
+        }
+
+        // ------------------------------------------------------------------ UpdateUI sets NumericUpDown values
+
+        [Fact]
+        public void UnitEditorView_UpdateUISetsNumericUpDownValues()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            // UpdateUI must set Value on each NumericUpDown
+            Assert.Contains("NameIdBox.Value = ", src);
+            Assert.Contains("ClassIdBox.Value = ", src);
+            Assert.Contains("LevelBox.Value = ", src);
+            Assert.Contains("HPBox.Value = ", src);
+            Assert.Contains("StrBox.Value = ", src);
+            Assert.Contains("SklBox.Value = ", src);
+            Assert.Contains("SpdBox.Value = ", src);
+            Assert.Contains("DefBox.Value = ", src);
+            Assert.Contains("ResBox.Value = ", src);
+            Assert.Contains("LckBox.Value = ", src);
+            Assert.Contains("ConBox.Value = ", src);
+        }
+
+        [Fact]
+        public void ItemEditorView_UpdateUISetsNumericUpDownValues()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml.cs"));
+            Assert.Contains("NameIdBox.Value = ", src);
+            Assert.Contains("WeaponTypeBox.Value = ", src);
+            Assert.Contains("MightBox.Value = ", src);
+            Assert.Contains("HitBox.Value = ", src);
+            Assert.Contains("PriceBox.Value = ", src);
+        }
+
+        [Fact]
+        public void ClassEditorView_UpdateUISetsNumericUpDownValues()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml.cs"));
+            Assert.Contains("NameIdBox.Value = ", src);
+            Assert.Contains("ClassNumberBox.Value = ", src);
+            Assert.Contains("BaseHpBox.Value = ", src);
+            Assert.Contains("MovBox.Value = ", src);
+            Assert.Contains("GrowHpBox.Value = ", src);
+        }
     }
 }

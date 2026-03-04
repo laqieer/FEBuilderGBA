@@ -104,5 +104,56 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("DATAVERIFY: ItemEditorView ... VERIFIED", stdout);
             Assert.Contains("DATAVERIFY: ClassEditorView ... VERIFIED", stdout);
         }
+
+        /// <summary>
+        /// Verifies NumericUpDown controls in core editors display actual values (not empty).
+        /// This catches the FormatString="X" bug where decimal.ToString("X") throws
+        /// FormatException, causing all NumericUpDown controls to show empty text.
+        /// </summary>
+        [SkippableTheory]
+        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        public void Avalonia_DataVerify_NumericUpDownsDisplayValues(string romName, string? romPath)
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            Skip.If(romPath == null, $"{romName} ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+
+            // Core editors with NumericUpDown must have UIVERIFY lines showing OK
+            Assert.Contains("UIVERIFY: UnitEditorView|", stdout);
+            Assert.Contains("UIVERIFY: ItemEditorView|", stdout);
+            Assert.Contains("UIVERIFY: ClassEditorView|", stdout);
+
+            // None should have emptyNUDs
+            Assert.DoesNotContain("UIVERIFY: UnitEditorView|emptyNUDs=", stdout);
+            Assert.DoesNotContain("UIVERIFY: ItemEditorView|emptyNUDs=", stdout);
+            Assert.DoesNotContain("UIVERIFY: ClassEditorView|emptyNUDs=", stdout);
+
+            // No UI_EMPTY failures
+            Assert.DoesNotContain("UI_EMPTY", stdout);
+        }
+
+        /// <summary>
+        /// Verifies that CCBranch and TerrainName editors also display NumericUpDown values.
+        /// These editors had FormatString="X" on ALL their NumericUpDown controls.
+        /// </summary>
+        [SkippableTheory]
+        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        public void Avalonia_DataVerify_CCBranchAndTerrainDisplayValues(string romName, string? romPath)
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            Skip.If(romPath == null, $"{romName} ROM not available");
+
+            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+
+            // These editors should also pass UIVERIFY
+            Assert.Contains("UIVERIFY: CCBranchEditorView|", stdout);
+            Assert.Contains("UIVERIFY: TerrainNameEditorView|", stdout);
+
+            Assert.DoesNotContain("UIVERIFY: CCBranchEditorView|emptyNUDs=", stdout);
+            Assert.DoesNotContain("UIVERIFY: TerrainNameEditorView|emptyNUDs=", stdout);
+        }
     }
 }

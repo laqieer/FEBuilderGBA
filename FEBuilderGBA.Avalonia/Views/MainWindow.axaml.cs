@@ -307,7 +307,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                                 // Cross-check: compare data fields with raw ROM values
                                 bool match = CrossCheckDataReport(name, dataReport, rawReport);
-                                if (match)
+
+                                // UI check: verify NumericUpDown controls display values
+                                bool uiOk = CheckNumericUpDownsDisplayValues(name, window);
+
+                                if (match && uiOk)
                                 {
                                     verified++;
                                     Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
@@ -316,7 +320,8 @@ namespace FEBuilderGBA.Avalonia.Views
                                 {
                                     failed++;
                                     failures.Add(name);
-                                    Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
+                                    if (!match) Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
+                                    if (!uiOk) Console.WriteLine($"DATAVERIFY: {name} ... UI_EMPTY");
                                 }
                             }
                             else
@@ -387,6 +392,44 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
+            return true;
+        }
+
+        /// <summary>
+        /// Checks that all NumericUpDown controls in the window display non-empty text.
+        /// Returns true if no NumericUpDown has empty/null Value after data loading.
+        /// This catches rendering bugs like FormatString="X" on decimal-typed NumericUpDown.
+        /// </summary>
+        static bool CheckNumericUpDownsDisplayValues(string viewName, Window window)
+        {
+            var nuds = new List<NumericUpDown>();
+            foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
+            {
+                if (descendant is NumericUpDown nud)
+                    nuds.Add(nud);
+            }
+
+            if (nuds.Count == 0) return true; // No NumericUpDown controls → pass
+
+            int emptyCount = 0;
+            var emptyNames = new List<string>();
+            foreach (var nud in nuds)
+            {
+                if (nud.Value == null)
+                {
+                    emptyCount++;
+                    string nudName = nud.Name ?? "(unnamed)";
+                    emptyNames.Add(nudName);
+                }
+            }
+
+            if (emptyCount > 0)
+            {
+                Console.WriteLine($"UIVERIFY: {viewName}|emptyNUDs={emptyCount}|names={string.Join(",", emptyNames)}");
+                return false;
+            }
+
+            Console.WriteLine($"UIVERIFY: {viewName}|allNUDs={nuds.Count}|OK");
             return true;
         }
 

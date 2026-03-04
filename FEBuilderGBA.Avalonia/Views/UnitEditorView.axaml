@@ -17,13 +17,13 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" FormatString="X" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" FormatString="X" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Level:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" />

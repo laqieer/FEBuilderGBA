@@ -130,5 +130,36 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(count >= 3,
                 $"Expected at least 3 ViewModels implementing IDataVerifiable, found {count}");
         }
+
+        /// <summary>
+        /// The data-verify runner must also verify NumericUpDown UI display values.
+        /// </summary>
+        [Fact]
+        public void MainWindow_HasUIVerifyCheck()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("CheckNumericUpDownsDisplayValues", src);
+            Assert.Contains("UIVERIFY:", src);
+            Assert.Contains("UI_EMPTY", src);
+        }
+
+        /// <summary>
+        /// No AXAML file should use FormatString="X" on NumericUpDown
+        /// because NumericUpDown.Value is decimal? and decimal.ToString("X") throws FormatException.
+        /// </summary>
+        [Fact]
+        public void NoAxaml_UsesHexFormatStringOnNumericUpDown()
+        {
+            var viewsDir = Path.Combine(AvaloniaDir, "Views");
+            foreach (var file in Directory.GetFiles(viewsDir, "*.axaml"))
+            {
+                var content = File.ReadAllText(file);
+                if (content.Contains("NumericUpDown"))
+                {
+                    Assert.False(content.Contains("FormatString=\"X\""),
+                        $"{Path.GetFileName(file)} uses FormatString=\"X\" — incompatible with decimal type");
+                }
+            }
+        }
     }
 }
