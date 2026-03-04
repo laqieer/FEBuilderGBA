@@ -68,11 +68,12 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void AddressListControl_DisplayIncludesAddress()
+        public void AddressListControl_DisplayShowsLabelOnly()
         {
-            // List items must show the ROM address for easy identification
+            // List items show label/name only (no hex address prefix)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
-            Assert.Contains("0x{_items[i].addr:X08}", src);
+            Assert.Contains("string display = label;", src);
+            Assert.DoesNotContain("0x{_items[i].addr:X08}", src);
         }
 
         [Fact]
