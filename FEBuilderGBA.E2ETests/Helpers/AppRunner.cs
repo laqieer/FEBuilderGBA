@@ -113,6 +113,52 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
+        /// Returns the path to FEBuilderGBA.CLI executable, checking (in order):
+        ///   1. FEBUILDERGBA_CLI_EXE environment variable
+        ///   2. Release build relative to the solution root
+        ///   3. Debug build relative to the solution root
+        /// Throws InvalidOperationException if the exe cannot be found.
+        /// </summary>
+        public static string FindCliExePath()
+        {
+            string? envPath = Environment.GetEnvironmentVariable("FEBUILDERGBA_CLI_EXE");
+            if (!string.IsNullOrEmpty(envPath) && File.Exists(envPath))
+                return envPath;
+
+            string thisAssembly = Assembly.GetExecutingAssembly().Location;
+            string? dir = Path.GetDirectoryName(thisAssembly);
+
+            for (int i = 0; i < 8 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                {
+                    string[] candidates =
+                    {
+                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Release", "net9.0", "FEBuilderGBA.CLI.exe"),
+                        Path.Combine(dir, "FEBuilderGBA.CLI", "bin", "Debug",   "net9.0", "FEBuilderGBA.CLI.exe"),
+                    };
+                    string? newest = null;
+                    DateTime newestTime = DateTime.MinValue;
+                    foreach (string c in candidates)
+                    {
+                        if (File.Exists(c))
+                        {
+                            DateTime t = File.GetLastWriteTimeUtc(c);
+                            if (t > newestTime) { newestTime = t; newest = c; }
+                        }
+                    }
+                    if (newest != null) return newest;
+                    break;
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+
+            throw new InvalidOperationException(
+                "FEBuilderGBA.CLI.exe not found. " +
+                "Set FEBUILDERGBA_CLI_EXE env var or build the CLI project first.");
+        }
+
+        /// <summary>
         /// Launch the exe and return the Process (still running).
         /// The caller is responsible for killing it.
         /// UseShellExecute=true so WinForms apps get a proper window station / desktop context.

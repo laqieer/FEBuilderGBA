@@ -141,6 +141,7 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | Test File | ROMs required | What it tests |
 |-----------|--------------|--------------|
 | `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
+| `Tests/CliArgsE2ETests.cs` | No | All 17 CLI primary commands via `FEBuilderGBA.CLI`: `--help/-h`, `--version`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test/--testonly` — 36 tests ([docs/cli-args.md](docs/cli-args.md)) |
 | `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
 | `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
 | `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |
