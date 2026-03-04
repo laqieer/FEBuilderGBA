@@ -1,0 +1,10 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.PaletteChangeColorsView"
+        Title="Palette Change Colors" Width="600" Height="450"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="Palette Change Colors" FontSize="18" FontWeight="Bold" />
+    <TextBlock Text="This tool is not yet implemented." Foreground="Gray" />
+  </StackPanel>
+</Window>

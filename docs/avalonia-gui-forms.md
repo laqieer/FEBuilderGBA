@@ -3,8 +3,8 @@
 This document lists all GUI forms (views) in `FEBuilderGBA.Avalonia` that are
 accessible from `MainWindow` and tracks their E2E test coverage status.
 
-**Total forms:** 185
-**E2E Covered:** 185 / 185
+**Total forms:** 273
+**E2E Covered:** 273 / 273
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -45,229 +45,337 @@ actual ROM data at the correct addresses and offsets.
 | 17 | ClassOPFontView | E2E COVERED | - |
 | 18 | ExtraUnitView | E2E COVERED | - |
 | 19 | ExtraUnitFE8UView | E2E COVERED | - |
+| 20 | UnitFE7View | E2E COVERED | - |
+| 21 | ItemFE6View | E2E COVERED | - |
+| 22 | MoveCostFE6View | E2E COVERED | - |
+| 23 | SupportUnitFE6View | E2E COVERED | - |
+| 24 | SupportTalkFE6View | E2E COVERED | - |
+| 25 | SupportTalkFE7View | E2E COVERED | - |
+| 26 | UnitsShortTextView | E2E COVERED | - |
+| 27 | SomeClassListView | E2E COVERED | - |
+| 28 | VennouWeaponLockView | E2E COVERED | - |
 
 ## Item Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 20 | ItemWeaponEffectViewerView | E2E COVERED | YES |
-| 21 | ItemStatBonusesViewerView | E2E COVERED | YES |
-| 22 | ItemEffectivenessViewerView | E2E COVERED | YES |
-| 23 | ItemPromotionViewerView | E2E COVERED | YES |
-| 24 | ItemShopViewerView | E2E COVERED | YES |
-| 25 | ItemWeaponTriangleViewerView | E2E COVERED | YES |
-| 26 | ItemUsagePointerViewerView | E2E COVERED | YES |
-| 27 | ItemEffectPointerViewerView | E2E COVERED | YES |
-| 28 | ItemIconViewerView | E2E COVERED | YES |
+| 29 | ItemWeaponEffectViewerView | E2E COVERED | YES |
+| 30 | ItemStatBonusesViewerView | E2E COVERED | YES |
+| 31 | ItemEffectivenessViewerView | E2E COVERED | YES |
+| 32 | ItemPromotionViewerView | E2E COVERED | YES |
+| 33 | ItemShopViewerView | E2E COVERED | YES |
+| 34 | ItemWeaponTriangleViewerView | E2E COVERED | YES |
+| 35 | ItemUsagePointerViewerView | E2E COVERED | YES |
+| 36 | ItemEffectPointerViewerView | E2E COVERED | YES |
+| 37 | ItemIconViewerView | E2E COVERED | YES |
 
 ## Map Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 29 | MapSettingView | E2E COVERED | YES |
-| 30 | MapChangeView | E2E COVERED | YES |
-| 31 | MapExitPointView | E2E COVERED | YES |
-| 32 | MapPointerView | E2E COVERED | YES |
-| 33 | MapTileAnimationView | E2E COVERED | YES |
-| 34 | MapEditorView | E2E COVERED | - |
-| 35 | MapSettingFE6View | E2E COVERED | - |
-| 36 | MapSettingFE7View | E2E COVERED | - |
-| 37 | MapSettingFE7UView | E2E COVERED | - |
-| 38 | MapSettingDifficultyView | E2E COVERED | - |
-| 39 | MapStyleEditorView | E2E COVERED | - |
-| 40 | MapTerrainBGLookupView | E2E COVERED | - |
-| 41 | MapTerrainFloorLookupView | E2E COVERED | - |
-| 42 | MapMiniMapTerrainImageView | E2E COVERED | - |
-| 43 | MapTileAnimation1View | E2E COVERED | - |
-| 44 | MapTileAnimation2View | E2E COVERED | - |
-| 45 | MapLoadFunctionView | E2E COVERED | - |
-| 46 | MapTerrainNameEngView | E2E COVERED | - |
+| 38 | MapSettingView | E2E COVERED | YES |
+| 39 | MapChangeView | E2E COVERED | YES |
+| 40 | MapExitPointView | E2E COVERED | YES |
+| 41 | MapPointerView | E2E COVERED | YES |
+| 42 | MapTileAnimationView | E2E COVERED | YES |
+| 43 | MapEditorView | E2E COVERED | - |
+| 44 | MapSettingFE6View | E2E COVERED | - |
+| 45 | MapSettingFE7View | E2E COVERED | - |
+| 46 | MapSettingFE7UView | E2E COVERED | - |
+| 47 | MapSettingDifficultyView | E2E COVERED | - |
+| 48 | MapStyleEditorView | E2E COVERED | - |
+| 49 | MapTerrainBGLookupView | E2E COVERED | - |
+| 50 | MapTerrainFloorLookupView | E2E COVERED | - |
+| 51 | MapMiniMapTerrainImageView | E2E COVERED | - |
+| 52 | MapTileAnimation1View | E2E COVERED | - |
+| 53 | MapTileAnimation2View | E2E COVERED | - |
+| 54 | MapLoadFunctionView | E2E COVERED | - |
+| 55 | MapTerrainNameEngView | E2E COVERED | - |
+| 56 | MapEditorAddMapChangeDialogView | E2E COVERED | - |
+| 57 | MapEditorMarSizeDialogView | E2E COVERED | - |
+| 58 | MapEditorResizeDialogView | E2E COVERED | - |
+| 59 | MapPointerNewPLISTPopupView | E2E COVERED | - |
+| 60 | MapStyleEditorAppendPopupView | E2E COVERED | - |
+| 61 | MapStyleEditorWarningOverrideView | E2E COVERED | - |
+| 62 | MapStyleEditorImportImageOptionView | E2E COVERED | - |
+| 63 | MapSettingDifficultyDialogView | E2E COVERED | - |
 
 ## Event Script Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 47 | EventCondView | E2E COVERED | YES |
-| 48 | EventScriptView | E2E COVERED | - |
-| 49 | EventUnitView | E2E COVERED | - |
-| 50 | EventUnitFE6View | E2E COVERED | - |
-| 51 | EventUnitFE7View | E2E COVERED | - |
-| 52 | EventUnitColorView | E2E COVERED | - |
-| 53 | EventUnitItemDropView | E2E COVERED | - |
-| 54 | EventUnitNewAllocView | E2E COVERED | - |
-| 55 | EventBattleTalkView | E2E COVERED | - |
-| 56 | EventBattleTalkFE6View | E2E COVERED | - |
-| 57 | EventBattleTalkFE7View | E2E COVERED | - |
-| 58 | EventBattleDataFE7View | E2E COVERED | - |
-| 59 | EventHaikuView | E2E COVERED | - |
-| 60 | EventHaikuFE6View | E2E COVERED | - |
-| 61 | EventHaikuFE7View | E2E COVERED | - |
-| 62 | EventMapChangeView | E2E COVERED | - |
-| 63 | EventForceSortieView | E2E COVERED | - |
-| 64 | EventForceSortieFE7View | E2E COVERED | - |
-| 65 | EventFunctionPointerView | E2E COVERED | - |
-| 66 | EventFunctionPointerFE7View | E2E COVERED | - |
-| 67 | EventAssemblerView | E2E COVERED | - |
-| 68 | ProcsScriptView | E2E COVERED | - |
-| 69 | EventScriptTemplateView | E2E COVERED | - |
+| 64 | EventCondView | E2E COVERED | YES |
+| 65 | EventScriptView | E2E COVERED | - |
+| 66 | EventUnitView | E2E COVERED | - |
+| 67 | EventUnitFE6View | E2E COVERED | - |
+| 68 | EventUnitFE7View | E2E COVERED | - |
+| 69 | EventUnitColorView | E2E COVERED | - |
+| 70 | EventUnitItemDropView | E2E COVERED | - |
+| 71 | EventUnitNewAllocView | E2E COVERED | - |
+| 72 | EventBattleTalkView | E2E COVERED | - |
+| 73 | EventBattleTalkFE6View | E2E COVERED | - |
+| 74 | EventBattleTalkFE7View | E2E COVERED | - |
+| 75 | EventBattleDataFE7View | E2E COVERED | - |
+| 76 | EventHaikuView | E2E COVERED | - |
+| 77 | EventHaikuFE6View | E2E COVERED | - |
+| 78 | EventHaikuFE7View | E2E COVERED | - |
+| 79 | EventMapChangeView | E2E COVERED | - |
+| 80 | EventForceSortieView | E2E COVERED | - |
+| 81 | EventForceSortieFE7View | E2E COVERED | - |
+| 82 | EventFunctionPointerView | E2E COVERED | - |
+| 83 | EventFunctionPointerFE7View | E2E COVERED | - |
+| 84 | EventAssemblerView | E2E COVERED | - |
+| 85 | ProcsScriptView | E2E COVERED | - |
+| 86 | EventScriptTemplateView | E2E COVERED | - |
+| 87 | EventScriptCategorySelectView | E2E COVERED | - |
+| 88 | EventScriptPopupView | E2E COVERED | - |
+| 89 | ProcsScriptCategorySelectView | E2E COVERED | - |
+| 90 | AIScriptCategorySelectView | E2E COVERED | - |
 
 ## AI Script Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 70 | AIScriptView | E2E COVERED | - |
-| 71 | AIASMCALLTALKView | E2E COVERED | - |
-| 72 | AIASMCoordinateView | E2E COVERED | - |
-| 73 | AIASMRangeView | E2E COVERED | - |
-| 74 | AIMapSettingView | E2E COVERED | - |
-| 75 | AIPerformItemView | E2E COVERED | - |
-| 76 | AIPerformStaffView | E2E COVERED | - |
-| 77 | AIStealItemView | E2E COVERED | - |
-| 78 | AITargetView | E2E COVERED | - |
-| 79 | AITilesView | E2E COVERED | - |
-| 80 | AIUnitsView | E2E COVERED | - |
-| 81 | AOERANGEView | E2E COVERED | - |
+| 91 | AIScriptView | E2E COVERED | - |
+| 92 | AIASMCALLTALKView | E2E COVERED | - |
+| 93 | AIASMCoordinateView | E2E COVERED | - |
+| 94 | AIASMRangeView | E2E COVERED | - |
+| 95 | AIMapSettingView | E2E COVERED | - |
+| 96 | AIPerformItemView | E2E COVERED | - |
+| 97 | AIPerformStaffView | E2E COVERED | - |
+| 98 | AIStealItemView | E2E COVERED | - |
+| 99 | AITargetView | E2E COVERED | - |
+| 100 | AITilesView | E2E COVERED | - |
+| 101 | AIUnitsView | E2E COVERED | - |
+| 102 | AOERANGEView | E2E COVERED | - |
 
 ## Image Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 82 | ImageViewerView | E2E COVERED | YES |
-| 83 | PortraitViewerView | E2E COVERED | YES |
-| 84 | ImagePortraitView | E2E COVERED | - |
-| 85 | ImagePortraitFE6View | E2E COVERED | - |
-| 86 | ImagePortraitImporterView | E2E COVERED | - |
-| 87 | ImageBGView | E2E COVERED | - |
-| 88 | ImageBattleAnimeView | E2E COVERED | - |
-| 89 | ImageBattleAnimePalletView | E2E COVERED | - |
-| 90 | ImageBattleBGView | E2E COVERED | - |
-| 91 | ImageBattleScreenView | E2E COVERED | - |
-| 92 | ImageCGView | E2E COVERED | - |
-| 93 | ImageCGFE7UView | E2E COVERED | - |
-| 94 | ImageUnitPaletteView | E2E COVERED | - |
-| 95 | ImageUnitWaitIconView | E2E COVERED | - |
-| 96 | ImageUnitMoveIconView | E2E COVERED | - |
-| 97 | ImageSystemAreaView | E2E COVERED | - |
-| 98 | ImageGenericEnemyPortraitView | E2E COVERED | - |
-| 99 | ImageRomAnimeView | E2E COVERED | - |
-| 100 | ImageTSAEditorView | E2E COVERED | - |
-| 101 | ImageTSAAnimeView | E2E COVERED | - |
-| 102 | ImageTSAAnime2View | E2E COVERED | - |
-| 103 | ImagePalletView | E2E COVERED | - |
-| 104 | ImageMagicFEditorView | E2E COVERED | - |
-| 105 | ImageMagicCSACreatorView | E2E COVERED | - |
-| 106 | ImageMapActionAnimationView | E2E COVERED | - |
-| 107 | DecreaseColorTSAToolView | E2E COVERED | - |
-| 108 | SystemIconViewerView | E2E COVERED | YES |
-| 109 | SystemHoverColorViewerView | E2E COVERED | YES |
-| 110 | BattleBGViewerView | E2E COVERED | YES |
-| 111 | BattleTerrainViewerView | E2E COVERED | YES |
-| 112 | ChapterTitleViewerView | E2E COVERED | YES |
-| 113 | BigCGViewerView | E2E COVERED | YES |
-| 114 | OPClassDemoViewerView | E2E COVERED | YES |
-| 115 | OPClassFontViewerView | E2E COVERED | YES |
-| 116 | OPPrologueViewerView | E2E COVERED | YES |
+| 103 | ImageViewerView | E2E COVERED | YES |
+| 104 | PortraitViewerView | E2E COVERED | YES |
+| 105 | ImagePortraitView | E2E COVERED | - |
+| 106 | ImagePortraitFE6View | E2E COVERED | - |
+| 107 | ImagePortraitImporterView | E2E COVERED | - |
+| 108 | ImageBGView | E2E COVERED | - |
+| 109 | ImageBattleAnimeView | E2E COVERED | - |
+| 110 | ImageBattleAnimePalletView | E2E COVERED | - |
+| 111 | ImageBattleBGView | E2E COVERED | - |
+| 112 | ImageBattleScreenView | E2E COVERED | - |
+| 113 | ImageCGView | E2E COVERED | - |
+| 114 | ImageCGFE7UView | E2E COVERED | - |
+| 115 | ImageUnitPaletteView | E2E COVERED | - |
+| 116 | ImageUnitWaitIconView | E2E COVERED | - |
+| 117 | ImageUnitMoveIconView | E2E COVERED | - |
+| 118 | ImageSystemAreaView | E2E COVERED | - |
+| 119 | ImageGenericEnemyPortraitView | E2E COVERED | - |
+| 120 | ImageRomAnimeView | E2E COVERED | - |
+| 121 | ImageTSAEditorView | E2E COVERED | - |
+| 122 | ImageTSAAnimeView | E2E COVERED | - |
+| 123 | ImageTSAAnime2View | E2E COVERED | - |
+| 124 | ImagePalletView | E2E COVERED | - |
+| 125 | ImageMagicFEditorView | E2E COVERED | - |
+| 126 | ImageMagicCSACreatorView | E2E COVERED | - |
+| 127 | ImageMapActionAnimationView | E2E COVERED | - |
+| 128 | DecreaseColorTSAToolView | E2E COVERED | - |
+| 129 | SystemIconViewerView | E2E COVERED | YES |
+| 130 | SystemHoverColorViewerView | E2E COVERED | YES |
+| 131 | BattleBGViewerView | E2E COVERED | YES |
+| 132 | BattleTerrainViewerView | E2E COVERED | YES |
+| 133 | ChapterTitleViewerView | E2E COVERED | YES |
+| 134 | BigCGViewerView | E2E COVERED | YES |
+| 135 | OPClassDemoViewerView | E2E COVERED | YES |
+| 136 | OPClassFontViewerView | E2E COVERED | YES |
+| 137 | OPPrologueViewerView | E2E COVERED | YES |
+| 138 | GraphicsToolView | E2E COVERED | - |
+| 139 | GraphicsToolPatchMakerView | E2E COVERED | - |
+| 140 | PaletteChangeColorsView | E2E COVERED | - |
+| 141 | PaletteClipboardView | E2E COVERED | - |
+| 142 | PaletteSwapView | E2E COVERED | - |
+| 143 | ImageBGSelectPopupView | E2E COVERED | - |
 
 ## Audio Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 117 | SongTableView | E2E COVERED | YES |
-| 118 | SongTrackView | E2E COVERED | - |
-| 119 | SongInstrumentView | E2E COVERED | - |
-| 120 | SongInstrumentDirectSoundView | E2E COVERED | - |
-| 121 | SongInstrumentImportWaveView | E2E COVERED | - |
-| 122 | SongTrackImportMidiView | E2E COVERED | - |
-| 123 | SongExchangeView | E2E COVERED | - |
-| 124 | SoundBossBGMViewerView | E2E COVERED | YES |
-| 125 | SoundFootStepsViewerView | E2E COVERED | YES |
-| 126 | SoundRoomViewerView | E2E COVERED | YES |
-| 127 | SoundRoomFE6View | E2E COVERED | - |
-| 128 | SoundRoomCGView | E2E COVERED | - |
+| 144 | SongTableView | E2E COVERED | YES |
+| 145 | SongTrackView | E2E COVERED | - |
+| 146 | SongInstrumentView | E2E COVERED | - |
+| 147 | SongInstrumentDirectSoundView | E2E COVERED | - |
+| 148 | SongInstrumentImportWaveView | E2E COVERED | - |
+| 149 | SongTrackImportMidiView | E2E COVERED | - |
+| 150 | SongExchangeView | E2E COVERED | - |
+| 151 | SoundBossBGMViewerView | E2E COVERED | YES |
+| 152 | SoundFootStepsViewerView | E2E COVERED | YES |
+| 153 | SoundRoomViewerView | E2E COVERED | YES |
+| 154 | SoundRoomFE6View | E2E COVERED | - |
+| 155 | SoundRoomCGView | E2E COVERED | - |
+| 156 | ToolBGMMuteDialogView | E2E COVERED | - |
 
 ## Arena / Monster / Summon Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 129 | ArenaClassViewerView | E2E COVERED | YES |
-| 130 | ArenaEnemyWeaponViewerView | E2E COVERED | YES |
-| 131 | LinkArenaDenyUnitViewerView | E2E COVERED | YES |
-| 132 | MonsterProbabilityViewerView | E2E COVERED | YES |
-| 133 | MonsterItemViewerView | E2E COVERED | YES |
-| 134 | MonsterWMapProbabilityViewerView | E2E COVERED | YES |
-| 135 | SummonUnitViewerView | E2E COVERED | YES |
-| 136 | SummonsDemonKingViewerView | E2E COVERED | YES |
+| 157 | ArenaClassViewerView | E2E COVERED | YES |
+| 158 | ArenaEnemyWeaponViewerView | E2E COVERED | YES |
+| 159 | LinkArenaDenyUnitViewerView | E2E COVERED | YES |
+| 160 | MonsterProbabilityViewerView | E2E COVERED | YES |
+| 161 | MonsterItemViewerView | E2E COVERED | YES |
+| 162 | MonsterWMapProbabilityViewerView | E2E COVERED | YES |
+| 163 | SummonUnitViewerView | E2E COVERED | YES |
+| 164 | SummonsDemonKingViewerView | E2E COVERED | YES |
 
 ## Menu / ED / World Map Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 137 | MenuDefinitionView | E2E COVERED | YES |
-| 138 | MenuCommandView | E2E COVERED | YES |
-| 139 | EDView | E2E COVERED | YES |
-| 140 | EDStaffRollView | E2E COVERED | YES |
-| 141 | WorldMapPointView | E2E COVERED | YES |
-| 142 | WorldMapBGMView | E2E COVERED | YES |
-| 143 | WorldMapEventPointerView | E2E COVERED | YES |
-| 144 | WorldMapPathView | E2E COVERED | - |
-| 145 | WorldMapPathEditorView | E2E COVERED | - |
-| 146 | WorldMapImageView | E2E COVERED | - |
-| 147 | WorldMapImageFE6View | E2E COVERED | - |
-| 148 | WorldMapImageFE7View | E2E COVERED | - |
-| 149 | WorldMapEventPointerFE6View | E2E COVERED | - |
-| 150 | WorldMapEventPointerFE7View | E2E COVERED | - |
+| 165 | MenuDefinitionView | E2E COVERED | YES |
+| 166 | MenuCommandView | E2E COVERED | YES |
+| 167 | EDView | E2E COVERED | YES |
+| 168 | EDStaffRollView | E2E COVERED | YES |
+| 169 | WorldMapPointView | E2E COVERED | YES |
+| 170 | WorldMapBGMView | E2E COVERED | YES |
+| 171 | WorldMapEventPointerView | E2E COVERED | YES |
+| 172 | WorldMapPathView | E2E COVERED | - |
+| 173 | WorldMapPathEditorView | E2E COVERED | - |
+| 174 | WorldMapImageView | E2E COVERED | - |
+| 175 | WorldMapImageFE6View | E2E COVERED | - |
+| 176 | WorldMapImageFE7View | E2E COVERED | - |
+| 177 | WorldMapEventPointerFE6View | E2E COVERED | - |
+| 178 | WorldMapEventPointerFE7View | E2E COVERED | - |
 
 ## Text / Translation Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 151 | TextViewerView | E2E COVERED | YES |
-| 152 | TextMainView | E2E COVERED | - |
-| 153 | OtherTextView | E2E COVERED | - |
-| 154 | CStringView | E2E COVERED | - |
-| 155 | FontEditorView | E2E COVERED | - |
-| 156 | FontZHView | E2E COVERED | - |
-| 157 | DevTranslateView | E2E COVERED | - |
-| 158 | ToolTranslateROMView | E2E COVERED | - |
-| 159 | TextEscapeEditorView | E2E COVERED | - |
+| 179 | TextViewerView | E2E COVERED | YES |
+| 180 | TextMainView | E2E COVERED | - |
+| 181 | OtherTextView | E2E COVERED | - |
+| 182 | CStringView | E2E COVERED | - |
+| 183 | FontEditorView | E2E COVERED | - |
+| 184 | FontZHView | E2E COVERED | - |
+| 185 | DevTranslateView | E2E COVERED | - |
+| 186 | ToolTranslateROMView | E2E COVERED | - |
+| 187 | TextEscapeEditorView | E2E COVERED | - |
+| 188 | TextScriptCategorySelectView | E2E COVERED | - |
+| 189 | TextDicView | E2E COVERED | - |
+| 190 | TextCharCodeView | E2E COVERED | - |
+| 191 | TextBadCharPopupView | E2E COVERED | - |
+| 192 | TextRefAddDialogView | E2E COVERED | - |
+| 193 | TextToSpeechView | E2E COVERED | - |
 
 ## Structural Data Editors
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 160 | Command85PointerView | E2E COVERED | - |
-| 161 | FE8SpellMenuExtendsView | E2E COVERED | - |
-| 162 | StatusOptionView | E2E COVERED | - |
-| 163 | OAMSPView | E2E COVERED | - |
-| 164 | DumpStructSelectDialogView | E2E COVERED | - |
+| 194 | Command85PointerView | E2E COVERED | - |
+| 195 | FE8SpellMenuExtendsView | E2E COVERED | - |
+| 196 | StatusOptionView | E2E COVERED | - |
+| 197 | OAMSPView | E2E COVERED | - |
+| 198 | DumpStructSelectDialogView | E2E COVERED | - |
+| 199 | DumpStructSelectToTextDialogView | E2E COVERED | - |
+
+## Status Screen Editors
+
+| # | View | E2E Status | Data Verified |
+|---|------|-----------|---------------|
+| 200 | StatusParamView | E2E COVERED | - |
+| 201 | StatusRMenuView | E2E COVERED | - |
+| 202 | StatusUnitsMenuView | E2E COVERED | - |
+| 203 | StatusOptionOrderView | E2E COVERED | - |
 
 ## Patch / Skill Systems
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 165 | PatchManagerView | E2E COVERED | - |
-| 166 | ToolCustomBuildView | E2E COVERED | - |
-| 167 | SkillAssignmentUnitSkillSystemView | E2E COVERED | - |
-| 168 | SkillAssignmentClassSkillSystemView | E2E COVERED | - |
-| 169 | SkillConfigSkillSystemView | E2E COVERED | - |
+| 204 | PatchManagerView | E2E COVERED | - |
+| 205 | ToolCustomBuildView | E2E COVERED | - |
+| 206 | SkillAssignmentUnitSkillSystemView | E2E COVERED | - |
+| 207 | SkillAssignmentClassSkillSystemView | E2E COVERED | - |
+| 208 | SkillConfigSkillSystemView | E2E COVERED | - |
+| 209 | SkillAssignmentUnitCSkillSysView | E2E COVERED | - |
+| 210 | SkillAssignmentClassCSkillSysView | E2E COVERED | - |
+| 211 | SkillAssignmentUnitFE8NView | E2E COVERED | - |
+| 212 | SkillConfigFE8NSkillView | E2E COVERED | - |
+| 213 | SkillConfigFE8NVer2SkillView | E2E COVERED | - |
+| 214 | SkillConfigFE8NVer3SkillView | E2E COVERED | - |
+| 215 | SkillConfigFE8UCSkillSys09xView | E2E COVERED | - |
+| 216 | SkillSystemsEffectivenessReworkClassTypeView | E2E COVERED | - |
+| 217 | PatchFilterExView | E2E COVERED | - |
+| 218 | PatchFormUninstallDialogView | E2E COVERED | - |
+
+## OP Class Editors (Version-Specific)
+
+| # | View | E2E Status | Data Verified |
+|---|------|-----------|---------------|
+| 219 | OPClassDemoFE7View | E2E COVERED | - |
+| 220 | OPClassDemoFE7UView | E2E COVERED | - |
+| 221 | OPClassDemoFE8UView | E2E COVERED | - |
+| 222 | OPClassFontFE8UView | E2E COVERED | - |
+| 223 | OPClassAlphaNameView | E2E COVERED | - |
+| 224 | OPClassAlphaNameFE6View | E2E COVERED | - |
+
+## Bit Flag Editors
+
+| # | View | E2E Status | Data Verified |
+|---|------|-----------|---------------|
+| 225 | UbyteBitFlagView | E2E COVERED | - |
+| 226 | UshortBitFlagView | E2E COVERED | - |
+| 227 | UwordBitFlagView | E2E COVERED | - |
+
+## Error / Dialog Forms
+
+| # | View | E2E Status | Data Verified |
+|---|------|-----------|---------------|
+| 228 | ErrorReportView | E2E COVERED | - |
+| 229 | ErrorPaletteMissMatchView | E2E COVERED | - |
+| 230 | ErrorPaletteShowView | E2E COVERED | - |
+| 231 | ErrorPaletteTransparentView | E2E COVERED | - |
+| 232 | ErrorTSAErrorView | E2E COVERED | - |
+| 233 | ErrorLongMessageDialogView | E2E COVERED | - |
+| 234 | ErrorUnknownROMView | E2E COVERED | - |
+| 235 | HowDoYouLikePatchView | E2E COVERED | - |
+| 236 | HowDoYouLikePatch2View | E2E COVERED | - |
 
 ## Tools
 
 | # | View | E2E Status | Data Verified |
 |---|------|-----------|---------------|
-| 170 | ToolUndoView | E2E COVERED | - |
-| 171 | ToolFELintView | E2E COVERED | - |
-| 172 | ToolROMRebuildView | E2E COVERED | - |
-| 173 | ToolLZ77View | E2E COVERED | - |
-| 174 | ToolDiffView | E2E COVERED | - |
-| 175 | ToolUPSPatchSimpleView | E2E COVERED | - |
-| 176 | ToolUPSOpenSimpleView | E2E COVERED | - |
-| 177 | ToolFlagNameView | E2E COVERED | - |
-| 178 | ToolUseFlagView | E2E COVERED | - |
-| 179 | ToolUnitTalkGroupView | E2E COVERED | - |
-| 180 | ToolASMInsertView | E2E COVERED | - |
-| 181 | HexEditorView | E2E COVERED | - |
-| 182 | DisASMView | E2E COVERED | - |
-| 183 | LogViewerView | E2E COVERED | - |
-| 184 | GrowSimulatorView | E2E COVERED | - |
-| 185 | OptionsView | E2E COVERED | - |
+| 237 | ToolUndoView | E2E COVERED | - |
+| 238 | ToolFELintView | E2E COVERED | - |
+| 239 | ToolROMRebuildView | E2E COVERED | - |
+| 240 | ToolLZ77View | E2E COVERED | - |
+| 241 | ToolDiffView | E2E COVERED | - |
+| 242 | ToolUPSPatchSimpleView | E2E COVERED | - |
+| 243 | ToolUPSOpenSimpleView | E2E COVERED | - |
+| 244 | ToolFlagNameView | E2E COVERED | - |
+| 245 | ToolUseFlagView | E2E COVERED | - |
+| 246 | ToolUnitTalkGroupView | E2E COVERED | - |
+| 247 | ToolASMInsertView | E2E COVERED | - |
+| 248 | HexEditorView | E2E COVERED | - |
+| 249 | DisASMView | E2E COVERED | - |
+| 250 | LogViewerView | E2E COVERED | - |
+| 251 | GrowSimulatorView | E2E COVERED | - |
+| 252 | OptionsView | E2E COVERED | - |
+| 253 | DisASMDumpAllView | E2E COVERED | - |
+| 254 | DisASMDumpAllArgGrepView | E2E COVERED | - |
+| 255 | HexEditorJumpView | E2E COVERED | - |
+| 256 | HexEditorMarkView | E2E COVERED | - |
+| 257 | HexEditorSearchView | E2E COVERED | - |
+| 258 | PointerToolView | E2E COVERED | - |
+| 259 | PointerToolBatchInputView | E2E COVERED | - |
+| 260 | PointerToolCopyToView | E2E COVERED | - |
+| 261 | PackedMemorySlotView | E2E COVERED | - |
+| 262 | EmulatorMemoryView | E2E COVERED | - |
+| 263 | RAMRewriteToolMAPView | E2E COVERED | - |
+| 264 | ToolAnimationCreatorView | E2E COVERED | - |
+| 265 | ToolThreeMargeView | E2E COVERED | - |
+| 266 | ToolASMEditView | E2E COVERED | - |
+| 267 | ToolExportEAEventView | E2E COVERED | - |
+| 268 | ToolDecompileResultView | E2E COVERED | - |
+| 269 | ToolChangeProjectnameView | E2E COVERED | - |
+| 270 | ToolAutomaticRecoveryROMHeaderView | E2E COVERED | - |
+| 271 | MoveToFreeSpaceView | E2E COVERED | - |
+| 272 | ToolSubtitleOverlayView | E2E COVERED | - |
+| 273 | ToolSubtitleSettingDialogView | E2E COVERED | - |

@@ -8,12 +8,16 @@
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
         <MenuItem Header="_Open ROM..." Click="OpenRom_Click" />
+        <MenuItem Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
+        <Separator />
         <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" />
+        <MenuItem Header="Save _As..." Click="SaveAsRom_Click" Name="SaveAsMenuItem" IsEnabled="False" />
         <Separator />
         <MenuItem Header="E_xit" Click="Exit_Click" />
       </MenuItem>
       <MenuItem Header="_Edit">
-        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" />
+        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" />
+        <MenuItem Header="_Redo" Name="RedoMenuItem" IsEnabled="False" IsVisible="False" />
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
@@ -346,6 +350,52 @@
             <Button Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
             <Button Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
             <Button Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
+            <Button Content="Pointer Tool" Click="OpenPointerTool_Click" Margin="4" MinWidth="100" />
+            <Button Content="Free Space" Click="OpenMoveToFreeSpace_Click" Margin="4" MinWidth="100" />
+            <Button Content="Graphics Tool" Click="OpenGraphicsTool_Click" Margin="4" MinWidth="100" />
+            <Button Content="BGM Mute" Click="OpenToolBGMMuteDialog_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Status Screen -->
+          <TextBlock Text="Status Screen" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Status Param" Click="OpenStatusParam_Click" Margin="4" MinWidth="100" />
+            <Button Content="Status R-Menu" Click="OpenStatusRMenu_Click" Margin="4" MinWidth="100" />
+            <Button Content="Status Units" Click="OpenStatusUnitsMenu_Click" Margin="4" MinWidth="100" />
+            <Button Content="Status Options" Click="OpenStatusOptionOrder_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Skill Systems (Extended) -->
+          <TextBlock Text="Skill Systems (Extended)" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
+            <Button Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
+            <Button Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />
+            <Button Content="Config FE8N" Click="OpenSkillConfigFE8N_Click" Margin="4" MinWidth="100" />
+            <Button Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
+            <Button Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
+            <Button Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
+            <Button Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
+          </WrapPanel>
+
+          <!-- Version-Specific Editors -->
+          <TextBlock Text="Version-Specific" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Items (FE6)" Click="OpenItemFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Move Cost (FE6)" Click="OpenMoveCostFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Support (FE6)" Click="OpenSupportUnitFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Sup Talk (FE6)" Click="OpenSupportTalkFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Sup Talk (FE7)" Click="OpenSupportTalkFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="Units (FE7)" Click="OpenUnitFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Demo (FE7)" Click="OpenOPClassDemoFE7_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Demo (FE7U)" Click="OpenOPClassDemoFE7U_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Demo (FE8U)" Click="OpenOPClassDemoFE8U_Click" Margin="4" MinWidth="100" />
+            <Button Content="OP Font (FE8U)" Click="OpenOPClassFontFE8U_Click" Margin="4" MinWidth="100" />
+            <Button Content="Alpha Name" Click="OpenOPClassAlphaName_Click" Margin="4" MinWidth="100" />
+            <Button Content="Alpha (FE6)" Click="OpenOPClassAlphaNameFE6_Click" Margin="4" MinWidth="100" />
+            <Button Content="Class List" Click="OpenSomeClassList_Click" Margin="4" MinWidth="100" />
+            <Button Content="Weapon Lock" Click="OpenVennouWeaponLock_Click" Margin="4" MinWidth="100" />
+            <Button Content="Short Text" Click="OpenUnitsShortText_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
         </StackPanel>
       </StackPanel>

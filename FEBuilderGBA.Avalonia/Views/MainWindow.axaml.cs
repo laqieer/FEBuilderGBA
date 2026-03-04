@@ -137,7 +137,16 @@ namespace FEBuilderGBA.Avalonia.Views
             NoRomLabel.IsVisible = false;
             EditorPanel.IsVisible = true;
             SaveMenuItem.IsEnabled = true;
+            SaveAsMenuItem.IsEnabled = true;
+            UndoMenuItem.IsEnabled = true;
             LintMenuItem.IsEnabled = true;
+
+            // Remember last opened ROM
+            if (CoreState.Config != null)
+            {
+                CoreState.Config["Last_Rom_Filename"] = path;
+                CoreState.Config.Save();
+            }
 
             return true;
         }
@@ -719,6 +728,116 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("LogViewerView", () => wm.Open<LogViewerView>()),
                 ("GrowSimulatorView", () => wm.Open<GrowSimulatorView>()),
                 ("OptionsView", () => wm.Open<OptionsView>()),
+
+                // === GAP CLOSURE: New editors added by gap analysis ===
+
+                // Status Screen Editors (WU2)
+                ("StatusParamView", () => wm.Open<StatusParamView>()),
+                ("StatusRMenuView", () => wm.Open<StatusRMenuView>()),
+                ("StatusUnitsMenuView", () => wm.Open<StatusUnitsMenuView>()),
+                ("StatusOptionOrderView", () => wm.Open<StatusOptionOrderView>()),
+
+                // Skill System Editors (WU3)
+                ("SkillAssignmentUnitCSkillSysView", () => wm.Open<SkillAssignmentUnitCSkillSysView>()),
+                ("SkillAssignmentClassCSkillSysView", () => wm.Open<SkillAssignmentClassCSkillSysView>()),
+                ("SkillAssignmentUnitFE8NView", () => wm.Open<SkillAssignmentUnitFE8NView>()),
+                ("SkillConfigFE8NSkillView", () => wm.Open<SkillConfigFE8NSkillView>()),
+                ("SkillConfigFE8NVer2SkillView", () => wm.Open<SkillConfigFE8NVer2SkillView>()),
+                ("SkillConfigFE8NVer3SkillView", () => wm.Open<SkillConfigFE8NVer3SkillView>()),
+                ("SkillConfigFE8UCSkillSys09xView", () => wm.Open<SkillConfigFE8UCSkillSys09xView>()),
+                ("SkillSystemsEffectivenessReworkClassTypeView", () => wm.Open<SkillSystemsEffectivenessReworkClassTypeView>()),
+
+                // Song/Audio Dialogs (WU4)
+                ("ToolBGMMuteDialogView", () => wm.Open<ToolBGMMuteDialogView>()),
+
+                // Event/Text Sub-forms (WU5)
+                ("EventScriptCategorySelectView", () => wm.Open<EventScriptCategorySelectView>()),
+                ("EventScriptPopupView", () => wm.Open<EventScriptPopupView>()),
+                ("ProcsScriptCategorySelectView", () => wm.Open<ProcsScriptCategorySelectView>()),
+                ("AIScriptCategorySelectView", () => wm.Open<AIScriptCategorySelectView>()),
+                ("TextScriptCategorySelectView", () => wm.Open<TextScriptCategorySelectView>()),
+                ("TextDicView", () => wm.Open<TextDicView>()),
+                ("TextCharCodeView", () => wm.Open<TextCharCodeView>()),
+                ("TextBadCharPopupView", () => wm.Open<TextBadCharPopupView>()),
+                ("TextRefAddDialogView", () => wm.Open<TextRefAddDialogView>()),
+                ("TextToSpeechView", () => wm.Open<TextToSpeechView>()),
+
+                // Graphics Tool Forms (WU6)
+                ("GraphicsToolView", () => wm.Open<GraphicsToolView>()),
+                ("GraphicsToolPatchMakerView", () => wm.Open<GraphicsToolPatchMakerView>()),
+                ("PaletteChangeColorsView", () => wm.Open<PaletteChangeColorsView>()),
+                ("PaletteClipboardView", () => wm.Open<PaletteClipboardView>()),
+                ("PaletteSwapView", () => wm.Open<PaletteSwapView>()),
+                ("ImageBGSelectPopupView", () => wm.Open<ImageBGSelectPopupView>()),
+
+                // Map Sub-dialog Forms (WU7)
+                ("MapEditorAddMapChangeDialogView", () => wm.Open<MapEditorAddMapChangeDialogView>()),
+                ("MapEditorMarSizeDialogView", () => wm.Open<MapEditorMarSizeDialogView>()),
+                ("MapEditorResizeDialogView", () => wm.Open<MapEditorResizeDialogView>()),
+                ("MapPointerNewPLISTPopupView", () => wm.Open<MapPointerNewPLISTPopupView>()),
+                ("MapStyleEditorAppendPopupView", () => wm.Open<MapStyleEditorAppendPopupView>()),
+                ("MapStyleEditorWarningOverrideView", () => wm.Open<MapStyleEditorWarningOverrideView>()),
+                ("MapStyleEditorImportImageOptionView", () => wm.Open<MapStyleEditorImportImageOptionView>()),
+                ("MapSettingDifficultyDialogView", () => wm.Open<MapSettingDifficultyDialogView>()),
+
+                // Tool/Utility Forms Part 1 (WU8)
+                ("DisASMDumpAllView", () => wm.Open<DisASMDumpAllView>()),
+                ("DisASMDumpAllArgGrepView", () => wm.Open<DisASMDumpAllArgGrepView>()),
+                ("HexEditorJumpView", () => wm.Open<HexEditorJumpView>()),
+                ("HexEditorMarkView", () => wm.Open<HexEditorMarkView>()),
+                ("HexEditorSearchView", () => wm.Open<HexEditorSearchView>()),
+                ("PointerToolView", () => wm.Open<PointerToolView>()),
+                ("PointerToolBatchInputView", () => wm.Open<PointerToolBatchInputView>()),
+                ("PointerToolCopyToView", () => wm.Open<PointerToolCopyToView>()),
+                ("PackedMemorySlotView", () => wm.Open<PackedMemorySlotView>()),
+                ("EmulatorMemoryView", () => wm.Open<EmulatorMemoryView>()),
+
+                // Tool/Utility Forms Part 2 (WU9)
+                ("RAMRewriteToolMAPView", () => wm.Open<RAMRewriteToolMAPView>()),
+                ("ToolAnimationCreatorView", () => wm.Open<ToolAnimationCreatorView>()),
+                ("ToolThreeMargeView", () => wm.Open<ToolThreeMargeView>()),
+                ("ToolASMEditView", () => wm.Open<ToolASMEditView>()),
+                ("ToolExportEAEventView", () => wm.Open<ToolExportEAEventView>()),
+                ("ToolDecompileResultView", () => wm.Open<ToolDecompileResultView>()),
+                ("ToolChangeProjectnameView", () => wm.Open<ToolChangeProjectnameView>()),
+                ("ToolAutomaticRecoveryROMHeaderView", () => wm.Open<ToolAutomaticRecoveryROMHeaderView>()),
+                ("MoveToFreeSpaceView", () => wm.Open<MoveToFreeSpaceView>()),
+                ("ToolSubtitleOverlayView", () => wm.Open<ToolSubtitleOverlayView>()),
+                ("ToolSubtitleSettingDialogView", () => wm.Open<ToolSubtitleSettingDialogView>()),
+
+                // Error/Dialog Forms (WU10)
+                ("ErrorReportView", () => wm.Open<ErrorReportView>()),
+                ("ErrorPaletteMissMatchView", () => wm.Open<ErrorPaletteMissMatchView>()),
+                ("ErrorPaletteShowView", () => wm.Open<ErrorPaletteShowView>()),
+                ("ErrorPaletteTransparentView", () => wm.Open<ErrorPaletteTransparentView>()),
+                ("ErrorTSAErrorView", () => wm.Open<ErrorTSAErrorView>()),
+                ("ErrorLongMessageDialogView", () => wm.Open<ErrorLongMessageDialogView>()),
+                ("ErrorUnknownROMView", () => wm.Open<ErrorUnknownROMView>()),
+                ("DumpStructSelectToTextDialogView", () => wm.Open<DumpStructSelectToTextDialogView>()),
+                ("HowDoYouLikePatchView", () => wm.Open<HowDoYouLikePatchView>()),
+                ("HowDoYouLikePatch2View", () => wm.Open<HowDoYouLikePatch2View>()),
+                ("PatchFilterExView", () => wm.Open<PatchFilterExView>()),
+                ("PatchFormUninstallDialogView", () => wm.Open<PatchFormUninstallDialogView>()),
+
+                // Version-Specific / Specialized Forms (WU11)
+                ("ItemFE6View", () => wm.Open<ItemFE6View>()),
+                ("MoveCostFE6View", () => wm.Open<MoveCostFE6View>()),
+                ("SupportUnitFE6View", () => wm.Open<SupportUnitFE6View>()),
+                ("SupportTalkFE6View", () => wm.Open<SupportTalkFE6View>()),
+                ("SupportTalkFE7View", () => wm.Open<SupportTalkFE7View>()),
+                ("UnitFE7View", () => wm.Open<UnitFE7View>()),
+                ("OPClassDemoFE7View", () => wm.Open<OPClassDemoFE7View>()),
+                ("OPClassDemoFE7UView", () => wm.Open<OPClassDemoFE7UView>()),
+                ("OPClassDemoFE8UView", () => wm.Open<OPClassDemoFE8UView>()),
+                ("OPClassFontFE8UView", () => wm.Open<OPClassFontFE8UView>()),
+                ("OPClassAlphaNameView", () => wm.Open<OPClassAlphaNameView>()),
+                ("OPClassAlphaNameFE6View", () => wm.Open<OPClassAlphaNameFE6View>()),
+                ("SomeClassListView", () => wm.Open<SomeClassListView>()),
+                ("VennouWeaponLockView", () => wm.Open<VennouWeaponLockView>()),
+                ("UnitsShortTextView", () => wm.Open<UnitsShortTextView>()),
+                ("UbyteBitFlagView", () => wm.Open<UbyteBitFlagView>()),
+                ("UshortBitFlagView", () => wm.Open<UshortBitFlagView>()),
+                ("UwordBitFlagView", () => wm.Open<UwordBitFlagView>()),
             };
         }
 
@@ -739,6 +858,39 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CoreState.ROM == null) return;
             CoreState.ROM.Save(CoreState.ROM.Filename, false);
             CoreState.Services.ShowInfo("ROM saved.");
+        }
+
+        private async void SaveAsRom_Click(object? sender, RoutedEventArgs e)
+        {
+            if (CoreState.ROM == null) return;
+
+            string suggestedName = Path.GetFileName(CoreState.ROM.Filename ?? "rom.gba");
+            var path = await FileDialogHelper.SaveRomFile(this, suggestedName);
+            if (string.IsNullOrEmpty(path)) return;
+
+            CoreState.ROM.Save(path, false);
+            CoreState.Services.ShowInfo($"ROM saved as: {Path.GetFileName(path)}");
+        }
+
+        private void OpenLastRom_Click(object? sender, RoutedEventArgs e)
+        {
+            string lastPath = CoreState.Config?.at("Last_Rom_Filename", "") ?? "";
+            if (string.IsNullOrEmpty(lastPath) || !File.Exists(lastPath))
+            {
+                _ = MessageBoxWindow.Show(this, "No recent ROM found.", "Open Last ROM", MessageBoxMode.Ok);
+                return;
+            }
+
+            bool ok = LoadRomFile(lastPath);
+            if (!ok)
+            {
+                _ = MessageBoxWindow.Show(this, $"Failed to load ROM: {lastPath}", "Error", MessageBoxMode.Ok);
+            }
+        }
+
+        private void Undo_Click(object? sender, RoutedEventArgs e)
+        {
+            CoreState.Undo?.RunUndo();
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)
@@ -1205,5 +1357,48 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenLogViewer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<LogViewerView>();
         private void OpenGrowSimulator_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<GrowSimulatorView>();
         private void OpenOptions_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OptionsView>();
+
+        // ===================== Gap Closure: New Editors =====================
+
+        // Status Screen (WU2)
+        private void OpenStatusParam_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<StatusParamView>();
+        private void OpenStatusRMenu_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<StatusRMenuView>();
+        private void OpenStatusUnitsMenu_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<StatusUnitsMenuView>();
+        private void OpenStatusOptionOrder_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<StatusOptionOrderView>();
+
+        // Skill Systems Extended (WU3)
+        private void OpenSkillAssignmentUnitCSkillSys_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillAssignmentUnitCSkillSysView>();
+        private void OpenSkillAssignmentClassCSkillSys_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillAssignmentClassCSkillSysView>();
+        private void OpenSkillAssignmentUnitFE8N_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillAssignmentUnitFE8NView>();
+        private void OpenSkillConfigFE8N_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8NSkillView>();
+        private void OpenSkillConfigFE8NVer2_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8NVer2SkillView>();
+        private void OpenSkillConfigFE8NVer3_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8NVer3SkillView>();
+        private void OpenSkillConfigFE8UCSkillSys09x_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8UCSkillSys09xView>();
+        private void OpenSkillSystemsEffectivenessRework_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillSystemsEffectivenessReworkClassTypeView>();
+
+        // Audio (WU4)
+        private void OpenToolBGMMuteDialog_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ToolBGMMuteDialogView>();
+
+        // Tools (WU6, WU8, WU9)
+        private void OpenGraphicsTool_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<GraphicsToolView>();
+        private void OpenPointerTool_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<PointerToolView>();
+        private void OpenMoveToFreeSpace_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<MoveToFreeSpaceView>();
+
+        // Version-Specific (WU11)
+        private void OpenItemFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ItemFE6View>();
+        private void OpenMoveCostFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<MoveCostFE6View>();
+        private void OpenSupportUnitFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SupportUnitFE6View>();
+        private void OpenSupportTalkFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SupportTalkFE6View>();
+        private void OpenSupportTalkFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SupportTalkFE7View>();
+        private void OpenUnitFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<UnitFE7View>();
+        private void OpenOPClassDemoFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassDemoFE7View>();
+        private void OpenOPClassDemoFE7U_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassDemoFE7UView>();
+        private void OpenOPClassDemoFE8U_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassDemoFE8UView>();
+        private void OpenOPClassFontFE8U_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassFontFE8UView>();
+        private void OpenOPClassAlphaName_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassAlphaNameView>();
+        private void OpenOPClassAlphaNameFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OPClassAlphaNameFE6View>();
+        private void OpenSomeClassList_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SomeClassListView>();
+        private void OpenVennouWeaponLock_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<VennouWeaponLockView>();
+        private void OpenUnitsShortText_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<UnitsShortTextView>();
     }
 }

@@ -1,0 +1,10 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.MapSettingDifficultyDialogView"
+        Title="Map Setting - Difficulty" Width="500" Height="400"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="16" Spacing="12">
+    <TextBlock Text="Map Setting - Difficulty" FontSize="18" FontWeight="Bold" />
+    <TextBlock Text="This dialog is not yet implemented." Foreground="Gray" />
+  </StackPanel>
+</Window>
