@@ -48,88 +48,91 @@
         <!-- Base Stats Section -->
         <TextBlock Text="Base Stats" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto,Auto,Auto">
+          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="LV:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="9" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="10" Name="SklBox" Minimum="0" Maximum="255" Margin="0,2" />
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SpdBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="6" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="ResBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="9" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="10" Name="LckBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SklBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="SpdBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="6" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="DefBox" Minimum="0" Maximum="255" Margin="0,2" />
 
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Con:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ConBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ResBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="3" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="4" Name="LckBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="6" Text="Con:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
         <!-- Weapon Levels Section -->
         <TextBlock Text="Weapon Levels" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto,Auto">
+          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="7" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="9" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="10" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="6" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="9" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="10" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="6" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="3" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
         <!-- Growth Rates Section -->
         <TextBlock Text="Growth Rates (%)" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto,Auto">
+          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="7" Name="GrowSklBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="9" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="10" Name="GrowSpdBox" Minimum="0" Maximum="255" Margin="0,2" />
 
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="GrowDefBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="GrowResBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="6" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="GrowLckBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="GrowSpdBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="6" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="GrowResBox" Minimum="0" Maximum="255" Margin="0,2" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
         <!-- Ability Flags Section -->
         <TextBlock Text="Ability Flags" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto">
+          <Grid ColumnDefinitions="Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Byte1:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Byte2:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="6" Text="Byte3:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="7" Name="Ability3Box" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="9" Text="Byte4:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="10" Name="Ability4Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Byte3:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="Byte4:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
@@ -137,36 +140,38 @@
         <TextBlock Text="Support &amp; Other" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
-            <Grid ColumnDefinitions="Auto,150" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,180" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Support Ptr:" VerticalAlignment="Center" Margin="0,2,8,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,2" />
             </Grid>
 
             <!-- Unknown bytes 35-39 -->
-            <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B35:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="B36:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Unk36Box" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="6" Text="B37:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="7" Name="Unk37Box" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="9" Text="B38:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown Grid.Row="0" Grid.Column="10" Name="Unk38Box" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="12" Text="B39:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown Grid.Row="0" Grid.Column="13" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B38:" VerticalAlignment="Center" Margin="0,2" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Unk38Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="B39:" VerticalAlignment="Center" Margin="0,2" />
+              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
 
             <!-- FE7/8 only fields -->
             <StackPanel Name="FE78Panel" Spacing="4">
-              <Grid ColumnDefinitions="Auto,80,16,Auto,80,16,Auto,80,16,Auto,80" RowDefinitions="Auto">
+              <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Talk:" VerticalAlignment="Center" Margin="0,2" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1" Name="TalkGroupBox" Minimum="0" Maximum="255" Margin="0,2" />
                 <TextBlock Grid.Row="0" Grid.Column="3" Text="B49:" VerticalAlignment="Center" Margin="0,2" />
                 <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Unk49Box" Minimum="0" Maximum="255" Margin="0,2" />
                 <TextBlock Grid.Row="0" Grid.Column="6" Text="B50:" VerticalAlignment="Center" Margin="0,2" />
                 <NumericUpDown Grid.Row="0" Grid.Column="7" Name="Unk50Box" Minimum="0" Maximum="255" Margin="0,2" />
-                <TextBlock Grid.Row="0" Grid.Column="9" Text="B51:" VerticalAlignment="Center" Margin="0,2" />
-                <NumericUpDown Grid.Row="0" Grid.Column="10" Name="Unk51Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="B51:" VerticalAlignment="Center" Margin="0,2" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Unk51Box" Minimum="0" Maximum="255" Margin="0,2" />
               </Grid>
             </StackPanel>
           </StackPanel>
