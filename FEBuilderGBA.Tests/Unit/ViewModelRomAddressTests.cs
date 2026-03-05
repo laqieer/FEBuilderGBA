@@ -41,46 +41,50 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("UnitEditorViewModel.cs");
-            // NameId at offset 0
+            // NameId at offset 0 (W0)
             Assert.Contains("rom.u16(addr + 0)", src);
-            // ClassId at offset 4
+            // DescId at offset 2 (W2)
+            Assert.Contains("rom.u16(addr + 2)", src);
+            // UnitId at offset 4 (B4)
             Assert.Contains("rom.u8(addr + 4)", src);
-            // Level at offset 8
-            Assert.Contains("rom.u8(addr + 8)", src);
+            // ClassId at offset 5 (B5)
+            Assert.Contains("rom.u8(addr + 5)", src);
+            // PortraitId at offset 6 (W6)
+            Assert.Contains("rom.u16(addr + 6)", src);
+            // Level at offset 11 (B11)
+            Assert.Contains("rom.u8(addr + 11)", src);
             // HP at offset 12
             Assert.Contains("rom.u8(addr + 12)", src);
-            // Str at offset 13
-            Assert.Contains("rom.u8(addr + 13)", src);
-            // Skl at offset 14
-            Assert.Contains("rom.u8(addr + 14)", src);
-            // Spd at offset 15
-            Assert.Contains("rom.u8(addr + 15)", src);
-            // Def at offset 16
-            Assert.Contains("rom.u8(addr + 16)", src);
-            // Res at offset 17
-            Assert.Contains("rom.u8(addr + 17)", src);
-            // Lck at offset 18
-            Assert.Contains("rom.u8(addr + 18)", src);
-            // Con at offset 19
-            Assert.Contains("rom.u8(addr + 19)", src);
+            // Weapon levels at offsets 20-27
+            Assert.Contains("rom.u8(addr + 20)", src);
+            Assert.Contains("rom.u8(addr + 27)", src);
+            // Growth rates at offsets 28-34
+            Assert.Contains("rom.u8(addr + 28)", src);
+            Assert.Contains("rom.u8(addr + 34)", src);
+            // Ability flags at offsets 40-43
+            Assert.Contains("rom.u8(addr + 40)", src);
+            Assert.Contains("rom.u8(addr + 43)", src);
+            // Support pointer at offset 44
+            Assert.Contains("rom.u32(addr + 44)", src);
         }
 
         [Fact]
         public void UnitEditorViewModel_WritesMatchReads()
         {
             var src = ReadViewModel("UnitEditorViewModel.cs");
-            // Verify write offsets match read offsets
+            // Verify write offsets match read offsets (corrected from old buggy offsets)
             Assert.Contains("rom.write_u16(addr + 0, NameId)", src);
-            Assert.Contains("rom.write_u8(addr + 4, ClassId)", src);
-            Assert.Contains("rom.write_u8(addr + 8, Level)", src);
+            Assert.Contains("rom.write_u16(addr + 2, DescId)", src);
+            Assert.Contains("rom.write_u8(addr + 4, UnitId)", src);
+            Assert.Contains("rom.write_u8(addr + 5, ClassId)", src);
+            Assert.Contains("rom.write_u16(addr + 6, PortraitId)", src);
+            Assert.Contains("rom.write_u8(addr + 11, Level)", src);
             Assert.Contains("rom.write_u8(addr + 12, HP)", src);
             Assert.Contains("rom.write_u8(addr + 13, Str)", src);
-            Assert.Contains("rom.write_u8(addr + 14, Skl)", src);
-            Assert.Contains("rom.write_u8(addr + 15, Spd)", src);
-            Assert.Contains("rom.write_u8(addr + 16, Def)", src);
-            Assert.Contains("rom.write_u8(addr + 17, Res)", src);
-            Assert.Contains("rom.write_u8(addr + 18, Lck)", src);
-            Assert.Contains("rom.write_u8(addr + 19, Con)", src);
+            Assert.Contains("rom.write_u8(addr + 20, WepSword)", src);
+            Assert.Contains("rom.write_u8(addr + 28, GrowHP)", src);
+            Assert.Contains("rom.write_u8(addr + 40, Ability1)", src);
+            Assert.Contains("rom.write_u32(addr + 44, SupportPtr)", src);
         }
 
         [Fact]

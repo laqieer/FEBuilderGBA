@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorViewModel_LoadUnitHasBoundsCheck()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitEditorViewModel.cs"));
-            Assert.Contains("addr + minSize > (uint)rom.Data.Length", src);
+            Assert.Contains("addr + dataSize > (uint)rom.Data.Length", src);
         }
 
         [Fact]
