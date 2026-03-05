@@ -38,6 +38,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // FE7/8 only (offsets 48-51)
         uint _talkGroup, _unk49, _unk50, _unk51;
 
+        // Portrait image loaded from portrait table
+        IImage? _portraitImage;
+
         // Properties — Identity
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint SelectedId { get => _selectedId; set => SetField(ref _selectedId, value); }
@@ -105,6 +108,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unk49 { get => _unk49; set => SetField(ref _unk49, value); }
         public uint Unk50 { get => _unk50; set => SetField(ref _unk50, value); }
         public uint Unk51 { get => _unk51; set => SetField(ref _unk51, value); }
+
+        // Portrait image
+        public IImage? PortraitImage => _portraitImage;
 
         public List<AddrResult> LoadUnitList()
         {
@@ -423,6 +429,53 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom.write_u8(addr + 49, Unk49);
                 rom.write_u8(addr + 50, Unk50);
                 rom.write_u8(addr + 51, Unk51);
+            }
+        }
+
+        /// <summary>
+        /// Load portrait image for the current unit's PortraitId.
+        /// Sets PortraitRgba/Width/Height if successful.
+        /// </summary>
+        public void LoadPortraitImage()
+        {
+            _portraitImage?.Dispose();
+            _portraitImage = null;
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || PortraitId == 0) return;
+
+            try
+            {
+                uint ptr = rom.RomInfo.portrait_pointer;
+                if (ptr == 0) return;
+
+                uint portraitBase = rom.p32(ptr);
+                if (!U.isSafetyOffset(portraitBase)) return;
+
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+
+                uint portraitAddr = portraitBase + PortraitId * dataSize;
+                if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
+
+                uint imgPtr = rom.u32(portraitAddr + 0);
+                uint palPtr = rom.u32(portraitAddr + 8);
+
+                if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return;
+
+                uint imgAddr = imgPtr - 0x08000000;
+                uint palAddr = palPtr - 0x08000000;
+
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return;
+
+                _portraitImage = ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+            }
+            catch
+            {
+                _portraitImage = null;
             }
         }
     }

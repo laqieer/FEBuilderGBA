@@ -42,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadUnit(addr);
                 UpdateUI();
                 UpdateFE78Visibility();
+                TryShowPortrait();
             }
             catch (Exception ex)
             {
@@ -195,6 +196,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unk49 = (uint)(Unk49Box.Value ?? 0);
                 _vm.Unk50 = (uint)(Unk50Box.Value ?? 0);
                 _vm.Unk51 = (uint)(Unk51Box.Value ?? 0);
+            }
+        }
+
+        void TryShowPortrait()
+        {
+            try
+            {
+                _vm.LoadPortraitImage();
+                PortraitImage.SetImage(_vm.PortraitImage);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitEditorView.TryShowPortrait failed: {0}", ex.Message);
+                PortraitImage.SetImage(null);
             }
         }
 
