@@ -121,14 +121,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // Support pointer
             SupportPtrBox.Value = _vm.SupportPtr;
 
-            // FE7/8 only
-            if (!_vm.IsFE6)
-            {
-                TalkGroupBox.Value = _vm.TalkGroup;
-                Unk49Box.Value = _vm.Unk49;
-                Unk50Box.Value = _vm.Unk50;
-                Unk51Box.Value = _vm.Unk51;
-            }
+            // FE7/8 only (always set to avoid null NUDs in hidden panel)
+            TalkGroupBox.Value = _vm.TalkGroup;
+            Unk49Box.Value = _vm.Unk49;
+            Unk50Box.Value = _vm.Unk50;
+            Unk51Box.Value = _vm.Unk51;
         }
 
         void ReadFromUI()
