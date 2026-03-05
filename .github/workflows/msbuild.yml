@@ -60,6 +60,7 @@ jobs:
 
     - name: Publish Test Results
       if: always()
+      continue-on-error: true
       uses: dorny/test-reporter@v1
       with:
         name: Test Results
@@ -92,9 +93,11 @@ jobs:
         verbose: true
 
     - name: Install JUnit Test Logger
+      if: always()
       run: dotnet add FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj package JunitXml.TestLogger --version 3.1.21
 
     - name: Restore and Build Test Project
+      if: always()
       run: dotnet build FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj --configuration ${{env.BUILD_CONFIGURATION}}
 
     - name: Re-run Tests with JUnit Logger
