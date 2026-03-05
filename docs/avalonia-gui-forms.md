@@ -3,8 +3,8 @@
 This document lists all GUI forms (views) in `FEBuilderGBA.Avalonia` that are
 accessible from `MainWindow` and tracks their E2E test coverage status.
 
-**Total forms:** 322
-**E2E Covered:** 322 / 322
+**Total forms:** 323
+**E2E Covered:** 323 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -428,3 +428,4 @@ actual ROM data at the correct addresses and offsets.
 | 320 | ToolDiffDebugSelectView | E2E COVERED | - |
 | 321 | SMEPromoListView | E2E COVERED | - |
 | 322 | ToolRunHintMessageView | E2E COVERED | - |
+| 323 | ImageChapterTitleFE7View | E2E COVERED | YES |

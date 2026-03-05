@@ -20,7 +20,7 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
 | `FEBuilderGBA.CLI` | net9.0 | Cross-platform CLI tool (18 commands: `--version`, `--help`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test`, `--testonly`; flags: `--force-version`, `--noScale`, `--noReserve1stColor`, `--ignoreTSA`) |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp implementation of IImageService (GBA 4bpp/8bpp tiles, palette conversion) |
-| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, 322 editors covering all WinForms forms: unit/item/class editors with read/write; map/event/AI/text/audio/graphics/portrait/world map/support/arena/monster/summon/menu/credits viewers; image editors; hex/disasm/patch/font/option tools; status screen/skill system/error dialogs/version-specific/bit flag editors; 13 functional dialog views — map sub-dialogs, hex editor dialogs, disassembly tools; lint runner; categorized navigation) |
+| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, 323 editors covering all WinForms forms: unit/item/class editors with read/write; map/event/AI/text/audio/graphics/portrait/world map/support/arena/monster/summon/menu/credits viewers; image editors; hex/disasm/patch/font/option tools; status screen/skill system/error dialogs/version-specific/bit flag editors; 13 functional dialog views — map sub-dialogs, hex editor dialogs, disassembly tools; lint runner; categorized navigation) |
 | `FEBuilderGBA.Tests` | net9.0-windows | Unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (runs on Linux/macOS/Windows) |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
@@ -110,7 +110,7 @@ FEBuilderGBA.sln
 │   └── MapConvertCore.cs                  Map tile conversion
 ├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 18 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 273 editors)
+├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
 ├── FEBuilderGBA.Tests/          net9.0-windows (unit tests)
 ├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform tests)
@@ -135,7 +135,7 @@ FEBuilderGBA.sln
   - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)
   - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
   - Avalonia editor smoke tests: Unit/Item editor selection (× 5 ROMs — skipped without ROMs)
-  - Avalonia all-editors smoke test: all 273 GUI editors open/close (× 5 ROMs — skipped without ROMs)
+  - Avalonia all-editors smoke test: all 323 GUI editors open/close (× 5 ROMs — skipped without ROMs)
   - Avalonia data verification: `--data-verify` mode cross-checks ViewModel fields against raw ROM bytes, verifies NumericUpDown UI controls display values, and validates text encoding (Shift-JIS for JP ROMs, ISO-8859-1 for US ROMs) for 50+ editors (× 5 ROMs — skipped without ROMs)
 
 ## E2E Automation Tests

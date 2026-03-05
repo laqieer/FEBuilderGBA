@@ -649,6 +649,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("BattleBGViewerView", () => wm.Open<BattleBGViewerView>()),
                 ("BattleTerrainViewerView", () => wm.Open<BattleTerrainViewerView>()),
                 ("ChapterTitleViewerView", () => wm.Open<ChapterTitleViewerView>()),
+                ("ImageChapterTitleFE7View", () => wm.Open<ImageChapterTitleFE7View>()),
                 ("BigCGViewerView", () => wm.Open<BigCGViewerView>()),
                 ("OPClassDemoViewerView", () => wm.Open<OPClassDemoViewerView>()),
                 ("OPClassFontViewerView", () => wm.Open<OPClassFontViewerView>()),
