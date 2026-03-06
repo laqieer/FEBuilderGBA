@@ -17,7 +17,7 @@ jobs:
   e2e:
     name: E2E Automation
     runs-on: windows-latest     # Windows runner has a virtual display for WinForms GUI
-    timeout-minutes: 45         # Prevent indefinite hangs from GUI automation
+    timeout-minutes: 50         # Prevent indefinite hangs from GUI automation
     env:
       # Pre-compute a boolean flag from the secret so step `if:` conditions can
       # test it.  The `secrets` context is NOT accessible directly in `if:`

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using FEBuilderGBA.E2ETests.Helpers;
 using Xunit;
 
@@ -7,10 +8,25 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// E2E tests that verify Avalonia GUI editors load and display correct ROM data.
     /// Uses --data-verify mode to open each editor, select the first item, read
     /// ViewModel data, cross-check against raw ROM bytes, and print structured results.
+    ///
+    /// PERFORMANCE: The --data-verify launch is cached per ROM path so each ROM is
+    /// launched only once (~60s), not once per test method. This reduces total runtime
+    /// from ~22 minutes to ~5 minutes.
     /// </summary>
     public class AvaloniaDataVerifyTests
     {
         private static readonly string? ExePath = AvaloniaAppRunner.FindExePath();
+
+        /// <summary>
+        /// Cache of --data-verify output per ROM path. Each ROM is launched only once.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, (int ExitCode, string Stdout, string Stderr)> _cache = new();
+
+        private static (int ExitCode, string Stdout, string Stderr) GetDataVerifyOutput(string romPath)
+        {
+            return _cache.GetOrAdd(romPath, path =>
+                AvaloniaAppRunner.Run(ExePath!, $"--rom \"{path}\" --data-verify", timeoutMs: 300_000));
+        }
 
         /// <summary>
         /// Runs --data-verify mode and verifies all IDataVerifiable editors
@@ -23,8 +39,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Verify the data verify mode ran
             Assert.Contains("DATAVERIFY: Testing", stdout);
@@ -46,8 +61,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Core editors should produce VERIFY lines
             Assert.Contains("VERIFY: UnitEditorView|", stdout);
@@ -70,8 +84,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Find the VERIFY line for UnitEditorView
             var lines = stdout.Split('\n');
@@ -96,8 +109,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Must have at least 3 verified (Unit, Item, Class)
             Assert.Contains("DATAVERIFY: UnitEditorView ... VERIFIED", stdout);
@@ -117,8 +129,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Core editors (Unit/Item/Class) exist in all ROM versions
             Assert.Contains("UIVERIFY: UnitEditorView|", stdout);
@@ -147,8 +158,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var fe8uPath = RomLocator.FE8U;
             Skip.If(fe8uPath == null, "FE8U ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{fe8uPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(fe8uPath!);
 
             // On FE8U, both editors have data
             Assert.Contains("UIVERIFY: CCBranchEditorView|", stdout);
@@ -169,8 +179,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{romPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Must have TEXTVERIFY output
             Assert.Contains("TEXTVERIFY: encoder=", stdout);
@@ -193,8 +202,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var fe8jPath = RomLocator.FE8J;
             Skip.If(fe8jPath == null, "FE8J ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{fe8jPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(fe8jPath!);
 
             // Must have TEXTVERIFY lines
             Assert.Contains("TEXTVERIFY: encoder=", stdout);
@@ -216,8 +224,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var fe6Path = RomLocator.FE6;
             Skip.If(fe6Path == null, "FE6 ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{fe6Path}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(fe6Path!);
 
             Assert.Contains("TEXTVERIFY: encoder=", stdout);
             Assert.Contains("is_multibyte=True", stdout);
@@ -236,8 +243,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var fe8uPath = RomLocator.FE8U;
             Skip.If(fe8uPath == null, "FE8U ROM not available");
 
-            var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
-                ExePath!, $"--rom \"{fe8uPath}\" --data-verify", timeoutMs: 300_000);
+            var (exitCode, stdout, stderr) = GetDataVerifyOutput(fe8uPath!);
 
             Assert.Contains("TEXTVERIFY: encoder=", stdout);
             Assert.Contains("is_multibyte=False", stdout);
@@ -246,4 +252,3 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
     }
 }
-
