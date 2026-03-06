@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolWorkSupport_SelectUPSView : Window, IEditorView
     {
         readonly ToolWorkSupport_SelectUPSViewModel _vm = new();
-        public string ViewTitle => "Select UPS ROM";
+        public string ViewTitle => "Open UPS";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolWorkSupport_SelectUPSView()

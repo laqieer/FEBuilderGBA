@@ -1,23 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolWorkSupport_SelectUPSView"
-        Title="Select UPS ROM" Width="500" Height="240"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Select Vanilla ROM for UPS Patch" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Apply UPS Patch" Width="130" Click="ApplyUPS_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Open UPS"
+        Width="1190" Height="255"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Border Margin="10" BorderBrush="Gray" BorderThickness="1" Padding="10">
+    <StackPanel>
+      <!-- Instruction label -->
+      <TextBlock Text="Select an unmodified ROM to open the UPS patch." Height="29"
+                 VerticalAlignment="Center" />
+      <!-- ROM selection row -->
+      <Grid ColumnDefinitions="196,*,130" Margin="0,12,0,0">
+        <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1"
+                Height="31" VerticalAlignment="Center">
+          <TextBlock Text="Vanilla ROM" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" />
+        </Border>
+        <TextBox Grid.Column="1" Text="{Binding OriginalFilename}"
+                 Height="25" Margin="8,0,8,0" />
+        <Button Grid.Column="2" Content="Select File" Width="130" Height="31"
+                Click="Browse_Click" />
+      </Grid>
+      <!-- Apply button -->
+      <Button Content="Open UPS Patch" Height="32"
+              HorizontalAlignment="Stretch" Margin="0,16,0,0"
+              Click="ApplyUPS_Click" />
     </StackPanel>
-    <StackPanel Spacing="8" VerticalAlignment="Center">
-      <TextBlock TextWrapping="Wrap" Text="Please select an unmodified ROM to apply the UPS patch." />
-      <TextBlock Text="UPS File:" FontWeight="SemiBold" />
-      <TextBox Text="{Binding UpsFilename}" IsReadOnly="True" />
-      <TextBlock Text="Vanilla ROM:" FontWeight="SemiBold" />
-      <DockPanel>
-        <Button DockPanel.Dock="Right" Content="Browse..." Width="80" Margin="8,0,0,0" Click="Browse_Click" />
-        <TextBox Text="{Binding OriginalFilename}" IsReadOnly="True" />
-      </DockPanel>
-    </StackPanel>
-  </DockPanel>
+  </Border>
 </Window>
