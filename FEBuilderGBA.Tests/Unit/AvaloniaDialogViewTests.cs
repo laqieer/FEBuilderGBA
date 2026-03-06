@@ -613,5 +613,86 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OK_Click", src);
             Assert.DoesNotContain("Cancel_Click", src);
         }
+
+        // --- PointerToolCopyToView (#260) ---
+
+        [Fact]
+        public void PointerToolCopyTo_Axaml_HasFiveCopyButtons()
+        {
+            var src = ReadAxaml("PointerToolCopyToView.axaml");
+            Assert.Contains("Width=\"449\"", src);
+            Assert.Contains("Height=\"404\"", src);
+            Assert.Contains("Name=\"CopyPointer\"", src);
+            Assert.Contains("Name=\"CopyClipboard\"", src);
+            Assert.Contains("Name=\"CopyLittleEndian\"", src);
+            Assert.Contains("Name=\"HexButton\"", src);
+            Assert.Contains("Name=\"CopyNoDollGBARadBreakPoint\"", src);
+            Assert.Contains("Name=\"ValueTextBox\"", src);
+            Assert.DoesNotContain("Cancel", src);
+        }
+
+        [Fact]
+        public void PointerToolCopyTo_View_HasFiveClickHandlers()
+        {
+            var src = ReadView("PointerToolCopyToView.axaml.cs");
+            Assert.Contains("CopyPointer_Click", src);
+            Assert.Contains("CopyClipboard_Click", src);
+            Assert.Contains("CopyLittleEndian_Click", src);
+            Assert.Contains("HexButton_Click", src);
+            Assert.Contains("CopyNoDoll_Click", src);
+        }
+
+        // --- TextBadCharPopupView (#191) ---
+
+        [Fact]
+        public void TextBadCharPopup_Axaml_HasThreeActionButtons()
+        {
+            var src = ReadAxaml("TextBadCharPopupView.axaml");
+            Assert.Contains("Width=\"849\"", src);
+            Assert.Contains("Height=\"469\"", src);
+            Assert.Contains("Name=\"ErrorMessageLabel\"", src);
+            Assert.Contains("Name=\"Button1\"", src);
+            Assert.Contains("Name=\"Button2\"", src);
+            Assert.Contains("Name=\"Button3\"", src);
+            Assert.Contains("Give Up", src);
+            Assert.Contains("Anti-Huffman", src);
+            Assert.Contains("Encoding Table", src);
+        }
+
+        [Fact]
+        public void TextBadCharPopup_View_HasThreeClickHandlers()
+        {
+            var src = ReadView("TextBadCharPopupView.axaml.cs");
+            Assert.Contains("GiveUp_Click", src);
+            Assert.Contains("AntiHuffman_Click", src);
+            Assert.Contains("EncodingTable_Click", src);
+            Assert.Contains("SelectedAction", src);
+        }
+
+        // --- MapPointerNewPLISTPopupView (#59) ---
+
+        [Fact]
+        public void MapPointerNewPLIST_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("MapPointerNewPLISTPopupView.axaml");
+            Assert.Contains("Width=\"953\"", src);
+            Assert.Contains("Height=\"423\"", src);
+            Assert.Contains("Name=\"PLISTExtendsButton\"", src);
+            Assert.Contains("Name=\"PlistIdInput\"", src);
+            Assert.Contains("Name=\"LinkPlistDisplay\"", src);
+            Assert.Contains("Name=\"OKButton\"", src);
+            Assert.Contains("Name=\"MyCancelButton\"", src);
+            Assert.Contains("Width=\"191\"", src);
+        }
+
+        [Fact]
+        public void MapPointerNewPLIST_View_HasExtendAndOKCancel()
+        {
+            var src = ReadView("MapPointerNewPLISTPopupView.axaml.cs");
+            Assert.Contains("Extend_Click", src);
+            Assert.Contains("OK_Click", src);
+            Assert.Contains("Cancel_Click", src);
+            Assert.Contains("PlistIdInput.Value", src);
+        }
     }
 }

@@ -15,11 +15,39 @@ namespace FEBuilderGBA.Avalonia.Views
         public PointerToolCopyToView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void OK_Click(object? sender, RoutedEventArgs e) => Close("OK");
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void CopyPointer_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.CopyMode = "Pointer";
+            Close("Pointer");
+        }
+
+        void CopyClipboard_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.CopyMode = "Clipboard";
+            Close("Clipboard");
+        }
+
+        void CopyLittleEndian_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.CopyMode = "LittleEndian";
+            Close("LittleEndian");
+        }
+
+        void HexButton_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.CopyMode = "Hex";
+            Close("Hex");
+        }
+
+        void CopyNoDoll_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.CopyMode = "NoDoll";
+            Close("NoDoll");
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

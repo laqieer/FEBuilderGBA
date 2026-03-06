@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 28 / 323
+**Visually Aligned:** 31 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -96,7 +96,7 @@ actual ROM data at the correct addresses and offsets.
 | 56 | MapEditorAddMapChangeDialogView | E2E COVERED | YES | ALIGNED |
 | 57 | MapEditorMarSizeDialogView | E2E COVERED | YES | ALIGNED |
 | 58 | MapEditorResizeDialogView | E2E COVERED | YES | ALIGNED |
-| 59 | MapPointerNewPLISTPopupView | E2E COVERED | YES | - |
+| 59 | MapPointerNewPLISTPopupView | E2E COVERED | YES | ALIGNED |
 | 60 | MapStyleEditorAppendPopupView | E2E COVERED | YES | - |
 | 61 | MapStyleEditorWarningOverrideView | E2E COVERED | YES | ALIGNED |
 | 62 | MapStyleEditorImportImageOptionView | E2E COVERED | YES | ALIGNED |
@@ -263,7 +263,7 @@ actual ROM data at the correct addresses and offsets.
 | 188 | TextScriptCategorySelectView | E2E COVERED | - | - |
 | 189 | TextDicView | E2E COVERED | - | - |
 | 190 | TextCharCodeView | E2E COVERED | - | - |
-| 191 | TextBadCharPopupView | E2E COVERED | - | - |
+| 191 | TextBadCharPopupView | E2E COVERED | YES | ALIGNED |
 | 192 | TextRefAddDialogView | E2E COVERED | - | - |
 | 193 | TextToSpeechView | E2E COVERED | - | - |
 
@@ -367,7 +367,7 @@ actual ROM data at the correct addresses and offsets.
 | 257 | HexEditorSearchView | E2E COVERED | YES | ALIGNED |
 | 258 | PointerToolView | E2E COVERED | - | - |
 | 259 | PointerToolBatchInputView | E2E COVERED | YES | ALIGNED |
-| 260 | PointerToolCopyToView | E2E COVERED | - | - |
+| 260 | PointerToolCopyToView | E2E COVERED | YES | ALIGNED |
 | 261 | PackedMemorySlotView | E2E COVERED | - | - |
 | 262 | EmulatorMemoryView | E2E COVERED | - | - |
 | 263 | RAMRewriteToolMAPView | E2E COVERED | - | - |

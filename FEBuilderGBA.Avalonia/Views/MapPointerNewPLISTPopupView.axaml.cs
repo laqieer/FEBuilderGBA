@@ -17,7 +17,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapPointerNewPLISTPopupView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
+        }
+
+        void Extend_Click(object? sender, RoutedEventArgs e)
+        {
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)

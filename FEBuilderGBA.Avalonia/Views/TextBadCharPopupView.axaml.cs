@@ -17,17 +17,33 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextBadCharPopupView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Load();
-            WarningTextBlock.Text = _vm.WarningText;
         }
 
         public TextBadCharPopupView(string warningText) : this()
         {
             _vm.Load(warningText);
-            WarningTextBlock.Text = _vm.WarningText;
+            ErrorMessageLabel.Text = warningText;
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void GiveUp_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedAction = "GiveUp";
+            Close("GiveUp");
+        }
+
+        void AntiHuffman_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedAction = "AntiHuffman";
+            Close("AntiHuffman");
+        }
+
+        void EncodingTable_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedAction = "EncodingTable";
+            Close("EncodingTable");
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

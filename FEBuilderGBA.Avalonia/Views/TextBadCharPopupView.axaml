@@ -1,17 +1,26 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.TextBadCharPopupView"
-        Title="Bad Character Warning" Width="500" Height="400"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Bad Character Warning" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
+        Title="Bad Character Warning" Width="849" Height="469"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <DockPanel Margin="12,14,12,12">
+    <!-- Error message header (WinForms Error_MessageLabel 244x28 14pt bold) -->
+    <TextBlock DockPanel.Dock="Top" Name="ErrorMessageLabel"
+               Text="Bad Character Detected" FontSize="14" FontWeight="Bold"
+               Margin="0,0,0,12" />
+    <!-- Explanation text (WinForms label1 645x270 multiline) -->
+    <TextBlock DockPanel.Dock="Top" Name="ExplanationLabel" TextWrapping="Wrap"
+               Height="270" Margin="0,0,0,12"
+               Text="Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue." />
+    <!-- 3 action buttons (WinForms button1 274x35, button2 265x35, button3 257x35) -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="6">
+      <Button Name="Button1" Content="Give Up" Width="274" Height="35"
+              Click="GiveUp_Click" />
+      <Button Name="Button2" Content="Anti-Huffman" Width="265" Height="35"
+              Click="AntiHuffman_Click" />
+      <Button Name="Button3" Content="Encoding Table" Width="257" Height="35"
+              Click="EncodingTable_Click" />
     </StackPanel>
-    <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
-      <ScrollViewer>
-        <TextBlock Name="WarningTextBlock" TextWrapping="Wrap" />
-      </ScrollViewer>
-    </Border>
   </DockPanel>
 </Window>

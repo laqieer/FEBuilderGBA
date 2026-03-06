@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         bool _isLoaded;
         string _sourceAddress = string.Empty;
-        string _destAddress = string.Empty;
+        string _copyMode = string.Empty;
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public string SourceAddress { get => _sourceAddress; set => SetField(ref _sourceAddress, value); }
-        public string DestAddress { get => _destAddress; set => SetField(ref _destAddress, value); }
+        public string CopyMode { get => _copyMode; set => SetField(ref _copyMode, value); }
 
         public void Initialize()
         {
@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ["status"] = "loaded",
             ["SourceAddress"] = SourceAddress,
-            ["DestAddress"] = DestAddress,
+            ["CopyMode"] = CopyMode,
         };
         public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
