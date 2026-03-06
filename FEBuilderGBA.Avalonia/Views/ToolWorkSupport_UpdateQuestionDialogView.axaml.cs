@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolWorkSupport_UpdateQuestionDialogView : Window, IEditorView
     {
         readonly ToolWorkSupport_UpdateQuestionDialogViewModel _vm = new();
-        public string ViewTitle => "Update Check";
+        public string ViewTitle => "Current version is the latest";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolWorkSupport_UpdateQuestionDialogView()

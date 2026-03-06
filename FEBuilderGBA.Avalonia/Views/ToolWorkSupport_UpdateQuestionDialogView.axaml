@@ -1,14 +1,27 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolWorkSupport_UpdateQuestionDialogView"
-        Title="Update Check" Width="450" Height="200"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Update Check" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Force Update" Width="120" Click="ForceUpdate_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Current version is the latest"
+        Width="830" Height="190"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Grid ColumnDefinitions="76,*" RowDefinitions="Auto,Auto" Margin="12,8,12,12">
+    <!-- Question icon -->
+    <TextBlock Grid.Row="0" Grid.Column="0" Text="❓" FontSize="40"
+               HorizontalAlignment="Center" VerticalAlignment="Top"
+               Width="64" Height="64" />
+    <!-- Version message -->
+    <TextBlock Grid.Row="0" Grid.Column="1" TextWrapping="Wrap"
+               FontWeight="Bold" FontSize="14"
+               VerticalAlignment="Top" Margin="6,1,0,0"
+               Text="{Binding VersionInfo}" />
+    <!-- Buttons -->
+    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                Orientation="Horizontal" Margin="0,8,0,0">
+      <Button Content="Close" Width="317" Height="42"
+              Click="Cancel_Click" />
+      <Button Content="Force Update" Width="450" Height="42"
+              Margin="20,0,0,0" Click="ForceUpdate_Click" />
     </StackPanel>
-    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Text="{Binding VersionInfo}" />
-  </DockPanel>
+  </Grid>
 </Window>
