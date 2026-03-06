@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolProblemReportSearchSavView : Window, IEditorView
     {
         readonly ToolProblemReportSearchSavViewModel _vm = new();
-        public string ViewTitle => "Select SAV File";
+        public string ViewTitle => "No SAV file found";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolProblemReportSearchSavView()
@@ -31,6 +31,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null && result.Length > 0)
                 {
                     _vm.SavFilename = result[0];
+                    _vm.DialogConfirmed = true;
+                    Close();
                 }
             }
             catch (Exception ex)
