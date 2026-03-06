@@ -46,8 +46,11 @@
               <NumericUpDown Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
             <!-- Portrait Image -->
-            <controls:GbaImageControl Grid.Column="1" Name="PortraitImage" Margin="8,0,0,0"
-                                       VerticalAlignment="Top" Width="64" Height="64" />
+            <Border Grid.Column="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    BorderBrush="Gray" BorderThickness="1"
+                    Margin="8,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
+              <controls:GbaImageControl Name="PortraitImage" />
+            </Border>
           </Grid>
         </Border>
 

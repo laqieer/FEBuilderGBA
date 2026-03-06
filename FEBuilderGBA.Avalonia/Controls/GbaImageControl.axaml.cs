@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Controls
                 new PixelSize(width, height),
                 new Vector(96, 96),
                 global::Avalonia.Platform.PixelFormat.Rgba8888,
-                global::Avalonia.Platform.AlphaFormat.Unpremul);
+                global::Avalonia.Platform.AlphaFormat.Premul);
 
             using (var fb = _bitmap.Lock())
             {
@@ -86,10 +86,27 @@ namespace FEBuilderGBA.Avalonia.Controls
                     int stride = fb.RowBytes;
                     for (int y = 0; y < height; y++)
                     {
-                        int srcOff = y * width * 4;
-                        int dstOff = y * stride;
-                        for (int x = 0; x < width * 4; x++)
-                            ptr[dstOff + x] = rgba[srcOff + x];
+                        for (int x = 0; x < width; x++)
+                        {
+                            int srcIdx = (y * width + x) * 4;
+                            int dstIdx = y * stride + x * 4;
+                            byte a = rgba[srcIdx + 3];
+                            if (a == 0)
+                            {
+                                // Premul: alpha=0 → all channels must be 0
+                                ptr[dstIdx] = 0;
+                                ptr[dstIdx + 1] = 0;
+                                ptr[dstIdx + 2] = 0;
+                                ptr[dstIdx + 3] = 0;
+                            }
+                            else
+                            {
+                                ptr[dstIdx] = rgba[srcIdx];
+                                ptr[dstIdx + 1] = rgba[srcIdx + 1];
+                                ptr[dstIdx + 2] = rgba[srcIdx + 2];
+                                ptr[dstIdx + 3] = a;
+                            }
+                        }
                     }
                 }
             }

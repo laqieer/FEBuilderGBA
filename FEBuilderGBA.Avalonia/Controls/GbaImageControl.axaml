@@ -1,7 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FEBuilderGBA.Avalonia.Controls.GbaImageControl">
-  <Border BorderBrush="Gray" BorderThickness="1" Background="#FF303030">
+  <Border BorderBrush="Gray" BorderThickness="1"
+          HorizontalAlignment="Left" VerticalAlignment="Top">
     <Image Name="ImageDisplay" Stretch="None" RenderOptions.BitmapInterpolationMode="None" />
   </Border>
 </UserControl>
