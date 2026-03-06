@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorAppendPopupView"
-        Title="Map Style Editor - Append" Width="420" Height="220"
+        Title="Map Style Editor - Append" Width="1253" Height="790"
         WindowStartupLocation="CenterOwner" CanResize="False">
   <DockPanel Margin="16">
     <TextBlock Text="Append Map Style" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />

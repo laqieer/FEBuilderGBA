@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HowDoYouLikePatchView"
-        Title="Patch Review" Width="500" Height="350"
+        Title="Patch Review" Width="849" Height="291"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Patch Review" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

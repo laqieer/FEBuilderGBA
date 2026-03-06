@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemStatBonusesSkillSystemsView"
-        Title="Stat Bonuses (Skill Systems)" Width="800" Height="500">
+        Title="Stat Bonuses (Skill Systems)" Width="1291" Height="587">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 

@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptPopupView"
-        Title="Event Script Command Reference" Width="550" Height="480"
+        Title="Event Script Command Reference" Width="1563" Height="922"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Event Script Command Reference" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

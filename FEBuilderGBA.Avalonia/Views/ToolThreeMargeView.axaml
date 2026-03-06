@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolThreeMargeView"
-        Title="Three-Way Merge" Width="900" Height="600"
+        Title="Three-Way Merge" Width="1580" Height="946"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Three-Way Merge" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

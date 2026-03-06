@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MoveToFreeSpaceView"
-        Title="Move to Free Space" Width="600" Height="400"
+        Title="Move to Free Space" Width="800" Height="500"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Move to Free Space" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

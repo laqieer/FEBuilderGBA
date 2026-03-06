@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolInitWizardView"
-        Title="Setup Wizard" Width="500" Height="400"
+        Title="Setup Wizard" Width="892" Height="666"
         WindowStartupLocation="CenterOwner">
   <StackPanel Margin="24" Spacing="12">
     <TextBlock Text="Setup Wizard" FontSize="24" FontWeight="Bold" />

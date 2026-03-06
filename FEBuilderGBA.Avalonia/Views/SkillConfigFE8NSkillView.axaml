@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NSkillView"
-        Title="Skill Configuration (FE8N)" Width="600" Height="400">
+        Title="Skill Configuration (FE8N)" Width="1189" Height="898">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Configuration (FE8N)" FontSize="18" FontWeight="Bold" />
     <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">

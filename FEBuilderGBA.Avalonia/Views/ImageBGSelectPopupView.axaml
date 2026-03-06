@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageBGSelectPopupView"
-        Title="BG Image Select" Width="500" Height="400"
+        Title="BG Image Select" Width="945" Height="594"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="BG Image Select" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

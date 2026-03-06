@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolDecompileResultView"
-        Title="Decompile Result" Width="700" Height="500"
+        Title="Decompile Result" Width="802" Height="845"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Decompile Result" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />

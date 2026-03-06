@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ErrorTSAErrorView"
-        Title="TSA Error" Width="500" Height="350"
+        Title="TSA Error" Width="1071" Height="885"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="TSA Error" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
