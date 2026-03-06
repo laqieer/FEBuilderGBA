@@ -72,7 +72,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 var (code, stdout, stderr) = RunWithRetry(
-                    ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 600_000);
+                    ExePath, $"--rom \"{tempRom}\" --rebuild --fromrom=\"{romPath}\"", timeoutMs: 600_000);
                 Assert.True(code == 0,
                     $"{romName}: --rebuild exited with code {code}\nStdout: {stdout}\nStderr: {stderr}");
             }
