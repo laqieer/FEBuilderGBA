@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 48 / 323
+**Visually Aligned:** 78 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -61,15 +61,15 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 29 | ItemWeaponEffectViewerView | E2E COVERED | YES | - |
-| 30 | ItemStatBonusesViewerView | E2E COVERED | YES | - |
-| 31 | ItemEffectivenessViewerView | E2E COVERED | YES | - |
-| 32 | ItemPromotionViewerView | E2E COVERED | YES | - |
-| 33 | ItemShopViewerView | E2E COVERED | YES | - |
-| 34 | ItemWeaponTriangleViewerView | E2E COVERED | YES | - |
-| 35 | ItemUsagePointerViewerView | E2E COVERED | YES | - |
-| 36 | ItemEffectPointerViewerView | E2E COVERED | YES | - |
-| 37 | ItemIconViewerView | E2E COVERED | YES | - |
+| 29 | ItemWeaponEffectViewerView | E2E COVERED | YES | ALIGNED |
+| 30 | ItemStatBonusesViewerView | E2E COVERED | YES | ALIGNED |
+| 31 | ItemEffectivenessViewerView | E2E COVERED | YES | ALIGNED |
+| 32 | ItemPromotionViewerView | E2E COVERED | YES | ALIGNED |
+| 33 | ItemShopViewerView | E2E COVERED | YES | ALIGNED |
+| 34 | ItemWeaponTriangleViewerView | E2E COVERED | YES | ALIGNED |
+| 35 | ItemUsagePointerViewerView | E2E COVERED | YES | ALIGNED |
+| 36 | ItemEffectPointerViewerView | E2E COVERED | YES | ALIGNED |
+| 37 | ItemIconViewerView | E2E COVERED | YES | ALIGNED |
 
 ## Map Editors
 
@@ -156,7 +156,7 @@ actual ROM data at the correct addresses and offsets.
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
 | 103 | ImageViewerView | E2E COVERED | YES | - |
-| 104 | PortraitViewerView | E2E COVERED | YES | - |
+| 104 | PortraitViewerView | E2E COVERED | YES | ALIGNED |
 | 105 | ImagePortraitView | E2E COVERED | - | - |
 | 106 | ImagePortraitFE6View | E2E COVERED | - | - |
 | 107 | ImagePortraitImporterView | E2E COVERED | - | - |
@@ -201,16 +201,16 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 144 | SongTableView | E2E COVERED | YES | - |
+| 144 | SongTableView | E2E COVERED | YES | ALIGNED |
 | 145 | SongTrackView | E2E COVERED | - | - |
 | 146 | SongInstrumentView | E2E COVERED | - | - |
 | 147 | SongInstrumentDirectSoundView | E2E COVERED | - | - |
 | 148 | SongInstrumentImportWaveView | E2E COVERED | - | - |
 | 149 | SongTrackImportMidiView | E2E COVERED | - | - |
 | 150 | SongExchangeView | E2E COVERED | - | - |
-| 151 | SoundBossBGMViewerView | E2E COVERED | YES | - |
-| 152 | SoundFootStepsViewerView | E2E COVERED | YES | - |
-| 153 | SoundRoomViewerView | E2E COVERED | YES | - |
+| 151 | SoundBossBGMViewerView | E2E COVERED | YES | ALIGNED |
+| 152 | SoundFootStepsViewerView | E2E COVERED | YES | ALIGNED |
+| 153 | SoundRoomViewerView | E2E COVERED | YES | ALIGNED |
 | 154 | SoundRoomFE6View | E2E COVERED | - | - |
 | 155 | SoundRoomCGView | E2E COVERED | - | - |
 | 156 | ToolBGMMuteDialogView | E2E COVERED | - | ALIGNED |
@@ -219,26 +219,26 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 157 | ArenaClassViewerView | E2E COVERED | YES | - |
-| 158 | ArenaEnemyWeaponViewerView | E2E COVERED | YES | - |
-| 159 | LinkArenaDenyUnitViewerView | E2E COVERED | YES | - |
-| 160 | MonsterProbabilityViewerView | E2E COVERED | YES | - |
-| 161 | MonsterItemViewerView | E2E COVERED | YES | - |
-| 162 | MonsterWMapProbabilityViewerView | E2E COVERED | YES | - |
-| 163 | SummonUnitViewerView | E2E COVERED | YES | - |
-| 164 | SummonsDemonKingViewerView | E2E COVERED | YES | - |
+| 157 | ArenaClassViewerView | E2E COVERED | YES | ALIGNED |
+| 158 | ArenaEnemyWeaponViewerView | E2E COVERED | YES | ALIGNED |
+| 159 | LinkArenaDenyUnitViewerView | E2E COVERED | YES | ALIGNED |
+| 160 | MonsterProbabilityViewerView | E2E COVERED | YES | ALIGNED |
+| 161 | MonsterItemViewerView | E2E COVERED | YES | ALIGNED |
+| 162 | MonsterWMapProbabilityViewerView | E2E COVERED | YES | ALIGNED |
+| 163 | SummonUnitViewerView | E2E COVERED | YES | ALIGNED |
+| 164 | SummonsDemonKingViewerView | E2E COVERED | YES | ALIGNED |
 
 ## Menu / ED / World Map Editors
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 165 | MenuDefinitionView | E2E COVERED | YES | - |
-| 166 | MenuCommandView | E2E COVERED | YES | - |
-| 167 | EDView | E2E COVERED | YES | - |
-| 168 | EDStaffRollView | E2E COVERED | YES | - |
-| 169 | WorldMapPointView | E2E COVERED | YES | - |
-| 170 | WorldMapBGMView | E2E COVERED | YES | - |
-| 171 | WorldMapEventPointerView | E2E COVERED | YES | - |
+| 165 | MenuDefinitionView | E2E COVERED | YES | ALIGNED |
+| 166 | MenuCommandView | E2E COVERED | YES | ALIGNED |
+| 167 | EDView | E2E COVERED | YES | ALIGNED |
+| 168 | EDStaffRollView | E2E COVERED | YES | ALIGNED |
+| 169 | WorldMapPointView | E2E COVERED | YES | ALIGNED |
+| 170 | WorldMapBGMView | E2E COVERED | YES | ALIGNED |
+| 171 | WorldMapEventPointerView | E2E COVERED | YES | ALIGNED |
 | 172 | WorldMapPathView | E2E COVERED | - | - |
 | 173 | WorldMapPathEditorView | E2E COVERED | - | - |
 | 174 | WorldMapImageView | E2E COVERED | - | - |
@@ -251,7 +251,7 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 179 | TextViewerView | E2E COVERED | YES | - |
+| 179 | TextViewerView | E2E COVERED | YES | ALIGNED |
 | 180 | TextMainView | E2E COVERED | - | - |
 | 181 | OtherTextView | E2E COVERED | - | - |
 | 182 | CStringView | E2E COVERED | - | - |
