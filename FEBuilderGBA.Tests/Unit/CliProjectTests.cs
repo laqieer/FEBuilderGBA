@@ -335,5 +335,21 @@ namespace FEBuilderGBA.Tests.Unit
             if (dir == null) throw new System.InvalidOperationException("Cannot find solution root");
             return System.IO.Path.Combine(dir, "FEBuilderGBA.CLI", "RomLoader.cs");
         }
+
+        [Fact]
+        public void ParseArgs_SpaceSeparatedValue()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--rom", "/path/to/rom.gba", "--makeups=/out.ups" });
+            Assert.Equal("/path/to/rom.gba", dic["--rom"]);
+            Assert.Equal("/out.ups", dic["--makeups"]);
+        }
+
+        [Fact]
+        public void ParseArgs_SpaceSeparated_DoesNotConsumeNextFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--translate", "--rom=test.gba" });
+            Assert.Equal("", dic["--translate"]);
+            Assert.Equal("test.gba", dic["--rom"]);
+        }
     }
 }

@@ -1059,7 +1059,16 @@ namespace FEBuilderGBA.CLI
                     }
                     else
                     {
-                        dic[arg] = "";
+                        // Support --key value (space-separated) when the next arg is not a flag
+                        if (i + 1 < args.Length && !args[i + 1].StartsWith("-"))
+                        {
+                            dic[arg] = args[i + 1];
+                            i++;
+                        }
+                        else
+                        {
+                            dic[arg] = "";
+                        }
                     }
                 }
                 else if (arg == "-h")
