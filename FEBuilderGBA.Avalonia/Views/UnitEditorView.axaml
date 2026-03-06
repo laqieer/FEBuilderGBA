@@ -148,7 +148,7 @@
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="Auto,180" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Support Ptr:" VerticalAlignment="Center" Margin="0,2,8,2" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Minimum="0" Maximum="4294967295" Margin="0,2" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Margin="0,2" />
             </Grid>
 
             <!-- Unknown bytes 35-39 -->

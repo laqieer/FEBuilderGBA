@@ -118,8 +118,8 @@ namespace FEBuilderGBA.Avalonia.Views
             Ability3Box.Value = _vm.Ability3;
             Ability4Box.Value = _vm.Ability4;
 
-            // Support pointer
-            SupportPtrBox.Value = _vm.SupportPtr;
+            // Support pointer (hex)
+            SupportPtrBox.Text = $"0x{_vm.SupportPtr:X08}";
 
             // FE7/8 only (always set to avoid null NUDs in hidden panel)
             TalkGroupBox.Value = _vm.TalkGroup;
@@ -183,8 +183,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Ability3 = (uint)(Ability3Box.Value ?? 0);
             _vm.Ability4 = (uint)(Ability4Box.Value ?? 0);
 
-            // Support pointer
-            _vm.SupportPtr = (uint)(SupportPtrBox.Value ?? 0);
+            // Support pointer (parse hex)
+            _vm.SupportPtr = U.atoh(SupportPtrBox.Text ?? "0");
 
             // FE7/8 only
             if (!_vm.IsFE6)

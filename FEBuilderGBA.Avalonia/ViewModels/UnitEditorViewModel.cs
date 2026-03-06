@@ -458,7 +458,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint portraitAddr = portraitBase + PortraitId * dataSize;
                 if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
 
-                uint imgPtr = rom.u32(portraitAddr + 0);
+                uint imgPtr = rom.u32(portraitAddr + 4);  // offset 4 = map/mini face
                 uint palPtr = rom.u32(portraitAddr + 8);
 
                 if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return;
