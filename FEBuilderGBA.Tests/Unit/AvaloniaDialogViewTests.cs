@@ -776,5 +776,44 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Width=\"192\"", src);
             Assert.Contains("Width=\"289\"", src);
         }
+
+        // --- ErrorLongMessageDialogView (#233) ---
+
+        [Fact]
+        public void ErrorLongMessageDialog_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("ErrorLongMessageDialogView.axaml");
+            Assert.Contains("Width=\"1120\"", src);
+            Assert.Contains("Height=\"691\"", src);
+            Assert.Contains("Name=\"MyCloseButton\"", src);
+            Assert.Contains("Name=\"ErrorMessage\"", src);
+            Assert.Contains("Foreground=\"Red\"", src);
+            Assert.Contains("Height=\"43\"", src);
+        }
+
+        // --- WelcomeView (#302) ---
+
+        [Fact]
+        public void WelcomeView_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("WelcomeView.axaml");
+            Assert.Contains("Width=\"1172\"", src);
+            Assert.Contains("Height=\"588\"", src);
+            Assert.Contains("Name=\"OpenLastROMButton\"", src);
+            Assert.Contains("Name=\"OpenROMButton\"", src);
+            Assert.Contains("Name=\"UpdateCheckButton\"", src);
+            Assert.Contains("Name=\"ManButton\"", src);
+            Assert.Contains("Width=\"851\"", src);
+        }
+
+        [Fact]
+        public void WelcomeView_View_HasFourClickHandlers()
+        {
+            var src = ReadView("WelcomeView.axaml.cs");
+            Assert.Contains("OpenLastROM_Click", src);
+            Assert.Contains("OpenROM_Click", src);
+            Assert.Contains("UpdateCheck_Click", src);
+            Assert.Contains("Manual_Click", src);
+        }
     }
 }

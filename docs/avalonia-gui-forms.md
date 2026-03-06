@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 36 / 323
+**Visually Aligned:** 39 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -335,7 +335,7 @@ actual ROM data at the correct addresses and offsets.
 | 230 | ErrorPaletteShowView | E2E COVERED | - | - |
 | 231 | ErrorPaletteTransparentView | E2E COVERED | - | - |
 | 232 | ErrorTSAErrorView | E2E COVERED | - | - |
-| 233 | ErrorLongMessageDialogView | E2E COVERED | - | - |
+| 233 | ErrorLongMessageDialogView | E2E COVERED | YES | ALIGNED |
 | 234 | ErrorUnknownROMView | E2E COVERED | - | ALIGNED |
 | 235 | HowDoYouLikePatchView | E2E COVERED | - | - |
 | 236 | HowDoYouLikePatch2View | E2E COVERED | - | - |
@@ -393,7 +393,7 @@ actual ROM data at the correct addresses and offsets.
 | 283 | EventTemplate4View | E2E COVERED | - | - |
 | 284 | EventTemplate5View | E2E COVERED | - | - |
 | 285 | EventTemplate6View | E2E COVERED | - | - |
-| 286 | EventTemplateImplView | E2E COVERED | - | - |
+| 286 | EventTemplateImplView | E2E COVERED | - | ALIGNED |
 | 287 | ItemEffectivenessSkillSystemsReworkView | E2E COVERED | - | - |
 | 288 | ItemRandomChestView | E2E COVERED | - | - |
 | 289 | ItemStatBonusesSkillSystemsView | E2E COVERED | - | - |
@@ -409,7 +409,7 @@ actual ROM data at the correct addresses and offsets.
 | 299 | ToolUndoPopupDialogView | E2E COVERED | YES | ALIGNED |
 | 300 | ToolUpdateDialogView | E2E COVERED | - | - |
 | 301 | VersionView | E2E COVERED | - | ALIGNED |
-| 302 | WelcomeView | E2E COVERED | - | - |
+| 302 | WelcomeView | E2E COVERED | YES | ALIGNED |
 | 303 | ToolAllWorkSupportView | E2E COVERED | - | - |
 | 304 | ToolProblemReportView | E2E COVERED | - | - |
 | 305 | WorldMapPathMoveEditorView | E2E COVERED | - | - |

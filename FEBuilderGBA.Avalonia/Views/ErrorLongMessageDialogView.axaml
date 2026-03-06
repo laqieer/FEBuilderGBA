@@ -1,15 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ErrorLongMessageDialogView"
-        Title="Error Details" Width="600" Height="500"
+        Title="Error Details" Width="1120" Height="691"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Error Details" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-    <ScrollViewer>
-      <TextBlock Name="MessageText" TextWrapping="Wrap" Text="{Binding LongMessage}" />
-    </ScrollViewer>
+  <DockPanel>
+    <!-- Top panel: Red title + Close button (WinForms panel1 1104x43) -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Height="43"
+          Background="#FFF8F8" Margin="0,0,0,0">
+      <TextBlock Grid.Column="0" Text="The following error has occurred."
+                 Foreground="Red" FontWeight="Bold" FontSize="14"
+                 VerticalAlignment="Center" Margin="12,0,0,0" />
+      <Button Grid.Column="1" Name="MyCloseButton" Content="Close" Width="123" Height="43"
+              Click="Close_Click" />
+    </Grid>
+    <!-- Error message (WinForms ErrorMessage RichTextBoxEx Fill) -->
+    <TextBox Name="ErrorMessage" AcceptsReturn="True" IsReadOnly="True"
+             TextWrapping="Wrap" FontFamily="Consolas, Courier New, monospace"
+             Text="{Binding LongMessage}" />
   </DockPanel>
 </Window>

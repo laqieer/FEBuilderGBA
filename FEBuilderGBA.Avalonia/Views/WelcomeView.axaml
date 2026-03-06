@@ -1,21 +1,29 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.WelcomeView"
-        Title="Welcome" Width="500" Height="400"
+        Title="Welcome" Width="1172" Height="588"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="24" Spacing="12">
-    <TextBlock Text="Welcome to FEBuilderGBA" FontSize="24" FontWeight="Bold" />
-    <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="14" Foreground="Gray" />
-    <Separator Margin="0,8" />
-    <TextBlock Text="Quick Start" FontSize="16" FontWeight="SemiBold" />
-    <TextBlock TextWrapping="Wrap"
-               Text="1. Open a Fire Emblem GBA ROM (.gba) using File > Open ROM." />
-    <TextBlock TextWrapping="Wrap"
-               Text="2. Select an editor from the main window to begin editing." />
-    <TextBlock TextWrapping="Wrap"
-               Text="3. Save your changes and create a UPS patch for distribution." />
-    <Separator Margin="0,8" />
-    <TextBlock TextWrapping="Wrap" Foreground="Gray"
-               Text="Supports FE6 (Binding Blade), FE7 (Blazing Blade), and FE8 (Sacred Stones) in both Japanese and US versions." />
-  </StackPanel>
+  <DockPanel Margin="14,10,14,10">
+    <!-- Logo area (WinForms pictureBox1 1123x278) -->
+    <Border DockPanel.Dock="Top" Height="278" Background="#E8EAF6"
+            BorderBrush="#C5CAE9" BorderThickness="1" Margin="0,0,0,8">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Text="FEBuilderGBA" FontSize="36" FontWeight="Bold"
+                   HorizontalAlignment="Center" />
+        <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="16"
+                   Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
+      </StackPanel>
+    </Border>
+    <!-- Buttons (WinForms 851x47/50 each, centered at X:214) -->
+    <StackPanel Spacing="12" HorizontalAlignment="Center">
+      <Button Name="OpenLastROMButton" Content="Open Last ROM" Width="851" Height="47"
+              HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
+      <Button Name="OpenROMButton" Content="Open ROM" Width="851" Height="50"
+              HorizontalContentAlignment="Center" Click="OpenROM_Click" />
+      <Button Name="UpdateCheckButton" Content="Check for Updates" Width="851" Height="47"
+              HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
+      <Button Name="ManButton" Content="Online Manual" Width="851" Height="47"
+              HorizontalContentAlignment="Center" Click="Manual_Click" />
+    </StackPanel>
+  </DockPanel>
 </Window>
