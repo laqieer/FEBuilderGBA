@@ -53,8 +53,8 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("rom.u16(addr + 6)", src);
             // Level at offset 11 (B11)
             Assert.Contains("rom.u8(addr + 11)", src);
-            // HP at offset 12
-            Assert.Contains("rom.u8(addr + 12)", src);
+            // HP at offset 12 (signed byte, matching WinForms b12)
+            Assert.Contains("(sbyte)rom.u8(addr + 12)", src);
             // Weapon levels at offsets 20-27
             Assert.Contains("rom.u8(addr + 20)", src);
             Assert.Contains("rom.u8(addr + 27)", src);
@@ -79,8 +79,9 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("rom.write_u8(addr + 5, ClassId)", src);
             Assert.Contains("rom.write_u16(addr + 6, PortraitId)", src);
             Assert.Contains("rom.write_u8(addr + 11, Level)", src);
-            Assert.Contains("rom.write_u8(addr + 12, HP)", src);
-            Assert.Contains("rom.write_u8(addr + 13, Str)", src);
+            // Base stats use signed→unsigned byte cast: (uint)(byte)value
+            Assert.Contains("rom.write_u8(addr + 12, (uint)(byte)HP)", src);
+            Assert.Contains("rom.write_u8(addr + 13, (uint)(byte)Str)", src);
             Assert.Contains("rom.write_u8(addr + 20, WepSword)", src);
             Assert.Contains("rom.write_u8(addr + 28, GrowHP)", src);
             Assert.Contains("rom.write_u8(addr + 40, Ability1)", src);

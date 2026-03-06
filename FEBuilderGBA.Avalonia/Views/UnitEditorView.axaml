@@ -58,23 +58,23 @@
             <TextBlock Grid.Row="0" Grid.Column="0" Text="LV:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="-128" Maximum="127" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SklBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="SpdBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="6" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="DefBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="1" Grid.Column="7" Name="DefBox" Minimum="-128" Maximum="127" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ResBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ResBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="2" Grid.Column="3" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="4" Name="LckBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="4" Name="LckBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="2" Grid.Column="6" Text="Con:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="-128" Maximum="127" Margin="0,2" />
           </Grid>
         </Border>
 

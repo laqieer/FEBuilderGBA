@@ -141,15 +141,15 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.SortOrder = (uint)(SortOrderBox.Value ?? 0);
             _vm.Level = (uint)(LevelBox.Value ?? 0);
 
-            // Base stats
-            _vm.HP = (uint)(HPBox.Value ?? 0);
-            _vm.Str = (uint)(StrBox.Value ?? 0);
-            _vm.Skl = (uint)(SklBox.Value ?? 0);
-            _vm.Spd = (uint)(SpdBox.Value ?? 0);
-            _vm.Def = (uint)(DefBox.Value ?? 0);
-            _vm.Res = (uint)(ResBox.Value ?? 0);
-            _vm.Lck = (uint)(LckBox.Value ?? 0);
-            _vm.Con = (uint)(ConBox.Value ?? 0);
+            // Base stats (signed)
+            _vm.HP = (int)(HPBox.Value ?? 0);
+            _vm.Str = (int)(StrBox.Value ?? 0);
+            _vm.Skl = (int)(SklBox.Value ?? 0);
+            _vm.Spd = (int)(SpdBox.Value ?? 0);
+            _vm.Def = (int)(DefBox.Value ?? 0);
+            _vm.Res = (int)(ResBox.Value ?? 0);
+            _vm.Lck = (int)(LckBox.Value ?? 0);
+            _vm.Con = (int)(ConBox.Value ?? 0);
 
             // Weapon levels
             _vm.WepSword = (uint)(WepSwordBox.Value ?? 0);

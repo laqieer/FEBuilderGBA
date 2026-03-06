@@ -16,8 +16,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _nameId, _descId, _unitId, _classId;
         uint _portraitId, _mapFace, _affinity, _sortOrder, _level;
 
-        // Base stats (offsets 12-19, signed bytes in WinForms)
-        uint _hp, _str, _skl, _spd, _def, _res, _lck, _con;
+        // Base stats (offsets 12-19, signed bytes matching WinForms b12-b19)
+        int _hp, _str, _skl, _spd, _def, _res, _lck, _con;
 
         // Weapon levels (offsets 20-27)
         uint _wepSword, _wepLance, _wepAxe, _wepBow;
@@ -58,15 +58,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint SortOrder { get => _sortOrder; set => SetField(ref _sortOrder, value); }
         public uint Level { get => _level; set => SetField(ref _level, value); }
 
-        // Properties — Base stats
-        public uint HP { get => _hp; set => SetField(ref _hp, value); }
-        public uint Str { get => _str; set => SetField(ref _str, value); }
-        public uint Skl { get => _skl; set => SetField(ref _skl, value); }
-        public uint Spd { get => _spd; set => SetField(ref _spd, value); }
-        public uint Def { get => _def; set => SetField(ref _def, value); }
-        public uint Res { get => _res; set => SetField(ref _res, value); }
-        public uint Lck { get => _lck; set => SetField(ref _lck, value); }
-        public uint Con { get => _con; set => SetField(ref _con, value); }
+        // Properties — Base stats (signed, matching WinForms sbyte display)
+        public int HP { get => _hp; set => SetField(ref _hp, value); }
+        public int Str { get => _str; set => SetField(ref _str, value); }
+        public int Skl { get => _skl; set => SetField(ref _skl, value); }
+        public int Spd { get => _spd; set => SetField(ref _spd, value); }
+        public int Def { get => _def; set => SetField(ref _def, value); }
+        public int Res { get => _res; set => SetField(ref _res, value); }
+        public int Lck { get => _lck; set => SetField(ref _lck, value); }
+        public int Con { get => _con; set => SetField(ref _con, value); }
 
         // Properties — Weapon levels
         public uint WepSword { get => _wepSword; set => SetField(ref _wepSword, value); }
@@ -177,15 +177,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try { Name = FETextDecode.Direct(NameId); }
             catch { Name = "???"; }
 
-            // Base stats (b12-b19)
-            HP = rom.u8(addr + 12);
-            Str = rom.u8(addr + 13);
-            Skl = rom.u8(addr + 14);
-            Spd = rom.u8(addr + 15);
-            Def = rom.u8(addr + 16);
-            Res = rom.u8(addr + 17);
-            Lck = rom.u8(addr + 18);
-            Con = rom.u8(addr + 19);
+            // Base stats (b12-b19, signed bytes matching WinForms)
+            HP = (int)(sbyte)rom.u8(addr + 12);
+            Str = (int)(sbyte)rom.u8(addr + 13);
+            Skl = (int)(sbyte)rom.u8(addr + 14);
+            Spd = (int)(sbyte)rom.u8(addr + 15);
+            Def = (int)(sbyte)rom.u8(addr + 16);
+            Res = (int)(sbyte)rom.u8(addr + 17);
+            Lck = (int)(sbyte)rom.u8(addr + 18);
+            Con = (int)(sbyte)rom.u8(addr + 19);
 
             // Weapon levels (B20-B27)
             WepSword = rom.u8(addr + 20);
@@ -257,14 +257,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Affinity"] = $"0x{Affinity:X02}",
                 ["SortOrder"] = $"0x{SortOrder:X02}",
                 ["Level"] = $"0x{Level:X02}",
-                ["HP"] = $"0x{HP:X02}",
-                ["Str"] = $"0x{Str:X02}",
-                ["Skl"] = $"0x{Skl:X02}",
-                ["Spd"] = $"0x{Spd:X02}",
-                ["Def"] = $"0x{Def:X02}",
-                ["Res"] = $"0x{Res:X02}",
-                ["Lck"] = $"0x{Lck:X02}",
-                ["Con"] = $"0x{Con:X02}",
+                ["HP"] = $"0x{(byte)HP:X02}",
+                ["Str"] = $"0x{(byte)Str:X02}",
+                ["Skl"] = $"0x{(byte)Skl:X02}",
+                ["Spd"] = $"0x{(byte)Spd:X02}",
+                ["Def"] = $"0x{(byte)Def:X02}",
+                ["Res"] = $"0x{(byte)Res:X02}",
+                ["Lck"] = $"0x{(byte)Lck:X02}",
+                ["Con"] = $"0x{(byte)Con:X02}",
                 ["WepSword"] = $"0x{WepSword:X02}",
                 ["WepLance"] = $"0x{WepLance:X02}",
                 ["WepAxe"] = $"0x{WepAxe:X02}",
@@ -377,15 +377,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 10, SortOrder);
             rom.write_u8(addr + 11, Level);
 
-            // Base stats
-            rom.write_u8(addr + 12, HP);
-            rom.write_u8(addr + 13, Str);
-            rom.write_u8(addr + 14, Skl);
-            rom.write_u8(addr + 15, Spd);
-            rom.write_u8(addr + 16, Def);
-            rom.write_u8(addr + 17, Res);
-            rom.write_u8(addr + 18, Lck);
-            rom.write_u8(addr + 19, Con);
+            // Base stats (signed → unsigned byte for ROM write)
+            rom.write_u8(addr + 12, (uint)(byte)HP);
+            rom.write_u8(addr + 13, (uint)(byte)Str);
+            rom.write_u8(addr + 14, (uint)(byte)Skl);
+            rom.write_u8(addr + 15, (uint)(byte)Spd);
+            rom.write_u8(addr + 16, (uint)(byte)Def);
+            rom.write_u8(addr + 17, (uint)(byte)Res);
+            rom.write_u8(addr + 18, (uint)(byte)Lck);
+            rom.write_u8(addr + 19, (uint)(byte)Con);
 
             // Weapon levels
             rom.write_u8(addr + 20, WepSword);
