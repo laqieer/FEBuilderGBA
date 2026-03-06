@@ -155,16 +155,24 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 60_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            Thread.Sleep(2_000);
-
-            string? screenshot = ScreenshotHelper.CaptureWindow(hWnd, $"WinForms_{romName}_MainForm_verify");
+            // Retry capture — on headless CI the window may not be fully rendered on the first attempt
+            string? screenshot = null;
+            long fileLength = 0;
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                Thread.Sleep(2_000);
+                screenshot = ScreenshotHelper.CaptureWindow(hWnd, $"WinForms_{romName}_MainForm_verify");
+                if (screenshot != null && File.Exists(screenshot))
+                {
+                    fileLength = new FileInfo(screenshot).Length;
+                    if (fileLength > 1024)
+                        break;
+                }
+            }
             Assert.NotNull(screenshot);
             Assert.True(File.Exists(screenshot), $"Screenshot file not found: {screenshot}");
-
-            // Verify it's a valid PNG (at least a few KB)
-            var fileInfo = new FileInfo(screenshot);
-            Assert.True(fileInfo.Length > 1024,
-                $"Screenshot file too small ({fileInfo.Length} bytes), likely empty: {screenshot}");
+            Assert.True(fileLength > 1024,
+                $"Screenshot file too small ({fileLength} bytes), likely empty: {screenshot}");
         }
     }
 }
