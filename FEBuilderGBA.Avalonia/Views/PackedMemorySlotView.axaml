@@ -1,23 +1,30 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PackedMemorySlotView"
-        Title="Packed Memory Slot" Width="600" Height="450"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Packed Memory Slot" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Refresh" Click="Refresh_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-    <ScrollViewer>
-      <StackPanel Spacing="4">
-        <TextBlock Text="Memory slot information for packed ROM data:" Foreground="Gray" Margin="0,0,0,8" />
-        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
-          <TextBox Name="SlotInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
-                   FontFamily="Consolas, Courier New, monospace" MinHeight="250"
-                   Watermark="Slot information will appear here..." />
-        </Border>
+        Title="Packed Memory Slot" Width="708" Height="186"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <DockPanel Margin="10,9,10,10">
+    <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE 676x40 + ApplyButton 181x40) -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40">
+        <TextBlock Name="MESSAGE" Text="Packed Memory Slot"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <Button Grid.Column="1" Name="ApplyButton" Content="Apply" Width="181" Height="40"
+              Margin="8,0,0,0" Click="Apply_Click" />
+    </Grid>
+    <!-- Main panel: A = B + C combo boxes (WinForms panel8 674x82) -->
+    <Border BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10">
+      <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <ComboBox Name="AComboBox" Width="181" />
+        <TextBlock Text="=" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
+                   Margin="4,0,4,0" />
+        <ComboBox Name="BComboBox" Width="181" />
+        <TextBlock Text=" + " FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
+                   Margin="4,0,4,0" />
+        <ComboBox Name="CComboBox" Width="181" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
   </DockPanel>
 </Window>

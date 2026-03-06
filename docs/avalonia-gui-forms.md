@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 31 / 323
+**Visually Aligned:** 36 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -191,7 +191,7 @@ actual ROM data at the correct addresses and offsets.
 | 136 | OPClassFontViewerView | E2E COVERED | YES | - |
 | 137 | OPPrologueViewerView | E2E COVERED | YES | - |
 | 138 | GraphicsToolView | E2E COVERED | - | - |
-| 139 | GraphicsToolPatchMakerView | E2E COVERED | - | - |
+| 139 | GraphicsToolPatchMakerView | E2E COVERED | YES | ALIGNED |
 | 140 | PaletteChangeColorsView | E2E COVERED | - | - |
 | 141 | PaletteClipboardView | E2E COVERED | - | - |
 | 142 | PaletteSwapView | E2E COVERED | - | - |
@@ -368,7 +368,7 @@ actual ROM data at the correct addresses and offsets.
 | 258 | PointerToolView | E2E COVERED | - | - |
 | 259 | PointerToolBatchInputView | E2E COVERED | YES | ALIGNED |
 | 260 | PointerToolCopyToView | E2E COVERED | YES | ALIGNED |
-| 261 | PackedMemorySlotView | E2E COVERED | - | - |
+| 261 | PackedMemorySlotView | E2E COVERED | YES | ALIGNED |
 | 262 | EmulatorMemoryView | E2E COVERED | - | - |
 | 263 | RAMRewriteToolMAPView | E2E COVERED | - | - |
 | 264 | ToolAnimationCreatorView | E2E COVERED | - | - |
@@ -376,8 +376,8 @@ actual ROM data at the correct addresses and offsets.
 | 266 | ToolASMEditView | E2E COVERED | - | - |
 | 267 | ToolExportEAEventView | E2E COVERED | - | - |
 | 268 | ToolDecompileResultView | E2E COVERED | - | - |
-| 269 | ToolChangeProjectnameView | E2E COVERED | - | - |
-| 270 | ToolAutomaticRecoveryROMHeaderView | E2E COVERED | - | - |
+| 269 | ToolChangeProjectnameView | E2E COVERED | YES | ALIGNED |
+| 270 | ToolAutomaticRecoveryROMHeaderView | E2E COVERED | YES | ALIGNED |
 | 271 | MoveToFreeSpaceView | E2E COVERED | - | - |
 | 272 | ToolSubtitleOverlayView | E2E COVERED | - | - |
 | 273 | ToolSubtitleSettingDialogView | E2E COVERED | - | - |
@@ -406,7 +406,7 @@ actual ROM data at the correct addresses and offsets.
 | 296 | SongTrackImportSelectInstrumentView | E2E COVERED | - | - |
 | 297 | SongTrackImportWaveView | E2E COVERED | - | - |
 | 298 | ToolInitWizardView | E2E COVERED | - | - |
-| 299 | ToolUndoPopupDialogView | E2E COVERED | - | - |
+| 299 | ToolUndoPopupDialogView | E2E COVERED | YES | ALIGNED |
 | 300 | ToolUpdateDialogView | E2E COVERED | - | - |
 | 301 | VersionView | E2E COVERED | - | ALIGNED |
 | 302 | WelcomeView | E2E COVERED | - | - |

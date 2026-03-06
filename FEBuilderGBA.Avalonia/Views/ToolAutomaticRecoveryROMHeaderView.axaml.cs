@@ -15,11 +15,17 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolAutomaticRecoveryROMHeaderView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void Recover_Click(object? sender, RoutedEventArgs e) { }
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void SelectFile_Click(object? sender, RoutedEventArgs e)
+        {
+        }
+
+        void Recover_Click(object? sender, RoutedEventArgs e)
+        {
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

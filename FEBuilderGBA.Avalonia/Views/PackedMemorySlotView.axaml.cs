@@ -15,11 +15,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public PackedMemorySlotView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void Refresh_Click(object? sender, RoutedEventArgs e) { }
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void Apply_Click(object? sender, RoutedEventArgs e)
+        {
+            Close("Apply");
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

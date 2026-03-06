@@ -1,16 +1,30 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoPopupDialogView"
-        Title="Undo" Width="400" Height="250"
-        WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="24" Spacing="12">
-    <TextBlock Text="Undo" FontSize="24" FontWeight="Bold" />
-    <TextBlock Text="Undo Confirmation" FontSize="14" Foreground="Gray" />
-    <Separator Margin="0,8" />
-    <TextBlock TextWrapping="Wrap"
-               Text="Are you sure you want to undo the last operation? This will revert recent changes to the ROM data." />
-    <Separator Margin="0,8" />
-    <TextBlock TextWrapping="Wrap" Foreground="Gray"
-               Text="Note: Undo history is cleared when the ROM is saved or reloaded." />
-  </StackPanel>
+        Title="Undo" Width="771" Height="355"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Grid ColumnDefinitions="Auto,*" Margin="12,22,12,12">
+    <!-- Icon (WinForms FormIcon 80x80 at 12,22) -->
+    <Border Grid.Column="0" Width="80" Height="80" VerticalAlignment="Top"
+            Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1"
+            Margin="0,0,12,0">
+      <TextBlock Text="↩" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+    <!-- Right side: Info + buttons -->
+    <StackPanel Grid.Column="1" Spacing="6">
+      <!-- Info textbox (WinForms Info 629x117 readonly multiline) -->
+      <TextBox Name="InfoTextBox" Height="117" IsReadOnly="True" AcceptsReturn="True"
+               FontFamily="Consolas, Courier New, monospace" />
+      <!-- TestPlay button (WinForms TestPlayButton 629x41) -->
+      <Button Name="TestPlayButton" Content="Test Play in Emulator" Height="41"
+              HorizontalAlignment="Stretch" Click="TestPlay_Click" />
+      <!-- RunUndo button (WinForms RunUndoButton 629x36) -->
+      <Button Name="RunUndoButton" Content="Revert to This Version" Height="36"
+              HorizontalAlignment="Stretch" Click="RunUndo_Click" />
+      <!-- Cancel button (WinForms MyCancelButton 629x35) -->
+      <Button Name="MyCancelButton" Content="Cancel" Height="35"
+              HorizontalAlignment="Stretch" Click="Cancel_Click" />
+    </StackPanel>
+  </Grid>
 </Window>

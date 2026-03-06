@@ -6,8 +6,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class ToolUndoPopupDialogViewModel : ViewModelBase, IDataVerifiable
     {
         bool _isLoaded;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {
@@ -15,7 +17,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new();
+        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
+        {
+            ["status"] = "loaded",
+            ["DialogResult"] = DialogResult,
+        };
         public Dictionary<string, string> GetRawRomReport() => new();
     }
 }

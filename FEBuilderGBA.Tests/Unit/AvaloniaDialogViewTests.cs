@@ -694,5 +694,87 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Cancel_Click", src);
             Assert.Contains("PlistIdInput.Value", src);
         }
+
+        // --- ToolUndoPopupDialogView (#299) ---
+
+        [Fact]
+        public void ToolUndoPopupDialog_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("ToolUndoPopupDialogView.axaml");
+            Assert.Contains("Width=\"771\"", src);
+            Assert.Contains("Height=\"355\"", src);
+            Assert.Contains("Name=\"InfoTextBox\"", src);
+            Assert.Contains("Name=\"TestPlayButton\"", src);
+            Assert.Contains("Name=\"RunUndoButton\"", src);
+            Assert.Contains("Name=\"MyCancelButton\"", src);
+        }
+
+        [Fact]
+        public void ToolUndoPopupDialog_View_HasThreeClickHandlers()
+        {
+            var src = ReadView("ToolUndoPopupDialogView.axaml.cs");
+            Assert.Contains("TestPlay_Click", src);
+            Assert.Contains("RunUndo_Click", src);
+            Assert.Contains("Cancel_Click", src);
+            Assert.Contains("DialogResult", src);
+        }
+
+        // --- ToolChangeProjectnameView (#269) ---
+
+        [Fact]
+        public void ToolChangeProjectname_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("ToolChangeProjectnameView.axaml");
+            Assert.Contains("Width=\"791\"", src);
+            Assert.Contains("Height=\"360\"", src);
+            Assert.Contains("Name=\"CurrentNameTextBox\"", src);
+            Assert.Contains("Name=\"NewNameTextBox\"", src);
+            Assert.Contains("Name=\"ChangeButton\"", src);
+            Assert.Contains("Name=\"HelpTextBox\"", src);
+            Assert.DoesNotContain("Cancel", src);
+        }
+
+        // --- PackedMemorySlotView (#261) ---
+
+        [Fact]
+        public void PackedMemorySlot_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("PackedMemorySlotView.axaml");
+            Assert.Contains("Width=\"708\"", src);
+            Assert.Contains("Height=\"186\"", src);
+            Assert.Contains("Name=\"MESSAGE\"", src);
+            Assert.Contains("Name=\"ApplyButton\"", src);
+            Assert.Contains("Name=\"AComboBox\"", src);
+            Assert.Contains("Name=\"BComboBox\"", src);
+            Assert.Contains("Name=\"CComboBox\"", src);
+        }
+
+        // --- ToolAutomaticRecoveryROMHeaderView (#270) ---
+
+        [Fact]
+        public void ToolAutomaticRecoveryROMHeader_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("ToolAutomaticRecoveryROMHeaderView.axaml");
+            Assert.Contains("Width=\"1193\"", src);
+            Assert.Contains("Height=\"298\"", src);
+            Assert.Contains("Name=\"OrignalSelectButton\"", src);
+            Assert.Contains("Name=\"OrignalFilename\"", src);
+            Assert.Contains("Name=\"ApplyButton\"", src);
+        }
+
+        // --- GraphicsToolPatchMakerView (#139) ---
+
+        [Fact]
+        public void GraphicsToolPatchMaker_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("GraphicsToolPatchMakerView.axaml");
+            Assert.Contains("Width=\"572\"", src);
+            Assert.Contains("Height=\"525\"", src);
+            Assert.Contains("Name=\"PatchText\"", src);
+            Assert.Contains("Name=\"CloseButton\"", src);
+            Assert.Contains("Name=\"SaveButton\"", src);
+            Assert.Contains("Width=\"192\"", src);
+            Assert.Contains("Width=\"289\"", src);
+        }
     }
 }

@@ -17,15 +17,15 @@ namespace FEBuilderGBA.Avalonia.Views
         public GraphicsToolPatchMakerView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void CreatePatch_Click(object? sender, RoutedEventArgs e)
-        {
-            _vm.StatusMessage = "Patch creation is not yet implemented in the Avalonia version.";
-        }
-
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
+
+        void Save_Click(object? sender, RoutedEventArgs e)
+        {
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
