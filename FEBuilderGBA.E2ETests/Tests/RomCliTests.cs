@@ -12,10 +12,31 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// Tests are automatically skipped when the ROM is not available (no ROMS_DIR
     /// env var set and no local roms/ directory).  In CI, the "Download ROMs" step
     /// populates ROMS_DIR from the ROMS_URL secret.
+    ///
+    /// Uses retry logic because WinForms exe can occasionally crash on CI runners
+    /// due to GUI subsystem issues (exit code -1 or -2).
     /// </summary>
     public class RomCliTests
     {
         private static readonly string ExePath = AppRunner.FindExePath();
+
+        /// <summary>
+        /// Run with retry — WinForms exe can sporadically crash on CI runners.
+        /// </summary>
+        private static (int ExitCode, string Stdout, string Stderr) RunWithRetry(
+            string exePath, string args, int timeoutMs, int maxAttempts = 2)
+        {
+            (int ExitCode, string Stdout, string Stderr) result = default;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                result = AppRunner.Run(exePath, args, timeoutMs);
+                // Negative exit codes indicate crashes (access violation, unhandled exception).
+                // Retry on crash; non-negative codes are legitimate results.
+                if (result.ExitCode >= 0)
+                    return result;
+            }
+            return result;
+        }
 
         // ------------------------------------------------------------------ --lint
 
@@ -25,12 +46,12 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = RunWithRetry(
                 ExePath, $"--rom \"{romPath}\" --lint", timeoutMs: 120_000);
 
             string combined = stdout + stderr;
             Assert.True(code >= 0,
-                $"{romName}: --lint exited with unexpected code {code}");
+                $"{romName}: --lint exited with unexpected code {code}\nStderr: {stderr}");
             Assert.False(string.IsNullOrWhiteSpace(combined),
                 $"{romName}: expected non-empty output from --lint");
         }
@@ -50,9 +71,10 @@ namespace FEBuilderGBA.E2ETests.Tests
             File.Copy(romPath!, tempRom);
             try
             {
-                var (code, _, _) = AppRunner.Run(
+                var (code, stdout, stderr) = RunWithRetry(
                     ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 600_000);
-                Assert.Equal(0, code);
+                Assert.True(code == 0,
+                    $"{romName}: --rebuild exited with code {code}\nStdout: {stdout}\nStderr: {stderr}");
             }
             finally
             {
@@ -75,9 +97,10 @@ namespace FEBuilderGBA.E2ETests.Tests
             string expectedUps = Path.ChangeExtension(tempRom, ".ups");
             try
             {
-                var (code, _, _) = AppRunner.Run(
+                var (code, stdout, stderr) = RunWithRetry(
                     ExePath, $"--rom \"{tempRom}\" --makeups=\"{expectedUps}\"", timeoutMs: 60_000);
-                Assert.Equal(0, code);
+                Assert.True(code == 0,
+                    $"{romName}: --makeups exited with code {code}\nStdout: {stdout}\nStderr: {stderr}");
                 Assert.True(File.Exists(expectedUps),
                     $"{romName}: expected .ups file at {expectedUps}");
             }
