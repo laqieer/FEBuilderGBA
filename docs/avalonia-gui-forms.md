@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 78 / 323
+**Visually Aligned:** 104 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -28,17 +28,17 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 1 | UnitEditorView | E2E COVERED | YES | - |
-| 2 | ItemEditorView | E2E COVERED | YES | - |
-| 3 | ClassEditorView | E2E COVERED | YES | - |
-| 4 | ClassFE6View | E2E COVERED | - | - |
-| 5 | CCBranchEditorView | E2E COVERED | YES | - |
-| 6 | MoveCostEditorView | E2E COVERED | YES | - |
-| 7 | TerrainNameEditorView | E2E COVERED | YES | - |
-| 8 | SupportUnitEditorView | E2E COVERED | YES | - |
-| 9 | SupportAttributeView | E2E COVERED | YES | - |
-| 10 | SupportTalkView | E2E COVERED | YES | - |
-| 11 | UnitFE6View | E2E COVERED | - | - |
+| 1 | UnitEditorView | E2E COVERED | YES | ALIGNED |
+| 2 | ItemEditorView | E2E COVERED | YES | ALIGNED |
+| 3 | ClassEditorView | E2E COVERED | YES | ALIGNED |
+| 4 | ClassFE6View | E2E COVERED | - | ALIGNED |
+| 5 | CCBranchEditorView | E2E COVERED | YES | ALIGNED |
+| 6 | MoveCostEditorView | E2E COVERED | YES | ALIGNED |
+| 7 | TerrainNameEditorView | E2E COVERED | YES | ALIGNED |
+| 8 | SupportUnitEditorView | E2E COVERED | YES | ALIGNED |
+| 9 | SupportAttributeView | E2E COVERED | YES | ALIGNED |
+| 10 | SupportTalkView | E2E COVERED | YES | ALIGNED |
+| 11 | UnitFE6View | E2E COVERED | - | ALIGNED |
 | 12 | UnitActionPointerView | E2E COVERED | - | - |
 | 13 | UnitCustomBattleAnimeView | E2E COVERED | - | - |
 | 14 | UnitIncreaseHeightView | E2E COVERED | - | - |
@@ -47,15 +47,15 @@ actual ROM data at the correct addresses and offsets.
 | 17 | ClassOPFontView | E2E COVERED | - | - |
 | 18 | ExtraUnitView | E2E COVERED | - | - |
 | 19 | ExtraUnitFE8UView | E2E COVERED | - | - |
-| 20 | UnitFE7View | E2E COVERED | - | - |
-| 21 | ItemFE6View | E2E COVERED | - | - |
-| 22 | MoveCostFE6View | E2E COVERED | - | - |
-| 23 | SupportUnitFE6View | E2E COVERED | - | - |
-| 24 | SupportTalkFE6View | E2E COVERED | - | - |
-| 25 | SupportTalkFE7View | E2E COVERED | - | - |
-| 26 | UnitsShortTextView | E2E COVERED | - | - |
-| 27 | SomeClassListView | E2E COVERED | - | - |
-| 28 | VennouWeaponLockView | E2E COVERED | - | - |
+| 20 | UnitFE7View | E2E COVERED | - | ALIGNED |
+| 21 | ItemFE6View | E2E COVERED | - | ALIGNED |
+| 22 | MoveCostFE6View | E2E COVERED | - | ALIGNED |
+| 23 | SupportUnitFE6View | E2E COVERED | - | ALIGNED |
+| 24 | SupportTalkFE6View | E2E COVERED | - | ALIGNED |
+| 25 | SupportTalkFE7View | E2E COVERED | - | ALIGNED |
+| 26 | UnitsShortTextView | E2E COVERED | - | ALIGNED |
+| 27 | SomeClassListView | E2E COVERED | - | ALIGNED |
+| 28 | VennouWeaponLockView | E2E COVERED | - | ALIGNED |
 
 ## Item Editors
 
@@ -75,11 +75,11 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 38 | MapSettingView | E2E COVERED | YES | - |
-| 39 | MapChangeView | E2E COVERED | YES | - |
-| 40 | MapExitPointView | E2E COVERED | YES | - |
-| 41 | MapPointerView | E2E COVERED | YES | - |
-| 42 | MapTileAnimationView | E2E COVERED | YES | - |
+| 38 | MapSettingView | E2E COVERED | YES | ALIGNED |
+| 39 | MapChangeView | E2E COVERED | YES | ALIGNED |
+| 40 | MapExitPointView | E2E COVERED | YES | ALIGNED |
+| 41 | MapPointerView | E2E COVERED | YES | ALIGNED |
+| 42 | MapTileAnimationView | E2E COVERED | YES | ALIGNED |
 | 43 | MapEditorView | E2E COVERED | - | - |
 | 44 | MapSettingFE6View | E2E COVERED | - | - |
 | 45 | MapSettingFE7View | E2E COVERED | - | - |
@@ -106,7 +106,7 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 64 | EventCondView | E2E COVERED | YES | - |
+| 64 | EventCondView | E2E COVERED | YES | ALIGNED |
 | 65 | EventScriptView | E2E COVERED | - | - |
 | 66 | EventUnitView | E2E COVERED | - | - |
 | 67 | EventUnitFE6View | E2E COVERED | - | - |
