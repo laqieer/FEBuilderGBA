@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolProblemReportSearchBackupView : Window, IEditorView
     {
         readonly ToolProblemReportSearchBackupViewModel _vm = new();
-        public string ViewTitle => "Select Backup";
+        public string ViewTitle => "No past backups found";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolProblemReportSearchBackupView()
@@ -31,6 +31,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null && result.Length > 0)
                 {
                     _vm.BackupFilename = result[0];
+                    _vm.DialogConfirmed = true;
+                    Close();
                 }
             }
             catch (Exception ex)
