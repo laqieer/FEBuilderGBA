@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 11 / 323
+**Visually Aligned:** 12 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -305,7 +305,7 @@ actual ROM data at the correct addresses and offsets.
 | 215 | SkillConfigFE8UCSkillSys09xView | E2E COVERED | - | - |
 | 216 | SkillSystemsEffectivenessReworkClassTypeView | E2E COVERED | - | - |
 | 217 | PatchFilterExView | E2E COVERED | - | - |
-| 218 | PatchFormUninstallDialogView | E2E COVERED | - | - |
+| 218 | PatchFormUninstallDialogView | E2E COVERED | - | ALIGNED |
 
 ## OP Class Editors (Version-Specific)
 
