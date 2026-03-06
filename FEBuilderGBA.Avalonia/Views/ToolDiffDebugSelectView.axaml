@@ -1,42 +1,72 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffDebugSelectView"
-        Title="Diff Debug Select" Width="700" Height="500"
+        Title="Comparison Debug Tool"
+        Width="1177" Height="875"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Diff Debug - Select Backup" FontSize="20" FontWeight="Bold" Margin="0,0,0,12" />
-
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Compare Selected" Width="140" Click="Compare_Click" />
-      <Button Content="Test Play" Width="100" Click="TestPlay_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-
-    <Grid ColumnDefinitions="*,12,*">
-      <!-- Left: Backup list -->
-      <DockPanel Grid.Column="0">
-        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,8">
-          <TextBlock Text="Backup List (newest first)" FontWeight="SemiBold" />
-          <DockPanel>
-            <Button DockPanel.Dock="Right" Content="Browse..." Width="80" Margin="8,0,0,0" Click="BrowseOriginal_Click" />
-            <TextBox Text="{Binding PrefixFilter}" Watermark="Filter prefix..." />
-          </DockPanel>
-        </StackPanel>
-        <ListBox ItemsSource="{Binding BackupList}" SelectedIndex="{Binding SelectedIndex}">
+  <Grid ColumnDefinitions="712,*" Margin="8">
+    <!-- Left panel: Backup list -->
+    <DockPanel Grid.Column="0" Margin="0,0,8,0">
+      <!-- Header -->
+      <TextBlock DockPanel.Dock="Top" Text="Backup History (newest on top)"
+                 FontWeight="Bold" Height="26" VerticalAlignment="Center" />
+      <!-- Vanilla ROM row -->
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="208,*,58" Margin="0,8,0,0">
+        <TextBlock Grid.Column="0" Text="Vanilla ROM" FontWeight="Bold"
+                   Height="26" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding OriginalFilename}"
+                 Height="25" Margin="4,0,4,0" />
+        <Button Grid.Column="2" Content="..." Width="58" Height="36"
+                Click="BrowseOriginal_Click" />
+      </Grid>
+      <!-- Prefix filter row -->
+      <Grid DockPanel.Dock="Bottom" ColumnDefinitions="208,*" Margin="0,4,0,0">
+        <TextBlock Grid.Column="0" Text="Search prefix" FontWeight="Bold"
+                   Height="26" VerticalAlignment="Center" />
+        <TextBox Grid.Column="1" Text="{Binding PrefixFilter}"
+                 Height="25" Margin="4,0,0,0" />
+      </Grid>
+      <!-- Add backup directory button -->
+      <Button DockPanel.Dock="Bottom" Content="Add backup ROM location"
+              Height="29" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+              Click="BrowseOriginal_Click" />
+      <!-- Backup list with side labels -->
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+        <TextBlock Grid.Column="0" Text="↑ Newest" VerticalAlignment="Top"
+                   Margin="0,4,4,0" FontSize="11" />
+        <ListBox Grid.Column="1" ItemsSource="{Binding BackupList}"
+                 SelectedIndex="{Binding SelectedIndex}">
           <ListBox.ItemTemplate>
             <DataTemplate>
               <TextBlock Text="{Binding}" FontSize="11" />
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-      </DockPanel>
+        <TextBlock Grid.Column="2" Text="Older ↓" VerticalAlignment="Bottom"
+                   Margin="4,0,0,4" FontSize="11" />
+      </Grid>
+    </DockPanel>
 
-      <!-- Right: Info -->
-      <DockPanel Grid.Column="2">
-        <TextBlock DockPanel.Dock="Top" Text="Selected File Info" FontWeight="SemiBold" Margin="0,0,0,8" />
-        <TextBox Text="{Binding SelectedFileInfo}" IsReadOnly="True" AcceptsReturn="True"
-                 TextWrapping="Wrap" VerticalAlignment="Stretch" />
-      </DockPanel>
-    </Grid>
-  </DockPanel>
+    <!-- Right panel: Info + actions -->
+    <DockPanel Grid.Column="1">
+      <!-- Selected ROM info -->
+      <TextBlock DockPanel.Dock="Top" Text="Selected ROM Info"
+                 FontWeight="Bold" Height="27" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Top" Text="{Binding SelectedFileInfo}"
+               IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+               Height="214" Margin="0,4,0,0" />
+      <!-- Test play button -->
+      <Button DockPanel.Dock="Top" Height="80" HorizontalAlignment="Stretch"
+              Margin="0,8,0,0" Content="Test play selected ROM in emulator"
+              Click="TestPlay_Click" />
+      <!-- Compare button -->
+      <Button DockPanel.Dock="Top" Height="93" HorizontalAlignment="Stretch"
+              Margin="0,8,0,0"
+              Content="Use this ROM as the last stable baseline and get differences"
+              Click="Compare_Click" />
+      <!-- Instructions area -->
+      <TextBox IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+               Margin="0,8,0,0" Text="{Binding InstructionsText}" />
+    </DockPanel>
+  </Grid>
 </Window>

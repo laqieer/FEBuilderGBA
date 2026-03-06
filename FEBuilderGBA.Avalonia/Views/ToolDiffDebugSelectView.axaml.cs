@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolDiffDebugSelectView : Window, IEditorView
     {
         readonly ToolDiffDebugSelectViewModel _vm = new();
-        public string ViewTitle => "Diff Debug Select";
+        public string ViewTitle => "Comparison Debug Tool";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolDiffDebugSelectView()

@@ -10,12 +10,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _prefixFilter = "";
         string _originalFilename = "";
         string _selectedFileInfo = "";
+        string _instructionsText = "";
         int _selectedIndex = -1;
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public string PrefixFilter { get => _prefixFilter; set => SetField(ref _prefixFilter, value); }
         public string OriginalFilename { get => _originalFilename; set => SetField(ref _originalFilename, value); }
         public string SelectedFileInfo { get => _selectedFileInfo; set => SetField(ref _selectedFileInfo, value); }
+        public string InstructionsText { get => _instructionsText; set => SetField(ref _instructionsText, value); }
         public int SelectedIndex { get => _selectedIndex; set { SetField(ref _selectedIndex, value); UpdateSelectedInfo(); } }
         public ObservableCollection<string> BackupList { get; } = new();
 
@@ -29,6 +31,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 Log.Error("ToolDiffDebugSelectViewModel", ex.ToString());
             }
+            InstructionsText = "How to use the comparison debug tool:\n\n" +
+                "1. Select a backup ROM from the list on the left\n" +
+                "2. Double-click or press 'Test play' to test it in the emulator\n" +
+                "3. Find the last stable (working) backup\n" +
+                "4. Press 'Use this ROM as the last stable baseline' to get the differences\n" +
+                "5. The tool will show what changed between the stable backup and the current ROM";
             IsLoaded = true;
         }
 
