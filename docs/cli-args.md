@@ -14,28 +14,28 @@ output for that command compared to the WinForms exe.
 |---|---|---|---|---|
 | `--help`, `-h` | Show help message | — | E2E COVERED | ALIGNED |
 | `--version` | Show version information | — | E2E COVERED | ALIGNED |
-| `--makeups=<path>` | Create UPS patch | `--rom`, `--fromrom` | E2E COVERED | |
-| `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | |
-| `--lint` | Run lint checks on ROM | `--rom` | E2E COVERED | |
-| `--disasm=<path>` | Disassemble ROM to file | `--rom` | E2E COVERED | |
-| `--decreasecolor` | Quantize image palette | `--in`, `--out`, `--paletteno` | E2E COVERED | |
-| `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | |
-| `--rebuild` | Rebuild/defragment ROM | `--rom`, `--fromrom` | E2E COVERED | |
-| `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | |
-| `--convertmap1picture` | Convert image to map tiles | `--in`, `--outImg` and/or `--outTSA` | E2E COVERED | |
-| `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | |
-| `--lastrom` | Load last-used ROM from config | — | E2E COVERED | |
-| `--force-detail` | Force detailed editor mode (Avalonia GUI flag) | — | E2E COVERED | |
-| `--translate_batch` | Batch translation: export + import all text | `--rom` | E2E COVERED | |
-| `--test` | Run self-test diagnostics | — (optionally `--rom`) | E2E COVERED | |
-| `--testonly` | Run self-test diagnostics then exit | — (optionally `--rom`) | E2E COVERED | |
+| `--makeups=<path>` | Create UPS patch | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
+| `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | ALIGNED |
+| `--lint` | Run lint checks on ROM | `--rom` | E2E COVERED | ALIGNED |
+| `--disasm=<path>` | Disassemble ROM to file | `--rom` | E2E COVERED | ALIGNED |
+| `--decreasecolor` | Quantize image palette | `--in`, `--out`, `--paletteno` | E2E COVERED | ALIGNED |
+| `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
+| `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
+| `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
+| `--convertmap1picture` | Convert image to map tiles | `--in`, `--outImg` and/or `--outTSA` | E2E COVERED | ALIGNED |
+| `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
+| `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |
+| `--force-detail` | Force detailed editor mode (Avalonia GUI flag) | — | E2E COVERED | ALIGNED |
+| `--translate_batch` | Batch translation: export + import all text | `--rom` | E2E COVERED | ALIGNED |
+| `--test` | Run self-test diagnostics | — (optionally `--rom`) | E2E COVERED | ALIGNED |
+| `--testonly` | Run self-test diagnostics then exit | — (optionally `--rom`) | E2E COVERED | ALIGNED |
 
 ## Auxiliary Arguments (used with primary commands)
 
 | Argument | Description | Used by |
 |---|---|---|
 | `--rom=<path>` | Specify ROM file to load | Most commands |
-| `--fromrom=<path>` | Specify original/source ROM | `--makeups`, `--rebuild`, `--songexchange` |
+| `--fromrom=<path>` | Specify original/source ROM (auto-detected if omitted for `--makeups`/`--rebuild`) | `--makeups`, `--rebuild`, `--songexchange` |
 | `--force-version=<VER>` | Force ROM version (FE6, FE7J, FE7U, FE8J, FE8U) | Any ROM command |
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
 | `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate` |

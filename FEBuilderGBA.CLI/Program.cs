@@ -174,6 +174,44 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --testonly --rom=rom.gba");
         }
 
+        // Known original ROM CRC32 values (from ROMFE*.cs)
+        private static readonly HashSet<uint> KnownOriginalCRC32s = new()
+        {
+            0xd38763e1, // FE6
+            0xf0c10e72, // FE7J
+            0x2a524221, // FE7U
+            0x9d76826f, // FE8J
+            0xa47246ae, // FE8U
+        };
+
+        /// <summary>
+        /// Search for an original (unmodified) ROM in the same directory as the modified ROM.
+        /// Matches by CRC32 against known original ROM CRC32 values.
+        /// </summary>
+        static string FindOriginalRom(string modifiedRomPath)
+        {
+            string dir = Path.GetDirectoryName(Path.GetFullPath(modifiedRomPath));
+            if (dir == null) return null;
+
+            var crc = new UPSUtilCore.CRC32();
+            string modifiedFull = Path.GetFullPath(modifiedRomPath);
+
+            foreach (string file in Directory.GetFiles(dir, "*.gba"))
+            {
+                if (string.Equals(Path.GetFullPath(file), modifiedFull, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                try
+                {
+                    byte[] data = File.ReadAllBytes(file);
+                    uint fileCrc = crc.Calc(data);
+                    if (KnownOriginalCRC32s.Contains(fileCrc))
+                        return file;
+                }
+                catch { }
+            }
+            return null;
+        }
+
         static int RunMakeUps(Dictionary<string, string> argsDic)
         {
             string upsPath = argsDic["--makeups"];
@@ -189,20 +227,34 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            if (!argsDic.ContainsKey("--fromrom") || string.IsNullOrEmpty(argsDic["--fromrom"]))
-            {
-                Console.Error.WriteLine("Error: --makeups requires --fromrom=<original_rom>");
-                return 1;
-            }
-
             string modifiedRomPath = argsDic["--rom"];
-            string originalRomPath = argsDic["--fromrom"];
-
             if (!File.Exists(modifiedRomPath))
             {
                 Console.Error.WriteLine($"Error: Modified ROM not found: {modifiedRomPath}");
                 return 1;
             }
+
+            string originalRomPath;
+            if (argsDic.ContainsKey("--fromrom") && !string.IsNullOrEmpty(argsDic["--fromrom"]))
+            {
+                originalRomPath = argsDic["--fromrom"];
+            }
+            else
+            {
+                // Auto-detect original ROM (same as WinForms behavior)
+                originalRomPath = FindOriginalRom(modifiedRomPath);
+                if (originalRomPath != null)
+                {
+                    Console.WriteLine($"Auto-detected original ROM: {originalRomPath}");
+                }
+                else
+                {
+                    Console.Error.WriteLine("Error: --fromrom not specified and no original ROM found in the same directory.");
+                    Console.Error.WriteLine("  Use --fromrom=<original_rom> to specify the unmodified ROM.");
+                    return 1;
+                }
+            }
+
             if (!File.Exists(originalRomPath))
             {
                 Console.Error.WriteLine($"Error: Original ROM not found: {originalRomPath}");
@@ -503,14 +555,26 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine("Error: --rebuild requires --rom=<modified_rom>");
                 return 1;
             }
-            if (!argsDic.ContainsKey("--fromrom") || string.IsNullOrEmpty(argsDic["--fromrom"]))
-            {
-                Console.Error.WriteLine("Error: --rebuild requires --fromrom=<vanilla_rom>");
-                return 1;
-            }
-
             string modifiedPath = argsDic["--rom"];
-            string vanillaPath = argsDic["--fromrom"];
+            string vanillaPath;
+            if (argsDic.ContainsKey("--fromrom") && !string.IsNullOrEmpty(argsDic["--fromrom"]))
+            {
+                vanillaPath = argsDic["--fromrom"];
+            }
+            else
+            {
+                vanillaPath = FindOriginalRom(modifiedPath);
+                if (vanillaPath != null)
+                {
+                    Console.WriteLine($"Auto-detected original ROM: {vanillaPath}");
+                }
+                else
+                {
+                    Console.Error.WriteLine("Error: --fromrom not specified and no original ROM found in the same directory.");
+                    Console.Error.WriteLine("  Use --fromrom=<vanilla_rom> to specify the unmodified ROM.");
+                    return 1;
+                }
+            }
 
             if (!File.Exists(modifiedPath))
             {

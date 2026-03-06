@@ -67,7 +67,15 @@ namespace FEBuilderGBA
 
                 // Read song header: track count (u8), padding (u8), priority (u8), reverb (u8), voice pointer (u32)
                 int trackCount = romData[headerAddr];
-                if (trackCount == 0 || trackCount > 16) break; // Invalid track count
+                // Entry 0 is often a dummy with trackCount=0; skip but don't terminate.
+                // Only terminate on trackCount > 16 which indicates corrupt/end-of-table data.
+                if (trackCount > 16) break;
+                if (trackCount == 0)
+                {
+                    // Add placeholder entry so indices align with WinForms behavior
+                    list.Add(new SongSt { Number = i, Table = entryAddr, Header = headerAddr });
+                    continue;
+                }
 
                 uint voicePtr = (uint)(romData[headerAddr + 4] |
                                       (romData[headerAddr + 5] << 8) |
