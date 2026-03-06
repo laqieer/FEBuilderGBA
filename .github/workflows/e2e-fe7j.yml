@@ -1,0 +1,21 @@
+name: "E2E: FE7J"
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  e2e:
+    uses: ./.github/workflows/e2e-run.yml
+    with:
+      rom-name: FE7J
+      job-name: "E2E FE7J"
+      timeout: 15
+    secrets: inherit

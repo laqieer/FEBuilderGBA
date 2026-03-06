@@ -1,27 +1,35 @@
-name: E2E Tests
+name: E2E Reusable
 
-# Run E2E tests separately from the main build pipeline so long-running
-# GUI automation doesn't block normal CI.
 on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-  workflow_dispatch:      # allow manual trigger
+  workflow_call:
+    inputs:
+      rom-name:
+        description: "ROM to test: FE6, FE7J, FE7U, FE8J, FE8U, or none"
+        required: true
+        type: string
+      job-name:
+        description: "Display name for the job"
+        required: true
+        type: string
+      timeout:
+        description: "Timeout in minutes for the test step"
+        required: false
+        type: number
+        default: 20
+    secrets:
+      ROMS_URL:
+        required: false
 
 permissions:
   contents: read
-  checks: write            # required by dorny/test-reporter to post check-runs
+  checks: write
 
 jobs:
   e2e:
-    name: E2E Automation
-    runs-on: windows-latest     # Windows runner has a virtual display for WinForms GUI
-    timeout-minutes: 50         # Prevent indefinite hangs from GUI automation
+    name: ${{ inputs.job-name }}
+    runs-on: windows-latest
+    timeout-minutes: 50
     env:
-      # Pre-compute a boolean flag from the secret so step `if:` conditions can
-      # test it.  The `secrets` context is NOT accessible directly in `if:`
-      # expressions — only job/step `env:` and a handful of other contexts are.
       HAVE_ROMS: ${{ secrets.ROMS_URL != '' }}
 
     steps:
@@ -32,19 +40,10 @@ jobs:
           submodules: recursive
 
       # ---------------------------------------------------------------- MSBuild
-      # NOTE: setup-dotnet is intentionally omitted.  The windows-latest runner ships
-      # with .NET 9 (x64 SDK + x86 runtime pre-installed).  Adding setup-dotnet@v4
-      # overrides DOTNET_ROOT to an x64-only installation directory, which causes
-      # FEBuilderGBA.exe (x86 WinExe) to fail with FrameworkNotFound (0x80008082).
-      # The msbuild.yml workflow confirms the pre-installed dotnet is sufficient.
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v1.0.2
 
       # ---------------------------------------------------------------- Build main app + E2E tests
-      # msbuild via .sln builds BOTH FEBuilderGBA and FEBuilderGBA.E2ETests.
-      # Solution platform mapping:
-      #   Release|x86 → FEBuilderGBA      : Release|Any CPU → bin\Release\
-      #   Release|x86 → FEBuilderGBA.E2ETests: Release|Any CPU → bin\Release\net9.0-windows\
       - name: Restore & Build (Release x86)
         run: |
           msbuild FEBuilderGBA.sln `
@@ -52,19 +51,9 @@ jobs:
             /t:restore,build `
             /m
 
-      # ---------------------------------------------------------------- Download ROMs (gated on ROMS_URL secret)
-      # The secret ROMS_URL points to a roms.zip that extracts a roms/ directory
-      # containing FE6.gba, FE7J.gba, FE7U.gba, FE8J.gba, FE8U.gba.
-      # If the secret is absent (e.g. forks, PRs from external contributors) this
-      # step is skipped and ROM-based tests auto-skip via Assert.Skip().
-      # Soft-failure policy:
-      #   - Network error (Invoke-WebRequest throws)  → hard fail (exit 1): URL is unreachable
-      #   - Downloaded file is not a valid zip         → warning + exit 0: URL may be expired/redirected
-      #   - Expand-Archive fails                       → warning + exit 0: treat as unavailable
-      #   - ROMs extracted but wrong filenames         → warning + exit 0: skip affected tests
-      # ROM tests auto-skip via Assert.Skip() whenever ROMS_DIR exists but a ROM is missing.
+      # ---------------------------------------------------------------- Download ROMs (skip for 'none')
       - name: Download ROMs
-        if: env.HAVE_ROMS == 'true'
+        if: inputs.rom-name != 'none' && env.HAVE_ROMS == 'true'
         env:
           ROMS_URL: ${{ secrets.ROMS_URL }}
         shell: pwsh
@@ -83,19 +72,16 @@ jobs:
           $zipSize = (Get-Item $zip).Length
           Write-Host "Downloaded $zipSize bytes."
 
-          # ---- Validate zip: magic bytes then ZipFile::OpenRead() ---------------
-          # Level 1: magic bytes — fast check; HTML/error pages fail immediately.
+          # ---- Validate zip ---------------------------------------------------
           $header = [System.IO.File]::ReadAllBytes($zip)[0..3]
           if ($header[0] -ne 0x50 -or $header[1] -ne 0x4B) {
             Write-Host "##[warning]Downloaded file is not a valid zip archive."
             Write-Host "  Magic bytes: $([BitConverter]::ToString($header))  (expected 50-4B-03-04)"
             Write-Host "  File size : $zipSize bytes"
-            Write-Host "  ROMS_URL may have expired or redirected to an auth/error page."
             Write-Host "ROM-based tests will be skipped this run."
             exit 0
           }
 
-          # Level 2: open as ZipArchive — detects truncated or structurally corrupt zips.
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           Write-Host ""
           Write-Host "=== Zip contents ==="
@@ -104,11 +90,9 @@ jobs:
             foreach ($entry in $za.Entries) {
               Write-Host ("  {0,-20}  {1,12:N0} bytes" -f $entry.FullName, $entry.Length)
             }
-            $entryCount = $za.Entries.Count
             $za.Dispose()
-            Write-Host "  --- $entryCount entries total ---"
           } catch {
-            Write-Host "##[warning]Zip magic bytes are valid but ZipFile::OpenRead failed: $($_.Exception.Message)"
+            Write-Host "##[warning]Zip is corrupt: $($_.Exception.Message)"
             Write-Host "ROM-based tests will be skipped this run."
             exit 0
           }
@@ -124,38 +108,43 @@ jobs:
             exit 0
           }
 
-          # ---- Verify expected ROM files --------------------------------------
+          # ---- Verify target ROM -----------------------------------------------
           $romsDir = "${{ github.workspace }}\roms"
-          $expected = @("FE6.gba", "FE7J.gba", "FE7U.gba", "FE8J.gba", "FE8U.gba")
-          $missing  = @()
-          Write-Host ""
-          Write-Host "=== ROM verification ==="
-          foreach ($name in $expected) {
-            $path = Join-Path $romsDir $name
-            if (Test-Path $path) {
-              $size = (Get-Item $path).Length
-              Write-Host "  [OK] $name  ($size bytes)"
-            } else {
-              Write-Host "  [MISSING] $name"
-              $missing += $name
-            }
-          }
-          if ($missing.Count -gt 0) {
-            Write-Host ""
-            Write-Host "##[warning]Missing ROMs after extraction: $($missing -join ', ')"
-            Write-Host "These ROM tests will be skipped. Check the contents of roms.zip."
+          $target  = "${{ inputs.rom-name }}.gba"
+          $path    = Join-Path $romsDir $target
+          if (Test-Path $path) {
+            $size = (Get-Item $path).Length
+            Write-Host "  [OK] $target  ($size bytes)"
           } else {
-            Write-Host ""
-            Write-Host "All $($expected.Count) ROMs present — ROM-based tests will run."
+            Write-Host "##[warning]Target ROM $target not found after extraction."
+            Write-Host "ROM tests will be skipped."
+            exit 0
           }
 
-      # ---------------------------------------------------------------- Build Avalonia (for screenshot tests)
+      # ---------------------------------------------------------------- Filter ROMs (keep only target)
+      - name: Filter ROMs (keep only ${{ inputs.rom-name }})
+        if: inputs.rom-name != 'none' && env.HAVE_ROMS == 'true'
+        shell: pwsh
+        run: |
+          $romsDir = "${{ github.workspace }}\roms"
+          if (-not (Test-Path $romsDir)) {
+            Write-Host "No roms directory — nothing to filter."
+            exit 0
+          }
+          $keep = "${{ inputs.rom-name }}.gba"
+          Get-ChildItem $romsDir -File | Where-Object { $_.Name -ne $keep } | ForEach-Object {
+            Write-Host "Removing $($_.Name)"
+            Remove-Item $_.FullName -Force
+          }
+          Write-Host ""
+          Write-Host "=== Remaining ROMs ==="
+          Get-ChildItem $romsDir -File | ForEach-Object { Write-Host "  $($_.Name)" }
+
+      # ---------------------------------------------------------------- Build Avalonia
       - name: Build Avalonia (for screenshot tests)
         run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
 
-      # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
-      # Run with continue-on-error so CI doesn't fail on probe errors.
-      # Output shows whether --version works and whether the GUI starts cleanly.
+      # ---------------------------------------------------------------- Diagnostic probe
       - name: Diagnostic - probe app startup
         continue-on-error: true
         shell: pwsh
@@ -202,36 +191,28 @@ jobs:
           }
 
       # ---------------------------------------------------------------- Run E2E tests
-      # --no-build: msbuild already built everything; dotnet test just runs the tests.
-      # Uses TRX logger (same as msbuild.yml) — JunitXml.TestLogger v3.1.12 has a
-      # known bug that returns exit code 1 even when all tests pass.
       - name: Run E2E tests
-        timeout-minutes: 40
+        timeout-minutes: ${{ inputs.timeout }}
         env:
-          # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
           FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe
           FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}\FEBuilderGBA.CLI\bin\Release\net9.0\FEBuilderGBA.CLI.exe
           AVALONIA_EXE: ${{ github.workspace }}\FEBuilderGBA.Avalonia\bin\Release\net9.0\FEBuilderGBA.Avalonia.exe
           FEBUILDERGBA_CLI_LOG_DIR: ${{ github.workspace }}\cli-logs
           FEBUILDERGBA_SCREENSHOT_DIR: ${{ github.workspace }}\e2e-screenshots
-          ROMS_DIR: ${{ github.workspace }}\roms
+          ROMS_DIR: ${{ inputs.rom-name == 'none' && '__no_roms__' || format('{0}\roms', github.workspace) }}
         run: |
           dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj `
             --configuration Release `
             --no-build `
             --verbosity normal `
             --logger "trx;LogFileName=e2e-results.trx"
-        # Note: xunit test collections run sequentially by default when each test
-        # launches its own exclusive app process.
 
-      # ---------------------------------------------------------------- Publish test results as check-run
+      # ---------------------------------------------------------------- Publish test results
       - name: Publish E2E test results
         uses: dorny/test-reporter@v1
-        # Only run when a TRX file actually exists; dorny/test-reporter@v1 errors
-        # out (even with fail-on-error: false) when the path glob matches no files.
         if: always() && hashFiles('FEBuilderGBA.E2ETests/TestResults/*.trx') != ''
         with:
-          name: E2E Test Results
+          name: "E2E Results (${{ inputs.rom-name }})"
           path: "FEBuilderGBA.E2ETests/TestResults/*.trx"
           reporter: dotnet-trx
           fail-on-error: false
@@ -241,7 +222,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-test-report
+          name: e2e-test-report-${{ inputs.rom-name }}
           path: "FEBuilderGBA.E2ETests/TestResults/*.trx"
           if-no-files-found: ignore
 
@@ -249,7 +230,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-screenshots
+          name: e2e-screenshots-${{ inputs.rom-name }}
           path: ${{ github.workspace }}\e2e-screenshots\
           if-no-files-found: ignore
 
@@ -257,6 +238,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cli-output-logs
+          name: cli-output-logs-${{ inputs.rom-name }}
           path: ${{ github.workspace }}\cli-logs\
           if-no-files-found: ignore
