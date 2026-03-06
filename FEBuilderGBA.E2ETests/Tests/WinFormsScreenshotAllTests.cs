@@ -51,7 +51,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Captures screenshots of the main form and all editor forms opened via toolbar buttons.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void WinForms_ScreenshotAll_CapturesMainAndEditorForms(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -146,7 +146,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies the main form screenshot is captured successfully.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void WinForms_ScreenshotAll_MainFormCaptured(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");

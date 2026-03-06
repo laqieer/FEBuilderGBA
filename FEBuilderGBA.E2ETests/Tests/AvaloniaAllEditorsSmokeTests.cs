@@ -39,7 +39,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Validates the smoke test output reports the expected number of editors.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_AllEditors_ReportsCorrectCount(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");

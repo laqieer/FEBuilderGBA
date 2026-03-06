@@ -78,7 +78,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_Rebuild(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");

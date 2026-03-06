@@ -34,7 +34,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ ROM load only
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_RomLoad_DoesNotCrash(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");

@@ -20,7 +20,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies at least 100 PNG files are created (of 323 total editors).
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_ScreenshotAll_CapturesEditors(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
@@ -54,7 +54,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies stdout contains the SCREENSHOT: Results summary line.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_ScreenshotAll_OutputContainsResults(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");

@@ -55,7 +55,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies that core editors (Unit, Item, Class) produce VERIFY lines.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_DataVerify_CoreEditorsProduceVerifyLines(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies UnitEditorView VERIFY line contains expected fields.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_DataVerify_UnitEditorHasExpectedFields(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
@@ -103,7 +103,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// Verifies the data-verify mode reports at least 3 verified editors.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_DataVerify_ReportsVerifiedCount(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// FormatException, causing all NumericUpDown controls to show empty text.
         /// </summary>
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Avalonia_DataVerify_NumericUpDownsDisplayValues(string romName, string? romPath)
         {
             Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");

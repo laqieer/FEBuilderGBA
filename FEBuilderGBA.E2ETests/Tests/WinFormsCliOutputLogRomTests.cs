@@ -63,7 +63,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --rebuild
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_Rebuild(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -97,7 +97,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --disasm
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_Disasm(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -111,7 +111,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --translate
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_Translate(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -125,7 +125,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --pointercalc
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_PointerCalc(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
@@ -142,7 +142,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         // ------------------------------------------------------------------ --songexchange
 
         [SkippableTheory]
-        [MemberData(nameof(RomLocator.RepresentativeRoms), MemberType = typeof(RomLocator))]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
         public void Log_SongExchange(string romName, string? romPath)
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
