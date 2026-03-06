@@ -1,15 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolEmulatorSetupMessageView"
-        Title="Emulator Setup" Width="420" Height="220"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Emulator Setup" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Use Init Wizard" Width="140" Click="UseInitWizard_Click" />
-      <Button Content="Manual Setup" Width="120" Click="ManualSetup_Click" />
-    </StackPanel>
-    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
-               Text="No emulator is configured. Please choose a setup method to configure your emulator for test play." />
-  </DockPanel>
+        Title="Emulator is not configured"
+        Width="700" Height="245"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="22,31,15,15">
+    <TextBlock TextWrapping="Wrap" Height="36"
+               Text="No emulator is configured.&#x0a;Please configure the emulator to be used for test play." />
+    <Button Content="Automatically configure with Init Wizard" Height="37"
+            HorizontalAlignment="Stretch" Margin="0,27,0,0" Click="UseInitWizard_Click" />
+    <Button Content="Manually configure from Options screen" Height="37"
+            HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="ManualSetup_Click" />
+  </StackPanel>
 </Window>

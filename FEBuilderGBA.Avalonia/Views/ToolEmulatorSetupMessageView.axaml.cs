@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolEmulatorSetupMessageView : Window, IEditorView
     {
         readonly ToolEmulatorSetupMessageViewModel _vm = new();
-        public string ViewTitle => "Emulator Setup";
+        public string ViewTitle => "Emulator is not configured";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolEmulatorSetupMessageView()
