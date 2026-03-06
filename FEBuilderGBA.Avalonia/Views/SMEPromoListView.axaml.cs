@@ -19,6 +19,16 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.Reload();
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            // Write placeholder - would write B0/B1 to ROM
+        }
+
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
     }

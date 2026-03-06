@@ -1,32 +1,71 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.SMEPromoListView"
-        Title="SME Promo List" Width="600" Height="400"
+        Title="SME Promo List"
+        Width="1155" Height="655"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="SME Promotion List" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+  <DockPanel>
+    <!-- Top toolbar: Address + Count + Reload -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
+                Margin="8,4,8,0" Spacing="8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <NumericUpDown Value="{Binding ReadStartAddress}" Minimum="0"
+                     Width="130" Height="25" />
+      <TextBlock Text="Count:" VerticalAlignment="Center" />
+      <NumericUpDown Value="{Binding ReadCount}" Minimum="1" Maximum="256"
+                     Width="78" Height="25" />
+      <Button Content="Reload" Width="112" Height="30" Click="Reload_Click" />
+    </StackPanel>
 
-    <Grid ColumnDefinitions="200,12,*">
+    <Grid ColumnDefinitions="245,*">
       <!-- Left: Address list -->
-      <DockPanel Grid.Column="0">
-        <TextBlock DockPanel.Dock="Top" Text="Entries" FontWeight="SemiBold" Margin="0,0,0,4" />
-        <ListBox ItemsSource="{Binding AddressList}" SelectedIndex="{Binding SelectedIndex}" />
+      <DockPanel Grid.Column="0" Margin="4">
+        <TextBlock DockPanel.Dock="Top" Text="Name" FontWeight="Bold"
+                   Height="26" VerticalAlignment="Center" />
+        <Button DockPanel.Dock="Bottom" Content="Expand List" Height="30"
+                HorizontalAlignment="Stretch" Margin="0,4,0,0" />
+        <ListBox ItemsSource="{Binding AddressList}"
+                 SelectedIndex="{Binding SelectedIndex}" />
       </DockPanel>
 
-      <!-- Right: Editor -->
-      <StackPanel Grid.Column="2" Spacing="8">
-        <TextBlock Text="Promotion Mapping" FontWeight="SemiBold" />
-        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Base Class ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding B0}" Minimum="0" Maximum="255" Margin="0,0,0,4" />
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Base Class:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ClassName0}" IsReadOnly="True" Margin="0,0,0,4" />
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Promo Class ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding B1}" Minimum="0" Maximum="255" Margin="0,0,0,4" />
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Promo Class:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ClassName1}" IsReadOnly="True" />
-        </Grid>
-      </StackPanel>
+      <!-- Right: Editor area -->
+      <DockPanel Grid.Column="1" Margin="4">
+        <!-- Address bar -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
+                    Spacing="8" Margin="0,0,0,4">
+          <TextBlock Text="Address:" VerticalAlignment="Center" />
+          <NumericUpDown Value="{Binding CurrentAddress}" Minimum="0"
+                         Width="130" Height="25" />
+          <TextBlock Text="Size:" VerticalAlignment="Center" />
+          <TextBox Text="{Binding BlockSize}" IsReadOnly="True"
+                   Width="82" Height="25" />
+          <TextBox Text="{Binding SelectAddress}" IsReadOnly="True"
+                   Width="150" Height="25" />
+          <Button Content="Write" Width="168" Height="30" Click="Write_Click" />
+        </StackPanel>
+
+        <!-- Class editor fields -->
+        <StackPanel Margin="0,8,0,0" Spacing="12">
+          <!-- Base Class row -->
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Base Class" Width="146" Height="30"
+                       VerticalAlignment="Center" FontWeight="Bold" />
+            <NumericUpDown Value="{Binding B0}" Minimum="0" Maximum="255"
+                           Width="72" Height="25" />
+            <TextBox Text="{Binding ClassName0}" IsReadOnly="True"
+                     Width="174" Height="25" />
+          </StackPanel>
+          <!-- Promo Class row -->
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Promo Class" Width="146" Height="30"
+                       VerticalAlignment="Center" FontWeight="Bold" />
+            <NumericUpDown Value="{Binding B1}" Minimum="0" Maximum="255"
+                           Width="72" Height="25" />
+            <TextBox Text="{Binding ClassName1}" IsReadOnly="True"
+                     Width="174" Height="25" />
+          </StackPanel>
+        </StackPanel>
+      </DockPanel>
     </Grid>
   </DockPanel>
 </Window>

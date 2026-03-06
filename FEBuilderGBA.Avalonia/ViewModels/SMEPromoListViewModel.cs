@@ -12,6 +12,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _b1;
         string _className0 = "";
         string _className1 = "";
+        int _readStartAddress;
+        int _readCount = 32;
+        int _currentAddress;
+        string _blockSize = "2";
+        string _selectAddress = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public int SelectedIndex { get => _selectedIndex; set { SetField(ref _selectedIndex, value); OnSelected(); } }
@@ -19,6 +24,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int B1 { get => _b1; set => SetField(ref _b1, value); }
         public string ClassName0 { get => _className0; set => SetField(ref _className0, value); }
         public string ClassName1 { get => _className1; set => SetField(ref _className1, value); }
+        public int ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
+        public int ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+        public int CurrentAddress { get => _currentAddress; set => SetField(ref _currentAddress, value); }
+        public string BlockSize { get => _blockSize; set => SetField(ref _blockSize, value); }
+        public string SelectAddress { get => _selectAddress; set => SetField(ref _selectAddress, value); }
         public ObservableCollection<string> AddressList { get; } = new();
 
         public void Initialize()
@@ -32,6 +42,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Log.Error("SMEPromoListViewModel", ex.ToString());
             }
             IsLoaded = true;
+        }
+
+        public void Reload()
+        {
+            LoadList();
         }
 
         void LoadList()
