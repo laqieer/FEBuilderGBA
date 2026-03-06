@@ -18,6 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public UwordBitFlagView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _bitBoxes = new CheckBox[]
             {
                 Bit0Box, Bit1Box, Bit2Box, Bit3Box, Bit4Box, Bit5Box, Bit6Box, Bit7Box,
@@ -29,6 +30,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 cb.IsCheckedChanged += OnBitChanged;
             }
+            B40.ValueChanged += OnHexChanged;
+            B41.ValueChanged += OnHexChanged;
+            B42.ValueChanged += OnHexChanged;
+            B43.ValueChanged += OnHexChanged;
             _vm.Load(0);
             UpdateUI();
         }
@@ -42,26 +47,54 @@ namespace FEBuilderGBA.Avalonia.Views
                     val |= (1u << i);
             }
             _vm.Value = val;
-            ValueLabel.Text = $"Value: {_vm.ValueHex}";
+            UpdateHexInputs();
+        }
+
+        void OnHexChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            uint b0 = (uint)(B40.Value ?? 0);
+            uint b1 = (uint)(B41.Value ?? 0);
+            uint b2 = (uint)(B42.Value ?? 0);
+            uint b3 = (uint)(B43.Value ?? 0);
+            _vm.Value = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+            UpdateCheckboxes();
+        }
+
+        void UpdateCheckboxes()
+        {
+            foreach (var cb in _bitBoxes)
+                cb.IsCheckedChanged -= OnBitChanged;
+            for (int i = 0; i < 32; i++)
+                _bitBoxes[i].IsChecked = (_vm.Value & (1u << i)) != 0;
+            foreach (var cb in _bitBoxes)
+                cb.IsCheckedChanged += OnBitChanged;
+        }
+
+        void UpdateHexInputs()
+        {
+            B40.ValueChanged -= OnHexChanged;
+            B41.ValueChanged -= OnHexChanged;
+            B42.ValueChanged -= OnHexChanged;
+            B43.ValueChanged -= OnHexChanged;
+            B40.Value = (decimal)(_vm.Value & 0xFF);
+            B41.Value = (decimal)((_vm.Value >> 8) & 0xFF);
+            B42.Value = (decimal)((_vm.Value >> 16) & 0xFF);
+            B43.Value = (decimal)((_vm.Value >> 24) & 0xFF);
+            B40.ValueChanged += OnHexChanged;
+            B41.ValueChanged += OnHexChanged;
+            B42.ValueChanged += OnHexChanged;
+            B43.ValueChanged += OnHexChanged;
         }
 
         void UpdateUI()
         {
-            for (int i = 0; i < 32; i++)
-            {
-                _bitBoxes[i].IsChecked = (_vm.Value & (1u << i)) != 0;
-            }
-            ValueLabel.Text = $"Value: {_vm.ValueHex}";
+            UpdateCheckboxes();
+            UpdateHexInputs();
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
             Close(_vm.Value);
-        }
-
-        void Cancel_Click(object? sender, RoutedEventArgs e)
-        {
-            Close(null);
         }
 
         public void NavigateTo(uint address) { }

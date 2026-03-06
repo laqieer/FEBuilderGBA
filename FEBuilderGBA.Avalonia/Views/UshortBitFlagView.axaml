@@ -1,30 +1,59 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.UshortBitFlagView"
-        Title="Short Bit Flags (16-bit)" Width="360" Height="620"
-        WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="16" Spacing="6">
-    <TextBlock Text="Short Bit Flags (16-bit)" FontSize="18" FontWeight="Bold" />
-    <TextBlock Name="ValueLabel" Text="Value: 0x0000" FontSize="14" FontFamily="Consolas" Margin="0,4,0,8" />
-    <CheckBox Name="Bit0Box"  Content="Bit 0  (0x0001)" />
-    <CheckBox Name="Bit1Box"  Content="Bit 1  (0x0002)" />
-    <CheckBox Name="Bit2Box"  Content="Bit 2  (0x0004)" />
-    <CheckBox Name="Bit3Box"  Content="Bit 3  (0x0008)" />
-    <CheckBox Name="Bit4Box"  Content="Bit 4  (0x0010)" />
-    <CheckBox Name="Bit5Box"  Content="Bit 5  (0x0020)" />
-    <CheckBox Name="Bit6Box"  Content="Bit 6  (0x0040)" />
-    <CheckBox Name="Bit7Box"  Content="Bit 7  (0x0080)" />
-    <CheckBox Name="Bit8Box"  Content="Bit 8  (0x0100)" />
-    <CheckBox Name="Bit9Box"  Content="Bit 9  (0x0200)" />
-    <CheckBox Name="Bit10Box" Content="Bit 10 (0x0400)" />
-    <CheckBox Name="Bit11Box" Content="Bit 11 (0x0800)" />
-    <CheckBox Name="Bit12Box" Content="Bit 12 (0x1000)" />
-    <CheckBox Name="Bit13Box" Content="Bit 13 (0x2000)" />
-    <CheckBox Name="Bit14Box" Content="Bit 14 (0x4000)" />
-    <CheckBox Name="Bit15Box" Content="Bit 15 (0x8000)" />
-    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
-  </StackPanel>
+        Title="Short Bit Flags (16-bit)" Width="708" Height="420"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <DockPanel Margin="10,9,10,10">
+    <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE 676x40 + ApplyButton 181x40) -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40">
+        <TextBlock Name="MESSAGE" Text="Short Bit Flags (16-bit)"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <Button Grid.Column="1" Name="ApplyButton" Content="Apply" Width="181" Height="40"
+              Margin="8,0,0,0" Click="OK_Click" />
+    </Grid>
+    <!-- Main panel: Two side-by-side GroupBoxes (WinForms J_40 333x316 + J_41 333x316) -->
+    <Border BorderBrush="Gray" BorderThickness="1" Padding="7,0,7,7">
+      <Grid ColumnDefinitions="*,*">
+        <!-- Left column: bits 0-7 -->
+        <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="5,0,5,5"
+                Margin="0,0,4,0">
+          <StackPanel Spacing="2">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
+              <TextBlock Text="Low byte:" VerticalAlignment="Center" />
+              <NumericUpDown Name="B40" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+            </StackPanel>
+            <CheckBox Name="Bit0Box"  Content="Bit 0  (0x01)" />
+            <CheckBox Name="Bit1Box"  Content="Bit 1  (0x02)" />
+            <CheckBox Name="Bit2Box"  Content="Bit 2  (0x04)" />
+            <CheckBox Name="Bit3Box"  Content="Bit 3  (0x08)" />
+            <CheckBox Name="Bit4Box"  Content="Bit 4  (0x10)" />
+            <CheckBox Name="Bit5Box"  Content="Bit 5  (0x20)" />
+            <CheckBox Name="Bit6Box"  Content="Bit 6  (0x40)" />
+            <CheckBox Name="Bit7Box"  Content="Bit 7  (0x80)" />
+          </StackPanel>
+        </Border>
+        <!-- Right column: bits 8-15 -->
+        <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="5,0,5,5"
+                Margin="4,0,0,0">
+          <StackPanel Spacing="2">
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
+              <TextBlock Text="High byte:" VerticalAlignment="Center" />
+              <NumericUpDown Name="B41" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+            </StackPanel>
+            <CheckBox Name="Bit8Box"  Content="Bit 8  (0x01)" />
+            <CheckBox Name="Bit9Box"  Content="Bit 9  (0x02)" />
+            <CheckBox Name="Bit10Box" Content="Bit 10 (0x04)" />
+            <CheckBox Name="Bit11Box" Content="Bit 11 (0x08)" />
+            <CheckBox Name="Bit12Box" Content="Bit 12 (0x10)" />
+            <CheckBox Name="Bit13Box" Content="Bit 13 (0x20)" />
+            <CheckBox Name="Bit14Box" Content="Bit 14 (0x40)" />
+            <CheckBox Name="Bit15Box" Content="Bit 15 (0x80)" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+  </DockPanel>
 </Window>

@@ -1,15 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolBatchInputView"
-        Title="Pointer Tool - Batch Input" Width="500" Height="400"
+        Title="Pointer Tool - Batch Input" Width="918" Height="585"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Batch Pointer Input" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <TextBlock DockPanel.Dock="Top" Text="Enter one pointer address per line:" Margin="0,0,0,8" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
+  <DockPanel Margin="13,18,13,12">
+    <!-- Label (WinForms label1 "値:" at 14,18 size 30x18) -->
+    <TextBlock DockPanel.Dock="Top" Text="Value:" Margin="0,0,0,4" />
+    <!-- RunButton (WinForms RunButton at 655,501 size 235x34) -->
+    <Button DockPanel.Dock="Bottom" Name="RunButton" Content="Batch Address Convert"
+            Width="235" Height="34" HorizontalAlignment="Right"
+            Margin="0,6,0,0" Click="OK_Click" />
+    <!-- TextData (WinForms TextData 877x455 Multiline) -->
     <TextBox Name="BatchInputTextBox" AcceptsReturn="True"
              FontFamily="Consolas, Courier New, monospace"
              Watermark="0x08000000&#x0a;0x08000004&#x0a;..." />

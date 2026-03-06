@@ -501,5 +501,117 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadView(viewFile);
             Assert.Contains("_vm.Initialize()", src);
         }
+
+        // ===========================================================================
+        // BitFlag Views + PointerToolBatchInput alignment
+        // ===========================================================================
+
+        // --- UbyteBitFlagView (#225) ---
+
+        [Fact]
+        public void UbyteBitFlag_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("UbyteBitFlagView.axaml");
+            Assert.Contains("Width=\"708\"", src);
+            Assert.Contains("Height=\"420\"", src);
+            Assert.Contains("Name=\"MESSAGE\"", src);
+            Assert.Contains("Name=\"ApplyButton\"", src);
+            Assert.Contains("Width=\"181\"", src);
+            Assert.Contains("Name=\"B40\"", src);
+            Assert.Contains("Name=\"Bit0Box\"", src);
+            Assert.Contains("Name=\"Bit7Box\"", src);
+        }
+
+        [Fact]
+        public void UbyteBitFlag_View_HasApplyClickAndHexSync()
+        {
+            var src = ReadView("UbyteBitFlagView.axaml.cs");
+            Assert.Contains("OK_Click", src);
+            Assert.Contains("OnHexChanged", src);
+            Assert.Contains("OnBitChanged", src);
+            Assert.Contains("B40.ValueChanged", src);
+            Assert.DoesNotContain("Cancel_Click", src);
+        }
+
+        // --- UshortBitFlagView (#226) ---
+
+        [Fact]
+        public void UshortBitFlag_Axaml_HasTwoColumnLayout()
+        {
+            var src = ReadAxaml("UshortBitFlagView.axaml");
+            Assert.Contains("Width=\"708\"", src);
+            Assert.Contains("Height=\"420\"", src);
+            Assert.Contains("ColumnDefinitions=\"*,*\"", src);
+            Assert.Contains("Name=\"B40\"", src);
+            Assert.Contains("Name=\"B41\"", src);
+            Assert.Contains("Name=\"Bit0Box\"", src);
+            Assert.Contains("Name=\"Bit15Box\"", src);
+            Assert.Contains("Name=\"ApplyButton\"", src);
+        }
+
+        [Fact]
+        public void UshortBitFlag_View_HasTwoHexInputs()
+        {
+            var src = ReadView("UshortBitFlagView.axaml.cs");
+            Assert.Contains("B40.ValueChanged", src);
+            Assert.Contains("B41.ValueChanged", src);
+            Assert.Contains("OnHexLowChanged", src);
+            Assert.Contains("OnHexHighChanged", src);
+            Assert.DoesNotContain("Cancel_Click", src);
+        }
+
+        // --- UwordBitFlagView (#227) ---
+
+        [Fact]
+        public void UwordBitFlag_Axaml_HasFourColumnLayout()
+        {
+            var src = ReadAxaml("UwordBitFlagView.axaml");
+            Assert.Contains("Width=\"1183\"", src);
+            Assert.Contains("Height=\"420\"", src);
+            Assert.Contains("ColumnDefinitions=\"*,*,*,*\"", src);
+            Assert.Contains("Name=\"B40\"", src);
+            Assert.Contains("Name=\"B41\"", src);
+            Assert.Contains("Name=\"B42\"", src);
+            Assert.Contains("Name=\"B43\"", src);
+            Assert.Contains("Name=\"Bit0Box\"", src);
+            Assert.Contains("Name=\"Bit31Box\"", src);
+            Assert.Contains("Name=\"ApplyButton\"", src);
+        }
+
+        [Fact]
+        public void UwordBitFlag_View_HasFourHexInputs()
+        {
+            var src = ReadView("UwordBitFlagView.axaml.cs");
+            Assert.Contains("B40.ValueChanged", src);
+            Assert.Contains("B41.ValueChanged", src);
+            Assert.Contains("B42.ValueChanged", src);
+            Assert.Contains("B43.ValueChanged", src);
+            Assert.Contains("OnHexChanged", src);
+            Assert.DoesNotContain("Cancel_Click", src);
+        }
+
+        // --- PointerToolBatchInputView (#259) ---
+
+        [Fact]
+        public void PointerToolBatchInput_Axaml_MatchesWinFormsLayout()
+        {
+            var src = ReadAxaml("PointerToolBatchInputView.axaml");
+            Assert.Contains("Width=\"918\"", src);
+            Assert.Contains("Height=\"585\"", src);
+            Assert.Contains("Name=\"RunButton\"", src);
+            Assert.Contains("Batch Address Convert", src);
+            Assert.Contains("Width=\"235\"", src);
+            Assert.Contains("Height=\"34\"", src);
+            Assert.Contains("Name=\"BatchInputTextBox\"", src);
+            Assert.DoesNotContain("Cancel", src);
+        }
+
+        [Fact]
+        public void PointerToolBatchInput_View_HasSingleButton()
+        {
+            var src = ReadView("PointerToolBatchInputView.axaml.cs");
+            Assert.Contains("OK_Click", src);
+            Assert.DoesNotContain("Cancel_Click", src);
+        }
     }
 }

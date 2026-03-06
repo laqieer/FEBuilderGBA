@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 14 / 323
+**Visually Aligned:** 28 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -322,9 +322,9 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 225 | UbyteBitFlagView | E2E COVERED | - | - |
-| 226 | UshortBitFlagView | E2E COVERED | - | - |
-| 227 | UwordBitFlagView | E2E COVERED | - | - |
+| 225 | UbyteBitFlagView | E2E COVERED | YES | ALIGNED |
+| 226 | UshortBitFlagView | E2E COVERED | YES | ALIGNED |
+| 227 | UwordBitFlagView | E2E COVERED | YES | ALIGNED |
 
 ## Error / Dialog Forms
 
@@ -366,7 +366,7 @@ actual ROM data at the correct addresses and offsets.
 | 256 | HexEditorMarkView | E2E COVERED | YES | ALIGNED |
 | 257 | HexEditorSearchView | E2E COVERED | YES | ALIGNED |
 | 258 | PointerToolView | E2E COVERED | - | - |
-| 259 | PointerToolBatchInputView | E2E COVERED | - | - |
+| 259 | PointerToolBatchInputView | E2E COVERED | YES | ALIGNED |
 | 260 | PointerToolCopyToView | E2E COVERED | - | - |
 | 261 | PackedMemorySlotView | E2E COVERED | - | - |
 | 262 | EmulatorMemoryView | E2E COVERED | - | - |

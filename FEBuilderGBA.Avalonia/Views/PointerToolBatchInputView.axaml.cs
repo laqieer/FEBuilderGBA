@@ -15,11 +15,11 @@ namespace FEBuilderGBA.Avalonia.Views
         public PointerToolBatchInputView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
         void OK_Click(object? sender, RoutedEventArgs e) => Close("OK");
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
