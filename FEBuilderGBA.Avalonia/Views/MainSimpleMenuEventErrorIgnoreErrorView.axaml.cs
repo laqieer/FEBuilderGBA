@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MainSimpleMenuEventErrorIgnoreErrorView : Window, IEditorView
     {
         readonly MainSimpleMenuEventErrorIgnoreErrorViewModel _vm = new();
-        public string ViewTitle => "Ignore Error";
+        public string ViewTitle => "Hide this error";
         public bool IsLoaded => _vm.IsLoaded;
 
         public MainSimpleMenuEventErrorIgnoreErrorView()
