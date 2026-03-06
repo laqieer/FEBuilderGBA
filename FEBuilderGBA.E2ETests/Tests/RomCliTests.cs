@@ -18,7 +18,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// </summary>
     public class RomCliTests
     {
-        private static readonly string ExePath = AppRunner.FindExePath();
+        private static readonly string ExePath = AppRunner.FindCliExePath();
 
         /// <summary>
         /// Run with retry — WinForms exe can sporadically crash on CI runners.
