@@ -362,9 +362,9 @@ actual ROM data at the correct addresses and offsets.
 | 252 | OptionsView | E2E COVERED | - | - |
 | 253 | DisASMDumpAllView | E2E COVERED | YES | - |
 | 254 | DisASMDumpAllArgGrepView | E2E COVERED | YES | - |
-| 255 | HexEditorJumpView | E2E COVERED | YES | - |
-| 256 | HexEditorMarkView | E2E COVERED | YES | - |
-| 257 | HexEditorSearchView | E2E COVERED | YES | - |
+| 255 | HexEditorJumpView | E2E COVERED | YES | ALIGNED |
+| 256 | HexEditorMarkView | E2E COVERED | YES | ALIGNED |
+| 257 | HexEditorSearchView | E2E COVERED | YES | ALIGNED |
 | 258 | PointerToolView | E2E COVERED | - | - |
 | 259 | PointerToolBatchInputView | E2E COVERED | - | - |
 | 260 | PointerToolCopyToView | E2E COVERED | - | - |

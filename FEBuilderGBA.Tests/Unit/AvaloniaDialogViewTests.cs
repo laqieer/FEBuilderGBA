@@ -298,7 +298,8 @@ namespace FEBuilderGBA.Tests.Unit
         public void HexEditorJump_Axaml_HasAddressInput()
         {
             var src = ReadAxaml("HexEditorJumpView.axaml");
-            Assert.Contains("AddressInput", src);
+            Assert.Contains("AddrComboBox", src);
+            Assert.Contains("LittleEndianCheckBox", src);
             Assert.Contains("Click=\"OK_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
@@ -323,22 +324,21 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void HexEditorMark_View_HasAddRemoveHandlers()
+        public void HexEditorMark_View_HasJumpToHandler()
         {
             var src = ReadView("HexEditorMarkView.axaml.cs");
-            Assert.Contains("Add_Click", src);
-            Assert.Contains("Remove_Click", src);
-            Assert.Contains("Jump_Click", src);
+            Assert.Contains("JumpTo_Click", src);
+            Assert.Contains("DoubleTapped", src);
+            Assert.Contains("AddressList", src);
         }
 
         [Fact]
         public void HexEditorMark_Axaml_HasListAndButtons()
         {
             var src = ReadAxaml("HexEditorMarkView.axaml");
-            Assert.Contains("MarkList", src);
-            Assert.Contains("NewMarkInput", src);
-            Assert.Contains("Click=\"Add_Click\"", src);
-            Assert.Contains("Click=\"Remove_Click\"", src);
+            Assert.Contains("AddressList", src);
+            Assert.Contains("Click=\"JumpTo_Click\"", src);
+            Assert.Contains("Marked Addresses", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
 
@@ -364,7 +364,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void HexEditorSearch_Axaml_HasSearchInput()
         {
             var src = ReadAxaml("HexEditorSearchView.axaml");
-            Assert.Contains("SearchInput", src);
+            Assert.Contains("AddrComboBox", src);
+            Assert.Contains("RevCheckBox", src);
+            Assert.Contains("LittleEndianCheckBox", src);
+            Assert.Contains("Align4CheckBox", src);
             Assert.Contains("Click=\"OK_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }

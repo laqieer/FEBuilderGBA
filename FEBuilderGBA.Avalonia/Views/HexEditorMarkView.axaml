@@ -1,18 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HexEditorMarkView"
-        Title="Hex Editor - Bookmarks" Width="450" Height="400"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock Text="Bookmarks" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Manage address bookmarks. Double-click an entry to jump to it." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Bottom" Margin="0,8,0,0">
-      <TextBox x:Name="NewMarkInput" Width="200" Watermark="0x00000000" />
-      <Button Content="Add" Width="60" Click="Add_Click" />
-      <Button Content="Remove" Width="70" Click="Remove_Click" />
-      <Button Content="Jump" Width="60" Click="Jump_Click" HorizontalAlignment="Right" />
-      <Button Content="Close" Width="60" Click="Close_Click" HorizontalAlignment="Right" />
-    </StackPanel>
-    <ListBox x:Name="MarkList" Margin="0,4,0,0" />
+        Title="Marked Addresses"
+        Width="409" Height="685"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <DockPanel Margin="12,9,12,10">
+    <!-- Header label with border -->
+    <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1"
+            Height="32" Margin="0,0,0,3">
+      <TextBlock Text="Marked Addresses" FontWeight="Bold"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+    <!-- Jump button at bottom -->
+    <Button DockPanel.Dock="Bottom" Content="Jump To" Width="272" Height="43"
+            HorizontalAlignment="Right" Margin="0,6,0,0" Click="JumpTo_Click" />
+    <!-- Address list -->
+    <ListBox x:Name="AddressList" ItemsSource="{Binding Marks}" />
   </DockPanel>
 </Window>

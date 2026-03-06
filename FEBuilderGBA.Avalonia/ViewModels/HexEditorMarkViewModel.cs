@@ -8,12 +8,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class HexEditorMarkViewModel : ViewModelBase, IDataVerifiable
     {
         bool _isLoaded;
-        ObservableCollection<string> _marks = new();
         string _selectedMark = string.Empty;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public ObservableCollection<string> Marks { get => _marks; set => SetField(ref _marks, value); }
         public string SelectedMark { get => _selectedMark; set => SetField(ref _selectedMark, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
+        public ObservableCollection<string> Marks { get; } = new();
 
         public void Initialize()
         {

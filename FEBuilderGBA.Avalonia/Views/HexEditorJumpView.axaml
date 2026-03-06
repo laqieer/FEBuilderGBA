@@ -1,18 +1,23 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HexEditorJumpView"
-        Title="Hex Editor - Jump to Address" Width="400" Height="220"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Jump to Address" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Enter a hexadecimal address to jump to (e.g. 0x08000000)." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="Jump" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Hex Editor - Jump"
+        Width="515" Height="210"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="13,25,13,10">
+    <!-- Address label + ComboBox row -->
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,20">
+      <TextBlock Text="Address:" Width="99" Height="18"
+                 VerticalAlignment="Center" />
+      <AutoCompleteBox x:Name="AddrComboBox" Width="337" Height="26"
+                       FilterMode="None" />
     </StackPanel>
-    <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" VerticalAlignment="Top">
-      <TextBlock Text="Address:" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0" />
-      <TextBox x:Name="AddressInput" Grid.Column="1" Watermark="0x00000000" />
-    </Grid>
-  </DockPanel>
+    <!-- Little Endian checkbox -->
+    <CheckBox x:Name="LittleEndianCheckBox" Content="Force Little Endian"
+              Margin="3,0,0,15" />
+    <!-- OK button -->
+    <Button Content="Jump" Width="158" Height="39"
+            HorizontalAlignment="Right" Click="OK_Click" />
+  </StackPanel>
 </Window>
