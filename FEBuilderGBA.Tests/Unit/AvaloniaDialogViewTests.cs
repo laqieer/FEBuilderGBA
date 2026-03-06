@@ -815,5 +815,42 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("UpdateCheck_Click", src);
             Assert.Contains("Manual_Click", src);
         }
+
+        // ===========================================================================
+        // Image Viewer Forms — Window Size Alignment
+        // ===========================================================================
+
+        [Theory]
+        [InlineData("BattleBGViewerView.axaml", 853, 441)]
+        [InlineData("BigCGViewerView.axaml", 1050, 441)]
+        [InlineData("OPPrologueViewerView.axaml", 1225, 471)]
+        [InlineData("BattleTerrainViewerView.axaml", 1251, 811)]
+        [InlineData("ChapterTitleViewerView.axaml", 1224, 564)]
+        [InlineData("SystemIconViewerView.axaml", 966, 656)]
+        [InlineData("SystemHoverColorViewerView.axaml", 1238, 604)]
+        [InlineData("OPClassDemoViewerView.axaml", 1429, 848)]
+        [InlineData("OPClassFontViewerView.axaml", 1179, 475)]
+        public void ImageViewerForm_HasCorrectWindowSize(string axamlFile, int width, int height)
+        {
+            var src = ReadAxaml(axamlFile);
+            Assert.Contains($"Width=\"{width}\"", src);
+            Assert.Contains($"Height=\"{height}\"", src);
+        }
+
+        [Theory]
+        [InlineData("BattleBGViewerView.axaml")]
+        [InlineData("BigCGViewerView.axaml")]
+        [InlineData("OPPrologueViewerView.axaml")]
+        [InlineData("BattleTerrainViewerView.axaml")]
+        [InlineData("ChapterTitleViewerView.axaml")]
+        [InlineData("SystemIconViewerView.axaml")]
+        [InlineData("OPClassDemoViewerView.axaml")]
+        [InlineData("OPClassFontViewerView.axaml")]
+        public void ImageViewerForm_HasAddressListAndStandardLayout(string axamlFile)
+        {
+            var src = ReadAxaml(axamlFile);
+            Assert.Contains("Name=\"EntryList\"", src);
+            Assert.Contains("Name=\"AddrLabel\"", src);
+        }
     }
 }

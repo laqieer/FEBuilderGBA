@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 39 / 323
+**Visually Aligned:** 48 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -181,15 +181,15 @@ actual ROM data at the correct addresses and offsets.
 | 126 | ImageMagicCSACreatorView | E2E COVERED | - | - |
 | 127 | ImageMapActionAnimationView | E2E COVERED | - | - |
 | 128 | DecreaseColorTSAToolView | E2E COVERED | - | - |
-| 129 | SystemIconViewerView | E2E COVERED | YES | - |
-| 130 | SystemHoverColorViewerView | E2E COVERED | YES | - |
-| 131 | BattleBGViewerView | E2E COVERED | YES | - |
-| 132 | BattleTerrainViewerView | E2E COVERED | YES | - |
-| 133 | ChapterTitleViewerView | E2E COVERED | YES | - |
-| 134 | BigCGViewerView | E2E COVERED | YES | - |
-| 135 | OPClassDemoViewerView | E2E COVERED | YES | - |
-| 136 | OPClassFontViewerView | E2E COVERED | YES | - |
-| 137 | OPPrologueViewerView | E2E COVERED | YES | - |
+| 129 | SystemIconViewerView | E2E COVERED | YES | ALIGNED |
+| 130 | SystemHoverColorViewerView | E2E COVERED | YES | ALIGNED |
+| 131 | BattleBGViewerView | E2E COVERED | YES | ALIGNED |
+| 132 | BattleTerrainViewerView | E2E COVERED | YES | ALIGNED |
+| 133 | ChapterTitleViewerView | E2E COVERED | YES | ALIGNED |
+| 134 | BigCGViewerView | E2E COVERED | YES | ALIGNED |
+| 135 | OPClassDemoViewerView | E2E COVERED | YES | ALIGNED |
+| 136 | OPClassFontViewerView | E2E COVERED | YES | ALIGNED |
+| 137 | OPPrologueViewerView | E2E COVERED | YES | ALIGNED |
 | 138 | GraphicsToolView | E2E COVERED | - | - |
 | 139 | GraphicsToolPatchMakerView | E2E COVERED | YES | ALIGNED |
 | 140 | PaletteChangeColorsView | E2E COVERED | - | - |
