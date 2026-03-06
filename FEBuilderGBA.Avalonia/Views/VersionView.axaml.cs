@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using global::Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -19,8 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            VersionLabel.Text = _vm.VersionText;
-            BuildDateLabel.Text = _vm.BuildDate;
+            VersionTextBox.Text = _vm.VersionMessage;
         }
 
         public void NavigateTo(uint address) { }
