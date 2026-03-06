@@ -138,16 +138,16 @@
           </WrapPanel>
 
           <!-- Monsters -->
-          <TextBlock Text="Monsters" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
+          <TextBlock Name="MonstersHeader" Text="Monsters" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Name="MonstersPanel" Orientation="Horizontal">
             <Button Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
             <Button Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
             <Button Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- Summons -->
-          <TextBlock Text="Summons" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
+          <TextBlock Name="SummonsHeader" Text="Summons" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Name="SummonsPanel" Orientation="Horizontal">
             <Button Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
             <Button Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
@@ -176,7 +176,7 @@
             <Button Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
             <Button Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
             <Button Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
+            <Button Name="SensekiCommentButton" Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
           </WrapPanel>
 
           <!-- World Map -->
@@ -340,8 +340,8 @@
           </WrapPanel>
 
           <!-- Skill Systems -->
-          <TextBlock Text="Skill Systems" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
+          <TextBlock Name="SkillsHeader" Text="Skill Systems" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Name="SkillsPanel" Orientation="Horizontal">
             <Button Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
             <Button Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
             <Button Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
@@ -405,8 +405,8 @@
           </WrapPanel>
 
           <!-- Skill Systems (Extended) -->
-          <TextBlock Text="Skill Systems (Extended)" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
+          <TextBlock Name="SkillsExtHeader" Text="Skill Systems (Extended)" FontSize="16" FontWeight="SemiBold" />
+          <WrapPanel Name="SkillsExtPanel" Orientation="Horizontal">
             <Button Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
             <Button Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
             <Button Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />

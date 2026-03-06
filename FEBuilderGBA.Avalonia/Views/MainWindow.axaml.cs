@@ -141,6 +141,9 @@ namespace FEBuilderGBA.Avalonia.Views
             UndoMenuItem.IsEnabled = true;
             LintMenuItem.IsEnabled = true;
 
+            // Filter editor buttons for loaded ROM version
+            UpdateEditorVisibility();
+
             // Show detected ROM version in status bar
             try
             {
@@ -1555,6 +1558,133 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 await MessageBoxWindow.Show(this, $"Failed to run {toolName}: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
+        // ==================================================================
+        // Editor visibility filtering — hide buttons that don't match the
+        // loaded ROM version so the UI is not cluttered with irrelevant editors.
+        // ==================================================================
+
+        /// <summary>
+        /// Orchestrator: reset all visibility, then hide mismatched buttons/sections.
+        /// Called from LoadRomFile() after EditorPanel becomes visible.
+        /// </summary>
+        void UpdateEditorVisibility()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            int ver = rom.RomInfo.version;
+            bool isMultibyte = rom.RomInfo.is_multibyte;
+
+            ResetAllButtonVisibility(EditorPanel);
+
+            HideVersionMismatchedButtons(EditorPanel, ver, isMultibyte);
+
+            // FE8-only whole sections
+            bool isFE8 = ver == 8;
+            SetSectionVisible(MonstersHeader, MonstersPanel, isFE8);
+            SetSectionVisible(SummonsHeader, SummonsPanel, isFE8);
+            SetSectionVisible(SkillsHeader, SkillsPanel, isFE8);
+            SetSectionVisible(SkillsExtHeader, SkillsExtPanel, isFE8);
+
+            // Senseki Comment is FE7-only (no version suffix in its Content)
+            SensekiCommentButton.IsVisible = ver == 7;
+
+            AutoHideEmptySections(EditorPanel);
+        }
+
+        /// <summary>
+        /// Reset all buttons and section headers inside the panel to visible.
+        /// </summary>
+        static void ResetAllButtonVisibility(StackPanel panel)
+        {
+            foreach (var child in panel.Children)
+            {
+                child.IsVisible = true;
+                if (child is WrapPanel wp)
+                {
+                    foreach (var btn in wp.Children)
+                        btn.IsVisible = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Walk all WrapPanels inside the editor panel, check each Button's Content
+        /// text for a version tag, and hide buttons that don't match.
+        /// </summary>
+        static void HideVersionMismatchedButtons(StackPanel panel, int ver, bool isMultibyte)
+        {
+            foreach (var child in panel.Children)
+            {
+                if (child is not WrapPanel wp) continue;
+                foreach (var item in wp.Children)
+                {
+                    if (item is not Button btn) continue;
+                    string content = btn.Content?.ToString() ?? "";
+                    bool? visible = GetVersionVisibility(content, ver, isMultibyte);
+                    if (visible.HasValue)
+                        btn.IsVisible = visible.Value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pure logic: returns true if the button should be shown, false if hidden,
+        /// null if no version tag was found (always show).
+        /// Order matters: check region-specific tags (FE7U, FE8U) before generic (FE7, FE8).
+        /// </summary>
+        internal static bool? GetVersionVisibility(string content, int ver, bool isMultibyte)
+        {
+            if (content.Contains("(FE7U)"))
+                return ver == 7 && !isMultibyte;
+            if (content.Contains("(FE8U)"))
+                return ver == 8 && !isMultibyte;
+            if (content.Contains("(FE6)"))
+                return ver == 6;
+            if (content.Contains("(FE7)"))
+                return ver == 7;
+            if (content.Contains("(FE8)"))
+                return ver == 8;
+            return null; // no tag — always show
+        }
+
+        /// <summary>Show or hide a section header + its WrapPanel together.</summary>
+        static void SetSectionVisible(TextBlock header, WrapPanel panel, bool visible)
+        {
+            header.IsVisible = visible;
+            panel.IsVisible = visible;
+        }
+
+        /// <summary>
+        /// After filtering, if all buttons inside a WrapPanel are hidden,
+        /// also hide the preceding TextBlock header.
+        /// </summary>
+        static void AutoHideEmptySections(StackPanel panel)
+        {
+            TextBlock? lastHeader = null;
+            foreach (var child in panel.Children)
+            {
+                if (child is TextBlock tb)
+                {
+                    lastHeader = tb;
+                    continue;
+                }
+                if (child is WrapPanel wp)
+                {
+                    bool anyVisible = false;
+                    foreach (var btn in wp.Children)
+                    {
+                        if (btn.IsVisible) { anyVisible = true; break; }
+                    }
+                    if (!anyVisible)
+                    {
+                        wp.IsVisible = false;
+                        if (lastHeader != null) lastHeader.IsVisible = false;
+                    }
+                    lastHeader = null;
+                }
             }
         }
     }

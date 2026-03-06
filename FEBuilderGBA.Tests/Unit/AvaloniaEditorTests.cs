@@ -1259,5 +1259,77 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("MovBox.Value = ", src);
             Assert.Contains("GrowHpBox.Value = ", src);
         }
+        // ================================================================== Version Filtering
+
+        [Fact]
+        public void MainWindow_HasUpdateEditorVisibility()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("void UpdateEditorVisibility()", src);
+        }
+
+        [Fact]
+        public void MainWindow_LoadRomFileCallsUpdateEditorVisibility()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // Find LoadRomFile method and ensure it calls UpdateEditorVisibility
+            int loadRomStart = src.IndexOf("public bool LoadRomFile(");
+            Assert.True(loadRomStart >= 0, "LoadRomFile method not found");
+            // Check UpdateEditorVisibility appears after LoadRomFile definition
+            int callSite = src.IndexOf("UpdateEditorVisibility()", loadRomStart);
+            Assert.True(callSite > loadRomStart, "UpdateEditorVisibility() must be called in LoadRomFile");
+        }
+
+        [Fact]
+        public void MainWindow_MonstersSection_HasNames()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("Name=\"MonstersHeader\"", axaml);
+            Assert.Contains("Name=\"MonstersPanel\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_SummonsSection_HasNames()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("Name=\"SummonsHeader\"", axaml);
+            Assert.Contains("Name=\"SummonsPanel\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_SkillsSection_HasNames()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("Name=\"SkillsHeader\"", axaml);
+            Assert.Contains("Name=\"SkillsPanel\"", axaml);
+            Assert.Contains("Name=\"SkillsExtHeader\"", axaml);
+            Assert.Contains("Name=\"SkillsExtPanel\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_SensekiCommentButton_HasName()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("Name=\"SensekiCommentButton\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_VersionTagOrder_FE7U_BeforeFE7()
+        {
+            // GetVersionVisibility must check FE7U before FE7 to avoid false match
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            int fe7uPos = src.IndexOf("content.Contains(\"(FE7U)\")");
+            int fe7Pos = src.IndexOf("content.Contains(\"(FE7)\")");
+            Assert.True(fe7uPos >= 0, "FE7U check not found");
+            Assert.True(fe7Pos >= 0, "FE7 check not found");
+            Assert.True(fe7uPos < fe7Pos, "(FE7U) must be checked before (FE7) to avoid false match");
+        }
+
+        [Fact]
+        public void MainWindow_HasResetAllButtonVisibility()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("ResetAllButtonVisibility(", src);
+        }
     }
 }
