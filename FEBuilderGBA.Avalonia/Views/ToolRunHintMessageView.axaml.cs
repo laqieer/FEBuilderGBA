@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolRunHintMessageView : Window, IEditorView
     {
         readonly ToolRunHintMessageViewModel _vm = new();
-        public string ViewTitle => "Test Run Hint";
+        public string ViewTitle => "Test Run";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolRunHintMessageView()

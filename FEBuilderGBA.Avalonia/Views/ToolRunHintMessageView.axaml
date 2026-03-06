@@ -1,14 +1,22 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolRunHintMessageView"
-        Title="Test Run" Width="450" Height="300"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Test Run" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,12,0,0">
-      <CheckBox Content="Do not show this message again" IsChecked="{Binding DoNotShowAgain}" />
-      <Button Content="OK" Width="80" HorizontalAlignment="Right" Click="OK_Click" />
-    </StackPanel>
-    <TextBox Text="{Binding DetailText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
-  </DockPanel>
+        Title="Test Run"
+        Width="965" Height="480"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="26,28,26,12">
+    <!-- Header label -->
+    <TextBlock Text="Starting test execution now." FontWeight="Bold" FontSize="14" />
+    <!-- Detail textbox -->
+    <TextBox Text="{Binding DetailText}" IsReadOnly="True" AcceptsReturn="True"
+             TextWrapping="Wrap" Height="332" Margin="3,11,3,0" />
+    <!-- Bottom row: checkbox left, button right -->
+    <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+      <CheckBox Grid.Column="0" Content="Do not show this message again"
+                IsChecked="{Binding DoNotShowAgain}" VerticalAlignment="Center" />
+      <Button Grid.Column="1" Content="Start" Width="339" Height="33"
+              Click="OK_Click" />
+    </Grid>
+  </StackPanel>
 </Window>
