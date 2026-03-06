@@ -10,25 +10,47 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapSettingDifficultyDialogViewModel _vm = new();
 
-        public string ViewTitle => "Map Setting - Difficulty";
+        public string ViewTitle => "Difficulty Settings";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapSettingDifficultyDialogView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
+            HardBoostInput.ValueChanged += OnBoostChanged;
+            NormalPenaltyInput.ValueChanged += OnBoostChanged;
+            EasyPenaltyInput.ValueChanged += OnBoostChanged;
+        }
+
+        public void SetDifficultyValue(uint u16Difficulty)
+        {
+            DifficultyValueInput.Value = u16Difficulty & 0xffff;
+            HardBoostInput.Value = (u16Difficulty & 0xf0) >> 4;
+            EasyPenaltyInput.Value = u16Difficulty & 0x0f;
+            NormalPenaltyInput.Value = (u16Difficulty & 0x0f00) >> 8;
+        }
+
+        public uint GetDifficultyValue()
+        {
+            return (uint)(DifficultyValueInput.Value ?? 0);
+        }
+
+        void OnBoostChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            uint hard = (uint)(HardBoostInput.Value ?? 0);
+            uint easy = (uint)(EasyPenaltyInput.Value ?? 0);
+            uint normal = (uint)(NormalPenaltyInput.Value ?? 0);
+            DifficultyValueInput.Value = (hard << 4) | easy | (normal << 8);
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.DifficultyLevel = (uint)(DifficultyLevelInput.Value ?? 0);
-            _vm.EnemyLevelBonus = (uint)(EnemyLevelBonusInput.Value ?? 0);
-            _vm.HardModeEnabled = HardModeCheckBox.IsChecked == true;
-            Close(new { _vm.DifficultyLevel, _vm.EnemyLevelBonus, _vm.HardModeEnabled });
+            _vm.DifficultyValue = (uint)(DifficultyValueInput.Value ?? 0);
+            _vm.DialogResult = "OK";
+            Close(_vm.DifficultyValue);
         }
-
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

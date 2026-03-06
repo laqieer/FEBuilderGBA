@@ -1,23 +1,59 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapSettingDifficultyDialogView"
-        Title="Map Setting - Difficulty" Width="420" Height="320"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Difficulty Settings" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Configure the difficulty parameters for this map." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Difficulty Settings"
+        Width="575" Height="445"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="12,12,12,10">
+    <!-- GroupBox: Difficulty adjustment (WinForms customColorGroupBox1 528x161) -->
+    <Border BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10"
+            Margin="0,0,0,10">
+      <StackPanel Spacing="10">
+        <!-- Hard Boost (WinForms J_HardBoost 311x32 + HardBoost 76x25) -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="311" Height="32">
+            <TextBlock Text="Hard Boost" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+          </Border>
+          <NumericUpDown x:Name="HardBoostInput" Width="76" Height="25"
+                         Minimum="0" Maximum="15" Value="0" />
+        </StackPanel>
+        <!-- Normal Penalty (WinForms J_NormalPenalty 311x32 + NormalPenalty 76x25) -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="311" Height="32">
+            <TextBlock Text="Normal Mode Penalty" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+          </Border>
+          <NumericUpDown x:Name="NormalPenaltyInput" Width="76" Height="25"
+                         Minimum="0" Maximum="15" Value="0" />
+        </StackPanel>
+        <!-- Easy Penalty (WinForms J_EasyPenalty 311x32 + EasyPenalty 76x25) -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="311" Height="32">
+            <TextBlock Text="Easy Mode Penalty" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+          </Border>
+          <NumericUpDown x:Name="EasyPenaltyInput" Width="76" Height="25"
+                         Minimum="0" Maximum="15" Value="0" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+    <!-- Difficulty value row (WinForms panel1 378x32 + DifficultyValue 95x25) -->
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+      <Border BorderBrush="Gray" BorderThickness="1" Width="378" Height="32">
+        <TextBlock Text="Difficulty Value" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="DifficultyValueInput" Width="95" Height="25"
+                     Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
-    <StackPanel Spacing="8" VerticalAlignment="Top">
-      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
-        <TextBlock Text="Difficulty Level:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
-        <NumericUpDown x:Name="DifficultyLevelInput" Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
-        <TextBlock Text="Enemy Level Bonus:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
-        <NumericUpDown x:Name="EnemyLevelBonusInput" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="255" Value="0" />
-      </Grid>
-      <CheckBox x:Name="HardModeCheckBox" Content="Hard Mode Enabled" Margin="0,4,0,0" />
-    </StackPanel>
-  </DockPanel>
+    <!-- Help text (WinForms textBox1 527x121 ReadOnly) -->
+    <TextBox IsReadOnly="True" Height="121" TextWrapping="Wrap"
+             Text="Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes"
+             Margin="0,0,0,10" />
+    <!-- OK button (WinForms OKButton 272x43 right-aligned) -->
+    <Button Content="Apply" Width="272" Height="43"
+            HorizontalAlignment="Right" Click="OK_Click" />
+  </StackPanel>
 </Window>

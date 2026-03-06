@@ -1,19 +1,24 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorImportImageOptionView"
-        Title="Map Style Editor - Import Image Options" Width="420" Height="300"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Import Image Options" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Select how the imported image should be applied to the map style." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
-    <StackPanel Spacing="8" VerticalAlignment="Top">
-      <RadioButton x:Name="ReplaceOption" Content="Replace existing tileset" IsChecked="True" GroupName="ImportOption" />
-      <RadioButton x:Name="AppendOption" Content="Append to existing tileset" GroupName="ImportOption" />
-      <RadioButton x:Name="InsertOption" Content="Insert before current entry" GroupName="ImportOption" />
-    </StackPanel>
-  </DockPanel>
+        Title="Import Map Chip"
+        Width="1092" Height="360"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="12,20,12,15">
+    <!-- Section 1: Map chip import (WinForms label1 at 12,36) -->
+    <TextBlock Text="Map Chip Import" FontWeight="Bold" Margin="0,0,0,6" />
+    <!-- Button 1: Import image with palette (WinForms button1 1052x55) -->
+    <Button Content="Import image with palette (recommended)" Height="55"
+            HorizontalAlignment="Stretch" Click="WithPalette_Click" />
+    <!-- Button 2: Import image only (WinForms button2 1052x55) -->
+    <Button Content="Import image only (do not import palette)" Height="55"
+            HorizontalAlignment="Stretch" Margin="0,19,0,0"
+            Click="ImageOnly_Click" />
+    <!-- Section 2: One picture import (WinForms label2 at 12,217) -->
+    <TextBlock Text="One Picture Import" FontWeight="Bold" Margin="0,20,0,6" />
+    <!-- Button 3: Import as one picture (WinForms button3 1052x55) -->
+    <Button Content="Import as one picture (auto-generate map_config from this image)" Height="55"
+            HorizontalAlignment="Stretch" Click="OnePicture_Click" />
+  </StackPanel>
 </Window>

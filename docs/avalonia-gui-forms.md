@@ -99,8 +99,8 @@ actual ROM data at the correct addresses and offsets.
 | 59 | MapPointerNewPLISTPopupView | E2E COVERED | YES | - |
 | 60 | MapStyleEditorAppendPopupView | E2E COVERED | YES | - |
 | 61 | MapStyleEditorWarningOverrideView | E2E COVERED | YES | ALIGNED |
-| 62 | MapStyleEditorImportImageOptionView | E2E COVERED | YES | - |
-| 63 | MapSettingDifficultyDialogView | E2E COVERED | YES | - |
+| 62 | MapStyleEditorImportImageOptionView | E2E COVERED | YES | ALIGNED |
+| 63 | MapSettingDifficultyDialogView | E2E COVERED | YES | ALIGNED |
 
 ## Event Script Editors
 

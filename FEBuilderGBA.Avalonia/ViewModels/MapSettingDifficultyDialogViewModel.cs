@@ -7,14 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MapSettingDifficultyDialogViewModel : ViewModelBase, IDataVerifiable
     {
         bool _isLoaded;
-        uint _difficultyLevel;
-        uint _enemyLevelBonus;
-        bool _hardModeEnabled;
+        uint _difficultyValue;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint DifficultyLevel { get => _difficultyLevel; set => SetField(ref _difficultyLevel, value); }
-        public uint EnemyLevelBonus { get => _enemyLevelBonus; set => SetField(ref _enemyLevelBonus, value); }
-        public bool HardModeEnabled { get => _hardModeEnabled; set => SetField(ref _hardModeEnabled, value); }
+        public uint DifficultyValue { get => _difficultyValue; set => SetField(ref _difficultyValue, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {
@@ -25,9 +23,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
         {
             ["status"] = "loaded",
-            ["DifficultyLevel"] = $"{DifficultyLevel}",
-            ["EnemyLevelBonus"] = $"{EnemyLevelBonus}",
-            ["HardModeEnabled"] = $"{HardModeEnabled}",
+            ["DifficultyValue"] = $"0x{DifficultyValue:X04}",
         };
         public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }

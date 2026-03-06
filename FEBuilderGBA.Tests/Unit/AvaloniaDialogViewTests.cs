@@ -166,9 +166,8 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapSettingDifficultyDialog_VM_HasDifficultyProperties()
         {
             var src = ReadVM("MapSettingDifficultyDialogViewModel.cs");
-            Assert.Contains("uint DifficultyLevel", src);
-            Assert.Contains("uint EnemyLevelBonus", src);
-            Assert.Contains("bool HardModeEnabled", src);
+            Assert.Contains("uint DifficultyValue", src);
+            Assert.Contains("string DialogResult", src);
         }
 
         [Fact]
@@ -183,9 +182,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapSettingDifficultyDialog_Axaml_HasControls()
         {
             var src = ReadAxaml("MapSettingDifficultyDialogView.axaml");
-            Assert.Contains("DifficultyLevelInput", src);
-            Assert.Contains("EnemyLevelBonusInput", src);
-            Assert.Contains("HardModeCheckBox", src);
+            Assert.Contains("HardBoostInput", src);
+            Assert.Contains("NormalPenaltyInput", src);
+            Assert.Contains("EasyPenaltyInput", src);
+            Assert.Contains("DifficultyValueInput", src);
             Assert.Contains("Click=\"OK_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
@@ -236,13 +236,12 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MapStyleEditorImportImageOption_Axaml_HasRadioButtons()
+        public void MapStyleEditorImportImageOption_Axaml_HasThreeButtons()
         {
             var src = ReadAxaml("MapStyleEditorImportImageOptionView.axaml");
-            Assert.Contains("ReplaceOption", src);
-            Assert.Contains("AppendOption", src);
-            Assert.Contains("InsertOption", src);
-            Assert.Contains("Click=\"OK_Click\"", src);
+            Assert.Contains("Click=\"WithPalette_Click\"", src);
+            Assert.Contains("Click=\"ImageOnly_Click\"", src);
+            Assert.Contains("Click=\"OnePicture_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
 
