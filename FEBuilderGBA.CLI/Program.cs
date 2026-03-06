@@ -115,12 +115,8 @@ namespace FEBuilderGBA.CLI
 
         static void PrintVersion()
         {
-            var asm = typeof(U).Assembly;
-            var name = asm.GetName().Name;
-            var ver = asm.GetName().Version;
-            var baseDate = new DateTime(2000, 1, 1);
-            string version = baseDate.AddDays(ver.Build).AddSeconds(ver.Revision * 2).ToString("yyyyMMdd.HH");
-            Console.WriteLine($"{name} Version:{version}");
+            string version = U.getVersion();
+            Console.WriteLine($"FEBuilderGBA Version:{version}");
             Console.WriteLine("Copyright: 2017-");
             Console.WriteLine("License: GPLv3");
         }
