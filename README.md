@@ -86,6 +86,9 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --smoke-test
 # Run Avalonia data verification (loads ROM, opens editors, cross-checks ViewModel data vs raw ROM + NumericUpDown UI display + text encoding)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --data-verify
 
+# Capture screenshots of all 323 editors (saves PNGs to --screenshot-dir)
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
+
 # Cross-platform publish (self-contained)
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
 
@@ -120,7 +123,7 @@ FEBuilderGBA.sln
 ## Testing & Coverage
 
 - ✅ **888 unit/integration tests** passing (775 WinForms + 113 Core cross-platform)
-- ✅ **30 E2E tests** passing without ROMs (CLI + GUI automation + output log capture); **132 E2E tests** passing with all 5 ROMs (including 185-editor Avalonia smoke test + CLI output log capture for both CLI and WinForms executables)
+- ✅ **30 E2E tests** passing without ROMs (CLI + GUI automation + output log capture); **140 E2E tests** passing with all 5 ROMs (including 323-editor Avalonia smoke test, screenshot capture for both GUIs, + CLI output log capture for both CLI and WinForms executables)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -161,8 +164,10 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/CliOutputLogImageTests.cs` | No | New CLI image output logs: `--decreasecolor` (5 flag variants), `--convertmap1picture` — 6 tests |
 | `Tests/WinFormsCliOutputLogNoRomTests.cs` | No | WinForms CLI output log capture: `--version`, no args, `--bogus-command` — 3 tests |
 | `Tests/WinFormsCliOutputLogRomTests.cs` | Yes (×5/×2) | WinForms CLI ROM output logs: `--lint` ×5, `--rebuild` ×2, `--makeups` ×5, `--disasm` ×2, `--translate` ×2, `--pointercalc` ×2, `--songexchange` ×2, `--decreasecolor`, `--convertmap1picture` — 22 tests, skipped without ROMs |
+| `Tests/AvaloniaScreenshotTests.cs` | Yes (×2) | Avalonia: captures PNG screenshots of all 323 editors via `--screenshot-all` — 4 tests, skipped without ROMs |
+| `Tests/WinFormsScreenshotAllTests.cs` | Yes (×2) | WinForms: screenshots of main form + all toolbar-openable editor forms — 4 tests, skipped without ROMs |
 
-**Without ROMs:** 30 passed, 102 skipped. **With all 5 ROMs:** 132 passed, 0 skipped.
+**Without ROMs:** 30 passed, 110 skipped. **With all 5 ROMs:** 140 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 
@@ -209,7 +214,7 @@ The step lists every zip entry with its uncompressed size before extraction, so 
 
 **Artifacts produced:**
 - `e2e-test-report` — TRX test report (viewable via the **E2E Test Results** check-run posted by `dorny/test-reporter`)
-- `e2e-screenshots` — PNG screenshots captured during startup and close tests
+- `e2e-screenshots` — PNG screenshots of all GUI forms captured during E2E tests (Avalonia `Avalonia_*.png` + WinForms `WinForms_*.png`)
 - `cli-output-logs` — `.log` files capturing stdout/stderr/exit code for every CLI command (both New CLI and WinForms CLI), useful for regression tracking
 
 **Implementation notes:**

@@ -149,6 +149,10 @@ jobs:
             Write-Host "All $($expected.Count) ROMs present — ROM-based tests will run."
           }
 
+      # ---------------------------------------------------------------- Build Avalonia (for screenshot tests)
+      - name: Build Avalonia (for screenshot tests)
+        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+
       # ---------------------------------------------------------------- Diagnostic: probe app startup before tests
       # Run with continue-on-error so CI doesn't fail on probe errors.
       # Output shows whether --version works and whether the GUI starts cleanly.
@@ -207,6 +211,7 @@ jobs:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
           FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe
           FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}\FEBuilderGBA.CLI\bin\Release\net9.0\FEBuilderGBA.CLI.exe
+          AVALONIA_EXE: ${{ github.workspace }}\FEBuilderGBA.Avalonia\bin\Release\net9.0\FEBuilderGBA.Avalonia.exe
           FEBUILDERGBA_CLI_LOG_DIR: ${{ github.workspace }}\cli-logs
           FEBUILDERGBA_SCREENSHOT_DIR: ${{ github.workspace }}\e2e-screenshots
           ROMS_DIR: ${{ github.workspace }}\roms

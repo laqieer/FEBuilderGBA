@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
 using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -164,6 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.ScreenshotAllMode)
+            {
+                RunScreenshotAll();
+                return;
+            }
+
             if (App.DataVerifyMode)
             {
                 RunDataVerify();
@@ -260,6 +268,83 @@ namespace FEBuilderGBA.Avalonia.Views
                 Console.WriteLine($"SMOKE: Results: {passed} passed, {failed} failed out of {editors.Count}");
                 if (failures.Count > 0)
                     Console.WriteLine($"SMOKE: Failures: {string.Join(", ", failures)}");
+
+                Environment.ExitCode = failed > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Screenshot mode: opens every editor, captures a screenshot via RenderTargetBitmap,
+        /// and saves it as PNG. Reports per-editor status to stdout.
+        /// </summary>
+        private void RunScreenshotAll()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int captured = 0;
+                int failed = 0;
+                var failures = new List<string>();
+
+                string screenshotDir = App.ScreenshotDir
+                    ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
+                Directory.CreateDirectory(screenshotDir);
+
+                string romVersion = CoreState.ROM?.RomInfo?.VersionToFilename ?? "Unknown";
+
+                var editors = GetAllEditorFactories();
+                Console.WriteLine($"SCREENSHOT: Capturing {editors.Count} editors...");
+
+                foreach (var (name, factory) in editors)
+                {
+                    Window? window = null;
+                    try
+                    {
+                        window = factory();
+                        await Task.Delay(300); // Let the window initialize and render
+
+                        // Try to select first item for richer screenshots
+                        try
+                        {
+                            var method = window.GetType().GetMethod("SelectFirstItem");
+                            method?.Invoke(window, null);
+                            if (method != null)
+                                await Task.Delay(100); // Let selection handler run
+                        }
+                        catch { /* Not all editors have SelectFirstItem */ }
+
+                        // Capture screenshot via RenderTargetBitmap
+                        var pixelSize = new PixelSize(
+                            Math.Max((int)window.Width, 100),
+                            Math.Max((int)window.Height, 100));
+                        var dpi = new Vector(96, 96);
+                        using var rtb = new RenderTargetBitmap(pixelSize, dpi);
+                        rtb.Render(window);
+
+                        string fileName = $"Avalonia_{name}_{romVersion}.png";
+                        string filePath = Path.Combine(screenshotDir, fileName);
+                        rtb.Save(filePath);
+
+                        captured++;
+                        Console.WriteLine($"SCREENSHOT: {name} ... OK ({filePath})");
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        failures.Add(name);
+                        Console.WriteLine($"SCREENSHOT: {name} ... FAIL: {ex.Message}");
+                    }
+                    finally
+                    {
+                        try { window?.Close(); } catch { }
+                    }
+                }
+
+                WindowManager.Instance.CloseAll();
+
+                Console.WriteLine($"SCREENSHOT: Results: {captured} captured, {failed} failed out of {editors.Count}");
+                if (failures.Count > 0)
+                    Console.WriteLine($"SCREENSHOT: Failures: {string.Join(", ", failures)}");
 
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();

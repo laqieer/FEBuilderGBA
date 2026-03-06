@@ -25,6 +25,12 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run data verification mode: open editors, load first item, verify data against raw ROM.</summary>
         public static bool DataVerifyMode { get; set; }
 
+        /// <summary>When true, capture screenshots of all editors and save as PNG.</summary>
+        public static bool ScreenshotAllMode { get; set; }
+
+        /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
+        public static string? ScreenshotDir { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -92,6 +98,15 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     DataVerifyMode = true;
+                }
+                else if (args[i] == "--screenshot-all")
+                {
+                    SmokeTestMode = true;
+                    ScreenshotAllMode = true;
+                }
+                else if (args[i].StartsWith("--screenshot-dir="))
+                {
+                    ScreenshotDir = args[i].Substring("--screenshot-dir=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {

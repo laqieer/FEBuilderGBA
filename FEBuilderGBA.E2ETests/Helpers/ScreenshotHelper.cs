@@ -35,6 +35,50 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
+        /// Sanitize a name for use as a filename by replacing invalid chars with underscore.
+        /// </summary>
+        public static string SanitizeFileName(string name)
+        {
+            return string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+        }
+
+        /// <summary>
+        /// Capture a screenshot with a deterministic filename (no timestamp suffix).
+        /// Useful for predictable filenames in automated screenshot tests.
+        /// Returns the saved file path, or null if the capture fails.
+        /// </summary>
+        public static string? CaptureWindowDeterministic(IntPtr hWnd, string name, string? outputDir = null)
+        {
+            try
+            {
+                string dir = outputDir ?? OutputDirectory;
+                Directory.CreateDirectory(dir);
+
+                SetForegroundWindow(hWnd);
+                System.Threading.Thread.Sleep(200);
+
+                if (!GetWindowRect(hWnd, out RECT r)) return null;
+                int w = r.Right  - r.Left;
+                int h = r.Bottom - r.Top;
+                if (w <= 0 || h <= 0) return null;
+
+                using var bmp = new Bitmap(w, h);
+                using (var g = Graphics.FromImage(bmp))
+                    g.CopyFromScreen(r.Left, r.Top, 0, 0, new Size(w, h));
+
+                string safeName = SanitizeFileName(name);
+                string path = Path.Combine(dir, $"{safeName}.png");
+
+                bmp.Save(path, ImageFormat.Png);
+                return path;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Capture a screenshot of <paramref name="hWnd"/> and save it as PNG.
         /// Returns the saved file path, or null if the capture fails.
         /// </summary>
