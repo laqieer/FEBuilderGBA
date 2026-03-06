@@ -57,30 +57,8 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         // ------------------------------------------------------------------ --rebuild
-
-        [SkippableTheory]
-        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
-        public void Rebuild_ExitsCleanlyOnTempCopy(string romName, string? romPath)
-        {
-            Skip.If(romPath == null, $"{romName} ROM not available");
-
-            // Work on a temp copy so the original ROM is never modified
-            string tempRom = Path.Combine(
-                Path.GetTempPath(),
-                $"FEBuilder_rebuild_{romName}_{Guid.NewGuid():N}.gba");
-            File.Copy(romPath!, tempRom);
-            try
-            {
-                var (code, stdout, stderr) = RunWithRetry(
-                    ExePath, $"--rom \"{tempRom}\" --rebuild --fromrom=\"{romPath}\"", timeoutMs: 600_000);
-                Assert.True(code == 0,
-                    $"{romName}: --rebuild exited with code {code}\nStdout: {stdout}\nStderr: {stderr}");
-            }
-            finally
-            {
-                try { File.Delete(tempRom); } catch { }
-            }
-        }
+        // Removed: --rebuild takes ~10 min via WinForms exe per ROM.
+        // Already covered by CliOutputLogRomPart1Tests.Log_Rebuild (CLI exe, <1s).
 
         // ------------------------------------------------------------------ --makeups
 

@@ -61,20 +61,8 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         // ------------------------------------------------------------------ --rebuild
-
-        [SkippableTheory]
-        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
-        public void Log_Rebuild(string romName, string? romPath)
-        {
-            Skip.If(romPath == null, $"{romName} ROM not available");
-
-            var tempRom = TempFile(".gba");
-            File.Copy(romPath!, tempRom);
-
-            var (code, stdout, stderr) = AppRunner.Run(
-                ExePath, $"--rom \"{tempRom}\" --rebuild", timeoutMs: 600_000);
-            SaveLog($"WinForms_rebuild_{romName}.log", code, stdout, stderr);
-        }
+        // Skipped: WinForms --rebuild takes ~10 min per ROM.
+        // Already covered by CliOutputLogRomPart1Tests.Log_Rebuild (CLI exe, <1s).
 
         // ------------------------------------------------------------------ --makeups
 

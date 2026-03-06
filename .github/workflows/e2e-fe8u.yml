@@ -17,5 +17,5 @@ jobs:
     with:
       rom-name: FE8U
       job-name: "E2E FE8U"
-      timeout: 40
+      timeout: 30
     secrets: inherit

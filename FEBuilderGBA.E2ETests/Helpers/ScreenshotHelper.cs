@@ -14,8 +14,12 @@ namespace FEBuilderGBA.E2ETests.Helpers
     {
         [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT { public int Left, Top, Right, Bottom; }
+
+        // PW_RENDERFULLCONTENT = 2: captures even DWM-composed content
+        private const uint PW_RENDERFULLCONTENT = 2;
 
         /// <summary>
         /// Directory where screenshots are saved.
@@ -64,7 +68,11 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
                 using var bmp = new Bitmap(w, h);
                 using (var g = Graphics.FromImage(bmp))
-                    g.CopyFromScreen(r.Left, r.Top, 0, 0, new Size(w, h));
+                {
+                    IntPtr hdc = g.GetHdc();
+                    PrintWindow(hWnd, hdc, PW_RENDERFULLCONTENT);
+                    g.ReleaseHdc(hdc);
+                }
 
                 string safeName = SanitizeFileName(name);
                 string path = Path.Combine(dir, $"{safeName}.png");
@@ -98,7 +106,11 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
                 using var bmp = new Bitmap(w, h);
                 using (var g = Graphics.FromImage(bmp))
-                    g.CopyFromScreen(r.Left, r.Top, 0, 0, new Size(w, h));
+                {
+                    IntPtr hdc = g.GetHdc();
+                    PrintWindow(hWnd, hdc, PW_RENDERFULLCONTENT);
+                    g.ReleaseHdc(hdc);
+                }
 
                 string safeName = string.Join("_",
                     name.Split(Path.GetInvalidFileNameChars()));
