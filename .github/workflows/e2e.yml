@@ -206,6 +206,8 @@ jobs:
         env:
           # msbuild via .sln maps Release|x86 → Release|Any CPU → bin\Release\
           FEBUILDERGBA_EXE: ${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe
+          FEBUILDERGBA_CLI_EXE: ${{ github.workspace }}\FEBuilderGBA.CLI\bin\Release\net9.0\FEBuilderGBA.CLI.exe
+          FEBUILDERGBA_CLI_LOG_DIR: ${{ github.workspace }}\cli-logs
           FEBUILDERGBA_SCREENSHOT_DIR: ${{ github.workspace }}\e2e-screenshots
           ROMS_DIR: ${{ github.workspace }}\roms
         run: |
@@ -244,4 +246,12 @@ jobs:
         with:
           name: e2e-screenshots
           path: ${{ github.workspace }}\e2e-screenshots\
+          if-no-files-found: ignore
+
+      - name: Upload CLI output logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cli-output-logs
+          path: ${{ github.workspace }}\cli-logs\
           if-no-files-found: ignore

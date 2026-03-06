@@ -120,7 +120,7 @@ FEBuilderGBA.sln
 ## Testing & Coverage
 
 - ✅ **888 unit/integration tests** passing (775 WinForms + 113 Core cross-platform)
-- ✅ **13 E2E tests** passing without ROMs (CLI + GUI automation); **65 E2E tests** passing with all 5 ROMs (including 185-editor Avalonia smoke test)
+- ✅ **30 E2E tests** passing without ROMs (CLI + GUI automation + output log capture); **132 E2E tests** passing with all 5 ROMs (including 185-editor Avalonia smoke test + CLI output log capture for both CLI and WinForms executables)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -155,8 +155,14 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/FormSmokeTests.cs` | Yes (×5) | All toolbar buttons clicked per ROM; verifies ≥1 opens a form — 5 tests, skipped without ROMs |
 | `Tests/AvaloniaEditorSmokeTests.cs` | Yes (×5) | Avalonia: ROM load + Unit/Item editor selection per ROM — 10 tests, skipped without ROMs |
 | `Tests/AvaloniaAllEditorsSmokeTests.cs` | Yes (×5) | Avalonia: all 185 GUI editors opened/closed per ROM via `--smoke-test-all` — 10 tests, skipped without ROMs ([docs/avalonia-gui-forms.md](docs/avalonia-gui-forms.md), [docs/avalonia-forms.md](docs/avalonia-forms.md)) |
+| `Tests/CliOutputLogNoRomTests.cs` | No | New CLI output log capture: `--help`, `-h`, `--version`, `--force-detail`, `--test`, `--testonly`, no args, `--bogus-command` — 8 tests |
+| `Tests/CliOutputLogRomPart1Tests.cs` | Yes (×5/×2) | New CLI ROM output logs: `--lint` ×5, `--disasm` ×5, `--translate` ×5, `--rebuild` ×2 — 17 tests, skipped without ROMs |
+| `Tests/CliOutputLogRomPart2Tests.cs` | Yes (×5/×2) | New CLI ROM output logs: `--makeups` ×5, `--applyups` ×2, `--pointercalc` ×2, `--songexchange` ×2 — 11 tests, skipped without ROMs |
+| `Tests/CliOutputLogImageTests.cs` | No | New CLI image output logs: `--decreasecolor` (5 flag variants), `--convertmap1picture` — 6 tests |
+| `Tests/WinFormsCliOutputLogNoRomTests.cs` | No | WinForms CLI output log capture: `--version`, no args, `--bogus-command` — 3 tests |
+| `Tests/WinFormsCliOutputLogRomTests.cs` | Yes (×5/×2) | WinForms CLI ROM output logs: `--lint` ×5, `--rebuild` ×2, `--makeups` ×5, `--disasm` ×2, `--translate` ×2, `--pointercalc` ×2, `--songexchange` ×2, `--decreasecolor`, `--convertmap1picture` — 22 tests, skipped without ROMs |
 
-**Without ROMs:** 13 passed, 52 skipped. **With all 5 ROMs:** 65 passed, 0 skipped.
+**Without ROMs:** 30 passed, 102 skipped. **With all 5 ROMs:** 132 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 
@@ -204,6 +210,7 @@ The step lists every zip entry with its uncompressed size before extraction, so 
 **Artifacts produced:**
 - `e2e-test-report` — TRX test report (viewable via the **E2E Test Results** check-run posted by `dorny/test-reporter`)
 - `e2e-screenshots` — PNG screenshots captured during startup and close tests
+- `cli-output-logs` — `.log` files capturing stdout/stderr/exit code for every CLI command (both New CLI and WinForms CLI), useful for regression tracking
 
 **Implementation notes:**
 - Tests run sequentially (`[assembly: CollectionBehavior(DisableTestParallelization = true)]`) — each GUI test launches an exclusive app process; concurrent launches cause window-detection races
