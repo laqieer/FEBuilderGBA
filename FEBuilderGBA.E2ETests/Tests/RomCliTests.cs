@@ -98,7 +98,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 var (code, stdout, stderr) = RunWithRetry(
-                    ExePath, $"--rom \"{tempRom}\" --makeups=\"{expectedUps}\"", timeoutMs: 60_000);
+                    ExePath, $"--rom \"{tempRom}\" --makeups=\"{expectedUps}\" --fromrom=\"{romPath}\"", timeoutMs: 60_000);
                 Assert.True(code == 0,
                     $"{romName}: --makeups exited with code {code}\nStdout: {stdout}\nStderr: {stderr}");
                 Assert.True(File.Exists(expectedUps),
