@@ -1,15 +1,27 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolClickWriteFloatControlPanelButtonView"
-        Title="Control Panel Button" Width="400" Height="200"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Control Panel Button" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Update Existing" Width="130" Click="Update_Click" />
-      <Button Content="Insert New" Width="100" Click="New_Click" />
-    </StackPanel>
-    <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
-               Text="Which button would you like to click? Update the existing button or insert a new one?" />
-  </DockPanel>
+        Title="Which button would you click?"
+        Width="920" Height="220"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Border Margin="13" Padding="5,11">
+    <Grid ColumnDefinitions="128,*" RowDefinitions="Auto,Auto">
+      <!-- Question icon placeholder -->
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="❓" FontSize="64"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Width="128" Height="128" />
+      <!-- Message -->
+      <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"
+                 Margin="35,0,0,0"
+                 Text="Which button would you click?" />
+      <!-- Buttons row -->
+      <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="35,12,0,0">
+        <Button Content="Update" Height="50" Width="435"
+                Click="Update_Click" />
+        <Button Content="Insert New" Height="50" Width="223"
+                Margin="35,0,0,0" Click="New_Click" />
+      </StackPanel>
+    </Grid>
+  </Border>
 </Window>

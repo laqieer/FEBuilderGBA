@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolClickWriteFloatControlPanelButtonView : Window, IEditorView
     {
         readonly ToolClickWriteFloatControlPanelButtonViewModel _vm = new();
-        public string ViewTitle => "Control Panel Button";
+        public string ViewTitle => "Which button would you click?";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolClickWriteFloatControlPanelButtonView()
