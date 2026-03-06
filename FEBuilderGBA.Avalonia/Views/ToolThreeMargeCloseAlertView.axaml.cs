@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolThreeMargeCloseAlertView : Window, IEditorView
     {
         readonly ToolThreeMargeCloseAlertViewModel _vm = new();
-        public string ViewTitle => "Close Merge";
+        public string ViewTitle => "Do you want to close the comparison tool?";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolThreeMargeCloseAlertView()
