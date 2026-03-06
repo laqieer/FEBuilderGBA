@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ToolBGMMuteDialogView : Window, IEditorView
     {
         readonly ToolBGMMuteDialogViewModel _vm = new();
-        public string ViewTitle => "BGM Mute";
+        public string ViewTitle => "BGM Mute Settings";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolBGMMuteDialogView()
@@ -19,15 +19,21 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
-        void OK_Click(object? sender, RoutedEventArgs e)
+        void Toggle_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.DialogConfirmed = true;
+            _vm.DialogResult = "toggle";
             Close();
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e)
+        void OnlyPlay_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.DialogConfirmed = false;
+            _vm.DialogResult = "onlyplay";
+            Close();
+        }
+
+        void PlayAll_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.DialogResult = "playall";
             Close();
         }
 

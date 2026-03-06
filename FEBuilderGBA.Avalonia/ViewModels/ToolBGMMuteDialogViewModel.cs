@@ -4,15 +4,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         bool _isLoaded;
         bool _isMuted;
-        bool _dialogConfirmed;
+        string _trackInfoText = "";
+        string _toggleButtonText = "Toggle Mute";
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool IsMuted { get => _isMuted; set => SetField(ref _isMuted, value); }
-        public bool DialogConfirmed { get => _dialogConfirmed; set => SetField(ref _dialogConfirmed, value); }
+        public string TrackInfoText { get => _trackInfoText; set => SetField(ref _trackInfoText, value); }
+        public string ToggleButtonText { get => _toggleButtonText; set => SetField(ref _toggleButtonText, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {
+            TrackInfoText = "Select a track action:";
             IsLoaded = true;
+        }
+
+        public void Init(int trackNumber, bool isMute, string instName)
+        {
+            IsMuted = isMute;
+            if (isMute)
+            {
+                TrackInfoText = $"Unmute track ({trackNumber})?\n{instName}";
+                ToggleButtonText = "Unmute this track";
+            }
+            else
+            {
+                TrackInfoText = $"Mute track ({trackNumber})?\n{instName}";
+                ToggleButtonText = "Mute this track";
+            }
         }
     }
 }

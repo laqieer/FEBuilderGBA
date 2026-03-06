@@ -1,16 +1,24 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolBGMMuteDialogView"
-        Title="BGM Mute Settings" Width="400" Height="200"
-        WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="BGM Mute Settings" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
-    <StackPanel Spacing="8" VerticalAlignment="Center">
-      <CheckBox Content="Mute BGM" IsChecked="{Binding IsMuted}" />
-    </StackPanel>
-  </DockPanel>
+        Title="BGM Mute Settings"
+        Width="583" Height="320"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="15,20,15,15">
+    <!-- Track info label -->
+    <TextBlock Text="{Binding TrackInfoText}" TextWrapping="Wrap"
+               Margin="0,0,0,20" />
+    <!-- Toggle mute button -->
+    <Button Content="{Binding ToggleButtonText}" Height="42"
+            HorizontalAlignment="Stretch" Click="Toggle_Click" />
+    <!-- Play only this track button -->
+    <Button Content="Play only this track" Height="42"
+            HorizontalAlignment="Stretch" Margin="0,19,0,0"
+            Click="OnlyPlay_Click" />
+    <!-- Play all tracks button -->
+    <Button Content="Play all tracks" Height="42"
+            HorizontalAlignment="Stretch" Margin="0,19,0,0"
+            Click="PlayAll_Click" />
+  </StackPanel>
 </Window>
