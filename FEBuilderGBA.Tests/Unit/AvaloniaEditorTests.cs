@@ -83,6 +83,22 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public void SelectFirst()", src);
         }
 
+        [Fact]
+        public void AddressListControl_SetItemsCallsSelectFirst()
+        {
+            // SetItems must auto-select the first item after loading
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            // Verify SelectFirst() is called inside SetItems after RefreshDisplay
+            var setItemsStart = src.IndexOf("public void SetItems(");
+            Assert.True(setItemsStart >= 0, "SetItems method not found");
+            var methodBody = src.Substring(setItemsStart, src.IndexOf('}', setItemsStart) - setItemsStart + 1);
+            Assert.Contains("RefreshDisplay()", methodBody);
+            Assert.Contains("SelectFirst()", methodBody);
+            // SelectFirst must come after RefreshDisplay
+            Assert.True(methodBody.IndexOf("SelectFirst()") > methodBody.IndexOf("RefreshDisplay()"),
+                "SelectFirst() must be called after RefreshDisplay()");
+        }
+
         // ------------------------------------------------------------------ ViewModel bounds checks
 
         [Fact]

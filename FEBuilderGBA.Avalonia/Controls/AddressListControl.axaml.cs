@@ -29,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             _items = items ?? new List<AddrResult>();
             RefreshDisplay();
+            SelectFirst();
         }
 
         /// <summary>Get the currently selected AddrResult.</summary>
