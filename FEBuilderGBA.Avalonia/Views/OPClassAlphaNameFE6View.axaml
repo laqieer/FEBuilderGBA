@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassAlphaNameFE6View"
-        Title="OP Class Alpha Name (FE6) (Read-Only)" Width="800" Height="500">
+        Title="OP Class Alpha Name (FE6) (Read-Only)" Width="1253" Height="662">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 

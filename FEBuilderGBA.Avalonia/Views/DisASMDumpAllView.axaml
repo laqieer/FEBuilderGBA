@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.DisASMDumpAllView"
-        Title="Disassembly Dump All" Width="700" Height="500"
+        Title="Disassembly Dump All" Width="695" Height="721"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock Text="Disassembly Dump All" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />

@@ -6,7 +6,7 @@ alignment status against the WinForms GUI.
 
 **Total forms:** 323
 **E2E Covered:** 323 / 323
-**Visually Aligned:** 104 / 323
+**Visually Aligned:** 124 / 323
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -39,14 +39,14 @@ actual ROM data at the correct addresses and offsets.
 | 9 | SupportAttributeView | E2E COVERED | YES | ALIGNED |
 | 10 | SupportTalkView | E2E COVERED | YES | ALIGNED |
 | 11 | UnitFE6View | E2E COVERED | - | ALIGNED |
-| 12 | UnitActionPointerView | E2E COVERED | - | - |
-| 13 | UnitCustomBattleAnimeView | E2E COVERED | - | - |
-| 14 | UnitIncreaseHeightView | E2E COVERED | - | - |
-| 15 | UnitPaletteView | E2E COVERED | - | - |
-| 16 | ClassOPDemoView | E2E COVERED | - | - |
-| 17 | ClassOPFontView | E2E COVERED | - | - |
-| 18 | ExtraUnitView | E2E COVERED | - | - |
-| 19 | ExtraUnitFE8UView | E2E COVERED | - | - |
+| 12 | UnitActionPointerView | E2E COVERED | - | ALIGNED |
+| 13 | UnitCustomBattleAnimeView | E2E COVERED | - | ALIGNED |
+| 14 | UnitIncreaseHeightView | E2E COVERED | - | ALIGNED |
+| 15 | UnitPaletteView | E2E COVERED | - | ALIGNED |
+| 16 | ClassOPDemoView | E2E COVERED | - | ALIGNED |
+| 17 | ClassOPFontView | E2E COVERED | - | ALIGNED |
+| 18 | ExtraUnitView | E2E COVERED | - | ALIGNED |
+| 19 | ExtraUnitFE8UView | E2E COVERED | - | ALIGNED |
 | 20 | UnitFE7View | E2E COVERED | - | ALIGNED |
 | 21 | ItemFE6View | E2E COVERED | - | ALIGNED |
 | 22 | MoveCostFE6View | E2E COVERED | - | ALIGNED |
@@ -282,10 +282,10 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 200 | StatusParamView | E2E COVERED | - | - |
-| 201 | StatusRMenuView | E2E COVERED | - | - |
-| 202 | StatusUnitsMenuView | E2E COVERED | - | - |
-| 203 | StatusOptionOrderView | E2E COVERED | - | - |
+| 200 | StatusParamView | E2E COVERED | - | ALIGNED |
+| 201 | StatusRMenuView | E2E COVERED | - | ALIGNED |
+| 202 | StatusUnitsMenuView | E2E COVERED | - | ALIGNED |
+| 203 | StatusOptionOrderView | E2E COVERED | - | ALIGNED |
 
 ## Patch / Skill Systems
 
@@ -311,12 +311,12 @@ actual ROM data at the correct addresses and offsets.
 
 | # | View | E2E Status | Data Verified | Aligned |
 |---|------|-----------|---------------|---------|
-| 219 | OPClassDemoFE7View | E2E COVERED | - | - |
-| 220 | OPClassDemoFE7UView | E2E COVERED | - | - |
-| 221 | OPClassDemoFE8UView | E2E COVERED | - | - |
-| 222 | OPClassFontFE8UView | E2E COVERED | - | - |
-| 223 | OPClassAlphaNameView | E2E COVERED | - | - |
-| 224 | OPClassAlphaNameFE6View | E2E COVERED | - | - |
+| 219 | OPClassDemoFE7View | E2E COVERED | - | ALIGNED |
+| 220 | OPClassDemoFE7UView | E2E COVERED | - | ALIGNED |
+| 221 | OPClassDemoFE8UView | E2E COVERED | - | ALIGNED |
+| 222 | OPClassFontFE8UView | E2E COVERED | - | ALIGNED |
+| 223 | OPClassAlphaNameView | E2E COVERED | - | ALIGNED |
+| 224 | OPClassAlphaNameFE6View | E2E COVERED | - | ALIGNED |
 
 ## Bit Flag Editors
 
@@ -360,8 +360,8 @@ actual ROM data at the correct addresses and offsets.
 | 250 | LogViewerView | E2E COVERED | - | - |
 | 251 | GrowSimulatorView | E2E COVERED | - | - |
 | 252 | OptionsView | E2E COVERED | - | - |
-| 253 | DisASMDumpAllView | E2E COVERED | YES | - |
-| 254 | DisASMDumpAllArgGrepView | E2E COVERED | YES | - |
+| 253 | DisASMDumpAllView | E2E COVERED | YES | ALIGNED |
+| 254 | DisASMDumpAllArgGrepView | E2E COVERED | YES | ALIGNED |
 | 255 | HexEditorJumpView | E2E COVERED | YES | ALIGNED |
 | 256 | HexEditorMarkView | E2E COVERED | YES | ALIGNED |
 | 257 | HexEditorSearchView | E2E COVERED | YES | ALIGNED |

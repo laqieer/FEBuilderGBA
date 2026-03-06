@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.DisASMDumpAllArgGrepView"
-        Title="Disassembly Argument Grep" Width="700" Height="500"
+        Title="Disassembly Argument Grep" Width="891" Height="757"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
     <TextBlock Text="Disassembly Argument Grep" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
