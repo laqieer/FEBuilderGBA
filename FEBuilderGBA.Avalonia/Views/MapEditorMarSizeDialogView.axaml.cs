@@ -10,24 +10,23 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapEditorMarSizeDialogViewModel _vm = new();
 
-        public string ViewTitle => "Map Editor - Map Size";
+        public string ViewTitle => "Map Margin Size";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapEditorMarSizeDialogView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.Width = (uint)(WidthInput.Value ?? 0);
-            _vm.Height = (uint)(HeightInput.Value ?? 0);
-            Close(new { Width = _vm.Width, Height = _vm.Height });
+            _vm.Width = (uint)(WidthInput.Value ?? 1);
+            _vm.DialogResult = "OK";
+            Close(_vm.Width);
         }
-
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         bool _isLoaded;
         uint _width;
-        uint _height;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint Width { get => _width; set => SetField(ref _width, value); }
-        public uint Height { get => _height; set => SetField(ref _height, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {
@@ -24,7 +24,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ["status"] = "loaded",
             ["Width"] = $"{Width}",
-            ["Height"] = $"{Height}",
         };
         public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }

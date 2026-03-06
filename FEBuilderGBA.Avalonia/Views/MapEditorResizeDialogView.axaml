@@ -1,20 +1,79 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorResizeDialogView"
-        Title="Map Editor - Resize" Width="400" Height="280"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Map Resize" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Enter new map dimensions in tiles." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Map Resize"
+        Width="444" Height="385"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="12,12,12,10">
+    <!-- Position row (WinForms label2 "位置" + X/Y inputs) -->
+    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,12">
+      <Border BorderBrush="Gray" BorderThickness="1" Width="120" Height="32">
+        <TextBlock Text="Position" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
+        <TextBlock Text="X" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="XInput" Width="73" Height="25"
+                     Minimum="0" Maximum="65535" Value="0" />
+      <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
+        <TextBlock Text="Y" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="YInput" Width="73" Height="25"
+                     Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0" VerticalAlignment="Top">
-      <TextBlock Text="New Width:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
-      <NumericUpDown x:Name="NewWidthInput" Grid.Row="0" Grid.Column="1" Minimum="1" Maximum="255" Value="15" Margin="0,0,0,8" />
-      <TextBlock Text="New Height:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
-      <NumericUpDown x:Name="NewHeightInput" Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="255" Value="10" />
+    <!-- Size row (WinForms label1 "サイズ" + W/H disabled) -->
+    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,15">
+      <Border BorderBrush="Gray" BorderThickness="1" Width="120" Height="32">
+        <TextBlock Text="Size" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
+        <TextBlock Text="W" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="WInput" Width="73" Height="25"
+                     Minimum="1" Maximum="65535" IsEnabled="False" />
+      <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
+        <TextBlock Text="H" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="HInput" Width="73" Height="25"
+                     Minimum="1" Maximum="65535" IsEnabled="False" />
+    </StackPanel>
+    <!-- Padding inputs (T, L, R, B) -->
+    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto"
+          Margin="0,0,0,15">
+      <Border Grid.Row="0" Grid.Column="0" BorderBrush="Gray" BorderThickness="1"
+              Width="50" Height="32" Margin="0,0,6,6">
+        <TextBlock Text="Top" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="TInput" Grid.Row="0" Grid.Column="1" Width="73" Height="25"
+                     Minimum="-100" Maximum="65535" Value="0" Margin="0,0,12,6" />
+      <Border Grid.Row="0" Grid.Column="2" BorderBrush="Gray" BorderThickness="1"
+              Width="50" Height="32" Margin="0,0,6,6">
+        <TextBlock Text="Left" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="LInput" Grid.Row="0" Grid.Column="3" Width="73" Height="25"
+                     Minimum="-100" Maximum="65535" Value="0" Margin="0,0,0,6" />
+      <Border Grid.Row="1" Grid.Column="0" BorderBrush="Gray" BorderThickness="1"
+              Width="50" Height="32" Margin="0,0,6,0">
+        <TextBlock Text="Right" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="RInput" Grid.Row="1" Grid.Column="1" Width="73" Height="25"
+                     Minimum="-100" Maximum="65535" Value="0" Margin="0,0,12,0" />
+      <Border Grid.Row="1" Grid.Column="2" BorderBrush="Gray" BorderThickness="1"
+              Width="50" Height="32" Margin="0,0,6,0">
+        <TextBlock Text="Bot" HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="BInput" Grid.Row="1" Grid.Column="3" Width="73" Height="25"
+                     Minimum="-100" Maximum="65535" Value="0" />
     </Grid>
-  </DockPanel>
+    <!-- OK button (WinForms 134x35 right-aligned) -->
+    <Button Content="Resize" Width="134" Height="35"
+            HorizontalAlignment="Right" Click="OK_Click" />
+  </StackPanel>
 </Window>

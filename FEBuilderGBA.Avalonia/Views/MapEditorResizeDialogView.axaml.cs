@@ -10,24 +10,36 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapEditorResizeDialogViewModel _vm = new();
 
-        public string ViewTitle => "Map Editor - Resize";
+        public string ViewTitle => "Map Resize";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapEditorResizeDialogView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
+        }
+
+        public void SetPosition(int x, int y, int w, int h)
+        {
+            XInput.Value = x;
+            YInput.Value = y;
+            WInput.Value = w;
+            HInput.Value = h;
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.NewWidth = (uint)(NewWidthInput.Value ?? 15);
-            _vm.NewHeight = (uint)(NewHeightInput.Value ?? 10);
-            Close(new { Width = _vm.NewWidth, Height = _vm.NewHeight });
+            _vm.X = (int)(XInput.Value ?? 0);
+            _vm.Y = (int)(YInput.Value ?? 0);
+            _vm.T = (int)(TInput.Value ?? 0);
+            _vm.L = (int)(LInput.Value ?? 0);
+            _vm.R = (int)(RInput.Value ?? 0);
+            _vm.B = (int)(BInput.Value ?? 0);
+            _vm.DialogResult = "OK";
+            Close(true);
         }
-
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

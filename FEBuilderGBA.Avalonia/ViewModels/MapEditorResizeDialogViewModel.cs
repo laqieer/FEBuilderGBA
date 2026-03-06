@@ -7,12 +7,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MapEditorResizeDialogViewModel : ViewModelBase, IDataVerifiable
     {
         bool _isLoaded;
-        uint _newWidth;
-        uint _newHeight;
+        int _x, _y, _t, _l, _r, _b;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint NewWidth { get => _newWidth; set => SetField(ref _newWidth, value); }
-        public uint NewHeight { get => _newHeight; set => SetField(ref _newHeight, value); }
+        public int X { get => _x; set => SetField(ref _x, value); }
+        public int Y { get => _y; set => SetField(ref _y, value); }
+        public int T { get => _t; set => SetField(ref _t, value); }
+        public int L { get => _l; set => SetField(ref _l, value); }
+        public int R { get => _r; set => SetField(ref _r, value); }
+        public int B { get => _b; set => SetField(ref _b, value); }
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {
@@ -23,8 +28,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
         {
             ["status"] = "loaded",
-            ["NewWidth"] = $"{NewWidth}",
-            ["NewHeight"] = $"{NewHeight}",
+            ["X"] = $"{X}", ["Y"] = $"{Y}",
+            ["T"] = $"{T}", ["L"] = $"{L}",
+            ["R"] = $"{R}", ["B"] = $"{B}",
         };
         public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }

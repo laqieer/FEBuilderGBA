@@ -41,10 +41,10 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MapEditorAddMapChangeDialog_VM_HasMapChangeIdProperty()
+        public void MapEditorAddMapChangeDialog_VM_HasDialogResult()
         {
             var src = ReadVM("MapEditorAddMapChangeDialogViewModel.cs");
-            Assert.Contains("uint MapChangeId", src);
+            Assert.Contains("string DialogResult", src);
         }
 
         [Fact]
@@ -56,19 +56,20 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MapEditorAddMapChangeDialog_View_HasOKCancelHandlers()
+        public void MapEditorAddMapChangeDialog_View_HasThreeButtonHandlers()
         {
             var src = ReadView("MapEditorAddMapChangeDialogView.axaml.cs");
-            Assert.Contains("OK_Click", src);
+            Assert.Contains("New_Click", src);
+            Assert.Contains("Edit_Click", src);
             Assert.Contains("Cancel_Click", src);
         }
 
         [Fact]
-        public void MapEditorAddMapChangeDialog_Axaml_HasNumericInput()
+        public void MapEditorAddMapChangeDialog_Axaml_HasThreeButtons()
         {
             var src = ReadAxaml("MapEditorAddMapChangeDialogView.axaml");
-            Assert.Contains("MapChangeIdInput", src);
-            Assert.Contains("Click=\"OK_Click\"", src);
+            Assert.Contains("Click=\"New_Click\"", src);
+            Assert.Contains("Click=\"Edit_Click\"", src);
             Assert.Contains("Click=\"Cancel_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
@@ -76,11 +77,10 @@ namespace FEBuilderGBA.Tests.Unit
         // --- MapEditorMarSizeDialogView ---
 
         [Fact]
-        public void MapEditorMarSizeDialog_VM_HasWidthHeight()
+        public void MapEditorMarSizeDialog_VM_HasWidth()
         {
             var src = ReadVM("MapEditorMarSizeDialogViewModel.cs");
             Assert.Contains("uint Width", src);
-            Assert.Contains("uint Height", src);
             Assert.Contains("SetField(ref _isLoaded", src);
         }
 
@@ -97,7 +97,6 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadAxaml("MapEditorMarSizeDialogView.axaml");
             Assert.Contains("WidthInput", src);
-            Assert.Contains("HeightInput", src);
             Assert.Contains("Click=\"OK_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }
@@ -105,11 +104,13 @@ namespace FEBuilderGBA.Tests.Unit
         // --- MapEditorResizeDialogView ---
 
         [Fact]
-        public void MapEditorResizeDialog_VM_HasNewWidthHeight()
+        public void MapEditorResizeDialog_VM_HasPositionAndPadding()
         {
             var src = ReadVM("MapEditorResizeDialogViewModel.cs");
-            Assert.Contains("uint NewWidth", src);
-            Assert.Contains("uint NewHeight", src);
+            Assert.Contains("int X", src);
+            Assert.Contains("int Y", src);
+            Assert.Contains("int T", src);
+            Assert.Contains("int B", src);
         }
 
         [Fact]
@@ -124,8 +125,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapEditorResizeDialog_Axaml_HasInputFields()
         {
             var src = ReadAxaml("MapEditorResizeDialogView.axaml");
-            Assert.Contains("NewWidthInput", src);
-            Assert.Contains("NewHeightInput", src);
+            Assert.Contains("XInput", src);
+            Assert.Contains("YInput", src);
+            Assert.Contains("TInput", src);
+            Assert.Contains("BInput", src);
             Assert.Contains("Click=\"OK_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
         }

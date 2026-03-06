@@ -10,23 +10,34 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapEditorAddMapChangeDialogViewModel _vm = new();
 
-        public string ViewTitle => "Map Editor - Add Map Change";
+        public string ViewTitle => "Add Map Change";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapEditorAddMapChangeDialogView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void OK_Click(object? sender, RoutedEventArgs e)
+        void New_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.MapChangeId = (uint)(MapChangeIdInput.Value ?? 0);
-            Close(_vm.MapChangeId);
+            _vm.DialogResult = "new";
+            Close("new");
         }
 
-        void Cancel_Click(object? sender, RoutedEventArgs e) => Close(null);
+        void Edit_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.DialogResult = "edit";
+            Close("edit");
+        }
+
+        void Cancel_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.DialogResult = "cancel";
+            Close(null);
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

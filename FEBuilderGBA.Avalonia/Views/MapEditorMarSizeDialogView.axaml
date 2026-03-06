@@ -1,20 +1,27 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorMarSizeDialogView"
-        Title="Map Editor - Map Size" Width="400" Height="280"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Map Margin Size" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Set the map margin (border) dimensions in tiles." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+        Title="Map Margin Size"
+        Width="372" Height="245"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="12,12,12,10">
+    <!-- Width label with border (WinForms label2 120x32 BorderStyle) -->
+    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <Border BorderBrush="Gray" BorderThickness="1" Width="120" Height="32">
+        <TextBlock Text="Width" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+      </Border>
+      <NumericUpDown x:Name="WidthInput" Width="73" Height="25"
+                     Minimum="1" Maximum="65535" Value="1" />
     </StackPanel>
-    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0" VerticalAlignment="Top">
-      <TextBlock Text="Width:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
-      <NumericUpDown x:Name="WidthInput" Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
-      <TextBlock Text="Height:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
-      <NumericUpDown x:Name="HeightInput" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="255" Value="0" />
-    </Grid>
-  </DockPanel>
+    <!-- Error label (WinForms ERROR_WIDTH 275x36) -->
+    <TextBlock x:Name="ErrorLabel"
+               Text="Data size mismatch.&#x0a;(DataCount/2) % Width != 0"
+               Foreground="Red" TextWrapping="Wrap" Height="36"
+               Margin="2,12,0,20" IsVisible="False" />
+    <!-- OK button (WinForms OKButton 99x43 right-aligned) -->
+    <Button Content="Apply" Width="99" Height="43"
+            HorizontalAlignment="Right" Click="OK_Click" />
+  </StackPanel>
 </Window>

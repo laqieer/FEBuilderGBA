@@ -93,12 +93,12 @@ actual ROM data at the correct addresses and offsets.
 | 53 | MapTileAnimation2View | E2E COVERED | - | - |
 | 54 | MapLoadFunctionView | E2E COVERED | - | - |
 | 55 | MapTerrainNameEngView | E2E COVERED | - | - |
-| 56 | MapEditorAddMapChangeDialogView | E2E COVERED | YES | - |
-| 57 | MapEditorMarSizeDialogView | E2E COVERED | YES | - |
-| 58 | MapEditorResizeDialogView | E2E COVERED | YES | - |
+| 56 | MapEditorAddMapChangeDialogView | E2E COVERED | YES | ALIGNED |
+| 57 | MapEditorMarSizeDialogView | E2E COVERED | YES | ALIGNED |
+| 58 | MapEditorResizeDialogView | E2E COVERED | YES | ALIGNED |
 | 59 | MapPointerNewPLISTPopupView | E2E COVERED | YES | - |
 | 60 | MapStyleEditorAppendPopupView | E2E COVERED | YES | - |
-| 61 | MapStyleEditorWarningOverrideView | E2E COVERED | YES | - |
+| 61 | MapStyleEditorWarningOverrideView | E2E COVERED | YES | ALIGNED |
 | 62 | MapStyleEditorImportImageOptionView | E2E COVERED | YES | - |
 | 63 | MapSettingDifficultyDialogView | E2E COVERED | YES | - |
 

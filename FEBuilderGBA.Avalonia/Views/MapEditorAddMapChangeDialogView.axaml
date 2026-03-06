@@ -1,18 +1,29 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorAddMapChangeDialogView"
-        Title="Map Editor - Add Map Change" Width="400" Height="250"
-        WindowStartupLocation="CenterOwner" CanResize="False">
-  <DockPanel Margin="16">
-    <TextBlock Text="Add Map Change" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
-    <TextBlock Text="Enter the Map Change ID to add a new map change entry." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
-    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,12,0,0">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
-    <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0" VerticalAlignment="Top">
-      <TextBlock Text="Map Change ID:" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0" />
-      <NumericUpDown x:Name="MapChangeIdInput" Grid.Column="1" Minimum="0" Maximum="65535" Value="0" />
-    </Grid>
-  </DockPanel>
+        Title="Add Map Change"
+        Width="831" Height="512"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <StackPanel Margin="12,9,12,15">
+    <!-- Bold question label (like WinForms labelEx1 at 82,9 717x58 Bold 11F) -->
+    <TextBlock Text="Do you want to create additional map changes?"
+               FontSize="14" FontWeight="Bold" TextWrapping="Wrap"
+               Margin="70,0,0,15" Height="58" />
+    <!-- New button (WinForms MyNewButton 787x42) -->
+    <Button Content="Assign new map change" Height="42"
+            HorizontalAlignment="Stretch" Click="New_Click" />
+    <!-- Instruction text between buttons (WinForms label2 786x95) -->
+    <TextBlock Text="Assign a new map change ID. A new PLIST entry will be allocated automatically."
+               TextWrapping="Wrap" Height="95" Margin="0,7,0,0" />
+    <!-- Edit button (WinForms EditButton 787x42) -->
+    <Button Content="Open map change settings" Height="42"
+            HorizontalAlignment="Stretch" Click="Edit_Click" />
+    <!-- Instruction text (WinForms label1 786x95) -->
+    <TextBlock Text="Open the map change configuration screen to edit existing map change entries."
+               TextWrapping="Wrap" Height="95" Margin="0,7,0,0" />
+    <!-- Cancel button (WinForms MyCancelButton 787x42) -->
+    <Button Content="Cancel" Height="42"
+            HorizontalAlignment="Stretch" Click="Cancel_Click" />
+  </StackPanel>
 </Window>
