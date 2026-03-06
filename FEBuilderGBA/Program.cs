@@ -42,16 +42,19 @@ namespace FEBuilderGBA
                 Program.IsCommandLine = true;
             }
 
-            // Set app-wide default font before any forms are created
-            Application.SetDefaultFont(new Font("Microsoft Sans Serif", 8.25f));
-
             //メインスレッド判定に利用するためにスレッドIDを保存
             MainThreadID = System.Threading.Thread.CurrentThread.ManagedThreadId;
 #if !DEBUG
             SetExceptionHandler();
 #endif
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            if (!IsCommandLine)
+            {
+                // GUI initialization — skip in CLI mode to avoid GDI+/WinForms crashes
+                // on headless CI runners
+                Application.SetDefaultFont(new Font("Microsoft Sans Serif", 8.25f));
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+            }
 
             //自プロセスのパスから、ベースディレクトリを特定します.
             Program.BaseDirectory = MakeBaseDirectory();
@@ -75,7 +78,10 @@ namespace FEBuilderGBA
             EnsurePatch2Subdirectories();
 
             //外部プロセスからの書き換え監視等の開始
-            UpdateWatcher = new ROMUpdateWatcher();
+            if (!IsCommandLine)
+            {
+                UpdateWatcher = new ROMUpdateWatcher();
+            }
 
             string forceversion = U.at(ArgsDic, "--force-version");//強制バージョン指定 --force-version=FE8J
             if (ArgsDic.ContainsKey("--lastrom"))
@@ -85,6 +91,14 @@ namespace FEBuilderGBA
             if (ArgsDic.ContainsKey("--rom"))
             {
                 MainFormUtil.Open(null, ArgsDic["--rom"], false, forceversion);
+            }
+
+            // CLI commands: skip WelcomeForm creation entirely — creating WinForms UI
+            // objects on headless CI runners can crash intermittently (exit code -1/-2).
+            if (IsCommandLine && Program.ROM != null)
+            {
+                ProcCommandLine();
+                return;
             }
 
             {
