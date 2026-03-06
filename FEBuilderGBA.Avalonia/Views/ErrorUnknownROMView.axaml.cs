@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ErrorUnknownROMView : Window, IEditorView
     {
         readonly ErrorUnknownROMViewModel _vm = new();
-        public string ViewTitle => "Unknown ROM Error";
+        public string ViewTitle => "Unknown ROM Version";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ErrorUnknownROMView()
@@ -19,27 +19,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
-        void FE6_Click(object? sender, RoutedEventArgs e)
+        void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SelectedVersion = "FE6";
-            Close();
-        }
-
-        void FE7J_Click(object? sender, RoutedEventArgs e)
-        {
-            _vm.SelectedVersion = "FE7J";
-            Close();
-        }
-
-        void FE7U_Click(object? sender, RoutedEventArgs e)
-        {
-            _vm.SelectedVersion = "FE7U";
-            Close();
-        }
-
-        void FE8J_Click(object? sender, RoutedEventArgs e)
-        {
-            _vm.SelectedVersion = "FE8J";
+            _vm.SelectedVersion = "";
             Close();
         }
 
@@ -49,9 +31,33 @@ namespace FEBuilderGBA.Avalonia.Views
             Close();
         }
 
+        void FE8J_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedVersion = "FE8J";
+            Close();
+        }
+
+        void FE7U_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedVersion = "FE7U";
+            Close();
+        }
+
+        void FE7J_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedVersion = "FE7J";
+            Close();
+        }
+
+        void FE6_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedVersion = "FE6";
+            Close();
+        }
+
         void Unknown_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SelectedVersion = "Unknown";
+            _vm.SelectedVersion = "NAZO";
             Close();
         }
 

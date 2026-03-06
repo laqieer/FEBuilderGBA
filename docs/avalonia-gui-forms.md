@@ -336,7 +336,7 @@ actual ROM data at the correct addresses and offsets.
 | 231 | ErrorPaletteTransparentView | E2E COVERED | - | - |
 | 232 | ErrorTSAErrorView | E2E COVERED | - | - |
 | 233 | ErrorLongMessageDialogView | E2E COVERED | - | - |
-| 234 | ErrorUnknownROMView | E2E COVERED | - | - |
+| 234 | ErrorUnknownROMView | E2E COVERED | - | ALIGNED |
 | 235 | HowDoYouLikePatchView | E2E COVERED | - | - |
 | 236 | HowDoYouLikePatch2View | E2E COVERED | - | - |
 
