@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("_vm.Name", src);
             Assert.Contains("_vm.NameId", src);
             Assert.Contains("_vm.WeaponType", src);
-            Assert.Contains("_vm.Rank", src);
+            Assert.Contains("_vm.WeaponRank", src);
             Assert.Contains("_vm.Might", src);
             Assert.Contains("_vm.Hit", src);
             Assert.Contains("_vm.Weight", src);
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadView("ItemEditorView.axaml.cs");
             Assert.Contains("_vm.NameId = ", src);
             Assert.Contains("_vm.WeaponType = ", src);
-            Assert.Contains("_vm.Rank = ", src);
+            Assert.Contains("_vm.WeaponRank = ", src);
             Assert.Contains("_vm.Might = ", src);
             Assert.Contains("_vm.Hit = ", src);
             Assert.Contains("_vm.Weight = ", src);

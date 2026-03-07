@@ -111,20 +111,21 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("ItemEditorViewModel.cs");
-            // Text IDs
-            Assert.Contains("rom.u16(addr + 0)", src);    // NameId
-            Assert.Contains("rom.u16(addr + 2)", src);    // DescId
-            Assert.Contains("rom.u16(addr + 4)", src);    // UseDescId
+            // Text IDs (decimal offsets matching WinForms convention)
+            Assert.Contains("rom.u16(addr + 0)", src);    // W0 NameId
+            Assert.Contains("rom.u16(addr + 2)", src);    // W2 DescId
+            Assert.Contains("rom.u16(addr + 4)", src);    // W4 UseDescId
             // Item properties
-            Assert.Contains("rom.u8(addr + 0x07)", src);  // WeaponType
-            Assert.Contains("rom.u8(addr + 0x11)", src);  // Rank
-            Assert.Contains("rom.u8(addr + 0x17)", src);  // Might
-            Assert.Contains("rom.u8(addr + 0x18)", src);  // Hit
-            Assert.Contains("rom.u8(addr + 0x19)", src);  // Weight
-            Assert.Contains("rom.u8(addr + 0x1A)", src);  // Crit
-            Assert.Contains("rom.u8(addr + 0x1B)", src);  // Range
-            Assert.Contains("rom.u8(addr + 0x1C)", src);  // Uses
-            Assert.Contains("rom.u16(addr + 0x1E)", src); // Price
+            Assert.Contains("rom.u8(addr + 6)", src);     // B6 ItemNumber
+            Assert.Contains("rom.u8(addr + 7)", src);     // B7 WeaponType
+            Assert.Contains("rom.u8(addr + 20)", src);    // B20 Uses
+            Assert.Contains("rom.u8(addr + 21)", src);    // B21 Might
+            Assert.Contains("rom.u8(addr + 22)", src);    // B22 Hit
+            Assert.Contains("rom.u8(addr + 23)", src);    // B23 Weight
+            Assert.Contains("rom.u8(addr + 24)", src);    // B24 Crit
+            Assert.Contains("rom.u8(addr + 25)", src);    // B25 Range
+            Assert.Contains("rom.u16(addr + 26)", src);   // W26 Price
+            Assert.Contains("rom.u8(addr + 28)", src);    // B28 WeaponRank
         }
 
         [Fact]
@@ -134,15 +135,16 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("rom.write_u16(addr + 0, NameId)", src);
             Assert.Contains("rom.write_u16(addr + 2, DescId)", src);
             Assert.Contains("rom.write_u16(addr + 4, UseDescId)", src);
-            Assert.Contains("rom.write_u8(addr + 0x07, WeaponType)", src);
-            Assert.Contains("rom.write_u8(addr + 0x11, Rank)", src);
-            Assert.Contains("rom.write_u8(addr + 0x17, Might)", src);
-            Assert.Contains("rom.write_u8(addr + 0x18, Hit)", src);
-            Assert.Contains("rom.write_u8(addr + 0x19, Weight)", src);
-            Assert.Contains("rom.write_u8(addr + 0x1A, Crit)", src);
-            Assert.Contains("rom.write_u8(addr + 0x1B, Range)", src);
-            Assert.Contains("rom.write_u8(addr + 0x1C, Uses)", src);
-            Assert.Contains("rom.write_u16(addr + 0x1E, Price)", src);
+            Assert.Contains("rom.write_u8(addr + 6, ItemNumber)", src);
+            Assert.Contains("rom.write_u8(addr + 7, WeaponType)", src);
+            Assert.Contains("rom.write_u8(addr + 20, Uses)", src);
+            Assert.Contains("rom.write_u8(addr + 21, Might)", src);
+            Assert.Contains("rom.write_u8(addr + 22, Hit)", src);
+            Assert.Contains("rom.write_u8(addr + 23, Weight)", src);
+            Assert.Contains("rom.write_u8(addr + 24, Crit)", src);
+            Assert.Contains("rom.write_u8(addr + 25, Range)", src);
+            Assert.Contains("rom.write_u16(addr + 26, Price)", src);
+            Assert.Contains("rom.write_u8(addr + 28, WeaponRank)", src);
         }
 
         // ---------------------------------------------------------------

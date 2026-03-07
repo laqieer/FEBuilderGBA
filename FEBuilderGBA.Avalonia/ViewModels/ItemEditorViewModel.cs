@@ -8,26 +8,82 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         string _name = "";
+        // W0, W2, W4 (u16 text IDs)
         uint _nameId, _descId, _useDescId;
-        uint _weaponType, _rank, _might, _hit, _weight, _crit, _range;
-        uint _uses, _price;
+        // B6 (item number), B7 (weapon type)
+        uint _itemNumber, _weaponType;
+        // B8-B11 (traits/flags)
+        uint _trait1, _trait2, _trait3, _trait4;
+        // P12 (stat bonuses ptr), P16 (effectiveness ptr)
+        uint _statBonusesPtr, _effectivenessPtr;
+        // B20-B25 (combat stats)
+        uint _uses, _might, _hit, _weight, _crit, _range;
+        // W26 (price)
+        uint _price;
+        // B28-B35 (weapon rank, icon, effects, etc.)
+        uint _weaponRank, _icon, _usageEffect, _damageEffect;
+        uint _weaponExp, _unk33, _unk34, _unk35;
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
+
+        // W0: Name text ID
         public uint NameId { get => _nameId; set => SetField(ref _nameId, value); }
+        // W2: Description text ID
         public uint DescId { get => _descId; set => SetField(ref _descId, value); }
+        // W4: Usage description text ID
         public uint UseDescId { get => _useDescId; set => SetField(ref _useDescId, value); }
+        // B6: Item number / ID
+        public uint ItemNumber { get => _itemNumber; set => SetField(ref _itemNumber, value); }
+        // B7: Weapon type (0=sword,1=lance,2=axe,etc.)
         public uint WeaponType { get => _weaponType; set => SetField(ref _weaponType, value); }
-        public uint Rank { get => _rank; set => SetField(ref _rank, value); }
-        public uint Might { get => _might; set => SetField(ref _might, value); }
-        public uint Hit { get => _hit; set => SetField(ref _hit, value); }
-        public uint Weight { get => _weight; set => SetField(ref _weight, value); }
-        public uint Crit { get => _crit; set => SetField(ref _crit, value); }
-        public uint Range { get => _range; set => SetField(ref _range, value); }
+        // B8: Trait flags 1
+        public uint Trait1 { get => _trait1; set => SetField(ref _trait1, value); }
+        // B9: Trait flags 2
+        public uint Trait2 { get => _trait2; set => SetField(ref _trait2, value); }
+        // B10: Trait flags 3
+        public uint Trait3 { get => _trait3; set => SetField(ref _trait3, value); }
+        // B11: Trait flags 4
+        public uint Trait4 { get => _trait4; set => SetField(ref _trait4, value); }
+        // P12: Pointer to stat bonuses data
+        public uint StatBonusesPtr { get => _statBonusesPtr; set => SetField(ref _statBonusesPtr, value); }
+        // P16: Pointer to effectiveness data
+        public uint EffectivenessPtr { get => _effectivenessPtr; set => SetField(ref _effectivenessPtr, value); }
+        // B20: Durability / uses
         public uint Uses { get => _uses; set => SetField(ref _uses, value); }
+        // B21: Might / attack power
+        public uint Might { get => _might; set => SetField(ref _might, value); }
+        // B22: Hit rate
+        public uint Hit { get => _hit; set => SetField(ref _hit, value); }
+        // B23: Weight
+        public uint Weight { get => _weight; set => SetField(ref _weight, value); }
+        // B24: Critical rate
+        public uint Crit { get => _crit; set => SetField(ref _crit, value); }
+        // B25: Range
+        public uint Range { get => _range; set => SetField(ref _range, value); }
+        // W26: Unit price
         public uint Price { get => _price; set => SetField(ref _price, value); }
+        // B28: Weapon rank / level
+        public uint WeaponRank { get => _weaponRank; set => SetField(ref _weaponRank, value); }
+        // B29: Icon ID
+        public uint Icon { get => _icon; set => SetField(ref _icon, value); }
+        // B30: Usage effect (staff effect)
+        public uint UsageEffect { get => _usageEffect; set => SetField(ref _usageEffect, value); }
+        // B31: Damage additional effect
+        public uint DamageEffect { get => _damageEffect; set => SetField(ref _damageEffect, value); }
+        // B32: Weapon experience gain
+        public uint WeaponExp { get => _weaponExp; set => SetField(ref _weaponExp, value); }
+        // B33: Unknown / patch-dependent
+        public uint Unk33 { get => _unk33; set => SetField(ref _unk33, value); }
+        // B34: Unknown / patch-dependent
+        public uint Unk34 { get => _unk34; set => SetField(ref _unk34, value); }
+        // B35: Unknown / patch-dependent
+        public uint Unk35 { get => _unk35; set => SetField(ref _unk35, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        // Keep old property names as aliases for backward compatibility with Views
+        [Obsolete("Use WeaponRank instead")] public uint Rank { get => WeaponRank; set => WeaponRank = value; }
 
         public List<AddrResult> LoadItemList()
         {
@@ -62,41 +118,56 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
-            // Bounds check: item data extends to at least addr + 0x20 (offset 0x1E + 2 bytes)
-            uint minSize = 0x20;
-            if (addr + minSize > (uint)rom.Data.Length) return;
+            uint dataSize = rom.RomInfo?.item_datasize ?? 36;
+            if (addr + dataSize > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            NameId = rom.u16(addr + 0);
-            DescId = rom.u16(addr + 2);
-            UseDescId = rom.u16(addr + 4);
+
+            // Text IDs
+            NameId = rom.u16(addr + 0);      // W0
+            DescId = rom.u16(addr + 2);      // W2
+            UseDescId = rom.u16(addr + 4);   // W4
+
             try { Name = FETextDecode.Direct(NameId); }
             catch { Name = "???"; }
 
-            // Item struct layout (FE8U-style)
-            // 0x00: Name ID (2)
-            // 0x02: Desc ID (2)
-            // 0x04: Use Desc ID (2)
-            // 0x06: Item number (1)
-            // 0x07: Weapon type (1)
-            // 0x11: Rank (1)
-            // 0x17: Might (1)
-            // 0x18: Hit (1)
-            // 0x19: Weight (1)
-            // 0x1A: Crit (1)
-            // 0x1B: Range (1)
-            // 0x1C: Uses (1) — approximate, varies by version
-            // 0x1E: Price (2)
+            // Identity
+            ItemNumber = rom.u8(addr + 6);   // B6
+            WeaponType = rom.u8(addr + 7);   // B7
 
-            WeaponType = rom.u8(addr + 0x07);
-            Rank = rom.u8(addr + 0x11);
-            Might = rom.u8(addr + 0x17);
-            Hit = rom.u8(addr + 0x18);
-            Weight = rom.u8(addr + 0x19);
-            Crit = rom.u8(addr + 0x1A);
-            Range = rom.u8(addr + 0x1B);
-            Uses = rom.u8(addr + 0x1C);
-            Price = rom.u16(addr + 0x1E);
+            // Trait flags
+            Trait1 = rom.u8(addr + 8);       // B8
+            Trait2 = rom.u8(addr + 9);       // B9
+            Trait3 = rom.u8(addr + 10);      // B10
+            Trait4 = rom.u8(addr + 11);      // B11
+
+            // Pointers
+            StatBonusesPtr = rom.u32(addr + 12);  // P12
+            EffectivenessPtr = rom.u32(addr + 16); // P16
+
+            // Combat stats
+            Uses = rom.u8(addr + 20);        // B20
+            Might = rom.u8(addr + 21);       // B21
+            Hit = rom.u8(addr + 22);         // B22
+            Weight = rom.u8(addr + 23);      // B23
+            Crit = rom.u8(addr + 24);        // B24
+            Range = rom.u8(addr + 25);       // B25
+            Price = rom.u16(addr + 26);      // W26
+
+            // Weapon rank and effects
+            WeaponRank = rom.u8(addr + 28);  // B28
+            Icon = rom.u8(addr + 29);        // B29
+            UsageEffect = rom.u8(addr + 30); // B30
+            DamageEffect = rom.u8(addr + 31); // B31
+            WeaponExp = rom.u8(addr + 32);   // B32
+
+            // Extension bytes (FE7/FE8 only, datasize >= 36)
+            if (dataSize >= 36)
+            {
+                Unk33 = rom.u8(addr + 33);   // B33
+                Unk34 = rom.u8(addr + 34);   // B34
+                Unk35 = rom.u8(addr + 35);   // B35
+            }
 
             CanWrite = true;
         }
@@ -108,18 +179,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["NameId"] = $"0x{NameId:X04}",
-                ["DescId"] = $"0x{DescId:X04}",
-                ["UseDescId"] = $"0x{UseDescId:X04}",
-                ["WeaponType"] = $"0x{WeaponType:X02}",
-                ["Rank"] = $"0x{Rank:X02}",
-                ["Might"] = $"0x{Might:X02}",
-                ["Hit"] = $"0x{Hit:X02}",
-                ["Weight"] = $"0x{Weight:X02}",
-                ["Crit"] = $"0x{Crit:X02}",
-                ["Range"] = $"0x{Range:X02}",
-                ["Uses"] = $"0x{Uses:X02}",
-                ["Price"] = $"0x{Price:X04}",
+                ["W0_NameId"] = $"0x{NameId:X04}",
+                ["W2_DescId"] = $"0x{DescId:X04}",
+                ["W4_UseDescId"] = $"0x{UseDescId:X04}",
+                ["B6_ItemNumber"] = $"0x{ItemNumber:X02}",
+                ["B7_WeaponType"] = $"0x{WeaponType:X02}",
+                ["B8_Trait1"] = $"0x{Trait1:X02}",
+                ["B9_Trait2"] = $"0x{Trait2:X02}",
+                ["B10_Trait3"] = $"0x{Trait3:X02}",
+                ["B11_Trait4"] = $"0x{Trait4:X02}",
+                ["P12_StatBonuses"] = $"0x{StatBonusesPtr:X08}",
+                ["P16_Effectiveness"] = $"0x{EffectivenessPtr:X08}",
+                ["B20_Uses"] = $"0x{Uses:X02}",
+                ["B21_Might"] = $"0x{Might:X02}",
+                ["B22_Hit"] = $"0x{Hit:X02}",
+                ["B23_Weight"] = $"0x{Weight:X02}",
+                ["B24_Crit"] = $"0x{Crit:X02}",
+                ["B25_Range"] = $"0x{Range:X02}",
+                ["W26_Price"] = $"0x{Price:X04}",
+                ["B28_WeaponRank"] = $"0x{WeaponRank:X02}",
+                ["B29_Icon"] = $"0x{Icon:X02}",
+                ["B30_UsageEffect"] = $"0x{UsageEffect:X02}",
+                ["B31_DamageEffect"] = $"0x{DamageEffect:X02}",
+                ["B32_WeaponExp"] = $"0x{WeaponExp:X02}",
+                ["B33_Unk"] = $"0x{Unk33:X02}",
+                ["B34_Unk"] = $"0x{Unk34:X02}",
+                ["B35_Unk"] = $"0x{Unk35:X02}",
             };
         }
 
@@ -132,18 +217,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
-                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 0x07):X02}",
-                ["u8@0x11"] = $"0x{rom.u8(a + 0x11):X02}",
-                ["u8@0x17"] = $"0x{rom.u8(a + 0x17):X02}",
-                ["u8@0x18"] = $"0x{rom.u8(a + 0x18):X02}",
-                ["u8@0x19"] = $"0x{rom.u8(a + 0x19):X02}",
-                ["u8@0x1A"] = $"0x{rom.u8(a + 0x1A):X02}",
-                ["u8@0x1B"] = $"0x{rom.u8(a + 0x1B):X02}",
-                ["u8@0x1C"] = $"0x{rom.u8(a + 0x1C):X02}",
-                ["u16@0x1E"] = $"0x{rom.u16(a + 0x1E):X04}",
+                ["u16@0"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@2"] = $"0x{rom.u16(a + 2):X04}",
+                ["u16@4"] = $"0x{rom.u16(a + 4):X04}",
+                ["u8@6"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@7"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@8"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@9"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@11"] = $"0x{rom.u8(a + 11):X02}",
+                ["u32@12"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@16"] = $"0x{rom.u32(a + 16):X08}",
+                ["u8@20"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@21"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@22"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@23"] = $"0x{rom.u8(a + 23):X02}",
+                ["u8@24"] = $"0x{rom.u8(a + 24):X02}",
+                ["u8@25"] = $"0x{rom.u8(a + 25):X02}",
+                ["u16@26"] = $"0x{rom.u16(a + 26):X04}",
+                ["u8@28"] = $"0x{rom.u8(a + 28):X02}",
+                ["u8@29"] = $"0x{rom.u8(a + 29):X02}",
+                ["u8@30"] = $"0x{rom.u8(a + 30):X02}",
+                ["u8@31"] = $"0x{rom.u8(a + 31):X02}",
+                ["u8@32"] = $"0x{rom.u8(a + 32):X02}",
+                ["u8@33"] = $"0x{rom.u8(a + 33):X02}",
+                ["u8@34"] = $"0x{rom.u8(a + 34):X02}",
+                ["u8@35"] = $"0x{rom.u8(a + 35):X02}",
             };
         }
 
@@ -153,19 +252,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
+            uint dataSize = rom.RomInfo?.item_datasize ?? 36;
 
             rom.write_u16(addr + 0, NameId);
             rom.write_u16(addr + 2, DescId);
             rom.write_u16(addr + 4, UseDescId);
-            rom.write_u8(addr + 0x07, WeaponType);
-            rom.write_u8(addr + 0x11, Rank);
-            rom.write_u8(addr + 0x17, Might);
-            rom.write_u8(addr + 0x18, Hit);
-            rom.write_u8(addr + 0x19, Weight);
-            rom.write_u8(addr + 0x1A, Crit);
-            rom.write_u8(addr + 0x1B, Range);
-            rom.write_u8(addr + 0x1C, Uses);
-            rom.write_u16(addr + 0x1E, Price);
+            rom.write_u8(addr + 6, ItemNumber);
+            rom.write_u8(addr + 7, WeaponType);
+            rom.write_u8(addr + 8, Trait1);
+            rom.write_u8(addr + 9, Trait2);
+            rom.write_u8(addr + 10, Trait3);
+            rom.write_u8(addr + 11, Trait4);
+            rom.write_u32(addr + 12, StatBonusesPtr);
+            rom.write_u32(addr + 16, EffectivenessPtr);
+            rom.write_u8(addr + 20, Uses);
+            rom.write_u8(addr + 21, Might);
+            rom.write_u8(addr + 22, Hit);
+            rom.write_u8(addr + 23, Weight);
+            rom.write_u8(addr + 24, Crit);
+            rom.write_u8(addr + 25, Range);
+            rom.write_u16(addr + 26, Price);
+            rom.write_u8(addr + 28, WeaponRank);
+            rom.write_u8(addr + 29, Icon);
+            rom.write_u8(addr + 30, UsageEffect);
+            rom.write_u8(addr + 31, DamageEffect);
+            rom.write_u8(addr + 32, WeaponExp);
+
+            if (dataSize >= 36)
+            {
+                rom.write_u8(addr + 33, Unk33);
+                rom.write_u8(addr + 34, Unk34);
+                rom.write_u8(addr + 35, Unk35);
+            }
         }
     }
 }

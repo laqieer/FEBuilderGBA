@@ -112,7 +112,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_LoadItemHasBoundsCheck()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("addr + minSize > (uint)rom.Data.Length", src);
+            Assert.Contains("addr + dataSize > (uint)rom.Data.Length", src);
         }
 
         // ------------------------------------------------------------------ Smoke test support
@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ClassEditorViewModel_HasBoundsCheck()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ClassEditorViewModel.cs"));
-            Assert.Contains("addr + minSize > (uint)rom.Data.Length", src);
+            Assert.Contains("addr + dataSize > (uint)rom.Data.Length", src);
         }
 
         [Fact]

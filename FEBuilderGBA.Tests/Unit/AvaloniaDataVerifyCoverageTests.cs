@@ -154,22 +154,22 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_DataReportIncludesKeyFields()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("[\"NameId\"]", src);
-            Assert.Contains("[\"WeaponType\"]", src);
-            Assert.Contains("[\"Might\"]", src);
-            Assert.Contains("[\"Hit\"]", src);
-            Assert.Contains("[\"Price\"]", src);
+            Assert.Contains("[\"W0_NameId\"]", src);
+            Assert.Contains("[\"B7_WeaponType\"]", src);
+            Assert.Contains("[\"B21_Might\"]", src);
+            Assert.Contains("[\"B22_Hit\"]", src);
+            Assert.Contains("[\"W26_Price\"]", src);
         }
 
         [Fact]
         public void ClassEditorViewModel_DataReportIncludesKeyFields()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ClassEditorViewModel.cs"));
-            Assert.Contains("[\"NameId\"]", src);
-            Assert.Contains("[\"ClassNumber\"]", src);
-            Assert.Contains("[\"BaseHp\"]", src);
-            Assert.Contains("[\"GrowHp\"]", src);
-            Assert.Contains("[\"Mov\"]", src);
+            Assert.Contains("[\"W0_NameId\"]", src);
+            Assert.Contains("[\"B4_ClassNumber\"]", src);
+            Assert.Contains("[\"B11_BaseHp\"]", src);
+            Assert.Contains("[\"B27_GrowHp\"]", src);
+            Assert.Contains("[\"B17_Mov\"]", src);
         }
 
         // ------------------------------------------------------------------ Raw ROM report covers correct offsets
@@ -189,20 +189,20 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_RawRomReportMatchesReadOffsets()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("[\"u16@0x00\"]", src);
-            Assert.Contains("[\"u8@0x07\"]", src);
-            Assert.Contains("[\"u8@0x17\"]", src);
-            Assert.Contains("[\"u16@0x1E\"]", src);
+            Assert.Contains("[\"u16@0\"]", src);
+            Assert.Contains("[\"u8@7\"]", src);
+            Assert.Contains("[\"u8@21\"]", src);
+            Assert.Contains("[\"u16@26\"]", src);
         }
 
         [Fact]
         public void ClassEditorViewModel_RawRomReportMatchesReadOffsets()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ClassEditorViewModel.cs"));
-            Assert.Contains("[\"u16@0x00\"]", src);
-            Assert.Contains("[\"u8@0x04\"]", src);
-            Assert.Contains("[\"u8@0x0B\"]", src);
-            Assert.Contains("[\"u8@0x1B\"]", src);
+            Assert.Contains("[\"u16@0\"]", src);
+            Assert.Contains("[\"u8@4\"]", src);
+            Assert.Contains("[\"u8@11\"]", src);
+            Assert.Contains("[\"u8@27\"]", src);
         }
     }
 }

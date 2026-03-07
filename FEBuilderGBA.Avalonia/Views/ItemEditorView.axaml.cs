@@ -55,30 +55,76 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             NameLabel.Text = _vm.Name;
+
+            // Text IDs
             NameIdBox.Value = _vm.NameId;
+            DescIdBox.Value = _vm.DescId;
+            UseDescIdBox.Value = _vm.UseDescId;
+
+            // Identity
+            ItemNumberBox.Value = _vm.ItemNumber;
             WeaponTypeBox.Value = _vm.WeaponType;
-            RankBox.Value = _vm.Rank;
+
+            // Traits
+            Trait1Box.Value = _vm.Trait1;
+            Trait2Box.Value = _vm.Trait2;
+            Trait3Box.Value = _vm.Trait3;
+            Trait4Box.Value = _vm.Trait4;
+
+            // Pointers
+            StatBonusesPtrBox.Value = _vm.StatBonusesPtr;
+            EffectivenessPtrBox.Value = _vm.EffectivenessPtr;
+
+            // Combat stats
+            UsesBox.Value = _vm.Uses;
             MightBox.Value = _vm.Might;
             HitBox.Value = _vm.Hit;
             WeightBox.Value = _vm.Weight;
             CritBox.Value = _vm.Crit;
             RangeBox.Value = _vm.Range;
-            UsesBox.Value = _vm.Uses;
             PriceBox.Value = _vm.Price;
+
+            // Weapon rank & effects
+            WeaponRankBox.Value = _vm.WeaponRank;
+            IconBox.Value = _vm.Icon;
+            UsageEffectBox.Value = _vm.UsageEffect;
+            DamageEffectBox.Value = _vm.DamageEffect;
+            WeaponExpBox.Value = _vm.WeaponExp;
+
+            // Extension bytes
+            Unk33Box.Value = _vm.Unk33;
+            Unk34Box.Value = _vm.Unk34;
+            Unk35Box.Value = _vm.Unk35;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _vm.NameId = (uint)(NameIdBox.Value ?? 0);
+            _vm.DescId = (uint)(DescIdBox.Value ?? 0);
+            _vm.UseDescId = (uint)(UseDescIdBox.Value ?? 0);
+            _vm.ItemNumber = (uint)(ItemNumberBox.Value ?? 0);
             _vm.WeaponType = (uint)(WeaponTypeBox.Value ?? 0);
-            _vm.Rank = (uint)(RankBox.Value ?? 0);
+            _vm.Trait1 = (uint)(Trait1Box.Value ?? 0);
+            _vm.Trait2 = (uint)(Trait2Box.Value ?? 0);
+            _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
+            _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
+            _vm.StatBonusesPtr = (uint)(StatBonusesPtrBox.Value ?? 0);
+            _vm.EffectivenessPtr = (uint)(EffectivenessPtrBox.Value ?? 0);
+            _vm.Uses = (uint)(UsesBox.Value ?? 0);
             _vm.Might = (uint)(MightBox.Value ?? 0);
             _vm.Hit = (uint)(HitBox.Value ?? 0);
             _vm.Weight = (uint)(WeightBox.Value ?? 0);
             _vm.Crit = (uint)(CritBox.Value ?? 0);
             _vm.Range = (uint)(RangeBox.Value ?? 0);
-            _vm.Uses = (uint)(UsesBox.Value ?? 0);
             _vm.Price = (uint)(PriceBox.Value ?? 0);
+            _vm.WeaponRank = (uint)(WeaponRankBox.Value ?? 0);
+            _vm.Icon = (uint)(IconBox.Value ?? 0);
+            _vm.UsageEffect = (uint)(UsageEffectBox.Value ?? 0);
+            _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
+            _vm.WeaponExp = (uint)(WeaponExpBox.Value ?? 0);
+            _vm.Unk33 = (uint)(Unk33Box.Value ?? 0);
+            _vm.Unk34 = (uint)(Unk34Box.Value ?? 0);
+            _vm.Unk35 = (uint)(Unk35Box.Value ?? 0);
             _vm.WriteItem();
             CoreState.Services.ShowInfo("Item data written.");
         }

@@ -1,7 +1,7 @@
 === Field Completeness Report ===
 Total WinForms fields: 850
-Total Avalonia fields: 289
-Total missing: 640
+Total Avalonia fields: 357
+Total missing: 586
 Forms with gaps: 55 / 80
 
 GAP: UnitEditorView (UnitForm → UnitEditorViewModel)
@@ -11,13 +11,13 @@ GAP: UnitEditorView (UnitForm → UnitEditorViewModel)
 
 GAP: ItemEditorView (ItemForm → ItemEditorViewModel)
   WinForms fields (26): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B32, B33, B34, B35, B6, B7, B8, B9, P12, P16, W0, W2, W26, W4
-  Avalonia fields (4): B0, W0, W2, W4
-  MISSING (23): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B32, B33, B34, B35, B6, B7, B8, B9, P12, P16, W26
+  Avalonia fields (26): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B32, B33, B34, B35, B6, B7, B8, B9, D12, D16, W0, W2, W26, W4
+  MISSING (2): P12, P16
 
 GAP: ClassEditorView (ClassForm → ClassEditorViewModel)
   WinForms fields (57): B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B6, B7, D80, P52, P56, P60, P64, P68, P72, P76, W0, W2, W8, b34, b35, b36, b37, b38, b39
-  Avalonia fields (17): B11, B12, B13, B14, B15, B16, B17, B27, B28, B29, B30, B31, B32, B33, B4, W0, W2
-  MISSING (40): B10, B18, B19, B20, B21, B22, B23, B24, B25, B26, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B6, B7, D80, P52, P56, P60, P64, P68, P72, P76, W8, b34, b35, b36, b37, b38, b39
+  Avalonia fields (63): B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B6, B7, D52, D56, D60, D64, D68, D72, D76, D80, W0, W2, W8, b34, b35, b36, b37, b38, b39
+  MISSING (7): P52, P56, P60, P64, P68, P72, P76
 
 GAP: MoveCostEditorView (MoveCostForm → MoveCostEditorViewModel)
   WinForms fields (65): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B52, B53, B54, B55, B56, B57, B58, B59, B6, B60, B61, B62, B63, B64, B7, B8, B9
