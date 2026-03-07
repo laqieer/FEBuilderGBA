@@ -7,11 +7,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MapTileAnimationViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        uint _animPointer;
+        uint _w0, _w2;
+        uint _animPointer;  // P4
         string _rawBytes = "";
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
+        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
         public uint AnimPointer { get => _animPointer; set => SetField(ref _animPointer, value); }
         public string RawBytes { get => _rawBytes; set => SetField(ref _rawBytes, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -54,7 +57,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            AnimPointer = rom.u32(addr);
+            W0 = rom.u16(addr + 0);
+            W2 = rom.u16(addr + 2);
+            AnimPointer = rom.u32(addr + 4);
 
             // If pointer is valid, read some raw bytes at the target for display
             if (U.isPointer(AnimPointer))

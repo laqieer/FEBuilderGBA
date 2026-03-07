@@ -429,8 +429,8 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadViewModel("WorldMapPointViewModel.cs");
             // World map point entries are 32 bytes each
             Assert.Contains("i * 32", src);
-            Assert.Contains("rom.u16(addr + 0)", src);   // X
-            Assert.Contains("rom.u16(addr + 2)", src);   // Y
+            Assert.Contains("rom.u8(addr + 0)", src);    // B0
+            Assert.Contains("rom.u8(addr + 1)", src);    // B1
             Assert.Contains("rom.u16(addr + 28)", src);  // NameTextId
         }
 

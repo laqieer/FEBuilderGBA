@@ -268,6 +268,16 @@ namespace FEBuilderGBA.Tests.Unit
                 fields.Add($"{prefix}{offset}");
             }
 
+            // Fallback: detect public properties named B#, W#, D#, P# (for VMs that load via loops)
+            var propPattern = new Regex(
+                @"public\s+(?:byte|ushort|uint)\s+([BWDPbh]\d+)\s*\{",
+                RegexOptions.Compiled);
+
+            foreach (Match m in propPattern.Matches(source))
+            {
+                fields.Add(m.Groups[1].Value);
+            }
+
             return fields;
         }
 

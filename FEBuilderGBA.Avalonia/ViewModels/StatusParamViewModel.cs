@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _data0;
         uint _data4;
         uint _colorType;
+        uint _b9, _b10, _b11;
         uint _namePointer;
         string _nameText = "";
 
@@ -19,6 +20,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Data0 { get => _data0; set => SetField(ref _data0, value); }
         public uint Data4 { get => _data4; set => SetField(ref _data4, value); }
         public uint ColorType { get => _colorType; set => SetField(ref _colorType, value); }
+        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
+        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
         public uint NamePointer { get => _namePointer; set => SetField(ref _namePointer, value); }
         public string NameText { get => _nameText; set => SetField(ref _nameText, value); }
 
@@ -71,6 +75,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Data0 = rom.u32(addr + 0);
             Data4 = rom.u32(addr + 4);
             ColorType = rom.u8(addr + 8);
+            B9 = rom.u8(addr + 9);
+            B10 = rom.u8(addr + 10);
+            B11 = rom.u8(addr + 11);
             NamePointer = rom.u32(addr + 12);
 
             // Resolve name

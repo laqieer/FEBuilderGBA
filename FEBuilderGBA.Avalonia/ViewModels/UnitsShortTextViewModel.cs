@@ -5,9 +5,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class UnitsShortTextViewModel : ViewModelBase, IDataVerifiable
     {
-        bool _isLoaded = true;
+        uint _currentAddr;
+        bool _isLoaded;
+        uint _w0;
 
+        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
+
+        public void LoadEntry(uint addr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (addr + 2 > (uint)rom.Data.Length) return;
+
+            CurrentAddr = addr;
+            W0 = rom.u16(addr + 0);
+            IsLoaded = true;
+        }
 
         public int GetListCount() => 0;
 
@@ -15,13 +30,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["info"] = "JumpTo editor - requires target address from another editor",
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["W0"] = $"0x{W0:X04}",
             };
         }
 
         public Dictionary<string, string> GetRawRomReport()
         {
-            return new Dictionary<string, string>();
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+            };
         }
     }
 }

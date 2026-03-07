@@ -8,15 +8,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _usabilityPtr;
-        uint _effectPtr;
-        uint _menuCommandId;
+        uint _p0;
+        uint _w4, _w6;
+        uint _b8, _b9, _b10, _b11;
+        uint _d8;
+        uint _p8;
+        uint _p12, _p16, _p20, _p24, _p28, _p32;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint UsabilityPtr { get => _usabilityPtr; set => SetField(ref _usabilityPtr, value); }
-        public uint EffectPtr { get => _effectPtr; set => SetField(ref _effectPtr, value); }
-        public uint MenuCommandId { get => _menuCommandId; set => SetField(ref _menuCommandId, value); }
+        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
+        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
+        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
+        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
+        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
+        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
+        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
+        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
+        public uint P12 { get => _p12; set => SetField(ref _p12, value); }
+        public uint P16 { get => _p16; set => SetField(ref _p16, value); }
+        public uint P20 { get => _p20; set => SetField(ref _p20, value); }
+        public uint P24 { get => _p24; set => SetField(ref _p24, value); }
+        public uint P28 { get => _p28; set => SetField(ref _p28, value); }
+        public uint P32 { get => _p32; set => SetField(ref _p32, value); }
+        // Legacy aliases
+        public uint UsabilityPtr => P12;
+        public uint EffectPtr => P16;
+        public uint MenuCommandId => W4;
 
         public List<AddrResult> LoadMenuCommandList()
         {
@@ -77,9 +96,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UsabilityPtr = rom.u32(addr + 0xC);
-            EffectPtr = rom.u32(addr + 0x10);
-            MenuCommandId = rom.u16(addr + 0x12);
+            P0 = rom.u32(addr + 0);
+            W4 = rom.u16(addr + 4);
+            W6 = rom.u16(addr + 6);
+            B8 = rom.u8(addr + 8);
+            B9 = rom.u8(addr + 9);
+            B10 = rom.u8(addr + 10);
+            B11 = rom.u8(addr + 11);
+            D8 = rom.u32(addr + 8);
+            P8 = rom.u32(addr + 8);
+            P12 = rom.u32(addr + 12);
+            P16 = rom.u32(addr + 16);
+            P20 = rom.u32(addr + 20);
+            P24 = rom.u32(addr + 24);
+            P28 = rom.u32(addr + 28);
+            P32 = rom.u32(addr + 32);
             IsLoaded = true;
         }
 
@@ -90,9 +121,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["UsabilityPtr"] = $"0x{UsabilityPtr:X08}",
-                ["EffectPtr"] = $"0x{EffectPtr:X08}",
-                ["MenuCommandId"] = $"0x{MenuCommandId:X04}",
+                ["P0"] = $"0x{P0:X08}",
+                ["W4"] = $"0x{W4:X04}",
+                ["W6"] = $"0x{W6:X04}",
+                ["B8"] = $"0x{B8:X02}",
+                ["B9"] = $"0x{B9:X02}",
+                ["B10"] = $"0x{B10:X02}",
+                ["B11"] = $"0x{B11:X02}",
+                ["D8"] = $"0x{D8:X08}",
+                ["P8"] = $"0x{P8:X08}",
+                ["P12"] = $"0x{P12:X08}",
+                ["P16"] = $"0x{P16:X08}",
+                ["P20"] = $"0x{P20:X08}",
+                ["P24"] = $"0x{P24:X08}",
+                ["P28"] = $"0x{P28:X08}",
+                ["P32"] = $"0x{P32:X08}",
             };
         }
 
@@ -104,9 +147,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 0xC):X08}",
-                ["u32@0x10"] = $"0x{rom.u32(a + 0x10):X08}",
-                ["u16@0x12"] = $"0x{rom.u16(a + 0x12):X04}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@0x10"] = $"0x{rom.u32(a + 16):X08}",
+                ["u32@0x14"] = $"0x{rom.u32(a + 20):X08}",
+                ["u32@0x18"] = $"0x{rom.u32(a + 24):X08}",
+                ["u32@0x1C"] = $"0x{rom.u32(a + 28):X08}",
+                ["u32@0x20"] = $"0x{rom.u32(a + 32):X08}",
             };
         }
     }

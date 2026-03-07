@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _name = "";
         uint _portraitIndex;
         uint _imagePointer, _mapPointer, _palettePointer;
+        uint _d12, _d16;
+        uint _b20, _b21, _b22, _b23, _b24, _b25, _b26, _b27;
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -18,6 +20,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint MapPointer { get => _mapPointer; set => SetField(ref _mapPointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
+        public uint D12 { get => _d12; set => SetField(ref _d12, value); }
+        public uint D16 { get => _d16; set => SetField(ref _d16, value); }
+        public uint B20 { get => _b20; set => SetField(ref _b20, value); }
+        public uint B21 { get => _b21; set => SetField(ref _b21, value); }
+        public uint B22 { get => _b22; set => SetField(ref _b22, value); }
+        public uint B23 { get => _b23; set => SetField(ref _b23, value); }
+        public uint B24 { get => _b24; set => SetField(ref _b24, value); }
+        public uint B25 { get => _b25; set => SetField(ref _b25, value); }
+        public uint B26 { get => _b26; set => SetField(ref _b26, value); }
+        public uint B27 { get => _b27; set => SetField(ref _b27, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         public List<AddrResult> LoadPortraitList()
@@ -77,6 +89,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ImagePointer = rom.u32(addr + 0);
             MapPointer = rom.u32(addr + 4);
             PalettePointer = rom.u32(addr + 8);
+            D12 = rom.u32(addr + 12);
+            D16 = rom.u32(addr + 16);
+            B20 = rom.u8(addr + 20);
+            B21 = rom.u8(addr + 21);
+            B22 = rom.u8(addr + 22);
+            B23 = rom.u8(addr + 23);
+            B24 = rom.u8(addr + 24);
+            B25 = rom.u8(addr + 25);
+            B26 = rom.u8(addr + 26);
+            B27 = rom.u8(addr + 27);
             Name = $"Portrait at 0x{addr:X08}";
             IsLoaded = true;
         }
@@ -128,6 +150,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["ImagePointer"] = $"0x{ImagePointer:X08}",
                 ["MapPointer"] = $"0x{MapPointer:X08}",
                 ["PalettePointer"] = $"0x{PalettePointer:X08}",
+                ["D12"] = $"0x{D12:X08}",
+                ["D16"] = $"0x{D16:X08}",
+                ["B20"] = $"0x{B20:X02}",
+                ["B21"] = $"0x{B21:X02}",
+                ["B22"] = $"0x{B22:X02}",
+                ["B23"] = $"0x{B23:X02}",
+                ["B24"] = $"0x{B24:X02}",
+                ["B25"] = $"0x{B25:X02}",
+                ["B26"] = $"0x{B26:X02}",
+                ["B27"] = $"0x{B27:X02}",
             };
         }
 
@@ -143,6 +175,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
                 ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
                 ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@0x10"] = $"0x{rom.u32(a + 16):X08}",
+                ["u8@0x14"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@0x15"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@0x16"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@0x17"] = $"0x{rom.u8(a + 23):X02}",
+                ["u8@0x18"] = $"0x{rom.u8(a + 24):X02}",
+                ["u8@0x19"] = $"0x{rom.u8(a + 25):X02}",
+                ["u8@0x1A"] = $"0x{rom.u8(a + 26):X02}",
+                ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
             };
         }
     }

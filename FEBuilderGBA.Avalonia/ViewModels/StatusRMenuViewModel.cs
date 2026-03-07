@@ -12,7 +12,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _downPtr;
         uint _leftPtr;
         uint _rightPtr;
+        uint _b16, _b17;
         uint _textId;
+        uint _p20, _p24;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -20,7 +22,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint DownPtr { get => _downPtr; set => SetField(ref _downPtr, value); }
         public uint LeftPtr { get => _leftPtr; set => SetField(ref _leftPtr, value); }
         public uint RightPtr { get => _rightPtr; set => SetField(ref _rightPtr, value); }
+        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
+        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
         public uint TextId { get => _textId; set => SetField(ref _textId, value); }
+        public uint P20 { get => _p20; set => SetField(ref _p20, value); }
+        public uint P24 { get => _p24; set => SetField(ref _p24, value); }
 
         public List<AddrResult> LoadStatusRMenuList()
         {
@@ -68,7 +74,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DownPtr = rom.u32(addr + 4);
             LeftPtr = rom.u32(addr + 8);
             RightPtr = rom.u32(addr + 12);
+            B16 = rom.u8(addr + 16);
+            B17 = rom.u8(addr + 17);
             TextId = rom.u16(addr + 18);
+            P20 = rom.u32(addr + 20);
+            P24 = rom.u32(addr + 24);
             IsLoaded = true;
         }
 

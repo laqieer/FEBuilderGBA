@@ -9,12 +9,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
         uint _imagePointer, _tsaPointer, _paletteColorPointer;
+        uint _b8, _b9, _b10, _b11;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
         public uint PaletteColorPointer { get => _paletteColorPointer; set => SetField(ref _paletteColorPointer, value); }
+        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
+        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
+        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
 
         public List<AddrResult> LoadOPPrologueList()
         {
@@ -46,6 +51,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             ImagePointer = rom.u32(addr + 0);
             TSAPointer = rom.u32(addr + 4);
+            B8 = rom.u8(addr + 8);
+            B9 = rom.u8(addr + 9);
+            B10 = rom.u8(addr + 10);
+            B11 = rom.u8(addr + 11);
 
             // Palette comes from a separate pointer in ROM info
             uint palPtrAddr = rom.RomInfo.op_prologue_palette_color_pointer;
