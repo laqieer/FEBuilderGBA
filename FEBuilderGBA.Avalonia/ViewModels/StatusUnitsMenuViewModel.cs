@@ -10,12 +10,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _order;
         uint _textId;
+        uint _d8;
         uint _textId2;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint Order { get => _order; set => SetField(ref _order, value); }
         public uint TextId { get => _textId; set => SetField(ref _textId, value); }
+        // D8: additional dword
+        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
         public uint TextId2 { get => _textId2; set => SetField(ref _textId2, value); }
 
         public List<AddrResult> LoadStatusUnitsMenuList()
@@ -50,9 +53,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Order = rom.u32(addr + 0);
-            TextId = rom.u32(addr + 4);
-            TextId2 = rom.u32(addr + 12);
+            Order = rom.u32(addr + 0);     // D0
+            TextId = rom.u32(addr + 4);    // D4
+            D8 = rom.u32(addr + 8);        // D8
+            TextId2 = rom.u32(addr + 12);  // D12
             IsLoaded = true;
         }
 

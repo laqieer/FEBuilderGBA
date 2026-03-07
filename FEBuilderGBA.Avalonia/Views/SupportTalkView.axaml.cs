@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += Write_Click;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,11 +50,35 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UnitId1Label.Text = $"0x{_vm.UnitId1:X02}";
-            UnitId2Label.Text = $"0x{_vm.UnitId2:X02}";
-            TextIdCLabel.Text = $"0x{_vm.TextIdC:X04}";
-            TextIdBLabel.Text = $"0x{_vm.TextIdB:X04}";
-            TextIdALabel.Text = $"0x{_vm.TextIdA:X04}";
+            UnitId1Nud.Value = _vm.UnitId1;
+            UnitId2Nud.Value = _vm.UnitId2;
+            TextIdCNud.Value = _vm.TextIdC;
+            TextIdBNud.Value = _vm.TextIdB;
+            TextIdANud.Value = _vm.TextIdA;
+            W10Nud.Value = _vm.W10;
+            W12Nud.Value = _vm.W12;
+            W14Nud.Value = _vm.W14;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.UnitId1 = (uint)(UnitId1Nud.Value ?? 0);
+                _vm.UnitId2 = (uint)(UnitId2Nud.Value ?? 0);
+                _vm.TextIdC = (uint)(TextIdCNud.Value ?? 0);
+                _vm.TextIdB = (uint)(TextIdBNud.Value ?? 0);
+                _vm.TextIdA = (uint)(TextIdANud.Value ?? 0);
+                _vm.W10 = (uint)(W10Nud.Value ?? 0);
+                _vm.W12 = (uint)(W12Nud.Value ?? 0);
+                _vm.W14 = (uint)(W14Nud.Value ?? 0);
+
+                _vm.WriteSupportTalk();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SupportTalkView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address)

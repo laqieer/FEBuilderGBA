@@ -217,13 +217,18 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView("MapSettingView.axaml.cs");
             Assert.Contains("_vm.CurrentAddr", src);
-            Assert.Contains("_vm.Name", src);
-            Assert.Contains("_vm.TilesetPLIST", src);
-            Assert.Contains("_vm.MapPLIST", src);
-            Assert.Contains("_vm.PalettePLIST", src);
-            Assert.Contains("_vm.Weather", src);
-            Assert.Contains("_vm.ObjType", src);
-            Assert.Contains("_vm.ChapterNameId", src);
+            Assert.Contains("_vm.DataSize", src);
+            // All 99 fields from WinForms are now mapped via D#/W#/B# naming
+            Assert.Contains("_vm.D0", src);
+            Assert.Contains("_vm.W4", src);
+            Assert.Contains("_vm.B6", src);
+            Assert.Contains("_vm.B8", src);
+            Assert.Contains("_vm.B18", src);      // Weather
+            Assert.Contains("_vm.W112", src);     // MapName1
+            Assert.Contains("_vm.W136", src);     // ClearCondition
+            Assert.Contains("_vm.B128", src);     // ChapterNumber
+            Assert.Contains("_vm.B147", src);     // Last byte field
+            Assert.Contains("_vm.WriteMapSetting", src);
         }
 
         // ---------------------------------------------------------------

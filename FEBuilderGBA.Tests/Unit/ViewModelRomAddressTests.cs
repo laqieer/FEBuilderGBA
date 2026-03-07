@@ -260,21 +260,26 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapSettingViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("MapSettingViewModel.cs");
-            Assert.Contains("rom.u8(addr + 4)", src);     // TilesetPLIST
-            Assert.Contains("rom.u8(addr + 5)", src);     // MapPLIST
-            Assert.Contains("rom.u8(addr + 10)", src);    // PalettePLIST
-            Assert.Contains("rom.u8(addr + 12)", src);    // Weather
-            Assert.Contains("rom.u8(addr + 13)", src);    // ObjType
+            // W4: Object type PLIST is u16 at offset 4
+            Assert.Contains("rom.u16(addr + 4)", src);     // W4 ObjPLIST
+            Assert.Contains("rom.u8(addr + 6)", src);      // B6 PalettePLIST
+            Assert.Contains("rom.u8(addr + 8)", src);      // B8 MapPointerPLIST
+            Assert.Contains("rom.u8(addr + 10)", src);     // B10 TileAnime2
+            Assert.Contains("rom.u8(addr + 12)", src);     // B12 FogLevel
+            Assert.Contains("rom.u8(addr + 13)", src);     // B13 BattlePrep
+            Assert.Contains("rom.u16(addr + 112)", src);   // W112 MapName1
+            Assert.Contains("rom.u16(addr + 136)", src);   // W136 ClearCondition
+            Assert.Contains("rom.u32(addr + 96)", src);    // D96
         }
 
         [Fact]
         public void MapSettingViewModel_HandlesVersionDifferences()
         {
             var src = ReadViewModel("MapSettingViewModel.cs");
-            // FE6 has simpler struct, FE7/FE8 has chapter name at 0x70
-            Assert.Contains("rom.RomInfo.version == 6", src);
-            Assert.Contains("rom.u16(addr + 0)", src);    // FE6 ChapterNameId
-            Assert.Contains("rom.u16(addr + 0x70)", src); // FE7/FE8 ChapterNameId
+            // Uses map_setting_name_text_pos for version-specific name resolution
+            Assert.Contains("rom.RomInfo.map_setting_name_text_pos", src);
+            Assert.Contains("rom.u32(addr + 0)", src);     // D0
+            Assert.Contains("rom.u16(addr + 138)", src);   // W138 DetailClearCondition
         }
 
         [Fact]
@@ -456,10 +461,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void SoundRoomViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("SoundRoomViewerViewModel.cs");
-            Assert.Contains("rom.u16(addr + 0)", src);   // SongId
+            Assert.Contains("rom.u32(addr + 0)", src);   // SongId (D0)
             Assert.Contains("rom.u32(addr + 4)", src);   // Raw4
             Assert.Contains("rom.u32(addr + 8)", src);   // Raw8
-            Assert.Contains("rom.u16(addr + 12)", src);  // TextId
+            Assert.Contains("rom.u32(addr + 12)", src);  // TextId (D12)
         }
 
         // ---------------------------------------------------------------
@@ -481,15 +486,17 @@ namespace FEBuilderGBA.Tests.Unit
             // Move cost pointer offset varies by version
             Assert.Contains("rom.RomInfo.version == 6", src);
             Assert.Contains("moveCostPtrOffset = 52", src);  // FE6
-            Assert.Contains("moveCostPtrOffset = 48", src);  // FE7/FE8
+            Assert.Contains("moveCostPtrOffset = 56", src);  // FE7/FE8
         }
 
         [Fact]
         public void MoveCostViewModel_ReadsTerrainCosts()
         {
             var src = ReadViewModel("MoveCostEditorViewModel.cs");
-            // Reads individual terrain move cost bytes
-            Assert.Contains("rom.u8((uint)(moveCostAddr + i))", src);
+            // Reads all 65 individual terrain move cost bytes (B0-B64)
+            Assert.Contains("rom.u8(moveCostAddr + 0)", src);
+            Assert.Contains("rom.u8(moveCostAddr + 32)", src);
+            Assert.Contains("rom.u8(moveCostAddr + 64)", src);
         }
 
         // ---------------------------------------------------------------
@@ -503,6 +510,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("MapSettingViewModel.cs")]
         [InlineData("PortraitViewerViewModel.cs")]
         [InlineData("MoveCostEditorViewModel.cs")]
+        [InlineData("UnitFE6ViewModel.cs")]
         public void ViewModel_PerformsBoundsChecking(string fileName)
         {
             var src = ReadViewModel(fileName);
@@ -519,6 +527,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ArenaClassViewerViewModel.cs")]
         [InlineData("WorldMapPointViewModel.cs")]
         [InlineData("SoundRoomViewerViewModel.cs")]
+        [InlineData("UnitFE6ViewModel.cs")]
         public void ViewModel_ChecksRomInfoNull(string fileName)
         {
             var src = ReadViewModel(fileName);
@@ -534,10 +543,99 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ArenaClassViewerViewModel.cs")]
         [InlineData("WorldMapPointViewModel.cs")]
         [InlineData("SoundRoomViewerViewModel.cs")]
+        [InlineData("UnitFE6ViewModel.cs")]
         public void ViewModel_ValidatesBaseAddress(string fileName)
         {
             var src = ReadViewModel(fileName);
             Assert.Contains("U.isSafetyOffset(baseAddr)", src);
+        }
+
+        // ---------------------------------------------------------------
+        // UnitFE6ViewModel
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void UnitFE6ViewModel_ReadsFromUnitPointer()
+        {
+            var src = ReadViewModel("UnitFE6ViewModel.cs");
+            Assert.Contains("rom.RomInfo.unit_pointer", src);
+            Assert.Contains("rom.RomInfo.unit_datasize", src);
+            Assert.Contains("rom.RomInfo.unit_maxcount", src);
+        }
+
+        [Fact]
+        public void UnitFE6ViewModel_ReadsCorrectFieldOffsets()
+        {
+            var src = ReadViewModel("UnitFE6ViewModel.cs");
+            // W0: NameId
+            Assert.Contains("rom.u16(addr + 0)", src);
+            // W2: DescId
+            Assert.Contains("rom.u16(addr + 2)", src);
+            // B4: UnitId
+            Assert.Contains("rom.u8(addr + 4)", src);
+            // B5: ClassId
+            Assert.Contains("rom.u8(addr + 5)", src);
+            // W6: PortraitId
+            Assert.Contains("rom.u16(addr + 6)", src);
+            // B8: MapFace
+            Assert.Contains("rom.u8(addr + 8)", src);
+            // B9: Affinity
+            Assert.Contains("rom.u8(addr + 9)", src);
+            // B10: SortOrder
+            Assert.Contains("rom.u8(addr + 10)", src);
+            // B11: Level
+            Assert.Contains("rom.u8(addr + 11)", src);
+            // b12-b19: Base stats (signed bytes)
+            Assert.Contains("(sbyte)rom.u8(addr + 12)", src);
+            Assert.Contains("(sbyte)rom.u8(addr + 19)", src);
+            // B20-B27: Weapon levels
+            Assert.Contains("rom.u8(addr + 20)", src);
+            Assert.Contains("rom.u8(addr + 27)", src);
+            // B28-B34: Growth rates
+            Assert.Contains("rom.u8(addr + 28)", src);
+            Assert.Contains("rom.u8(addr + 34)", src);
+            // B35-B39: Unknown
+            Assert.Contains("rom.u8(addr + 35)", src);
+            Assert.Contains("rom.u8(addr + 39)", src);
+            // B40-B43: Ability flags
+            Assert.Contains("rom.u8(addr + 40)", src);
+            Assert.Contains("rom.u8(addr + 43)", src);
+            // P44: Support pointer
+            Assert.Contains("rom.u32(addr + 44)", src);
+        }
+
+        [Fact]
+        public void UnitFE6ViewModel_WritesMatchReads()
+        {
+            var src = ReadViewModel("UnitFE6ViewModel.cs");
+            Assert.Contains("rom.write_u16(addr + 0, NameId)", src);
+            Assert.Contains("rom.write_u16(addr + 2, DescId)", src);
+            Assert.Contains("rom.write_u8(addr + 4, UnitId)", src);
+            Assert.Contains("rom.write_u8(addr + 5, ClassId)", src);
+            Assert.Contains("rom.write_u16(addr + 6, PortraitId)", src);
+            Assert.Contains("rom.write_u8(addr + 8, MapFace)", src);
+            Assert.Contains("rom.write_u8(addr + 9, Affinity)", src);
+            Assert.Contains("rom.write_u8(addr + 10, SortOrder)", src);
+            Assert.Contains("rom.write_u8(addr + 11, Level)", src);
+            Assert.Contains("rom.write_u8(addr + 12, (uint)(byte)HP)", src);
+            Assert.Contains("rom.write_u8(addr + 19, (uint)(byte)Con)", src);
+            Assert.Contains("rom.write_u8(addr + 20, WepSword)", src);
+            Assert.Contains("rom.write_u8(addr + 27, WepDark)", src);
+            Assert.Contains("rom.write_u8(addr + 28, GrowHP)", src);
+            Assert.Contains("rom.write_u8(addr + 34, GrowLck)", src);
+            Assert.Contains("rom.write_u8(addr + 35, Unk35)", src);
+            Assert.Contains("rom.write_u8(addr + 39, Unk39)", src);
+            Assert.Contains("rom.write_u8(addr + 40, Ability1)", src);
+            Assert.Contains("rom.write_u8(addr + 43, Ability4)", src);
+            Assert.Contains("rom.write_u32(addr + 44, SupportPtr)", src);
+        }
+
+        [Fact]
+        public void UnitFE6ViewModel_SkipsFirstEntry()
+        {
+            var src = ReadViewModel("UnitFE6ViewModel.cs");
+            // FE6 skips entry 0 (null/pointer entry)
+            Assert.Contains("baseAddr += dataSize", src);
         }
     }
 }

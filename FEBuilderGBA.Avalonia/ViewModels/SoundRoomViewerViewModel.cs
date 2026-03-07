@@ -58,12 +58,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + dataSize > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SongId = rom.u16(addr + 0);
-            Raw4 = rom.u32(addr + 4);
-            Raw8 = rom.u32(addr + 8);
+            SongId = rom.u32(addr + 0);      // D0
+            Raw4 = rom.u32(addr + 4);        // D4
+            Raw8 = rom.u32(addr + 8);        // P8
             if (dataSize >= 16)
             {
-                TextId = rom.u16(addr + 12);
+                TextId = rom.u32(addr + 12); // D12
             }
             else
             {

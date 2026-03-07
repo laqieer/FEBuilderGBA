@@ -7,11 +7,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SupportTalkViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        uint _unitId1;
-        uint _unitId2;
-        uint _textIdC;
-        uint _textIdB;
-        uint _textIdA;
+        uint _unitId1;   // B0
+        uint _unitId2;   // B2
+        uint _textIdC;   // W4
+        uint _textIdB;   // W6
+        uint _textIdA;   // W8
+        uint _w10;       // W10 - song C
+        uint _w12;       // W12 - song B
+        uint _w14;       // W14 - song A
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -20,6 +23,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint TextIdC { get => _textIdC; set => SetField(ref _textIdC, value); }
         public uint TextIdB { get => _textIdB; set => SetField(ref _textIdB, value); }
         public uint TextIdA { get => _textIdA; set => SetField(ref _textIdA, value); }
+        public uint W10 { get => _w10; set => SetField(ref _w10, value); }
+        public uint W12 { get => _w12; set => SetField(ref _w12, value); }
+        public uint W14 { get => _w14; set => SetField(ref _w14, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         public List<AddrResult> LoadSupportTalkList()
@@ -66,8 +72,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TextIdC = rom.u16(addr + 4);
             TextIdB = rom.u16(addr + 6);
             TextIdA = rom.u16(addr + 8);
+            W10 = rom.u16(addr + 10);
+            W12 = rom.u16(addr + 12);
+            W14 = rom.u16(addr + 14);
 
             IsLoaded = true;
+        }
+
+        public void WriteSupportTalk()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 16 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(a + 0,  UnitId1);
+            rom.write_u8(a + 2,  UnitId2);
+            rom.write_u16(a + 4, (uint)TextIdC);
+            rom.write_u16(a + 6, (uint)TextIdB);
+            rom.write_u16(a + 8, (uint)TextIdA);
+            rom.write_u16(a + 10, (uint)W10);
+            rom.write_u16(a + 12, (uint)W12);
+            rom.write_u16(a + 14, (uint)W14);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;
@@ -82,6 +108,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["TextIdC"] = $"0x{TextIdC:X04}",
                 ["TextIdB"] = $"0x{TextIdB:X04}",
                 ["TextIdA"] = $"0x{TextIdA:X04}",
+                ["W10"] = $"0x{W10:X04}",
+                ["W12"] = $"0x{W12:X04}",
+                ["W14"] = $"0x{W14:X04}",
             };
         }
 
@@ -98,6 +127,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
                 ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
                 ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
+                ["u16@0x0A"] = $"0x{rom.u16(a + 10):X04}",
+                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
+                ["u16@0x0E"] = $"0x{rom.u16(a + 14):X04}",
             };
         }
     }

@@ -2,33 +2,44 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SupportTalkView"
-        Title="Support Talk (Read-Only)" Width="1279" Height="720">
+        Title="Support Talk" Width="1279" Height="720">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Support Talk (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Support Talk" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID 1:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="UnitId1Label" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="B0 Unit ID 1:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitId1Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit ID 2:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="UnitId2Label" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="B2 Unit ID 2:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UnitId2Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Text ID (C):" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="TextIdCLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="W4 Text C:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="TextIdCNud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Text ID (B):" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="TextIdBLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="W6 Text B:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="TextIdBNud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Text ID (A):" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="TextIdALabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="W8 Text A:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextIdANud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="W10 Song C:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="W10Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="W12 Song B:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="W12Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="W14 Song A:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="W14Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

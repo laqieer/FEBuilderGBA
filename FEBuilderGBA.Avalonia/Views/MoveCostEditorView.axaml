@@ -2,22 +2,27 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MoveCostEditorView"
-        Title="Move Cost Editor (Read-Only)" Width="1601" Height="800">
+        Title="Move Cost Editor" Width="1601" Height="800">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="ClassList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Move Cost Editor (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Move Cost Editor" FontSize="18" FontWeight="Bold" />
 
-        <TextBlock Name="ClassNameLabel" FontSize="14" />
-        <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
+        <StackPanel Orientation="Horizontal" Spacing="16">
+          <TextBlock Name="ClassNameLabel" FontSize="14" VerticalAlignment="Center" />
+          <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" VerticalAlignment="Center" />
+          <TextBlock Name="MoveCostAddrLabel" FontSize="12" Foreground="Gray" VerticalAlignment="Center" />
+        </StackPanel>
 
-        <TextBlock Text="Terrain Move Costs (index: cost):" FontWeight="SemiBold" Margin="0,8,0,4" />
-        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" MaxHeight="400">
-          <ScrollViewer>
-            <TextBlock Name="MoveCostBlock" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
-          </ScrollViewer>
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,4,0,4" />
+
+        <TextBlock Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
+
+        <!-- 5 columns of terrain costs, 13 rows each -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <Grid Name="TerrainGrid" ColumnDefinitions="*,*,*,*,*" />
         </Border>
       </StackPanel>
     </ScrollViewer>

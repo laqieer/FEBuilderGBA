@@ -49,17 +49,58 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            NameIdLabel.Text = $"0x{_vm.NameId:X04}";
-            DescIdLabel.Text = $"0x{_vm.DescId:X04}";
-            DescId2Label.Text = $"0x{_vm.DescId2:X04}";
-            ItemTypeLabel.Text = $"0x{_vm.ItemType:X02} ({_vm.ItemType})";
-            ItemNumberLabel.Text = $"0x{_vm.ItemNumber:X02} ({_vm.ItemNumber})";
-            StatBonusPtrLabel.Text = $"0x{_vm.StatBonusPtr:X08}";
-            EffectivenessPtrLabel.Text = $"0x{_vm.EffectivenessPtr:X08}";
-            PricePerUseLabel.Text = $"{_vm.PricePerUse}";
-            UsesLabel.Text = $"{_vm.Uses}";
-            WeaponEffectLabel.Text = $"0x{_vm.WeaponEffect:X02} ({_vm.WeaponEffect})";
-            DecodedNameLabel.Text = _vm.Name;
+            NameLabel.Text = _vm.Name;
+
+            NameIdBox.Value = _vm.NameId;
+            DescIdBox.Value = _vm.DescId;
+            UseDescIdBox.Value = _vm.UseDescId;
+            ItemNumberBox.Value = _vm.ItemNumber;
+            WeaponTypeBox.Value = _vm.WeaponType;
+            Trait1Box.Value = _vm.Trait1;
+            Trait2Box.Value = _vm.Trait2;
+            Trait3Box.Value = _vm.Trait3;
+            Trait4Box.Value = _vm.Trait4;
+            StatBonusesPtrBox.Value = _vm.StatBonusesPtr;
+            EffectivenessPtrBox.Value = _vm.EffectivenessPtr;
+            UsesBox.Value = _vm.Uses;
+            MightBox.Value = _vm.Might;
+            HitBox.Value = _vm.Hit;
+            WeightBox.Value = _vm.Weight;
+            CritBox.Value = _vm.Crit;
+            RangeBox.Value = _vm.Range;
+            PriceBox.Value = _vm.Price;
+            WeaponRankBox.Value = _vm.WeaponRank;
+            IconBox.Value = _vm.Icon;
+            UsageEffectBox.Value = _vm.UsageEffect;
+            DamageEffectBox.Value = _vm.DamageEffect;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.NameId = (uint)(NameIdBox.Value ?? 0);
+            _vm.DescId = (uint)(DescIdBox.Value ?? 0);
+            _vm.UseDescId = (uint)(UseDescIdBox.Value ?? 0);
+            _vm.ItemNumber = (uint)(ItemNumberBox.Value ?? 0);
+            _vm.WeaponType = (uint)(WeaponTypeBox.Value ?? 0);
+            _vm.Trait1 = (uint)(Trait1Box.Value ?? 0);
+            _vm.Trait2 = (uint)(Trait2Box.Value ?? 0);
+            _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
+            _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
+            _vm.StatBonusesPtr = (uint)(StatBonusesPtrBox.Value ?? 0);
+            _vm.EffectivenessPtr = (uint)(EffectivenessPtrBox.Value ?? 0);
+            _vm.Uses = (uint)(UsesBox.Value ?? 0);
+            _vm.Might = (uint)(MightBox.Value ?? 0);
+            _vm.Hit = (uint)(HitBox.Value ?? 0);
+            _vm.Weight = (uint)(WeightBox.Value ?? 0);
+            _vm.Crit = (uint)(CritBox.Value ?? 0);
+            _vm.Range = (uint)(RangeBox.Value ?? 0);
+            _vm.Price = (uint)(PriceBox.Value ?? 0);
+            _vm.WeaponRank = (uint)(WeaponRankBox.Value ?? 0);
+            _vm.Icon = (uint)(IconBox.Value ?? 0);
+            _vm.UsageEffect = (uint)(UsageEffectBox.Value ?? 0);
+            _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
+            _vm.WriteItem();
+            CoreState.Services.ShowInfo("Item data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

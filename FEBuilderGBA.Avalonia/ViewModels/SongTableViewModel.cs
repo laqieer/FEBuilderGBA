@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _headerPointer;
         uint _trackCount;
         uint _priority, _reverb;
+        uint _d4;
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -19,6 +20,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint TrackCount { get => _trackCount; set => SetField(ref _trackCount, value); }
         public uint Priority { get => _priority; set => SetField(ref _priority, value); }
         public uint Reverb { get => _reverb; set => SetField(ref _reverb, value); }
+        // D4: second dword in song table entry
+        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         public List<AddrResult> LoadSongList()
@@ -56,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            uint headerPtr = rom.u32(addr);
+            uint headerPtr = rom.u32(addr);  // P0
+            D4 = rom.u32(addr + 4);          // D4
             HeaderPointer = headerPtr;
 
             if (U.isPointer(headerPtr))

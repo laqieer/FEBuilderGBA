@@ -14,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _avoidBonus;
         uint _critBonus;
         uint _critAvoidBonus;
+        uint _unknown7;
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -24,6 +25,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint AvoidBonus { get => _avoidBonus; set => SetField(ref _avoidBonus, value); }
         public uint CritBonus { get => _critBonus; set => SetField(ref _critBonus, value); }
         public uint CritAvoidBonus { get => _critAvoidBonus; set => SetField(ref _critAvoidBonus, value); }
+        // B7: Unknown / padding
+        public uint Unknown7 { get => _unknown7; set => SetField(ref _unknown7, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         public List<AddrResult> LoadSupportAttributeList()
@@ -69,6 +72,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AvoidBonus = rom.u8(addr + 4);
             CritBonus = rom.u8(addr + 5);
             CritAvoidBonus = rom.u8(addr + 6);
+            Unknown7 = rom.u8(addr + 7);         // B7
 
             IsLoaded = true;
         }

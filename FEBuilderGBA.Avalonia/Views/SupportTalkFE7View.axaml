@@ -2,34 +2,45 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SupportTalkFE7View"
-        Title="Support Talk (FE7) (Read-Only)" Width="1279" Height="708">
+        Title="Support Talk (FE7)" Width="1279" Height="720">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Support Talk (FE7) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Text="Support Talk (FE7)" FontSize="18" FontWeight="Bold" />
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit 1 ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="Unit1IdLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="B0 Unit 1 ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Unit1IdNud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit 2 ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="Unit2IdLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="B1 Unit 2 ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unit2IdNud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Text C:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="TextCLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="D4 Text C:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="TextCNud" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,2" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Text B:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="TextBLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="D8 Text B:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="TextBNud" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,2" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Text A:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="TextALabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="D12 Text A:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextANud" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Extra:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="6" Grid.Column="1" Name="ExtraLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="B16:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B16Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="B17:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B17Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="B18:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="B18Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="B19:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B19Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

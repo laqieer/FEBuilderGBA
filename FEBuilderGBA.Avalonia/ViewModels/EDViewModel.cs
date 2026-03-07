@@ -10,11 +10,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _unitId;
         uint _flag;
+        uint _b2, _b3;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint Flag { get => _flag; set => SetField(ref _flag, value); }
+        // B2, B3: Additional bytes
+        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
+        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
 
         public List<AddrResult> LoadEDList()
         {
@@ -50,8 +54,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u8(addr);
-            Flag = rom.u8(addr + 1);
+            UnitId = rom.u8(addr);        // B0
+            Flag = rom.u8(addr + 1);      // B1
+            B2 = rom.u8(addr + 2);        // B2
+            B3 = rom.u8(addr + 3);        // B3
             IsLoaded = true;
         }
 

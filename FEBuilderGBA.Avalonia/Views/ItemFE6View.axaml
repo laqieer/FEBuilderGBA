@@ -2,49 +2,93 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemFE6View"
-        Title="Items (FE6) (Read-Only)" Width="1408" Height="856">
+        Title="Item Editor (FE6)" Width="1408" Height="856">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Items (FE6) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Text="Item Editor (FE6)" FontSize="18" FontWeight="Bold" />
+
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="NameIdLabel" VerticalAlignment="Center" />
+          <!-- Row 1: W0 Name ID, W2 Desc ID -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Description ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="DescIdLabel" VerticalAlignment="Center" />
+          <!-- Row 2: W4 Use Desc ID, B6 Item Number -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Use Desc (W4):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Item # (B6):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="ItemNumberBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Description ID 2:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="DescId2Label" VerticalAlignment="Center" />
+          <!-- Row 3: B7 Weapon Type, B8 Trait1 -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Type (B7):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Trait 1 (B8):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="Trait1Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Item Type:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="ItemTypeLabel" VerticalAlignment="Center" />
+          <!-- Row 4: B9 Trait2, B10 Trait3 -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Trait 2 (B9):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Trait2Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Text="Trait 3 (B10):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="4" Name="Trait3Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Item Number:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="ItemNumberLabel" VerticalAlignment="Center" />
+          <!-- Row 5: B11 Trait4, P12 Stat Bonuses -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Trait 4 (B11):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Trait4Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Text="Stat Bonus (P12):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="4" Name="StatBonusesPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Stat Bonus Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="6" Grid.Column="1" Name="StatBonusPtrLabel" VerticalAlignment="Center" />
+          <!-- Row 6: P16 Effectiveness -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Effective (P16):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="EffectivenessPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Effectiveness Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="7" Grid.Column="1" Name="EffectivenessPtrLabel" VerticalAlignment="Center" />
+          <!-- Row 7: B20 Uses, B21 Might -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="7" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Price Per Use:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="8" Grid.Column="1" Name="PricePerUseLabel" VerticalAlignment="Center" />
+          <!-- Row 8: B22 Hit, B23 Weight -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="8" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Uses:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="9" Grid.Column="1" Name="UsesLabel" VerticalAlignment="Center" />
+          <!-- Row 9: B24 Crit, B25 Range -->
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="9" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Weapon Effect:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="10" Grid.Column="1" Name="WeaponEffectLabel" VerticalAlignment="Center" />
+          <!-- Row 10: W26 Price, B28 Weapon Rank -->
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="10" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Decoded Name:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="11" Grid.Column="1" Name="DecodedNameLabel" VerticalAlignment="Center" />
+          <!-- Row 11: B29 Icon, B30 Usage Effect -->
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="11" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
+
+          <!-- Row 12: B31 Damage Effect -->
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

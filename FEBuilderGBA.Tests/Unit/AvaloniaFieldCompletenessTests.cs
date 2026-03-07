@@ -295,11 +295,11 @@ namespace FEBuilderGBA.Tests.Unit
                 if (winFormsFields.Count == 0)
                     continue; // No ROM fields in WinForms form (dialog, tool, etc.)
 
-                // Fields in WinForms but not in Avalonia (considering both B# and b# variants)
+                // Fields in WinForms but not in Avalonia (considering B/b and P/D equivalence)
                 var missing = new SortedSet<string>(StringComparer.Ordinal);
                 foreach (var field in winFormsFields)
                 {
-                    // Check both exact match and case-insensitive match
+                    // Check exact match
                     bool found = avaloniaFields.Contains(field);
                     if (!found)
                     {
@@ -308,6 +308,14 @@ namespace FEBuilderGBA.Tests.Unit
                             ? char.ToLower(field[0]) + field.Substring(1)
                             : char.ToUpper(field[0]) + field.Substring(1);
                         found = avaloniaFields.Contains(alt);
+                    }
+                    if (!found)
+                    {
+                        // P and D are equivalent (both u32 reads; P = pointer display, D = raw u32)
+                        if (field[0] == 'P')
+                            found = avaloniaFields.Contains("D" + field.Substring(1));
+                        else if (field[0] == 'D')
+                            found = avaloniaFields.Contains("P" + field.Substring(1));
                     }
                     if (!found)
                         missing.Add(field);
@@ -456,6 +464,14 @@ namespace FEBuilderGBA.Tests.Unit
                     ? char.ToLower(field[0]) + field.Substring(1)
                     : char.ToUpper(field[0]) + field.Substring(1);
                 if (avaloniaFields.Contains(alt))
+                {
+                    matched++;
+                    continue;
+                }
+                // P and D are equivalent (both u32 reads)
+                if (field[0] == 'P' && avaloniaFields.Contains("D" + field.Substring(1)))
+                    matched++;
+                else if (field[0] == 'D' && avaloniaFields.Contains("P" + field.Substring(1)))
                     matched++;
             }
 
