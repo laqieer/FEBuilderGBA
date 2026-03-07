@@ -33,8 +33,7 @@ namespace FEBuilderGBA
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            // Use BeginInvoke so the message loop is pumping before we start
-            BeginInvoke(new Action(RunCapture));
+            RunCapture();
         }
 
         private void RunCapture()
@@ -48,7 +47,7 @@ namespace FEBuilderGBA
             string romVersion = Program.ROM?.RomInfo?.VersionToFilename ?? "Unknown";
 
             var factories = ScreenshotFormRegistry.GetAllFormFactories();
-            Console.WriteLine($"SCREENSHOT: Capturing {factories.Count} forms...");
+            U.echo($"SCREENSHOT: Capturing {factories.Count} forms...");
 
             foreach (var (name, factory) in factories)
             {
@@ -56,10 +55,11 @@ namespace FEBuilderGBA
                 try
                 {
                     form = factory();
-                    form.Show();
-                    // Force layout so DrawToBitmap renders content
-                    form.Refresh();
-                    Application.DoEvents();
+
+                    // CreateControl forces handle creation and layout without
+                    // making the form visible — avoids triggering side effects
+                    // from Show() that go through the message loop.
+                    form.CreateControl();
 
                     int w = Math.Max(form.Width, 100);
                     int h = Math.Max(form.Height, 100);
@@ -71,13 +71,13 @@ namespace FEBuilderGBA
                     bmp.Save(filePath, ImageFormat.Png);
 
                     captured++;
-                    Console.WriteLine($"SCREENSHOT: {name} ... OK ({filePath})");
+                    U.echo($"SCREENSHOT: {name} ... OK");
                 }
                 catch (Exception ex)
                 {
                     failed++;
                     failures.Add(name);
-                    Console.WriteLine($"SCREENSHOT: {name} ... FAIL: {ex.Message}");
+                    U.echo($"SCREENSHOT: {name} ... FAIL: {ex.Message}");
                 }
                 finally
                 {
@@ -85,9 +85,9 @@ namespace FEBuilderGBA
                 }
             }
 
-            Console.WriteLine($"SCREENSHOT: Results: {captured} captured, {failed} failed out of {factories.Count}");
+            U.echo($"SCREENSHOT: Results: {captured} captured, {failed} failed out of {factories.Count}");
             if (failures.Count > 0)
-                Console.WriteLine($"SCREENSHOT: Failures: {string.Join(", ", failures)}");
+                U.echo($"SCREENSHOT: Failures: {string.Join(", ", failures)}");
 
             Environment.ExitCode = failed > 0 ? 1 : 0;
             Close();

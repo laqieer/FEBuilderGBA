@@ -84,6 +84,21 @@ namespace FEBuilderGBA
             }
 
             string forceversion = U.at(ArgsDic, "--force-version");//強制バージョン指定 --force-version=FE8J
+
+            // --screenshot-all: load ROM directly to avoid side effects from
+            // MainFormUtil.Open (update checks, form creation that may block).
+            if (ArgsDic.ContainsKey("--screenshot-all") && ArgsDic.ContainsKey("--rom"))
+            {
+                string romPath = ArgsDic["--rom"];
+                if (!string.IsNullOrEmpty(romPath))
+                    Program.LoadROM(romPath, forceversion);
+                if (Program.ROM != null)
+                {
+                    ProcCommandLine();
+                }
+                return;
+            }
+
             if (ArgsDic.ContainsKey("--lastrom"))
             {
                 MainFormUtil.Open(null, Program.GetLastROMFilename(), false, forceversion);
@@ -98,17 +113,6 @@ namespace FEBuilderGBA
             if (IsCommandLine && Program.ROM != null)
             {
                 ProcCommandLine();
-                return;
-            }
-
-            // --screenshot-all: capture all WinForms editors via DrawToBitmap.
-            // Needs GUI (message loop) so not handled as a pure CLI command.
-            if (ArgsDic.ContainsKey("--screenshot-all") && Program.ROM != null)
-            {
-                string screenshotDir = U.at(ArgsDic, "--screenshot-dir");
-                if (string.IsNullOrEmpty(screenshotDir))
-                    screenshotDir = Path.Combine(BaseDirectory, "screenshots");
-                Application.Run(new ScreenshotAllRunner(screenshotDir));
                 return;
             }
 
@@ -178,6 +182,7 @@ namespace FEBuilderGBA
                 || args.ContainsKey("--songexchange")
                 || args.ContainsKey("--decreasecolor")
                 || args.ContainsKey("--convertmap1picture")
+                || args.ContainsKey("--screenshot-all")
                 || args.ContainsKey("--version");
         }
 
@@ -241,6 +246,15 @@ namespace FEBuilderGBA
             {//マップ1枚絵の変換: https://github.com/laqieer/FEHRR/commit/03297e5b6ce442608cc6e942c392322acb3d0208
                 Program.IsCommandLine = true;
                 Environment.Exit(MapStyleEditorForm.CommandLineConvertMapOnePicture());
+                return true;
+            }
+            if (ArgsDic.ContainsKey("--screenshot-all"))
+            {// Capture all WinForms editors via DrawToBitmap.
+                string screenshotDir = U.at(ArgsDic, "--screenshot-dir");
+                if (string.IsNullOrEmpty(screenshotDir))
+                    screenshotDir = Path.Combine(BaseDirectory, "screenshots");
+                Application.Run(new ScreenshotAllRunner(screenshotDir));
+                Environment.Exit(0);
                 return true;
             }
 
@@ -359,6 +373,12 @@ namespace FEBuilderGBA
         // ユーザー・フレンドリなダイアログを表示するメソッド
         public static void ShowErrorMessage(Exception ex)
         {
+            if (Program.IsCommandLine)
+            {
+                U.echo($"ERROR: {ex}");
+                return;
+            }
+
             string inputformref_debuginfo = InputFormRef.GetDebugInfo();
 
             if (ex is FETextDecode.FETextException)
@@ -551,7 +571,7 @@ namespace FEBuilderGBA
             //パッチのインストールの是非の判定 FE8には策パッチがあるのでキャッシュする.
             PatchForm.ClearCheckIF();
 
-            if (fullfilename != "")
+            if (fullfilename != "" && UpdateWatcher != null)
             {
                 //変更監視
                 UpdateWatcher.RegistMain(fullfilename);
