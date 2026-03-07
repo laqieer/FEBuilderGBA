@@ -101,6 +101,17 @@ namespace FEBuilderGBA
                 return;
             }
 
+            // --screenshot-all: capture all WinForms editors via DrawToBitmap.
+            // Needs GUI (message loop) so not handled as a pure CLI command.
+            if (ArgsDic.ContainsKey("--screenshot-all") && Program.ROM != null)
+            {
+                string screenshotDir = U.at(ArgsDic, "--screenshot-dir");
+                if (string.IsNullOrEmpty(screenshotDir))
+                    screenshotDir = Path.Combine(BaseDirectory, "screenshots");
+                Application.Run(new ScreenshotAllRunner(screenshotDir));
+                return;
+            }
+
             {
                 //自動アップデートがやりたいので、初期化だけはやろうか...
                 WelcomeForm f = (WelcomeForm)InputFormRef.JumpFormLow<WelcomeForm>();

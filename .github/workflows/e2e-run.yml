@@ -190,6 +190,34 @@ jobs:
             try { $p2.Kill() } catch {}
           }
 
+      # ---------------------------------------------------------------- Capture WinForms screenshots
+      - name: Capture WinForms screenshots
+        if: inputs.rom-name != 'none' && env.HAVE_ROMS == 'true'
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $exe = "${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe"
+          $romPath = "${{ github.workspace }}\roms\${{ inputs.rom-name }}.gba"
+          $dir = "${{ github.workspace }}\e2e-screenshots"
+          if (-not (Test-Path $romPath)) {
+            Write-Host "ROM not found at $romPath — skipping WinForms screenshots"
+            exit 0
+          }
+          Write-Host "Capturing WinForms screenshots for ${{ inputs.rom-name }}..."
+          $out = "$env:TEMP\winforms-screenshot-stdout.txt"
+          $err = "$env:TEMP\winforms-screenshot-stderr.txt"
+          $p = Start-Process $exe `
+            -ArgumentList "--rom `"$romPath`" --screenshot-all --screenshot-dir=`"$dir`"" `
+            -NoNewWindow -Wait -PassThru `
+            -RedirectStandardOutput $out `
+            -RedirectStandardError $err
+          if (Test-Path $out) { Get-Content $out }
+          if (Test-Path $err) { Get-Content $err }
+          Write-Host "WinForms screenshot exit code: $($p.ExitCode)"
+          $pngs = (Get-ChildItem "$dir\WinForms_*.png" -ErrorAction SilentlyContinue).Count
+          Write-Host "WinForms screenshots captured: $pngs"
+
       # ---------------------------------------------------------------- Run E2E tests
       - name: Run E2E tests
         timeout-minutes: ${{ inputs.timeout }}

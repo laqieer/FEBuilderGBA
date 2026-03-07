@@ -91,8 +91,11 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --smoke-test
 # Run Avalonia data verification (loads ROM, opens editors, cross-checks ViewModel data vs raw ROM + NumericUpDown UI display + text encoding)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --data-verify
 
-# Capture screenshots of all 323 editors (saves PNGs to --screenshot-dir)
+# Capture Avalonia screenshots of all editors (saves PNGs to --screenshot-dir)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
+
+# Capture WinForms screenshots of all editors (saves PNGs for side-by-side comparison with Avalonia)
+FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
 # Cross-platform publish (self-contained)
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
@@ -171,8 +174,9 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/WinFormsCliOutputLogRomTests.cs` | Yes (×5/×2) | WinForms CLI ROM output logs: `--lint` ×5, `--rebuild` ×2, `--makeups` ×5, `--disasm` ×2, `--translate` ×2, `--pointercalc` ×2, `--songexchange` ×2 — 20 tests, skipped without ROMs |
 | `Tests/AvaloniaScreenshotTests.cs` | Yes (×2) | Avalonia: captures PNG screenshots of all 323 editors via `--screenshot-all` — 4 tests, skipped without ROMs |
 | `Tests/WinFormsScreenshotAllTests.cs` | Yes (×2) | WinForms: screenshots of main form + all toolbar-openable editor forms — 4 tests, skipped without ROMs |
+| `Tests/WinFormsScreenshotAllCliTests.cs` | Yes (×2) | WinForms: captures screenshots of all editors via `--screenshot-all` CLI flag — 4 tests, skipped without ROMs |
 
-**Without ROMs:** 30 passed, 108 skipped. **With all 5 ROMs:** 138 passed, 0 skipped.
+**Without ROMs:** 30 passed, 112 skipped. **With all 5 ROMs:** 142 passed, 0 skipped.
 
 ### Running E2E Tests Locally
 
