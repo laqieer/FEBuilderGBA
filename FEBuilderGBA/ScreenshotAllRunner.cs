@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace FEBuilderGBA
@@ -61,6 +62,12 @@ namespace FEBuilderGBA
                     // from Show() that go through the message loop.
                     form.CreateControl();
 
+                    // Fire the OnLoad event via reflection so that InputFormRef
+                    // populates controls with ROM data (RomToUI).  CreateControl
+                    // alone only creates the window handle; Load fires during
+                    // SetVisibleCore(true) which we avoid to prevent modal dialogs.
+                    FireOnLoad(form);
+
                     int w = Math.Max(form.Width, 100);
                     int h = Math.Max(form.Height, 100);
                     using var bmp = new Bitmap(w, h);
@@ -91,6 +98,32 @@ namespace FEBuilderGBA
 
             Environment.ExitCode = failed > 0 ? 1 : 0;
             Close();
+        }
+
+        /// <summary>
+        /// Invokes the protected OnLoad method on a Form via reflection.
+        /// This fires all Load event handlers (which typically call
+        /// InputFormRef.RomToUI to populate controls with ROM data)
+        /// without making the form visible or entering the message loop.
+        /// </summary>
+        private static void FireOnLoad(Form form)
+        {
+            try
+            {
+                var onLoad = typeof(Form).GetMethod(
+                    "OnLoad",
+                    BindingFlags.Instance | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(EventArgs) },
+                    null);
+                onLoad?.Invoke(form, new object[] { EventArgs.Empty });
+            }
+            catch (TargetInvocationException ex)
+            {
+                // Log but don't rethrow — some forms may fail during Load
+                // when running headless (missing emulator, etc.)
+                U.echo($"SCREENSHOT: OnLoad warning: {ex.InnerException?.Message ?? ex.Message}");
+            }
         }
     }
 }

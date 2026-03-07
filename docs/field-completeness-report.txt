@@ -1,0 +1,281 @@
+=== Field Completeness Report ===
+Total WinForms fields: 850
+Total Avalonia fields: 289
+Total missing: 640
+Forms with gaps: 55 / 80
+
+GAP: UnitEditorView (UnitForm → UnitEditorViewModel)
+  WinForms fields (46): B10, B11, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B48, B49, B5, B50, B51, B8, B9, P44, W0, W2, W6, b12, b13, b14, b15, b16, b17, b18, b19
+  Avalonia fields (56): B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B48, B49, B5, B50, B51, B8, B9, D4, D44, D8, W0, W2, W6, b12, b13, b14, b15, b16, b17, b18, b19
+  MISSING (1): P44
+
+GAP: ItemEditorView (ItemForm → ItemEditorViewModel)
+  WinForms fields (26): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B32, B33, B34, B35, B6, B7, B8, B9, P12, P16, W0, W2, W26, W4
+  Avalonia fields (4): B0, W0, W2, W4
+  MISSING (23): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B32, B33, B34, B35, B6, B7, B8, B9, P12, P16, W26
+
+GAP: ClassEditorView (ClassForm → ClassEditorViewModel)
+  WinForms fields (57): B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B6, B7, D80, P52, P56, P60, P64, P68, P72, P76, W0, W2, W8, b34, b35, b36, b37, b38, b39
+  Avalonia fields (17): B11, B12, B13, B14, B15, B16, B17, B27, B28, B29, B30, B31, B32, B33, B4, W0, W2
+  MISSING (40): B10, B18, B19, B20, B21, B22, B23, B24, B25, B26, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B6, B7, D80, P52, P56, P60, P64, P68, P72, P76, W8, b34, b35, b36, b37, b38, b39
+
+GAP: MoveCostEditorView (MoveCostForm → MoveCostEditorViewModel)
+  WinForms fields (65): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B52, B53, B54, B55, B56, B57, B58, B59, B6, B60, B61, B62, B63, B64, B7, B8, B9
+  Avalonia fields (2): B4, W0
+  MISSING (64): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B51, B52, B53, B54, B55, B56, B57, B58, B59, B6, B60, B61, B62, B63, B64, B7, B8, B9
+
+GAP: SupportUnitEditorView (SupportUnitForm → SupportUnitEditorViewModel)
+  WinForms fields (24): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B3, B4, B5, B6, B7, B8, B9
+  Avalonia fields (1): W0
+  MISSING (24): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B3, B4, B5, B6, B7, B8, B9
+
+GAP: SupportAttributeView (SupportAttributeForm → SupportAttributeViewModel)
+  WinForms fields (8): B0, B1, B2, B3, B4, B5, B6, B7
+  Avalonia fields (7): B0, B1, B2, B3, B4, B5, B6
+  MISSING (1): B7
+
+GAP: SupportTalkView (SupportTalkForm → SupportTalkViewModel)
+  WinForms fields (8): B0, B2, W10, W12, W14, W4, W6, W8
+  Avalonia fields (6): B0, B2, W0, W4, W6, W8
+  MISSING (3): W10, W12, W14
+
+GAP: UnitFE6View (UnitFE6Form → UnitFE6ViewModel)
+  WinForms fields (42): B10, B11, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B5, B8, B9, P44, W0, W2, W6, b12, b13, b14, b15, b16, b17, b18, b19
+  Avalonia fields (0): 
+  MISSING (42): B10, B11, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B5, B8, B9, P44, W0, W2, W6, b12, b13, b14, b15, b16, b17, b18, b19
+
+GAP: UnitFE7View (UnitFE7Form → UnitFE7ViewModel)
+  WinForms fields (46): B10, B11, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B48, B49, B5, B50, B51, B8, B9, P44, W0, W2, W6, b12, b13, b14, b15, b16, b17, b18, b19
+  Avalonia fields (16): B11, B12, B13, B14, B15, B16, B17, B18, B28, B29, B30, B31, B32, B33, B34, W0
+  MISSING (30): B10, B20, B21, B22, B23, B24, B25, B26, B27, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B48, B49, B5, B50, B51, B8, B9, P44, W2, W6, b19
+
+GAP: UnitsShortTextView (UnitsShortTextForm → UnitsShortTextViewModel)
+  WinForms fields (1): W0
+  Avalonia fields (0): 
+  MISSING (1): W0
+
+GAP: SomeClassListView (SomeClassListForm → SomeClassListViewModel)
+  WinForms fields (1): B0
+  Avalonia fields (0): 
+  MISSING (1): B0
+
+GAP: VennouWeaponLockView (VennouWeaponLockForm → VennouWeaponLockViewModel)
+  WinForms fields (1): B0
+  Avalonia fields (0): 
+  MISSING (1): B0
+
+GAP: ItemFE6View (ItemFE6Form → ItemFE6ViewModel)
+  WinForms fields (22): B10, B11, B20, B21, B22, B23, B24, B25, B28, B29, B30, B31, B6, B7, B8, B9, P12, P16, W0, W2, W26, W4
+  Avalonia fields (10): B20, B31, B6, B7, D12, D16, W0, W2, W26, W4
+  MISSING (14): B10, B11, B21, B22, B23, B24, B25, B28, B29, B30, B8, B9, P12, P16
+
+GAP: MoveCostFE6View (MoveCostFE6Form → MoveCostFE6ViewModel)
+  WinForms fields (51): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B4, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B6, B7, B8, B9
+  Avalonia fields (3): B4, D52, W0
+  MISSING (50): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B32, B33, B34, B35, B36, B37, B38, B39, B40, B41, B42, B43, B44, B45, B46, B47, B48, B49, B5, B50, B6, B7, B8, B9
+
+GAP: SupportUnitFE6View (SupportUnitFE6Form → SupportUnitFE6ViewModel)
+  WinForms fields (32): B0, B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B4, B5, B6, B7, B8, B9
+  Avalonia fields (1): B0
+  MISSING (31): B1, B10, B11, B12, B13, B14, B15, B16, B17, B18, B19, B2, B20, B21, B22, B23, B24, B25, B26, B27, B28, B29, B3, B30, B31, B4, B5, B6, B7, B8, B9
+
+GAP: SupportTalkFE6View (SupportTalkFE6Form → SupportTalkFE6ViewModel)
+  WinForms fields (7): B0, B1, B14, B15, W12, W4, W8
+  Avalonia fields (6): B0, B1, D12, D4, D8, W0
+  MISSING (5): B14, B15, W12, W4, W8
+
+GAP: SupportTalkFE7View (SupportTalkFE7Form → SupportTalkFE7ViewModel)
+  WinForms fields (9): B0, B1, B16, B17, B18, B19, D12, D4, D8
+  Avalonia fields (7): B0, B1, D12, D16, D4, D8, W0
+  MISSING (4): B16, B17, B18, B19
+
+GAP: ItemWeaponEffectViewerView (ItemWeaponEffectForm → ItemWeaponEffectViewerViewModel)
+  WinForms fields (11): B0, B1, B12, B13, B14, B15, B2, B3, P8, W4, W6
+  Avalonia fields (15): B0, B1, B12, B13, B14, B15, B2, B3, D0, D12, D4, D8, W0, W4, W6
+  MISSING (1): P8
+
+GAP: ItemUsagePointerViewerView (ItemUsagePointerForm → ItemUsagePointerViewerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: ItemEffectPointerViewerView (ItemEffectPointerForm → ItemEffectPointerViewerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: MapSettingView (MapSettingForm → MapSettingViewModel)
+  WinForms fields (99): B10, B11, B116, B117, B118, B119, B12, B120, B121, B122, B123, B124, B125, B126, B127, B128, B129, B13, B130, B131, B132, B133, B134, B135, B14, B140, B141, B142, B143, B144, B145, B146, B147, B15, B16, B17, B18, B19, B44, B45, B46, B47, B48, B49, B50, B51, B52, B53, B54, B55, B56, B57, B58, B59, B6, B60, B61, B7, B8, B9, D0, D100, D104, D108, D96, W112, W114, W136, W138, W20, W22, W24, W26, W28, W30, W32, W34, W36, W38, W4, W40, W42, W62, W64, W66, W68, W70, W72, W74, W76, W78, W80, W82, W84, W86, W88, W90, W92, W94
+  Avalonia fields (6): B10, B12, B13, B4, B5, W0
+  MISSING (96): B11, B116, B117, B118, B119, B120, B121, B122, B123, B124, B125, B126, B127, B128, B129, B130, B131, B132, B133, B134, B135, B14, B140, B141, B142, B143, B144, B145, B146, B147, B15, B16, B17, B18, B19, B44, B45, B46, B47, B48, B49, B50, B51, B52, B53, B54, B55, B56, B57, B58, B59, B6, B60, B61, B7, B8, B9, D0, D100, D104, D108, D96, W112, W114, W136, W138, W20, W22, W24, W26, W28, W30, W32, W34, W36, W38, W4, W40, W42, W62, W64, W66, W68, W70, W72, W74, W76, W78, W80, W82, W84, W86, W88, W90, W92, W94
+
+GAP: MapExitPointView (MapExitPointForm → MapExitPointViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: MapPointerView (MapPointerForm → MapPointerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: MapTileAnimationView (MapTileAnimation1Form → MapTileAnimationViewModel)
+  WinForms fields (3): P4, W0, W2
+  Avalonia fields (1): D0
+  MISSING (3): P4, W0, W2
+
+GAP: SummonsDemonKingViewerView (SummonsDemonKingForm → SummonsDemonKingViewerViewModel)
+  WinForms fields (16): B0, B1, B12, B13, B14, B15, B16, B17, B18, B19, B2, B3, B6, B7, P8, W4
+  Avalonia fields (4): B0, B1, B2, W3
+  MISSING (13): B12, B13, B14, B15, B16, B17, B18, B19, B3, B6, B7, P8, W4
+
+GAP: MenuDefinitionView (MenuDefinitionForm → MenuDefinitionViewModel)
+  WinForms fields (12): B0, B1, B2, B3, D4, P12, P16, P20, P24, P28, P32, P8
+  Avalonia fields (2): D8, W4
+  MISSING (12): B0, B1, B2, B3, D4, P12, P16, P20, P24, P28, P32, P8
+
+GAP: MenuCommandView (MenuCommandForm → MenuCommandViewModel)
+  WinForms fields (13): B10, B11, B8, B9, P0, P12, P16, P20, P24, P28, P32, W4, W6
+  Avalonia fields (2): D8, P8
+  MISSING (13): B10, B11, B8, B9, P0, P12, P16, P20, P24, P28, P32, W4, W6
+
+GAP: EDView (EDForm → EDViewModel)
+  WinForms fields (4): B0, B1, B2, B3
+  Avalonia fields (3): B0, B1, D0
+  MISSING (2): B2, B3
+
+GAP: EDStaffRollView (EDStaffRollForm → EDStaffRollViewModel)
+  WinForms fields (2): P0, P4
+  Avalonia fields (2): D0, D4
+  MISSING (2): P0, P4
+
+GAP: WorldMapPointView (WorldMapPointForm → WorldMapPointViewModel)
+  WinForms fields (19): B0, B1, B10, B11, B2, B3, B30, B31, B4, B5, B8, B9, P12, P16, P20, W24, W26, W28, W6
+  Avalonia fields (6): D12, D16, D20, W0, W2, W28
+  MISSING (18): B0, B1, B10, B11, B2, B3, B30, B31, B4, B5, B8, B9, P12, P16, P20, W24, W26, W6
+
+GAP: WorldMapEventPointerView (WorldMapEventPointerForm → WorldMapEventPointerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: SongTableView (SongTableForm → SongTableViewModel)
+  WinForms fields (2): D4, P0
+  Avalonia fields (5): B0, B2, B3, D0, P0
+  MISSING (1): D4
+
+GAP: SoundFootStepsViewerView (SoundFootStepsForm → SoundFootStepsViewerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: SoundRoomViewerView (SoundRoomForm → SoundRoomViewerViewModel)
+  WinForms fields (4): D0, D12, D4, P8
+  Avalonia fields (5): D0, D4, D8, W0, W12
+  MISSING (2): D12, P8
+
+GAP: StatusParamView (StatusParamForm → StatusParamViewModel)
+  WinForms fields (7): B10, B11, B8, B9, P0, P12, P4
+  Avalonia fields (4): B8, D0, D12, D4
+  MISSING (6): B10, B11, B9, P0, P12, P4
+
+GAP: StatusRMenuView (StatusRMenuForm → StatusRMenuViewModel)
+  WinForms fields (9): B16, B17, P0, P12, P20, P24, P4, P8, W18
+  Avalonia fields (5): D0, D12, D4, D8, W18
+  MISSING (8): B16, B17, P0, P12, P20, P24, P4, P8
+
+GAP: StatusUnitsMenuView (StatusUnitsMenuForm → StatusUnitsMenuViewModel)
+  WinForms fields (4): D0, D12, D4, D8
+  Avalonia fields (3): D0, D12, D4
+  MISSING (1): D8
+
+GAP: SkillAssignmentUnitCSkillSysView (SkillAssignmentUnitCSkillSysForm → SkillAssignmentUnitCSkillSysViewViewModel)
+  WinForms fields (1): W0
+  Avalonia fields (0): 
+  MISSING (1): W0
+
+GAP: SkillAssignmentClassCSkillSysView (SkillAssignmentClassCSkillSysForm → SkillAssignmentClassCSkillSysViewViewModel)
+  WinForms fields (1): W0
+  Avalonia fields (0): 
+  MISSING (1): W0
+
+GAP: SkillAssignmentUnitFE8NView (SkillAssignmentUnitFE8NForm → SkillAssignmentUnitFE8NViewViewModel)
+  WinForms fields (3): B39, B40, B41
+  Avalonia fields (0): 
+  MISSING (3): B39, B40, B41
+
+GAP: SkillConfigFE8NSkillView (SkillConfigFE8NSkillForm → SkillConfigFE8NSkillViewViewModel)
+  WinForms fields (14): B10, B11, B12, B13, B14, B15, B4, B5, B6, B7, B8, B9, W0, W2
+  Avalonia fields (0): 
+  MISSING (14): B10, B11, B12, B13, B14, B15, B4, B5, B6, B7, B8, B9, W0, W2
+
+GAP: SkillConfigFE8NVer2SkillView (SkillConfigFE8NVer2SkillForm → SkillConfigFE8NVer2SkillViewViewModel)
+  WinForms fields (6): P12, P16, P4, P8, W0, W2
+  Avalonia fields (0): 
+  MISSING (6): P12, P16, P4, P8, W0, W2
+
+GAP: SkillConfigFE8NVer3SkillView (SkillConfigFE8NVer3SkillForm → SkillConfigFE8NVer3SkillViewViewModel)
+  WinForms fields (7): P12, P16, P20, P4, P8, W0, W2
+  Avalonia fields (0): 
+  MISSING (7): P12, P16, P20, P4, P8, W0, W2
+
+GAP: SkillConfigFE8UCSkillSys09xView (SkillConfigFE8UCSkillSys09xForm → SkillConfigFE8UCSkillSys09xViewViewModel)
+  WinForms fields (2): W4, W6
+  Avalonia fields (0): 
+  MISSING (2): W4, W6
+
+GAP: SkillSystemsEffectivenessReworkClassTypeView (SkillSystemsEffectivenessReworkClassTypeForm → SkillSystemsEffectivenessReworkClassTypeViewViewModel)
+  WinForms fields (1): W50
+  Avalonia fields (0): 
+  MISSING (1): W50
+
+GAP: OPClassDemoFE7View (OPClassDemoFE7Form → OPClassDemoFE7ViewModel)
+  WinForms fields (21): B12, B13, B14, B15, B16, B17, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, P0, P28, P8, W4, W6
+  Avalonia fields (3): B15, B16, B17
+  MISSING (18): B12, B13, B14, B18, B19, B20, B21, B22, B23, B24, B25, B26, B27, P0, P28, P8, W4, W6
+
+GAP: OPClassDemoFE7UView (OPClassDemoFE7UForm → OPClassDemoFE7UViewModel)
+  WinForms fields (17): B10, B11, B12, B13, B14, B15, B16, B17, B19, B20, B21, B22, B23, P0, P24, W4, W8
+  Avalonia fields (3): B11, B12, B13
+  MISSING (14): B10, B14, B15, B16, B17, B19, B20, B21, B22, B23, P0, P24, W4, W8
+
+GAP: OPClassDemoFE8UView (OPClassDemoFE8UForm → OPClassDemoFE8UViewModel)
+  WinForms fields (12): B12, B13, B14, B15, B4, B5, B6, B7, D0, P16, W10, W8
+  Avalonia fields (3): B5, B6, B7
+  MISSING (9): B12, B13, B14, B15, B4, D0, P16, W10, W8
+
+GAP: OPClassFontFE8UView (OPClassFontFE8UForm → OPClassFontFE8UViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: PortraitViewerView (ImagePortraitForm → PortraitViewerViewModel)
+  WinForms fields (13): B20, B21, B22, B23, B24, B25, B26, B27, D0, D12, D16, D4, D8
+  Avalonia fields (3): D0, D4, D8
+  MISSING (10): B20, B21, B22, B23, B24, B25, B26, B27, D12, D16
+
+GAP: BattleTerrainViewerView (ImageBattleTerrainForm → BattleTerrainViewerViewModel)
+  WinForms fields (15): B0, B1, B10, B11, B2, B3, B4, B5, B6, B7, B8, B9, D12, D16, D20
+  Avalonia fields (2): D12, D16
+  MISSING (13): B0, B1, B10, B11, B2, B3, B4, B5, B6, B7, B8, B9, D20
+
+GAP: ChapterTitleViewerView (ImageChapterTitleForm → ChapterTitleViewerViewModel)
+  WinForms fields (3): P0, P4, P8
+  Avalonia fields (3): D0, D4, D8
+  MISSING (3): P0, P4, P8
+
+GAP: OPClassDemoViewerView (OPClassDemoForm → OPClassDemoViewerViewModel)
+  WinForms fields (13): B12, B13, B14, B15, B16, B17, B22, B23, D18, D4, P0, P24, P8
+  Avalonia fields (2): B14, B16
+  MISSING (11): B12, B13, B15, B17, B22, B23, D18, D4, P0, P24, P8
+
+GAP: OPClassFontViewerView (OPClassFontForm → OPClassFontViewerViewModel)
+  WinForms fields (1): P0
+  Avalonia fields (1): D0
+  MISSING (1): P0
+
+GAP: OPPrologueViewerView (OPPrologueForm → OPPrologueViewerViewModel)
+  WinForms fields (6): B10, B11, B8, B9, P0, P4
+  Avalonia fields (2): D0, D4
+  MISSING (6): B10, B11, B8, B9, P0, P4
+

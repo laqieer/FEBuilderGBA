@@ -148,6 +148,7 @@ FEBuilderGBA.sln
   - Avalonia editor smoke tests: Unit/Item editor selection (× 5 ROMs — skipped without ROMs)
   - Avalonia all-editors smoke test: all 323 GUI editors open/close (× 5 ROMs — skipped without ROMs)
   - Avalonia data verification: `--data-verify` mode cross-checks ViewModel fields against raw ROM bytes, verifies NumericUpDown UI controls display values, and validates text encoding (Shift-JIS for JP ROMs, ISO-8859-1 for US ROMs) for 50+ editors (× 5 ROMs — skipped without ROMs)
+  - **Field completeness tests**: `AvaloniaFieldCompletenessTests` compares WinForms Designer.cs ROM data field controls against Avalonia ViewModel ROM access patterns, generating gap reports in `docs/field-completeness-report.txt`
 
 ## E2E Automation Tests
 
