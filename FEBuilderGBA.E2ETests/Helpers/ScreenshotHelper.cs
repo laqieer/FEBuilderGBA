@@ -15,11 +15,15 @@ namespace FEBuilderGBA.E2ETests.Helpers
         [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
         [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
         [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
+        [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hWnd);
+        [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+        [DllImport("gdi32.dll")] private static extern bool BitBlt(IntPtr hdcDest, int xDest, int yDest, int w, int h, IntPtr hdcSrc, int xSrc, int ySrc, uint rop);
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT { public int Left, Top, Right, Bottom; }
 
         // PW_RENDERFULLCONTENT = 2: captures even DWM-composed content
         private const uint PW_RENDERFULLCONTENT = 2;
+        private const uint SRCCOPY = 0x00CC0020;
 
         /// <summary>
         /// Directory where screenshots are saved.
@@ -66,18 +70,17 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 int h = r.Bottom - r.Top;
                 if (w <= 0 || h <= 0) return null;
 
-                using var bmp = new Bitmap(w, h);
-                using (var g = Graphics.FromImage(bmp))
-                {
-                    IntPtr hdc = g.GetHdc();
-                    PrintWindow(hWnd, hdc, PW_RENDERFULLCONTENT);
-                    g.ReleaseHdc(hdc);
-                }
+                Bitmap? bmp = TryPrintWindow(hWnd, w, h, PW_RENDERFULLCONTENT)
+                           ?? TryPrintWindow(hWnd, w, h, 0)
+                           ?? TryBitBlt(r, w, h);
+
+                if (bmp == null) return null;
 
                 string safeName = SanitizeFileName(name);
                 string path = Path.Combine(dir, $"{safeName}.png");
 
                 bmp.Save(path, ImageFormat.Png);
+                bmp.Dispose();
                 return path;
             }
             catch
@@ -88,6 +91,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
         /// <summary>
         /// Capture a screenshot of <paramref name="hWnd"/> and save it as PNG.
+        /// Tries multiple capture strategies: PrintWindow with PW_RENDERFULLCONTENT,
+        /// PrintWindow with flag=0, and BitBlt from screen DC as fallback.
         /// Returns the saved file path, or null if the capture fails.
         /// </summary>
         public static string? CaptureWindow(IntPtr hWnd, string name)
@@ -104,13 +109,11 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 int h = r.Bottom - r.Top;
                 if (w <= 0 || h <= 0) return null;
 
-                using var bmp = new Bitmap(w, h);
-                using (var g = Graphics.FromImage(bmp))
-                {
-                    IntPtr hdc = g.GetHdc();
-                    PrintWindow(hWnd, hdc, PW_RENDERFULLCONTENT);
-                    g.ReleaseHdc(hdc);
-                }
+                Bitmap? bmp = TryPrintWindow(hWnd, w, h, PW_RENDERFULLCONTENT)
+                           ?? TryPrintWindow(hWnd, w, h, 0)
+                           ?? TryBitBlt(r, w, h);
+
+                if (bmp == null) return null;
 
                 string safeName = string.Join("_",
                     name.Split(Path.GetInvalidFileNameChars()));
@@ -118,12 +121,73 @@ namespace FEBuilderGBA.E2ETests.Helpers
                     $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.png");
 
                 bmp.Save(path, ImageFormat.Png);
+                bmp.Dispose();
                 return path;
             }
             catch
             {
                 return null;
             }
+        }
+
+        private static Bitmap? TryPrintWindow(IntPtr hWnd, int w, int h, uint flags)
+        {
+            var bmp = new Bitmap(w, h);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                IntPtr hdc = g.GetHdc();
+                PrintWindow(hWnd, hdc, flags);
+                g.ReleaseHdc(hdc);
+            }
+            if (HasContent(bmp)) return bmp;
+            bmp.Dispose();
+            return null;
+        }
+
+        private static Bitmap? TryBitBlt(RECT r, int w, int h)
+        {
+            IntPtr screenDc = GetDC(IntPtr.Zero);
+            if (screenDc == IntPtr.Zero) return null;
+            try
+            {
+                var bmp = new Bitmap(w, h);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    IntPtr hdc = g.GetHdc();
+                    BitBlt(hdc, 0, 0, w, h, screenDc, r.Left, r.Top, SRCCOPY);
+                    g.ReleaseHdc(hdc);
+                }
+                if (HasContent(bmp)) return bmp;
+                bmp.Dispose();
+                return null;
+            }
+            finally
+            {
+                ReleaseDC(IntPtr.Zero, screenDc);
+            }
+        }
+
+        /// <summary>
+        /// Quick check: sample a few pixels to see if the bitmap has real content
+        /// (not all-black or all-same-color).
+        /// </summary>
+        private static bool HasContent(Bitmap bmp)
+        {
+            if (bmp.Width < 2 || bmp.Height < 2) return false;
+            var firstPixel = bmp.GetPixel(0, 0);
+            // Sample corners and center
+            var samples = new[]
+            {
+                bmp.GetPixel(bmp.Width / 2, bmp.Height / 2),
+                bmp.GetPixel(bmp.Width - 1, 0),
+                bmp.GetPixel(0, bmp.Height - 1),
+                bmp.GetPixel(bmp.Width - 1, bmp.Height - 1),
+            };
+            foreach (var s in samples)
+            {
+                if (s != firstPixel) return true;
+            }
+            return false;
         }
     }
 }
