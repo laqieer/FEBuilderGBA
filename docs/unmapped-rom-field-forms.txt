@@ -1,2 +1,3 @@
-All 163 forms with ROM fields are now mapped in AvaloniaFieldCompletenessTests.FormMappings.
-0 unmapped forms remaining.
+All 163 ScreenshotFormRegistry forms with ROM fields are mapped in AvaloniaFieldCompletenessTests.FormMappings.
+3 additional orphan forms (ClassOPDemoForm, ClassOPFontForm, EventMapChangeForm) also mapped.
+Total: 166 form mappings, 0 unmapped forms remaining.

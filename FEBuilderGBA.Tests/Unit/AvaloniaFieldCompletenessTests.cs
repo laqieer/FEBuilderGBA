@@ -244,6 +244,11 @@ namespace FEBuilderGBA.Tests.Unit
             ("UwordBitFlagView", "UwordBitFlagForm", "UwordBitFlagViewModel"),
             ("MapTerrainBGLookupView", "MapTerrainBGLookupTableForm", "MapTerrainBGLookupTableViewModel"),
             ("MapTerrainFloorLookupView", "MapTerrainFloorLookupTableForm", "MapTerrainFloorLookupTableViewModel"),
+
+            // === WU13: Orphan forms (previously excluded from ScreenshotFormRegistry) ===
+            ("ClassOPDemoView", "ClassOPDemoForm", "ClassOPDemoViewModel"),
+            ("ClassOPFontView", "ClassOPFontForm", "ClassOPFontViewModel"),
+            ("EventMapChangeView", "EventMapChangeForm", "EventMapChangeViewModel"),
         };
 
         /// <summary>
@@ -465,8 +470,8 @@ namespace FEBuilderGBA.Tests.Unit
             Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
             File.WriteAllText(reportPath, report.ToString());
 
-            // Output to test output
-            Assert.True(true, report.ToString());
+            // Strict: fail if any gaps remain
+            Assert.Equal(0, totalMissing);
         }
 
         /// <summary>
@@ -544,8 +549,8 @@ namespace FEBuilderGBA.Tests.Unit
                 File.WriteAllText(reportPath, msg);
             }
 
-            // For now, this is informational — it will fail once we want strict coverage
-            Assert.True(true, $"{unmappedWithFields.Count} unmapped forms with ROM fields");
+            // Strict: fail if any forms with ROM fields are unmapped
+            Assert.Equal(0, unmappedWithFields.Count);
         }
 
         /// <summary>
@@ -594,9 +599,200 @@ namespace FEBuilderGBA.Tests.Unit
 
             double coverage = (double)matched / winFormsFields.Count * 100;
 
-            // Report the coverage (informational for now)
-            Assert.True(true,
-                $"{viewName}: {matched}/{winFormsFields.Count} fields covered ({coverage:F1}%)");
+            Assert.True(coverage >= 80.0,
+                $"{viewName}: {matched}/{winFormsFields.Count} fields covered ({coverage:F1}%) — minimum 80% required");
+        }
+
+        /// <summary>
+        /// Correctness cross-check: verifies that for each WinForms field, the Avalonia VM
+        /// reads the correct type at the correct offset.
+        /// e.g., WinForms "B12" must match Avalonia rom.u8(addr + 12), NOT rom.u16(addr + 12).
+        /// </summary>
+        [Fact]
+        public void AllFormFields_TypeAndOffsetMatch()
+        {
+            var mismatches = new List<string>();
+
+            // Regex that captures both type and offset from VM source
+            var vmTypedAccessPattern = new Regex(
+                @"\.(u8|u16|u32|p32)\(\w+\s*\+\s*(\d+)\)",
+                RegexOptions.Compiled);
+
+            var vmTypedZeroPattern = new Regex(
+                @"\.(u8|u16|u32|p32)\((?:addr|baseAddr|address|a)\)",
+                RegexOptions.Compiled);
+
+            foreach (var (viewName, winFormsType, avaloniaVmType) in FormMappings)
+            {
+                string designerPath = Path.Combine(WinFormsDir, $"{winFormsType}.Designer.cs");
+                string vmPath = Path.Combine(AvaloniaVmDir, $"{avaloniaVmType}.cs");
+
+                var winFormsFields = ExtractWinFormsFields(designerPath);
+                if (winFormsFields.Count == 0) continue;
+                if (!File.Exists(vmPath)) continue;
+
+                string vmSource = File.ReadAllText(vmPath);
+
+                // Build a map of offset → set of types from VM source
+                var vmAccessMap = new Dictionary<int, HashSet<string>>();
+
+                foreach (Match m in vmTypedAccessPattern.Matches(vmSource))
+                {
+                    string type = m.Groups[1].Value;
+                    int offset = int.Parse(m.Groups[2].Value);
+                    if (!vmAccessMap.ContainsKey(offset))
+                        vmAccessMap[offset] = new HashSet<string>();
+                    vmAccessMap[offset].Add(type);
+                }
+
+                foreach (Match m in vmTypedZeroPattern.Matches(vmSource))
+                {
+                    string type = m.Groups[1].Value;
+                    if (!vmAccessMap.ContainsKey(0))
+                        vmAccessMap[0] = new HashSet<string>();
+                    vmAccessMap[0].Add(type);
+                }
+
+                // For each WinForms field, verify the VM reads the right type at the right offset
+                foreach (var field in winFormsFields)
+                {
+                    char prefix = field[0];
+                    if (!int.TryParse(field.Substring(1), out int offset))
+                        continue;
+
+                    string expectedType = prefix switch
+                    {
+                        'B' or 'b' => "u8",
+                        'W' => "u16",
+                        'D' => "u32",
+                        'P' => "u32", // P is also u32/p32
+                        'l' or 'h' => "u8", // nibble fields read as u8
+                        _ => null
+                    };
+
+                    if (expectedType == null) continue;
+
+                    if (!vmAccessMap.TryGetValue(offset, out var types))
+                        continue; // Missing field — already caught by CompareAllFormFields_ReportGaps
+
+                    // Check type compatibility
+                    // Wider reads are acceptable: u16 covers u8, u32 covers u8/u16
+                    bool typeMatch = types.Contains(expectedType);
+                    if (!typeMatch && prefix == 'P')
+                        typeMatch = types.Contains("p32"); // P can be read as p32
+                    if (!typeMatch && (prefix == 'D'))
+                        typeMatch = types.Contains("p32"); // D can also be read as p32
+                    if (!typeMatch && expectedType == "u8")
+                        typeMatch = types.Contains("u16") || types.Contains("u32") || types.Contains("p32");
+                    if (!typeMatch && expectedType == "u16")
+                        typeMatch = types.Contains("u32") || types.Contains("p32");
+
+                    if (!typeMatch)
+                    {
+                        mismatches.Add(
+                            $"{viewName}: field {field} expects {expectedType} at offset {offset}, " +
+                            $"but VM reads [{string.Join(",", types)}]");
+                    }
+                }
+            }
+
+            Assert.True(mismatches.Count == 0,
+                $"Type/offset mismatches ({mismatches.Count}):\n{string.Join("\n", mismatches)}");
+        }
+
+        /// <summary>
+        /// Verifies that GetDataReport() keys are consistent with GetRawRomReport() keys
+        /// for all ViewModels that implement IDataVerifiable.
+        /// e.g., if GetDataReport has ["B12"], GetRawRomReport should have ["u8@0x0C"].
+        /// </summary>
+        [Fact]
+        public void AllViewModels_ReportMethodsAreConsistent()
+        {
+            var inconsistencies = new List<string>();
+
+            // Regex to extract data report keys: ["B12"] or ["P0"] etc.
+            var dataReportKeyPattern = new Regex(
+                @"\[""([BWDPbh]\d+)""\]\s*=",
+                RegexOptions.Compiled);
+
+            // Regex to extract raw rom report keys: ["u8@0x0C"] or ["u32@0x00"] or ["s8@0x13"]
+            var rawReportKeyPattern = new Regex(
+                @"\[""(u8|u16|u32|p32|s8)@0x([0-9A-Fa-f]+)""\]\s*=",
+                RegexOptions.Compiled);
+
+            foreach (var (viewName, winFormsType, avaloniaVmType) in FormMappings)
+            {
+                string vmPath = Path.Combine(AvaloniaVmDir, $"{avaloniaVmType}.cs");
+                if (!File.Exists(vmPath)) continue;
+
+                string vmSource = File.ReadAllText(vmPath);
+
+                // Extract data report field keys
+                var dataKeys = new Dictionary<string, (char prefix, int offset)>();
+                foreach (Match m in dataReportKeyPattern.Matches(vmSource))
+                {
+                    string key = m.Groups[1].Value;
+                    char prefix = key[0];
+                    if (int.TryParse(key.Substring(1), out int offset))
+                        dataKeys[key] = (prefix, offset);
+                }
+
+                // Extract raw report entries — multiple types per offset possible
+                var rawEntries = new Dictionary<int, HashSet<string>>();
+                foreach (Match m in rawReportKeyPattern.Matches(vmSource))
+                {
+                    string type = m.Groups[1].Value;
+                    int offset = Convert.ToInt32(m.Groups[2].Value, 16);
+                    if (!rawEntries.ContainsKey(offset))
+                        rawEntries[offset] = new HashSet<string>();
+                    rawEntries[offset].Add(type);
+                }
+
+                if (dataKeys.Count == 0 || rawEntries.Count == 0) continue;
+
+                // Verify each data key has a matching raw entry
+                foreach (var (key, (prefix, offset)) in dataKeys)
+                {
+                    string expectedType = prefix switch
+                    {
+                        'B' => "u8",
+                        'b' => "s8", // signed byte
+                        'W' => "u16",
+                        'D' or 'P' => "u32",
+                        _ => null
+                    };
+                    if (expectedType == null) continue;
+
+                    if (!rawEntries.TryGetValue(offset, out var rawTypes))
+                    {
+                        inconsistencies.Add(
+                            $"{viewName}: GetDataReport has [{key}] (offset {offset}) " +
+                            $"but GetRawRomReport has no entry at 0x{offset:X02}");
+                        continue;
+                    }
+
+                    bool compatible = rawTypes.Contains(expectedType);
+                    // Allow equivalences
+                    if (!compatible && expectedType == "u32")
+                        compatible = rawTypes.Contains("p32");
+                    if (!compatible && expectedType == "s8")
+                        compatible = rawTypes.Contains("u8"); // s8 can be stored as u8
+                    if (!compatible && expectedType == "u8")
+                        compatible = rawTypes.Contains("s8") || rawTypes.Contains("u16") || rawTypes.Contains("u32");
+                    if (!compatible && expectedType == "u16")
+                        compatible = rawTypes.Contains("u32") || rawTypes.Contains("p32");
+
+                    if (!compatible)
+                    {
+                        inconsistencies.Add(
+                            $"{viewName}: GetDataReport [{key}] expects {expectedType}, " +
+                            $"but GetRawRomReport has [{string.Join(",", rawTypes)}]@0x{offset:X02}");
+                    }
+                }
+            }
+
+            Assert.True(inconsistencies.Count == 0,
+                $"Report inconsistencies ({inconsistencies.Count}):\n{string.Join("\n", inconsistencies)}");
         }
     }
 }

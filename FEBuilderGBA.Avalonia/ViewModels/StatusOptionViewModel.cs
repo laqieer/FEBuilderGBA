@@ -63,6 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            if (addr + 44 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
             D0 = rom.u32(addr + 0);
