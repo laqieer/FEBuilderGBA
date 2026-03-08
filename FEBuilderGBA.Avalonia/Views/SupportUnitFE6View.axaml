@@ -14,96 +14,96 @@
         <TextBlock Text="Partner Unit IDs" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="B0 Partner 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B0Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B0Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="B1 Partner 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B1Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B1Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="B2 Partner 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B2Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B2Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="B3 Partner 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B3Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B3Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="B4 Partner 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B4Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B4Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="B5 Partner 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B5Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B5Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="B6 Partner 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B6Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B6Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="B7 Partner 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B7Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B7Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="B8 Partner 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B8Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B8Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="B9 Partner 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B9Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B9Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Initial Values (B10-B19) -->
         <TextBlock Text="Initial Values" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="B10 Init 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B10Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B10Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="B11 Init 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B11Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B11Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="B12 Init 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B12Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B12Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="B13 Init 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B13Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B13Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="B14 Init 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B14Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B14Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="B15 Init 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B15Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B15Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="B16 Init 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B16Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B16Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="B17 Init 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B17Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B17Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="B18 Init 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B18Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B18Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="B19 Init 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B19Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B19Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Growth Rates (B20-B29) -->
         <TextBlock Text="Growth Rates" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="B20 Growth 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B20Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B20Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="B21 Growth 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B21Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B21Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="B22 Growth 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B22Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B22Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="B23 Growth 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B23Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="B23Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="B24 Growth 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B24Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B24Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="B25 Growth 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B25Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="B25Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="B26 Growth 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B26Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B26Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="B27 Growth 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B27Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B27Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="B28 Growth 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B28Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B28Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="B29 Growth 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B29Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="3" Name="B29Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Count + Reserved (B30-B31) -->
         <TextBlock Text="Count / Reserved" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="B30 Count:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B30Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B30Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="B31:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B31Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B31Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />

@@ -15,28 +15,28 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="B0 Unit ID 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitId1Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitId1Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="B2 Unit ID 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UnitId2Nud" Minimum="0" Maximum="255" FormatString="X2" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UnitId2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="W4 Text C:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="TextIdCNud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="TextIdCNud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="W6 Text B:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="TextIdBNud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="TextIdBNud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="W8 Text A:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextIdANud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextIdANud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="W10 Song C:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="W10Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="W10Nud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="W12 Song B:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="W12Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="W12Nud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="W14 Song A:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="W14Nud" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,2" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="W14Nud" Minimum="0" Maximum="65535" Margin="0,2" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
