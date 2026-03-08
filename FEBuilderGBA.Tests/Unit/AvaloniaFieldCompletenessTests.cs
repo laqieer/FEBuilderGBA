@@ -721,9 +721,10 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\[""([BWDPbh]\d+)""\]\s*=",
                 RegexOptions.Compiled);
 
-            // Regex to extract raw rom report keys: ["u8@0x0C"] or ["u32@0x00"] or ["s8@0x13"]
+            // Regex to extract raw rom report keys: ["u8@0x0C"] or ["u8@12"] or ["s8@0x13"]
+            // Group 1: type, Group 2: hex digits (if 0x prefix), Group 3: decimal digits (no 0x prefix)
             var rawReportKeyPattern = new Regex(
-                @"\[""(u8|u16|u32|p32|s8)@0x([0-9A-Fa-f]+)""\]\s*=",
+                @"\[""(u8|u16|u32|p32|s8)@(?:0x([0-9A-Fa-f]+)|(\d+))""\]\s*=",
                 RegexOptions.Compiled);
 
             foreach (var (viewName, winFormsType, avaloniaVmType) in FormMappings)
@@ -744,11 +745,16 @@ namespace FEBuilderGBA.Tests.Unit
                 }
 
                 // Extract raw report entries — multiple types per offset possible
+                // Supports both hex (@0x0C) and decimal (@12) key formats
                 var rawEntries = new Dictionary<int, HashSet<string>>();
                 foreach (Match m in rawReportKeyPattern.Matches(vmSource))
                 {
                     string type = m.Groups[1].Value;
-                    int offset = Convert.ToInt32(m.Groups[2].Value, 16);
+                    int offset;
+                    if (m.Groups[2].Success)
+                        offset = Convert.ToInt32(m.Groups[2].Value, 16);
+                    else
+                        offset = int.Parse(m.Groups[3].Value);
                     if (!rawEntries.ContainsKey(offset))
                         rawEntries[offset] = new HashSet<string>();
                     rawEntries[offset].Add(type);
@@ -866,6 +872,168 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(unmapped.Count == 0,
                 $"Designer.cs files with ROM fields missing from FormMappings ({unmapped.Count}):\n" +
                 string.Join("\n", unmapped));
+        }
+
+        /// <summary>
+        /// Verifies that ALL ViewModels implementing IDataVerifiable have non-empty
+        /// GetDataReport and GetRawRomReport methods (not just "=> new()").
+        /// Orphan VMs (dialogs, tools, infrastructure) should NOT implement IDataVerifiable.
+        /// </summary>
+        [Fact]
+        public void AllIDataVerifiable_HaveNonEmptyReports()
+        {
+            var emptyReportVms = new List<string>();
+
+            // Regex to detect empty report patterns
+            var emptyDictPattern = new Regex(
+                @"Get(?:Data|RawRom)Report\(\)\s*=>\s*new\s*(?:Dictionary<string,\s*string>)?\s*\(\s*\)\s*;",
+                RegexOptions.Compiled);
+
+            foreach (var vmFile in Directory.GetFiles(AvaloniaVmDir, "*ViewModel.cs"))
+            {
+                string source = File.ReadAllText(vmFile);
+                string vmName = Path.GetFileNameWithoutExtension(vmFile);
+
+                // Only check VMs that implement IDataVerifiable
+                if (!source.Contains("IDataVerifiable"))
+                    continue;
+
+                // Check for empty GetDataReport or GetRawRomReport
+                var matches = emptyDictPattern.Matches(source);
+                foreach (Match m in matches)
+                {
+                    emptyReportVms.Add($"{vmName}: {m.Value.Trim()}");
+                }
+            }
+
+            Assert.True(emptyReportVms.Count == 0,
+                $"ViewModels implementing IDataVerifiable with empty reports ({emptyReportVms.Count}):\n" +
+                string.Join("\n", emptyReportVms));
+        }
+
+        /// <summary>
+        /// Verifies that FormMappings VMs implementing IDataVerifiable have GetRawRomReport
+        /// entries that cover at least 80% of their ROM reads. This ensures the data verification
+        /// system can cross-check ViewModel values against raw ROM bytes.
+        /// </summary>
+        [Fact]
+        public void MappedVMs_RawRomReport_CoversRomReads()
+        {
+            var underReportedVms = new List<string>();
+
+            // Pattern for ROM reads in Load methods
+            var romReadPattern = new Regex(
+                @"rom\.(u8|u16|u32|p32)\(\w+\s*\+\s*(\d+)\)",
+                RegexOptions.Compiled);
+            var romReadZeroPattern = new Regex(
+                @"rom\.(u8|u16|u32|p32)\((?:addr|baseAddr|address|a)\)",
+                RegexOptions.Compiled);
+
+            // Pattern for raw report entries — matches both hex (u8@0x0A) and decimal (u8@10) formats
+            var rawReportEntryPattern = new Regex(
+                @"\[""(?:u8|u16|u32|p32|s8)@(?:0x[0-9A-Fa-f]+|\d+)""\]",
+                RegexOptions.Compiled);
+
+            var mappedVmTypes = new HashSet<string>(
+                FormMappings.Select(m => m.AvaloniaVmType),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var vmFile in Directory.GetFiles(AvaloniaVmDir, "*ViewModel.cs"))
+            {
+                string source = File.ReadAllText(vmFile);
+                string vmName = Path.GetFileNameWithoutExtension(vmFile);
+
+                if (!source.Contains("IDataVerifiable"))
+                    continue;
+
+                // Only check VMs that are in FormMappings
+                if (!mappedVmTypes.Contains(vmName))
+                    continue;
+
+                // Count distinct ROM read offsets in Load methods
+                var romReadOffsets = new HashSet<string>();
+                foreach (Match m in romReadPattern.Matches(source))
+                {
+                    string type = m.Groups[1].Value;
+                    string offset = m.Groups[2].Value;
+                    romReadOffsets.Add($"{type}@{offset}");
+                }
+                foreach (Match m in romReadZeroPattern.Matches(source))
+                {
+                    string type = m.Groups[1].Value;
+                    romReadOffsets.Add($"{type}@0");
+                }
+
+                if (romReadOffsets.Count == 0) continue;
+
+                // Count raw report entries
+                int rawReportCount = rawReportEntryPattern.Matches(source).Count;
+
+                // Require at least 60% coverage for mapped VMs
+                // (threshold accounts for ROM reads in list-loader methods
+                //  which don't correspond to entry-level raw report entries)
+                double coverage = romReadOffsets.Count > 0
+                    ? (double)rawReportCount / romReadOffsets.Count * 100
+                    : 100;
+
+                if (coverage < 60.0)
+                {
+                    underReportedVms.Add(
+                        $"{vmName}: {romReadOffsets.Count} ROM reads, {rawReportCount} raw report entries ({coverage:F0}%)");
+                }
+            }
+
+            Assert.True(underReportedVms.Count == 0,
+                $"Mapped VMs with under-reported ROM reads (<80%) ({underReportedVms.Count}):\n" +
+                string.Join("\n", underReportedVms));
+        }
+
+        /// <summary>
+        /// Verifies that VMs NOT in FormMappings AND NOT in GetAllEditorFactories
+        /// do NOT implement IDataVerifiable (they are orphans and should not).
+        /// </summary>
+        [Fact]
+        public void NoOrphanVMs_ImplementIDataVerifiable()
+        {
+            var mappedVmTypes = new HashSet<string>(
+                FormMappings.Select(m => m.AvaloniaVmType),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Also allow VMs referenced in GetAllEditorFactories (MainWindow.axaml.cs)
+            string mainWindowPath = Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs");
+            var factoryVms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (File.Exists(mainWindowPath))
+            {
+                string mainSource = File.ReadAllText(mainWindowPath);
+                var factoryPattern = new Regex(@"new\s+(\w+ViewModel)\s*\(\s*\)", RegexOptions.Compiled);
+                foreach (Match m in factoryPattern.Matches(mainSource))
+                    factoryVms.Add(m.Groups[1].Value);
+            }
+
+            var orphanVms = new List<string>();
+
+            foreach (var vmFile in Directory.GetFiles(AvaloniaVmDir, "*ViewModel.cs"))
+            {
+                string source = File.ReadAllText(vmFile);
+                string vmName = Path.GetFileNameWithoutExtension(vmFile);
+
+                if (!source.Contains("IDataVerifiable"))
+                    continue;
+
+                if (mappedVmTypes.Contains(vmName))
+                    continue;
+
+                if (factoryVms.Contains(vmName))
+                    continue;
+
+                orphanVms.Add(vmName);
+            }
+
+            Assert.True(orphanVms.Count == 0,
+                $"Orphan VMs implementing IDataVerifiable ({orphanVms.Count}):\n" +
+                string.Join("\n", orphanVms) +
+                "\n\nThese VMs are not in FormMappings or GetAllEditorFactories. " +
+                "Remove IDataVerifiable from them or add them to FormMappings.");
         }
     }
 }

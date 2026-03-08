@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MapStyleEditorAppendPopupViewModel : ViewModelBase, IDataVerifiable
+    public class MapStyleEditorAppendPopupViewModel : ViewModelBase
     {
         bool _isLoaded;
         bool _confirmed;
@@ -16,13 +14,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["Confirmed"] = $"{Confirmed}",
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

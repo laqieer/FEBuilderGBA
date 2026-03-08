@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class VersionViewModel : ViewModelBase, IDataVerifiable
+    public class VersionViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _versionMessage = "";
@@ -48,9 +46,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             return sb.ToString();
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new() { ["version"] = VersionMessage };
-        public Dictionary<string, string> GetRawRomReport() => new();
     }
 }

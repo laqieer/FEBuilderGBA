@@ -582,13 +582,76 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["W40"] = $"0x{W40:X04}",
                 ["W42"] = $"0x{W42:X04}",
                 ["B44"] = $"0x{B44:X02}",
+                ["B45"] = $"0x{B45:X02}",
+                ["B46"] = $"0x{B46:X02}",
+                ["B47"] = $"0x{B47:X02}",
+                ["B48"] = $"0x{B48:X02}",
+                ["B49"] = $"0x{B49:X02}",
+                ["B50"] = $"0x{B50:X02}",
+                ["B51"] = $"0x{B51:X02}",
+                ["B52"] = $"0x{B52:X02}",
+                ["B53"] = $"0x{B53:X02}",
+                ["B54"] = $"0x{B54:X02}",
+                ["B55"] = $"0x{B55:X02}",
+                ["B56"] = $"0x{B56:X02}",
+                ["B57"] = $"0x{B57:X02}",
+                ["B58"] = $"0x{B58:X02}",
+                ["B59"] = $"0x{B59:X02}",
+                ["B60"] = $"0x{B60:X02}",
+                ["B61"] = $"0x{B61:X02}",
+                ["W62"] = $"0x{W62:X04}",
+                ["W64"] = $"0x{W64:X04}",
+                ["W66"] = $"0x{W66:X04}",
+                ["W68"] = $"0x{W68:X04}",
+                ["W70"] = $"0x{W70:X04}",
+                ["W72"] = $"0x{W72:X04}",
+                ["W74"] = $"0x{W74:X04}",
+                ["W76"] = $"0x{W76:X04}",
+                ["W78"] = $"0x{W78:X04}",
+                ["W80"] = $"0x{W80:X04}",
+                ["W82"] = $"0x{W82:X04}",
+                ["W84"] = $"0x{W84:X04}",
+                ["W86"] = $"0x{W86:X04}",
+                ["W88"] = $"0x{W88:X04}",
+                ["W90"] = $"0x{W90:X04}",
+                ["W92"] = $"0x{W92:X04}",
+                ["W94"] = $"0x{W94:X04}",
+                ["D96"] = $"0x{D96:X08}",
+                ["D100"] = $"0x{D100:X08}",
+                ["D104"] = $"0x{D104:X08}",
+                ["D108"] = $"0x{D108:X08}",
                 ["W112"] = $"0x{W112:X04}",
                 ["W114"] = $"0x{W114:X04}",
                 ["B116"] = $"0x{B116:X02}",
                 ["B117"] = $"0x{B117:X02}",
+                ["B118"] = $"0x{B118:X02}",
+                ["B119"] = $"0x{B119:X02}",
+                ["B120"] = $"0x{B120:X02}",
+                ["B121"] = $"0x{B121:X02}",
+                ["B122"] = $"0x{B122:X02}",
+                ["B123"] = $"0x{B123:X02}",
+                ["B124"] = $"0x{B124:X02}",
+                ["B125"] = $"0x{B125:X02}",
+                ["B126"] = $"0x{B126:X02}",
+                ["B127"] = $"0x{B127:X02}",
                 ["B128"] = $"0x{B128:X02}",
+                ["B129"] = $"0x{B129:X02}",
+                ["B130"] = $"0x{B130:X02}",
+                ["B131"] = $"0x{B131:X02}",
+                ["B132"] = $"0x{B132:X02}",
+                ["B133"] = $"0x{B133:X02}",
+                ["B134"] = $"0x{B134:X02}",
+                ["B135"] = $"0x{B135:X02}",
                 ["W136"] = $"0x{W136:X04}",
                 ["W138"] = $"0x{W138:X04}",
+                ["B140"] = $"0x{B140:X02}",
+                ["B141"] = $"0x{B141:X02}",
+                ["B142"] = $"0x{B142:X02}",
+                ["B143"] = $"0x{B143:X02}",
+                ["B144"] = $"0x{B144:X02}",
+                ["B145"] = $"0x{B145:X02}",
+                ["B146"] = $"0x{B146:X02}",
+                ["B147"] = $"0x{B147:X02}",
             };
             return r;
         }
@@ -603,27 +666,118 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["dataSize"] = $"{ds}",
-                ["u32@0"] = $"0x{rom.u32(a + 0):X08}",
-                ["u16@4"] = $"0x{rom.u16(a + 4):X04}",
+                // D0
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                // W4
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                // B6-B19
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                // W20-W42
+                ["u16@0x14"] = $"0x{rom.u16(a + 20):X04}",
+                ["u16@0x16"] = $"0x{rom.u16(a + 22):X04}",
+                ["u16@0x18"] = $"0x{rom.u16(a + 24):X04}",
+                ["u16@0x1A"] = $"0x{rom.u16(a + 26):X04}",
+                ["u16@0x1C"] = $"0x{rom.u16(a + 28):X04}",
+                ["u16@0x1E"] = $"0x{rom.u16(a + 30):X04}",
+                ["u16@0x20"] = $"0x{rom.u16(a + 32):X04}",
+                ["u16@0x22"] = $"0x{rom.u16(a + 34):X04}",
+                ["u16@0x24"] = $"0x{rom.u16(a + 36):X04}",
+                ["u16@0x26"] = $"0x{rom.u16(a + 38):X04}",
+                ["u16@0x28"] = $"0x{rom.u16(a + 40):X04}",
+                ["u16@0x2A"] = $"0x{rom.u16(a + 42):X04}",
+                // B44
+                ["u8@0x2C"] = $"0x{rom.u8(a + 44):X02}",
             };
-            for (uint i = 6; i < 20 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
-            for (uint i = 20; i < 44 && i + 1 < ds; i += 2)
-                report[$"u16@{i}"] = $"0x{rom.u16(a + i):X04}";
-            for (uint i = 44; i < 62 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
-            for (uint i = 62; i < 96 && i + 1 < ds; i += 2)
-                report[$"u16@{i}"] = $"0x{rom.u16(a + i):X04}";
-            for (uint i = 96; i < 112 && i + 3 < ds; i += 4)
-                report[$"u32@{i}"] = $"0x{rom.u32(a + i):X08}";
-            if (ds > 113) report["u16@112"] = $"0x{rom.u16(a + 112):X04}";
-            if (ds > 115) report["u16@114"] = $"0x{rom.u16(a + 114):X04}";
-            for (uint i = 116; i < 136 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
-            if (ds > 137) report["u16@136"] = $"0x{rom.u16(a + 136):X04}";
-            if (ds > 139) report["u16@138"] = $"0x{rom.u16(a + 138):X04}";
-            for (uint i = 140; i < 148 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
+            // B45-B61 (conditional on dataSize)
+            if (ds > 45) report["u8@0x2D"] = $"0x{rom.u8(a + 45):X02}";
+            if (ds > 46) report["u8@0x2E"] = $"0x{rom.u8(a + 46):X02}";
+            if (ds > 47) report["u8@0x2F"] = $"0x{rom.u8(a + 47):X02}";
+            if (ds > 48) report["u8@0x30"] = $"0x{rom.u8(a + 48):X02}";
+            if (ds > 49) report["u8@0x31"] = $"0x{rom.u8(a + 49):X02}";
+            if (ds > 50) report["u8@0x32"] = $"0x{rom.u8(a + 50):X02}";
+            if (ds > 51) report["u8@0x33"] = $"0x{rom.u8(a + 51):X02}";
+            if (ds > 52) report["u8@0x34"] = $"0x{rom.u8(a + 52):X02}";
+            if (ds > 53) report["u8@0x35"] = $"0x{rom.u8(a + 53):X02}";
+            if (ds > 54) report["u8@0x36"] = $"0x{rom.u8(a + 54):X02}";
+            if (ds > 55) report["u8@0x37"] = $"0x{rom.u8(a + 55):X02}";
+            if (ds > 56) report["u8@0x38"] = $"0x{rom.u8(a + 56):X02}";
+            if (ds > 57) report["u8@0x39"] = $"0x{rom.u8(a + 57):X02}";
+            if (ds > 58) report["u8@0x3A"] = $"0x{rom.u8(a + 58):X02}";
+            if (ds > 59) report["u8@0x3B"] = $"0x{rom.u8(a + 59):X02}";
+            if (ds > 60) report["u8@0x3C"] = $"0x{rom.u8(a + 60):X02}";
+            if (ds > 61) report["u8@0x3D"] = $"0x{rom.u8(a + 61):X02}";
+            // W62-W94
+            if (ds > 63) report["u16@0x3E"] = $"0x{rom.u16(a + 62):X04}";
+            if (ds > 65) report["u16@0x40"] = $"0x{rom.u16(a + 64):X04}";
+            if (ds > 67) report["u16@0x42"] = $"0x{rom.u16(a + 66):X04}";
+            if (ds > 69) report["u16@0x44"] = $"0x{rom.u16(a + 68):X04}";
+            if (ds > 71) report["u16@0x46"] = $"0x{rom.u16(a + 70):X04}";
+            if (ds > 73) report["u16@0x48"] = $"0x{rom.u16(a + 72):X04}";
+            if (ds > 75) report["u16@0x4A"] = $"0x{rom.u16(a + 74):X04}";
+            if (ds > 77) report["u16@0x4C"] = $"0x{rom.u16(a + 76):X04}";
+            if (ds > 79) report["u16@0x4E"] = $"0x{rom.u16(a + 78):X04}";
+            if (ds > 81) report["u16@0x50"] = $"0x{rom.u16(a + 80):X04}";
+            if (ds > 83) report["u16@0x52"] = $"0x{rom.u16(a + 82):X04}";
+            if (ds > 85) report["u16@0x54"] = $"0x{rom.u16(a + 84):X04}";
+            if (ds > 87) report["u16@0x56"] = $"0x{rom.u16(a + 86):X04}";
+            if (ds > 89) report["u16@0x58"] = $"0x{rom.u16(a + 88):X04}";
+            if (ds > 91) report["u16@0x5A"] = $"0x{rom.u16(a + 90):X04}";
+            if (ds > 93) report["u16@0x5C"] = $"0x{rom.u16(a + 92):X04}";
+            if (ds > 95) report["u16@0x5E"] = $"0x{rom.u16(a + 94):X04}";
+            // D96-D108
+            if (ds > 99) report["u32@0x60"] = $"0x{rom.u32(a + 96):X08}";
+            if (ds > 103) report["u32@0x64"] = $"0x{rom.u32(a + 100):X08}";
+            if (ds > 107) report["u32@0x68"] = $"0x{rom.u32(a + 104):X08}";
+            if (ds > 111) report["u32@0x6C"] = $"0x{rom.u32(a + 108):X08}";
+            // W112, W114
+            if (ds > 113) report["u16@0x70"] = $"0x{rom.u16(a + 112):X04}";
+            if (ds > 115) report["u16@0x72"] = $"0x{rom.u16(a + 114):X04}";
+            // B116-B135
+            if (ds > 116) report["u8@0x74"] = $"0x{rom.u8(a + 116):X02}";
+            if (ds > 117) report["u8@0x75"] = $"0x{rom.u8(a + 117):X02}";
+            if (ds > 118) report["u8@0x76"] = $"0x{rom.u8(a + 118):X02}";
+            if (ds > 119) report["u8@0x77"] = $"0x{rom.u8(a + 119):X02}";
+            if (ds > 120) report["u8@0x78"] = $"0x{rom.u8(a + 120):X02}";
+            if (ds > 121) report["u8@0x79"] = $"0x{rom.u8(a + 121):X02}";
+            if (ds > 122) report["u8@0x7A"] = $"0x{rom.u8(a + 122):X02}";
+            if (ds > 123) report["u8@0x7B"] = $"0x{rom.u8(a + 123):X02}";
+            if (ds > 124) report["u8@0x7C"] = $"0x{rom.u8(a + 124):X02}";
+            if (ds > 125) report["u8@0x7D"] = $"0x{rom.u8(a + 125):X02}";
+            if (ds > 126) report["u8@0x7E"] = $"0x{rom.u8(a + 126):X02}";
+            if (ds > 127) report["u8@0x7F"] = $"0x{rom.u8(a + 127):X02}";
+            if (ds > 128) report["u8@0x80"] = $"0x{rom.u8(a + 128):X02}";
+            if (ds > 129) report["u8@0x81"] = $"0x{rom.u8(a + 129):X02}";
+            if (ds > 130) report["u8@0x82"] = $"0x{rom.u8(a + 130):X02}";
+            if (ds > 131) report["u8@0x83"] = $"0x{rom.u8(a + 131):X02}";
+            if (ds > 132) report["u8@0x84"] = $"0x{rom.u8(a + 132):X02}";
+            if (ds > 133) report["u8@0x85"] = $"0x{rom.u8(a + 133):X02}";
+            if (ds > 134) report["u8@0x86"] = $"0x{rom.u8(a + 134):X02}";
+            if (ds > 135) report["u8@0x87"] = $"0x{rom.u8(a + 135):X02}";
+            // W136, W138
+            if (ds > 137) report["u16@0x88"] = $"0x{rom.u16(a + 136):X04}";
+            if (ds > 139) report["u16@0x8A"] = $"0x{rom.u16(a + 138):X04}";
+            // B140-B147
+            if (ds > 140) report["u8@0x8C"] = $"0x{rom.u8(a + 140):X02}";
+            if (ds > 141) report["u8@0x8D"] = $"0x{rom.u8(a + 141):X02}";
+            if (ds > 142) report["u8@0x8E"] = $"0x{rom.u8(a + 142):X02}";
+            if (ds > 143) report["u8@0x8F"] = $"0x{rom.u8(a + 143):X02}";
+            if (ds > 144) report["u8@0x90"] = $"0x{rom.u8(a + 144):X02}";
+            if (ds > 145) report["u8@0x91"] = $"0x{rom.u8(a + 145):X02}";
+            if (ds > 146) report["u8@0x92"] = $"0x{rom.u8(a + 146):X02}";
+            if (ds > 147) report["u8@0x93"] = $"0x{rom.u8(a + 147):X02}";
             return report;
         }
 

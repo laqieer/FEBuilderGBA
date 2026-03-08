@@ -319,28 +319,69 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
             if (a + 2 <= (uint)rom.Data.Length)
             {
-                report["W0"] = $"0x{rom.u16(a + 0):X04}";
+                report["u16@0x00"] = $"0x{rom.u16(a + 0):X04}";
             }
             if (a + 56 <= (uint)rom.Data.Length)
             {
-                report["D52"] = $"0x{rom.u32(a + 52):X08}";
+                report["u32@0x34"] = $"0x{rom.u32(a + 52):X08}";
             }
             // Read raw move cost bytes from the pointer target
-            if (a + 56 <= (uint)rom.Data.Length)
-            {
-                uint ptr = rom.u32(a + 52);
-                if (U.isPointer(ptr))
-                {
-                    uint mcAddr = ptr - 0x08000000;
-                    if (U.isSafetyOffset(mcAddr) && mcAddr + 51 <= (uint)rom.Data.Length)
-                    {
-                        for (int i = 0; i <= 50; i++)
-                        {
-                            report[$"B{i}"] = $"0x{rom.u8(mcAddr + (uint)i):X02}";
-                        }
-                    }
-                }
-            }
+            if (a + 56 > (uint)rom.Data.Length) return report;
+            uint ptr = rom.u32(a + 52);
+            if (!U.isPointer(ptr)) return report;
+            uint mc = ptr - 0x08000000;
+            if (!U.isSafetyOffset(mc) || mc + 51 > (uint)rom.Data.Length) return report;
+            report["u8@0x00"] = $"0x{rom.u8(mc + 0):X02}";
+            report["u8@0x01"] = $"0x{rom.u8(mc + 1):X02}";
+            report["u8@0x02"] = $"0x{rom.u8(mc + 2):X02}";
+            report["u8@0x03"] = $"0x{rom.u8(mc + 3):X02}";
+            report["u8@0x04"] = $"0x{rom.u8(mc + 4):X02}";
+            report["u8@0x05"] = $"0x{rom.u8(mc + 5):X02}";
+            report["u8@0x06"] = $"0x{rom.u8(mc + 6):X02}";
+            report["u8@0x07"] = $"0x{rom.u8(mc + 7):X02}";
+            report["u8@0x08"] = $"0x{rom.u8(mc + 8):X02}";
+            report["u8@0x09"] = $"0x{rom.u8(mc + 9):X02}";
+            report["u8@0x0A"] = $"0x{rom.u8(mc + 10):X02}";
+            report["u8@0x0B"] = $"0x{rom.u8(mc + 11):X02}";
+            report["u8@0x0C"] = $"0x{rom.u8(mc + 12):X02}";
+            report["u8@0x0D"] = $"0x{rom.u8(mc + 13):X02}";
+            report["u8@0x0E"] = $"0x{rom.u8(mc + 14):X02}";
+            report["u8@0x0F"] = $"0x{rom.u8(mc + 15):X02}";
+            report["u8@0x10"] = $"0x{rom.u8(mc + 16):X02}";
+            report["u8@0x11"] = $"0x{rom.u8(mc + 17):X02}";
+            report["u8@0x12"] = $"0x{rom.u8(mc + 18):X02}";
+            report["u8@0x13"] = $"0x{rom.u8(mc + 19):X02}";
+            report["u8@0x14"] = $"0x{rom.u8(mc + 20):X02}";
+            report["u8@0x15"] = $"0x{rom.u8(mc + 21):X02}";
+            report["u8@0x16"] = $"0x{rom.u8(mc + 22):X02}";
+            report["u8@0x17"] = $"0x{rom.u8(mc + 23):X02}";
+            report["u8@0x18"] = $"0x{rom.u8(mc + 24):X02}";
+            report["u8@0x19"] = $"0x{rom.u8(mc + 25):X02}";
+            report["u8@0x1A"] = $"0x{rom.u8(mc + 26):X02}";
+            report["u8@0x1B"] = $"0x{rom.u8(mc + 27):X02}";
+            report["u8@0x1C"] = $"0x{rom.u8(mc + 28):X02}";
+            report["u8@0x1D"] = $"0x{rom.u8(mc + 29):X02}";
+            report["u8@0x1E"] = $"0x{rom.u8(mc + 30):X02}";
+            report["u8@0x1F"] = $"0x{rom.u8(mc + 31):X02}";
+            report["u8@0x20"] = $"0x{rom.u8(mc + 32):X02}";
+            report["u8@0x21"] = $"0x{rom.u8(mc + 33):X02}";
+            report["u8@0x22"] = $"0x{rom.u8(mc + 34):X02}";
+            report["u8@0x23"] = $"0x{rom.u8(mc + 35):X02}";
+            report["u8@0x24"] = $"0x{rom.u8(mc + 36):X02}";
+            report["u8@0x25"] = $"0x{rom.u8(mc + 37):X02}";
+            report["u8@0x26"] = $"0x{rom.u8(mc + 38):X02}";
+            report["u8@0x27"] = $"0x{rom.u8(mc + 39):X02}";
+            report["u8@0x28"] = $"0x{rom.u8(mc + 40):X02}";
+            report["u8@0x29"] = $"0x{rom.u8(mc + 41):X02}";
+            report["u8@0x2A"] = $"0x{rom.u8(mc + 42):X02}";
+            report["u8@0x2B"] = $"0x{rom.u8(mc + 43):X02}";
+            report["u8@0x2C"] = $"0x{rom.u8(mc + 44):X02}";
+            report["u8@0x2D"] = $"0x{rom.u8(mc + 45):X02}";
+            report["u8@0x2E"] = $"0x{rom.u8(mc + 46):X02}";
+            report["u8@0x2F"] = $"0x{rom.u8(mc + 47):X02}";
+            report["u8@0x30"] = $"0x{rom.u8(mc + 48):X02}";
+            report["u8@0x31"] = $"0x{rom.u8(mc + 49):X02}";
+            report["u8@0x32"] = $"0x{rom.u8(mc + 50):X02}";
             return report;
         }
     }

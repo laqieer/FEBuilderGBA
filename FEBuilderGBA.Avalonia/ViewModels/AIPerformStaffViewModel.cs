@@ -55,13 +55,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return new Dictionary<string, string>();
-            uint addr = CurrentAddr;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
             return new Dictionary<string, string>
             {
-                { "W0", rom.u16(addr + 0).ToString("X04") },
-                { "W2", rom.u16(addr + 2).ToString("X04") },
-                { "P4", rom.u32(addr + 4).ToString("X08") },
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

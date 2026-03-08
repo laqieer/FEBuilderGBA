@@ -1,10 +1,9 @@
 using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Category picker for Procs scripts.</summary>
-    public class ProcsScriptCategorySelectViewModel : ViewModelBase, IDataVerifiable
+    public class ProcsScriptCategorySelectViewModel : ViewModelBase
     {
         List<string> _categories = new();
         string _selectedCategory = "";
@@ -27,22 +26,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             cats.Add("Misc Procs");
             Categories = cats;
             IsLoaded = true;
-        }
-
-        public int GetListCount() => Categories.Count;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["SelectedCategory"] = SelectedCategory,
-                ["CategoryCount"] = Categories.Count.ToString(),
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
         }
     }
 }

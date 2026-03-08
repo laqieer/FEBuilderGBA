@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MapEditorResizeDialogViewModel : ViewModelBase, IDataVerifiable
+    public class MapEditorResizeDialogViewModel : ViewModelBase
     {
         bool _isLoaded;
         int _x, _y, _t, _l, _r, _b;
@@ -23,15 +21,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["X"] = $"{X}", ["Y"] = $"{Y}",
-            ["T"] = $"{T}", ["L"] = $"{L}",
-            ["R"] = $"{R}", ["B"] = $"{B}",
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

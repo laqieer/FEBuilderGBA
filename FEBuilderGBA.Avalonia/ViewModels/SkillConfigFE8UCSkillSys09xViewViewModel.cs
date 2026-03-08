@@ -30,7 +30,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void Initialize() { IsLoaded = true; }
         public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string> { ["status"] = "skill_patch_required", ["W4"] = $"0x{W4:X04}", ["W6"] = $"0x{W6:X04}" };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["W4"] = $"0x{W4:X04}",
+                ["W6"] = $"0x{W6:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
+            };
+        }
     }
 }

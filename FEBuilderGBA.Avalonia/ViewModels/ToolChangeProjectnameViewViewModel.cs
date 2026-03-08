@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ToolChangeProjectnameViewViewModel : ViewModelBase, IDataVerifiable
+    public class ToolChangeProjectnameViewViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _currentName = string.Empty;
@@ -18,14 +16,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["CurrentName"] = CurrentName,
-            ["NewName"] = NewName,
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

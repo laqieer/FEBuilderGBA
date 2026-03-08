@@ -189,20 +189,20 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_RawRomReportMatchesReadOffsets()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("[\"u16@0\"]", src);
-            Assert.Contains("[\"u8@7\"]", src);
-            Assert.Contains("[\"u8@21\"]", src);
-            Assert.Contains("[\"u16@26\"]", src);
+            Assert.Contains("[\"u16@0x00\"]", src);
+            Assert.Contains("[\"u8@0x07\"]", src);
+            Assert.Contains("[\"u8@0x15\"]", src);
+            Assert.Contains("[\"u16@0x1A\"]", src);
         }
 
         [Fact]
         public void ClassEditorViewModel_RawRomReportMatchesReadOffsets()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ClassEditorViewModel.cs"));
-            Assert.Contains("[\"u16@0\"]", src);
-            Assert.Contains("[\"u8@4\"]", src);
-            Assert.Contains("[\"u8@11\"]", src);
-            Assert.Contains("[\"u8@27\"]", src);
+            Assert.Contains("[\"u16@0x00\"]", src);
+            Assert.Contains("[\"u8@0x04\"]", src);
+            Assert.Contains("[\"u8@0x0B\"]", src);
+            Assert.Contains("[\"u8@0x1B\"]", src);
         }
     }
 }

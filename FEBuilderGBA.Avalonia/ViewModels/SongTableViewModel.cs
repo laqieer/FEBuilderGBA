@@ -96,11 +96,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
             };
+
+            // Also report header fields if the pointer is valid
+            uint headerPtr = rom.u32(a);
+            if (U.isPointer(headerPtr))
+            {
+                uint h = rom.p32(a);
+                if (U.isSafetyOffset(h) && h + 7 < (uint)rom.Data.Length)
+                {
+                    report["u8@0x08"] = $"0x{rom.u8(h + 0):X02}";
+                    report["u8@0x0A"] = $"0x{rom.u8(h + 2):X02}";
+                    report["u8@0x0B"] = $"0x{rom.u8(h + 3):X02}";
+                }
+            }
+            return report;
         }
     }
 }

@@ -208,15 +208,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            var report = new Dictionary<string, string>
+            return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                ["u8@0x14"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@0x15"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@0x16"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@0x17"] = $"0x{rom.u8(a + 23):X02}",
             };
-            for (int i = 0; i < 24; i++)
-            {
-                report[$"u8@0x{i:X02}"] = $"0x{rom.u8(a + (uint)i):X02}";
-            }
-            return report;
         }
     }
 }

@@ -1,10 +1,7 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Text reference add dialog ViewModel.</summary>
-    public class TextRefAddDialogViewModel : ViewModelBase, IDataVerifiable
+    public class TextRefAddDialogViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _refText = "";
@@ -18,18 +15,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["RefText"] = RefText,
-                ["RefId"] = RefId.ToString(),
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

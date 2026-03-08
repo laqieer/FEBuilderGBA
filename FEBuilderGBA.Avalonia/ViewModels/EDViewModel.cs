@@ -84,6 +84,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["addr"] = $"0x{a:X08}",
                 ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
                 ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
             };
         }
     }

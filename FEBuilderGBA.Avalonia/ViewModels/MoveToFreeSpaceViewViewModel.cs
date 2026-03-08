@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MoveToFreeSpaceViewViewModel : ViewModelBase, IDataVerifiable
+    public class MoveToFreeSpaceViewViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _currentAddress = string.Empty;
@@ -22,15 +20,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["CurrentAddress"] = CurrentAddress,
-            ["FreeSpaceAddress"] = FreeSpaceAddress,
-            ["DataSize"] = DataSize,
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

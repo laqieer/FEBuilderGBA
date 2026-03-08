@@ -1,10 +1,8 @@
-using System;
 using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class TerrainNameEditorViewModel : ViewModelBase, IDataVerifiable
+    public class TerrainNameEditorViewModel : ViewModelBase
     {
         uint _currentAddr;
         string _terrainName = "";
@@ -67,26 +65,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadTerrainNameList().Count;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["addr"] = $"0x{CurrentAddr:X08}",
-                ["TextId"] = $"0x{TextId:X04}",
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
-            uint a = CurrentAddr;
-            return new Dictionary<string, string>
-            {
-                ["addr"] = $"0x{a:X08}",
-                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
-            };
-        }
     }
 }

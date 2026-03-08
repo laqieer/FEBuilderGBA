@@ -123,30 +123,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return new Dictionary<string, string>();
-            uint addr = CurrentAddr;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
             return new Dictionary<string, string>
             {
-                { "B0", rom.u8(addr + 0).ToString("X02") },
-                { "B1", rom.u8(addr + 1).ToString("X02") },
-                { "B2", rom.u8(addr + 2).ToString("X02") },
-                { "B3", rom.u8(addr + 3).ToString("X02") },
-                { "B4", rom.u8(addr + 4).ToString("X02") },
-                { "B5", rom.u8(addr + 5).ToString("X02") },
-                { "B6", rom.u8(addr + 6).ToString("X02") },
-                { "B7", rom.u8(addr + 7).ToString("X02") },
-                { "B8", rom.u8(addr + 8).ToString("X02") },
-                { "B9", rom.u8(addr + 9).ToString("X02") },
-                { "B10", rom.u8(addr + 10).ToString("X02") },
-                { "B11", rom.u8(addr + 11).ToString("X02") },
-                { "B12", rom.u8(addr + 12).ToString("X02") },
-                { "B13", rom.u8(addr + 13).ToString("X02") },
-                { "B14", rom.u8(addr + 14).ToString("X02") },
-                { "B15", rom.u8(addr + 15).ToString("X02") },
-                { "B16", rom.u8(addr + 16).ToString("X02") },
-                { "B17", rom.u8(addr + 17).ToString("X02") },
-                { "B18", rom.u8(addr + 18).ToString("X02") },
-                { "B19", rom.u8(addr + 19).ToString("X02") },
+                ["addr"] = $"0x{a:X08}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
             };
         }
     }

@@ -1,9 +1,6 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class TextBadCharPopupViewModel : ViewModelBase, IDataVerifiable
+    public class TextBadCharPopupViewModel : ViewModelBase
     {
         string _warningText = "";
         string _selectedAction = "";
@@ -24,22 +21,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 WarningText = warningText;
             }
             IsLoaded = true;
-        }
-
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["WarningTextLength"] = WarningText.Length.ToString(),
-                ["SelectedAction"] = SelectedAction,
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
         }
     }
 }

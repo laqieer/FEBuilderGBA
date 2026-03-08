@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
-        public int GetListCount() => Entries.Count;
+        public int GetListCount() => 0;
 
         public Dictionary<string, string> GetDataReport()
         {
@@ -68,8 +68,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["W8"] = $"0x{W8:X04}",
                 ["B10"] = $"0x{B10:X02}",
                 ["B11"] = $"0x{B11:X02}",
-                ["EntryCount"] = Entries.Count.ToString(),
-                ["SearchTerm"] = SearchTerm,
             };
         }
 

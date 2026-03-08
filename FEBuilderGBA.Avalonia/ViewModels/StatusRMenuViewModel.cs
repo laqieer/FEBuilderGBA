@@ -109,7 +109,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
                 ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
                 ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
                 ["u16@0x12"] = $"0x{rom.u16(a + 18):X04}",
+                ["u32@0x14"] = $"0x{rom.u32(a + 20):X08}",
+                ["u32@0x18"] = $"0x{rom.u32(a + 24):X08}",
             };
         }
     }

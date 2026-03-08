@@ -505,14 +505,75 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 report[$"u32@0x{moveCostPtrOffset:X02}"] = $"0x{rom.u32(a + moveCostPtrOffset):X08}";
             }
 
-            // Also report the raw move cost bytes
-            if (MoveCostAddr != 0 && U.isSafetyOffset(MoveCostAddr))
-            {
-                for (int i = 0; i < TerrainCount && MoveCostAddr + i < (uint)rom.Data.Length; i++)
-                {
-                    report[$"B{i}@movecost"] = $"0x{rom.u8(MoveCostAddr + (uint)i):X02}";
-                }
-            }
+            // Also report the raw move cost bytes at MoveCostAddr
+            if (MoveCostAddr == 0 || !U.isSafetyOffset(MoveCostAddr)) return report;
+            uint m = MoveCostAddr;
+            if (m + TerrainCount > (uint)rom.Data.Length) return report;
+            report["u8@0x00"] = $"0x{rom.u8(m + 0):X02}";
+            report["u8@0x01"] = $"0x{rom.u8(m + 1):X02}";
+            report["u8@0x02"] = $"0x{rom.u8(m + 2):X02}";
+            report["u8@0x03"] = $"0x{rom.u8(m + 3):X02}";
+            report["u8@0x04"] = $"0x{rom.u8(m + 4):X02}";
+            report["u8@0x05"] = $"0x{rom.u8(m + 5):X02}";
+            report["u8@0x06"] = $"0x{rom.u8(m + 6):X02}";
+            report["u8@0x07"] = $"0x{rom.u8(m + 7):X02}";
+            report["u8@0x08"] = $"0x{rom.u8(m + 8):X02}";
+            report["u8@0x09"] = $"0x{rom.u8(m + 9):X02}";
+            report["u8@0x0A"] = $"0x{rom.u8(m + 10):X02}";
+            report["u8@0x0B"] = $"0x{rom.u8(m + 11):X02}";
+            report["u8@0x0C"] = $"0x{rom.u8(m + 12):X02}";
+            report["u8@0x0D"] = $"0x{rom.u8(m + 13):X02}";
+            report["u8@0x0E"] = $"0x{rom.u8(m + 14):X02}";
+            report["u8@0x0F"] = $"0x{rom.u8(m + 15):X02}";
+            report["u8@0x10"] = $"0x{rom.u8(m + 16):X02}";
+            report["u8@0x11"] = $"0x{rom.u8(m + 17):X02}";
+            report["u8@0x12"] = $"0x{rom.u8(m + 18):X02}";
+            report["u8@0x13"] = $"0x{rom.u8(m + 19):X02}";
+            report["u8@0x14"] = $"0x{rom.u8(m + 20):X02}";
+            report["u8@0x15"] = $"0x{rom.u8(m + 21):X02}";
+            report["u8@0x16"] = $"0x{rom.u8(m + 22):X02}";
+            report["u8@0x17"] = $"0x{rom.u8(m + 23):X02}";
+            report["u8@0x18"] = $"0x{rom.u8(m + 24):X02}";
+            report["u8@0x19"] = $"0x{rom.u8(m + 25):X02}";
+            report["u8@0x1A"] = $"0x{rom.u8(m + 26):X02}";
+            report["u8@0x1B"] = $"0x{rom.u8(m + 27):X02}";
+            report["u8@0x1C"] = $"0x{rom.u8(m + 28):X02}";
+            report["u8@0x1D"] = $"0x{rom.u8(m + 29):X02}";
+            report["u8@0x1E"] = $"0x{rom.u8(m + 30):X02}";
+            report["u8@0x1F"] = $"0x{rom.u8(m + 31):X02}";
+            report["u8@0x20"] = $"0x{rom.u8(m + 32):X02}";
+            report["u8@0x21"] = $"0x{rom.u8(m + 33):X02}";
+            report["u8@0x22"] = $"0x{rom.u8(m + 34):X02}";
+            report["u8@0x23"] = $"0x{rom.u8(m + 35):X02}";
+            report["u8@0x24"] = $"0x{rom.u8(m + 36):X02}";
+            report["u8@0x25"] = $"0x{rom.u8(m + 37):X02}";
+            report["u8@0x26"] = $"0x{rom.u8(m + 38):X02}";
+            report["u8@0x27"] = $"0x{rom.u8(m + 39):X02}";
+            report["u8@0x28"] = $"0x{rom.u8(m + 40):X02}";
+            report["u8@0x29"] = $"0x{rom.u8(m + 41):X02}";
+            report["u8@0x2A"] = $"0x{rom.u8(m + 42):X02}";
+            report["u8@0x2B"] = $"0x{rom.u8(m + 43):X02}";
+            report["u8@0x2C"] = $"0x{rom.u8(m + 44):X02}";
+            report["u8@0x2D"] = $"0x{rom.u8(m + 45):X02}";
+            report["u8@0x2E"] = $"0x{rom.u8(m + 46):X02}";
+            report["u8@0x2F"] = $"0x{rom.u8(m + 47):X02}";
+            report["u8@0x30"] = $"0x{rom.u8(m + 48):X02}";
+            report["u8@0x31"] = $"0x{rom.u8(m + 49):X02}";
+            report["u8@0x32"] = $"0x{rom.u8(m + 50):X02}";
+            report["u8@0x33"] = $"0x{rom.u8(m + 51):X02}";
+            report["u8@0x34"] = $"0x{rom.u8(m + 52):X02}";
+            report["u8@0x35"] = $"0x{rom.u8(m + 53):X02}";
+            report["u8@0x36"] = $"0x{rom.u8(m + 54):X02}";
+            report["u8@0x37"] = $"0x{rom.u8(m + 55):X02}";
+            report["u8@0x38"] = $"0x{rom.u8(m + 56):X02}";
+            report["u8@0x39"] = $"0x{rom.u8(m + 57):X02}";
+            report["u8@0x3A"] = $"0x{rom.u8(m + 58):X02}";
+            report["u8@0x3B"] = $"0x{rom.u8(m + 59):X02}";
+            report["u8@0x3C"] = $"0x{rom.u8(m + 60):X02}";
+            report["u8@0x3D"] = $"0x{rom.u8(m + 61):X02}";
+            report["u8@0x3E"] = $"0x{rom.u8(m + 62):X02}";
+            report["u8@0x3F"] = $"0x{rom.u8(m + 63):X02}";
+            report["u8@0x40"] = $"0x{rom.u8(m + 64):X02}";
             return report;
         }
     }

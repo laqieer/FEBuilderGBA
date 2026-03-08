@@ -306,30 +306,74 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
 
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u16@0"] = $"0x{rom.u16(a + 0):X04}",
-                ["u16@2"] = $"0x{rom.u16(a + 2):X04}",
-                ["u8@4"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@5"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@6"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@7"] = $"0x{rom.u8(a + 7):X02}",
-                ["u16@8"] = $"0x{rom.u16(a + 8):X04}",
-                ["u8@10"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@11"] = $"0x{rom.u8(a + 11):X02}",
-                ["u8@17"] = $"0x{rom.u8(a + 17):X02}",
-                ["u8@27"] = $"0x{rom.u8(a + 27):X02}",
-                ["u8@34"] = $"0x{rom.u8(a + 34):X02}",
-                ["u8@36"] = $"0x{rom.u8(a + 36):X02}",
-                ["u8@40"] = $"0x{rom.u8(a + 40):X02}",
-                ["u32@48"] = $"0x{rom.u32(a + 48):X08}",
-                ["u32@52"] = $"0x{rom.u32(a + 52):X08}",
-                ["u32@56"] = $"0x{rom.u32(a + 56):X08}",
-                ["u32@60"] = $"0x{rom.u32(a + 60):X08}",
-                ["u32@64"] = $"0x{rom.u32(a + 64):X08}",
-                ["u32@68"] = $"0x{rom.u32(a + 68):X08}",
+                // W0, W2: text IDs
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                // B4-B7: identity
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                // W8: portrait / map sprite
+                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
+                // B10: build stat
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                // B11-B18: base stats
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                // B19-B26: stat caps
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                ["u8@0x14"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@0x15"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@0x16"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@0x17"] = $"0x{rom.u8(a + 23):X02}",
+                ["u8@0x18"] = $"0x{rom.u8(a + 24):X02}",
+                ["u8@0x19"] = $"0x{rom.u8(a + 25):X02}",
+                ["u8@0x1A"] = $"0x{rom.u8(a + 26):X02}",
+                // B27-B33: growth rates
+                ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
+                ["u8@0x1C"] = $"0x{rom.u8(a + 28):X02}",
+                ["u8@0x1D"] = $"0x{rom.u8(a + 29):X02}",
+                ["u8@0x1E"] = $"0x{rom.u8(a + 30):X02}",
+                ["u8@0x1F"] = $"0x{rom.u8(a + 31):X02}",
+                ["u8@0x20"] = $"0x{rom.u8(a + 32):X02}",
+                ["u8@0x21"] = $"0x{rom.u8(a + 33):X02}",
+                // B34-B35: promotion bonuses / misc
+                ["u8@0x22"] = $"0x{rom.u8(a + 34):X02}",
+                ["u8@0x23"] = $"0x{rom.u8(a + 35):X02}",
+                // B36-B39: ability flags
+                ["u8@0x24"] = $"0x{rom.u8(a + 36):X02}",
+                ["u8@0x25"] = $"0x{rom.u8(a + 37):X02}",
+                ["u8@0x26"] = $"0x{rom.u8(a + 38):X02}",
+                ["u8@0x27"] = $"0x{rom.u8(a + 39):X02}",
+                // B40-B47: weapon levels
+                ["u8@0x28"] = $"0x{rom.u8(a + 40):X02}",
+                ["u8@0x29"] = $"0x{rom.u8(a + 41):X02}",
+                ["u8@0x2A"] = $"0x{rom.u8(a + 42):X02}",
+                ["u8@0x2B"] = $"0x{rom.u8(a + 43):X02}",
+                ["u8@0x2C"] = $"0x{rom.u8(a + 44):X02}",
+                ["u8@0x2D"] = $"0x{rom.u8(a + 45):X02}",
+                ["u8@0x2E"] = $"0x{rom.u8(a + 46):X02}",
+                ["u8@0x2F"] = $"0x{rom.u8(a + 47):X02}",
+                // P48-P64: pointers
+                ["u32@0x30"] = $"0x{rom.u32(a + 48):X08}",
+                ["u32@0x34"] = $"0x{rom.u32(a + 52):X08}",
+                ["u32@0x38"] = $"0x{rom.u32(a + 56):X08}",
+                ["u32@0x3C"] = $"0x{rom.u32(a + 60):X08}",
+                ["u32@0x40"] = $"0x{rom.u32(a + 64):X08}",
+                // D68
+                ["u32@0x44"] = $"0x{rom.u32(a + 68):X08}",
             };
+            return report;
         }
 
         public void WriteEntry()

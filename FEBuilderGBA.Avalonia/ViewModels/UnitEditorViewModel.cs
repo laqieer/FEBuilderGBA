@@ -280,6 +280,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["GrowDef"] = $"0x{GrowDef:X02}",
                 ["GrowRes"] = $"0x{GrowRes:X02}",
                 ["GrowLck"] = $"0x{GrowLck:X02}",
+                ["Unk35"] = $"0x{Unk35:X02}",
+                ["Unk36"] = $"0x{Unk36:X02}",
+                ["Unk37"] = $"0x{Unk37:X02}",
+                ["Unk38"] = $"0x{Unk38:X02}",
+                ["Unk39"] = $"0x{Unk39:X02}",
                 ["Ability1"] = $"0x{Ability1:X02}",
                 ["Ability2"] = $"0x{Ability2:X02}",
                 ["Ability3"] = $"0x{Ability3:X02}",
@@ -290,6 +295,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!IsFE6)
             {
                 report["TalkGroup"] = $"0x{TalkGroup:X02}";
+                report["Unk49"] = $"0x{Unk49:X02}";
+                report["Unk50"] = $"0x{Unk50:X02}";
+                report["Unk51"] = $"0x{Unk51:X02}";
             }
 
             return report;

@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class HexEditorMarkViewModel : ViewModelBase, IDataVerifiable
+    public class HexEditorMarkViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _selectedMark = string.Empty;
@@ -31,13 +29,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             Marks.Remove(address);
         }
-
-        public int GetListCount() => Marks.Count;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["MarkCount"] = $"{Marks.Count}",
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

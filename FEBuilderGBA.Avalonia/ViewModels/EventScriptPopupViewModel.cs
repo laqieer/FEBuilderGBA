@@ -1,10 +1,7 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Script command quick reference popup.</summary>
-    public class EventScriptPopupViewModel : ViewModelBase, IDataVerifiable
+    public class EventScriptPopupViewModel : ViewModelBase
     {
         string _infoText = "";
         bool _isLoaded;
@@ -32,21 +29,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 "Use the Event Script editor to browse and edit full command definitions.\n" +
                 "Command definitions are loaded from config/data/ script files.";
             IsLoaded = true;
-        }
-
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["InfoTextLength"] = InfoText.Length.ToString(),
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
         }
     }
 }

@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class MapStyleEditorWarningOverrideViewModel : ViewModelBase, IDataVerifiable
+    public class MapStyleEditorWarningOverrideViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _warningMessage = string.Empty;
@@ -18,13 +16,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 WarningMessage = "Overriding map style data may cause visual artifacts. Are you sure?";
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["WarningMessage"] = WarningMessage,
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

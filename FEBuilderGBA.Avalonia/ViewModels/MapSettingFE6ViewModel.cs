@@ -425,23 +425,65 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["dataSize"] = $"{ds}",
-                ["u32@0"] = $"0x{rom.u32(a + 0):X08}",
-                ["u16@4"] = $"0x{rom.u16(a + 4):X04}",
+                // D0
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                // W4
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                // B6-B24
+                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                ["u8@0x14"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@0x15"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@0x16"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@0x17"] = $"0x{rom.u8(a + 23):X02}",
+                ["u8@0x18"] = $"0x{rom.u8(a + 24):X02}",
+                // B25-B31
+                ["u8@0x19"] = $"0x{rom.u8(a + 25):X02}",
+                ["u8@0x1A"] = $"0x{rom.u8(a + 26):X02}",
+                ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
+                ["u8@0x1C"] = $"0x{rom.u8(a + 28):X02}",
+                ["u8@0x1D"] = $"0x{rom.u8(a + 29):X02}",
+                ["u8@0x1E"] = $"0x{rom.u8(a + 30):X02}",
+                ["u8@0x1F"] = $"0x{rom.u8(a + 31):X02}",
+                // W32-W56
+                ["u16@0x20"] = $"0x{rom.u16(a + 32):X04}",
+                ["u16@0x22"] = $"0x{rom.u16(a + 34):X04}",
+                ["u16@0x24"] = $"0x{rom.u16(a + 36):X04}",
+                ["u16@0x26"] = $"0x{rom.u16(a + 38):X04}",
+                ["u16@0x28"] = $"0x{rom.u16(a + 40):X04}",
+                ["u16@0x2A"] = $"0x{rom.u16(a + 42):X04}",
+                ["u16@0x2C"] = $"0x{rom.u16(a + 44):X04}",
+                ["u16@0x2E"] = $"0x{rom.u16(a + 46):X04}",
+                ["u16@0x30"] = $"0x{rom.u16(a + 48):X04}",
+                ["u16@0x32"] = $"0x{rom.u16(a + 50):X04}",
+                ["u16@0x34"] = $"0x{rom.u16(a + 52):X04}",
+                ["u16@0x36"] = $"0x{rom.u16(a + 54):X04}",
+                ["u16@0x38"] = $"0x{rom.u16(a + 56):X04}",
             };
-            // B6-B31
-            for (uint i = 6; i < 32 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
-            // W32-W56
-            for (uint i = 32; i < 58 && i + 1 < ds; i += 2)
-                report[$"u16@{i}"] = $"0x{rom.u16(a + i):X04}";
             // B58-B59
-            if (ds > 58) report["u8@58"] = $"0x{rom.u8(a + 58):X02}";
-            if (ds > 59) report["u8@59"] = $"0x{rom.u8(a + 59):X02}";
+            if (ds > 58) report["u8@0x3A"] = $"0x{rom.u8(a + 58):X02}";
+            if (ds > 59) report["u8@0x3B"] = $"0x{rom.u8(a + 59):X02}";
             // W60
-            if (ds > 61) report["u16@60"] = $"0x{rom.u16(a + 60):X04}";
+            if (ds > 61) report["u16@0x3C"] = $"0x{rom.u16(a + 60):X04}";
             // B62-B67
-            for (uint i = 62; i < 68 && i < ds; i++)
-                report[$"u8@{i}"] = $"0x{rom.u8(a + i):X02}";
+            if (ds > 62) report["u8@0x3E"] = $"0x{rom.u8(a + 62):X02}";
+            if (ds > 63) report["u8@0x3F"] = $"0x{rom.u8(a + 63):X02}";
+            if (ds > 64) report["u8@0x40"] = $"0x{rom.u8(a + 64):X02}";
+            if (ds > 65) report["u8@0x41"] = $"0x{rom.u8(a + 65):X02}";
+            if (ds > 66) report["u8@0x42"] = $"0x{rom.u8(a + 66):X02}";
+            if (ds > 67) report["u8@0x43"] = $"0x{rom.u8(a + 67):X02}";
             return report;
         }
 

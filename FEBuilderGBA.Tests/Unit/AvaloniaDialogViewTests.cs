@@ -435,7 +435,8 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         // ===========================================================================
-        // Cross-cutting: All 13 dialogs implement IDataVerifiable in VM
+        // Cross-cutting: Dialog VMs are orphans and do NOT implement IDataVerifiable
+        // (they are not ROM data editors — IDataVerifiable was removed in orphan cleanup)
         // ===========================================================================
 
         [Theory]
@@ -452,13 +453,11 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("HexEditorSearchViewModel.cs")]
         [InlineData("DisASMDumpAllViewModel.cs")]
         [InlineData("DisASMDumpAllArgGrepViewModel.cs")]
-        public void DialogVM_ImplementsIDataVerifiable(string vmFile)
+        public void DialogVM_DoesNotImplementIDataVerifiable(string vmFile)
         {
             var src = ReadVM(vmFile);
-            Assert.Contains("IDataVerifiable", src);
-            Assert.Contains("GetListCount()", src);
-            Assert.Contains("GetDataReport()", src);
-            Assert.Contains("GetRawRomReport()", src);
+            Assert.DoesNotContain(": IDataVerifiable", src);
+            Assert.DoesNotContain(", IDataVerifiable", src);
         }
 
         [Theory]

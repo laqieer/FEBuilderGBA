@@ -119,29 +119,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return new Dictionary<string, string>();
-            uint addr = CurrentAddr;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
             return new Dictionary<string, string>
             {
-                { "D0", rom.u32(addr + 0).ToString("X08") },
-                { "W4", rom.u16(addr + 4).ToString("X04") },
-                { "W6", rom.u16(addr + 6).ToString("X04") },
-                { "W8", rom.u16(addr + 8).ToString("X04") },
-                { "W10", rom.u16(addr + 10).ToString("X04") },
-                { "W12", rom.u16(addr + 12).ToString("X04") },
-                { "W14", rom.u16(addr + 14).ToString("X04") },
-                { "W16", rom.u16(addr + 16).ToString("X04") },
-                { "W18", rom.u16(addr + 18).ToString("X04") },
-                { "W20", rom.u16(addr + 20).ToString("X04") },
-                { "W22", rom.u16(addr + 22).ToString("X04") },
-                { "W24", rom.u16(addr + 24).ToString("X04") },
-                { "W26", rom.u16(addr + 26).ToString("X04") },
-                { "W28", rom.u16(addr + 28).ToString("X04") },
-                { "W30", rom.u16(addr + 30).ToString("X04") },
-                { "W32", rom.u16(addr + 32).ToString("X04") },
-                { "W34", rom.u16(addr + 34).ToString("X04") },
-                { "D36", rom.u32(addr + 36).ToString("X08") },
-                { "P40", rom.u32(addr + 40).ToString("X08") },
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
+                ["u16@0x0A"] = $"0x{rom.u16(a + 10):X04}",
+                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
+                ["u16@0x0E"] = $"0x{rom.u16(a + 14):X04}",
+                ["u16@0x10"] = $"0x{rom.u16(a + 16):X04}",
+                ["u16@0x12"] = $"0x{rom.u16(a + 18):X04}",
+                ["u16@0x14"] = $"0x{rom.u16(a + 20):X04}",
+                ["u16@0x16"] = $"0x{rom.u16(a + 22):X04}",
+                ["u16@0x18"] = $"0x{rom.u16(a + 24):X04}",
+                ["u16@0x1A"] = $"0x{rom.u16(a + 26):X04}",
+                ["u16@0x1C"] = $"0x{rom.u16(a + 28):X04}",
+                ["u16@0x1E"] = $"0x{rom.u16(a + 30):X04}",
+                ["u16@0x20"] = $"0x{rom.u16(a + 32):X04}",
+                ["u16@0x22"] = $"0x{rom.u16(a + 34):X04}",
+                ["u32@0x24"] = $"0x{rom.u32(a + 36):X08}",
+                ["u32@0x28"] = $"0x{rom.u32(a + 40):X08}",
             };
         }
     }

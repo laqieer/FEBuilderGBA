@@ -1,10 +1,7 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Text preview and save dialog for struct dumps.</summary>
-    public class DumpStructSelectToTextDialogViewModel : ViewModelBase, IDataVerifiable
+    public class DumpStructSelectToTextDialogViewModel : ViewModelBase
     {
         string _fileName = "dump.txt";
         string _textContent = "";
@@ -19,22 +16,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             FileName = fileName ?? "dump.txt";
             TextContent = content ?? "";
             IsLoaded = true;
-        }
-
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["FileName"] = FileName,
-                ["ContentLength"] = TextContent.Length.ToString(),
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
         }
     }
 }

@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class DisASMDumpAllViewModel : ViewModelBase, IDataVerifiable
+    public class DisASMDumpAllViewModel : ViewModelBase
     {
         bool _isLoaded;
         int _selectedAction; // 0=DisASM, 1=IDA MAP, 2=No$GBA SYM
@@ -18,13 +16,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-        public Dictionary<string, string> GetDataReport() => new Dictionary<string, string>
-        {
-            ["status"] = "loaded",
-            ["SelectedAction"] = $"{SelectedAction}",
-        };
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }

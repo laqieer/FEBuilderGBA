@@ -1,6 +1,8 @@
 === Field Completeness Report ===
 Total WinForms fields: 1562
-Total Avalonia fields: 1756
+Total Avalonia fields: 1757
 Total missing: 0
 Forms with gaps: 0 / 170
-
+IDataVerifiable VMs (data editors): 170
+Orphan VMs cleaned (IDataVerifiable removed): 49
+Enforcement tests: 13 (all passing)

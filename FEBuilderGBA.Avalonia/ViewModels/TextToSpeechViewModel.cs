@@ -1,10 +1,7 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Text-to-speech tool ViewModel.</summary>
-    public class TextToSpeechViewModel : ViewModelBase, IDataVerifiable
+    public class TextToSpeechViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _inputText = "";
@@ -18,18 +15,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
-
-        public int GetListCount() => 0;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["InputTextLength"] = InputText.Length.ToString(),
-                ["Status"] = Status,
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport() => new Dictionary<string, string>();
     }
 }
