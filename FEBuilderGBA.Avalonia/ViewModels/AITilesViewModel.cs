@@ -1,15 +1,17 @@
-using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class AITilesViewModel : ViewModelBase
+    public class AITilesViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
+        uint _b0;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -27,7 +29,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
 
             CurrentAddr = addr;
+            B0 = rom.u8(addr + 0);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => 0;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                { "B0", B0.ToString("X02") },
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new Dictionary<string, string>();
+            uint addr = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                { "B0", rom.u8(addr + 0).ToString("X02") },
+            };
         }
     }
 }

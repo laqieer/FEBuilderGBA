@@ -1,15 +1,18 @@
-using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class EventTalkGroupFE7ViewModel : ViewModelBase
+    public class EventTalkGroupFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
+        uint _d0;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        // D0: u32 field at offset 0
+        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -27,7 +30,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
 
             CurrentAddr = addr;
+            D0 = rom.u32(addr + 0);
             IsLoaded = true;
+        }
+
+        public int GetListCount() => 0;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["D0"] = D0.ToString("X08"),
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new Dictionary<string, string>();
+
+            uint addr = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["D0"] = rom.u32(addr + 0).ToString("X08"),
+            };
         }
     }
 }

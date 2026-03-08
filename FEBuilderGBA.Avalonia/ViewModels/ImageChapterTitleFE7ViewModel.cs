@@ -8,11 +8,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _saveImagePointer;
+        uint _p0;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint SaveImagePointer { get => _saveImagePointer; set => SetField(ref _saveImagePointer, value); }
+        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
+        public uint SaveImagePointer => P0;
 
         public List<AddrResult> LoadList()
         {
@@ -51,8 +52,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            if (addr + 3 >= (uint)rom.Data.Length) return;
+
             CurrentAddr = addr;
-            SaveImagePointer = rom.u32(addr);
+            P0 = rom.u32(addr + 0);
+
             IsLoaded = true;
         }
 
@@ -63,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return null;
             try
             {
-                uint imgPtr = SaveImagePointer;
+                uint imgPtr = P0;
                 if (!U.isPointer(imgPtr)) return null;
 
                 uint imgAddr = U.toOffset(imgPtr);
@@ -102,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["SaveImagePointer"] = $"0x{SaveImagePointer:X08}",
+                ["P0"] = $"0x{P0:X08}",
             };
         }
 
@@ -110,10 +114,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
             return new Dictionary<string, string>
             {
-                ["addr"] = $"0x{CurrentAddr:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(CurrentAddr):X08}",
+                ["addr"] = $"0x{a:X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
             };
         }
     }

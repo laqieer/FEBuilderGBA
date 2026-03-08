@@ -137,6 +137,113 @@ namespace FEBuilderGBA.Tests.Unit
 
             // SME
             ("SMEPromoListView", "SMEPromoListForm", "SMEPromoListViewModel"),
+
+            // === WU1: MapSetting FE7/FE7U ===
+            ("MapSettingFE7View", "MapSettingFE7Form", "MapSettingFE7ViewModel"),
+            ("MapSettingFE7UView", "MapSettingFE7UForm", "MapSettingFE7UViewModel"),
+
+            // === WU2: MapSetting FE6 ===
+            ("MapSettingFE6View", "MapSettingFE6Form", "MapSettingFE6ViewModel"),
+
+            // === WU3: ClassFE6 ===
+            ("ClassFE6View", "ClassFE6Form", "ClassFE6ViewModel"),
+
+            // === WU4: EventUnit family ===
+            ("EventUnitView", "EventUnitForm", "EventUnitViewModel"),
+            ("EventUnitFE6View", "EventUnitFE6Form", "EventUnitFE6ViewModel"),
+            ("EventUnitFE7View", "EventUnitFE7Form", "EventUnitFE7ViewModel"),
+
+            // === WU5: EventBattle + EventHaiku ===
+            ("EventBattleTalkView", "EventBattleTalkForm", "EventBattleTalkViewModel"),
+            ("EventBattleTalkFE6View", "EventBattleTalkFE6Form", "EventBattleTalkFE6ViewModel"),
+            ("EventBattleTalkFE7View", "EventBattleTalkFE7Form", "EventBattleTalkFE7ViewModel"),
+            ("EventHaikuView", "EventHaikuForm", "EventHaikuViewModel"),
+            ("EventHaikuFE6View", "EventHaikuFE6Form", "EventHaikuFE6ViewModel"),
+            ("EventHaikuFE7View", "EventHaikuFE7Form", "EventHaikuFE7ViewModel"),
+
+            // === WU6: Event misc + AI small ===
+            ("EventBattleDataFE7View", "EventBattleDataFE7Form", "EventBattleDataFE7ViewModel"),
+            ("EventForceSortieView", "EventForceSortieForm", "EventForceSortieViewModel"),
+            ("EventForceSortieFE7View", "EventForceSortieFE7Form", "EventForceSortieFE7ViewModel"),
+            ("EventFunctionPointerView", "EventFunctionPointerForm", "EventFunctionPointerViewModel"),
+            ("EventFunctionPointerFE7View", "EventFunctionPointerFE7Form", "EventFunctionPointerFE7ViewModel"),
+            ("EventFinalSerifFE7View", "EventFinalSerifFE7Form", "EventFinalSerifFE7ViewModel"),
+            ("EventMoveDataFE7View", "EventMoveDataFE7Form", "EventMoveDataFE7ViewModel"),
+            ("EventTalkGroupFE7View", "EventTalkGroupFE7Form", "EventTalkGroupFE7ViewModel"),
+            ("AOERANGEView", "AOERANGEForm", "AOERANGEViewModel"),
+            ("AIASMCALLTALKView", "AIASMCALLTALKForm", "AIASMCALLTALKViewModel"),
+            ("AIASMCoordinateView", "AIASMCoordinateForm", "AIASMCoordinateViewModel"),
+            ("AIASMRangeView", "AIASMRangeForm", "AIASMRangeViewModel"),
+            ("AIMapSettingView", "AIMapSettingForm", "AIMapSettingViewModel"),
+
+            // === WU7: AI medium + StatusOption ===
+            ("AIPerformItemView", "AIPerformItemForm", "AIPerformItemViewModel"),
+            ("AIPerformStaffView", "AIPerformStaffForm", "AIPerformStaffViewModel"),
+            ("AIStealItemView", "AIStealItemForm", "AIStealItemViewModel"),
+            ("AITargetView", "AITargetForm", "AITargetViewModel"),
+            ("AITilesView", "AITilesForm", "AITilesViewModel"),
+            ("AIUnitsView", "AIUnitsForm", "AIUnitsViewModel"),
+            ("StatusOptionView", "StatusOptionForm", "StatusOptionViewModel"),
+
+            // === WU8: Image forms ===
+            ("ImagePortraitView", "ImagePortraitForm", "ImagePortraitViewModel"),
+            ("ImagePortraitFE6View", "ImagePortraitFE6Form", "ImagePortraitFE6ViewModel"),
+            ("ImageBGView", "ImageBGForm", "ImageBGViewModel"),
+            ("ImageBattleAnimeView", "ImageBattleAnimeForm", "ImageBattleAnimeViewModel"),
+            ("ImageBattleBGView", "ImageBattleBGForm", "ImageBattleBGViewModel"),
+            ("ImageCGView", "ImageCGForm", "ImageCGViewModel"),
+            ("ImageCGFE7UView", "ImageCGFE7UForm", "ImageCGFE7UViewModel"),
+            ("ImageUnitPaletteView", "ImageUnitPaletteForm", "ImageUnitPaletteViewModel"),
+            ("ImageSystemAreaView", "ImageSystemAreaForm", "ImageSystemAreaViewModel"),
+            ("ImageGenericEnemyPortraitView", "ImageGenericEnemyPortraitForm", "ImageGenericEnemyPortraitViewModel"),
+            ("ImageTSAAnimeView", "ImageTSAAnimeForm", "ImageTSAAnimeViewModel"),
+            ("ImageTSAAnime2View", "ImageTSAAnime2Form", "ImageTSAAnime2ViewModel"),
+            ("ImageMagicFEditorView", "ImageMagicFEditorForm", "ImageMagicFEditorViewModel"),
+            ("ImageMagicCSACreatorView", "ImageMagicCSACreatorForm", "ImageMagicCSACreatorViewModel"),
+            ("ImageMapActionAnimationView", "ImageMapActionAnimationForm", "ImageMapActionAnimationViewModel"),
+
+            // === WU9: Sound + WorldMap + Map misc ===
+            ("SongTrackView", "SongTrackForm", "SongTrackViewModel"),
+            ("SongInstrumentDirectSoundView", "SongInstrumentDirectSoundForm", "SongInstrumentDirectSoundViewModel"),
+            ("SoundRoomFE6View", "SoundRoomFE6Form", "SoundRoomFE6ViewModel"),
+            ("SoundRoomCGView", "SoundRoomCGForm", "SoundRoomCGViewModel"),
+            ("WorldMapPathView", "WorldMapPathForm", "WorldMapPathViewModel"),
+            ("WorldMapPathMoveEditorView", "WorldMapPathMoveEditorForm", "WorldMapPathMoveEditorViewModel"),
+            ("MapTileAnimation1View", "MapTileAnimation1Form", "MapTileAnimation1ViewModel"),
+            ("MapTileAnimation2View", "MapTileAnimation2Form", "MapTileAnimation2ViewModel"),
+            ("MapLoadFunctionView", "MapLoadFunctionForm", "MapLoadFunctionViewModel"),
+            ("MapTerrainNameEngView", "MapTerrainNameEngForm", "MapTerrainNameEngViewModel"),
+            ("MapMiniMapTerrainImageView", "MapMiniMapTerrainImageForm", "MapMiniMapTerrainImageViewModel"),
+
+            // === WU10: ItemStatBonus + Text + Menu + misc ===
+            ("ItemStatBonusesSkillSystemsView", "ItemStatBonusesSkillSystemsForm", "ItemStatBonusesSkillSystemsViewModel"),
+            ("ItemStatBonusesVennoView", "ItemStatBonusesVennoForm", "ItemStatBonusesVennoViewModel"),
+            ("ItemRandomChestView", "ItemRandomChestForm", "ItemRandomChestViewModel"),
+            ("MenuExtendSplitMenuView", "MenuExtendSplitMenuForm", "MenuExtendSplitMenuViewModel"),
+            ("TextDicView", "TextDicForm", "TextDicViewModel"),
+            ("TextCharCodeView", "TextCharCodeForm", "TextCharCodeViewModel"),
+            ("ImageChapterTitleFE7View", "ImageChapterTitleFE7Form", "ImageChapterTitleFE7ViewModel"),
+            ("EDSensekiCommentView", "EDSensekiCommentForm", "EDSensekiCommentViewModel"),
+
+            // === WU11: Unit extras + Skills + small misc ===
+            ("UnitActionPointerView", "UnitActionPointerForm", "UnitActionPointerViewModel"),
+            ("UnitCustomBattleAnimeView", "UnitCustomBattleAnimeForm", "UnitCustomBattleAnimeViewModel"),
+            ("UnitIncreaseHeightView", "UnitIncreaseHeightForm", "UnitIncreaseHeightViewModel"),
+            ("UnitPaletteView", "UnitPaletteForm", "UnitPaletteViewModel"),
+            ("ExtraUnitView", "ExtraUnitForm", "ExtraUnitViewModel"),
+            ("ExtraUnitFE8UView", "ExtraUnitFE8UForm", "ExtraUnitFE8UViewModel"),
+            ("SkillAssignmentUnitSkillSystemView", "SkillAssignmentUnitSkillSystemForm", "SkillAssignmentUnitSkillSystemViewModel"),
+            ("SkillAssignmentClassSkillSystemView", "SkillAssignmentClassSkillSystemForm", "SkillAssignmentClassSkillSystemViewModel"),
+            ("SkillConfigSkillSystemView", "SkillConfigSkillSystemForm", "SkillConfigSkillSystemViewModel"),
+            ("Command85PointerView", "Command85PointerForm", "Command85PointerViewModel"),
+            ("MantAnimationView", "MantAnimationForm", "MantAnimationViewModel"),
+
+            // === WU12: BitFlags + MapTerrain lookups ===
+            ("UbyteBitFlagView", "UbyteBitFlagForm", "UbyteBitFlagViewModel"),
+            ("UshortBitFlagView", "UshortBitFlagForm", "UshortBitFlagViewModel"),
+            ("UwordBitFlagView", "UwordBitFlagForm", "UwordBitFlagViewModel"),
+            ("MapTerrainBGLookupView", "MapTerrainBGLookupTableForm", "MapTerrainBGLookupTableViewModel"),
+            ("MapTerrainFloorLookupView", "MapTerrainFloorLookupTableForm", "MapTerrainFloorLookupTableViewModel"),
         };
 
         /// <summary>

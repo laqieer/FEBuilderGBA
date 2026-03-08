@@ -46,6 +46,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool Bit30 { get => GetBit(30); set => SetBit(30, value); }
         public bool Bit31 { get => GetBit(31); set => SetBit(31, value); }
 
+        // Byte-level aliases matching WinForms B40/B41/B42/B43 control names
+        public uint B40 { get => Value & 0xFF; }
+        public uint B41 { get => (Value >> 8) & 0xFF; }
+        public uint B42 { get => (Value >> 16) & 0xFF; }
+        public uint B43 { get => (Value >> 24) & 0xFF; }
+
         bool GetBit(int bit) => (_value & (1u << bit)) != 0;
 
         void SetBit(int bit, bool on)
