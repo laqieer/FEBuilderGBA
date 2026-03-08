@@ -46,6 +46,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            if (addr + 12 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
             TablePointer = rom.u32(addr + 0);
             TSAPointer = rom.u32(addr + 4);
@@ -118,9 +119,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["TablePointer"] = $"0x{TablePointer:X08}",
-                ["TSAPointer"] = $"0x{TSAPointer:X08}",
-                ["PalettePointer"] = $"0x{PalettePointer:X08}",
+                ["P0"] = $"0x{TablePointer:X08}",
+                ["P4"] = $"0x{TSAPointer:X08}",
+                ["P8"] = $"0x{PalettePointer:X08}",
             };
         }
 

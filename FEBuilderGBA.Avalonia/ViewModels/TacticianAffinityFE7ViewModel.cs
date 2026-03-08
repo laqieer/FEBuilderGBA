@@ -4,41 +4,44 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ImageUnitWaitIconViewModel : ViewModelBase, IDataVerifiable
+    /// <summary>
+    /// Tactician affinity editor (FE7 only).
+    /// Record size: 4 bytes. D0 = affinity ID (u32@0).
+    /// B4 = linked display field (index+1), read as u8@4 for completeness.
+    /// </summary>
+    public class TacticianAffinityFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
-        ushort _w0, _w2;
-        uint _p4;
+        uint _d0;
+        byte _b4;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public ushort W0 { get => _w0; set => SetField(ref _w0, value); }
-        public ushort W2 { get => _w2; set => SetField(ref _w2, value); }
-        public uint P4 { get => _p4; set => SetField(ref _p4, value); }
+        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
+        public byte B4 { get => _b4; set => SetField(ref _b4, value); }
 
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.unit_wait_icon_pointer;
+            uint ptr = rom.RomInfo.tactician_affinity_pointer;
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
+            int maxCount = rom.RomInfo.is_multibyte ? 48 : 12;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < maxCount; i++)
             {
-                uint addr = (uint)(baseAddr + i * 8);
-                if (addr + 8 > (uint)rom.Data.Length) break;
+                uint addr = (uint)(baseAddr + i * 4);
+                if (addr + 4 > (uint)rom.Data.Length) break;
 
-                uint imgPtr = rom.u32(addr + 4);
-                if (!U.isPointer(imgPtr)) break;
-
-                string name = U.ToHexString(i) + " WaitIcon";
-                result.Add(new AddrResult(addr, name, i));
+                uint affinityId = rom.u32(addr + 0);
+                string name = U.ToHexString((uint)i) + " " + U.ToHexString(affinityId);
+                result.Add(new AddrResult(addr, name, (uint)i));
             }
             return result;
         }
@@ -47,12 +50,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 8 > (uint)rom.Data.Length) return;
+            if (addr + 5 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
-            P4 = rom.u32(addr + 4);
+            D0 = rom.u32(addr + 0);
+            B4 = rom.u8(addr + 4);
             IsLoaded = true;
         }
 
@@ -63,9 +65,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
-                ["W2"] = $"0x{W2:X04}",
-                ["P4"] = $"0x{P4:X08}",
+                ["D0"] = $"0x{D0:X08}",
+                ["B4"] = $"0x{B4:X02}",
             };
         }
 
@@ -78,9 +79,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
-                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
             };
         }
     }

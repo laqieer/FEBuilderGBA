@@ -1,0 +1,1 @@
+All Designer.cs files with ROM fields are mapped. 0 gaps.

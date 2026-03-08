@@ -249,6 +249,12 @@ namespace FEBuilderGBA.Tests.Unit
             ("ClassOPDemoView", "ClassOPDemoForm", "ClassOPDemoViewModel"),
             ("ClassOPFontView", "ClassOPFontForm", "ClassOPFontViewModel"),
             ("EventMapChangeView", "EventMapChangeForm", "EventMapChangeViewModel"),
+
+            // === WU14: Auto-discovered forms with ROM fields not in ScreenshotFormRegistry ===
+            ("BigCGViewerView", "BigCGForm", "BigCGViewerViewModel"),
+            ("ImageUnitWaitIconView", "ImageUnitWaitIconFrom", "ImageUnitWaitIconViewModel"),
+            ("ImageUnitMoveIconView", "ImageUnitMoveIconFrom", "ImageUnitMoveIconViewModel"),
+            ("TacticianAffinityFE7View", "TacticianAffinityFE7", "TacticianAffinityFE7ViewModel"),
         };
 
         /// <summary>
@@ -793,6 +799,73 @@ namespace FEBuilderGBA.Tests.Unit
 
             Assert.True(inconsistencies.Count == 0,
                 $"Report inconsistencies ({inconsistencies.Count}):\n{string.Join("\n", inconsistencies)}");
+        }
+
+        /// <summary>
+        /// Forms excluded from auto-discovery because their ROM pointer is not in Core ROMFEINFO.
+        /// Each exclusion must be documented with the reason.
+        /// </summary>
+        private static readonly HashSet<string> AutoDiscoveryExclusions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // systemhover_gradation_palette_pointer is NOT in Core ROMFEINFO — WinForms-only
+            "ImageSystemHoverColorForm",
+        };
+
+        /// <summary>
+        /// Auto-discovery: scans ALL *.Designer.cs files in WinForms project for ROM data fields
+        /// and verifies each form with ROM fields has a FormMappings entry.
+        /// This prevents new forms from being invisible to the test suite.
+        /// </summary>
+        [Fact]
+        public void AllDesignerFilesWithRomFields_HaveAvaloniaMapping()
+        {
+            var mappedWinFormTypes = new HashSet<string>(
+                FormMappings.Select(m => m.WinFormsType),
+                StringComparer.OrdinalIgnoreCase);
+
+            var unmapped = new List<string>();
+
+            foreach (var designerFile in Directory.GetFiles(WinFormsDir, "*.Designer.cs"))
+            {
+                string fileName = Path.GetFileNameWithoutExtension(designerFile);
+                // Remove .Designer suffix (case-insensitive) to get the form class name
+                int idx = fileName.LastIndexOf(".designer", StringComparison.OrdinalIgnoreCase);
+                string formClass = idx >= 0 ? fileName.Substring(0, idx) : fileName;
+
+                // Skip if already mapped
+                if (mappedWinFormTypes.Contains(formClass))
+                    continue;
+
+                // Skip if explicitly excluded
+                if (AutoDiscoveryExclusions.Contains(formClass))
+                    continue;
+
+                // Check if this Designer.cs has ROM data fields
+                var fields = ExtractWinFormsFields(designerFile);
+                if (fields.Count > 0)
+                {
+                    unmapped.Add($"{formClass}: {fields.Count} fields [{string.Join(", ", fields)}]");
+                }
+            }
+
+            // Write report
+            string reportPath = Path.Combine(SolutionDir, "docs", "auto-discovery-unmapped.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(reportPath)!);
+            if (unmapped.Count > 0)
+            {
+                File.WriteAllText(reportPath,
+                    $"Forms with ROM fields NOT in FormMappings ({unmapped.Count}):\n" +
+                    string.Join("\n", unmapped));
+            }
+            else
+            {
+                File.WriteAllText(reportPath,
+                    "All Designer.cs files with ROM fields are mapped. 0 gaps.");
+            }
+
+            Assert.True(unmapped.Count == 0,
+                $"Designer.cs files with ROM fields missing from FormMappings ({unmapped.Count}):\n" +
+                string.Join("\n", unmapped));
         }
     }
 }
