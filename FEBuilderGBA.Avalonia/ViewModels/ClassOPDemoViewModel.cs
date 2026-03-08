@@ -40,6 +40,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint P24 { get => _p24; set => SetField(ref _p24, value); }
         public uint N1B0 { get => _n1B0; set => SetField(ref _n1B0, value); }
 
+        public List<AddrResult> LoadList() => LoadClassOPDemoList();
+        public void LoadEntry(uint addr) => LoadClassOPDemo(addr);
+
         public List<AddrResult> LoadClassOPDemoList()
         {
             ROM rom = CoreState.ROM;

@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             D0 = rom.u32(addr + 0);
-            B4 = rom.u8(addr + 4);
+            B4 = (byte)rom.u8(addr + 4);
             IsLoaded = true;
         }
 

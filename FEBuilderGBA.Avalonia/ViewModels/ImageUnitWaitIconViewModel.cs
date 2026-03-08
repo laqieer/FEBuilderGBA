@@ -50,8 +50,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
+            W0 = (ushort)rom.u16(addr + 0);
+            W2 = (ushort)rom.u16(addr + 2);
             P4 = rom.u32(addr + 4);
             IsLoaded = true;
         }

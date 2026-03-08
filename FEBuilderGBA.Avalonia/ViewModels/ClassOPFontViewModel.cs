@@ -14,6 +14,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
 
+        public List<AddrResult> LoadList() => LoadClassOPFontList();
+        public void LoadEntry(uint addr) => LoadClassOPFont(addr);
+
         public List<AddrResult> LoadClassOPFontList()
         {
             ROM rom = CoreState.ROM;

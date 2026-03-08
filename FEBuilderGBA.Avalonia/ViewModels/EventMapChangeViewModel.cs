@@ -30,6 +30,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint B7 { get => _b7; set => SetField(ref _b7, value); }
         public uint P8 { get => _p8; set => SetField(ref _p8, value); }
 
+        public List<AddrResult> LoadList() => LoadEventMapChangeList();
+        public void LoadEntry(uint addr) => LoadEventMapChange(addr);
+
         public List<AddrResult> LoadEventMapChangeList()
         {
             ROM rom = CoreState.ROM;
