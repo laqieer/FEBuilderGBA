@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemIconViewerViewModel _vm = new();
 
         public string ViewTitle => "Item/Weapon Icon Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemIconViewerView()
         {

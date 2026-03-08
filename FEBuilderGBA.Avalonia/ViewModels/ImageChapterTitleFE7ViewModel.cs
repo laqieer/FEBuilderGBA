@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class ImageChapterTitleFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _p0;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
         public uint SaveImagePointer => P0;
 
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             P0 = rom.u32(addr + 0);
 
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         public byte[] TryLoadImage(out int width, out int height)
@@ -97,6 +97,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return image.GetPixelData();
             }
             catch { return null; }
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr + 0, P0);
         }
 
         public int GetListCount() => LoadList().Count;

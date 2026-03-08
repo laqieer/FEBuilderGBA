@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectPointerViewerView"
-        Title="Item Effect Pointer (Read-Only)" Width="1185" Height="658">
+        Title="Item Effect Pointer Editor" Width="1185" Height="658">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Item Effect Pointer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Item Effect Pointer Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock Text="Indirect effect pointer table" FontSize="12" Foreground="Gray" />
 
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
@@ -16,8 +16,12 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Effect Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="EffectPointerLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="EffectPointerBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

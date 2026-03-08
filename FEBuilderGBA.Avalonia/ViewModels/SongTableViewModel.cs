@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _trackCount;
         uint _priority, _reverb;
         uint _d4;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint SongIndex { get => _songIndex; set => SetField(ref _songIndex, value); }
@@ -22,7 +22,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Reverb { get => _reverb; set => SetField(ref _reverb, value); }
         // D4: second dword in song table entry
         public uint D4 { get => _d4; set => SetField(ref _d4, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadSongList()
         {
@@ -74,7 +74,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
             }
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSong()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 7 >= (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr + 0, HeaderPointer);
+            rom.write_u32(CurrentAddr + 4, D4);
         }
 
         public int GetListCount() => LoadSongList().Count;

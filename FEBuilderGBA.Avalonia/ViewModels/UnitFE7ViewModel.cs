@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class UnitFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         string _name = "";
 
         // W# = u16 at offset #
@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _sb12, _sb13, _sb14, _sb15, _sb16, _sb17, _sb18, _sb19;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
 
         // W0: Name text ID (u16 @ offset 0)
@@ -205,7 +205,63 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B50 = rom.u8(addr + 50);
             B51 = rom.u8(addr + 51);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteUnit()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            uint dataSize = rom.RomInfo.unit_datasize;
+            if (addr + dataSize > (uint)rom.Data.Length) return;
+
+            rom.write_u16(addr + 0, (ushort)NameId);
+            rom.write_u16(addr + 2, (ushort)W2);
+            rom.write_u8(addr + 4, (byte)B4);
+            rom.write_u8(addr + 5, (byte)B5);
+            rom.write_u16(addr + 6, (ushort)W6);
+            rom.write_u8(addr + 8, (byte)B8);
+            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 10, (byte)B10);
+            rom.write_u8(addr + 11, (byte)Level);
+            rom.write_u8(addr + 12, (byte)(sbyte)HP);
+            rom.write_u8(addr + 13, (byte)(sbyte)Str);
+            rom.write_u8(addr + 14, (byte)(sbyte)Skl);
+            rom.write_u8(addr + 15, (byte)(sbyte)Spd);
+            rom.write_u8(addr + 16, (byte)(sbyte)Def);
+            rom.write_u8(addr + 17, (byte)(sbyte)Res);
+            rom.write_u8(addr + 18, (byte)(sbyte)Lck);
+            rom.write_u8(addr + 19, (byte)(sbyte)B19Signed);
+            rom.write_u8(addr + 20, (byte)B20);
+            rom.write_u8(addr + 21, (byte)B21);
+            rom.write_u8(addr + 22, (byte)B22);
+            rom.write_u8(addr + 23, (byte)B23);
+            rom.write_u8(addr + 24, (byte)B24);
+            rom.write_u8(addr + 25, (byte)B25);
+            rom.write_u8(addr + 26, (byte)B26);
+            rom.write_u8(addr + 27, (byte)B27);
+            rom.write_u8(addr + 28, (byte)GrowHP);
+            rom.write_u8(addr + 29, (byte)GrowSTR);
+            rom.write_u8(addr + 30, (byte)GrowSKL);
+            rom.write_u8(addr + 31, (byte)GrowSPD);
+            rom.write_u8(addr + 32, (byte)GrowDEF);
+            rom.write_u8(addr + 33, (byte)GrowRES);
+            rom.write_u8(addr + 34, (byte)GrowLCK);
+            rom.write_u8(addr + 35, (byte)B35);
+            rom.write_u8(addr + 36, (byte)B36);
+            rom.write_u8(addr + 37, (byte)B37);
+            rom.write_u8(addr + 38, (byte)B38);
+            rom.write_u8(addr + 39, (byte)B39);
+            rom.write_u8(addr + 40, (byte)B40);
+            rom.write_u8(addr + 41, (byte)B41);
+            rom.write_u8(addr + 42, (byte)B42);
+            rom.write_u8(addr + 43, (byte)B43);
+            rom.write_u32(addr + 44, P44);
+            rom.write_u8(addr + 48, (byte)B48);
+            rom.write_u8(addr + 49, (byte)B49);
+            rom.write_u8(addr + 50, (byte)B50);
+            rom.write_u8(addr + 51, (byte)B51);
         }
 
         public int GetListCount() => LoadUnitList().Count;

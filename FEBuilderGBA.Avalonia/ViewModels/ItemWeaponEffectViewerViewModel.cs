@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _motion;
         uint _hitColor;
         uint _unknown15;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Motion { get => _motion; set => SetField(ref _motion, value); }
         public uint HitColor { get => _hitColor; set => SetField(ref _hitColor, value); }
         public uint Unknown15 { get => _unknown15; set => SetField(ref _unknown15, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemWeaponEffectList()
         {
@@ -83,7 +83,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             HitColor = rom.u8(addr + 14);
             Unknown15 = rom.u8(addr + 15);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemWeaponEffect()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, (byte)ItemId);
+            rom.write_u8(addr + 1, (byte)Unknown1);
+            rom.write_u8(addr + 2, (byte)AnimType);
+            rom.write_u8(addr + 3, (byte)Unknown3);
+            rom.write_u16(addr + 4, (ushort)EffectId);
+            rom.write_u16(addr + 6, (ushort)Unknown6);
+            rom.write_u32(addr + 8, MapEffectPointer);
+            rom.write_u8(addr + 12, (byte)DamageEffect);
+            rom.write_u8(addr + 13, (byte)Motion);
+            rom.write_u8(addr + 14, (byte)HitColor);
+            rom.write_u8(addr + 15, (byte)Unknown15);
         }
 
         public int GetListCount() => LoadItemWeaponEffectList().Count;

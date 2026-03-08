@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPPrologueViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _imagePointer, _tsaPointer, _paletteColorPointer;
         uint _b8, _b9, _b10, _b11;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
         public uint PaletteColorPointer { get => _paletteColorPointer; set => SetField(ref _paletteColorPointer, value); }
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             else
                 PaletteColorPointer = 0;
 
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         /// <summary>
@@ -110,6 +110,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return image.GetPixelData();
             }
             catch { return null; }
+        }
+
+        public void WriteOPPrologue()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, ImagePointer);
+            rom.write_u32(addr + 4, TSAPointer);
+            rom.write_u8(addr + 8, (byte)B8);
+            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 10, (byte)B10);
+            rom.write_u8(addr + 11, (byte)B11);
         }
 
         public int GetListCount() => LoadOPPrologueList().Count;

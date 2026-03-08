@@ -8,7 +8,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _hp, _str, _skill, _speed, _def, _res, _luck, _move, _con, _unknown9, _unknown10, _unknown11;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint HP { get => _hp; set => SetField(ref _hp, value); }
@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unknown9 { get => _unknown9; set => SetField(ref _unknown9, value); }
         public uint Unknown10 { get => _unknown10; set => SetField(ref _unknown10, value); }
         public uint Unknown11 { get => _unknown11; set => SetField(ref _unknown11, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemStatBonusesList()
         {
@@ -82,7 +82,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unknown10 = rom.u8(addr + 10);
             Unknown11 = rom.u8(addr + 11);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemStatBonuses()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, (byte)HP);
+            rom.write_u8(addr + 1, (byte)Str);
+            rom.write_u8(addr + 2, (byte)Skill);
+            rom.write_u8(addr + 3, (byte)Speed);
+            rom.write_u8(addr + 4, (byte)Def);
+            rom.write_u8(addr + 5, (byte)Res);
+            rom.write_u8(addr + 6, (byte)Luck);
+            rom.write_u8(addr + 7, (byte)Move);
+            rom.write_u8(addr + 8, (byte)Con);
+            rom.write_u8(addr + 9, (byte)Unknown9);
+            rom.write_u8(addr + 10, (byte)Unknown10);
+            rom.write_u8(addr + 11, (byte)Unknown11);
         }
 
         public int GetListCount() => LoadItemStatBonusesList().Count;

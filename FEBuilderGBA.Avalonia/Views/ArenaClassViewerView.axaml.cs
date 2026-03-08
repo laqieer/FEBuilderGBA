@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ArenaClassViewerViewModel _vm = new();
 
         public string ViewTitle => "Arena Class";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ArenaClassViewerView()
         {
@@ -49,7 +49,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ClassIdLabel.Text = $"0x{_vm.ClassId:X02} ({_vm.ClassId})";
+            ClassIdBox.Value = _vm.ClassId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.WriteArenaClass();
+            CoreState.Services.ShowInfo("Arena Class data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

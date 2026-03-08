@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SummonsDemonKingViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _unitId;
         uint _classId;
         uint _unknown1;
@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _level;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
         public uint Unknown1 { get => _unknown1; set => SetField(ref _unknown1, value); }
@@ -106,7 +106,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B19 = rom.u8(addr + 19);
             UnitGrow = rom.u16(addr + 3);
             Level = U.ParseUnitGrowLV(UnitGrow);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSummonsDemonKing()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 20 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
+            rom.write_u8(CurrentAddr + 1, (byte)ClassId);
+            rom.write_u8(CurrentAddr + 2, (byte)Unknown1);
+            rom.write_u8(CurrentAddr + 3, (byte)B3);
+            rom.write_u16(CurrentAddr + 4, (ushort)W4);
+            rom.write_u8(CurrentAddr + 6, (byte)B6);
+            rom.write_u8(CurrentAddr + 7, (byte)B7);
+            rom.write_u32(CurrentAddr + 8, P8);
+            rom.write_u8(CurrentAddr + 12, (byte)B12);
+            rom.write_u8(CurrentAddr + 13, (byte)B13);
+            rom.write_u8(CurrentAddr + 14, (byte)B14);
+            rom.write_u8(CurrentAddr + 15, (byte)B15);
+            rom.write_u8(CurrentAddr + 16, (byte)B16);
+            rom.write_u8(CurrentAddr + 17, (byte)B17);
+            rom.write_u8(CurrentAddr + 18, (byte)B18);
+            rom.write_u8(CurrentAddr + 19, (byte)B19);
         }
 
         public int GetListCount() => LoadSummonsDemonKingList().Count;

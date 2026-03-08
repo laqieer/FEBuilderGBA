@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapExitPointViewModel _vm = new();
 
-        public string ViewTitle => "Map Exit Point";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Map Exit Point Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapExitPointView()
@@ -50,7 +50,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ExitPointerLabel.Text = $"0x{_vm.ExitPointer:X08}";
+            ExitPointerBox.Value = _vm.ExitPointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.ExitPointer = (uint)(ExitPointerBox.Value ?? 0);
+            _vm.WriteMapExitPoint();
+            CoreState.Services?.ShowInfo("Map Exit Point data written.");
         }
 
         public void NavigateTo(uint address)

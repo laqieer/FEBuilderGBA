@@ -7,13 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class EDViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _unitId;
         uint _flag;
         uint _b2, _b3;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint Flag { get => _flag; set => SetField(ref _flag, value); }
         // B2, B3: Additional bytes
@@ -58,7 +58,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Flag = rom.u8(addr + 1);      // B1
             B2 = rom.u8(addr + 2);        // B2
             B3 = rom.u8(addr + 3);        // B3
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteED()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr, (byte)UnitId);
+            rom.write_u8(CurrentAddr + 1, (byte)Flag);
+            rom.write_u8(CurrentAddr + 2, (byte)B2);
+            rom.write_u8(CurrentAddr + 3, (byte)B3);
         }
 
         public int GetListCount() => LoadEDList().Count;

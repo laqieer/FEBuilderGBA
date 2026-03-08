@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPClassDemoViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _p0;
         uint _d4;
         uint _p8;
@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _p24;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
         public uint D4 { get => _d4; set => SetField(ref _d4, value); }
         public uint P8 { get => _p8; set => SetField(ref _p8, value); }
@@ -86,7 +86,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B22 = rom.u8(addr + 22);
             B23 = rom.u8(addr + 23);
             P24 = rom.u32(addr + 24);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteOPClassDemo()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, P0);
+            rom.write_u32(addr + 4, D4);
+            rom.write_u32(addr + 8, P8);
+            rom.write_u8(addr + 12, (byte)B12);
+            rom.write_u8(addr + 13, (byte)B13);
+            rom.write_u8(addr + 14, (byte)B14);
+            rom.write_u8(addr + 15, (byte)B15);
+            rom.write_u8(addr + 16, (byte)B16);
+            rom.write_u8(addr + 17, (byte)B17);
+            rom.write_u32(addr + 18, D18);
+            rom.write_u8(addr + 22, (byte)B22);
+            rom.write_u8(addr + 23, (byte)B23);
+            rom.write_u32(addr + 24, P24);
         }
 
         public int GetListCount() => LoadOPClassDemoList().Count;

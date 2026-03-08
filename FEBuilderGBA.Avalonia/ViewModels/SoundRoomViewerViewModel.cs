@@ -7,13 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SoundRoomViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _songId;
         uint _textId;
         uint _raw4, _raw8;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint SongId { get => _songId; set => SetField(ref _songId, value); }
         public uint TextId { get => _textId; set => SetField(ref _textId, value); }
         public uint Raw4 { get => _raw4; set => SetField(ref _raw4, value); }
@@ -69,7 +69,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 TextId = 0;
             }
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSoundRoom()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint dataSize = rom.RomInfo.sound_room_datasize;
+            if (CurrentAddr + dataSize > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr + 0, SongId);
+            rom.write_u32(CurrentAddr + 4, Raw4);
+            rom.write_u32(CurrentAddr + 8, Raw8);
+            if (dataSize >= 16)
+            {
+                rom.write_u32(CurrentAddr + 12, TextId);
+            }
         }
 
         public int GetListCount() => LoadSoundRoomList().Count;

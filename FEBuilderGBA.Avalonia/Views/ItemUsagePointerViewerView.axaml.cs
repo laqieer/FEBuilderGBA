@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemUsagePointerViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Usage Pointer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemUsagePointerViewerView()
         {
@@ -50,7 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UsabilityPointerLabel.Text = $"0x{_vm.UsabilityPointer:X08}";
+            UsabilityPointerBox.Value = _vm.UsabilityPointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.UsabilityPointer = (uint)(UsabilityPointerBox.Value ?? 0);
+            _vm.WriteItemUsagePointer();
+            CoreState.Services.ShowInfo("Item Usage Pointer data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

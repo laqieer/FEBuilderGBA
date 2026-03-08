@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly WorldMapEventPointerViewModel _vm = new();
 
         public string ViewTitle => "World Map Event";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public WorldMapEventPointerView()
         {
@@ -49,7 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            EventPtrLabel.Text = $"0x{_vm.EventPointer:X08}";
+            EventPtrBox.Value = _vm.EventPointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.EventPointer = (uint)(EventPtrBox.Value ?? 0);
+            _vm.WriteWorldMapEvent();
+            CoreState.Services?.ShowInfo("World map event pointer written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

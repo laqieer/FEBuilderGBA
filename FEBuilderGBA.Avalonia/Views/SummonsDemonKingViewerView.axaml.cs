@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SummonsDemonKingViewerViewModel _vm = new();
 
         public string ViewTitle => "Demon King Summon";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SummonsDemonKingViewerView()
         {
@@ -49,11 +49,46 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UnitIdLabel.Text = $"0x{_vm.UnitId:X02} ({_vm.UnitId})";
-            ClassIdLabel.Text = $"0x{_vm.ClassId:X02} ({_vm.ClassId})";
-            UnknownLabel.Text = $"0x{_vm.Unknown1:X02}";
-            UnitGrowLabel.Text = $"0x{_vm.UnitGrow:X04}";
-            LevelLabel.Text = _vm.Level.ToString();
+            UnitIdBox.Value = _vm.UnitId;
+            ClassIdBox.Value = _vm.ClassId;
+            Unknown1Box.Value = _vm.Unknown1;
+            B3Box.Value = _vm.B3;
+            W4Box.Value = _vm.W4;
+            B6Box.Value = _vm.B6;
+            B7Box.Value = _vm.B7;
+            P8Box.Value = _vm.P8;
+            B12Box.Value = _vm.B12;
+            B13Box.Value = _vm.B13;
+            B14Box.Value = _vm.B14;
+            B15Box.Value = _vm.B15;
+            B16Box.Value = _vm.B16;
+            B17Box.Value = _vm.B17;
+            B18Box.Value = _vm.B18;
+            B19Box.Value = _vm.B19;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+            _vm.B3 = (uint)(B3Box.Value ?? 0);
+            _vm.W4 = (uint)(W4Box.Value ?? 0);
+            _vm.B6 = (uint)(B6Box.Value ?? 0);
+            _vm.B7 = (uint)(B7Box.Value ?? 0);
+            _vm.P8 = (uint)(P8Box.Value ?? 0);
+            _vm.B12 = (uint)(B12Box.Value ?? 0);
+            _vm.B13 = (uint)(B13Box.Value ?? 0);
+            _vm.B14 = (uint)(B14Box.Value ?? 0);
+            _vm.B15 = (uint)(B15Box.Value ?? 0);
+            _vm.B16 = (uint)(B16Box.Value ?? 0);
+            _vm.B17 = (uint)(B17Box.Value ?? 0);
+            _vm.B18 = (uint)(B18Box.Value ?? 0);
+            _vm.B19 = (uint)(B19Box.Value ?? 0);
+            _vm.WriteSummonsDemonKing();
+            CoreState.Services.ShowInfo("Demon king summon data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

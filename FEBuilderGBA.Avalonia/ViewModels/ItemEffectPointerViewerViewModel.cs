@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _effectPointer;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint EffectPointer { get => _effectPointer; set => SetField(ref _effectPointer, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemEffectPointerList()
         {
@@ -52,7 +52,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             EffectPointer = rom.u32(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemEffectPointer()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr, EffectPointer);
         }
 
         public int GetListCount() => LoadItemEffectPointerList().Count;

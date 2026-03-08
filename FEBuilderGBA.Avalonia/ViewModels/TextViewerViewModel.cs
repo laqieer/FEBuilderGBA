@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentId;
         string _decodedText = "";
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentId { get => _currentId; set => SetField(ref _currentId, value); }
         public string DecodedText { get => _decodedText; set => SetField(ref _decodedText, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadTextList()
         {
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 DecodedText = "(decode error)";
             }
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         public int GetListCount() => LoadTextList().Count;

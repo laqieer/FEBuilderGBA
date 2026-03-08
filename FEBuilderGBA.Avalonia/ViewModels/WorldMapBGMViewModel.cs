@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class WorldMapBGMViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _songId1;
         uint _songId2;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint SongId1 { get => _songId1; set => SetField(ref _songId1, value); }
         public uint SongId2 { get => _songId2; set => SetField(ref _songId2, value); }
 
@@ -54,7 +54,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             SongId1 = rom.u16(addr + 0);
             SongId2 = rom.u16(addr + 2);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteWorldMapBGM()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u16(CurrentAddr + 0, (ushort)SongId1);
+            rom.write_u16(CurrentAddr + 2, (ushort)SongId2);
         }
 
         public int GetListCount() => LoadWorldMapBGMList().Count;

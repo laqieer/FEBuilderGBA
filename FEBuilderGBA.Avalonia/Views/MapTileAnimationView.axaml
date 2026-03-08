@@ -2,25 +2,34 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapTileAnimationView"
-        Title="Map Tile Animation (Read-Only)" Width="1238" Height="866">
+        Title="Map Tile Animation Editor" Width="1238" Height="866">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Tile Animation (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Map Tile Animation Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Anim Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="AnimPointerLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="W0 (u16):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="W0Box" Minimum="0" Maximum="65535" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="RawBytesLabel" VerticalAlignment="Top"
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="W2 (u16):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="W2Box" Minimum="0" Maximum="65535" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Anim Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Minimum="0" Maximum="4294967295" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="RawBytesLabel" VerticalAlignment="Top"
                      FontFamily="Consolas,Courier New,monospace" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

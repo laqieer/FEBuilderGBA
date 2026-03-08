@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemPromotionViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Promotion";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemPromotionViewerView()
         {
@@ -50,7 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            TargetClassIdLabel.Text = $"0x{_vm.TargetClassId:X02} ({_vm.TargetClassId})";
+            TargetClassIdBox.Value = _vm.TargetClassId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.TargetClassId = (uint)(TargetClassIdBox.Value ?? 0);
+            _vm.WriteItemPromotion();
+            CoreState.Services.ShowInfo("Item Promotion data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

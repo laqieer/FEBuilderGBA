@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -10,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly StatusOptionOrderViewModel _vm = new();
 
         public string ViewTitle => "Status Option Order";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public StatusOptionOrderView()
@@ -49,7 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            OptionIdLabel.Text = $"0x{_vm.OptionId:X02} ({_vm.OptionId})";
+            OptionIdBox.Value = _vm.OptionId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.OptionId = (uint)(OptionIdBox.Value ?? 0);
+            _vm.WriteStatusOptionOrder();
+            CoreState.Services?.ShowInfo("Status option order data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

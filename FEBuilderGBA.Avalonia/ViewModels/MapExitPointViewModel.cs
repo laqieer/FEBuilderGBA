@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _exitPointer;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ExitPointer { get => _exitPointer; set => SetField(ref _exitPointer, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadMapExitPointList()
         {
@@ -56,7 +56,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             ExitPointer = rom.u32(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMapExitPoint()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr, ExitPointer);
         }
 
         public int GetListCount() => LoadMapExitPointList().Count;

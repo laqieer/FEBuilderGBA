@@ -2,22 +2,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPPrologueViewerView"
-        Title="OP Prologue Viewer (Read-Only)" Width="1225" Height="471">
+        Title="OP Prologue Editor" Width="1225" Height="471">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="OP Prologue Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="OP Prologue Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImgPtrLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Minimum="0" Maximum="4294967295" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="TSA Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="TsaPtrLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="TsaPtrBox" Minimum="0" Maximum="4294967295" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="3" Grid.Column="1" Name="PalAddrLabel" VerticalAlignment="Center" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
         <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>

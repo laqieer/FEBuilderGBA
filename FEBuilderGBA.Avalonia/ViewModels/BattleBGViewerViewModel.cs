@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class BattleBGViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _imagePointer, _tsaPointer, _palettePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
@@ -48,7 +48,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ImagePointer = rom.u32(addr + 0);
             TSAPointer = rom.u32(addr + 4);
             PalettePointer = rom.u32(addr + 8);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteBattleBG()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, ImagePointer);
+            rom.write_u32(addr + 4, TSAPointer);
+            rom.write_u32(addr + 8, PalettePointer);
         }
 
         /// <summary>

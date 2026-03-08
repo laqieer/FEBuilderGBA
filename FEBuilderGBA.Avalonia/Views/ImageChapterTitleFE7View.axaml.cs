@@ -9,8 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ImageChapterTitleFE7ViewModel _vm = new();
 
-        public string ViewTitle => "Chapter Title FE7 Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Chapter Title FE7 Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public ImageChapterTitleFE7View()
@@ -40,7 +40,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            SaveImgLabel.Text = $"0x{_vm.SaveImagePointer:X08}";
+            SaveImgBox.Value = _vm.P0;
+        }
+
+        void Write_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.P0 = (uint)(SaveImgBox.Value ?? 0);
+            _vm.WriteEntry();
+            CoreState.Services?.ShowInfo("Chapter title FE7 data written.");
         }
 
         void LoadImage()

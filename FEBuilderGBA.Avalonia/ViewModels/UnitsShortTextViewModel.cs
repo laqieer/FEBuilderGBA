@@ -6,11 +6,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class UnitsShortTextViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _w0;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint W0 { get => _w0; set => SetField(ref _w0, value); }
 
         public void LoadEntry(uint addr)
@@ -21,7 +21,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             W0 = rom.u16(addr + 0);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 2 > (uint)rom.Data.Length) return;
+
+            rom.write_u16(CurrentAddr + 0, (ushort)W0);
         }
 
         public int GetListCount() => 0;

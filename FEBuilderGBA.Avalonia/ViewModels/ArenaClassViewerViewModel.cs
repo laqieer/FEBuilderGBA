@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class ArenaClassViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _classId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
 
         public List<AddrResult> LoadArenaClassList()
@@ -48,7 +48,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             ClassId = rom.u8(addr);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteArenaClass()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr, ClassId);
         }
 
         public int GetListCount() => LoadArenaClassList().Count;

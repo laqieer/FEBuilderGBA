@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemWeaponTriangleViewerViewModel _vm = new();
 
         public string ViewTitle => "Weapon Triangle";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemWeaponTriangleViewerView()
         {
@@ -50,10 +50,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            WeaponType1Label.Text = $"0x{_vm.WeaponType1:X02} ({_vm.WeaponType1})";
-            WeaponType2Label.Text = $"0x{_vm.WeaponType2:X02} ({_vm.WeaponType2})";
-            BonusLabel.Text = _vm.Bonus.ToString();
-            PenaltyLabel.Text = _vm.Penalty.ToString();
+            WeaponType1Box.Value = _vm.WeaponType1;
+            WeaponType2Box.Value = _vm.WeaponType2;
+            BonusBox.Value = _vm.Bonus;
+            PenaltyBox.Value = _vm.Penalty;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.WeaponType1 = (uint)(WeaponType1Box.Value ?? 0);
+            _vm.WeaponType2 = (uint)(WeaponType2Box.Value ?? 0);
+            _vm.Bonus = (uint)(BonusBox.Value ?? 0);
+            _vm.Penalty = (uint)(PenaltyBox.Value ?? 0);
+            _vm.WriteItemWeaponTriangle();
+            CoreState.Services.ShowInfo("Weapon Triangle data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

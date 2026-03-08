@@ -12,12 +12,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPClassFontFE8UViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _imagePointer;
         string _unavailableMessage = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public string UnavailableMessage { get => _unavailableMessage; set => SetField(ref _unavailableMessage, value); }
 
@@ -30,14 +30,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (baseAddr == 0)
             {
                 UnavailableMessage = "Not available for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
             if (!U.isSafetyOffset(baseAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             ImagePointer = rom.u32(addr);
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         /// <summary>
@@ -115,6 +115,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return image.GetPixelData();
             }
             catch { return null; }
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr, ImagePointer);
         }
 
         public int GetListCount() => LoadList().Count;

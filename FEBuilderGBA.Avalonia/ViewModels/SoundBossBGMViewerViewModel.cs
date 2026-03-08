@@ -7,13 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SoundBossBGMViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _unitId;
         uint _unknown1, _unknown2, _unknown3;
         uint _songId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint Unknown1 { get => _unknown1; set => SetField(ref _unknown1, value); }
         public uint Unknown2 { get => _unknown2; set => SetField(ref _unknown2, value); }
@@ -60,7 +60,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unknown2 = rom.u8(addr + 2);
             Unknown3 = rom.u8(addr + 3);
             SongId = rom.u32(addr + 4);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSoundBossBGM()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 8 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
+            rom.write_u8(CurrentAddr + 1, (byte)Unknown1);
+            rom.write_u8(CurrentAddr + 2, (byte)Unknown2);
+            rom.write_u8(CurrentAddr + 3, (byte)Unknown3);
+            rom.write_u32(CurrentAddr + 4, SongId);
         }
 
         public int GetListCount() => LoadSoundBossBGMList().Count;

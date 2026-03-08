@@ -9,12 +9,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         uint _mapDataSize;
         string _rawBytes = "";
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint MapDataSize { get => _mapDataSize; set => SetField(ref _mapDataSize, value); }
         public string RawBytes { get => _rawBytes; set => SetField(ref _rawBytes, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadEventCondList()
         {
@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             RawBytes = sb.ToString();
 
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         public int GetListCount() => LoadEventCondList().Count;

@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly EventCondViewModel _vm = new();
 
-        public string ViewTitle => "Event Condition";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Event Condition Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public EventCondView()

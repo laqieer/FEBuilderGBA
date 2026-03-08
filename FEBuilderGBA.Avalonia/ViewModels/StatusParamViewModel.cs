@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class StatusParamViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _data0;
         uint _data4;
         uint _colorType;
@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _nameText = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint Data0 { get => _data0; set => SetField(ref _data0, value); }
         public uint Data4 { get => _data4; set => SetField(ref _data4, value); }
         public uint ColorType { get => _colorType; set => SetField(ref _colorType, value); }
@@ -93,7 +93,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch { }
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteStatusParam()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 16 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(addr + 0, Data0);
+            rom.write_u32(addr + 4, Data4);
+            rom.write_u8(addr + 8, (byte)ColorType);
+            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 10, (byte)B10);
+            rom.write_u8(addr + 11, (byte)B11);
+            rom.write_u32(addr + 12, NamePointer);
         }
 
         public int GetListCount() => LoadStatusParamList().Count;

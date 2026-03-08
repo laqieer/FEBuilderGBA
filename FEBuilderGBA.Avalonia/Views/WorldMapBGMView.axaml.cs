@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly WorldMapBGMViewModel _vm = new();
 
         public string ViewTitle => "World Map BGM";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public WorldMapBGMView()
         {
@@ -49,8 +49,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            SongId1Label.Text = $"0x{_vm.SongId1:X04} ({_vm.SongId1})";
-            SongId2Label.Text = $"0x{_vm.SongId2:X04} ({_vm.SongId2})";
+            SongId1Box.Value = _vm.SongId1;
+            SongId2Box.Value = _vm.SongId2;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.SongId1 = (uint)(SongId1Box.Value ?? 0);
+            _vm.SongId2 = (uint)(SongId2Box.Value ?? 0);
+            _vm.WriteWorldMapBGM();
+            CoreState.Services?.ShowInfo("World map BGM data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

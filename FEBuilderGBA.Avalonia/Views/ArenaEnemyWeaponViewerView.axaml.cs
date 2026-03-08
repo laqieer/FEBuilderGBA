@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ArenaEnemyWeaponViewerViewModel _vm = new();
 
         public string ViewTitle => "Arena Enemy Weapon";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ArenaEnemyWeaponViewerView()
         {
@@ -49,7 +49,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            WeaponIdLabel.Text = $"0x{_vm.WeaponId:X02} ({_vm.WeaponId})";
+            WeaponIdBox.Value = _vm.WeaponId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.WeaponId = (uint)(WeaponIdBox.Value ?? 0);
+            _vm.WriteArenaEnemyWeapon();
+            CoreState.Services.ShowInfo("Arena Enemy Weapon data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

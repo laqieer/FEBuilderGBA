@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MonsterWMapProbabilityViewerViewModel _vm = new();
 
         public string ViewTitle => "World Map Monster";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public MonsterWMapProbabilityViewerView()
         {
@@ -49,7 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            BasePointIdLabel.Text = $"0x{_vm.BasePointId:X02} ({_vm.BasePointId})";
+            BasePointIdBox.Value = _vm.BasePointId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.BasePointId = (uint)(BasePointIdBox.Value ?? 0);
+            _vm.WriteMonsterWMapProbability();
+            CoreState.Services.ShowInfo("World map monster data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

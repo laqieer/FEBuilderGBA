@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SystemIconViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _imagePointer, _palettePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             ImagePointer = rom.RomInfo.system_icon_pointer;
             PalettePointer = rom.RomInfo.system_icon_palette_pointer;
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         /// <summary>

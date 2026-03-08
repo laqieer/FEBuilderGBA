@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class LinkArenaDenyUnitViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _unitId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
 
         public List<AddrResult> LoadLinkArenaDenyUnitList()
@@ -48,7 +48,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             UnitId = rom.u8(addr);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteLinkArenaDenyUnit()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr, UnitId);
         }
 
         public int GetListCount() => LoadLinkArenaDenyUnitList().Count;

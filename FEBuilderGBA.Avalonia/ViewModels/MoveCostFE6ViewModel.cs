@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MoveCostFE6ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         string _className = "";
         byte[] _moveCosts = Array.Empty<byte>();
 
@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte _b50;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string ClassName { get => _className; set => SetField(ref _className, value); }
         public byte[] MoveCosts { get => _moveCosts; set => SetField(ref _moveCosts, value); }
 
@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 D52 = 0;
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                IsLoaded = true;
+                CanWrite = true;
                 return;
             }
 
@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                IsLoaded = true;
+                CanWrite = true;
                 return;
             }
 
@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                IsLoaded = true;
+                CanWrite = true;
                 return;
             }
 
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B49 = terrainCount > 49 ? costs[49] : (byte)0;
             B50 = terrainCount > 50 ? costs[50] : (byte)0;
 
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         void ClearAllB()
@@ -242,6 +242,69 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B40 = 0; B41 = 0; B42 = 0; B43 = 0; B44 = 0;
             B45 = 0; B46 = 0; B47 = 0; B48 = 0; B49 = 0;
             B50 = 0;
+        }
+
+        public void WriteMoveCost()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (!U.isPointer(D52)) return;
+
+            uint moveCostAddr = D52 - 0x08000000;
+            if (!U.isSafetyOffset(moveCostAddr)) return;
+            if (moveCostAddr + 51 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(moveCostAddr + 0, B0);
+            rom.write_u8(moveCostAddr + 1, B1);
+            rom.write_u8(moveCostAddr + 2, B2);
+            rom.write_u8(moveCostAddr + 3, B3);
+            rom.write_u8(moveCostAddr + 4, B4);
+            rom.write_u8(moveCostAddr + 5, B5);
+            rom.write_u8(moveCostAddr + 6, B6);
+            rom.write_u8(moveCostAddr + 7, B7);
+            rom.write_u8(moveCostAddr + 8, B8);
+            rom.write_u8(moveCostAddr + 9, B9);
+            rom.write_u8(moveCostAddr + 10, B10);
+            rom.write_u8(moveCostAddr + 11, B11);
+            rom.write_u8(moveCostAddr + 12, B12);
+            rom.write_u8(moveCostAddr + 13, B13);
+            rom.write_u8(moveCostAddr + 14, B14);
+            rom.write_u8(moveCostAddr + 15, B15);
+            rom.write_u8(moveCostAddr + 16, B16);
+            rom.write_u8(moveCostAddr + 17, B17);
+            rom.write_u8(moveCostAddr + 18, B18);
+            rom.write_u8(moveCostAddr + 19, B19);
+            rom.write_u8(moveCostAddr + 20, B20);
+            rom.write_u8(moveCostAddr + 21, B21);
+            rom.write_u8(moveCostAddr + 22, B22);
+            rom.write_u8(moveCostAddr + 23, B23);
+            rom.write_u8(moveCostAddr + 24, B24);
+            rom.write_u8(moveCostAddr + 25, B25);
+            rom.write_u8(moveCostAddr + 26, B26);
+            rom.write_u8(moveCostAddr + 27, B27);
+            rom.write_u8(moveCostAddr + 28, B28);
+            rom.write_u8(moveCostAddr + 29, B29);
+            rom.write_u8(moveCostAddr + 30, B30);
+            rom.write_u8(moveCostAddr + 31, B31);
+            rom.write_u8(moveCostAddr + 32, B32);
+            rom.write_u8(moveCostAddr + 33, B33);
+            rom.write_u8(moveCostAddr + 34, B34);
+            rom.write_u8(moveCostAddr + 35, B35);
+            rom.write_u8(moveCostAddr + 36, B36);
+            rom.write_u8(moveCostAddr + 37, B37);
+            rom.write_u8(moveCostAddr + 38, B38);
+            rom.write_u8(moveCostAddr + 39, B39);
+            rom.write_u8(moveCostAddr + 40, B40);
+            rom.write_u8(moveCostAddr + 41, B41);
+            rom.write_u8(moveCostAddr + 42, B42);
+            rom.write_u8(moveCostAddr + 43, B43);
+            rom.write_u8(moveCostAddr + 44, B44);
+            rom.write_u8(moveCostAddr + 45, B45);
+            rom.write_u8(moveCostAddr + 46, B46);
+            rom.write_u8(moveCostAddr + 47, B47);
+            rom.write_u8(moveCostAddr + 48, B48);
+            rom.write_u8(moveCostAddr + 49, B49);
+            rom.write_u8(moveCostAddr + 50, B50);
         }
 
         public int GetListCount() => LoadClassList().Count;

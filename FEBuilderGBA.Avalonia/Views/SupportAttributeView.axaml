@@ -2,39 +2,46 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SupportAttributeView"
-        Title="Support Attribute (Read-Only)" Width="1169" Height="497">
+        Title="Support Attribute Editor" Width="1169" Height="497">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Support Attribute (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Support Attribute Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Affinity Type:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="AffinityTypeLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="AffinityTypeBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Attack Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="AttackBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="AttackBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Defense Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="DefenseBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="DefenseBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Hit Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="HitBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="HitBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Avoid Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="AvoidBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="AvoidBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Crit Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="6" Grid.Column="1" Name="CritBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="CritBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Crit Avoid Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="7" Grid.Column="1" Name="CritAvoidBonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="CritAvoidBonusBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Unknown 7:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="Unknown7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

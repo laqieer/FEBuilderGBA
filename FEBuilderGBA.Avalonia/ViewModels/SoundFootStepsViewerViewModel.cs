@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SoundFootStepsViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _dataPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint DataPointer { get => _dataPointer; set => SetField(ref _dataPointer, value); }
 
         public List<AddrResult> LoadSoundFootStepsList()
@@ -56,7 +56,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             DataPointer = rom.u32(addr);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSoundFootSteps()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr, DataPointer);
         }
 
         public int GetListCount() => LoadSoundFootStepsList().Count;

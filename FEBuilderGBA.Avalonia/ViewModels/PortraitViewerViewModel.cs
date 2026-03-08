@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _imagePointer, _mapPointer, _palettePointer;
         uint _d12, _d16;
         uint _b20, _b21, _b22, _b23, _b24, _b25, _b26, _b27;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint B25 { get => _b25; set => SetField(ref _b25, value); }
         public uint B26 { get => _b26; set => SetField(ref _b26, value); }
         public uint B27 { get => _b27; set => SetField(ref _b27, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadPortraitList()
         {
@@ -100,7 +100,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B26 = rom.u8(addr + 26);
             B27 = rom.u8(addr + 27);
             Name = $"Portrait at 0x{addr:X08}";
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WritePortrait()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, ImagePointer);
+            rom.write_u32(addr + 4, MapPointer);
+            rom.write_u32(addr + 8, PalettePointer);
+            rom.write_u32(addr + 12, D12);
+            rom.write_u32(addr + 16, D16);
+            rom.write_u8(addr + 20, (byte)B20);
+            rom.write_u8(addr + 21, (byte)B21);
+            rom.write_u8(addr + 22, (byte)B22);
+            rom.write_u8(addr + 23, (byte)B23);
+            rom.write_u8(addr + 24, (byte)B24);
+            rom.write_u8(addr + 25, (byte)B25);
+            rom.write_u8(addr + 26, (byte)B26);
+            rom.write_u8(addr + 27, (byte)B27);
         }
 
         /// <summary>

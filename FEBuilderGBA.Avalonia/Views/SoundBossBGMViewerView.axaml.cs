@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SoundBossBGMViewerViewModel _vm = new();
 
         public string ViewTitle => "Boss BGM";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SoundBossBGMViewerView()
         {
@@ -49,11 +49,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UnitIdLabel.Text = $"0x{_vm.UnitId:X02} ({_vm.UnitId})";
-            Unknown1Label.Text = $"0x{_vm.Unknown1:X02}";
-            Unknown2Label.Text = $"0x{_vm.Unknown2:X02}";
-            Unknown3Label.Text = $"0x{_vm.Unknown3:X02}";
-            SongIdLabel.Text = $"0x{_vm.SongId:X08}";
+            UnitIdBox.Value = _vm.UnitId;
+            Unknown1Box.Value = _vm.Unknown1;
+            Unknown2Box.Value = _vm.Unknown2;
+            Unknown3Box.Value = _vm.Unknown3;
+            SongIdBox.Value = _vm.SongId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+            _vm.SongId = (uint)(SongIdBox.Value ?? 0);
+            _vm.WriteSoundBossBGM();
+            CoreState.Services.ShowInfo("Boss BGM data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

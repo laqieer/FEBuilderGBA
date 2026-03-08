@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ChapterTitleViewerViewModel _vm = new();
 
-        public string ViewTitle => "Chapter Title Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Chapter Title Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public ChapterTitleViewerView()
@@ -41,9 +41,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            SaveImgLabel.Text = $"0x{_vm.SaveImagePointer:X08}";
-            ChapterImgLabel.Text = $"0x{_vm.ChapterImagePointer:X08}";
-            TitleImgLabel.Text = $"0x{_vm.TitleImagePointer:X08}";
+            SaveImgBox.Value = _vm.SaveImagePointer;
+            ChapterImgBox.Value = _vm.ChapterImagePointer;
+            TitleImgBox.Value = _vm.TitleImagePointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SaveImagePointer = (uint)(SaveImgBox.Value ?? 0);
+            _vm.ChapterImagePointer = (uint)(ChapterImgBox.Value ?? 0);
+            _vm.TitleImagePointer = (uint)(TitleImgBox.Value ?? 0);
+            _vm.WriteChapterTitle();
+            CoreState.Services.ShowInfo("Chapter Title data written.");
         }
 
         void LoadImage()

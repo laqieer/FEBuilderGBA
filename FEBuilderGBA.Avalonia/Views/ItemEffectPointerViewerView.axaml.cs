@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemEffectPointerViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Effect Pointer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemEffectPointerViewerView()
         {
@@ -50,7 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            EffectPointerLabel.Text = $"0x{_vm.EffectPointer:X08}";
+            EffectPointerBox.Value = _vm.EffectPointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.EffectPointer = (uint)(EffectPointerBox.Value ?? 0);
+            _vm.WriteItemEffectPointer();
+            CoreState.Services.ShowInfo("Item Effect Pointer data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

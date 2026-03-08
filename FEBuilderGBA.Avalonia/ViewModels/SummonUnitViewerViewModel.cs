@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SummonUnitViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _unitId;
         uint _unknown;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint Unknown { get => _unknown; set => SetField(ref _unknown, value); }
 
@@ -51,7 +51,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             UnitId = rom.u8(addr + 0);
             Unknown = rom.u8(addr + 1);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSummonUnit()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 2 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
+            rom.write_u8(CurrentAddr + 1, (byte)Unknown);
         }
 
         public int GetListCount() => LoadSummonUnitList().Count;

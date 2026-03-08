@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPClassFontViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _imagePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
 
         public List<AddrResult> LoadOPClassFontList()
@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             CurrentAddr = addr;
             ImagePointer = rom.u32(addr);
-            IsLoaded = true;
+            CanWrite = true;
         }
 
         /// <summary>
@@ -97,6 +97,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return image.GetPixelData();
             }
             catch { return null; }
+        }
+
+        public void WriteOPClassFont()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr, ImagePointer);
         }
 
         public int GetListCount() => LoadOPClassFontList().Count;

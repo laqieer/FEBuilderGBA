@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SystemHoverColorViewerViewModel _vm = new();
 
         public string ViewTitle => "System Hover Color Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public SystemHoverColorViewerView()

@@ -10,14 +10,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _w0, _w2;
         uint _animPointer;  // P4
         string _rawBytes = "";
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint W0 { get => _w0; set => SetField(ref _w0, value); }
         public uint W2 { get => _w2; set => SetField(ref _w2, value); }
         public uint AnimPointer { get => _animPointer; set => SetField(ref _animPointer, value); }
         public string RawBytes { get => _rawBytes; set => SetField(ref _rawBytes, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadMapTileAnimationList()
         {
@@ -89,7 +89,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RawBytes = "";
             }
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMapTileAnimation()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u16(addr + 0, (ushort)W0);
+            rom.write_u16(addr + 2, (ushort)W2);
+            rom.write_u32(addr + 4, AnimPointer);
         }
 
         public int GetListCount() => LoadMapTileAnimationList().Count;

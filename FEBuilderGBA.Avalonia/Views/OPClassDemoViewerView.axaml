@@ -2,22 +2,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassDemoViewerView"
-        Title="OP Class Demo Viewer (Read-Only)" Width="1429" Height="848">
+        Title="OP Class Demo Editor" Width="1429" Height="848">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="OP Class Demo Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="OP Class Demo Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ClassIdLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation Type:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="AnimTypeLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="AnimTypeBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Battle Anime:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="BattleAnimeLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemStatBonusesViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Stat Bonuses";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemStatBonusesViewerView()
         {
@@ -50,18 +50,36 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            HPLabel.Text = _vm.HP.ToString();
-            StrLabel.Text = _vm.Str.ToString();
-            SkillLabel.Text = _vm.Skill.ToString();
-            SpeedLabel.Text = _vm.Speed.ToString();
-            DefLabel.Text = _vm.Def.ToString();
-            ResLabel.Text = _vm.Res.ToString();
-            LuckLabel.Text = _vm.Luck.ToString();
-            MoveLabel.Text = _vm.Move.ToString();
-            ConLabel.Text = _vm.Con.ToString();
-            Unknown9Label.Text = $"0x{_vm.Unknown9:X02}";
-            Unknown10Label.Text = $"0x{_vm.Unknown10:X02}";
-            Unknown11Label.Text = $"0x{_vm.Unknown11:X02}";
+            HPBox.Value = _vm.HP;
+            StrBox.Value = _vm.Str;
+            SkillBox.Value = _vm.Skill;
+            SpeedBox.Value = _vm.Speed;
+            DefBox.Value = _vm.Def;
+            ResBox.Value = _vm.Res;
+            LuckBox.Value = _vm.Luck;
+            MoveBox.Value = _vm.Move;
+            ConBox.Value = _vm.Con;
+            Unknown9Box.Value = _vm.Unknown9;
+            Unknown10Box.Value = _vm.Unknown10;
+            Unknown11Box.Value = _vm.Unknown11;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.HP = (uint)(HPBox.Value ?? 0);
+            _vm.Str = (uint)(StrBox.Value ?? 0);
+            _vm.Skill = (uint)(SkillBox.Value ?? 0);
+            _vm.Speed = (uint)(SpeedBox.Value ?? 0);
+            _vm.Def = (uint)(DefBox.Value ?? 0);
+            _vm.Res = (uint)(ResBox.Value ?? 0);
+            _vm.Luck = (uint)(LuckBox.Value ?? 0);
+            _vm.Move = (uint)(MoveBox.Value ?? 0);
+            _vm.Con = (uint)(ConBox.Value ?? 0);
+            _vm.Unknown9 = (uint)(Unknown9Box.Value ?? 0);
+            _vm.Unknown10 = (uint)(Unknown10Box.Value ?? 0);
+            _vm.Unknown11 = (uint)(Unknown11Box.Value ?? 0);
+            _vm.WriteItemStatBonuses();
+            CoreState.Services.ShowInfo("Item Stat Bonuses data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

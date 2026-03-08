@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _critBonus;
         uint _critAvoidBonus;
         uint _unknown7;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint AffinityType { get => _affinityType; set => SetField(ref _affinityType, value); }
@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CritAvoidBonus { get => _critAvoidBonus; set => SetField(ref _critAvoidBonus, value); }
         // B7: Unknown / padding
         public uint Unknown7 { get => _unknown7; set => SetField(ref _unknown7, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadSupportAttributeList()
         {
@@ -74,7 +74,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CritAvoidBonus = rom.u8(addr + 6);
             Unknown7 = rom.u8(addr + 7);         // B7
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteSupportAttribute()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 7 >= (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)AffinityType);
+            rom.write_u8(CurrentAddr + 1, (byte)AttackBonus);
+            rom.write_u8(CurrentAddr + 2, (byte)DefenseBonus);
+            rom.write_u8(CurrentAddr + 3, (byte)HitBonus);
+            rom.write_u8(CurrentAddr + 4, (byte)AvoidBonus);
+            rom.write_u8(CurrentAddr + 5, (byte)CritBonus);
+            rom.write_u8(CurrentAddr + 6, (byte)CritAvoidBonus);
+            rom.write_u8(CurrentAddr + 7, (byte)Unknown7);
         }
 
         public int GetListCount() => LoadSupportAttributeList().Count;

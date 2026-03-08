@@ -7,13 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MonsterItemViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _itemId;
         uint _dropRate;
         uint _unknown1, _unknown2, _unknown3;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
         public uint DropRate { get => _dropRate; set => SetField(ref _dropRate, value); }
         public uint Unknown1 { get => _unknown1; set => SetField(ref _unknown1, value); }
@@ -57,7 +57,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unknown1 = rom.u8(addr + 2);
             Unknown2 = rom.u8(addr + 3);
             Unknown3 = rom.u8(addr + 4);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMonsterItem()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 5 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)ItemId);
+            rom.write_u8(CurrentAddr + 1, (byte)DropRate);
+            rom.write_u8(CurrentAddr + 2, (byte)Unknown1);
+            rom.write_u8(CurrentAddr + 3, (byte)Unknown2);
+            rom.write_u8(CurrentAddr + 4, (byte)Unknown3);
         }
 
         public int GetListCount() => LoadMonsterItemList().Count;

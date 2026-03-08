@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemWeaponEffectViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Weapon Effect";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemWeaponEffectViewerView()
         {
@@ -50,17 +50,34 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ItemIdLabel.Text = $"0x{_vm.ItemId:X02}";
-            AnimTypeLabel.Text = _vm.AnimType.ToString();
-            EffectIdLabel.Text = $"0x{_vm.EffectId:X04}";
-            MapEffectLabel.Text = $"0x{_vm.MapEffectPointer:X08}";
-            DamageEffectLabel.Text = $"0x{_vm.DamageEffect:X02}";
-            MotionLabel.Text = $"0x{_vm.Motion:X02}";
-            HitColorLabel.Text = $"0x{_vm.HitColor:X02}";
-            Unknown1Label.Text = $"0x{_vm.Unknown1:X02}";
-            Unknown3Label.Text = $"0x{_vm.Unknown3:X02}";
-            Unknown6Label.Text = $"0x{_vm.Unknown6:X04}";
-            Unknown15Label.Text = $"0x{_vm.Unknown15:X02}";
+            ItemIdBox.Value = _vm.ItemId;
+            AnimTypeBox.Value = _vm.AnimType;
+            EffectIdBox.Value = _vm.EffectId;
+            MapEffectBox.Value = _vm.MapEffectPointer;
+            DamageEffectBox.Value = _vm.DamageEffect;
+            MotionBox.Value = _vm.Motion;
+            HitColorBox.Value = _vm.HitColor;
+            Unknown1Box.Value = _vm.Unknown1;
+            Unknown3Box.Value = _vm.Unknown3;
+            Unknown6Box.Value = _vm.Unknown6;
+            Unknown15Box.Value = _vm.Unknown15;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+            _vm.AnimType = (uint)(AnimTypeBox.Value ?? 0);
+            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+            _vm.EffectId = (uint)(EffectIdBox.Value ?? 0);
+            _vm.Unknown6 = (uint)(Unknown6Box.Value ?? 0);
+            _vm.MapEffectPointer = (uint)(MapEffectBox.Value ?? 0);
+            _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
+            _vm.Motion = (uint)(MotionBox.Value ?? 0);
+            _vm.HitColor = (uint)(HitColorBox.Value ?? 0);
+            _vm.Unknown15 = (uint)(Unknown15Box.Value ?? 0);
+            _vm.WriteItemWeaponEffect();
+            CoreState.Services.ShowInfo("Item Weapon Effect data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

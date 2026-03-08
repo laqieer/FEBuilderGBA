@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemWeaponTriangleViewerView"
-        Title="Item Weapon Triangle (Read-Only)" Width="1290" Height="648">
+        Title="Weapon Triangle Editor" Width="1290" Height="648">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Weapon Triangle (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Weapon Triangle Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock Text="Weapon triangle bonus/penalty data" FontSize="12" Foreground="Gray" />
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
@@ -16,17 +16,21 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon Type 1:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="WeaponType1Label" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WeaponType1Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Weapon Type 2:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="WeaponType2Label" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="WeaponType2Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Bonus:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="BonusLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="BonusBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Penalty:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="PenaltyLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="PenaltyBox" Minimum="0" Maximum="255" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

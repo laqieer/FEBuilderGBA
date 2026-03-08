@@ -2,47 +2,110 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.UnitFE7View"
-        Title="Units (FE7) (Read-Only)" Width="1409" Height="853">
+        Title="Units (FE7) Editor" Width="1409" Height="900">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Units (FE7) (Read-Only)" FontSize="18" FontWeight="Bold" />
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Text="Units (FE7) Editor" FontSize="18" FontWeight="Bold" />
+        <Grid ColumnDefinitions="160,200,20,160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="NameIdLabel" VerticalAlignment="Center" />
+          <!-- Row 1: Name ID + Decoded -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID (u16@0):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Decoded:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="4" Name="DecodedNameLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Decoded Name:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="DecodedNameLabel" VerticalAlignment="Center" />
+          <!-- Row 2: W2 + B4 -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Desc ID (u16@2):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="W2Box" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="B4 (u8@4):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="B4Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Level:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="LevelLabel" VerticalAlignment="Center" />
+          <!-- Row 3: B5 + W6 -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="B5 (u8@5):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B5Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="W6 (u16@6):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="W6Box" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Base Stats:" VerticalAlignment="Center" FontWeight="Bold" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="BaseStatsLabel" VerticalAlignment="Center" />
+          <!-- Row 4: B8 + B9 -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="B8 (u8@8):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B8Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Text="B9 (u8@9):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="4" Name="B9Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="HP / STR / SKL:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="StatsLine1Label" VerticalAlignment="Center" />
+          <!-- Row 5: B10 + Level -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="B10 (u8@10):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="B10Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Text="Level (u8@11):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="4" Name="LevelBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="SPD / DEF / RES:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="6" Grid.Column="1" Name="StatsLine2Label" VerticalAlignment="Center" />
+          <!-- Row 6: Header -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="5" Text="Base Stats (signed bytes):" FontWeight="Bold" Margin="0,8,0,4" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="LCK:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="7" Grid.Column="1" Name="LckLabel" VerticalAlignment="Center" />
+          <!-- Row 7: HP + STR -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="HP (s8@12):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="HPBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="7" Grid.Column="3" Text="STR (s8@13):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="4" Name="StrBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Growth Rates:" VerticalAlignment="Center" FontWeight="Bold" />
-          <TextBlock Grid.Row="8" Grid.Column="1" Text="" />
+          <!-- Row 8: SKL + SPD -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="SKL (s8@14):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="8" Grid.Column="3" Text="SPD (s8@15):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="HP/STR/SKL/SPD:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="9" Grid.Column="1" Name="GrowLine1Label" VerticalAlignment="Center" />
+          <!-- Row 9: DEF + RES -->
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="DEF (s8@16):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="DefBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="9" Grid.Column="3" Text="RES (s8@17):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="4" Name="ResBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+
+          <!-- Row 10: LCK + CON -->
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="LCK (s8@18):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="LckBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="3" Text="CON (s8@19):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="4" Name="B19Box" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+
+          <!-- Row 11: Growth header -->
+          <TextBlock Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="5" Text="Growth Rates (u8@28-34):" FontWeight="Bold" Margin="0,8,0,4" />
+
+          <!-- Row 12: GrowHP + GrowSTR -->
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Grow HP% (u8@28):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="12" Grid.Column="3" Text="Grow STR% (u8@29):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="4" Name="GrowSTRBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <!-- Row 13: GrowSKL + GrowSPD -->
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="Grow SKL% (u8@30):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="GrowSKLBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="13" Grid.Column="3" Text="Grow SPD% (u8@31):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="13" Grid.Column="4" Name="GrowSPDBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <!-- Row 14: GrowDEF + GrowRES -->
+          <TextBlock Grid.Row="14" Grid.Column="0" Text="Grow DEF% (u8@32):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="GrowDEFBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="14" Grid.Column="3" Text="Grow RES% (u8@33):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="14" Grid.Column="4" Name="GrowRESBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <!-- Row 15: GrowLCK -->
+          <TextBlock Grid.Row="15" Grid.Column="0" Text="Grow LCK% (u8@34):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="GrowLCKBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <!-- Row 16: Misc header -->
+          <TextBlock Grid.Row="16" Grid.Column="0" Grid.ColumnSpan="5" Text="Misc Fields:" FontWeight="Bold" Margin="0,8,0,4" />
+
+          <!-- Row 17: P44 -->
+          <TextBlock Grid.Row="17" Grid.Column="0" Text="P44 (u32@44):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="P44Box" Minimum="0" Maximum="4294967295" Width="180" Margin="0,2" />
         </Grid>
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="DEF/RES/LCK:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="GrowLine2Label" VerticalAlignment="Center" />
-        </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

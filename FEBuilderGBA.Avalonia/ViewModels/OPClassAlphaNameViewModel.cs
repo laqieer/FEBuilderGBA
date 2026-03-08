@@ -12,12 +12,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPClassAlphaNameViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         string _alphaName = "";
         string _unavailableMessage = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string AlphaName { get => _alphaName; set => SetField(ref _alphaName, value); }
         public string UnavailableMessage { get => _unavailableMessage; set => SetField(ref _unavailableMessage, value); }
 
@@ -30,14 +30,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (baseAddr == 0)
             {
                 UnavailableMessage = "Not available for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
             if (!U.isSafetyOffset(baseAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
@@ -82,7 +82,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 AlphaName = "";
             }
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            // Write fixed 20-byte C-string
+            string name = AlphaName ?? "";
+            byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes(name);
+            for (int i = 0; i < 20; i++)
+            {
+                byte b = (i < nameBytes.Length) ? nameBytes[i] : (byte)0;
+                rom.write_u8((uint)(addr + i), b);
+            }
         }
 
         public int GetListCount() => LoadList().Count;

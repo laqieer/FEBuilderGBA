@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class WorldMapEventPointerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _eventPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint EventPointer { get => _eventPointer; set => SetField(ref _eventPointer, value); }
 
         public List<AddrResult> LoadWorldMapEventList()
@@ -49,7 +49,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             EventPointer = rom.u32(addr);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteWorldMapEvent()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr, EventPointer);
         }
 
         public int GetListCount() => LoadWorldMapEventList().Count;

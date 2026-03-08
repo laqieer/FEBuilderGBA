@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MonsterItemViewerViewModel _vm = new();
 
         public string ViewTitle => "Monster Item";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public MonsterItemViewerView()
         {
@@ -49,11 +49,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ItemIdLabel.Text = $"0x{_vm.ItemId:X02} ({_vm.ItemId})";
-            DropRateLabel.Text = $"{_vm.DropRate}";
-            Unknown1Label.Text = $"0x{_vm.Unknown1:X02}";
-            Unknown2Label.Text = $"0x{_vm.Unknown2:X02}";
-            Unknown3Label.Text = $"0x{_vm.Unknown3:X02}";
+            ItemIdBox.Value = _vm.ItemId;
+            DropRateBox.Value = _vm.DropRate;
+            Unknown1Box.Value = _vm.Unknown1;
+            Unknown2Box.Value = _vm.Unknown2;
+            Unknown3Box.Value = _vm.Unknown3;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+            _vm.DropRate = (uint)(DropRateBox.Value ?? 0);
+            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+            _vm.WriteMonsterItem();
+            CoreState.Services.ShowInfo("Monster item data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

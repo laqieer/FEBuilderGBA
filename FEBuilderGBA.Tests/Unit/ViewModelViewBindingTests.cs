@@ -301,9 +301,9 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView("WorldMapPointView.axaml.cs");
             Assert.Contains("_vm.CurrentAddr", src);
-            Assert.Contains("_vm.X", src);
-            Assert.Contains("_vm.Y", src);
+            Assert.Contains("_vm.B0", src);
             Assert.Contains("_vm.NameTextId", src);
+            Assert.Contains("_vm.WriteWorldMapPoint", src);
         }
 
         // ---------------------------------------------------------------

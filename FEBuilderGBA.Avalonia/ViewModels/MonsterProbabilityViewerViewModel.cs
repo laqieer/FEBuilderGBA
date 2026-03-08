@@ -7,13 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MonsterProbabilityViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _classId1, _classId2, _classId3, _classId4, _classId5;
         uint _prob1, _prob2, _prob3, _prob4, _prob5;
         uint _unknown1, _unknown2;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ClassId1 { get => _classId1; set => SetField(ref _classId1, value); }
         public uint ClassId2 { get => _classId2; set => SetField(ref _classId2, value); }
         public uint ClassId3 { get => _classId3; set => SetField(ref _classId3, value); }
@@ -71,7 +71,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Prob5 = rom.u8(addr + 9);
             Unknown1 = rom.u8(addr + 10);
             Unknown2 = rom.u8(addr + 11);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMonsterProbability()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 12 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)ClassId1);
+            rom.write_u8(CurrentAddr + 1, (byte)ClassId2);
+            rom.write_u8(CurrentAddr + 2, (byte)ClassId3);
+            rom.write_u8(CurrentAddr + 3, (byte)ClassId4);
+            rom.write_u8(CurrentAddr + 4, (byte)ClassId5);
+            rom.write_u8(CurrentAddr + 5, (byte)Prob1);
+            rom.write_u8(CurrentAddr + 6, (byte)Prob2);
+            rom.write_u8(CurrentAddr + 7, (byte)Prob3);
+            rom.write_u8(CurrentAddr + 8, (byte)Prob4);
+            rom.write_u8(CurrentAddr + 9, (byte)Prob5);
+            rom.write_u8(CurrentAddr + 10, (byte)Unknown1);
+            rom.write_u8(CurrentAddr + 11, (byte)Unknown2);
         }
 
         public int GetListCount() => LoadMonsterProbabilityList().Count;

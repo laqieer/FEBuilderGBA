@@ -7,14 +7,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class StatusUnitsMenuViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _order;
         uint _textId;
         uint _d8;
         uint _textId2;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint Order { get => _order; set => SetField(ref _order, value); }
         public uint TextId { get => _textId; set => SetField(ref _textId, value); }
         // D8: additional dword
@@ -57,7 +57,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TextId = rom.u32(addr + 4);    // D4
             D8 = rom.u32(addr + 8);        // D8
             TextId2 = rom.u32(addr + 12);  // D12
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteStatusUnitsMenu()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 16 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(addr + 0, Order);
+            rom.write_u32(addr + 4, TextId);
+            rom.write_u32(addr + 8, D8);
+            rom.write_u32(addr + 12, TextId2);
         }
 
         public int GetListCount() => LoadStatusUnitsMenuList().Count;

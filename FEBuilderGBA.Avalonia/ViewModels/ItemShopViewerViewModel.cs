@@ -9,12 +9,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         uint _itemId;
         uint _quantity;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
         public uint Quantity { get => _quantity; set => SetField(ref _quantity, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemShopList()
         {
@@ -53,7 +53,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ItemId = rom.u8(addr);
             Quantity = rom.u8(addr + 1);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemShop()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr, ItemId);
+            rom.write_u8(addr + 1, Quantity);
         }
 
         public int GetListCount() => LoadItemShopList().Count;

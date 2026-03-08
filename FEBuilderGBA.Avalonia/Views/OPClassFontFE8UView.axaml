@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassFontFE8UView"
-        Title="OP Class Font (FE8U) (Read-Only)" Width="1179" Height="849">
+        Title="OP Class Font (FE8U) Editor" Width="1179" Height="849">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="OP Class Font (FE8U) (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="OP Class Font (FE8U) Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock Name="UnavailableLabel" Text="" Foreground="Orange" />
 
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
@@ -16,8 +16,11 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImagePointerLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ImagePointerBox" Minimum="0" Maximum="4294967295" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

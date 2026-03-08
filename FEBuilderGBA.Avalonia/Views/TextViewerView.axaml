@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.TextViewerView"
-        Title="Text Viewer (Read-Only)" Width="1166" Height="930">
+        Title="Text Editor" Width="1166" Height="930">
   <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl Grid.Column="0" Name="TextList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Text Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Text Editor" FontSize="18" FontWeight="Bold" />
 
         <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
 

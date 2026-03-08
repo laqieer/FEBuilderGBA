@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemUsagePointerViewerView"
-        Title="Item Usage Pointer (Read-Only)" Width="1238" Height="801">
+        Title="Item Usage Pointer Editor" Width="1238" Height="801">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Item Usage Pointer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Item Usage Pointer Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock Text="Function pointers for item usability checks" FontSize="12" Foreground="Gray" />
 
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
@@ -16,8 +16,12 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Usability Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="UsabilityPointerLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UsabilityPointerBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

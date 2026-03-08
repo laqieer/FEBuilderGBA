@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class EDStaffRollViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _dataPointer;
         uint _palettePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint DataPointer { get => _dataPointer; set => SetField(ref _dataPointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
@@ -51,7 +51,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             DataPointer = rom.u32(addr);
             PalettePointer = rom.u32(addr + 4);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteEDStaffRoll()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 8 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr, DataPointer);
+            rom.write_u32(CurrentAddr + 4, PalettePointer);
         }
 
         public int GetListCount() => LoadEDStaffRollList().Count;

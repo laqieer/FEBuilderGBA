@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventCondView"
-        Title="Event Condition (Read-Only)" Width="1834" Height="999">
+        Title="Event Condition Editor" Width="1834" Height="999">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Event Condition (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Event Condition Editor" FontSize="18" FontWeight="Bold" />
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />

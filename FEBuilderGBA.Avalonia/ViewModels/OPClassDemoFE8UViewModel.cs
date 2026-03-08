@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class OPClassDemoFE8UViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         string _unavailableMessage = "";
         uint _d0;
         uint _b4;
@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _p16;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string UnavailableMessage { get => _unavailableMessage; set => SetField(ref _unavailableMessage, value); }
         public uint D0 { get => _d0; set => SetField(ref _d0, value); }
         public uint B4 { get => _b4; set => SetField(ref _b4, value); }
@@ -57,14 +57,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (baseAddr == 0)
             {
                 UnavailableMessage = "Not available for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
             if (!U.isSafetyOffset(baseAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
-                IsLoaded = true;
+                CanWrite = true;
                 return new List<AddrResult>();
             }
 
@@ -105,7 +105,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B14 = rom.u8(addr + 14);
             B15 = rom.u8(addr + 15);
             P16 = rom.u32(addr + 16);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, D0);
+            rom.write_u8(addr + 4, (byte)B4);
+            rom.write_u8(addr + 5, (byte)B5);
+            rom.write_u8(addr + 6, (byte)B6);
+            rom.write_u8(addr + 7, (byte)B7);
+            rom.write_u16(addr + 8, (ushort)W8);
+            rom.write_u16(addr + 10, (ushort)W10);
+            rom.write_u8(addr + 12, (byte)B12);
+            rom.write_u8(addr + 13, (byte)B13);
+            rom.write_u8(addr + 14, (byte)B14);
+            rom.write_u8(addr + 15, (byte)B15);
+            rom.write_u32(addr + 16, P16);
         }
 
         public int GetListCount() => LoadList().Count;

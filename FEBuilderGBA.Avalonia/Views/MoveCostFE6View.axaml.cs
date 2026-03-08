@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MoveCostFE6ViewModel _vm = new();
 
         public string ViewTitle => "Move Cost (FE6)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public MoveCostFE6View()
         {
@@ -65,6 +65,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 sb.Append($"[{i:X2}]={_vm.MoveCosts[i]:X2} ");
             }
             MoveCostsLabel.Text = sb.ToString();
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.WriteMoveCost();
+            CoreState.Services?.ShowInfo("Move cost data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

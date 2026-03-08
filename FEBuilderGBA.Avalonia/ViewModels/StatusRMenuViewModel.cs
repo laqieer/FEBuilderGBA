@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class StatusRMenuViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _upPtr;
         uint _downPtr;
         uint _leftPtr;
@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _p20, _p24;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UpPtr { get => _upPtr; set => SetField(ref _upPtr, value); }
         public uint DownPtr { get => _downPtr; set => SetField(ref _downPtr, value); }
         public uint LeftPtr { get => _leftPtr; set => SetField(ref _leftPtr, value); }
@@ -79,7 +79,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TextId = rom.u16(addr + 18);
             P20 = rom.u32(addr + 20);
             P24 = rom.u32(addr + 24);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteStatusRMenu()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 28 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(addr + 0, UpPtr);
+            rom.write_u32(addr + 4, DownPtr);
+            rom.write_u32(addr + 8, LeftPtr);
+            rom.write_u32(addr + 12, RightPtr);
+            rom.write_u8(addr + 16, (byte)B16);
+            rom.write_u8(addr + 17, (byte)B17);
+            rom.write_u16(addr + 18, (ushort)TextId);
+            rom.write_u32(addr + 20, P20);
+            rom.write_u32(addr + 24, P24);
         }
 
         public int GetListCount() => LoadStatusRMenuList().Count;

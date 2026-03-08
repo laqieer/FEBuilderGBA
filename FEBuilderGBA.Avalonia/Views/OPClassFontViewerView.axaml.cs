@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OPClassFontViewerViewModel _vm = new();
 
-        public string ViewTitle => "OP Class Font Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "OP Class Font Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public OPClassFontViewerView()
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrLabel.Text = $"0x{_vm.ImagePointer:X08}";
+            ImgPtrBox.Value = _vm.ImagePointer;
         }
 
         void LoadImage()
@@ -55,6 +55,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     ImageDisplay.SetImage(null);
             }
             catch { ImageDisplay.SetImage(null); }
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
+            _vm.WriteOPClassFont();
+            CoreState.Services?.ShowInfo("OP Class Font data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

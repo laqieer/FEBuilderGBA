@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -10,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly StatusRMenuViewModel _vm = new();
 
         public string ViewTitle => "Status R-Menu";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public StatusRMenuView()
@@ -49,11 +50,30 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UpPtrLabel.Text = $"0x{_vm.UpPtr:X08}";
-            DownPtrLabel.Text = $"0x{_vm.DownPtr:X08}";
-            LeftPtrLabel.Text = $"0x{_vm.LeftPtr:X08}";
-            RightPtrLabel.Text = $"0x{_vm.RightPtr:X08}";
-            TextIdLabel.Text = $"0x{_vm.TextId:X04} ({_vm.TextId})";
+            UpPtrBox.Value = _vm.UpPtr;
+            DownPtrBox.Value = _vm.DownPtr;
+            LeftPtrBox.Value = _vm.LeftPtr;
+            RightPtrBox.Value = _vm.RightPtr;
+            B16Box.Value = _vm.B16;
+            B17Box.Value = _vm.B17;
+            TextIdBox.Value = _vm.TextId;
+            P20Box.Value = _vm.P20;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.UpPtr = (uint)(UpPtrBox.Value ?? 0);
+            _vm.DownPtr = (uint)(DownPtrBox.Value ?? 0);
+            _vm.LeftPtr = (uint)(LeftPtrBox.Value ?? 0);
+            _vm.RightPtr = (uint)(RightPtrBox.Value ?? 0);
+            _vm.B16 = (uint)(B16Box.Value ?? 0);
+            _vm.B17 = (uint)(B17Box.Value ?? 0);
+            _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+            _vm.P20 = (uint)(P20Box.Value ?? 0);
+            _vm.WriteStatusRMenu();
+            CoreState.Services?.ShowInfo("Status R-Menu data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

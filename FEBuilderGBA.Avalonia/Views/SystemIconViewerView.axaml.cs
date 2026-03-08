@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         uint _selectedIndex;
 
         public string ViewTitle => "System Icon Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public SystemIconViewerView()

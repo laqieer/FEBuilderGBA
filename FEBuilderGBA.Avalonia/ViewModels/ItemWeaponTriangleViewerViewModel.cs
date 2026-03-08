@@ -11,14 +11,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _weaponType2;
         uint _bonus;
         uint _penalty;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint WeaponType1 { get => _weaponType1; set => SetField(ref _weaponType1, value); }
         public uint WeaponType2 { get => _weaponType2; set => SetField(ref _weaponType2, value); }
         public uint Bonus { get => _bonus; set => SetField(ref _bonus, value); }
         public uint Penalty { get => _penalty; set => SetField(ref _penalty, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemWeaponTriangleList()
         {
@@ -60,7 +60,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Bonus = rom.u8(addr + 2);
             Penalty = rom.u8(addr + 3);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemWeaponTriangle()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, (byte)WeaponType1);
+            rom.write_u8(addr + 1, (byte)WeaponType2);
+            rom.write_u8(addr + 2, (byte)Bonus);
+            rom.write_u8(addr + 3, (byte)Penalty);
         }
 
         public int GetListCount() => LoadItemWeaponTriangleList().Count;

@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OPClassDemoViewerViewModel _vm = new();
 
-        public string ViewTitle => "OP Class Demo Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "OP Class Demo Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public OPClassDemoViewerView()
@@ -40,9 +40,19 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ClassIdLabel.Text = $"0x{_vm.ClassId:X02} ({_vm.ClassId})";
-            AnimTypeLabel.Text = $"0x{_vm.AnimationType:X02} ({_vm.AnimationType})";
-            BattleAnimeLabel.Text = $"0x{_vm.BattleAnime:X02} ({_vm.BattleAnime})";
+            ClassIdBox.Value = _vm.ClassId;
+            AnimTypeBox.Value = _vm.AnimationType;
+            BattleAnimeBox.Value = _vm.BattleAnime;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.B14 = (uint)(ClassIdBox.Value ?? 0);
+            _vm.B15 = (uint)(AnimTypeBox.Value ?? 0);
+            _vm.B16 = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.WriteOPClassDemo();
+            CoreState.Services?.ShowInfo("OP Class Demo data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

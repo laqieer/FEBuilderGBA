@@ -7,11 +7,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class StatusOptionOrderViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _optionId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint OptionId { get => _optionId; set => SetField(ref _optionId, value); }
 
         public List<AddrResult> LoadStatusOptionOrderList()
@@ -53,7 +53,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             OptionId = rom.u8(addr);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteStatusOptionOrder()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr >= (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr, (byte)OptionId);
         }
 
         public int GetListCount() => LoadStatusOptionOrderList().Count;

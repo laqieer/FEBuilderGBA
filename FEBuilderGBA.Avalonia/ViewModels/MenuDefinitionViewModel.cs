@@ -7,14 +7,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MenuDefinitionViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _b0, _b1, _b2, _b3;
         uint _d4;
         uint _handlerPtr;
         uint _p12, _p16, _p20, _p24, _p28, _p32;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint B0 { get => _b0; set => SetField(ref _b0, value); }
         public uint B1 { get => _b1; set => SetField(ref _b1, value); }
         public uint B2 { get => _b2; set => SetField(ref _b2, value); }
@@ -74,7 +74,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             P24 = rom.u32(addr + 24);
             P28 = rom.u32(addr + 28);
             P32 = rom.u32(addr + 32);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMenuDefinition()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 36 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(addr + 0, (byte)B0);
+            rom.write_u8(addr + 1, (byte)B1);
+            rom.write_u8(addr + 2, (byte)B2);
+            rom.write_u8(addr + 3, (byte)B3);
+            rom.write_u32(addr + 4, D4);
+            rom.write_u32(addr + 8, HandlerPtr);
+            rom.write_u32(addr + 12, P12);
+            rom.write_u32(addr + 16, P16);
+            rom.write_u32(addr + 20, P20);
+            rom.write_u32(addr + 24, P24);
+            rom.write_u32(addr + 28, P28);
+            rom.write_u32(addr + 32, P32);
         }
 
         public int GetListCount() => LoadMenuDefinitionList().Count;

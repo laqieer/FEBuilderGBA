@@ -2,12 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MoveCostFE6View"
-        Title="Move Cost (FE6) (Read-Only)" Width="1536" Height="634">
+        Title="Move Cost (FE6) Editor" Width="1536" Height="634">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Move Cost (FE6) (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Move Cost (FE6) Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
@@ -15,8 +15,12 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Class Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="1" Name="ClassNameLabel" VerticalAlignment="Center" />
         </Grid>
-        <TextBlock Text="Terrain Move Costs (50 entries):" FontWeight="Bold" Margin="0,8,0,4" />
+        <TextBlock Text="Terrain Move Costs (51 entries):" FontWeight="Bold" Margin="0,8,0,4" />
         <TextBlock Name="MoveCostsLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

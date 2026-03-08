@@ -2,27 +2,61 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.PortraitViewerView"
-        Title="Portrait Viewer (Read-Only)" Width="789" Height="547">
+        Title="Portrait Editor" Width="789" Height="700">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="PortraitList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Portrait Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Portrait Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImgPtrLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="MapPtrLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="MapPtrBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="PalPtrLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="PalPtrBox" Minimum="0" Maximum="4294967295" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="D12:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="D12Box" Minimum="0" Maximum="4294967295" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="D16:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="D16Box" Minimum="0" Maximum="4294967295" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="B20:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B20Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="B21:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B21Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="B22:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="B22Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="B23:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B23Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="B24:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="B24Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="B25:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="B25Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="B26:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="B26Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="B27:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="B27Box" Minimum="0" Maximum="255" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
 
         <controls:GbaImageControl Name="PortraitImage" Margin="0,8,0,0" />
       </StackPanel>

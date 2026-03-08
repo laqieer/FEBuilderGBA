@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemShopViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Shop";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemShopViewerView()
         {
@@ -50,8 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ItemIdLabel.Text = $"0x{_vm.ItemId:X02} ({_vm.ItemId})";
-            QuantityLabel.Text = _vm.Quantity.ToString();
+            ItemIdBox.Value = _vm.ItemId;
+            QuantityBox.Value = _vm.Quantity;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+            _vm.Quantity = (uint)(QuantityBox.Value ?? 0);
+            _vm.WriteItemShop();
+            CoreState.Services.ShowInfo("Item Shop data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

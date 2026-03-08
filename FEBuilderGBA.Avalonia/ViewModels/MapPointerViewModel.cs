@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _mapDataPointer;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint MapDataPointer { get => _mapDataPointer; set => SetField(ref _mapDataPointer, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadMapPointerList()
         {
@@ -54,7 +54,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             MapDataPointer = rom.u32(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMapPointer()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr, MapDataPointer);
         }
 
         public int GetListCount() => LoadMapPointerList().Count;

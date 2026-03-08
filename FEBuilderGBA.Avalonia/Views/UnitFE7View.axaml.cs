@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly UnitFE7ViewModel _vm = new();
 
-        public string ViewTitle => "Units (FE7)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Units (FE7) Editor";
+        public bool IsLoaded => _vm.CanWrite;
 
         public UnitFE7View()
         {
@@ -49,14 +49,65 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            NameIdLabel.Text = $"0x{_vm.NameId:X04}";
+            NameIdBox.Value = _vm.NameId;
             DecodedNameLabel.Text = _vm.Name;
-            LevelLabel.Text = $"{_vm.Level}";
-            StatsLine1Label.Text = $"{_vm.HP} / {_vm.Str} / {_vm.Skl}";
-            StatsLine2Label.Text = $"{_vm.Spd} / {_vm.Def} / {_vm.Res}";
-            LckLabel.Text = $"{_vm.Lck}";
-            GrowLine1Label.Text = $"{_vm.GrowHP}% / {_vm.GrowSTR}% / {_vm.GrowSKL}% / {_vm.GrowSPD}%";
-            GrowLine2Label.Text = $"{_vm.GrowDEF}% / {_vm.GrowRES}% / {_vm.GrowLCK}%";
+            W2Box.Value = _vm.W2;
+            B4Box.Value = _vm.B4;
+            B5Box.Value = _vm.B5;
+            W6Box.Value = _vm.W6;
+            B8Box.Value = _vm.B8;
+            B9Box.Value = _vm.B9;
+            B10Box.Value = _vm.B10;
+            LevelBox.Value = _vm.Level;
+            HPBox.Value = _vm.HP;
+            StrBox.Value = _vm.Str;
+            SklBox.Value = _vm.Skl;
+            SpdBox.Value = _vm.Spd;
+            DefBox.Value = _vm.Def;
+            ResBox.Value = _vm.Res;
+            LckBox.Value = _vm.Lck;
+            B19Box.Value = _vm.B19Signed;
+            GrowHPBox.Value = _vm.GrowHP;
+            GrowSTRBox.Value = _vm.GrowSTR;
+            GrowSKLBox.Value = _vm.GrowSKL;
+            GrowSPDBox.Value = _vm.GrowSPD;
+            GrowDEFBox.Value = _vm.GrowDEF;
+            GrowRESBox.Value = _vm.GrowRES;
+            GrowLCKBox.Value = _vm.GrowLCK;
+            P44Box.Value = _vm.P44;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.NameId = (uint)(NameIdBox.Value ?? 0);
+            _vm.W2 = (uint)(W2Box.Value ?? 0);
+            _vm.B4 = (uint)(B4Box.Value ?? 0);
+            _vm.B5 = (uint)(B5Box.Value ?? 0);
+            _vm.W6 = (uint)(W6Box.Value ?? 0);
+            _vm.B8 = (uint)(B8Box.Value ?? 0);
+            _vm.B9 = (uint)(B9Box.Value ?? 0);
+            _vm.B10 = (uint)(B10Box.Value ?? 0);
+            _vm.Level = (uint)(LevelBox.Value ?? 0);
+            _vm.HP = (int)(HPBox.Value ?? 0);
+            _vm.Str = (int)(StrBox.Value ?? 0);
+            _vm.Skl = (int)(SklBox.Value ?? 0);
+            _vm.Spd = (int)(SpdBox.Value ?? 0);
+            _vm.Def = (int)(DefBox.Value ?? 0);
+            _vm.Res = (int)(ResBox.Value ?? 0);
+            _vm.Lck = (int)(LckBox.Value ?? 0);
+            _vm.B19Signed = (int)(B19Box.Value ?? 0);
+            _vm.GrowHP = (uint)(GrowHPBox.Value ?? 0);
+            _vm.GrowSTR = (uint)(GrowSTRBox.Value ?? 0);
+            _vm.GrowSKL = (uint)(GrowSKLBox.Value ?? 0);
+            _vm.GrowSPD = (uint)(GrowSPDBox.Value ?? 0);
+            _vm.GrowDEF = (uint)(GrowDEFBox.Value ?? 0);
+            _vm.GrowRES = (uint)(GrowRESBox.Value ?? 0);
+            _vm.GrowLCK = (uint)(GrowLCKBox.Value ?? 0);
+            _vm.P44 = (uint)(P44Box.Value ?? 0);
+            _vm.WriteUnit();
+            CoreState.Services?.ShowInfo("Unit (FE7) data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

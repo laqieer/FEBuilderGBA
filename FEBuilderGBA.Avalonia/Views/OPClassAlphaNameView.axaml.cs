@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OPClassAlphaNameViewModel _vm = new();
 
-        public string ViewTitle => "OP Class Alpha Name";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "OP Class Alpha Name Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public OPClassAlphaNameView()
@@ -51,7 +52,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            AlphaNameLabel.Text = _vm.AlphaName;
+            AlphaNameBox.Text = _vm.AlphaName;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.AlphaName = AlphaNameBox.Text ?? "";
+            _vm.WriteEntry();
+            CoreState.Services?.ShowInfo("OP Class Alpha Name data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

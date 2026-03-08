@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SoundRoomViewerViewModel _vm = new();
 
         public string ViewTitle => "Sound Room";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SoundRoomViewerView()
         {
@@ -49,10 +49,22 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            SongIdLabel.Text = $"0x{_vm.SongId:X04} ({_vm.SongId})";
-            Raw4Label.Text = $"0x{_vm.Raw4:X08}";
-            Raw8Label.Text = $"0x{_vm.Raw8:X08}";
-            TextIdLabel.Text = $"0x{_vm.TextId:X04} ({_vm.TextId})";
+            SongIdBox.Value = _vm.SongId;
+            Raw4Box.Value = _vm.Raw4;
+            Raw8Box.Value = _vm.Raw8;
+            TextIdBox.Value = _vm.TextId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.SongId = (uint)(SongIdBox.Value ?? 0);
+            _vm.Raw4 = (uint)(Raw4Box.Value ?? 0);
+            _vm.Raw8 = (uint)(Raw8Box.Value ?? 0);
+            _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+            _vm.WriteSoundRoom();
+            CoreState.Services.ShowInfo("Sound room data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

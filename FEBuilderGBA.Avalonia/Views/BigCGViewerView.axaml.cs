@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly BigCGViewerViewModel _vm = new();
 
-        public string ViewTitle => "Big CG Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Big CG Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public BigCGViewerView()
@@ -41,9 +41,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            TablePtrLabel.Text = $"0x{_vm.TablePointer:X08}";
-            TsaPtrLabel.Text = $"0x{_vm.TSAPointer:X08}";
-            PalPtrLabel.Text = $"0x{_vm.PalettePointer:X08}";
+            TablePtrBox.Value = _vm.TablePointer;
+            TsaPtrBox.Value = _vm.TSAPointer;
+            PalPtrBox.Value = _vm.PalettePointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.TablePointer = (uint)(TablePtrBox.Value ?? 0);
+            _vm.TSAPointer = (uint)(TsaPtrBox.Value ?? 0);
+            _vm.PalettePointer = (uint)(PalPtrBox.Value ?? 0);
+            _vm.WriteBigCG();
+            CoreState.Services.ShowInfo("Big CG data written.");
         }
 
         void LoadImage()

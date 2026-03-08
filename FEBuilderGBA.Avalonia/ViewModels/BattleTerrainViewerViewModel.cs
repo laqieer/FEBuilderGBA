@@ -7,14 +7,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class BattleTerrainViewerViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         string _terrainName = "";
         uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9, _b10, _b11;
         uint _imagePointer, _palettePointer;
         uint _d20;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string TerrainName { get => _terrainName; set => SetField(ref _terrainName, value); }
         public uint B0 { get => _b0; set => SetField(ref _b0, value); }
         public uint B1 { get => _b1; set => SetField(ref _b1, value); }
@@ -105,7 +105,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ImagePointer = rom.u32(addr + 12);
             PalettePointer = rom.u32(addr + 16);
             D20 = rom.u32(addr + 20);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteBattleTerrain()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, (byte)B0);
+            rom.write_u8(addr + 1, (byte)B1);
+            rom.write_u8(addr + 2, (byte)B2);
+            rom.write_u8(addr + 3, (byte)B3);
+            rom.write_u8(addr + 4, (byte)B4);
+            rom.write_u8(addr + 5, (byte)B5);
+            rom.write_u8(addr + 6, (byte)B6);
+            rom.write_u8(addr + 7, (byte)B7);
+            rom.write_u8(addr + 8, (byte)B8);
+            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 10, (byte)B10);
+            rom.write_u8(addr + 11, (byte)B11);
+            rom.write_u32(addr + 12, ImagePointer);
+            rom.write_u32(addr + 16, PalettePointer);
+            rom.write_u32(addr + 20, D20);
         }
 
         /// <summary>

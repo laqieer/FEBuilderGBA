@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly TextViewerViewModel _vm = new();
 
-        public string ViewTitle => "Text Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Text Editor";
+        public bool IsLoaded => _vm.CanWrite;
 
         public TextViewerView()
         {

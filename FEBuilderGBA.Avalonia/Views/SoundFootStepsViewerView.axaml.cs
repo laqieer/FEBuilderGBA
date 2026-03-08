@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SoundFootStepsViewerViewModel _vm = new();
 
         public string ViewTitle => "Footstep Sounds";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SoundFootStepsViewerView()
         {
@@ -49,7 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            DataPointerLabel.Text = $"0x{_vm.DataPointer:X08}";
+            DataPointerBox.Value = _vm.DataPointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.DataPointer = (uint)(DataPointerBox.Value ?? 0);
+            _vm.WriteSoundFootSteps();
+            CoreState.Services.ShowInfo("Footstep sounds data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SummonUnitViewerViewModel _vm = new();
 
         public string ViewTitle => "Summon Unit";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SummonUnitViewerView()
         {
@@ -49,8 +49,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UnitIdLabel.Text = $"0x{_vm.UnitId:X02} ({_vm.UnitId})";
-            UnknownLabel.Text = $"0x{_vm.Unknown:X02}";
+            UnitIdBox.Value = _vm.UnitId;
+            UnknownBox.Value = _vm.Unknown;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+            _vm.Unknown = (uint)(UnknownBox.Value ?? 0);
+            _vm.WriteSummonUnit();
+            CoreState.Services.ShowInfo("Summon unit data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

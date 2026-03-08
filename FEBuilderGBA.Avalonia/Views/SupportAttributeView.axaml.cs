@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly SupportAttributeViewModel _vm = new();
 
         public string ViewTitle => "Support Attribute";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public SupportAttributeView()
         {
@@ -49,25 +49,34 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            AffinityTypeLabel.Text = $"0x{_vm.AffinityType:X02}";
-            AttackBonusLabel.Text = _vm.AttackBonus.ToString();
-            DefenseBonusLabel.Text = _vm.DefenseBonus.ToString();
-            HitBonusLabel.Text = _vm.HitBonus.ToString();
-            AvoidBonusLabel.Text = _vm.AvoidBonus.ToString();
-            CritBonusLabel.Text = _vm.CritBonus.ToString();
-            CritAvoidBonusLabel.Text = _vm.CritAvoidBonus.ToString();
+            AffinityTypeBox.Value = _vm.AffinityType;
+            AttackBonusBox.Value = _vm.AttackBonus;
+            DefenseBonusBox.Value = _vm.DefenseBonus;
+            HitBonusBox.Value = _vm.HitBonus;
+            AvoidBonusBox.Value = _vm.AvoidBonus;
+            CritBonusBox.Value = _vm.CritBonus;
+            CritAvoidBonusBox.Value = _vm.CritAvoidBonus;
+            Unknown7Box.Value = _vm.Unknown7;
         }
 
-        public void NavigateTo(uint address)
+        void Write_Click(object? sender, RoutedEventArgs e)
         {
-            EntryList.SelectAddress(address);
+            if (!_vm.CanWrite) return;
+
+            _vm.AffinityType = (uint)(AffinityTypeBox.Value ?? 0);
+            _vm.AttackBonus = (uint)(AttackBonusBox.Value ?? 0);
+            _vm.DefenseBonus = (uint)(DefenseBonusBox.Value ?? 0);
+            _vm.HitBonus = (uint)(HitBonusBox.Value ?? 0);
+            _vm.AvoidBonus = (uint)(AvoidBonusBox.Value ?? 0);
+            _vm.CritBonus = (uint)(CritBonusBox.Value ?? 0);
+            _vm.CritAvoidBonus = (uint)(CritAvoidBonusBox.Value ?? 0);
+            _vm.Unknown7 = (uint)(Unknown7Box.Value ?? 0);
+            _vm.WriteSupportAttribute();
+            CoreState.Services.ShowInfo("Support attribute data written.");
         }
 
-        public void SelectFirstItem()
-        {
-            EntryList.SelectFirst();
-        }
-
+        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }
 }

@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _targetClassId;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint TargetClassId { get => _targetClassId; set => SetField(ref _targetClassId, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemPromotionList()
         {
@@ -50,7 +50,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             TargetClassId = rom.u8(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemPromotion()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u8(addr, TargetClassId);
         }
 
         public int GetListCount() => LoadItemPromotionList().Count;

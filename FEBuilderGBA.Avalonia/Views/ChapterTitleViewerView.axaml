@@ -2,22 +2,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ChapterTitleViewerView"
-        Title="Chapter Title Viewer (Read-Only)" Width="1224" Height="564">
+        Title="Chapter Title Editor" Width="1224" Height="564">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Chapter Title Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Chapter Title Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Save Image Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="SaveImgLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SaveImgBox" Minimum="0" Maximum="4294967295" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Chapter Image Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="ChapterImgLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ChapterImgBox" Minimum="0" Maximum="4294967295" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Title Image Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="TitleImgLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="TitleImgBox" Minimum="0" Maximum="4294967295" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
         <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>

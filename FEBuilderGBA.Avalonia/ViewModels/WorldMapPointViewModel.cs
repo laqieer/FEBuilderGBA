@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class WorldMapPointViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        bool _isLoaded;
+        bool _canWrite;
         uint _b0, _b1, _b2, _b3, _b4, _b5;
         uint _w6;
         uint _b8, _b9, _b10, _b11;
@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _b30, _b31;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint B0 { get => _b0; set => SetField(ref _b0, value); }
         public uint B1 { get => _b1; set => SetField(ref _b1, value); }
         public uint B2 { get => _b2; set => SetField(ref _b2, value); }
@@ -95,7 +95,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             NameTextId = rom.u16(addr + 28);
             B30 = rom.u8(addr + 30);
             B31 = rom.u8(addr + 31);
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteWorldMapPoint()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 32 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(addr + 0, (byte)B0);
+            rom.write_u8(addr + 1, (byte)B1);
+            rom.write_u8(addr + 2, (byte)B2);
+            rom.write_u8(addr + 3, (byte)B3);
+            rom.write_u8(addr + 4, (byte)B4);
+            rom.write_u8(addr + 5, (byte)B5);
+            rom.write_u16(addr + 6, (ushort)W6);
+            rom.write_u8(addr + 8, (byte)B8);
+            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 10, (byte)B10);
+            rom.write_u8(addr + 11, (byte)B11);
+            rom.write_u32(addr + 12, D12);
+            rom.write_u32(addr + 16, D16);
+            rom.write_u32(addr + 20, D20);
+            rom.write_u16(addr + 24, (ushort)W24);
+            rom.write_u16(addr + 26, (ushort)W26);
+            rom.write_u16(addr + 28, (ushort)NameTextId);
+            rom.write_u8(addr + 30, (byte)B30);
+            rom.write_u8(addr + 31, (byte)B31);
         }
 
         public int GetListCount() => LoadWorldMapPointList().Count;

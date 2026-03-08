@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _changePointer;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ChangePointer { get => _changePointer; set => SetField(ref _changePointer, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadMapChangeList()
         {
@@ -54,7 +54,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             ChangePointer = rom.u32(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteMapChange()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr, ChangePointer);
         }
 
         public int GetListCount() => LoadMapChangeList().Count;

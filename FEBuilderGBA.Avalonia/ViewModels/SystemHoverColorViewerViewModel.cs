@@ -9,10 +9,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class SystemHoverColorViewerViewModel : ViewModelBase
     {
-        bool _isLoaded;
+        bool _canWrite;
         string _statusMessage = "System hover color data is not available in the cross-platform Core library.";
 
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
         public List<AddrResult> LoadHoverColorList()
@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             StatusMessage = "System hover color/gradation palette data requires the WinForms version.\n"
                 + "This property (systemhover_gradation_palette_pointer) has not been migrated to Core.";
-            IsLoaded = true;
+            CanWrite = true;
         }
     }
 }

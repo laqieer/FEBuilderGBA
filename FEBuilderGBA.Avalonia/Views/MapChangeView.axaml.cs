@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MapChangeViewModel _vm = new();
 
-        public string ViewTitle => "Map Change";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Map Change Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public MapChangeView()
@@ -50,7 +50,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ChangePointerLabel.Text = $"0x{_vm.ChangePointer:X08}";
+            ChangePointerBox.Value = _vm.ChangePointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.ChangePointer = (uint)(ChangePointerBox.Value ?? 0);
+            _vm.WriteMapChange();
+            CoreState.Services?.ShowInfo("Map Change data written.");
         }
 
         public void NavigateTo(uint address)

@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly OPClassDemoFE8UViewModel _vm = new();
 
-        public string ViewTitle => "OP Class Demo (FE8U)";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "OP Class Demo (FE8U) Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public OPClassDemoFE8UView()
@@ -51,9 +52,19 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ClassIdLabel.Text = $"0x{_vm.ClassId:X02} ({_vm.ClassId})";
-            AnimTypeLabel.Text = $"0x{_vm.AnimationType:X02} ({_vm.AnimationType})";
-            BattleAnimeLabel.Text = $"0x{_vm.BattleAnime:X02} ({_vm.BattleAnime})";
+            ClassIdBox.Value = _vm.ClassId;
+            AnimTypeBox.Value = _vm.AnimationType;
+            BattleAnimeBox.Value = _vm.BattleAnime;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.B5 = (uint)(ClassIdBox.Value ?? 0);
+            _vm.B6 = (uint)(AnimTypeBox.Value ?? 0);
+            _vm.B7 = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.WriteEntry();
+            CoreState.Services?.ShowInfo("OP Class Demo (FE8U) data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

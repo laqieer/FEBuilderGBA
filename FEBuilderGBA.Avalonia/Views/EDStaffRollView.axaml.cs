@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly EDStaffRollViewModel _vm = new();
 
-        public string ViewTitle => "Staff Roll";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Staff Roll Editor";
+        public bool IsLoaded => _vm.CanWrite;
 
         public EDStaffRollView()
         {
@@ -49,8 +49,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            DataPtrLabel.Text = $"0x{_vm.DataPointer:X08}";
-            PalettePtrLabel.Text = $"0x{_vm.PalettePointer:X08}";
+            DataPtrBox.Value = _vm.DataPointer;
+            PalettePtrBox.Value = _vm.PalettePointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+
+            _vm.DataPointer = (uint)(DataPtrBox.Value ?? 0);
+            _vm.PalettePointer = (uint)(PalettePtrBox.Value ?? 0);
+            _vm.WriteEDStaffRoll();
+            CoreState.Services?.ShowInfo("Staff roll data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

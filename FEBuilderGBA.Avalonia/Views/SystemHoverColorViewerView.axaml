@@ -2,12 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SystemHoverColorViewerView"
-        Title="System Hover Color Viewer (Read-Only)" Width="1238" Height="604">
+        Title="System Hover Color Viewer" Width="1238" Height="604">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="System Hover Color Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="System Hover Color Viewer" FontSize="18" FontWeight="Bold" />
         <TextBlock Name="StatusLabel" TextWrapping="Wrap" Margin="0,16,0,0"
                    Text="System hover color data requires the WinForms version." />
       </StackPanel>

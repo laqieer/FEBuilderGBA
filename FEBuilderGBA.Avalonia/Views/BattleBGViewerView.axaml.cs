@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly BattleBGViewerViewModel _vm = new();
 
-        public string ViewTitle => "Battle Background Viewer";
-        public bool IsLoaded => _vm.IsLoaded;
+        public string ViewTitle => "Battle Background Editor";
+        public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public BattleBGViewerView()
@@ -41,9 +41,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrLabel.Text = $"0x{_vm.ImagePointer:X08}";
-            TsaPtrLabel.Text = $"0x{_vm.TSAPointer:X08}";
-            PalPtrLabel.Text = $"0x{_vm.PalettePointer:X08}";
+            ImgPtrBox.Value = _vm.ImagePointer;
+            TsaPtrBox.Value = _vm.TSAPointer;
+            PalPtrBox.Value = _vm.PalettePointer;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
+            _vm.TSAPointer = (uint)(TsaPtrBox.Value ?? 0);
+            _vm.PalettePointer = (uint)(PalPtrBox.Value ?? 0);
+            _vm.WriteBattleBG();
+            CoreState.Services.ShowInfo("Battle Background data written.");
         }
 
         void LoadImage()

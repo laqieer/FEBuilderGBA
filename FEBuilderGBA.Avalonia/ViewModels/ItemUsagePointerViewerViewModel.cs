@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _usabilityPointer;
-        bool _isLoaded;
+        bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint UsabilityPointer { get => _usabilityPointer; set => SetField(ref _usabilityPointer, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemUsagePointerList()
         {
@@ -60,7 +60,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             UsabilityPointer = rom.u32(addr);
 
-            IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteItemUsagePointer()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr, UsabilityPointer);
         }
 
         public int GetListCount() => LoadItemUsagePointerList().Count;

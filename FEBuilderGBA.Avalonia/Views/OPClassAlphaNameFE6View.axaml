@@ -2,13 +2,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassAlphaNameFE6View"
-        Title="OP Class Alpha Name (FE6) (Read-Only)" Width="1253" Height="662">
+        Title="OP Class Alpha Name (FE6) Editor" Width="1253" Height="662">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="OP Class Alpha Name (FE6) (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="OP Class Alpha Name (FE6) Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock Name="UnavailableLabel" Text="" Foreground="Orange" />
 
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
@@ -16,11 +16,14 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="NamePointerLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NamePointerBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Alpha Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="AlphaNameLabel" VerticalAlignment="Center" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

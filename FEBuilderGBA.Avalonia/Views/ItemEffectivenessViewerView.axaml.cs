@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemEffectivenessViewerViewModel _vm = new();
 
         public string ViewTitle => "Item Effectiveness";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => _vm.CanWrite;
 
         public ItemEffectivenessViewerView()
         {
@@ -50,7 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ClassIdLabel.Text = $"0x{_vm.ClassId:X02} ({_vm.ClassId})";
+            ClassIdBox.Value = _vm.ClassId;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.WriteItemEffectiveness();
+            CoreState.Services.ShowInfo("Item Effectiveness data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

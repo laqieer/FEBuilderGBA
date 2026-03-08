@@ -2,19 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageChapterTitleFE7View"
-        Title="Chapter Title FE7 Viewer (Read-Only)" Width="1205" Height="615">
+        Title="Chapter Title FE7 Editor" Width="1205" Height="615">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Chapter Title FE7 Viewer (Read-Only)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Chapter Title FE7 Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Save Image Ptr:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="SaveImgLabel" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SaveImgBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
         </Grid>
         <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>
