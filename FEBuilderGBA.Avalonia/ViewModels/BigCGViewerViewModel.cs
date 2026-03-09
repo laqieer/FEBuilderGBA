@@ -98,20 +98,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = tileDataList.ToArray();
                 if (tileData.Length == 0) return null;
 
-                // Load palette (may contain multiple 16-color sub-palettes)
+                // Load full 256-color palette (16 sub-palettes × 16 colors)
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
                 if (palette == null) return null;
 
-                // If TSA is available, use TSA-based rendering with palette selection
+                // If TSA is available, use header-TSA rendering
+                // BigCG TSA is read directly from ROM (not LZ77 compressed)
+                // Matches WinForms: ByteToImage16TileHeaderTSA with raw ROM data at TSA offset
                 uint tsaPtr = TSAPointer;
                 if (U.isPointer(tsaPtr))
                 {
                     uint tsaAddr = U.toOffset(tsaPtr);
                     if (U.isSafetyOffset(tsaAddr))
                     {
-                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
-                        if (tsaData != null && tsaData.Length > 0)
+                        // Read TSA data directly from ROM (not compressed)
+                        int tsaLen = Math.Min(32 * 20 * 2 + 2, rom.Data.Length - (int)tsaAddr);
+                        if (tsaLen > 2)
+                        {
+                            byte[] tsaData = new byte[tsaLen];
+                            Array.Copy(rom.Data, tsaAddr, tsaData, 0, tsaLen);
                             return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20, true);
+                        }
                     }
                 }
 

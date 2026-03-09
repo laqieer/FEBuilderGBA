@@ -119,6 +119,42 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("EXPORT_IMAGES: Results:", EditorImageExporterSource);
         }
 
+        // --- Rendering correctness ---
+
+        [Fact]
+        public void Avalonia_OPClassFontViewer_UsesSingleDereference()
+        {
+            // OPClassFontViewer must use p32 (single dereference), NOT p32p (double dereference)
+            // This matches WinForms ClassOPFontForm.Init which uses p32()
+            var vmSource = File.ReadAllText(
+                Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "ViewModels", "OPClassFontViewerViewModel.cs"));
+            Assert.DoesNotContain("p32p(", vmSource);
+            Assert.Contains("rom.p32(ptrAddr)", vmSource);
+        }
+
+        [Fact]
+        public void Avalonia_BigCGViewer_DoesNotDecompressTSA()
+        {
+            // BigCG TSA data is read directly from ROM, not LZ77-decompressed
+            // This matches WinForms BigCGForm which passes Program.ROM.Data at TSA offset
+            var vmSource = File.ReadAllText(
+                Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "ViewModels", "BigCGViewerViewModel.cs"));
+            Assert.Contains("Array.Copy(rom.Data, tsaAddr", vmSource);
+            // Should NOT decompress TSA for BigCG
+            Assert.DoesNotContain("LZ77.decompress(rom.Data, tsaAddr)", vmSource);
+        }
+
+        [Fact]
+        public void Core_DecodeHeaderTSA_MatchesWinFormsAlgorithm()
+        {
+            // DecodeHeaderTSA should implement bottom-to-top fill matching WinForms ByteToHeaderTSA
+            var coreSource = File.ReadAllText(
+                Path.Combine(SolutionDir, "FEBuilderGBA.Core", "ImageUtilCore.cs"));
+            // Key WinForms algorithm signature: n = masterHeaderY << 5, and n -= 0x42/2
+            Assert.Contains("masterHeaderY << 5", coreSource);
+            Assert.Contains("0x42 / 2", coreSource);
+        }
+
         // --- Cross-platform naming convention ---
 
         [Fact]

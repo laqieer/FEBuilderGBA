@@ -149,21 +149,90 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Decode TSA with a 2-byte header (used by Big CG, OP Prologue).
-        /// The header contains width/height hints; TSA data follows after 2 bytes.
+        /// Matches WinForms ImageUtil.ByteToHeaderTSA: reads header (width,height),
+        /// then fills a 32-wide tile grid bottom-to-top starting at row=headerY.
         /// </summary>
         public static IImage DecodeHeaderTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
-            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true)
+            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true,
+            int tsaAddend = 0, int paletteShift = 0)
         {
-            // Header TSA: first 2 bytes are width/height hints, actual entries start at offset 2
-            int headerOffset = 0;
-            if (tsaData.Length >= 2)
+            if (CoreState.ImageService == null) return null;
+
+            int size = screenWidthTiles * screenHeightTiles;
+
+            if (tsaData.Length < 2)
+                return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+
+            int masterHeaderX = tsaData[0];
+            int masterHeaderY = tsaData[1];
+            if (masterHeaderX > 32 || masterHeaderY > 32)
+                return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+
+            if (masterHeaderX * masterHeaderY > size)
+                size = masterHeaderX * masterHeaderY;
+
+            ushort[] tile = new ushort[size];
+
+            int length = 2 + (size * 2);
+            length = Math.Min(length, tsaData.Length);
+
+            int i = 2; // skip header
+
+            // Start position: bottom-to-top fill matching WinForms ByteToHeaderTSA
+            int n = masterHeaderY << 5; // masterHeaderY * 32
+            if (n >= size)
+                return DecodeTSA(tileData, new byte[0], gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+
+            for (int headery = 0; headery <= masterHeaderY; headery++)
             {
-                int hdrX = tsaData[0];
-                int hdrY = tsaData[1];
-                if (hdrX <= 32 && hdrY <= 32)
-                    headerOffset = 2;
+                for (int headerx = 0; headerx <= masterHeaderX; headerx++)
+                {
+                    if (i + 1 >= length) goto done;
+                    if (n >= tile.Length) goto done;
+
+                    ushort tsadata = (ushort)(tsaData[i] | (tsaData[i + 1] << 8));
+                    tile[n] = (ushort)(tsadata + tsaAddend);
+
+                    i += 2;
+                    n++;
+                }
+                n = n - masterHeaderX;
+                n = n - (0x42 / 2); // = n - 0x21
             }
-            return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, headerOffset);
+
+            done:
+            // Render using the decoded TSA tile array
+            int width = screenWidthTiles * 8;
+            int height = screenHeightTiles * 8;
+            var image = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4];
+
+            int tileLength = tile.Length;
+            int x = 0, y = 0;
+
+            for (int tsaindex = 0; tsaindex < tileLength; tsaindex++, x += 8)
+            {
+                if (x >= width) { x = 0; y += 8; if (y >= height) break; }
+
+                ushort tsatile = tile[tsaindex];
+                if (tsatile == 0xFFFF || tsatile == 0) continue;
+
+                int tileIndex = tsatile & 0x3FF;
+                bool hFlip = (tsatile & 0x400) != 0;
+                bool vFlip = (tsatile & 0x800) != 0;
+                int palIndex = ((tsatile >> 12) & 0xF);
+
+                // Apply palette shift (e.g., BigCG uses -0x80 → shift palette index)
+                int adjustedPalIndex = palIndex + paletteShift;
+                if (adjustedPalIndex < 0) adjustedPalIndex = 0;
+                if (adjustedPalIndex > 15) adjustedPalIndex = 15;
+
+                DecodeTileToPixels(tileData, tileIndex, gbaPalette, adjustedPalIndex,
+                    pixels, width, x, y, hFlip, vFlip, is4bpp);
+            }
+
+            image.SetPixelData(pixels);
+            return image;
         }
 
         static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,
