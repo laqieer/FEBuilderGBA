@@ -49,6 +49,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            SongIdBox.Value = _vm.D0;
+            SongNameBox.Value = _vm.D4;
+            DescriptionBox.Value = _vm.D8;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _vm.D0 = (uint)(SongIdBox.Value ?? 0);
+            _vm.D4 = (uint)(SongNameBox.Value ?? 0);
+            _vm.D8 = (uint)(DescriptionBox.Value ?? 0);
+            _vm.WriteEntry();
+            CoreState.Services.ShowInfo("Sound room (FE6) data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

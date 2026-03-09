@@ -39,6 +39,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            rom.write_u32(a + 0, D0);
+            rom.write_u32(a + 4, D4);
+            rom.write_u32(a + 8, D8);
+        }
+
         public int GetListCount() => 0;
 
         public Dictionary<string, string> GetDataReport()
@@ -46,9 +56,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["D4"] = $"0x{D4:X08}",
-                ["D8"] = $"0x{D8:X08}",
+                ["D0_SongId"] = $"0x{D0:X08}",
+                ["D4_SongName"] = $"0x{D4:X08}",
+                ["D8_Description"] = $"0x{D8:X08}",
             };
         }
 

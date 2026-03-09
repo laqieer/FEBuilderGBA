@@ -49,6 +49,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            CGIdBox.Value = _vm.D0;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _vm.D0 = (uint)(CGIdBox.Value ?? 0);
+            _vm.WriteEntry();
+            CoreState.Services.ShowInfo("Sound room CG data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

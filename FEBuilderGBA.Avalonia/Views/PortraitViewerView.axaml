@@ -44,13 +44,13 @@
           <TextBlock Grid.Row="10" Grid.Column="0" Text="State:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="10" Grid.Column="1" Name="B24Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="00 (B25):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="11" Grid.Column="1" Name="B25Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="00 (B26):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="12" Grid.Column="1" Name="B26Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="00 (B27):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="13" Grid.Column="1" Name="B27Box" Minimum="0" Maximum="255" />
         </Grid>
 

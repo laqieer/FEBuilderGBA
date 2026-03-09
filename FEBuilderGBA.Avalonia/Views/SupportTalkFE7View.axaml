@@ -27,16 +27,16 @@
           <TextBlock Grid.Row="5" Grid.Column="0" Text="D12 Text A:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextANud" Minimum="0" Maximum="4294967295" Margin="0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="00 (B16):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B16Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="00 (B17):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B17Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="00 (B18):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="8" Grid.Column="1" Name="B18Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="00 (B19):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B19Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 

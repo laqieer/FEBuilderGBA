@@ -27,10 +27,10 @@
           <TextBlock Grid.Row="5" Grid.Column="0" Text="W12 Text A:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="TextANud" Minimum="0" Maximum="65535" Margin="0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="00 (B14):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B14Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="00 (B15):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B15Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 

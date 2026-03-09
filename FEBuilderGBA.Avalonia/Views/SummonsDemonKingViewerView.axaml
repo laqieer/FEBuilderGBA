@@ -20,7 +20,7 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Commander:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit Info:" VerticalAlignment="Center" />
@@ -32,7 +32,7 @@
           <TextBlock Grid.Row="6" Grid.Column="0" Text="??:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="00 (B7):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="P8 (Pointer):" VerticalAlignment="Center" />
