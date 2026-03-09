@@ -352,11 +352,12 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void PortraitViewModel_UsesImageUtilCoreForDecoding()
+        public void PortraitViewModel_UsesPortraitRendererCore()
         {
             var src = ReadViewModel("PortraitViewerViewModel.cs");
-            Assert.Contains("ImageUtilCore.GetPalette", src);
-            Assert.Contains("ImageUtilCore.LoadROMTiles4bpp", src);
+            Assert.Contains("PortraitRendererCore.DrawPortraitUnit", src);
+            Assert.Contains("PortraitRendererCore.DrawPortraitMap", src);
+            Assert.Contains("PortraitRendererCore.DrawPortraitClass", src);
         }
 
         // ---------------------------------------------------------------

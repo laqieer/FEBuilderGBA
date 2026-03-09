@@ -264,7 +264,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void PortraitViewerView_CallsTryLoadPortraitImage()
         {
             var src = ReadView("PortraitViewerView.axaml.cs");
-            Assert.Contains("_vm.TryLoadPortraitImage()", src);
+            // Verify all three portrait types are loaded
+            Assert.Contains("_vm.TryLoadMainPortrait()", src);
+            Assert.Contains("_vm.TryLoadMapPortrait()", src);
+            Assert.Contains("_vm.TryLoadClassPortrait()", src);
             // Verify it uses SetImage (IImage) not SetRgbaData (byte[])
             Assert.Contains("SetImage", src);
         }

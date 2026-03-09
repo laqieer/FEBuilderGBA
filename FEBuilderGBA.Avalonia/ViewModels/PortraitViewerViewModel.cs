@@ -124,38 +124,70 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load portrait map sprite (offset +4) as a 32x32 image.
-        /// Map portraits are always LZ77-compressed 4bpp, 4x4 tiles.
-        /// Returns null if the portrait cannot be decoded.
+        /// Assemble the full 96x80 unit portrait from sprite sheet parts.
         /// </summary>
-        public IImage TryLoadPortraitImage()
+        public IImage TryLoadMainPortrait()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
 
             try
             {
-                // Use map portrait (offset +4) — it's a simple 32x32 image
-                // Unit portrait (offset +0) requires complex multi-part assembly
-                uint mapPtr = rom.u32(CurrentAddr + 4);
-                uint palPtr = rom.u32(CurrentAddr + 8);
-
-                if (!U.isPointer(mapPtr) || !U.isPointer(palPtr)) return null;
-
-                uint mapAddr = U.toOffset(mapPtr);
-                uint palAddr = U.toOffset(palPtr);
-
-                if (!U.isSafetyOffset(mapAddr) || !U.isSafetyOffset(palAddr)) return null;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return null;
-
-                return ImageUtilCore.LoadROMTiles4bpp(mapAddr, palette, 4, 4, true);
+                return PortraitRendererCore.DrawPortraitUnit(
+                    ImagePointer, PalettePointer,
+                    (byte)B22, (byte)B23, (byte)B24);
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Load the mini/map portrait (32x32).
+        /// </summary>
+        public IImage TryLoadMapPortrait()
+        {
+            if (CoreState.ROM == null || CurrentAddr == 0) return null;
+
+            try
+            {
+                return PortraitRendererCore.DrawPortraitMap(MapPointer, PalettePointer);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load the class card portrait (80x80) from D16 pointer.
+        /// </summary>
+        public IImage TryLoadClassPortrait()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return null;
+
+            try
+            {
+                // D16 is the class face pointer
+                if (!U.isPointer(D16)) return null;
+                return PortraitRendererCore.DrawPortraitClass(D16, PalettePointer);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Try to load portrait map sprite (offset +4) as a 32x32 image.
+        /// Map portraits are always LZ77-compressed 4bpp, 4x4 tiles.
+        /// Returns null if the portrait cannot be decoded.
+        /// </summary>
+        public IImage TryLoadPortraitImage()
+        {
+            return TryLoadMapPortrait();
         }
 
         public int GetListCount() => LoadPortraitList().Count;

@@ -94,19 +94,38 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var image = _vm.TryLoadPortraitImage();
-                PortraitImage.SetImage(image);
+                MainPortraitImage.SetImage(_vm.TryLoadMainPortrait());
             }
             catch (Exception ex)
             {
-                Log.Error("PortraitViewerView.TryShowPortraitImage failed: {0}", ex.Message);
-                PortraitImage.SetImage(null);
+                Log.Error("TryShowPortraitImage main failed: {0}", ex.Message);
+                MainPortraitImage.SetImage(null);
+            }
+
+            try
+            {
+                MapPortraitImage.SetImage(_vm.TryLoadMapPortrait());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TryShowPortraitImage map failed: {0}", ex.Message);
+                MapPortraitImage.SetImage(null);
+            }
+
+            try
+            {
+                ClassPortraitImage.SetImage(_vm.TryLoadClassPortrait());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TryShowPortraitImage class failed: {0}", ex.Message);
+                ClassPortraitImage.SetImage(null);
             }
         }
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await PortraitImage.ExportPng(this, "portrait.png");
+            await MainPortraitImage.ExportPng(this, "portrait.png");
         }
 
         public void SelectFirstItem()

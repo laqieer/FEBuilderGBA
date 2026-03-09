@@ -59,7 +59,20 @@
           <Button Content="Export PNG" Click="ExportPng_Click" />
         </StackPanel>
 
-        <controls:GbaImageControl Name="PortraitImage" Margin="0,8,0,0" />
+        <Grid ColumnDefinitions="Auto,Auto,Auto" Margin="0,8,0,0">
+          <StackPanel Grid.Column="0" Margin="0,0,16,0">
+            <TextBlock Text="Main Portrait" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <controls:GbaImageControl Name="MainPortraitImage" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Margin="0,0,16,0">
+            <TextBlock Text="Mini Portrait" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <controls:GbaImageControl Name="MapPortraitImage" />
+          </StackPanel>
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="Class Card" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <controls:GbaImageControl Name="ClassPortraitImage" />
+          </StackPanel>
+        </Grid>
       </StackPanel>
     </ScrollViewer>
   </Grid>
