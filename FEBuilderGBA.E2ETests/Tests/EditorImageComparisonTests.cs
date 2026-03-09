@@ -17,34 +17,34 @@ namespace FEBuilderGBA.E2ETests.Tests
     public class EditorImageComparisonTests
     {
         private readonly ITestOutputHelper _output;
+        private static readonly string? WinFormsExe = AppRunner.FindExePath();
+        private static readonly string? AvaloniaExe = AvaloniaAppRunner.FindExePath();
 
         public EditorImageComparisonTests(ITestOutputHelper output)
         {
             _output = output;
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "ImageComparison")]
         public void ExportEditorImages_Avalonia_Succeeds()
         {
-            string romPath = RomLocator.FindRom("FE8U");
-            if (romPath == null)
-            {
-                _output.WriteLine("SKIP: FE8U ROM not found");
-                return;
-            }
+            Skip.If(AvaloniaExe == null, "Avalonia exe not found");
+            string romPath = RomLocator.FE8U;
+            Skip.If(romPath == null, "FE8U ROM not found");
 
             string outputDir = Path.Combine(Path.GetTempPath(), "febuilder_avalonia_images_" + Guid.NewGuid().ToString("N")[..8]);
             try
             {
-                var result = AvaloniaAppRunner.Run($"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{outputDir}\"", timeoutMs: 60000);
-                _output.WriteLine($"Exit code: {result.ExitCode}");
-                _output.WriteLine(result.StdOut);
-                if (!string.IsNullOrEmpty(result.StdErr))
-                    _output.WriteLine($"STDERR: {result.StdErr}");
+                var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
+                    AvaloniaExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{outputDir}\"", timeoutMs: 60000);
+                _output.WriteLine($"Exit code: {exitCode}");
+                _output.WriteLine(stdout);
+                if (!string.IsNullOrEmpty(stderr))
+                    _output.WriteLine($"STDERR: {stderr}");
 
-                Assert.Equal(0, result.ExitCode);
-                Assert.Contains("EXPORT_IMAGES:", result.StdOut);
+                Assert.Equal(0, exitCode);
+                Assert.Contains("EXPORT_IMAGES:", stdout);
 
                 // Check that at least some PNG files were created
                 if (Directory.Exists(outputDir))
@@ -61,28 +61,26 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "ImageComparison")]
         public void ExportEditorImages_WinForms_Succeeds()
         {
-            string romPath = RomLocator.FindRom("FE8U");
-            if (romPath == null)
-            {
-                _output.WriteLine("SKIP: FE8U ROM not found");
-                return;
-            }
+            Skip.If(WinFormsExe == null, "WinForms exe not found");
+            string romPath = RomLocator.FE8U;
+            Skip.If(romPath == null, "FE8U ROM not found");
 
             string outputDir = Path.Combine(Path.GetTempPath(), "febuilder_winforms_images_" + Guid.NewGuid().ToString("N")[..8]);
             try
             {
-                var result = AppRunner.Run($"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{outputDir}\"", timeoutMs: 60000);
-                _output.WriteLine($"Exit code: {result.ExitCode}");
-                _output.WriteLine(result.StdOut);
-                if (!string.IsNullOrEmpty(result.StdErr))
-                    _output.WriteLine($"STDERR: {result.StdErr}");
+                var (exitCode, stdout, stderr) = AppRunner.Run(
+                    WinFormsExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{outputDir}\"", timeoutMs: 60000);
+                _output.WriteLine($"Exit code: {exitCode}");
+                _output.WriteLine(stdout);
+                if (!string.IsNullOrEmpty(stderr))
+                    _output.WriteLine($"STDERR: {stderr}");
 
-                Assert.Equal(0, result.ExitCode);
-                Assert.Contains("EXPORT_IMAGES:", result.StdOut);
+                Assert.Equal(0, exitCode);
+                Assert.Contains("EXPORT_IMAGES:", stdout);
 
                 if (Directory.Exists(outputDir))
                 {
@@ -98,16 +96,14 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "ImageComparison")]
         public void ExportEditorImages_CrossPlatformComparison_FE8U()
         {
-            string romPath = RomLocator.FindRom("FE8U");
-            if (romPath == null)
-            {
-                _output.WriteLine("SKIP: FE8U ROM not found");
-                return;
-            }
+            Skip.If(WinFormsExe == null, "WinForms exe not found");
+            Skip.If(AvaloniaExe == null, "Avalonia exe not found");
+            string romPath = RomLocator.FE8U;
+            Skip.If(romPath == null, "FE8U ROM not found");
 
             string winDir = Path.Combine(Path.GetTempPath(), "febuilder_compare_win_" + Guid.NewGuid().ToString("N")[..8]);
             string avaDir = Path.Combine(Path.GetTempPath(), "febuilder_compare_ava_" + Guid.NewGuid().ToString("N")[..8]);
@@ -115,13 +111,15 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 // Run both exports
-                var winResult = AppRunner.Run($"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{winDir}\"", timeoutMs: 60000);
-                _output.WriteLine($"WinForms exit: {winResult.ExitCode}");
-                _output.WriteLine(winResult.StdOut);
+                var (winExit, winOut, winErr) = AppRunner.Run(
+                    WinFormsExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{winDir}\"", timeoutMs: 60000);
+                _output.WriteLine($"WinForms exit: {winExit}");
+                _output.WriteLine(winOut);
 
-                var avaResult = AvaloniaAppRunner.Run($"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{avaDir}\"", timeoutMs: 60000);
-                _output.WriteLine($"Avalonia exit: {avaResult.ExitCode}");
-                _output.WriteLine(avaResult.StdOut);
+                var (avaExit, avaOut, avaErr) = AvaloniaAppRunner.Run(
+                    AvaloniaExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{avaDir}\"", timeoutMs: 60000);
+                _output.WriteLine($"Avalonia exit: {avaExit}");
+                _output.WriteLine(avaOut);
 
                 if (!Directory.Exists(winDir) || !Directory.Exists(avaDir))
                 {
