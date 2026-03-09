@@ -26,7 +26,7 @@
           <TextBlock Grid.Row="4" Grid.Column="0" Text="D12:" VerticalAlignment="Center" />
           <TextBox Grid.Row="4" Grid.Column="1" Name="D12Box" Width="120" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="D16:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Class Card:" VerticalAlignment="Center" />
           <TextBox Grid.Row="5" Grid.Column="1" Name="D16Box" Width="120" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="B20:" VerticalAlignment="Center" />
