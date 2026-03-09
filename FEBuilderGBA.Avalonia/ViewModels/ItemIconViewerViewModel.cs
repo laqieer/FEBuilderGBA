@@ -102,8 +102,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["ImagePointer"] = $"0x{rom.RomInfo.system_weapon_icon_pointer:X08}",
-                ["PalettePointer"] = $"0x{rom.RomInfo.system_weapon_icon_palette_pointer:X08}",
+                ["ImagePointer"] = $"0x{rom.RomInfo.icon_pointer:X08}",
+                ["PalettePointer"] = $"0x{rom.RomInfo.icon_palette_pointer:X08}",
             };
         }
     }

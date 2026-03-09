@@ -15,7 +15,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="P0 (u32@0):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="P0Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="P0Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="W4 (u16@4):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
@@ -24,25 +24,25 @@
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="W6Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="D8 (u32@8):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="D8Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="4" Grid.Column="1" Name="D8Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="P12 (u32@12):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="P12Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="5" Grid.Column="1" Name="P12Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="P16 (u32@16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="P16Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="6" Grid.Column="1" Name="P16Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="P20 (u32@20):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="P20Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="7" Grid.Column="1" Name="P20Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="P24 (u32@24):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="P24Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="8" Grid.Column="1" Name="P24Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="P28 (u32@28):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="P28Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="9" Grid.Column="1" Name="P28Box" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="P32 (u32@32):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="P32Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="10" Grid.Column="1" Name="P32Box" Width="120" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

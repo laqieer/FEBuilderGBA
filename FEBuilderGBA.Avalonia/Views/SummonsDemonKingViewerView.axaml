@@ -36,7 +36,7 @@
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="P8 (Pointer):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="P8Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <TextBox Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="B12:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B12Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />

@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
             Ptr68Box.Text = $"0x{_vm.Ptr68:X08}";
             Ptr72Box.Text = $"0x{_vm.Ptr72:X08}";
             Ptr76Box.Text = $"0x{_vm.Ptr76:X08}";
-            D80Box.Value = _vm.D80;
+            D80Box.Text = $"0x{_vm.D80:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -195,7 +195,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Ptr68 = ParseHexText(Ptr68Box.Text);
             _vm.Ptr72 = ParseHexText(Ptr72Box.Text);
             _vm.Ptr76 = ParseHexText(Ptr76Box.Text);
-            _vm.D80 = (uint)(D80Box.Value ?? 0);
+            _vm.D80 = ParseHexText(D80Box.Text);
 
             _vm.WriteClass();
             CoreState.Services.ShowInfo("Class data written.");

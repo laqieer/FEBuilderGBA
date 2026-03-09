@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemIdBox.Value = _vm.ItemId;
             AnimTypeBox.Value = _vm.AnimType;
             EffectIdBox.Value = _vm.EffectId;
-            MapEffectBox.Value = _vm.MapEffectPointer;
+            MapEffectBox.Text = $"0x{_vm.MapEffectPointer:X08}";
             DamageEffectBox.Value = _vm.DamageEffect;
             MotionBox.Value = _vm.Motion;
             HitColorBox.Value = _vm.HitColor;
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
             _vm.EffectId = (uint)(EffectIdBox.Value ?? 0);
             _vm.Unknown6 = (uint)(Unknown6Box.Value ?? 0);
-            _vm.MapEffectPointer = (uint)(MapEffectBox.Value ?? 0);
+            _vm.MapEffectPointer = ParseHexText(MapEffectBox.Text);
             _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
             _vm.Motion = (uint)(MotionBox.Value ?? 0);
             _vm.HitColor = (uint)(HitColorBox.Value ?? 0);
@@ -82,5 +82,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        private static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        }
     }
 }

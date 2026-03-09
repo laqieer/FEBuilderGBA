@@ -843,10 +843,10 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void ItemIconViewModel_UsesWeaponIconPointer()
+        public void ItemIconViewModel_UsesIconPointer()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemIconViewerViewModel.cs"));
-            Assert.Contains("system_weapon_icon_pointer", src);
+            Assert.Contains("icon_pointer", src);
         }
 
         // ------------------------------------------------------------------ System Hover Color Viewer

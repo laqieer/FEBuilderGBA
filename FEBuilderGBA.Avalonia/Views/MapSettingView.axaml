@@ -17,7 +17,7 @@
             <TextBlock Text="CP / Pointer" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="D0: CP" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="ND0" Minimum="0" Maximum="4294967295" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="ND0" Width="120" />
             </Grid>
           </StackPanel>
         </Border>
@@ -237,16 +237,16 @@
             <TextBlock Text="Pointers (D96-D108)" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,180" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="D96:" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="ND96" Minimum="0" Maximum="4294967295" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="ND96" Width="120" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="D100:" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ND100" Minimum="0" Maximum="4294967295" />
+              <TextBox Grid.Row="1" Grid.Column="1" Name="ND100" Width="120" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="D104:" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ND104" Minimum="0" Maximum="4294967295" />
+              <TextBox Grid.Row="2" Grid.Column="1" Name="ND104" Width="120" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="D108:" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ND108" Minimum="0" Maximum="4294967295" />
+              <TextBox Grid.Row="3" Grid.Column="1" Name="ND108" Width="120" />
             </Grid>
           </StackPanel>
         </Border>

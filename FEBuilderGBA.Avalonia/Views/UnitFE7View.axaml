@@ -100,7 +100,7 @@
 
           <!-- Row 17: P44 -->
           <TextBlock Grid.Row="17" Grid.Column="0" Text="P44 (u32@44):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="P44Box" Minimum="0" Maximum="4294967295" Width="180" Margin="0,2" />
+          <TextBox Grid.Row="17" Grid.Column="1" Name="P44Box" Width="120" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

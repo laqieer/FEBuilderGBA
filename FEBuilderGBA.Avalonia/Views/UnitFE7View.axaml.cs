@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
             GrowDEFBox.Value = _vm.GrowDEF;
             GrowRESBox.Value = _vm.GrowRES;
             GrowLCKBox.Value = _vm.GrowLCK;
-            P44Box.Value = _vm.P44;
+            P44Box.Text = $"0x{_vm.P44:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.GrowDEF = (uint)(GrowDEFBox.Value ?? 0);
             _vm.GrowRES = (uint)(GrowRESBox.Value ?? 0);
             _vm.GrowLCK = (uint)(GrowLCKBox.Value ?? 0);
-            _vm.P44 = (uint)(P44Box.Value ?? 0);
+            _vm.P44 = ParseHexText(P44Box.Text);
             _vm.WriteUnit();
             CoreState.Services?.ShowInfo("Unit (FE7) data written.");
         }
@@ -113,5 +113,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        private static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        }
     }
 }

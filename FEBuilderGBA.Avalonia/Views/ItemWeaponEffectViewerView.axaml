@@ -24,7 +24,7 @@
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="EffectIdBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Map Effect Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="MapEffectBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="4" Grid.Column="1" Name="MapEffectBox" Width="120" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Damage Effect:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />

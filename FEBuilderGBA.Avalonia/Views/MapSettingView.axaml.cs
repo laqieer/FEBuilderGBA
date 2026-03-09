@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"Address: 0x{_vm.CurrentAddr:X08}  (struct size: {_vm.DataSize} bytes)";
 
             // D0
-            ND0.Value = _vm.D0;
+            ND0.Text = $"0x{_vm.D0:X08}";
 
             // W4
             NW4.Value = _vm.W4;
@@ -133,10 +133,10 @@ namespace FEBuilderGBA.Avalonia.Views
             NW94.Value = _vm.W94;
 
             // D96-D108
-            ND96.Value = _vm.D96;
-            ND100.Value = _vm.D100;
-            ND104.Value = _vm.D104;
-            ND108.Value = _vm.D108;
+            ND96.Text = $"0x{_vm.D96:X08}";
+            ND100.Text = $"0x{_vm.D100:X08}";
+            ND104.Text = $"0x{_vm.D104:X08}";
+            ND108.Text = $"0x{_vm.D108:X08}";
 
             // W112, W114
             NW112.Value = _vm.W112;
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ReadUIToVM()
         {
-            _vm.D0 = (uint)(ND0.Value ?? 0);
+            _vm.D0 = ParseHexText(ND0.Text);
             _vm.W4 = (uint)(NW4.Value ?? 0);
 
             _vm.B6 = (uint)(NB6.Value ?? 0);
@@ -253,10 +253,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.W92 = (uint)(NW92.Value ?? 0);
             _vm.W94 = (uint)(NW94.Value ?? 0);
 
-            _vm.D96 = (uint)(ND96.Value ?? 0);
-            _vm.D100 = (uint)(ND100.Value ?? 0);
-            _vm.D104 = (uint)(ND104.Value ?? 0);
-            _vm.D108 = (uint)(ND108.Value ?? 0);
+            _vm.D96 = ParseHexText(ND96.Text);
+            _vm.D100 = ParseHexText(ND100.Text);
+            _vm.D104 = ParseHexText(ND104.Text);
+            _vm.D108 = ParseHexText(ND108.Text);
 
             _vm.W112 = (uint)(NW112.Value ?? 0);
             _vm.W114 = (uint)(NW114.Value ?? 0);
@@ -314,6 +314,15 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             MapList.SelectFirst();
+        }
+
+        private static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
         }
     }
 }

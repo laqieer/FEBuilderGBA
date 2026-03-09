@@ -54,13 +54,13 @@ namespace FEBuilderGBA.Avalonia.Views
             B1Box.Value = _vm.B1;
             B2Box.Value = _vm.B2;
             B3Box.Value = _vm.B3;
-            D4Box.Value = _vm.D4;
+            D4Box.Text = $"0x{_vm.D4:X08}";
             HandlerPtrBox.Text = $"0x{_vm.HandlerPtr:X08}";
-            P12Box.Value = _vm.P12;
-            P16Box.Value = _vm.P16;
-            P20Box.Value = _vm.P20;
-            P24Box.Value = _vm.P24;
-            P28Box.Value = _vm.P28;
+            P12Box.Text = $"0x{_vm.P12:X08}";
+            P16Box.Text = $"0x{_vm.P16:X08}";
+            P20Box.Text = $"0x{_vm.P20:X08}";
+            P24Box.Text = $"0x{_vm.P24:X08}";
+            P28Box.Text = $"0x{_vm.P28:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -71,13 +71,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.B1 = (uint)(B1Box.Value ?? 0);
             _vm.B2 = (uint)(B2Box.Value ?? 0);
             _vm.B3 = (uint)(B3Box.Value ?? 0);
-            _vm.D4 = (uint)(D4Box.Value ?? 0);
+            _vm.D4 = ParseHexText(D4Box.Text);
             _vm.HandlerPtr = ParseHexText(HandlerPtrBox.Text);
-            _vm.P12 = (uint)(P12Box.Value ?? 0);
-            _vm.P16 = (uint)(P16Box.Value ?? 0);
-            _vm.P20 = (uint)(P20Box.Value ?? 0);
-            _vm.P24 = (uint)(P24Box.Value ?? 0);
-            _vm.P28 = (uint)(P28Box.Value ?? 0);
+            _vm.P12 = ParseHexText(P12Box.Text);
+            _vm.P16 = ParseHexText(P16Box.Text);
+            _vm.P20 = ParseHexText(P20Box.Text);
+            _vm.P24 = ParseHexText(P24Box.Text);
+            _vm.P28 = ParseHexText(P28Box.Text);
             _vm.WriteMenuDefinition();
             CoreState.Services?.ShowInfo("Menu definition data written.");
         }

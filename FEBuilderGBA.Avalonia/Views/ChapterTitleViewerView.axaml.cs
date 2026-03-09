@@ -41,16 +41,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            SaveImgBox.Value = _vm.SaveImagePointer;
-            ChapterImgBox.Value = _vm.ChapterImagePointer;
-            TitleImgBox.Value = _vm.TitleImagePointer;
+            SaveImgBox.Text = $"0x{_vm.SaveImagePointer:X08}";
+            ChapterImgBox.Text = $"0x{_vm.ChapterImagePointer:X08}";
+            TitleImgBox.Text = $"0x{_vm.TitleImagePointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SaveImagePointer = (uint)(SaveImgBox.Value ?? 0);
-            _vm.ChapterImagePointer = (uint)(ChapterImgBox.Value ?? 0);
-            _vm.TitleImagePointer = (uint)(TitleImgBox.Value ?? 0);
+            _vm.SaveImagePointer = ParseHexText(SaveImgBox.Text);
+            _vm.ChapterImagePointer = ParseHexText(ChapterImgBox.Text);
+            _vm.TitleImagePointer = ParseHexText(TitleImgBox.Text);
             _vm.WriteChapterTitle();
             CoreState.Services.ShowInfo("Chapter Title data written.");
         }
@@ -71,5 +71,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        private static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        }
     }
 }
