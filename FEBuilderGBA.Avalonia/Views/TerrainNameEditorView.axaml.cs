@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly TerrainNameEditorViewModel _vm = new();
 
         public string ViewTitle => "Terrain Name Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
         public TerrainNameEditorView()

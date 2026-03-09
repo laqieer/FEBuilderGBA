@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("ClassEditorView", "ClassForm", "ClassEditorViewModel"),
             ("CCBranchEditorView", "CCBranchForm", "CCBranchEditorViewModel"),
             ("MoveCostEditorView", "MoveCostForm", "MoveCostEditorViewModel"),
-            ("TerrainNameEditorView", "MapTerrainNameForm", "MapTerrainNameViewModel"),
+            ("TerrainNameEditorView", "MapTerrainNameForm", "TerrainNameEditorViewModel"),
             ("SupportUnitEditorView", "SupportUnitForm", "SupportUnitEditorViewModel"),
             ("SupportAttributeView", "SupportAttributeForm", "SupportAttributeViewModel"),
             ("SupportTalkView", "SupportTalkForm", "SupportTalkViewModel"),
