@@ -23,34 +23,34 @@
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="3" Grid.Column="1" Name="PalPtrBox" Width="120" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="D12:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Mouth:" VerticalAlignment="Center" />
           <TextBox Grid.Row="4" Grid.Column="1" Name="D12Box" Width="120" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Class Card:" VerticalAlignment="Center" />
           <TextBox Grid.Row="5" Grid.Column="1" Name="D16Box" Width="120" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="B20:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth X:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B20Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="B21:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Mouth Y:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B21Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="B22:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Eye X:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="8" Grid.Column="1" Name="B22Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="B23:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Eye Y:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B23Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="B24:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="State:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="10" Grid.Column="1" Name="B24Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="B25:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="11" Grid.Column="1" Name="B25Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="B26:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="12" Grid.Column="1" Name="B26Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="B27:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="13" Grid.Column="1" Name="B27Box" Minimum="0" Maximum="255" />
         </Grid>
 

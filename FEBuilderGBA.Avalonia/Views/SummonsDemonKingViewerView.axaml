@@ -23,43 +23,43 @@
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="B3:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit Info:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="W4:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Coordinates:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="B6:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="??:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="B7:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="00:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="P8 (Pointer):" VerticalAlignment="Center" />
           <TextBox Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="B12:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B12Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="B13:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="10" Grid.Column="1" Name="B13Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="B14:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="11" Grid.Column="1" Name="B14Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="B15:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="12" Grid.Column="1" Name="B15Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="B16:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="AI 1:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="13" Grid.Column="1" Name="B16Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="14" Grid.Column="0" Text="B17:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="14" Grid.Column="0" Text="AI 2:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="14" Grid.Column="1" Name="B17Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="15" Grid.Column="0" Text="B18:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="15" Grid.Column="0" Text="Target/Recovery AI:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="15" Grid.Column="1" Name="B18Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="16" Grid.Column="0" Text="B19:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="16" Grid.Column="0" Text="Retreat AI:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="16" Grid.Column="1" Name="B19Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 

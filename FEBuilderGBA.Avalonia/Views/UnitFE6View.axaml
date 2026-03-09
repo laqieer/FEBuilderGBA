@@ -155,16 +155,16 @@
 
             <!-- Unknown bytes 35-39 -->
             <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="B35:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Lower Class Anim Color" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="3" Text="B36:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="Upper Class Anim Color" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Unk36Box" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="6" Text="B37:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="6" Text="??" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="7" Name="Unk37Box" Minimum="0" Maximum="255" Margin="0,2" />
 
-              <TextBlock Grid.Row="1" Grid.Column="0" Text="B38:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="??" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Unk38Box" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="1" Grid.Column="3" Text="B39:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="??" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
           </StackPanel>

@@ -60,7 +60,7 @@
           <TextBlock Grid.Row="9" Grid.Column="3" Text="Con (B18):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="9" Grid.Column="4" Name="ConBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="B19:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="HP Cap (B19):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="10" Grid.Column="1" Name="ClassStat19Box" Minimum="0" Maximum="255" />
 
           <!-- Weapon Levels -->
@@ -136,27 +136,27 @@
           <TextBlock Grid.Row="27" Grid.Column="3" Text="Ability4 (B43):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="27" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" />
 
-          <!-- Additional Fields -->
-          <TextBlock Grid.Row="28" Grid.Column="0" Text="--- Additional ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
+          <!-- Weapon Levels -->
+          <TextBlock Grid.Row="28" Grid.Column="0" Text="--- Weapon Levels ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
-          <TextBlock Grid.Row="29" Grid.Column="0" Text="B44:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="29" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="29" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="29" Grid.Column="3" Text="B45:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="29" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="29" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="30" Grid.Column="0" Text="B46:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="30" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="30" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="30" Grid.Column="3" Text="B47:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="30" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="30" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="31" Grid.Column="0" Text="B48:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="31" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="31" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="31" Grid.Column="3" Text="B49:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="31" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="31" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="32" Grid.Column="0" Text="B50:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="32" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="32" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="32" Grid.Column="3" Text="B51:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="32" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="32" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
 
           <!-- Pointers & D80 -->
@@ -164,24 +164,24 @@
         </Grid>
 
         <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="P52:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Battle Anime (P52):" VerticalAlignment="Center" />
           <TextBox Grid.Row="0" Grid.Column="1" Name="Ptr52Box" Width="120" />
-          <TextBlock Grid.Row="0" Grid.Column="3" Text="P56:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Move Cost (P56):" VerticalAlignment="Center" />
           <TextBox Grid.Row="0" Grid.Column="4" Name="Ptr56Box" Width="120" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="P60:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Move Cost Rain (P60):" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="1" Name="Ptr60Box" Width="120" />
-          <TextBlock Grid.Row="1" Grid.Column="3" Text="P64:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Move Cost Snow (P64):" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Width="120" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="P68:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
           <TextBox Grid.Row="2" Grid.Column="1" Name="Ptr68Box" Width="120" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="P72:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Terrain Def (P72):" VerticalAlignment="Center" />
           <TextBox Grid.Row="2" Grid.Column="4" Name="Ptr72Box" Width="120" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="P76:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
           <TextBox Grid.Row="3" Grid.Column="1" Name="Ptr76Box" Width="120" />
-          <TextBlock Grid.Row="3" Grid.Column="3" Text="D80:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="??? (D80):" VerticalAlignment="Center" />
           <TextBox Grid.Row="3" Grid.Column="4" Name="D80Box" Width="120" />
         </Grid>
 

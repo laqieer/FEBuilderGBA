@@ -17,7 +17,7 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Header Pointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="1" Name="HeaderBox" Width="120" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="D4:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Priority(PlayerType):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="D4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Track Count:" VerticalAlignment="Center" />
