@@ -48,6 +48,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, P0);
+            rom.write_u8(addr + 4, (byte)B4);
+            rom.write_u8(addr + 5, (byte)B5);
+            rom.write_u8(addr + 6, (byte)B6);
+            rom.write_u8(addr + 7, (byte)B7);
+            rom.write_u32(addr + 8, P8);
+        }
+
         public int GetListCount() => 0;
 
         public Dictionary<string, string> GetDataReport()

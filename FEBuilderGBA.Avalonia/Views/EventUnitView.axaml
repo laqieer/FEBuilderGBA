@@ -7,13 +7,65 @@
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+      <StackPanel Spacing="6" Margin="8">
         <TextBlock Text="Event Unit Placement" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B0Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B1Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="00 (B2):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B2Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Level/Growth:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Position:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="00 (B6):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Coord Count:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Coord Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="B12Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="B13Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="B14Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="B15Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="AI1 Engagement:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="B16Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="14" Grid.Column="0" Text="AI2 Recovery:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="B17Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="15" Grid.Column="0" Text="AI3 Target:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="B18Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+
+          <TextBlock Grid.Row="16" Grid.Column="0" Text="Wait Flag:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="16" Grid.Column="1" Name="B19Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Write" Name="WriteBtn" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

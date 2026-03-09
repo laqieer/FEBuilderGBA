@@ -33,6 +33,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            rom.write_u32(CurrentAddr + 0, P0);
+        }
+
         public int GetListCount() => 0;
 
         public Dictionary<string, string> GetDataReport()

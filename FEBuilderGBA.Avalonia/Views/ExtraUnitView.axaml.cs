@@ -49,6 +49,25 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            P0Box.Text = string.Format("0x{0:X08}", _vm.P0);
+        }
+
+        void ReadFromUI()
+        {
+            _vm.P0 = U.atoh(P0Box.Text ?? "");
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ReadFromUI();
+                _vm.WriteEntry();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ExtraUnitView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

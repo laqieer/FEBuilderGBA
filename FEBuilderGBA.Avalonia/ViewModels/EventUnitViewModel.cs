@@ -86,6 +86,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, (byte)B0);
+            rom.write_u8(addr + 1, (byte)B1);
+            rom.write_u8(addr + 2, (byte)B2);
+            rom.write_u8(addr + 3, (byte)B3);
+            rom.write_u16(addr + 4, (ushort)W4);
+            rom.write_u8(addr + 6, (byte)B6);
+            rom.write_u8(addr + 7, (byte)B7);
+            rom.write_u32(addr + 8, P8);
+            rom.write_u8(addr + 12, (byte)B12);
+            rom.write_u8(addr + 13, (byte)B13);
+            rom.write_u8(addr + 14, (byte)B14);
+            rom.write_u8(addr + 15, (byte)B15);
+            rom.write_u8(addr + 16, (byte)B16);
+            rom.write_u8(addr + 17, (byte)B17);
+            rom.write_u8(addr + 18, (byte)B18);
+            rom.write_u8(addr + 19, (byte)B19);
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
