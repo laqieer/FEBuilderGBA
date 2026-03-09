@@ -47,13 +47,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load OP class font image as RGBA pixels.
+        /// Try to load OP class font image.
         /// Font tiles are LZ77-compressed 4bpp, rendered as 4x4 tiles (32x32 px).
         /// Returns null on failure.
         /// </summary>
-        public byte[] TryLoadImage(out int width, out int height)
+        public IImage TryLoadImage()
         {
-            width = 0; height = 0;
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
             try
@@ -64,7 +63,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint imgAddr = U.toOffset(imgPtr);
                 if (!U.isSafetyOffset(imgAddr)) return null;
 
-                // Get palette from op_class_font_palette_pointer
                 uint palPtrAddr = rom.RomInfo.op_class_font_palette_pointer;
                 if (palPtrAddr == 0) return null;
 
@@ -77,11 +75,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
-                // Render as 4x4 tiles (32x32 px)
-                width = 4 * 8;
-                height = 4 * 8;
+                int width = 4 * 8;
+                int height = 4 * 8;
 
-                // Ensure we have enough data; if not, adjust height
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles < 16)
                 {
@@ -92,9 +88,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
 
                 if (CoreState.ImageService == null) return null;
-                var image = CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-                if (image == null) return null;
-                return image.GetPixelData();
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
             }
             catch { return null; }
         }

@@ -84,11 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                byte[] rgba = _vm.TryLoadImage(out int w, out int h);
-                if (rgba != null && w > 0 && h > 0)
-                    ImageDisplay.SetRgbaData(rgba, w, h);
-                else
-                    ImageDisplay.SetImage(null);
+                ImageDisplay.SetImage(_vm.TryLoadImage());
             }
             catch { ImageDisplay.SetImage(null); }
         }

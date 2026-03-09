@@ -124,10 +124,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load portrait image data as RGBA pixels using Core image utils.
+        /// Try to load portrait image using Core image utils.
         /// Returns null if the portrait cannot be decoded.
         /// </summary>
-        public byte[] TryLoadPortraitImage()
+        public IImage TryLoadPortraitImage()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
@@ -149,10 +149,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (palette == null) return null;
 
                 // Load compressed image tiles (typically 4bpp, 32x32 = 4 tiles x 4 tiles)
-                var image = ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
-                if (image == null) return null;
-
-                return image.GetPixelData();
+                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
             }
             catch
             {

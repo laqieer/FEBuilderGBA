@@ -65,13 +65,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load Big CG image as RGBA pixels.
+        /// Try to load Big CG image.
         /// CG images are complex (multi-part LZ77 + TSA), so this may fail.
         /// Returns null on failure.
         /// </summary>
-        public byte[] TryLoadImage(out int width, out int height)
+        public IImage TryLoadImage()
         {
-            width = 0; height = 0;
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
             try
@@ -84,7 +83,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palAddr = U.toOffset(palPtr);
                 if (!U.isSafetyOffset(tableAddr) || !U.isSafetyOffset(palAddr)) return null;
 
-                // CG images have multi-part tile data (10 pointers to LZ77 blocks)
                 var tileDataList = new List<byte>();
                 for (int i = 0; i < 10; i++)
                 {
@@ -103,7 +101,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                // Render as 32 tiles wide (256px), calculate height
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
 
@@ -111,13 +108,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (tilesY <= 0) tilesY = 1;
 
-                width = tilesX * 8;
-                height = tilesY * 8;
+                int width = tilesX * 8;
+                int height = tilesY * 8;
 
                 if (CoreState.ImageService == null) return null;
-                var image = CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-                if (image == null) return null;
-                return image.GetPixelData();
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
             }
             catch { return null; }
         }

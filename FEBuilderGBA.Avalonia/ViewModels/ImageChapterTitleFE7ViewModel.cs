@@ -60,9 +60,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanWrite = true;
         }
 
-        public byte[] TryLoadImage(out int width, out int height)
+        public IImage TryLoadImage()
         {
-            width = 0; height = 0;
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
             try
@@ -82,19 +81,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
-                // Width = 32 tiles (256px), height from data size
                 int tilesX = 32;
-                width = tilesX * 8;
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
                 int tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (tilesY <= 0) tilesY = 1;
-                height = tilesY * 8;
+
+                int width = tilesX * 8;
+                int height = tilesY * 8;
 
                 if (CoreState.ImageService == null) return null;
-                var image = CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-                if (image == null) return null;
-                return image.GetPixelData();
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
             }
             catch { return null; }
         }

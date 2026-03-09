@@ -94,15 +94,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                byte[] rgba = _vm.TryLoadPortraitImage();
-                if (rgba != null)
-                {
-                    PortraitImage.SetRgbaData(rgba, 32, 32);
-                }
-                else
-                {
-                    PortraitImage.SetImage(null);
-                }
+                var image = _vm.TryLoadPortraitImage();
+                PortraitImage.SetImage(image);
             }
             catch (Exception ex)
             {

@@ -47,12 +47,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load the weapon icon sheet as RGBA pixels.
+        /// Try to load the weapon icon sheet as an IImage.
         /// Returns null on failure.
         /// </summary>
-        public byte[] TryLoadImage(out int width, out int height)
+        public IImage TryLoadImage()
         {
-            width = 0; height = 0;
             ROM rom = CoreState.ROM;
             if (rom == null) return null;
             try
@@ -71,19 +70,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
-                // Each icon is 2x2 tiles = 128 bytes at 4bpp
                 int totalIcons = tileData.Length / 128;
                 if (totalIcons <= 0) return null;
 
                 int iconsPerRow = 8;
                 int rows = (totalIcons + iconsPerRow - 1) / iconsPerRow;
-                width = iconsPerRow * 16;
-                height = rows * 16;
+                int width = iconsPerRow * 16;
+                int height = rows * 16;
 
                 if (CoreState.ImageService == null) return null;
-                var image = CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-                if (image == null) return null;
-                return image.GetPixelData();
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
             }
             catch { return null; }
         }

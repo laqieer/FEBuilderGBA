@@ -265,6 +265,8 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView("PortraitViewerView.axaml.cs");
             Assert.Contains("_vm.TryLoadPortraitImage()", src);
+            // Verify it uses SetImage (IImage) not SetRgbaData (byte[])
+            Assert.Contains("SetImage", src);
         }
 
         // ---------------------------------------------------------------
@@ -438,6 +440,49 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadView(viewFile);
             // All views display the current address
             Assert.Contains("AddrLabel.Text", src);
+        }
+
+        // ---------------------------------------------------------------
+        // Graphics viewers use SetImage(IImage) not SetRgbaData(byte[])
+        // ---------------------------------------------------------------
+
+        [Theory]
+        [InlineData("BattleBGViewerView.axaml.cs")]
+        [InlineData("BattleTerrainViewerView.axaml.cs")]
+        [InlineData("BigCGViewerView.axaml.cs")]
+        [InlineData("ChapterTitleViewerView.axaml.cs")]
+        [InlineData("ImageChapterTitleFE7View.axaml.cs")]
+        [InlineData("ItemIconViewerView.axaml.cs")]
+        [InlineData("OPClassFontViewerView.axaml.cs")]
+        [InlineData("OPPrologueViewerView.axaml.cs")]
+        [InlineData("SystemIconViewerView.axaml.cs")]
+        public void GraphicsView_UsesSetImage_NotSetRgbaData(string viewFile)
+        {
+            var src = ReadView(viewFile);
+            Assert.Contains("SetImage", src);
+            Assert.DoesNotContain("SetRgbaData", src);
+        }
+
+        private string ReadViewModel(string name) =>
+            File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", name));
+
+        [Theory]
+        [InlineData("BattleBGViewerViewModel.cs")]
+        [InlineData("BattleTerrainViewerViewModel.cs")]
+        [InlineData("BigCGViewerViewModel.cs")]
+        [InlineData("ChapterTitleViewerViewModel.cs")]
+        [InlineData("ImageChapterTitleFE7ViewModel.cs")]
+        [InlineData("ItemIconViewerViewModel.cs")]
+        [InlineData("OPClassFontViewerViewModel.cs")]
+        [InlineData("OPClassFontFE8UViewModel.cs")]
+        [InlineData("OPPrologueViewerViewModel.cs")]
+        [InlineData("SystemIconViewerViewModel.cs")]
+        [InlineData("PortraitViewerViewModel.cs")]
+        public void GraphicsViewModel_ReturnsIImage_NotByteArray(string vmFile)
+        {
+            var src = ReadViewModel(vmFile);
+            // Should NOT call GetPixelData() — that returns indexed bytes
+            Assert.DoesNotContain("GetPixelData()", src);
         }
     }
 }

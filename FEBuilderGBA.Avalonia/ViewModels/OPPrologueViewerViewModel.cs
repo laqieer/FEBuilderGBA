@@ -67,13 +67,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load OP prologue image as RGBA pixels.
+        /// Try to load OP prologue image.
         /// Uses LZ77-compressed tiles with shared palette.
         /// Returns null on failure.
         /// </summary>
-        public byte[] TryLoadImage(out int width, out int height)
+        public IImage TryLoadImage()
         {
-            width = 0; height = 0;
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return null;
             try
@@ -93,7 +92,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
-                // Render as 32 tiles wide (256px), calculate height
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
 
@@ -101,13 +99,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (tilesY <= 0) tilesY = 1;
 
-                width = tilesX * 8;
-                height = tilesY * 8;
+                int width = tilesX * 8;
+                int height = tilesY * 8;
 
                 if (CoreState.ImageService == null) return null;
-                var image = CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-                if (image == null) return null;
-                return image.GetPixelData();
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
             }
             catch { return null; }
         }
