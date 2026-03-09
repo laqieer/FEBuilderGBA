@@ -166,6 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.ExportEditorImagesMode)
+            {
+                RunExportEditorImages();
+                return;
+            }
+
             if (App.ScreenshotAllMode)
             {
                 RunScreenshotAll();
@@ -349,6 +355,166 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Export decoded graphics editor images as PNG files.
+        /// Unlike --screenshot-all (which captures full form screenshots), this exports
+        /// only the decoded image data from each graphics ViewModel for pixel-level comparison.
+        /// </summary>
+        private void RunExportEditorImages()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int exported = 0;
+                int failed = 0;
+                var failures = new List<string>();
+
+                string outputDir = App.ScreenshotDir
+                    ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "editor_images");
+                Directory.CreateDirectory(outputDir);
+
+                string romVersion = CoreState.ROM?.RomInfo?.VersionToFilename ?? "Unknown";
+                Console.WriteLine($"EXPORT_IMAGES: Exporting graphics editor images for {romVersion}...");
+
+                // Define graphics editor exporters: (name, loadList, loadItem, getImage)
+                var exporters = GetGraphicsEditorExporters();
+
+                foreach (var (name, exporter) in exporters)
+                {
+                    try
+                    {
+                        var list = exporter.LoadList();
+                        if (list == null || list.Count == 0)
+                        {
+                            Console.WriteLine($"EXPORT_IMAGES: {name} ... SKIP (empty list)");
+                            continue;
+                        }
+
+                        // Export first 3 entries (or fewer if list is shorter)
+                        int count = Math.Min(3, list.Count);
+                        for (int i = 0; i < count; i++)
+                        {
+                            exporter.LoadItem(list[i].addr);
+                            IImage image = exporter.GetImage();
+                            if (image == null)
+                            {
+                                Console.WriteLine($"EXPORT_IMAGES: {name}_{i:D4} ... SKIP (null image)");
+                                continue;
+                            }
+
+                            string fileName = $"Avalonia_{name}_{i:D4}_{romVersion}.png";
+                            string filePath = Path.Combine(outputDir, fileName);
+                            image.Save(filePath);
+                            exported++;
+                            Console.WriteLine($"EXPORT_IMAGES: {name}_{i:D4} ... OK ({filePath})");
+
+                            if (image is IDisposable disposable) disposable.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        failures.Add(name);
+                        Console.WriteLine($"EXPORT_IMAGES: {name} ... FAIL: {ex.Message}");
+                    }
+                }
+
+                Console.WriteLine($"EXPORT_IMAGES: Results: {exported} exported, {failed} failed");
+                if (failures.Count > 0)
+                    Console.WriteLine($"EXPORT_IMAGES: Failures: {string.Join(", ", failures)}");
+
+                Environment.ExitCode = failed > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Helper record for graphics editor image export.
+        /// </summary>
+        record GraphicsExporter(
+            Func<List<AddrResult>> LoadList,
+            Action<uint> LoadItem,
+            Func<IImage> GetImage);
+
+        /// <summary>
+        /// Returns named graphics editor exporters that can load lists, select items, and get images.
+        /// </summary>
+        static List<(string Name, GraphicsExporter Exporter)> GetGraphicsEditorExporters()
+        {
+            var result = new List<(string, GraphicsExporter)>();
+
+            // Portrait
+            var portrait = new PortraitViewerViewModel();
+            result.Add(("PortraitViewer", new GraphicsExporter(
+                () => portrait.LoadPortraitList(),
+                addr => portrait.LoadPortrait(addr),
+                () => portrait.TryLoadPortraitImage())));
+
+            // Battle BG
+            var battleBG = new BattleBGViewerViewModel();
+            result.Add(("BattleBGViewer", new GraphicsExporter(
+                () => battleBG.LoadBattleBGList(),
+                addr => battleBG.LoadBattleBG(addr),
+                () => battleBG.TryLoadImage())));
+
+            // Battle Terrain
+            var battleTerrain = new BattleTerrainViewerViewModel();
+            result.Add(("BattleTerrainViewer", new GraphicsExporter(
+                () => battleTerrain.LoadBattleTerrainList(),
+                addr => battleTerrain.LoadBattleTerrain(addr),
+                () => battleTerrain.TryLoadImage())));
+
+            // Big CG
+            var bigCG = new BigCGViewerViewModel();
+            result.Add(("BigCGViewer", new GraphicsExporter(
+                () => bigCG.LoadBigCGList(),
+                addr => bigCG.LoadBigCG(addr),
+                () => bigCG.TryLoadImage())));
+
+            // Chapter Title
+            var chapterTitle = new ChapterTitleViewerViewModel();
+            result.Add(("ChapterTitleViewer", new GraphicsExporter(
+                () => chapterTitle.LoadChapterTitleList(),
+                addr => chapterTitle.LoadChapterTitle(addr),
+                () => chapterTitle.TryLoadImage())));
+
+            // Chapter Title FE7
+            var chapterTitleFE7 = new ImageChapterTitleFE7ViewModel();
+            result.Add(("ChapterTitleFE7Viewer", new GraphicsExporter(
+                () => chapterTitleFE7.LoadList(),
+                addr => chapterTitleFE7.LoadEntry(addr),
+                () => chapterTitleFE7.TryLoadImage())));
+
+            // Item Icon
+            var itemIcon = new ItemIconViewerViewModel();
+            result.Add(("ItemIconViewer", new GraphicsExporter(
+                () => itemIcon.LoadItemIconList(),
+                addr => itemIcon.LoadItemIcon(addr),
+                () => itemIcon.TryLoadImage())));
+
+            // System Icon
+            var systemIcon = new SystemIconViewerViewModel();
+            result.Add(("SystemIconViewer", new GraphicsExporter(
+                () => systemIcon.LoadSystemIconList(),
+                addr => systemIcon.LoadSystemIcon(addr),
+                () => systemIcon.TryLoadImage())));
+
+            // OP Class Font
+            var opClassFont = new OPClassFontViewerViewModel();
+            result.Add(("OPClassFontViewer", new GraphicsExporter(
+                () => opClassFont.LoadOPClassFontList(),
+                addr => opClassFont.LoadOPClassFont(addr),
+                () => opClassFont.TryLoadImage())));
+
+            // OP Prologue
+            var opPrologue = new OPPrologueViewerViewModel();
+            result.Add(("OPPrologueViewer", new GraphicsExporter(
+                () => opPrologue.LoadOPPrologueList(),
+                addr => opPrologue.LoadOPPrologue(addr),
+                () => opPrologue.TryLoadImage())));
+
+            return result;
         }
 
         /// <summary>

@@ -85,9 +85,9 @@ namespace FEBuilderGBA
 
             string forceversion = U.at(ArgsDic, "--force-version");//強制バージョン指定 --force-version=FE8J
 
-            // --screenshot-all: load ROM directly to avoid side effects from
+            // --screenshot-all / --export-editor-images: load ROM directly to avoid side effects from
             // MainFormUtil.Open (update checks, form creation that may block).
-            if (ArgsDic.ContainsKey("--screenshot-all") && ArgsDic.ContainsKey("--rom"))
+            if ((ArgsDic.ContainsKey("--screenshot-all") || ArgsDic.ContainsKey("--export-editor-images")) && ArgsDic.ContainsKey("--rom"))
             {
                 string romPath = ArgsDic["--rom"];
                 if (!string.IsNullOrEmpty(romPath))
@@ -183,6 +183,7 @@ namespace FEBuilderGBA
                 || args.ContainsKey("--decreasecolor")
                 || args.ContainsKey("--convertmap1picture")
                 || args.ContainsKey("--screenshot-all")
+                || args.ContainsKey("--export-editor-images")
                 || args.ContainsKey("--version");
         }
 
@@ -255,6 +256,15 @@ namespace FEBuilderGBA
                     screenshotDir = Path.Combine(BaseDirectory, "screenshots");
                 Application.Run(new ScreenshotAllRunner(screenshotDir));
                 Environment.Exit(0);
+                return true;
+            }
+            if (ArgsDic.ContainsKey("--export-editor-images"))
+            {// Export decoded editor images as PNG for cross-platform comparison.
+                Program.IsCommandLine = true;
+                string outputDir = U.at(ArgsDic, "--screenshot-dir");
+                if (string.IsNullOrEmpty(outputDir))
+                    outputDir = Path.Combine(BaseDirectory, "editor_images");
+                Environment.Exit(EditorImageExporter.Export(outputDir));
                 return true;
             }
 

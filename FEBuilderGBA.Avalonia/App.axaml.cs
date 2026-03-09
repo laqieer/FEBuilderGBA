@@ -28,6 +28,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, capture screenshots of all editors and save as PNG.</summary>
         public static bool ScreenshotAllMode { get; set; }
 
+        /// <summary>When true, export decoded editor images (not full screenshots) as PNG.</summary>
+        public static bool ExportEditorImagesMode { get; set; }
+
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
@@ -103,6 +106,11 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ScreenshotAllMode = true;
+                }
+                else if (args[i] == "--export-editor-images")
+                {
+                    SmokeTestMode = true;
+                    ExportEditorImagesMode = true;
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {
