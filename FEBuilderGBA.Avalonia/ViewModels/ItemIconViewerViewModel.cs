@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             CurrentAddr = addr;
             ImagePointer = rom.RomInfo.icon_pointer;
-            PalettePointer = 0;
+            PalettePointer = rom.RomInfo.icon_palette_pointer;
             CanWrite = true;
         }
 
