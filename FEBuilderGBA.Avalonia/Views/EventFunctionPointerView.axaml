@@ -2,18 +2,24 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventFunctionPointerView"
-        Title="Function Pointer Editor" Width="1185" Height="658">
+        Title="Event Function Pointer Editor" Width="1185" Height="658">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Function Pointer Editor" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Event Command Function Pointer Table" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="240,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Event Command Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="FuncPointerUpDown" Minimum="0" Maximum="4294967295"
+                         FormatString="X8" Margin="0,4" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

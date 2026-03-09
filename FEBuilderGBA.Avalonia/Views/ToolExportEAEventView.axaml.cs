@@ -15,12 +15,34 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolExportEAEventView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void Export_Click(object? sender, RoutedEventArgs e) { }
-        void Browse_Click(object? sender, RoutedEventArgs e) { }
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+        void ExportEvents_Click(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder: export events in EA format for selected map
+        }
+
+        void ExportWMapEvents_Click(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder: export world map events
+        }
+
+        void ExportWMapEvents2_Click(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder: export world map events (selected)
+        }
+
+        void ExportMainTable_Click(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder: export main tables (units, classes, items)
+        }
+
+        void ExportUndoData_Click(object? sender, RoutedEventArgs e)
+        {
+            // Placeholder: export undo buffer data
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

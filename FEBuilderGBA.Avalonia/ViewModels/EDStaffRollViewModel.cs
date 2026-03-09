@@ -8,13 +8,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _dataPointer;
-        uint _palettePointer;
+        uint _imagePointer;
+        uint _tsaPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint DataPointer { get => _dataPointer; set => SetField(ref _dataPointer, value); }
-        public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
+        public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
+        public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
 
         public List<AddrResult> LoadEDStaffRollList()
         {
@@ -49,8 +49,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            DataPointer = rom.u32(addr);
-            PalettePointer = rom.u32(addr + 4);
+            ImagePointer = rom.u32(addr);
+            TSAPointer = rom.u32(addr + 4);
             CanWrite = true;
         }
 
@@ -60,8 +60,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 8 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr, DataPointer);
-            rom.write_u32(CurrentAddr + 4, PalettePointer);
+            rom.write_u32(CurrentAddr, ImagePointer);
+            rom.write_u32(CurrentAddr + 4, TSAPointer);
         }
 
         public int GetListCount() => LoadEDStaffRollList().Count;
@@ -71,8 +71,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["DataPointer"] = $"0x{DataPointer:X08}",
-                ["PalettePointer"] = $"0x{PalettePointer:X08}",
+                ["ImagePointer"] = $"0x{ImagePointer:X08}",
+                ["TSAPointer"] = $"0x{TSAPointer:X08}",
             };
         }
 
@@ -84,8 +84,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00_ImagePointer"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_TSAPointer"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

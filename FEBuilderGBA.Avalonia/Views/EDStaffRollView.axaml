@@ -10,15 +10,15 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Staff Roll Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Pointer (u32@0):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="DataPtrBox" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ImagePtrBox" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette Ptr (u32@4):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="1" Name="PalettePtrBox" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="TSA Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="TSAPtrBox" Width="200" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

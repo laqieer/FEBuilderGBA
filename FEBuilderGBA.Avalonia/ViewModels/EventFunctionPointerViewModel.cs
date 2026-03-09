@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _p0;
+        uint _eventCommandFunctionPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // P0: pointer at offset 0
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
+        // P0: Event command function pointer (u32 at offset 0) — ASM pointer
+        public uint EventCommandFunctionPointer { get => _eventCommandFunctionPointer; set => SetField(ref _eventCommandFunctionPointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -31,8 +31,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+            EventCommandFunctionPointer = rom.u32(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(a + 0, EventCommandFunctionPointer);
         }
 
         public int GetListCount() => 0;
@@ -41,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["P0"] = P0.ToString("X08"),
+                ["EventCommandFunctionPointer"] = EventCommandFunctionPointer.ToString("X08"),
             };
         }
 
@@ -54,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x00_EventCommandFunctionPointer"] = $"0x{rom.u32(a + 0):X08}",
             };
         }
     }

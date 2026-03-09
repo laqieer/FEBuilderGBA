@@ -8,12 +8,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _w0;
+        uint _unitSkill;
         string _statusMessage = "Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
+        public uint UnitSkill { get => _unitSkill; set => SetField(ref _unitSkill, value); }
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
         public void LoadEntry(uint addr)
@@ -22,8 +22,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 2 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
+            UnitSkill = rom.u16(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u16(addr + 0, UnitSkill);
         }
 
         public void Initialize() { IsLoaded = true; }
@@ -34,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
+                ["UnitSkill"] = $"0x{UnitSkill:X04}",
             };
         }
 

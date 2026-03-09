@@ -8,34 +8,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _p0;
-        uint _w4, _w6;
-        uint _b8, _b9, _b10, _b11;
-        uint _d8;
-        uint _p8;
-        uint _p12, _p16, _p20, _p24, _p28, _p32;
+        uint _jpNamePointer;
+        uint _nameTextId, _helpTextId;
+        uint _colorType, _menuCommandId, _b10, _b11;
+        uint _colorAndIdDword;
+        uint _usabilityRoutine, _drawRoutine, _effectRoutine;
+        uint _perTurnCallback, _cursorSelectAction, _cancelAction;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint JpNamePointer { get => _jpNamePointer; set => SetField(ref _jpNamePointer, value); }
+        public uint NameTextId { get => _nameTextId; set => SetField(ref _nameTextId, value); }
+        public uint HelpTextId { get => _helpTextId; set => SetField(ref _helpTextId, value); }
+        public uint ColorType { get => _colorType; set => SetField(ref _colorType, value); }
+        public uint MenuCommandId { get => _menuCommandId; set => SetField(ref _menuCommandId, value); }
         public uint B10 { get => _b10; set => SetField(ref _b10, value); }
         public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
-        public uint P12 { get => _p12; set => SetField(ref _p12, value); }
-        public uint P16 { get => _p16; set => SetField(ref _p16, value); }
-        public uint P20 { get => _p20; set => SetField(ref _p20, value); }
-        public uint P24 { get => _p24; set => SetField(ref _p24, value); }
-        public uint P28 { get => _p28; set => SetField(ref _p28, value); }
-        public uint P32 { get => _p32; set => SetField(ref _p32, value); }
-        // Legacy aliases
-        public uint UsabilityPtr => P12;
-        public uint EffectPtr => P16;
-        public uint MenuCommandId => W4;
+        public uint ColorAndIdDword { get => _colorAndIdDword; set => SetField(ref _colorAndIdDword, value); }
+        public uint UsabilityRoutine { get => _usabilityRoutine; set => SetField(ref _usabilityRoutine, value); }
+        public uint DrawRoutine { get => _drawRoutine; set => SetField(ref _drawRoutine, value); }
+        public uint EffectRoutine { get => _effectRoutine; set => SetField(ref _effectRoutine, value); }
+        public uint PerTurnCallback { get => _perTurnCallback; set => SetField(ref _perTurnCallback, value); }
+        public uint CursorSelectAction { get => _cursorSelectAction; set => SetField(ref _cursorSelectAction, value); }
+        public uint CancelAction { get => _cancelAction; set => SetField(ref _cancelAction, value); }
 
         public List<AddrResult> LoadMenuCommandList()
         {
@@ -96,21 +91,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 36 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
+            JpNamePointer = rom.u32(addr + 0);
+            NameTextId = rom.u16(addr + 4);
+            HelpTextId = rom.u16(addr + 6);
+            ColorType = rom.u8(addr + 8);
+            MenuCommandId = rom.u8(addr + 9);
             B10 = rom.u8(addr + 10);
             B11 = rom.u8(addr + 11);
-            D8 = rom.u32(addr + 8);
-            P8 = rom.u32(addr + 8);
-            P12 = rom.u32(addr + 12);
-            P16 = rom.u32(addr + 16);
-            P20 = rom.u32(addr + 20);
-            P24 = rom.u32(addr + 24);
-            P28 = rom.u32(addr + 28);
-            P32 = rom.u32(addr + 32);
+            ColorAndIdDword = rom.u32(addr + 8);
+            UsabilityRoutine = rom.u32(addr + 12);
+            DrawRoutine = rom.u32(addr + 16);
+            EffectRoutine = rom.u32(addr + 20);
+            PerTurnCallback = rom.u32(addr + 24);
+            CursorSelectAction = rom.u32(addr + 28);
+            CancelAction = rom.u32(addr + 32);
             CanWrite = true;
         }
 
@@ -121,16 +115,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 36 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, P0);
-            rom.write_u16(addr + 4, (ushort)W4);
-            rom.write_u16(addr + 6, (ushort)W6);
-            rom.write_u32(addr + 8, D8);
-            rom.write_u32(addr + 12, P12);
-            rom.write_u32(addr + 16, P16);
-            rom.write_u32(addr + 20, P20);
-            rom.write_u32(addr + 24, P24);
-            rom.write_u32(addr + 28, P28);
-            rom.write_u32(addr + 32, P32);
+            rom.write_u32(addr + 0, JpNamePointer);
+            rom.write_u16(addr + 4, (ushort)NameTextId);
+            rom.write_u16(addr + 6, (ushort)HelpTextId);
+            rom.write_u32(addr + 8, ColorAndIdDword);
+            rom.write_u32(addr + 12, UsabilityRoutine);
+            rom.write_u32(addr + 16, DrawRoutine);
+            rom.write_u32(addr + 20, EffectRoutine);
+            rom.write_u32(addr + 24, PerTurnCallback);
+            rom.write_u32(addr + 28, CursorSelectAction);
+            rom.write_u32(addr + 32, CancelAction);
         }
 
         public int GetListCount() => LoadMenuCommandList().Count;
@@ -140,21 +134,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["P0"] = $"0x{P0:X08}",
-                ["W4"] = $"0x{W4:X04}",
-                ["W6"] = $"0x{W6:X04}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["D8"] = $"0x{D8:X08}",
-                ["P8"] = $"0x{P8:X08}",
-                ["P12"] = $"0x{P12:X08}",
-                ["P16"] = $"0x{P16:X08}",
-                ["P20"] = $"0x{P20:X08}",
-                ["P24"] = $"0x{P24:X08}",
-                ["P28"] = $"0x{P28:X08}",
-                ["P32"] = $"0x{P32:X08}",
+                ["JpNamePointer"] = $"0x{JpNamePointer:X08}",
+                ["NameTextId"] = $"0x{NameTextId:X04}",
+                ["HelpTextId"] = $"0x{HelpTextId:X04}",
+                ["ColorType"] = $"0x{ColorType:X02}",
+                ["MenuCommandId"] = $"0x{MenuCommandId:X02}",
+                ["UsabilityRoutine"] = $"0x{UsabilityRoutine:X08}",
+                ["DrawRoutine"] = $"0x{DrawRoutine:X08}",
+                ["EffectRoutine"] = $"0x{EffectRoutine:X08}",
+                ["PerTurnCallback"] = $"0x{PerTurnCallback:X08}",
+                ["CursorSelectAction"] = $"0x{CursorSelectAction:X08}",
+                ["CancelAction"] = $"0x{CancelAction:X08}",
             };
         }
 
@@ -166,20 +156,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
-                ["u32@0x10"] = $"0x{rom.u32(a + 16):X08}",
-                ["u32@0x14"] = $"0x{rom.u32(a + 20):X08}",
-                ["u32@0x18"] = $"0x{rom.u32(a + 24):X08}",
-                ["u32@0x1C"] = $"0x{rom.u32(a + 28):X08}",
-                ["u32@0x20"] = $"0x{rom.u32(a + 32):X08}",
+                ["u32@0x00_JpName"] = $"0x{rom.u32(a + 0):X08}",
+                ["u16@0x04_NameTextId"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06_HelpTextId"] = $"0x{rom.u16(a + 6):X04}",
+                ["u8@0x08_ColorType"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09_MenuCommandId"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_B10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_B11"] = $"0x{rom.u8(a + 11):X02}",
+                ["u32@0x08_ColorAndIdDword"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@0x0C_UsabilityRoutine"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@0x10_DrawRoutine"] = $"0x{rom.u32(a + 16):X08}",
+                ["u32@0x14_EffectRoutine"] = $"0x{rom.u32(a + 20):X08}",
+                ["u32@0x18_PerTurnCallback"] = $"0x{rom.u32(a + 24):X08}",
+                ["u32@0x1C_CursorSelectAction"] = $"0x{rom.u32(a + 28):X08}",
+                ["u32@0x20_CancelAction"] = $"0x{rom.u32(a + 32):X08}",
             };
         }
     }

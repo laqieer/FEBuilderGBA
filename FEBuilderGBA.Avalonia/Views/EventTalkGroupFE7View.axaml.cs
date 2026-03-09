@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,6 +50,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            TextIdUpDown.Value = _vm.TextId;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.TextId = (uint)(TextIdUpDown.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventTalkGroupFE7View.OnWrite failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

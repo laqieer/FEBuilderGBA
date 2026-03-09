@@ -7,31 +7,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
-        uint _w4;
-        uint _b6;
-        uint _b7;
-        uint _p8;
-        uint _w12;
-        uint _b14;
-        uint _b15;
+        uint _attackerUnit;
+        uint _defenderUnit;
+        uint _unknown02;
+        uint _unknown03;
+        uint _text;
+        uint _unknown06;
+        uint _unknown07;
+        uint _eventPointer;
+        uint _achievementFlag;
+        uint _unknown0E;
+        uint _unknown0F;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
-        public uint W12 { get => _w12; set => SetField(ref _w12, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
+        public uint AttackerUnit { get => _attackerUnit; set => SetField(ref _attackerUnit, value); }
+        public uint DefenderUnit { get => _defenderUnit; set => SetField(ref _defenderUnit, value); }
+        public uint Unknown02 { get => _unknown02; set => SetField(ref _unknown02, value); }
+        public uint Unknown03 { get => _unknown03; set => SetField(ref _unknown03, value); }
+        public uint Text { get => _text; set => SetField(ref _text, value); }
+        public uint Unknown06 { get => _unknown06; set => SetField(ref _unknown06, value); }
+        public uint Unknown07 { get => _unknown07; set => SetField(ref _unknown07, value); }
+        public uint EventPointer { get => _eventPointer; set => SetField(ref _eventPointer, value); }
+        public uint AchievementFlag { get => _achievementFlag; set => SetField(ref _achievementFlag, value); }
+        public uint Unknown0E { get => _unknown0E; set => SetField(ref _unknown0E, value); }
+        public uint Unknown0F { get => _unknown0F; set => SetField(ref _unknown0F, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -48,18 +48,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            W4 = rom.u16(addr + 4);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            P8 = rom.u32(addr + 8);
-            W12 = rom.u16(addr + 12);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
+            AttackerUnit = rom.u8(addr + 0);
+            DefenderUnit = rom.u8(addr + 1);
+            Unknown02 = rom.u8(addr + 2);
+            Unknown03 = rom.u8(addr + 3);
+            Text = rom.u16(addr + 4);
+            Unknown06 = rom.u8(addr + 6);
+            Unknown07 = rom.u8(addr + 7);
+            EventPointer = rom.u32(addr + 8);
+            AchievementFlag = rom.u16(addr + 12);
+            Unknown0E = rom.u8(addr + 14);
+            Unknown0F = rom.u8(addr + 15);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            rom.write_u8(a + 0, (byte)AttackerUnit);
+            rom.write_u8(a + 1, (byte)DefenderUnit);
+            rom.write_u8(a + 2, (byte)Unknown02);
+            rom.write_u8(a + 3, (byte)Unknown03);
+            rom.write_u16(a + 4, (ushort)Text);
+            rom.write_u8(a + 6, (byte)Unknown06);
+            rom.write_u8(a + 7, (byte)Unknown07);
+            rom.write_u32(a + 8, EventPointer);
+            rom.write_u16(a + 12, (ushort)AchievementFlag);
+            rom.write_u8(a + 14, (byte)Unknown0E);
+            rom.write_u8(a + 15, (byte)Unknown0F);
         }
 
         public int GetListCount() => 0;
@@ -69,17 +87,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["W4"] = $"0x{W4:X04}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["P8"] = $"0x{P8:X08}",
-                ["W12"] = $"0x{W12:X04}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
+                ["AttackerUnit"] = $"0x{AttackerUnit:X02}",
+                ["DefenderUnit"] = $"0x{DefenderUnit:X02}",
+                ["Unknown02"] = $"0x{Unknown02:X02}",
+                ["Unknown03"] = $"0x{Unknown03:X02}",
+                ["Text"] = $"0x{Text:X04}",
+                ["Unknown06"] = $"0x{Unknown06:X02}",
+                ["Unknown07"] = $"0x{Unknown07:X02}",
+                ["EventPointer"] = $"0x{EventPointer:X08}",
+                ["AchievementFlag"] = $"0x{AchievementFlag:X04}",
+                ["Unknown0E"] = $"0x{Unknown0E:X02}",
+                ["Unknown0F"] = $"0x{Unknown0F:X02}",
             };
         }
 
@@ -91,17 +109,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
-                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x00_AttackerUnit"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_DefenderUnit"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_Unknown02"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_Unknown03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u16@0x04_Text"] = $"0x{rom.u16(a + 4):X04}",
+                ["u8@0x06_Unknown06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07_Unknown07"] = $"0x{rom.u8(a + 7):X02}",
+                ["u32@0x08_EventPointer"] = $"0x{rom.u32(a + 8):X08}",
+                ["u16@0x0C_AchievementFlag"] = $"0x{rom.u16(a + 12):X04}",
+                ["u8@0x0E_Unknown0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F_Unknown0F"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
     }

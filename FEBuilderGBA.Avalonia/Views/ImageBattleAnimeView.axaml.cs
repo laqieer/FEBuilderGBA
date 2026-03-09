@@ -48,7 +48,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            WeaponTypeBox.Value = _vm.WeaponType;
+            SpecialBox.Value = _vm.Special;
+            AnimationNumberBox.Value = _vm.AnimationNumber;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.WeaponType = (uint)(WeaponTypeBox.Value ?? 0);
+            _vm.Special = (uint)(SpecialBox.Value ?? 0);
+            _vm.AnimationNumber = (uint)(AnimationNumberBox.Value ?? 0);
+            _vm.Write();
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

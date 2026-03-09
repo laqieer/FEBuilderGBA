@@ -6,6 +6,17 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Character Code Table" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <TextBlock DockPanel.Dock="Top" Text="Lists all character codes in the ROM's text encoding table." Foreground="Gray" Margin="0,0,0,8" />
+
+    <!-- Editor panel with semantic field labels -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,8">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Char Code (ASCII):" VerticalAlignment="Center" Margin="0,2" />
+      <NumericUpDown Grid.Row="0" Grid.Column="1" Name="CharCodeBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Terminator (FFFF):" VerticalAlignment="Center" Margin="0,2" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TerminatorBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="Character Display:" VerticalAlignment="Center" Margin="0,2" />
+      <TextBlock Grid.Row="2" Grid.Column="1" Name="CharDisplayLabel" VerticalAlignment="Center" Margin="0,2" />
+    </Grid>
+
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>

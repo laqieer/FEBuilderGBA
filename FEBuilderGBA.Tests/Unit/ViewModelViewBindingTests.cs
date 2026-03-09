@@ -218,16 +218,15 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadView("MapSettingView.axaml.cs");
             Assert.Contains("_vm.CurrentAddr", src);
             Assert.Contains("_vm.DataSize", src);
-            // All 99 fields from WinForms are now mapped via D#/W#/B# naming
-            Assert.Contains("_vm.D0", src);
-            Assert.Contains("_vm.W4", src);
-            Assert.Contains("_vm.B6", src);
-            Assert.Contains("_vm.B8", src);
-            Assert.Contains("_vm.B18", src);      // Weather
-            Assert.Contains("_vm.W112", src);     // MapName1
-            Assert.Contains("_vm.W136", src);     // ClearCondition
-            Assert.Contains("_vm.B128", src);     // ChapterNumber
-            Assert.Contains("_vm.B147", src);     // Last byte field
+            // All fields now use semantic names (renamed from D#/W#/B#)
+            Assert.Contains("_vm.CpPointer", src);
+            Assert.Contains("_vm.ObjectTypePLIST", src);
+            Assert.Contains("_vm.PalettePLIST", src);
+            Assert.Contains("_vm.MapPointerPLIST", src);
+            Assert.Contains("_vm.Weather", src);
+            Assert.Contains("_vm.MapNameText1", src);
+            Assert.Contains("_vm.ClearConditionText", src);
+            Assert.Contains("_vm.ChapterNumber", src);
             Assert.Contains("_vm.WriteMapSetting", src);
         }
 
@@ -240,10 +239,10 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView("SongTableView.axaml.cs");
             Assert.Contains("_vm.CurrentAddr", src);
-            Assert.Contains("_vm.HeaderPointer", src);
+            Assert.Contains("_vm.SongHeaderPointer", src);
             Assert.Contains("_vm.TrackCount", src);
-            Assert.Contains("_vm.Priority", src);
-            Assert.Contains("_vm.Reverb", src);
+            Assert.Contains("_vm.HeaderPriority", src);
+            Assert.Contains("_vm.HeaderReverb", src);
         }
 
         // ---------------------------------------------------------------
@@ -306,9 +305,9 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView("WorldMapPointView.axaml.cs");
             Assert.Contains("_vm.CurrentAddr", src);
-            Assert.Contains("_vm.B0", src);
+            Assert.Contains("_vm.AlwaysAccessible", src);
             Assert.Contains("_vm.NameTextId", src);
-            Assert.Contains("_vm.WriteWorldMapPoint", src);
+            Assert.Contains("_vm.Write()", src);
         }
 
         // ---------------------------------------------------------------

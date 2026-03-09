@@ -10,10 +10,23 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Custom Battle Animation" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon Type:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Special:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="SpecialBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Animation Number:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="AnimeNumberBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

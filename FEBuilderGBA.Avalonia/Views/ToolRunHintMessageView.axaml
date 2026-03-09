@@ -7,7 +7,7 @@
         CanResize="False">
   <StackPanel Margin="26,28,26,12">
     <!-- Header label -->
-    <TextBlock Text="Starting test execution now." FontWeight="Bold" FontSize="14" />
+    <TextBlock Text="{Binding HeaderText}" FontWeight="Bold" FontSize="14" />
     <!-- Detail textbox -->
     <TextBox Text="{Binding DetailText}" IsReadOnly="True" AcceptsReturn="True"
              TextWrapping="Wrap" Height="332" Margin="3,11,3,0" />

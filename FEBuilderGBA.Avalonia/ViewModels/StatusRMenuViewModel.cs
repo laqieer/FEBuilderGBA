@@ -12,9 +12,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _downPtr;
         uint _leftPtr;
         uint _rightPtr;
-        uint _b16, _b17;
+        uint _posX, _posY;
         uint _textId;
-        uint _p20, _p24;
+        uint _loopRoutine, _getterRoutine;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
@@ -22,11 +22,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint DownPtr { get => _downPtr; set => SetField(ref _downPtr, value); }
         public uint LeftPtr { get => _leftPtr; set => SetField(ref _leftPtr, value); }
         public uint RightPtr { get => _rightPtr; set => SetField(ref _rightPtr, value); }
-        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
-        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
+        public uint PosX { get => _posX; set => SetField(ref _posX, value); }
+        public uint PosY { get => _posY; set => SetField(ref _posY, value); }
         public uint TextId { get => _textId; set => SetField(ref _textId, value); }
-        public uint P20 { get => _p20; set => SetField(ref _p20, value); }
-        public uint P24 { get => _p24; set => SetField(ref _p24, value); }
+        public uint LoopRoutine { get => _loopRoutine; set => SetField(ref _loopRoutine, value); }
+        public uint GetterRoutine { get => _getterRoutine; set => SetField(ref _getterRoutine, value); }
 
         public List<AddrResult> LoadStatusRMenuList()
         {
@@ -74,11 +74,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DownPtr = rom.u32(addr + 4);
             LeftPtr = rom.u32(addr + 8);
             RightPtr = rom.u32(addr + 12);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
+            PosX = rom.u8(addr + 16);
+            PosY = rom.u8(addr + 17);
             TextId = rom.u16(addr + 18);
-            P20 = rom.u32(addr + 20);
-            P24 = rom.u32(addr + 24);
+            LoopRoutine = rom.u32(addr + 20);
+            GetterRoutine = rom.u32(addr + 24);
             CanWrite = true;
         }
 
@@ -93,11 +93,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 4, DownPtr);
             rom.write_u32(addr + 8, LeftPtr);
             rom.write_u32(addr + 12, RightPtr);
-            rom.write_u8(addr + 16, (byte)B16);
-            rom.write_u8(addr + 17, (byte)B17);
+            rom.write_u8(addr + 16, (byte)PosX);
+            rom.write_u8(addr + 17, (byte)PosY);
             rom.write_u16(addr + 18, (ushort)TextId);
-            rom.write_u32(addr + 20, P20);
-            rom.write_u32(addr + 24, P24);
+            rom.write_u32(addr + 20, LoopRoutine);
+            rom.write_u32(addr + 24, GetterRoutine);
         }
 
         public int GetListCount() => LoadStatusRMenuList().Count;
@@ -111,7 +111,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["DownPtr"] = $"0x{DownPtr:X08}",
                 ["LeftPtr"] = $"0x{LeftPtr:X08}",
                 ["RightPtr"] = $"0x{RightPtr:X08}",
+                ["PosX"] = $"0x{PosX:X02}",
+                ["PosY"] = $"0x{PosY:X02}",
                 ["TextId"] = $"0x{TextId:X04}",
+                ["LoopRoutine"] = $"0x{LoopRoutine:X08}",
+                ["GetterRoutine"] = $"0x{GetterRoutine:X08}",
             };
         }
 
@@ -123,15 +127,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
-                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
-                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
-                ["u16@0x12"] = $"0x{rom.u16(a + 18):X04}",
-                ["u32@0x14"] = $"0x{rom.u32(a + 20):X08}",
-                ["u32@0x18"] = $"0x{rom.u32(a + 24):X08}",
+                ["u32@0x00_UpPtr"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_DownPtr"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x08_LeftPtr"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@0x0C_RightPtr"] = $"0x{rom.u32(a + 12):X08}",
+                ["u8@0x10_PosX"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11_PosY"] = $"0x{rom.u8(a + 17):X02}",
+                ["u16@0x12_TextId"] = $"0x{rom.u16(a + 18):X04}",
+                ["u32@0x14_LoopRoutine"] = $"0x{rom.u32(a + 20):X08}",
+                ["u32@0x18_GetterRoutine"] = $"0x{rom.u32(a + 24):X08}",
             };
         }
     }

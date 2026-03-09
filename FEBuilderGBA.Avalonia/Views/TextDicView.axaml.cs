@@ -28,7 +28,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
 
-        public void NavigateTo(uint address) { }
+        public void NavigateTo(uint address)
+        {
+            _vm.LoadEntry(address);
+            UpdateUI();
+        }
+
         public void SelectFirstItem() { if (_vm.Entries.Count > 0) ResultList.SelectedIndex = 0; }
+
+        void UpdateUI()
+        {
+            TitleIndexBox.Value = (decimal)_vm.TitleIndex;
+            ChapterIndexBox.Value = (decimal)_vm.ChapterIndex;
+            TextId1Box.Value = (decimal)_vm.TextId1;
+            TextId2Box.Value = (decimal)_vm.TextId2;
+            Flag1Box.Value = (decimal)_vm.Flag1;
+            Flag2Box.Value = (decimal)_vm.Flag2;
+            UnitIdBox.Value = (decimal)_vm.UnitId;
+            ClassIdBox.Value = (decimal)_vm.ClassId;
+        }
     }
 }

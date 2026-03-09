@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.AITilesView"
-        Title="AI Tiles Evaluation" Width="1155" Height="551">
+        Title="AI Tiles Evaluation" Width="800" Height="350">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -10,10 +10,15 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="AI Tiles Evaluation" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Tile:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TileBox" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -7,25 +7,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class SupportTalkViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        uint _unitId1;   // B0
-        uint _unitId2;   // B2
-        uint _textIdC;   // W4
-        uint _textIdB;   // W6
-        uint _textIdA;   // W8
-        uint _w10;       // W10 - song C
-        uint _w12;       // W12 - song B
-        uint _w14;       // W14 - song A
+        uint _supportPartner1;  // B0 - Support Partner 1
+        uint _supportPartner2;  // B2 - Support Partner 2
+        uint _textIdC;          // W4 - C Support Text
+        uint _textIdB;          // W6 - B Support Text
+        uint _textIdA;          // W8 - A Support Text
+        uint _songC;            // W10 - C Support Song
+        uint _songB;            // W12 - B Support Song
+        uint _songA;            // W14 - A Support Song
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public uint UnitId1 { get => _unitId1; set => SetField(ref _unitId1, value); }
-        public uint UnitId2 { get => _unitId2; set => SetField(ref _unitId2, value); }
+        public uint SupportPartner1 { get => _supportPartner1; set => SetField(ref _supportPartner1, value); }
+        public uint SupportPartner2 { get => _supportPartner2; set => SetField(ref _supportPartner2, value); }
         public uint TextIdC { get => _textIdC; set => SetField(ref _textIdC, value); }
         public uint TextIdB { get => _textIdB; set => SetField(ref _textIdB, value); }
         public uint TextIdA { get => _textIdA; set => SetField(ref _textIdA, value); }
-        public uint W10 { get => _w10; set => SetField(ref _w10, value); }
-        public uint W12 { get => _w12; set => SetField(ref _w12, value); }
-        public uint W14 { get => _w14; set => SetField(ref _w14, value); }
+        public uint SongC { get => _songC; set => SetField(ref _songC, value); }
+        public uint SongB { get => _songB; set => SetField(ref _songB, value); }
+        public uint SongA { get => _songA; set => SetField(ref _songA, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         public List<AddrResult> LoadSupportTalkList()
@@ -67,14 +67,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            UnitId1 = rom.u8(addr + 0);
-            UnitId2 = rom.u8(addr + 2);
+            SupportPartner1 = rom.u8(addr + 0);
+            SupportPartner2 = rom.u8(addr + 2);
             TextIdC = rom.u16(addr + 4);
             TextIdB = rom.u16(addr + 6);
             TextIdA = rom.u16(addr + 8);
-            W10 = rom.u16(addr + 10);
-            W12 = rom.u16(addr + 12);
-            W14 = rom.u16(addr + 14);
+            SongC = rom.u16(addr + 10);
+            SongB = rom.u16(addr + 12);
+            SongA = rom.u16(addr + 14);
 
             IsLoaded = true;
         }
@@ -86,14 +86,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  UnitId1);
-            rom.write_u8(a + 2,  UnitId2);
+            rom.write_u8(a + 0,  SupportPartner1);
+            rom.write_u8(a + 2,  SupportPartner2);
             rom.write_u16(a + 4, (uint)TextIdC);
             rom.write_u16(a + 6, (uint)TextIdB);
             rom.write_u16(a + 8, (uint)TextIdA);
-            rom.write_u16(a + 10, (uint)W10);
-            rom.write_u16(a + 12, (uint)W12);
-            rom.write_u16(a + 14, (uint)W14);
+            rom.write_u16(a + 10, (uint)SongC);
+            rom.write_u16(a + 12, (uint)SongB);
+            rom.write_u16(a + 14, (uint)SongA);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;
@@ -103,14 +103,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["UnitId1"] = $"0x{UnitId1:X02}",
-                ["UnitId2"] = $"0x{UnitId2:X02}",
+                ["SupportPartner1"] = $"0x{SupportPartner1:X02}",
+                ["SupportPartner2"] = $"0x{SupportPartner2:X02}",
                 ["TextIdC"] = $"0x{TextIdC:X04}",
                 ["TextIdB"] = $"0x{TextIdB:X04}",
                 ["TextIdA"] = $"0x{TextIdA:X04}",
-                ["W10"] = $"0x{W10:X04}",
-                ["W12"] = $"0x{W12:X04}",
-                ["W14"] = $"0x{W14:X04}",
+                ["SongC"] = $"0x{SongC:X04}",
+                ["SongB"] = $"0x{SongB:X04}",
+                ["SongA"] = $"0x{SongA:X04}",
             };
         }
 
@@ -122,14 +122,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
-                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
-                ["u16@0x0A"] = $"0x{rom.u16(a + 10):X04}",
-                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
-                ["u16@0x0E"] = $"0x{rom.u16(a + 14):X04}",
+                ["SupportPartner1@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["SupportPartner2@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["TextIdC@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["TextIdB@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["TextIdA@0x08"] = $"0x{rom.u16(a + 8):X04}",
+                ["SongC@0x0A"] = $"0x{rom.u16(a + 10):X04}",
+                ["SongB@0x0C"] = $"0x{rom.u16(a + 12):X04}",
+                ["SongA@0x0E"] = $"0x{rom.u16(a + 14):X04}",
             };
         }
     }

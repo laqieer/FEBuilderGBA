@@ -8,20 +8,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _songIndex;
-        uint _headerPointer;
+        uint _songHeaderPointer;
         uint _trackCount;
-        uint _priority, _reverb;
-        uint _d4;
+        uint _headerPriority, _headerReverb;
+        uint _playerType;
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint SongIndex { get => _songIndex; set => SetField(ref _songIndex, value); }
-        public uint HeaderPointer { get => _headerPointer; set => SetField(ref _headerPointer, value); }
+        /// <summary>Pointer to the song header (P0).</summary>
+        public uint SongHeaderPointer { get => _songHeaderPointer; set => SetField(ref _songHeaderPointer, value); }
+        /// <summary>Track count read from the song header (read-only info).</summary>
         public uint TrackCount { get => _trackCount; set => SetField(ref _trackCount, value); }
-        public uint Priority { get => _priority; set => SetField(ref _priority, value); }
-        public uint Reverb { get => _reverb; set => SetField(ref _reverb, value); }
-        // D4: second dword in song table entry
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
+        /// <summary>Priority byte from the song header (read-only info).</summary>
+        public uint HeaderPriority { get => _headerPriority; set => SetField(ref _headerPriority, value); }
+        /// <summary>Reverb byte from the song header (read-only info).</summary>
+        public uint HeaderReverb { get => _headerReverb; set => SetField(ref _headerReverb, value); }
+        /// <summary>Priority / PlayerType for this song table entry (D4).</summary>
+        public uint PlayerType { get => _playerType; set => SetField(ref _playerType, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadSongList()
@@ -59,9 +63,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            uint headerPtr = rom.u32(addr);  // P0
-            D4 = rom.u32(addr + 4);          // D4
-            HeaderPointer = headerPtr;
+            uint headerPtr = rom.u32(addr);        // P0 - Song header pointer
+            PlayerType = rom.u32(addr + 4);         // D4 - Priority(PlayerType)
+            SongHeaderPointer = headerPtr;
 
             if (U.isPointer(headerPtr))
             {
@@ -69,8 +73,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (U.isSafetyOffset(headerAddr) && headerAddr + 7 < (uint)rom.Data.Length)
                 {
                     TrackCount = rom.u8(headerAddr + 0);
-                    Priority = rom.u8(headerAddr + 2);
-                    Reverb = rom.u8(headerAddr + 3);
+                    HeaderPriority = rom.u8(headerAddr + 2);
+                    HeaderReverb = rom.u8(headerAddr + 3);
                 }
             }
 
@@ -83,8 +87,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 7 >= (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr + 0, HeaderPointer);
-            rom.write_u32(CurrentAddr + 4, D4);
+            rom.write_u32(CurrentAddr + 0, SongHeaderPointer);
+            rom.write_u32(CurrentAddr + 4, PlayerType);
         }
 
         public int GetListCount() => LoadSongList().Count;
@@ -94,10 +98,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["HeaderPointer"] = $"0x{HeaderPointer:X08}",
+                ["SongHeaderPointer"] = $"0x{SongHeaderPointer:X08}",
+                ["PlayerType"] = $"0x{PlayerType:X08}",
                 ["TrackCount"] = $"0x{TrackCount:X02}",
-                ["Priority"] = $"0x{Priority:X02}",
-                ["Reverb"] = $"0x{Reverb:X02}",
+                ["HeaderPriority"] = $"0x{HeaderPriority:X02}",
+                ["HeaderReverb"] = $"0x{HeaderReverb:X02}",
             };
         }
 
@@ -109,8 +114,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00_SongHeaderPointer"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_PlayerType"] = $"0x{rom.u32(a + 4):X08}",
             };
 
             // Also report header fields if the pointer is valid
@@ -120,9 +125,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint h = rom.p32(a);
                 if (U.isSafetyOffset(h) && h + 7 < (uint)rom.Data.Length)
                 {
-                    report["u8@0x08"] = $"0x{rom.u8(h + 0):X02}";
-                    report["u8@0x0A"] = $"0x{rom.u8(h + 2):X02}";
-                    report["u8@0x0B"] = $"0x{rom.u8(h + 3):X02}";
+                    report["u8@0x00_TrackCount"] = $"0x{rom.u8(h + 0):X02}";
+                    report["u8@0x02_HeaderPriority"] = $"0x{rom.u8(h + 2):X02}";
+                    report["u8@0x03_HeaderReverb"] = $"0x{rom.u8(h + 3):X02}";
                 }
             }
             return report;

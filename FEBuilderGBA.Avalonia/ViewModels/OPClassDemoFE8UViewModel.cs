@@ -14,39 +14,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         string _unavailableMessage = "";
-        uint _d0;
-        uint _b4;
-        uint _b5;
-        uint _b6;
-        uint _b7;
-        uint _w8;
-        uint _w10;
-        uint _b12;
-        uint _b13;
-        uint _b14;
-        uint _b15;
-        uint _p16;
+        uint _descriptionTextId;
+        uint _displayWeapon;
+        uint _classId;
+        uint _allyEnemyColor;
+        uint _battleAnime;
+        uint _terrainLeft;
+        uint _terrainRight;
+        uint _magicEffect;
+        uint _unknown13;
+        uint _unknown14;
+        uint _animeType;
+        uint _animePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string UnavailableMessage { get => _unavailableMessage; set => SetField(ref _unavailableMessage, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint W8 { get => _w8; set => SetField(ref _w8, value); }
-        public uint W10 { get => _w10; set => SetField(ref _w10, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
-        public uint P16 { get => _p16; set => SetField(ref _p16, value); }
-
-        // Backward-compatible aliases used by the View
-        public uint ClassId => B5;
-        public uint AnimationType => B6;
-        public uint BattleAnime => B7;
+        public uint DescriptionTextId { get => _descriptionTextId; set => SetField(ref _descriptionTextId, value); }
+        public uint DisplayWeapon { get => _displayWeapon; set => SetField(ref _displayWeapon, value); }
+        public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
+        public uint AllyEnemyColor { get => _allyEnemyColor; set => SetField(ref _allyEnemyColor, value); }
+        public uint BattleAnime { get => _battleAnime; set => SetField(ref _battleAnime, value); }
+        public uint TerrainLeft { get => _terrainLeft; set => SetField(ref _terrainLeft, value); }
+        public uint TerrainRight { get => _terrainRight; set => SetField(ref _terrainRight, value); }
+        public uint MagicEffect { get => _magicEffect; set => SetField(ref _magicEffect, value); }
+        public uint Unknown13 { get => _unknown13; set => SetField(ref _unknown13, value); }
+        public uint Unknown14 { get => _unknown14; set => SetField(ref _unknown14, value); }
+        public uint AnimeType { get => _animeType; set => SetField(ref _animeType, value); }
+        public uint AnimePointer { get => _animePointer; set => SetField(ref _animePointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -93,18 +88,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 20 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            W8 = rom.u16(addr + 8);
-            W10 = rom.u16(addr + 10);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            P16 = rom.u32(addr + 16);
+            DescriptionTextId = rom.u32(addr + 0);
+            DisplayWeapon = rom.u8(addr + 4);
+            ClassId = rom.u8(addr + 5);
+            AllyEnemyColor = rom.u8(addr + 6);
+            BattleAnime = rom.u8(addr + 7);
+            TerrainLeft = rom.u16(addr + 8);
+            TerrainRight = rom.u16(addr + 10);
+            MagicEffect = rom.u8(addr + 12);
+            Unknown13 = rom.u8(addr + 13);
+            Unknown14 = rom.u8(addr + 14);
+            AnimeType = rom.u8(addr + 15);
+            AnimePointer = rom.u32(addr + 16);
             CanWrite = true;
         }
 
@@ -113,18 +108,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, D0);
-            rom.write_u8(addr + 4, (byte)B4);
-            rom.write_u8(addr + 5, (byte)B5);
-            rom.write_u8(addr + 6, (byte)B6);
-            rom.write_u8(addr + 7, (byte)B7);
-            rom.write_u16(addr + 8, (ushort)W8);
-            rom.write_u16(addr + 10, (ushort)W10);
-            rom.write_u8(addr + 12, (byte)B12);
-            rom.write_u8(addr + 13, (byte)B13);
-            rom.write_u8(addr + 14, (byte)B14);
-            rom.write_u8(addr + 15, (byte)B15);
-            rom.write_u32(addr + 16, P16);
+            rom.write_u32(addr + 0, DescriptionTextId);
+            rom.write_u8(addr + 4, (byte)DisplayWeapon);
+            rom.write_u8(addr + 5, (byte)ClassId);
+            rom.write_u8(addr + 6, (byte)AllyEnemyColor);
+            rom.write_u8(addr + 7, (byte)BattleAnime);
+            rom.write_u16(addr + 8, (ushort)TerrainLeft);
+            rom.write_u16(addr + 10, (ushort)TerrainRight);
+            rom.write_u8(addr + 12, (byte)MagicEffect);
+            rom.write_u8(addr + 13, (byte)Unknown13);
+            rom.write_u8(addr + 14, (byte)Unknown14);
+            rom.write_u8(addr + 15, (byte)AnimeType);
+            rom.write_u32(addr + 16, AnimePointer);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -134,18 +129,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["W8"] = $"0x{W8:X04}",
-                ["W10"] = $"0x{W10:X04}",
-                ["B12"] = $"0x{B12:X02}",
-                ["B13"] = $"0x{B13:X02}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
-                ["P16"] = $"0x{P16:X08}",
+                ["DescriptionTextId"] = $"0x{DescriptionTextId:X08}",
+                ["DisplayWeapon"] = $"0x{DisplayWeapon:X02}",
+                ["ClassId"] = $"0x{ClassId:X02}",
+                ["AllyEnemyColor"] = $"0x{AllyEnemyColor:X02}",
+                ["BattleAnime"] = $"0x{BattleAnime:X02}",
+                ["TerrainLeft"] = $"0x{TerrainLeft:X04}",
+                ["TerrainRight"] = $"0x{TerrainRight:X04}",
+                ["MagicEffect"] = $"0x{MagicEffect:X02}",
+                ["Unknown13"] = $"0x{Unknown13:X02}",
+                ["Unknown14"] = $"0x{Unknown14:X02}",
+                ["AnimeType"] = $"0x{AnimeType:X02}",
+                ["AnimePointer"] = $"0x{AnimePointer:X08}",
             };
         }
 
@@ -157,18 +152,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
-                ["u16@0x0A"] = $"0x{rom.u16(a + 10):X04}",
-                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
-                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
-                ["u32@0x10"] = $"0x{rom.u32(a + 16):X08}",
+                ["u32@0x00_DescriptionTextId"] = $"0x{rom.u32(a + 0):X08}",
+                ["u8@0x04_DisplayWeapon"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05_ClassId"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06_AllyEnemyColor"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07_BattleAnime"] = $"0x{rom.u8(a + 7):X02}",
+                ["u16@0x08_TerrainLeft"] = $"0x{rom.u16(a + 8):X04}",
+                ["u16@0x0A_TerrainRight"] = $"0x{rom.u16(a + 10):X04}",
+                ["u8@0x0C_MagicEffect"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D_Unknown13"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E_Unknown14"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F_AnimeType"] = $"0x{rom.u8(a + 15):X02}",
+                ["u32@0x10_AnimePointer"] = $"0x{rom.u32(a + 16):X08}",
             };
         }
     }

@@ -54,19 +54,19 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            HeaderBox.Text = $"0x{_vm.HeaderPointer:X08}";
-            D4Box.Value = _vm.D4;
+            HeaderBox.Text = $"0x{_vm.SongHeaderPointer:X08}";
+            PlayerTypeBox.Value = _vm.PlayerType;
             TrackCountLabel.Text = _vm.TrackCount.ToString();
-            PriorityLabel.Text = _vm.Priority.ToString();
-            ReverbLabel.Text = _vm.Reverb.ToString();
+            HeaderPriorityLabel.Text = _vm.HeaderPriority.ToString();
+            HeaderReverbLabel.Text = _vm.HeaderReverb.ToString();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.HeaderPointer = ParseHexText(HeaderBox.Text);
-            _vm.D4 = (uint)(D4Box.Value ?? 0);
+            _vm.SongHeaderPointer = ParseHexText(HeaderBox.Text);
+            _vm.PlayerType = (uint)(PlayerTypeBox.Value ?? 0);
             _vm.WriteSong();
             CoreState.Services.ShowInfo("Song table data written.");
         }

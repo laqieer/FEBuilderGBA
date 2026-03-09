@@ -51,20 +51,20 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
             ClassIdBox.Value = _vm.ClassId;
-            Unknown1Box.Value = _vm.Unknown1;
-            B3Box.Value = _vm.B3;
-            W4Box.Value = _vm.W4;
-            B6Box.Value = _vm.B6;
-            B7Box.Value = _vm.B7;
-            P8Box.Text = $"0x{_vm.P8:X08}";
-            B12Box.Value = _vm.B12;
-            B13Box.Value = _vm.B13;
-            B14Box.Value = _vm.B14;
-            B15Box.Value = _vm.B15;
-            B16Box.Value = _vm.B16;
-            B17Box.Value = _vm.B17;
-            B18Box.Value = _vm.B18;
-            B19Box.Value = _vm.B19;
+            Unknown1Box.Value = _vm.Commander;
+            B3Box.Value = _vm.LevelGrowth;
+            W4Box.Value = _vm.Coordinates;
+            B6Box.Value = _vm.Special;
+            B7Box.Value = _vm.Padding7;
+            P8Box.Text = $"0x{_vm.AIPointer:X08}";
+            B12Box.Value = _vm.Item1;
+            B13Box.Value = _vm.Item2;
+            B14Box.Value = _vm.Item3;
+            B15Box.Value = _vm.Item4;
+            B16Box.Value = _vm.PrimaryAI;
+            B17Box.Value = _vm.SecondaryAI;
+            B18Box.Value = _vm.TargetRecoveryAI;
+            B19Box.Value = _vm.RetreatAI;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -73,20 +73,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
             _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
             _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
-            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
-            _vm.B3 = (uint)(B3Box.Value ?? 0);
-            _vm.W4 = (uint)(W4Box.Value ?? 0);
-            _vm.B6 = (uint)(B6Box.Value ?? 0);
-            _vm.B7 = (uint)(B7Box.Value ?? 0);
-            _vm.P8 = ParseHexText(P8Box.Text);
-            _vm.B12 = (uint)(B12Box.Value ?? 0);
-            _vm.B13 = (uint)(B13Box.Value ?? 0);
-            _vm.B14 = (uint)(B14Box.Value ?? 0);
-            _vm.B15 = (uint)(B15Box.Value ?? 0);
-            _vm.B16 = (uint)(B16Box.Value ?? 0);
-            _vm.B17 = (uint)(B17Box.Value ?? 0);
-            _vm.B18 = (uint)(B18Box.Value ?? 0);
-            _vm.B19 = (uint)(B19Box.Value ?? 0);
+            _vm.Commander = (uint)(Unknown1Box.Value ?? 0);
+            _vm.LevelGrowth = (uint)(B3Box.Value ?? 0);
+            _vm.Coordinates = (uint)(W4Box.Value ?? 0);
+            _vm.Special = (uint)(B6Box.Value ?? 0);
+            _vm.Padding7 = (uint)(B7Box.Value ?? 0);
+            _vm.AIPointer = ParseHexText(P8Box.Text);
+            _vm.Item1 = (uint)(B12Box.Value ?? 0);
+            _vm.Item2 = (uint)(B13Box.Value ?? 0);
+            _vm.Item3 = (uint)(B14Box.Value ?? 0);
+            _vm.Item4 = (uint)(B15Box.Value ?? 0);
+            _vm.PrimaryAI = (uint)(B16Box.Value ?? 0);
+            _vm.SecondaryAI = (uint)(B17Box.Value ?? 0);
+            _vm.TargetRecoveryAI = (uint)(B18Box.Value ?? 0);
+            _vm.RetreatAI = (uint)(B19Box.Value ?? 0);
             _vm.WriteSummonsDemonKing();
             CoreState.Services.ShowInfo("Demon king summon data written.");
         }

@@ -10,8 +10,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _name = "";
         uint _portraitIndex;
         uint _imagePointer, _mapPointer, _palettePointer;
-        uint _d12, _d16;
-        uint _b20, _b21, _b22, _b23, _b24, _b25, _b26, _b27;
+        uint _mouthPointer, _classCardPointer;
+        uint _mouthX, _mouthY, _eyeX, _eyeY, _state, _padding25, _padding26, _padding27;
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -20,16 +20,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint MapPointer { get => _mapPointer; set => SetField(ref _mapPointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
-        public uint D12 { get => _d12; set => SetField(ref _d12, value); }
-        public uint D16 { get => _d16; set => SetField(ref _d16, value); }
-        public uint B20 { get => _b20; set => SetField(ref _b20, value); }
-        public uint B21 { get => _b21; set => SetField(ref _b21, value); }
-        public uint B22 { get => _b22; set => SetField(ref _b22, value); }
-        public uint B23 { get => _b23; set => SetField(ref _b23, value); }
-        public uint B24 { get => _b24; set => SetField(ref _b24, value); }
-        public uint B25 { get => _b25; set => SetField(ref _b25, value); }
-        public uint B26 { get => _b26; set => SetField(ref _b26, value); }
-        public uint B27 { get => _b27; set => SetField(ref _b27, value); }
+        public uint MouthPointer { get => _mouthPointer; set => SetField(ref _mouthPointer, value); }
+        public uint ClassCardPointer { get => _classCardPointer; set => SetField(ref _classCardPointer, value); }
+        public uint MouthX { get => _mouthX; set => SetField(ref _mouthX, value); }
+        public uint MouthY { get => _mouthY; set => SetField(ref _mouthY, value); }
+        public uint EyeX { get => _eyeX; set => SetField(ref _eyeX, value); }
+        public uint EyeY { get => _eyeY; set => SetField(ref _eyeY, value); }
+        public uint State { get => _state; set => SetField(ref _state, value); }
+        public uint Padding25 { get => _padding25; set => SetField(ref _padding25, value); }
+        public uint Padding26 { get => _padding26; set => SetField(ref _padding26, value); }
+        public uint Padding27 { get => _padding27; set => SetField(ref _padding27, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadPortraitList()
@@ -89,16 +89,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ImagePointer = rom.u32(addr + 0);
             MapPointer = rom.u32(addr + 4);
             PalettePointer = rom.u32(addr + 8);
-            D12 = rom.u32(addr + 12);
-            D16 = rom.u32(addr + 16);
-            B20 = rom.u8(addr + 20);
-            B21 = rom.u8(addr + 21);
-            B22 = rom.u8(addr + 22);
-            B23 = rom.u8(addr + 23);
-            B24 = rom.u8(addr + 24);
-            B25 = rom.u8(addr + 25);
-            B26 = rom.u8(addr + 26);
-            B27 = rom.u8(addr + 27);
+            MouthPointer = rom.u32(addr + 12);
+            ClassCardPointer = rom.u32(addr + 16);
+            MouthX = rom.u8(addr + 20);
+            MouthY = rom.u8(addr + 21);
+            EyeX = rom.u8(addr + 22);
+            EyeY = rom.u8(addr + 23);
+            State = rom.u8(addr + 24);
+            Padding25 = rom.u8(addr + 25);
+            Padding26 = rom.u8(addr + 26);
+            Padding27 = rom.u8(addr + 27);
             Name = $"Portrait at 0x{addr:X08}";
             CanWrite = true;
         }
@@ -111,16 +111,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 0, ImagePointer);
             rom.write_u32(addr + 4, MapPointer);
             rom.write_u32(addr + 8, PalettePointer);
-            rom.write_u32(addr + 12, D12);
-            rom.write_u32(addr + 16, D16);
-            rom.write_u8(addr + 20, (byte)B20);
-            rom.write_u8(addr + 21, (byte)B21);
-            rom.write_u8(addr + 22, (byte)B22);
-            rom.write_u8(addr + 23, (byte)B23);
-            rom.write_u8(addr + 24, (byte)B24);
-            rom.write_u8(addr + 25, (byte)B25);
-            rom.write_u8(addr + 26, (byte)B26);
-            rom.write_u8(addr + 27, (byte)B27);
+            rom.write_u32(addr + 12, MouthPointer);
+            rom.write_u32(addr + 16, ClassCardPointer);
+            rom.write_u8(addr + 20, (byte)MouthX);
+            rom.write_u8(addr + 21, (byte)MouthY);
+            rom.write_u8(addr + 22, (byte)EyeX);
+            rom.write_u8(addr + 23, (byte)EyeY);
+            rom.write_u8(addr + 24, (byte)State);
+            rom.write_u8(addr + 25, (byte)Padding25);
+            rom.write_u8(addr + 26, (byte)Padding26);
+            rom.write_u8(addr + 27, (byte)Padding27);
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 return PortraitRendererCore.DrawPortraitUnit(
                     ImagePointer, PalettePointer,
-                    (byte)B22, (byte)B23, (byte)B24);
+                    (byte)EyeX, (byte)EyeY, (byte)State);
             }
             catch
             {
@@ -170,9 +170,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                // D16 is the class face pointer
-                if (!U.isPointer(D16)) return null;
-                return PortraitRendererCore.DrawPortraitClass(D16, PalettePointer);
+                // ClassCardPointer is the class face pointer
+                if (!U.isPointer(ClassCardPointer)) return null;
+                return PortraitRendererCore.DrawPortraitClass(ClassCardPointer, PalettePointer);
             }
             catch
             {
@@ -200,16 +200,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["ImagePointer"] = $"0x{ImagePointer:X08}",
                 ["MapPointer"] = $"0x{MapPointer:X08}",
                 ["PalettePointer"] = $"0x{PalettePointer:X08}",
-                ["D12"] = $"0x{D12:X08}",
-                ["D16"] = $"0x{D16:X08}",
-                ["B20"] = $"0x{B20:X02}",
-                ["B21"] = $"0x{B21:X02}",
-                ["B22"] = $"0x{B22:X02}",
-                ["B23"] = $"0x{B23:X02}",
-                ["B24"] = $"0x{B24:X02}",
-                ["B25"] = $"0x{B25:X02}",
-                ["B26"] = $"0x{B26:X02}",
-                ["B27"] = $"0x{B27:X02}",
+                ["D12_MouthPointer"] = $"0x{MouthPointer:X08}",
+                ["D16_ClassCardPointer"] = $"0x{ClassCardPointer:X08}",
+                ["B20_MouthX"] = $"0x{MouthX:X02}",
+                ["B21_MouthY"] = $"0x{MouthY:X02}",
+                ["B22_EyeX"] = $"0x{EyeX:X02}",
+                ["B23_EyeY"] = $"0x{EyeY:X02}",
+                ["B24_State"] = $"0x{State:X02}",
+                ["B25_Padding"] = $"0x{Padding25:X02}",
+                ["B26_Padding"] = $"0x{Padding26:X02}",
+                ["B27_Padding"] = $"0x{Padding27:X02}",
             };
         }
 

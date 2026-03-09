@@ -8,18 +8,20 @@
     <!-- Current name row (WinForms label1 95x18 + CurrentName 599x25) -->
     <Grid ColumnDefinitions="Auto,8,*">
       <TextBlock Grid.Column="0" Text="Current Name:" VerticalAlignment="Center" Width="95" />
-      <TextBox Grid.Column="2" Name="CurrentNameTextBox" IsReadOnly="True" />
+      <TextBox Grid.Column="2" Text="{Binding CurrentName}" IsReadOnly="True" />
     </Grid>
-    <!-- New name row (WinForms label2 90x18 + NewName 599x25) -->
+    <!-- New name row (WinForms label2 + NewName TextBoxEx editable) -->
     <Grid ColumnDefinitions="Auto,8,*">
       <TextBlock Grid.Column="0" Text="New Name:" VerticalAlignment="Center" Width="95" />
-      <TextBox Grid.Column="2" Name="NewNameTextBox" Watermark="Enter new project name" />
+      <TextBox Grid.Column="2" Text="{Binding NewName}" Watermark="Enter new project name" />
     </Grid>
     <!-- Change button (WinForms ChangeButton 344x42 right-aligned) -->
-    <Button Name="ChangeButton" Content="Change Project Name" Width="344" Height="42"
+    <Button Content="Change Project Name" Width="344" Height="42"
             HorizontalAlignment="Right" Click="OK_Click" />
-    <!-- Help text (WinForms textBox1 745x88 readonly multiline) -->
-    <TextBox Name="HelpTextBox" Height="88" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
-             Text="Safely renames the project files.&#x0a;Past backup names will also be updated." />
+    <!-- Status message -->
+    <TextBlock Text="{Binding StatusMessage}" Foreground="Red" />
+    <!-- Help text (WinForms textBox1 readonly multiline) -->
+    <TextBox Height="88" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+             Text="{Binding HelpText}" />
   </StackPanel>
 </Window>

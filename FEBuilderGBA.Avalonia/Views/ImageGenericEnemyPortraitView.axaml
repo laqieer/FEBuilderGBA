@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageGenericEnemyPortraitView"
-        Title="Generic Enemy Portraits" Width="1081" Height="573">
+        Title="Generic Enemy Portraits" Width="800" Height="400">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -10,9 +10,14 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Generic Enemy Portraits" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
+          <!-- Row 0: Address -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 1: Image Pointer (D0) -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

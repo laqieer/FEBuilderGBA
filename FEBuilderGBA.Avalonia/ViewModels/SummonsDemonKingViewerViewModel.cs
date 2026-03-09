@@ -10,12 +10,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _canWrite;
         uint _unitId;
         uint _classId;
-        uint _unknown1;
-        uint _b3;
-        uint _w4;
-        uint _b6, _b7;
-        uint _p8;
-        uint _b12, _b13, _b14, _b15, _b16, _b17, _b18, _b19;
+        uint _commander;
+        uint _levelGrowth;
+        uint _coordinates;
+        uint _special, _padding7;
+        uint _aiPointer;
+        uint _item1, _item2, _item3, _item4;
+        uint _primaryAI, _secondaryAI, _targetRecoveryAI, _retreatAI;
         uint _unitGrow;
         uint _level;
 
@@ -23,20 +24,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
-        public uint Unknown1 { get => _unknown1; set => SetField(ref _unknown1, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
-        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
-        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
-        public uint B18 { get => _b18; set => SetField(ref _b18, value); }
-        public uint B19 { get => _b19; set => SetField(ref _b19, value); }
+        public uint Commander { get => _commander; set => SetField(ref _commander, value); }
+        public uint LevelGrowth { get => _levelGrowth; set => SetField(ref _levelGrowth, value); }
+        public uint Coordinates { get => _coordinates; set => SetField(ref _coordinates, value); }
+        public uint Special { get => _special; set => SetField(ref _special, value); }
+        public uint Padding7 { get => _padding7; set => SetField(ref _padding7, value); }
+        public uint AIPointer { get => _aiPointer; set => SetField(ref _aiPointer, value); }
+        public uint Item1 { get => _item1; set => SetField(ref _item1, value); }
+        public uint Item2 { get => _item2; set => SetField(ref _item2, value); }
+        public uint Item3 { get => _item3; set => SetField(ref _item3, value); }
+        public uint Item4 { get => _item4; set => SetField(ref _item4, value); }
+        public uint PrimaryAI { get => _primaryAI; set => SetField(ref _primaryAI, value); }
+        public uint SecondaryAI { get => _secondaryAI; set => SetField(ref _secondaryAI, value); }
+        public uint TargetRecoveryAI { get => _targetRecoveryAI; set => SetField(ref _targetRecoveryAI, value); }
+        public uint RetreatAI { get => _retreatAI; set => SetField(ref _retreatAI, value); }
         public uint UnitGrow { get => _unitGrow; set => SetField(ref _unitGrow, value); }
         public uint Level { get => _level; set => SetField(ref _level, value); }
 
@@ -90,20 +91,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             UnitId = rom.u8(addr + 0);
             ClassId = rom.u8(addr + 1);
-            Unknown1 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            W4 = rom.u16(addr + 4);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            P8 = rom.u32(addr + 8);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
-            B18 = rom.u8(addr + 18);
-            B19 = rom.u8(addr + 19);
+            Commander = rom.u8(addr + 2);
+            LevelGrowth = rom.u8(addr + 3);
+            Coordinates = rom.u16(addr + 4);
+            Special = rom.u8(addr + 6);
+            Padding7 = rom.u8(addr + 7);
+            AIPointer = rom.u32(addr + 8);
+            Item1 = rom.u8(addr + 12);
+            Item2 = rom.u8(addr + 13);
+            Item3 = rom.u8(addr + 14);
+            Item4 = rom.u8(addr + 15);
+            PrimaryAI = rom.u8(addr + 16);
+            SecondaryAI = rom.u8(addr + 17);
+            TargetRecoveryAI = rom.u8(addr + 18);
+            RetreatAI = rom.u8(addr + 19);
             UnitGrow = rom.u16(addr + 3);
             Level = U.ParseUnitGrowLV(UnitGrow);
             CanWrite = true;
@@ -117,20 +118,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             rom.write_u8(CurrentAddr + 0, (byte)UnitId);
             rom.write_u8(CurrentAddr + 1, (byte)ClassId);
-            rom.write_u8(CurrentAddr + 2, (byte)Unknown1);
-            rom.write_u8(CurrentAddr + 3, (byte)B3);
-            rom.write_u16(CurrentAddr + 4, (ushort)W4);
-            rom.write_u8(CurrentAddr + 6, (byte)B6);
-            rom.write_u8(CurrentAddr + 7, (byte)B7);
-            rom.write_u32(CurrentAddr + 8, P8);
-            rom.write_u8(CurrentAddr + 12, (byte)B12);
-            rom.write_u8(CurrentAddr + 13, (byte)B13);
-            rom.write_u8(CurrentAddr + 14, (byte)B14);
-            rom.write_u8(CurrentAddr + 15, (byte)B15);
-            rom.write_u8(CurrentAddr + 16, (byte)B16);
-            rom.write_u8(CurrentAddr + 17, (byte)B17);
-            rom.write_u8(CurrentAddr + 18, (byte)B18);
-            rom.write_u8(CurrentAddr + 19, (byte)B19);
+            rom.write_u8(CurrentAddr + 2, (byte)Commander);
+            rom.write_u8(CurrentAddr + 3, (byte)LevelGrowth);
+            rom.write_u16(CurrentAddr + 4, (ushort)Coordinates);
+            rom.write_u8(CurrentAddr + 6, (byte)Special);
+            rom.write_u8(CurrentAddr + 7, (byte)Padding7);
+            rom.write_u32(CurrentAddr + 8, AIPointer);
+            rom.write_u8(CurrentAddr + 12, (byte)Item1);
+            rom.write_u8(CurrentAddr + 13, (byte)Item2);
+            rom.write_u8(CurrentAddr + 14, (byte)Item3);
+            rom.write_u8(CurrentAddr + 15, (byte)Item4);
+            rom.write_u8(CurrentAddr + 16, (byte)PrimaryAI);
+            rom.write_u8(CurrentAddr + 17, (byte)SecondaryAI);
+            rom.write_u8(CurrentAddr + 18, (byte)TargetRecoveryAI);
+            rom.write_u8(CurrentAddr + 19, (byte)RetreatAI);
         }
 
         public int GetListCount() => LoadSummonsDemonKingList().Count;
@@ -142,20 +143,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["UnitId"] = $"0x{UnitId:X02}",
                 ["ClassId"] = $"0x{ClassId:X02}",
-                ["Unknown1"] = $"0x{Unknown1:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["W4"] = $"0x{W4:X04}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["P8"] = $"0x{P8:X08}",
-                ["B12"] = $"0x{B12:X02}",
-                ["B13"] = $"0x{B13:X02}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
-                ["B16"] = $"0x{B16:X02}",
-                ["B17"] = $"0x{B17:X02}",
-                ["B18"] = $"0x{B18:X02}",
-                ["B19"] = $"0x{B19:X02}",
+                ["B2_Commander"] = $"0x{Commander:X02}",
+                ["B3_LevelGrowth"] = $"0x{LevelGrowth:X02}",
+                ["W4_Coordinates"] = $"0x{Coordinates:X04}",
+                ["B6_Special"] = $"0x{Special:X02}",
+                ["B7_Padding"] = $"0x{Padding7:X02}",
+                ["P8_AIPointer"] = $"0x{AIPointer:X08}",
+                ["B12_Item1"] = $"0x{Item1:X02}",
+                ["B13_Item2"] = $"0x{Item2:X02}",
+                ["B14_Item3"] = $"0x{Item3:X02}",
+                ["B15_Item4"] = $"0x{Item4:X02}",
+                ["B16_PrimaryAI"] = $"0x{PrimaryAI:X02}",
+                ["B17_SecondaryAI"] = $"0x{SecondaryAI:X02}",
+                ["B18_TargetRecoveryAI"] = $"0x{TargetRecoveryAI:X02}",
+                ["B19_RetreatAI"] = $"0x{RetreatAI:X02}",
                 ["UnitGrow"] = $"0x{UnitGrow:X04}",
                 ["Level"] = $"0x{Level:X08}",
             };

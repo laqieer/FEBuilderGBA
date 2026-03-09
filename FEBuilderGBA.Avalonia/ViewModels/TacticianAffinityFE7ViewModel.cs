@@ -6,20 +6,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
     /// Tactician affinity editor (FE7 only).
-    /// Record size: 4 bytes. D0 = affinity ID (u32@0).
-    /// B4 = linked display field (index+1), read as u8@4 for completeness.
+    /// WinForms: TacticianAffinityFE7 — record size 4 bytes.
+    /// D0 / L_0_ATTRIBUTE = Affinity ID (u32@0).
+    /// B4 / L_4_ID_PLUS1 = Index+1 display field.
+    /// L_0_TEXT_NAME1 = unit name, L_2_TEXT_DETAIL3 = detail text, L_5_CLASS = class name.
+    /// L_0_ATTRIBUTEICON = affinity icon, Explain = birth month / blood type description.
     /// </summary>
     public class TacticianAffinityFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        byte _b4;
+        uint _affinityId;
+        byte _indexPlus1;
+        string _affinityName = "";
+        string _explanation = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public byte B4 { get => _b4; set => SetField(ref _b4, value); }
+
+        /// <summary>Affinity ID (u32@0). WinForms: D0 / L_0_ATTRIBUTE.</summary>
+        public uint AffinityId { get => _affinityId; set => SetField(ref _affinityId, value); }
+
+        /// <summary>Index+1 field (u8@4). WinForms: B4 inside L_4_ID_PLUS1 panel.</summary>
+        public byte IndexPlus1 { get => _indexPlus1; set => SetField(ref _indexPlus1, value); }
+
+        /// <summary>Resolved affinity name. WinForms: L_0_ATTRIBUTE label text.</summary>
+        public string AffinityName { get => _affinityName; set => SetField(ref _affinityName, value); }
+
+        /// <summary>Birth month / blood type explanation. WinForms: Explain TextBox.</summary>
+        public string Explanation { get => _explanation; set => SetField(ref _explanation, value); }
+
+        // Legacy aliases for backward compat
+        public uint D0 { get => AffinityId; set => AffinityId = value; }
+        public byte B4 { get => IndexPlus1; set => IndexPlus1 = value; }
 
         public List<AddrResult> LoadList()
         {
@@ -50,12 +69,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 5 > (uint)rom.Data.Length) return;
+            if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            B4 = (byte)rom.u8(addr + 4);
+            AffinityId = rom.u32(addr + 0);
+            // B4 is at addr+4 but may be outside this record for some layouts
+            if (addr + 5 <= (uint)rom.Data.Length)
+                IndexPlus1 = (byte)rom.u8(addr + 4);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr + 0, AffinityId);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -65,8 +95,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["B4"] = $"0x{B4:X02}",
+                ["AffinityId"] = $"0x{AffinityId:X08}",
+                ["IndexPlus1"] = $"0x{IndexPlus1:X02}",
+                ["AffinityName"] = AffinityName,
             };
         }
 

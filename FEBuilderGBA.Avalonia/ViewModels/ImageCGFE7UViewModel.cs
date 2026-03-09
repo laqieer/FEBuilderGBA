@@ -10,26 +10,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0, _b1, _b2, _b3;
-        uint _p4, _p8, _p12;
+        uint _imageType, _reserved1, _reserved2, _reserved3;
+        uint _splitImagePtr, _tsaPtr, _palettePtr;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        // B0
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        // B1
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        // B2
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        // B3
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        // P4: Image data pointer
-        public uint P4 { get => _p4; set => SetField(ref _p4, value); }
-        // P8: Palette pointer
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
-        // P12: TSA pointer
-        public uint P12 { get => _p12; set => SetField(ref _p12, value); }
+        // B0: Image type (0=Single, 1=10-Split)
+        public uint ImageType { get => _imageType; set => SetField(ref _imageType, value); }
+        // B1: Reserved
+        public uint Reserved1 { get => _reserved1; set => SetField(ref _reserved1, value); }
+        // B2: Reserved
+        public uint Reserved2 { get => _reserved2; set => SetField(ref _reserved2, value); }
+        // B3: Reserved
+        public uint Reserved3 { get => _reserved3; set => SetField(ref _reserved3, value); }
+        // P4: 10-Split image data pointer
+        public uint SplitImagePtr { get => _splitImagePtr; set => SetField(ref _splitImagePtr, value); }
+        // P8: TSA (Tile Screen Arrangement) pointer
+        public uint TSAPtr { get => _tsaPtr; set => SetField(ref _tsaPtr, value); }
+        // P12: Palette data pointer
+        public uint PalettePtr { get => _palettePtr; set => SetField(ref _palettePtr, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -49,15 +49,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            P4 = rom.u32(addr + 4);
-            P8 = rom.u32(addr + 8);
-            P12 = rom.u32(addr + 12);
+            ImageType = rom.u8(addr + 0);
+            Reserved1 = rom.u8(addr + 1);
+            Reserved2 = rom.u8(addr + 2);
+            Reserved3 = rom.u8(addr + 3);
+            SplitImagePtr = rom.u32(addr + 4);
+            TSAPtr = rom.u32(addr + 8);
+            PalettePtr = rom.u32(addr + 12);
 
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + SIZE > (uint)rom.Data.Length) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, ImageType);
+            rom.write_u8(addr + 1, Reserved1);
+            rom.write_u8(addr + 2, Reserved2);
+            rom.write_u8(addr + 3, Reserved3);
+            rom.write_u32(addr + 4, SplitImagePtr);
+            rom.write_u32(addr + 8, TSAPtr);
+            rom.write_u32(addr + 12, PalettePtr);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -67,13 +83,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["P4"] = $"0x{P4:X08}",
-                ["P8"] = $"0x{P8:X08}",
-                ["P12"] = $"0x{P12:X08}",
+                ["ImageType"] = $"0x{ImageType:X02}",
+                ["Reserved1"] = $"0x{Reserved1:X02}",
+                ["Reserved2"] = $"0x{Reserved2:X02}",
+                ["Reserved3"] = $"0x{Reserved3:X02}",
+                ["SplitImagePtr"] = $"0x{SplitImagePtr:X08}",
+                ["TSAPtr"] = $"0x{TSAPtr:X08}",
+                ["PalettePtr"] = $"0x{PalettePtr:X08}",
             };
         }
 
@@ -86,13 +102,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@1"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@2"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@3"] = $"0x{rom.u8(a + 3):X02}",
-                ["u32@4"] = $"0x{rom.u32(a + 4):X08}",
-                ["u32@8"] = $"0x{rom.u32(a + 8):X08}",
-                ["u32@12"] = $"0x{rom.u32(a + 12):X08}",
+                ["u8@0_ImageType"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@1_Reserved1"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@2_Reserved2"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@3_Reserved3"] = $"0x{rom.u8(a + 3):X02}",
+                ["u32@4_SplitImagePtr"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@8_TSAPtr"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@12_PalettePtr"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
     }

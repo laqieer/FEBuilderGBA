@@ -6,8 +6,9 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemStatBonusesSkillSystemsView : Window, IEditorView
+    public partial class ItemStatBonusesSkillSystemsView : Window, IEditorView, IDataVerifiableView
     {
+        public ViewModelBase? DataViewModel => _vm;
         readonly ItemStatBonusesSkillSystemsViewModel _vm = new();
 
         public string ViewTitle => "Stat Bonuses (Skill Systems)";
@@ -48,7 +49,62 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+
+            // Stat bonuses
+            HPBox.Value = _vm.HP;
+            StrBox.Value = _vm.Str;
+            SkillBox.Value = _vm.Skill;
+            SpeedBox.Value = _vm.Speed;
+            DefBox.Value = _vm.Def;
+            ResBox.Value = _vm.Res;
+            LuckBox.Value = _vm.Luck;
+            MoveBox.Value = _vm.Move;
+            ConBox.Value = _vm.Con;
+            MagicOrUnknownBox.Value = _vm.MagicOrUnknown;
+
+            // Growth rate bonuses
+            GrowHPBox.Value = _vm.GrowHP;
+            GrowStrBox.Value = _vm.GrowStr;
+            GrowSkillBox.Value = _vm.GrowSkill;
+            GrowSpeedBox.Value = _vm.GrowSpeed;
+            GrowDefBox.Value = _vm.GrowDef;
+            GrowResBox.Value = _vm.GrowRes;
+            GrowLuckBox.Value = _vm.GrowLuck;
+            GrowUnknownBox.Value = _vm.GrowUnknown;
+
+            // Padding
+            Padding1Box.Value = _vm.Padding1;
+            Padding2Box.Value = _vm.Padding2;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.HP = (int)(HPBox.Value ?? 0);
+            _vm.Str = (int)(StrBox.Value ?? 0);
+            _vm.Skill = (int)(SkillBox.Value ?? 0);
+            _vm.Speed = (int)(SpeedBox.Value ?? 0);
+            _vm.Def = (int)(DefBox.Value ?? 0);
+            _vm.Res = (int)(ResBox.Value ?? 0);
+            _vm.Luck = (int)(LuckBox.Value ?? 0);
+            _vm.Move = (int)(MoveBox.Value ?? 0);
+            _vm.Con = (int)(ConBox.Value ?? 0);
+            _vm.MagicOrUnknown = (int)(MagicOrUnknownBox.Value ?? 0);
+
+            _vm.GrowHP = (int)(GrowHPBox.Value ?? 0);
+            _vm.GrowStr = (int)(GrowStrBox.Value ?? 0);
+            _vm.GrowSkill = (int)(GrowSkillBox.Value ?? 0);
+            _vm.GrowSpeed = (int)(GrowSpeedBox.Value ?? 0);
+            _vm.GrowDef = (int)(GrowDefBox.Value ?? 0);
+            _vm.GrowRes = (int)(GrowResBox.Value ?? 0);
+            _vm.GrowLuck = (int)(GrowLuckBox.Value ?? 0);
+            _vm.GrowUnknown = (int)(GrowUnknownBox.Value ?? 0);
+
+            _vm.Padding1 = (int)(Padding1Box.Value ?? 0);
+            _vm.Padding2 = (int)(Padding2Box.Value ?? 0);
+
+            _vm.Write();
+            CoreState.Services.ShowInfo("Stat Bonuses (Skill Systems) data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

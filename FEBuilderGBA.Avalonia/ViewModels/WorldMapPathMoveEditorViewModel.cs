@@ -16,15 +16,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        uint _w4;
-        uint _w6;
+        uint _elapsedTime;
+        uint _coordinateX;
+        uint _coordinateY;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
+
+        /// <summary>D0: Elapsed time / duration at this node (lower = longer pause, total across all nodes must be &lt;= 4096)</summary>
+        public uint ElapsedTime { get => _elapsedTime; set => SetField(ref _elapsedTime, value); }
+        /// <summary>W4: X coordinate on world map</summary>
+        public uint CoordinateX { get => _coordinateX; set => SetField(ref _coordinateX, value); }
+        /// <summary>W6: Y coordinate on world map</summary>
+        public uint CoordinateY { get => _coordinateY; set => SetField(ref _coordinateY, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -33,10 +37,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
+            ElapsedTime = rom.u32(addr + 0);
+            CoordinateX = rom.u16(addr + 4);
+            CoordinateY = rom.u16(addr + 6);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 8 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(addr + 0, ElapsedTime);
+            rom.write_u16(addr + 4, (ushort)CoordinateX);
+            rom.write_u16(addr + 6, (ushort)CoordinateY);
         }
 
         public int GetListCount() => 0;
@@ -46,9 +62,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["W4"] = $"0x{W4:X04}",
-                ["W6"] = $"0x{W6:X04}",
+                ["ElapsedTime"] = $"0x{ElapsedTime:X08}",
+                ["CoordinateX"] = $"0x{CoordinateX:X04}",
+                ["CoordinateY"] = $"0x{CoordinateY:X04}",
             };
         }
 
@@ -60,9 +76,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["ElapsedTime@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["CoordinateX@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["CoordinateY@0x06"] = $"0x{rom.u16(a + 6):X04}",
             };
         }
     }

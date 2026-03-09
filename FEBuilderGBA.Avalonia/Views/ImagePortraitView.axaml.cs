@@ -48,7 +48,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            PortraitImagePtrLabel.Text = $"0x{_vm.PortraitImagePtr:X08}";
+            MiniPortraitPtrLabel.Text = $"0x{_vm.MiniPortraitPtr:X08}";
+            PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
+            MouthFramesPtrLabel.Text = $"0x{_vm.MouthFramesPtr:X08}";
+            ClassCardPtrLabel.Text = $"0x{_vm.ClassCardPtr:X08}";
+            MouthXLabel.Text = _vm.MouthX.ToString();
+            MouthYLabel.Text = _vm.MouthY.ToString();
+            EyeXLabel.Text = _vm.EyeX.ToString();
+            EyeYLabel.Text = _vm.EyeY.ToString();
+            StatusLabel.Text = $"0x{_vm.Status:X02}";
+            Unused25Label.Text = $"0x{_vm.Unused25:X02}";
+            Unused26Label.Text = $"0x{_vm.Unused26:X02}";
+            Unused27Label.Text = $"0x{_vm.Unused27:X02}";
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -50,34 +50,36 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            B0Box.Value = _vm.B0;
-            B1Box.Value = _vm.B1;
-            B2Box.Value = _vm.B2;
-            B3Box.Value = _vm.B3;
-            D4Box.Text = $"0x{_vm.D4:X08}";
-            HandlerPtrBox.Text = $"0x{_vm.HandlerPtr:X08}";
-            P12Box.Text = $"0x{_vm.P12:X08}";
-            P16Box.Text = $"0x{_vm.P16:X08}";
-            P20Box.Text = $"0x{_vm.P20:X08}";
-            P24Box.Text = $"0x{_vm.P24:X08}";
-            P28Box.Text = $"0x{_vm.P28:X08}";
+            PosXBox.Value = _vm.PosX;
+            PosYBox.Value = _vm.PosY;
+            WidthBox.Value = _vm.Width;
+            HeightBox.Value = _vm.Height;
+            StyleDataBox.Text = $"0x{_vm.StyleData:X08}";
+            MenuCommandPtrBox.Text = $"0x{_vm.MenuCommandPtr:X08}";
+            OnInitBox.Text = $"0x{_vm.OnInitRoutine:X08}";
+            OnEndBox.Text = $"0x{_vm.OnEndRoutine:X08}";
+            UnknownBox.Text = $"0x{_vm.UnknownRoutine:X08}";
+            OnBPressBox.Text = $"0x{_vm.OnBPressRoutine:X08}";
+            OnRPressBox.Text = $"0x{_vm.OnRPressRoutine:X08}";
+            OnHelpBoxBox.Text = $"0x{_vm.OnHelpBoxRoutine:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.B0 = (uint)(B0Box.Value ?? 0);
-            _vm.B1 = (uint)(B1Box.Value ?? 0);
-            _vm.B2 = (uint)(B2Box.Value ?? 0);
-            _vm.B3 = (uint)(B3Box.Value ?? 0);
-            _vm.D4 = ParseHexText(D4Box.Text);
-            _vm.HandlerPtr = ParseHexText(HandlerPtrBox.Text);
-            _vm.P12 = ParseHexText(P12Box.Text);
-            _vm.P16 = ParseHexText(P16Box.Text);
-            _vm.P20 = ParseHexText(P20Box.Text);
-            _vm.P24 = ParseHexText(P24Box.Text);
-            _vm.P28 = ParseHexText(P28Box.Text);
+            _vm.PosX = (uint)(PosXBox.Value ?? 0);
+            _vm.PosY = (uint)(PosYBox.Value ?? 0);
+            _vm.Width = (uint)(WidthBox.Value ?? 0);
+            _vm.Height = (uint)(HeightBox.Value ?? 0);
+            _vm.StyleData = ParseHexText(StyleDataBox.Text);
+            _vm.MenuCommandPtr = ParseHexText(MenuCommandPtrBox.Text);
+            _vm.OnInitRoutine = ParseHexText(OnInitBox.Text);
+            _vm.OnEndRoutine = ParseHexText(OnEndBox.Text);
+            _vm.UnknownRoutine = ParseHexText(UnknownBox.Text);
+            _vm.OnBPressRoutine = ParseHexText(OnBPressBox.Text);
+            _vm.OnRPressRoutine = ParseHexText(OnRPressBox.Text);
+            _vm.OnHelpBoxRoutine = ParseHexText(OnHelpBoxBox.Text);
             _vm.WriteMenuDefinition();
             CoreState.Services?.ShowInfo("Menu definition data written.");
         }

@@ -8,18 +8,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _w0, _w2;
-        uint _p4, _p8, _p12, _p16;
+        uint _textDetail, _palette;
+        uint _unitSkillPointer, _classSkillPointer, _weaponItemSkillPointer, _heldItemSkillPointer;
         string _statusMessage = "Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
-        public uint P4 { get => _p4; set => SetField(ref _p4, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
-        public uint P12 { get => _p12; set => SetField(ref _p12, value); }
-        public uint P16 { get => _p16; set => SetField(ref _p16, value); }
+        public uint TextDetail { get => _textDetail; set => SetField(ref _textDetail, value); }
+        public uint Palette { get => _palette; set => SetField(ref _palette, value); }
+        public uint UnitSkillPointer { get => _unitSkillPointer; set => SetField(ref _unitSkillPointer, value); }
+        public uint ClassSkillPointer { get => _classSkillPointer; set => SetField(ref _classSkillPointer, value); }
+        public uint WeaponItemSkillPointer { get => _weaponItemSkillPointer; set => SetField(ref _weaponItemSkillPointer, value); }
+        public uint HeldItemSkillPointer { get => _heldItemSkillPointer; set => SetField(ref _heldItemSkillPointer, value); }
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
         public void LoadEntry(uint addr)
@@ -28,13 +28,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 20 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
-            P4 = rom.u32(addr + 4);
-            P8 = rom.u32(addr + 8);
-            P12 = rom.u32(addr + 12);
-            P16 = rom.u32(addr + 16);
+            TextDetail = rom.u16(addr + 0);
+            Palette = rom.u16(addr + 2);
+            UnitSkillPointer = rom.u32(addr + 4);
+            ClassSkillPointer = rom.u32(addr + 8);
+            WeaponItemSkillPointer = rom.u32(addr + 12);
+            HeldItemSkillPointer = rom.u32(addr + 16);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u16(addr + 0, TextDetail);
+            rom.write_u16(addr + 2, Palette);
+            rom.write_u32(addr + 4, UnitSkillPointer);
+            rom.write_u32(addr + 8, ClassSkillPointer);
+            rom.write_u32(addr + 12, WeaponItemSkillPointer);
+            rom.write_u32(addr + 16, HeldItemSkillPointer);
         }
 
         public void Initialize() { IsLoaded = true; }
@@ -45,12 +59,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
-                ["W2"] = $"0x{W2:X04}",
-                ["P4"] = $"0x{P4:X08}",
-                ["P8"] = $"0x{P8:X08}",
-                ["P12"] = $"0x{P12:X08}",
-                ["P16"] = $"0x{P16:X08}",
+                ["TextDetail"] = $"0x{TextDetail:X04}",
+                ["Palette"] = $"0x{Palette:X04}",
+                ["UnitSkillPointer"] = $"0x{UnitSkillPointer:X08}",
+                ["ClassSkillPointer"] = $"0x{ClassSkillPointer:X08}",
+                ["WeaponItemSkillPointer"] = $"0x{WeaponItemSkillPointer:X08}",
+                ["HeldItemSkillPointer"] = $"0x{HeldItemSkillPointer:X08}",
             };
         }
 

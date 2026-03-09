@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OK_Click(object? sender, RoutedEventArgs e)
         {
             _vm.RefId = (int)(RefIdInput.Value ?? 0);
-            _vm.RefText = RefTextInput.Text ?? "";
+            _vm.Comment = RefTextInput.Text ?? "";
             Close(_vm);
         }
 

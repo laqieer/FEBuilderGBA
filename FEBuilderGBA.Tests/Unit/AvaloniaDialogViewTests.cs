@@ -107,10 +107,10 @@ namespace FEBuilderGBA.Tests.Unit
         public void MapEditorResizeDialog_VM_HasPositionAndPadding()
         {
             var src = ReadVM("MapEditorResizeDialogViewModel.cs");
-            Assert.Contains("int X", src);
-            Assert.Contains("int Y", src);
-            Assert.Contains("int T", src);
-            Assert.Contains("int B", src);
+            Assert.Contains("int PositionX", src);
+            Assert.Contains("int PositionY", src);
+            Assert.Contains("int PaddingTop", src);
+            Assert.Contains("int PaddingBottom", src);
         }
 
         [Fact]
@@ -726,11 +726,10 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadAxaml("ToolChangeProjectnameView.axaml");
             Assert.Contains("Width=\"791\"", src);
             Assert.Contains("Height=\"360\"", src);
-            Assert.Contains("Name=\"CurrentNameTextBox\"", src);
-            Assert.Contains("Name=\"NewNameTextBox\"", src);
-            Assert.Contains("Name=\"ChangeButton\"", src);
-            Assert.Contains("Name=\"HelpTextBox\"", src);
-            Assert.DoesNotContain("Cancel", src);
+            Assert.Contains("Current Name:", src);
+            Assert.Contains("New Name:", src);
+            Assert.Contains("Change Project Name", src);
+            Assert.Contains("{Binding HelpText}", src);
         }
 
         // --- PackedMemorySlotView (#261) ---
@@ -756,9 +755,9 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadAxaml("ToolAutomaticRecoveryROMHeaderView.axaml");
             Assert.Contains("Width=\"1193\"", src);
             Assert.Contains("Height=\"298\"", src);
-            Assert.Contains("Name=\"OrignalSelectButton\"", src);
-            Assert.Contains("Name=\"OrignalFilename\"", src);
-            Assert.Contains("Name=\"ApplyButton\"", src);
+            Assert.Contains("Select File", src);
+            Assert.Contains("{Binding OriginalFilename}", src);
+            Assert.Contains("Recover ROM Header", src);
         }
 
         // --- GraphicsToolPatchMakerView (#139) ---

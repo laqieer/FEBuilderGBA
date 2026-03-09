@@ -10,9 +10,23 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Map Action Animation" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="200,200,20,180,200" RowDefinitions="Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Row 1: D0 Animation Pointer -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Ptr (D0):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="AnimationPointerBox" Width="160" />
+
+          <!-- Row 2: W4 Padding, W6 Padding -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Padding 1 (W4):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Padding1Box" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Padding 2 (W6):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="Padding2Box" Minimum="0" Maximum="65535" />
+
+          <!-- Row 3: Write button -->
+          <Button Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

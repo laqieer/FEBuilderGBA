@@ -16,19 +16,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _p0;
-        uint _b4;
-        uint _b5;
-        uint _b6;
-        uint _b7;
+        uint _paletteDataPointer;
+        uint _animInterval;
+        uint _dataCount;
+        uint _startPaletteIndex;
+        uint _unknown7;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
+        /// <summary>Pointer to palette data to replace (P0 / J_0 "Palette Data to Replace").</summary>
+        public uint PaletteDataPointer { get => _paletteDataPointer; set => SetField(ref _paletteDataPointer, value); }
+        /// <summary>Animation interval (B4 / J_4).</summary>
+        public uint AnimInterval { get => _animInterval; set => SetField(ref _animInterval, value); }
+        /// <summary>Data count (B5 / J_5).</summary>
+        public uint DataCount { get => _dataCount; set => SetField(ref _dataCount, value); }
+        /// <summary>Start palette index (B6 / J_6).</summary>
+        public uint StartPaletteIndex { get => _startPaletteIndex; set => SetField(ref _startPaletteIndex, value); }
+        /// <summary>Unknown field at offset 7 (B7 / J_7).</summary>
+        public uint Unknown7 { get => _unknown7; set => SetField(ref _unknown7, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -37,12 +42,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
+            PaletteDataPointer = rom.u32(addr + 0);
+            AnimInterval = rom.u8(addr + 4);
+            DataCount = rom.u8(addr + 5);
+            StartPaletteIndex = rom.u8(addr + 6);
+            Unknown7 = rom.u8(addr + 7);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            rom.write_u32(CurrentAddr + 0, PaletteDataPointer);
+            rom.write_u8(CurrentAddr + 4, (byte)AnimInterval);
+            rom.write_u8(CurrentAddr + 5, (byte)DataCount);
+            rom.write_u8(CurrentAddr + 6, (byte)StartPaletteIndex);
+            rom.write_u8(CurrentAddr + 7, (byte)Unknown7);
         }
 
         public int GetListCount() => 0;
@@ -52,11 +68,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["P0"] = $"0x{P0:X08}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
+                ["PaletteDataPointer"] = $"0x{PaletteDataPointer:X08}",
+                ["AnimInterval"] = $"0x{AnimInterval:X02}",
+                ["DataCount"] = $"0x{DataCount:X02}",
+                ["StartPaletteIndex"] = $"0x{StartPaletteIndex:X02}",
+                ["Unknown7"] = $"0x{Unknown7:X02}",
             };
         }
 
@@ -68,11 +84,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["PaletteDataPointer@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["AnimInterval@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["DataCount@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["StartPaletteIndex@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["Unknown7@0x07"] = $"0x{rom.u8(a + 7):X02}",
             };
         }
     }

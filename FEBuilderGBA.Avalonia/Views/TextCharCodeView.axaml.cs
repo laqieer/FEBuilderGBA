@@ -23,7 +23,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
 
-        public void NavigateTo(uint address) { }
+        public void NavigateTo(uint address)
+        {
+            _vm.LoadEntry(address);
+            UpdateUI();
+        }
+
         public void SelectFirstItem() { if (_vm.CharCodes.Count > 0) CharCodeList.SelectedIndex = 0; }
+
+        void UpdateUI()
+        {
+            CharCodeBox.Value = (decimal)_vm.CharCode;
+            TerminatorBox.Value = (decimal)_vm.TerminatorValue;
+            CharDisplayLabel.Text = _vm.CharacterDisplay;
+        }
     }
 }

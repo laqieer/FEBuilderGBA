@@ -10,9 +10,30 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="CG Editor (FE7U)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 1: Image Type (B0) -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Type:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImageTypeLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 2: Reserved (B1-B3) -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Reserved (B1-B3):" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="ReservedLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 3: 10-Split Image (P4) -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="10-Split Image:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="SplitImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 4: TSA (P8) -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="TSA:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="TSAPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 5: Palette (P12) -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

@@ -10,17 +10,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0, _b1, _w2;
+        bool _canWrite;
+        uint _weaponType, _special, _animationNumber;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        // B0
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        // B1
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        // W2
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
+        // B0: Weapon type index
+        public uint WeaponType { get => _weaponType; set => SetField(ref _weaponType, value); }
+        // B1: Special flag
+        public uint Special { get => _special; set => SetField(ref _special, value); }
+        // W2: Animation number
+        public uint AnimationNumber { get => _animationNumber; set => SetField(ref _animationNumber, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -40,11 +42,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            W2 = rom.u16(addr + 2);
+            WeaponType = rom.u8(addr + 0);
+            Special = rom.u8(addr + 1);
+            AnimationNumber = rom.u16(addr + 2);
 
             IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, WeaponType);
+            rom.write_u8(addr + 1, Special);
+            rom.write_u16(addr + 2, AnimationNumber);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -54,9 +68,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["W2"] = $"0x{W2:X04}",
+                ["WeaponType"] = $"0x{WeaponType:X02}",
+                ["Special"] = $"0x{Special:X02}",
+                ["AnimationNumber"] = $"0x{AnimationNumber:X04}",
             };
         }
 

@@ -7,15 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        uint _d4;
+        uint _unit;
+        uint _textID;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // D0: u32 field at offset 0
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        // D4: u32 field at offset 4
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
+        public uint Unit { get => _unit; set => SetField(ref _unit, value); }
+        public uint TextID { get => _textID; set => SetField(ref _textID, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -34,9 +32,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
+            Unit = rom.u32(addr + 0);
+            TextID = rom.u32(addr + 4);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            rom.write_u32(a + 0, Unit);
+            rom.write_u32(a + 4, TextID);
         }
 
         public int GetListCount() => 0;
@@ -45,8 +52,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["D0"] = D0.ToString("X08"),
-                ["D4"] = D4.ToString("X08"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Unit"] = $"0x{Unit:X08}",
+                ["TextID"] = $"0x{TextID:X08}",
             };
         }
 
@@ -59,8 +67,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00_Unit"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_TextID"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

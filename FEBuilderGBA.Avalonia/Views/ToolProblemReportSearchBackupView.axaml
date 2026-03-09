@@ -8,7 +8,7 @@
   <StackPanel Margin="12,19,12,12">
     <!-- Info label -->
     <TextBlock TextWrapping="Wrap" Height="54"
-               Text="No past backups were found. Is the backup saved under a different name? If you have a problem-free working backup, please specify its path." />
+               Text="{Binding MessageText}" />
     <!-- File selection row -->
     <Grid ColumnDefinitions="157,Auto,130" Margin="0,48,0,0">
       <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1"

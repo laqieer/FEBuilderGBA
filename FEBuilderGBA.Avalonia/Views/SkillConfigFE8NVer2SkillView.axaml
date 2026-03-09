@@ -5,7 +5,33 @@
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
     <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock TextWrapping="Wrap" Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+      <TextBlock TextWrapping="Wrap" Name="StatusText"
+                 Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
     </Border>
+
+    <Grid ColumnDefinitions="220,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text Detail:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,4" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="2" Grid.Column="1" Name="PaletteBox" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,4" />
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Text="Unit Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="3" Grid.Column="1" Name="UnitSkillPointerBox" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,4" />
+
+      <TextBlock Grid.Row="4" Grid.Column="0" Text="Class Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="4" Grid.Column="1" Name="ClassSkillPointerBox" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,4" />
+
+      <TextBlock Grid.Row="5" Grid.Column="0" Text="Weapon Item Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="5" Grid.Column="1" Name="WeaponItemSkillPointerBox" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,4" />
+
+      <TextBlock Grid.Row="6" Grid.Column="0" Text="Held Item Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="6" Grid.Column="1" Name="HeldItemSkillPointerBox" Minimum="0" Maximum="4294967295" FormatString="X8" Margin="0,4" />
+    </Grid>
+
+    <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
 </Window>

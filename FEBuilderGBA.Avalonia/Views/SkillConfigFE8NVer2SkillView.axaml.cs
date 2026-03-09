@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -14,7 +15,26 @@ namespace FEBuilderGBA.Avalonia.Views
         public SkillConfigFE8NVer2SkillView()
         {
             InitializeComponent();
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => _vm.Initialize();
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.TextDetail = (uint)(TextDetailBox.Value ?? 0);
+                _vm.Palette = (uint)(PaletteBox.Value ?? 0);
+                _vm.UnitSkillPointer = (uint)(UnitSkillPointerBox.Value ?? 0);
+                _vm.ClassSkillPointer = (uint)(ClassSkillPointerBox.Value ?? 0);
+                _vm.WeaponItemSkillPointer = (uint)(WeaponItemSkillPointerBox.Value ?? 0);
+                _vm.HeldItemSkillPointer = (uint)(HeldItemSkillPointerBox.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SkillConfigFE8NVer2SkillView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) { }

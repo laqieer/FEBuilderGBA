@@ -51,9 +51,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             OrderBox.Value = _vm.Order;
-            TextIdBox.Value = _vm.TextId;
-            D8Box.Value = _vm.D8;
-            TextId2Box.Value = _vm.TextId2;
+            ItemNameTextIdBox.Value = _vm.ItemNameTextId;
+            ReferenceDataBox.Value = _vm.ReferenceData;
+            RMenuTextIdBox.Value = _vm.RMenuTextId;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -61,9 +61,9 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.CanWrite) return;
 
             _vm.Order = (uint)(OrderBox.Value ?? 0);
-            _vm.TextId = (uint)(TextIdBox.Value ?? 0);
-            _vm.D8 = (uint)(D8Box.Value ?? 0);
-            _vm.TextId2 = (uint)(TextId2Box.Value ?? 0);
+            _vm.ItemNameTextId = (uint)(ItemNameTextIdBox.Value ?? 0);
+            _vm.ReferenceData = (uint)(ReferenceDataBox.Value ?? 0);
+            _vm.RMenuTextId = (uint)(RMenuTextIdBox.Value ?? 0);
             _vm.WriteStatusUnitsMenu();
             CoreState.Services?.ShowInfo("Status units menu data written.");
         }

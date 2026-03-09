@@ -9,16 +9,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         uint _unitId;
-        uint _flag;
-        uint _b2, _b3;
+        uint _condition;
+        uint _unknown2, _unknown3;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
-        public uint Flag { get => _flag; set => SetField(ref _flag, value); }
-        // B2, B3: Additional bytes
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
+        public uint Condition { get => _condition; set => SetField(ref _condition, value); }
+        public uint Unknown2 { get => _unknown2; set => SetField(ref _unknown2, value); }
+        public uint Unknown3 { get => _unknown3; set => SetField(ref _unknown3, value); }
 
         public List<AddrResult> LoadEDList()
         {
@@ -55,9 +54,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             UnitId = rom.u8(addr);        // B0
-            Flag = rom.u8(addr + 1);      // B1
-            B2 = rom.u8(addr + 2);        // B2
-            B3 = rom.u8(addr + 3);        // B3
+            Condition = rom.u8(addr + 1); // B1 - 00=died, 01=wounded/left, 02=wounded/stayed
+            Unknown2 = rom.u8(addr + 2);  // B2
+            Unknown3 = rom.u8(addr + 3);  // B3
             CanWrite = true;
         }
 
@@ -68,9 +67,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
 
             rom.write_u8(CurrentAddr, (byte)UnitId);
-            rom.write_u8(CurrentAddr + 1, (byte)Flag);
-            rom.write_u8(CurrentAddr + 2, (byte)B2);
-            rom.write_u8(CurrentAddr + 3, (byte)B3);
+            rom.write_u8(CurrentAddr + 1, (byte)Condition);
+            rom.write_u8(CurrentAddr + 2, (byte)Unknown2);
+            rom.write_u8(CurrentAddr + 3, (byte)Unknown3);
         }
 
         public int GetListCount() => LoadEDList().Count;
@@ -81,7 +80,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["UnitId"] = $"0x{UnitId:X02}",
-                ["Flag"] = $"0x{Flag:X02}",
+                ["Condition"] = $"0x{Condition:X02}",
+                ["Unknown2"] = $"0x{Unknown2:X02}",
+                ["Unknown3"] = $"0x{Unknown3:X02}",
             };
         }
 
@@ -94,10 +95,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x00_UnitId"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_Condition"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_Unknown2"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_Unknown3"] = $"0x{rom.u8(a + 3):X02}",
             };
         }
     }

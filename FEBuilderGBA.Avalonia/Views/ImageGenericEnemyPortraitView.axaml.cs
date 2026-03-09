@@ -48,7 +48,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            ImagePtrLabel.Text = $"0x{_vm.ImagePointer:X08}";
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

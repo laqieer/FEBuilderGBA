@@ -10,8 +10,8 @@
     <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" HorizontalAlignment="Center">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
       <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID (u16):" VerticalAlignment="Center" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="W0Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
     </Grid>
     <Button Content="Write" Click="Write_Click" HorizontalAlignment="Center" />
   </StackPanel>

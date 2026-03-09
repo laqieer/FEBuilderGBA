@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ExtraUnitFE8UView : Window, IEditorView
+    public partial class ExtraUnitFE8UView : Window, IEditorView, IDataVerifiableView
     {
         readonly ExtraUnitFE8UViewModel _vm = new();
 
@@ -48,15 +48,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            D0Box.Text = string.Format("0x{0:X08}", _vm.D0);
-            P4Box.Text = string.Format("0x{0:X08}", _vm.P4);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            FlagIdBox.Text = $"0x{_vm.FlagId:X08}";
+            UnitInfoPtrBox.Text = $"0x{_vm.UnitInfoPtr:X08}";
         }
 
         void ReadFromUI()
         {
-            _vm.D0 = U.atoh(D0Box.Text ?? "");
-            _vm.P4 = U.atoh(P4Box.Text ?? "");
+            _vm.FlagId = U.atoh(FlagIdBox.Text ?? "");
+            _vm.UnitInfoPtr = U.atoh(UnitInfoPtrBox.Text ?? "");
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -65,6 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ReadFromUI();
                 _vm.WriteEntry();
+                CoreState.Services?.ShowInfo("Extra unit data written.");
             }
             catch (Exception ex)
             {
@@ -74,5 +75,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

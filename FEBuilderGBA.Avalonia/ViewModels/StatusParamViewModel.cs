@@ -8,23 +8,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _data0;
-        uint _data4;
+        uint _menuTextStruct;
+        uint _bitmap;
         uint _colorType;
-        uint _b9, _b10, _b11;
-        uint _namePointer;
-        string _nameText = "";
+        uint _indent, _b10, _b11;
+        uint _stringPointer;
+        string _stringText = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint Data0 { get => _data0; set => SetField(ref _data0, value); }
-        public uint Data4 { get => _data4; set => SetField(ref _data4, value); }
+        public uint MenuTextStruct { get => _menuTextStruct; set => SetField(ref _menuTextStruct, value); }
+        public uint Bitmap { get => _bitmap; set => SetField(ref _bitmap, value); }
         public uint ColorType { get => _colorType; set => SetField(ref _colorType, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint Indent { get => _indent; set => SetField(ref _indent, value); }
         public uint B10 { get => _b10; set => SetField(ref _b10, value); }
         public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint NamePointer { get => _namePointer; set => SetField(ref _namePointer, value); }
-        public string NameText { get => _nameText; set => SetField(ref _nameText, value); }
+        public uint StringPointer { get => _stringPointer; set => SetField(ref _stringPointer, value); }
+        public string StringText { get => _stringText; set => SetField(ref _stringText, value); }
 
         public List<AddrResult> LoadStatusParamList()
         {
@@ -43,17 +43,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr + 16 > (uint)rom.Data.Length) break;
 
                 // Validate: offset +12 should be a pointer
-                uint namePtr = rom.u32(addr + 12);
-                if (!U.isPointer(namePtr)) break;
+                uint strPtr = rom.u32(addr + 12);
+                if (!U.isPointer(strPtr)) break;
 
                 string name = U.ToHexString(i) + " Status Param";
                 // Try to resolve name from pointer
                 try
                 {
-                    uint nameAddr = U.toOffset(namePtr);
-                    if (U.isSafetyOffset(nameAddr))
+                    uint strAddr = U.toOffset(strPtr);
+                    if (U.isSafetyOffset(strAddr))
                     {
-                        string resolved = rom.getString(nameAddr, 32);
+                        string resolved = rom.getString(strAddr, 32);
                         if (!string.IsNullOrEmpty(resolved))
                             name = U.ToHexString(i) + " " + resolved;
                     }
@@ -72,23 +72,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Data0 = rom.u32(addr + 0);
-            Data4 = rom.u32(addr + 4);
+            MenuTextStruct = rom.u32(addr + 0);
+            Bitmap = rom.u32(addr + 4);
             ColorType = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
+            Indent = rom.u8(addr + 9);
             B10 = rom.u8(addr + 10);
             B11 = rom.u8(addr + 11);
-            NamePointer = rom.u32(addr + 12);
+            StringPointer = rom.u32(addr + 12);
 
-            // Resolve name
-            NameText = "";
+            // Resolve string text
+            StringText = "";
             try
             {
-                if (U.isPointer(NamePointer))
+                if (U.isPointer(StringPointer))
                 {
-                    uint nameAddr = U.toOffset(NamePointer);
-                    if (U.isSafetyOffset(nameAddr))
-                        NameText = rom.getString(nameAddr, 32);
+                    uint strAddr = U.toOffset(StringPointer);
+                    if (U.isSafetyOffset(strAddr))
+                        StringText = rom.getString(strAddr, 32);
                 }
             }
             catch { }
@@ -103,13 +103,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, Data0);
-            rom.write_u32(addr + 4, Data4);
+            rom.write_u32(addr + 0, MenuTextStruct);
+            rom.write_u32(addr + 4, Bitmap);
             rom.write_u8(addr + 8, (byte)ColorType);
-            rom.write_u8(addr + 9, (byte)B9);
+            rom.write_u8(addr + 9, (byte)Indent);
             rom.write_u8(addr + 10, (byte)B10);
             rom.write_u8(addr + 11, (byte)B11);
-            rom.write_u32(addr + 12, NamePointer);
+            rom.write_u32(addr + 12, StringPointer);
         }
 
         public int GetListCount() => LoadStatusParamList().Count;
@@ -119,10 +119,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Data0"] = $"0x{Data0:X08}",
-                ["Data4"] = $"0x{Data4:X08}",
+                ["MenuTextStruct"] = $"0x{MenuTextStruct:X08}",
+                ["Bitmap"] = $"0x{Bitmap:X08}",
                 ["ColorType"] = $"0x{ColorType:X02}",
-                ["NamePointer"] = $"0x{NamePointer:X08}",
+                ["Indent"] = $"0x{Indent:X02}",
+                ["StringPointer"] = $"0x{StringPointer:X08}",
             };
         }
 
@@ -134,13 +135,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@0x00_MenuTextStruct"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_Bitmap"] = $"0x{rom.u32(a + 4):X08}",
+                ["u8@0x08_ColorType"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09_Indent"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_B10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_B11"] = $"0x{rom.u8(a + 11):X02}",
+                ["u32@0x0C_StringPointer"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
     }

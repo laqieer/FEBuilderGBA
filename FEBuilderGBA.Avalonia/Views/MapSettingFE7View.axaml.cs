@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _vm.LoadEntry(addr);
+                _vm.LoadMapSetting(addr);
                 UpdateUI();
             }
             catch (Exception ex)

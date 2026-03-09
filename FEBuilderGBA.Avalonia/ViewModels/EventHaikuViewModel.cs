@@ -7,30 +7,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
-        uint _w4;
-        uint _w6;
-        uint _p8;
+        uint _unit;
+        uint _killerUnit;
+        uint _route;
+        uint _chapterID;
+        uint _achievementFlag;
+        uint _text;
+        uint _eventPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
+        public uint Unit { get => _unit; set => SetField(ref _unit, value); }
+        public uint KillerUnit { get => _killerUnit; set => SetField(ref _killerUnit, value); }
+        public uint Route { get => _route; set => SetField(ref _route, value); }
+        public uint ChapterID { get => _chapterID; set => SetField(ref _chapterID, value); }
+        public uint AchievementFlag { get => _achievementFlag; set => SetField(ref _achievementFlag, value); }
+        public uint Text { get => _text; set => SetField(ref _text, value); }
+        public uint EventPointer { get => _eventPointer; set => SetField(ref _eventPointer, value); }
 
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Haiku Event Editor", 0));
+            result.Add(new AddrResult(0, "Death Quote Editor", 0));
             return result;
         }
 
@@ -40,14 +40,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 12 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
-            P8 = rom.u32(addr + 8);
+            Unit = rom.u8(addr + 0);
+            KillerUnit = rom.u8(addr + 1);
+            Route = rom.u8(addr + 2);
+            ChapterID = rom.u8(addr + 3);
+            AchievementFlag = rom.u16(addr + 4);
+            Text = rom.u16(addr + 6);
+            EventPointer = rom.u32(addr + 8);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            rom.write_u8(a + 0, (byte)Unit);
+            rom.write_u8(a + 1, (byte)KillerUnit);
+            rom.write_u8(a + 2, (byte)Route);
+            rom.write_u8(a + 3, (byte)ChapterID);
+            rom.write_u16(a + 4, (ushort)AchievementFlag);
+            rom.write_u16(a + 6, (ushort)Text);
+            rom.write_u32(a + 8, EventPointer);
         }
 
         public int GetListCount() => 0;
@@ -57,13 +71,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["W4"] = $"0x{W4:X04}",
-                ["W6"] = $"0x{W6:X04}",
-                ["P8"] = $"0x{P8:X08}",
+                ["Unit"] = $"0x{Unit:X02}",
+                ["KillerUnit"] = $"0x{KillerUnit:X02}",
+                ["Route"] = $"0x{Route:X02}",
+                ["ChapterID"] = $"0x{ChapterID:X02}",
+                ["AchievementFlag"] = $"0x{AchievementFlag:X04}",
+                ["Text"] = $"0x{Text:X04}",
+                ["EventPointer"] = $"0x{EventPointer:X08}",
             };
         }
 
@@ -75,13 +89,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+                ["u8@0x00_Unit"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_KillerUnit"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_Route"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_ChapterID"] = $"0x{rom.u8(a + 3):X02}",
+                ["u16@0x04_AchievementFlag"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06_Text"] = $"0x{rom.u16(a + 6):X04}",
+                ["u32@0x08_EventPointer"] = $"0x{rom.u32(a + 8):X08}",
             };
         }
     }

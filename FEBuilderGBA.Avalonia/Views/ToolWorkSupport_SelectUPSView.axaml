@@ -8,7 +8,7 @@
   <Border Margin="10" BorderBrush="Gray" BorderThickness="1" Padding="10">
     <StackPanel>
       <!-- Instruction label -->
-      <TextBlock Text="Select an unmodified ROM to open the UPS patch." Height="29"
+      <TextBlock Text="{Binding InstructionText}" Height="29"
                  VerticalAlignment="Center" />
       <!-- ROM selection row -->
       <Grid ColumnDefinitions="196,*,130" Margin="0,12,0,0">

@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTerrainNameEngView : Window, IEditorView
+    public partial class MapTerrainNameEngView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapTerrainNameEngViewModel _vm = new();
 
         public string ViewTitle => "Terrain Name (English)";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapTerrainNameEngView()
         {
@@ -49,6 +50,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            TerrainNameTextIDBox.Value = _vm.TerrainNameTextID;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            _vm.TerrainNameTextID = (uint)(TerrainNameTextIDBox.Value ?? 0);
+            _vm.Write();
+            CoreState.Services?.ShowInfo("Terrain Name (English) data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

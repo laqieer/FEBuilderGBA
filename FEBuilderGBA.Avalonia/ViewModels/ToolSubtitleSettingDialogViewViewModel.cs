@@ -1,22 +1,45 @@
-using System;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ToolSubtitleSettingDialogViewViewModel : ViewModelBase
     {
         bool _isLoaded;
-        string _fontName = "Arial";
-        string _fontSize = "16";
-        string _fontColor = "White";
-        string _backgroundColor = "Black";
-        bool _showBackground = true;
+        string _translateFromRomFilename = "";
+        string _translateToRomFilename = "";
+        string _translateDataFilename = "";
+        bool _showAlways;
+        string _dialogResult = "";
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public string FontName { get => _fontName; set => SetField(ref _fontName, value); }
-        public string FontSize { get => _fontSize; set => SetField(ref _fontSize, value); }
-        public string FontColor { get => _fontColor; set => SetField(ref _fontColor, value); }
-        public string BackgroundColor { get => _backgroundColor; set => SetField(ref _backgroundColor, value); }
-        public bool ShowBackground { get => _showBackground; set => SetField(ref _showBackground, value); }
+
+        /// <summary>
+        /// Path to the source ROM for subtitle translation (FROM).
+        /// WinForms: SimpleTranslateFromROMFilename TextBoxEx.
+        /// </summary>
+        public string TranslateFromRomFilename { get => _translateFromRomFilename; set => SetField(ref _translateFromRomFilename, value); }
+
+        /// <summary>
+        /// Path to the destination ROM for subtitle translation (TO).
+        /// WinForms: SimpleTranslateToROMFilename TextBoxEx.
+        /// </summary>
+        public string TranslateToRomFilename { get => _translateToRomFilename; set => SetField(ref _translateToRomFilename, value); }
+
+        /// <summary>
+        /// Path to the translation hint/data file.
+        /// WinForms: SimpleTranslateToTranslateDataFilename TextBoxEx.
+        /// </summary>
+        public string TranslateDataFilename { get => _translateDataFilename; set => SetField(ref _translateDataFilename, value); }
+
+        /// <summary>
+        /// Whether to show the subtitle window even when there are no subtitles.
+        /// WinForms: ShowAlways CheckBox.
+        /// </summary>
+        public bool ShowAlways { get => _showAlways; set => SetField(ref _showAlways, value); }
+
+        /// <summary>
+        /// Dialog result: "show" (show subtitles), "hide" (hide subtitles), or empty.
+        /// WinForms: ShowButton / HideButton clicks.
+        /// </summary>
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
 
         public void Initialize()
         {

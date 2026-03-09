@@ -48,7 +48,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            ElapsedTimeBox.Value = _vm.ElapsedTime;
+            CoordinateXBox.Value = _vm.CoordinateX;
+            CoordinateYBox.Value = _vm.CoordinateY;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded) return;
+                _vm.ElapsedTime = (uint)(ElapsedTimeBox.Value ?? 0);
+                _vm.CoordinateX = (uint)(CoordinateXBox.Value ?? 0);
+                _vm.CoordinateY = (uint)(CoordinateYBox.Value ?? 0);
+                _vm.Write();
+                CoreState.Services?.ShowInfo("Path movement data written.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapPathMoveEditorView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

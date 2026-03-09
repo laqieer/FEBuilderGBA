@@ -12,9 +12,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte[] _moveCosts = Array.Empty<byte>();
 
         // W0: u16 name text ID at class struct offset 0
-        ushort _w0;
+        ushort _nameTextId;
         // D52: u32 move cost pointer at class struct offset 52
-        uint _d52;
+        uint _moveCostPointer;
 
         // 51 terrain cost bytes (B0-B50), one per terrain type
         byte _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9;
@@ -30,9 +30,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public byte[] MoveCosts { get => _moveCosts; set => SetField(ref _moveCosts, value); }
 
         // W0: u16 at offset 0 (name text ID)
-        public ushort W0 { get => _w0; set => SetField(ref _w0, value); }
+        public ushort NameTextId { get => _nameTextId; set => SetField(ref _nameTextId, value); }
         // D52: u32 at offset 52 (move cost pointer)
-        public uint D52 { get => _d52; set => SetField(ref _d52, value); }
+        public uint MoveCostPointer { get => _moveCostPointer; set => SetField(ref _moveCostPointer, value); }
 
         // 51 individual byte properties (B0 through B50)
         public byte B0 { get => _b0; set => SetField(ref _b0, value); }
@@ -128,8 +128,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = classAddr;
 
             // W0: u16 name text ID at offset 0
-            W0 = (ushort)rom.u16(classAddr + 0);
-            try { ClassName = FETextDecode.Direct(W0); }
+            NameTextId = (ushort)rom.u16(classAddr + 0);
+            try { ClassName = FETextDecode.Direct(NameTextId); }
             catch { ClassName = "???"; }
 
             // D52: u32 move cost pointer at offset 52
@@ -137,15 +137,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (classAddr + moveCostPtrOffset + 3 >= (uint)rom.Data.Length)
             {
-                D52 = 0;
+                MoveCostPointer = 0;
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
                 CanWrite = true;
                 return;
             }
 
-            D52 = rom.u32(classAddr + moveCostPtrOffset);
-            if (!U.isPointer(D52))
+            MoveCostPointer = rom.u32(classAddr + moveCostPtrOffset);
+            if (!U.isPointer(MoveCostPointer))
             {
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
@@ -153,7 +153,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            uint moveCostAddr = D52 - 0x08000000;
+            uint moveCostAddr = MoveCostPointer - 0x08000000;
             if (!U.isSafetyOffset(moveCostAddr))
             {
                 ClearAllB();
@@ -248,9 +248,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            if (!U.isPointer(D52)) return;
+            if (!U.isPointer(MoveCostPointer)) return;
 
-            uint moveCostAddr = D52 - 0x08000000;
+            uint moveCostAddr = MoveCostPointer - 0x08000000;
             if (!U.isSafetyOffset(moveCostAddr)) return;
             if (moveCostAddr + 51 > (uint)rom.Data.Length) return;
 
@@ -314,8 +314,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
-                ["D52"] = $"0x{D52:X08}",
+                ["W0_NameTextId"] = $"0x{NameTextId:X04}",
+                ["D52_MoveCostPointer"] = $"0x{MoveCostPointer:X08}",
                 ["B0"] = $"0x{B0:X02}",
                 ["B1"] = $"0x{B1:X02}",
                 ["B2"] = $"0x{B2:X02}",

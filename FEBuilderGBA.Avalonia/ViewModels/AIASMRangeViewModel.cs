@@ -7,21 +7,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
+        uint _x1;
+        uint _y1;
+        uint _x2;
+        uint _y2;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // B0: u8 field at offset 0
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        // B1: u8 field at offset 1
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        // B2: u8 field at offset 2
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        // B3: u8 field at offset 3
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
+        /// <summary>Range start X coordinate (offset 0)</summary>
+        public uint X1 { get => _x1; set => SetField(ref _x1, value); }
+        /// <summary>Range start Y coordinate (offset 1)</summary>
+        public uint Y1 { get => _y1; set => SetField(ref _y1, value); }
+        /// <summary>Range end X coordinate (offset 2)</summary>
+        public uint X2 { get => _x2; set => SetField(ref _x2, value); }
+        /// <summary>Range end Y coordinate (offset 3)</summary>
+        public uint Y2 { get => _y2; set => SetField(ref _y2, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -40,11 +40,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
+            X1 = rom.u8(addr + 0);
+            Y1 = rom.u8(addr + 1);
+            X2 = rom.u8(addr + 2);
+            Y2 = rom.u8(addr + 3);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u8(addr + 0, X1);
+            rom.write_u8(addr + 1, Y1);
+            rom.write_u8(addr + 2, X2);
+            rom.write_u8(addr + 3, Y2);
         }
 
         public int GetListCount() => 0;
@@ -53,10 +65,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["B0"] = B0.ToString("X02"),
-                ["B1"] = B1.ToString("X02"),
-                ["B2"] = B2.ToString("X02"),
-                ["B3"] = B3.ToString("X02"),
+                ["X1"] = X1.ToString("X02"),
+                ["Y1"] = Y1.ToString("X02"),
+                ["X2"] = X2.ToString("X02"),
+                ["Y2"] = Y2.ToString("X02"),
             };
         }
 
@@ -69,10 +81,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x00_X1"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_Y1"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_X2"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_Y2"] = $"0x{rom.u8(a + 3):X02}",
             };
         }
     }

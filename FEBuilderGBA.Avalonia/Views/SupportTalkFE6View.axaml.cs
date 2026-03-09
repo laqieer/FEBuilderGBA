@@ -50,26 +50,26 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            Unit1IdNud.Value = _vm.Unit1Id;
-            Unit2IdNud.Value = _vm.Unit2Id;
+            SupportPartner1Nud.Value = _vm.SupportPartner1;
+            SupportPartner2Nud.Value = _vm.SupportPartner2;
             TextCNud.Value = _vm.TextC;
             TextBNud.Value = _vm.TextB;
             TextANud.Value = _vm.TextA;
-            B14Nud.Value = _vm.B14;
-            B15Nud.Value = _vm.B15;
+            Padding1Nud.Value = _vm.Padding1;
+            Padding2Nud.Value = _vm.Padding2;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                _vm.Unit1Id = (uint)(Unit1IdNud.Value ?? 0);
-                _vm.Unit2Id = (uint)(Unit2IdNud.Value ?? 0);
+                _vm.SupportPartner1 = (uint)(SupportPartner1Nud.Value ?? 0);
+                _vm.SupportPartner2 = (uint)(SupportPartner2Nud.Value ?? 0);
                 _vm.TextC = (uint)(TextCNud.Value ?? 0);
                 _vm.TextB = (uint)(TextBNud.Value ?? 0);
                 _vm.TextA = (uint)(TextANud.Value ?? 0);
-                _vm.B14 = (uint)(B14Nud.Value ?? 0);
-                _vm.B15 = (uint)(B15Nud.Value ?? 0);
+                _vm.Padding1 = (uint)(Padding1Nud.Value ?? 0);
+                _vm.Padding2 = (uint)(Padding2Nud.Value ?? 0);
 
                 _vm.WriteSupportTalk();
             }

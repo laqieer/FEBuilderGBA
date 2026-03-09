@@ -30,13 +30,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            B0Box.Value = _vm.B0;
+            B0Box.Value = _vm.ClassId;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.B0 = (uint)(B0Box.Value ?? 0);
+            _vm.ClassId = (uint)(B0Box.Value ?? 0);
             _vm.WriteEntry();
             CoreState.Services?.ShowInfo("Class list data written.");
         }

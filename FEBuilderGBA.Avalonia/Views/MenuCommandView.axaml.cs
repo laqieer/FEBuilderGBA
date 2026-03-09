@@ -50,32 +50,32 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            P0Box.Text = $"0x{_vm.P0:X08}";
-            W4Box.Value = _vm.W4;
-            W6Box.Value = _vm.W6;
-            D8Box.Text = $"0x{_vm.D8:X08}";
-            P12Box.Text = $"0x{_vm.P12:X08}";
-            P16Box.Text = $"0x{_vm.P16:X08}";
-            P20Box.Text = $"0x{_vm.P20:X08}";
-            P24Box.Text = $"0x{_vm.P24:X08}";
-            P28Box.Text = $"0x{_vm.P28:X08}";
-            P32Box.Text = $"0x{_vm.P32:X08}";
+            JpNamePtrBox.Text = $"0x{_vm.JpNamePointer:X08}";
+            NameTextIdBox.Value = _vm.NameTextId;
+            HelpTextIdBox.Value = _vm.HelpTextId;
+            ColorIdBox.Text = $"0x{_vm.ColorAndIdDword:X08}";
+            UsabilityBox.Text = $"0x{_vm.UsabilityRoutine:X08}";
+            DrawBox.Text = $"0x{_vm.DrawRoutine:X08}";
+            EffectBox.Text = $"0x{_vm.EffectRoutine:X08}";
+            PerTurnBox.Text = $"0x{_vm.PerTurnCallback:X08}";
+            CursorSelBox.Text = $"0x{_vm.CursorSelectAction:X08}";
+            CancelBox.Text = $"0x{_vm.CancelAction:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.P0 = ParseHexText(P0Box.Text);
-            _vm.W4 = (uint)(W4Box.Value ?? 0);
-            _vm.W6 = (uint)(W6Box.Value ?? 0);
-            _vm.D8 = ParseHexText(D8Box.Text);
-            _vm.P12 = ParseHexText(P12Box.Text);
-            _vm.P16 = ParseHexText(P16Box.Text);
-            _vm.P20 = ParseHexText(P20Box.Text);
-            _vm.P24 = ParseHexText(P24Box.Text);
-            _vm.P28 = ParseHexText(P28Box.Text);
-            _vm.P32 = ParseHexText(P32Box.Text);
+            _vm.JpNamePointer = ParseHexText(JpNamePtrBox.Text);
+            _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
+            _vm.HelpTextId = (uint)(HelpTextIdBox.Value ?? 0);
+            _vm.ColorAndIdDword = ParseHexText(ColorIdBox.Text);
+            _vm.UsabilityRoutine = ParseHexText(UsabilityBox.Text);
+            _vm.DrawRoutine = ParseHexText(DrawBox.Text);
+            _vm.EffectRoutine = ParseHexText(EffectBox.Text);
+            _vm.PerTurnCallback = ParseHexText(PerTurnBox.Text);
+            _vm.CursorSelectAction = ParseHexText(CursorSelBox.Text);
+            _vm.CancelAction = ParseHexText(CancelBox.Text);
             _vm.WriteMenuCommand();
             CoreState.Services?.ShowInfo("Menu command data written.");
         }

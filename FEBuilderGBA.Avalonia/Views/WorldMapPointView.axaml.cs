@@ -49,29 +49,49 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            B0Box.Value = _vm.B0;
-            B1Box.Value = _vm.B1;
-            B2Box.Value = _vm.B2;
-            B3Box.Value = _vm.B3;
-            W6Box.Value = _vm.W6;
+            AlwaysAccessibleBox.Value = _vm.AlwaysAccessible;
+            FreeMapTypeBox.Value = _vm.FreeMapType;
+            PreClearIconBox.Value = _vm.PreClearIcon;
+            PostClearIconBox.Value = _vm.PostClearIcon;
+            ChapterId1Box.Value = _vm.ChapterId1;
+            ChapterId2Box.Value = _vm.ChapterId2;
+            EventBranchFlagBox.Value = _vm.EventBranchFlag;
+            NextNodeEirikaBox.Value = _vm.NextNodeEirika;
+            NextNodeEphraimBox.Value = _vm.NextNodeEphraim;
+            NextNodeEirika2ndBox.Value = _vm.NextNodeEirika2nd;
+            NextNodeEphraim2ndBox.Value = _vm.NextNodeEphraim2nd;
+            ArmoryPointerBox.Text = $"0x{_vm.ArmoryPointer:X08}";
+            VendorPointerBox.Text = $"0x{_vm.VendorPointer:X08}";
+            SecretShopPointerBox.Text = $"0x{_vm.SecretShopPointer:X08}";
+            CoordinateXBox.Value = _vm.CoordinateX;
+            CoordinateYBox.Value = _vm.CoordinateY;
             NameTextIdBox.Value = _vm.NameTextId;
-            D12Box.Value = _vm.D12;
-            D16Box.Value = _vm.D16;
+            ShipSettingBox.Value = _vm.ShipSetting;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.B0 = (uint)(B0Box.Value ?? 0);
-            _vm.B1 = (uint)(B1Box.Value ?? 0);
-            _vm.B2 = (uint)(B2Box.Value ?? 0);
-            _vm.B3 = (uint)(B3Box.Value ?? 0);
-            _vm.W6 = (uint)(W6Box.Value ?? 0);
+            _vm.AlwaysAccessible = (uint)(AlwaysAccessibleBox.Value ?? 0);
+            _vm.FreeMapType = (uint)(FreeMapTypeBox.Value ?? 0);
+            _vm.PreClearIcon = (uint)(PreClearIconBox.Value ?? 0);
+            _vm.PostClearIcon = (uint)(PostClearIconBox.Value ?? 0);
+            _vm.ChapterId1 = (uint)(ChapterId1Box.Value ?? 0);
+            _vm.ChapterId2 = (uint)(ChapterId2Box.Value ?? 0);
+            _vm.EventBranchFlag = (uint)(EventBranchFlagBox.Value ?? 0);
+            _vm.NextNodeEirika = (uint)(NextNodeEirikaBox.Value ?? 0);
+            _vm.NextNodeEphraim = (uint)(NextNodeEphraimBox.Value ?? 0);
+            _vm.NextNodeEirika2nd = (uint)(NextNodeEirika2ndBox.Value ?? 0);
+            _vm.NextNodeEphraim2nd = (uint)(NextNodeEphraim2ndBox.Value ?? 0);
+            _vm.ArmoryPointer = U.atoh(ArmoryPointerBox.Text ?? "");
+            _vm.VendorPointer = U.atoh(VendorPointerBox.Text ?? "");
+            _vm.SecretShopPointer = U.atoh(SecretShopPointerBox.Text ?? "");
+            _vm.CoordinateX = (uint)(CoordinateXBox.Value ?? 0);
+            _vm.CoordinateY = (uint)(CoordinateYBox.Value ?? 0);
             _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
-            _vm.D12 = (uint)(D12Box.Value ?? 0);
-            _vm.D16 = (uint)(D16Box.Value ?? 0);
-            _vm.WriteWorldMapPoint();
+            _vm.ShipSetting = (uint)(ShipSettingBox.Value ?? 0);
+            _vm.Write();
             CoreState.Services?.ShowInfo("World map point data written.");
         }
 

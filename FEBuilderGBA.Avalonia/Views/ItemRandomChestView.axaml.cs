@@ -6,8 +6,9 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemRandomChestView : Window, IEditorView
+    public partial class ItemRandomChestView : Window, IEditorView, IDataVerifiableView
     {
+        public ViewModelBase? DataViewModel => _vm;
         readonly ItemRandomChestViewModel _vm = new();
 
         public string ViewTitle => "Random Chest Items";
@@ -48,7 +49,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            ItemIdBox.Value = _vm.ItemId;
+            ProbabilityBox.Value = _vm.Probability;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+            _vm.Probability = (uint)(ProbabilityBox.Value ?? 0);
+            _vm.Write();
+            CoreState.Services.ShowInfo("Random Chest data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

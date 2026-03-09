@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDSensekiCommentView : Window, IEditorView
+    public partial class EDSensekiCommentView : Window, IEditorView, IDataVerifiableView
     {
         readonly EDSensekiCommentViewModel _vm = new();
 
         public string ViewTitle => "ED Senseki Comment";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public EDSensekiCommentView()
         {
@@ -48,7 +49,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            UnitIdBox.Value = _vm.UnitId;
+            ConvText1Box.Value = _vm.ConversationText1;
+            ConvText2Box.Value = _vm.ConversationText2;
+            ConvText3Box.Value = _vm.ConversationText3;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+            _vm.ConversationText1 = (uint)(ConvText1Box.Value ?? 0);
+            _vm.ConversationText2 = (uint)(ConvText2Box.Value ?? 0);
+            _vm.ConversationText3 = (uint)(ConvText3Box.Value ?? 0);
+            _vm.WriteEntry();
+            CoreState.Services?.ShowInfo("ED Senseki Comment data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

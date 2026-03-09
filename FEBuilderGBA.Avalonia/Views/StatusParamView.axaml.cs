@@ -50,27 +50,27 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            Data0Box.Value = _vm.Data0;
-            Data4Box.Value = _vm.Data4;
+            MenuTextStructBox.Value = _vm.MenuTextStruct;
+            BitmapBox.Value = _vm.Bitmap;
             ColorTypeBox.Value = _vm.ColorType;
-            B9Box.Value = _vm.B9;
+            IndentBox.Value = _vm.Indent;
             B10Box.Value = _vm.B10;
             B11Box.Value = _vm.B11;
-            NamePointerBox.Text = $"0x{_vm.NamePointer:X08}";
-            NameLabel.Text = _vm.NameText;
+            StringPointerBox.Text = $"0x{_vm.StringPointer:X08}";
+            StringLabel.Text = _vm.StringText;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.Data0 = (uint)(Data0Box.Value ?? 0);
-            _vm.Data4 = (uint)(Data4Box.Value ?? 0);
+            _vm.MenuTextStruct = (uint)(MenuTextStructBox.Value ?? 0);
+            _vm.Bitmap = (uint)(BitmapBox.Value ?? 0);
             _vm.ColorType = (uint)(ColorTypeBox.Value ?? 0);
-            _vm.B9 = (uint)(B9Box.Value ?? 0);
+            _vm.Indent = (uint)(IndentBox.Value ?? 0);
             _vm.B10 = (uint)(B10Box.Value ?? 0);
             _vm.B11 = (uint)(B11Box.Value ?? 0);
-            _vm.NamePointer = ParseHexText(NamePointerBox.Text);
+            _vm.StringPointer = ParseHexText(StringPointerBox.Text);
             _vm.WriteStatusParam();
             CoreState.Services?.ShowInfo("Status parameter data written.");
         }

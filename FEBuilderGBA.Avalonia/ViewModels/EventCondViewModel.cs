@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Address"] = $"0x{CurrentAddr:X08}",
                 ["MapDataSize"] = $"0x{MapDataSize:X04}",
             };
         }
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 bytesToRead = (uint)rom.Data.Length - a;
             var report = new Dictionary<string, string>
             {
-                ["addr"] = $"0x{a:X08}",
+                ["Address"] = $"0x{a:X08}",
             };
             for (uint i = 0; i < bytesToRead; i++)
             {

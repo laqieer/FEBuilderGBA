@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,6 +50,26 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            Trait1Box.Value = _vm.Trait1;
+            Trait2Box.Value = _vm.Trait2;
+            Trait3Box.Value = _vm.Trait3;
+            Trait4Box.Value = _vm.Trait4;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.Trait1 = (uint)(Trait1Box.Value ?? 0);
+                _vm.Trait2 = (uint)(Trait2Box.Value ?? 0);
+                _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
+                _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIMapSettingView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

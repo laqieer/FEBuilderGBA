@@ -30,14 +30,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            B0Box.Value = _vm.B0;
+            LockTypeBox.Value = _vm.LockTypeOrId;
+            LinkedNameLabel.Text = _vm.LinkedName;
+            ExplanationBox.Text = _vm.Explanation;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.B0 = (uint)(B0Box.Value ?? 0);
-            _vm.WriteEntry();
+            _vm.LockTypeOrId = (uint)(LockTypeBox.Value ?? 0);
+            _vm.Write();
             CoreState.Services?.ShowInfo("Weapon lock data written.");
         }
     }

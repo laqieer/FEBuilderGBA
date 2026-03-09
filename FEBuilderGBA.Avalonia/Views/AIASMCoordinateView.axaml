@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.AIASMCoordinateView"
-        Title="AI Coordinate Editor" Width="1155" Height="749">
+        Title="AI Coordinate Editor" Width="626" Height="388">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -10,10 +10,24 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="AI Coordinate Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="X:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="XBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Y:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="YBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unused 2:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unused 3:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unused3Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

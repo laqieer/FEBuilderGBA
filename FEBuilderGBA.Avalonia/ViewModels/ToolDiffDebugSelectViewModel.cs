@@ -11,14 +11,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _originalFilename = "";
         string _selectedFileInfo = "";
         string _instructionsText = "";
+        string _dialogResult = "";
         int _selectedIndex = -1;
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public string PrefixFilter { get => _prefixFilter; set => SetField(ref _prefixFilter, value); }
+
+        /// <summary>
+        /// Prefix filter for searching backup files.
+        /// WinForms: PrefixTextBox - filters BackupList by file name prefix.
+        /// </summary>
+        public string PrefixFilter { get => _prefixFilter; set { SetField(ref _prefixFilter, value); Reload(); } }
+
+        /// <summary>
+        /// Path to the vanilla (unmodified) ROM file.
+        /// WinForms: OrignalFilename TextBoxEx.
+        /// </summary>
         public string OriginalFilename { get => _originalFilename; set => SetField(ref _originalFilename, value); }
+
+        /// <summary>
+        /// Information about the currently selected backup file.
+        /// WinForms: ThisFileInfo TextBoxEx (readonly multiline).
+        /// </summary>
         public string SelectedFileInfo { get => _selectedFileInfo; set => SetField(ref _selectedFileInfo, value); }
+
+        /// <summary>
+        /// Instructions text explaining how to use the tool.
+        /// WinForms: label3 (loaded from resources).
+        /// </summary>
         public string InstructionsText { get => _instructionsText; set => SetField(ref _instructionsText, value); }
+
+        /// <summary>
+        /// Dialog result: "testplay" or "compare".
+        /// WinForms: TestPlayButton / SelectROMButton clicks.
+        /// </summary>
+        public string DialogResult { get => _dialogResult; set => SetField(ref _dialogResult, value); }
+
+        /// <summary>
+        /// Selected index in the backup list.
+        /// WinForms: BackupList ListBoxEx.
+        /// </summary>
         public int SelectedIndex { get => _selectedIndex; set { SetField(ref _selectedIndex, value); UpdateSelectedInfo(); } }
+
+        /// <summary>
+        /// List of backup ROM file paths (newest first).
+        /// WinForms: BackupList ListBoxEx.
+        /// </summary>
         public ObservableCollection<string> BackupList { get; } = new();
 
         public void Initialize()
@@ -98,6 +135,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Reload()
         {
             LoadBackups();
+        }
+
+        /// <summary>
+        /// Gets the full path of the currently selected backup, or null if none selected.
+        /// </summary>
+        public string? GetSelectedBackupPath()
+        {
+            if (_selectedIndex >= 0 && _selectedIndex < BackupList.Count)
+                return BackupList[_selectedIndex];
+            return null;
         }
     }
 }

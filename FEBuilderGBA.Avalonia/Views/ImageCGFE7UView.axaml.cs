@@ -48,7 +48,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            string typeDesc = _vm.ImageType == 0 ? "0 (Single)" : _vm.ImageType == 1 ? "1 (10-Split)" : $"0x{_vm.ImageType:X02}";
+            ImageTypeLabel.Text = typeDesc;
+            ReservedLabel.Text = $"0x{_vm.Reserved1:X02} 0x{_vm.Reserved2:X02} 0x{_vm.Reserved3:X02}";
+            SplitImagePtrLabel.Text = $"0x{_vm.SplitImagePtr:X08}";
+            TSAPtrLabel.Text = $"0x{_vm.TSAPtr:X08}";
+            PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

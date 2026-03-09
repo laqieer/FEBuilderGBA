@@ -21,7 +21,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.NewName = NewNameTextBox.Text ?? "";
+            if (string.IsNullOrWhiteSpace(_vm.NewName))
+            {
+                _vm.StatusMessage = "Please enter a new project name.";
+                return;
+            }
+            if (_vm.CurrentName == _vm.NewName)
+            {
+                _vm.StatusMessage = "The new name is the same as the current name.";
+                return;
+            }
             Close("OK");
         }
 

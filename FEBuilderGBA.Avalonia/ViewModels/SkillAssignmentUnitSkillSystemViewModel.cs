@@ -8,11 +8,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
+        uint _unitSkill;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
+        public uint UnitSkill { get => _unitSkill; set => SetField(ref _unitSkill, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -29,8 +29,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 1 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
+            UnitSkill = rom.u8(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u8(addr + 0, UnitSkill);
         }
 
         public int GetListCount() => 0;
@@ -40,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
+                ["UnitSkill"] = $"0x{UnitSkill:X02}",
             };
         }
 

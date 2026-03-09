@@ -3,21 +3,71 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolExportEAEventView"
         Title="Export EA Event" Width="1096" Height="784"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Export Event Assembler Script" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Export" Click="Export_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-      <TextBlock Text="Output Path:" VerticalAlignment="Center" />
-      <TextBox Name="OutputPathTextBox" Width="400" Watermark="Select output file..." />
-      <Button Content="Browse..." Click="Browse_Click" />
-    </StackPanel>
-    <TextBlock DockPanel.Dock="Top" Text="Event Script Preview:" FontWeight="SemiBold" Margin="0,4,0,4" />
-    <ScrollViewer>
-      <TextBox Name="EventScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" />
-    </ScrollViewer>
-  </DockPanel>
+  <Grid ColumnDefinitions="284,*" Margin="11">
+    <!-- Left panel: Map list (WinForms panel14 with MAP_LISTBOX) -->
+    <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="0,0,5,0">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="0,0,0,1">
+          <TextBlock Text="Map Name" Margin="4" FontWeight="Bold" />
+        </Border>
+        <ListBox ItemsSource="{Binding MapList}"
+                 SelectedIndex="{Binding SelectedMapIndex}" />
+      </DockPanel>
+    </Border>
+
+    <!-- Right panel: Export options (WinForms panel2) -->
+    <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="7">
+      <StackPanel Spacing="8">
+        <!-- Header -->
+        <TextBlock Text="Export events in EA format." />
+
+        <!-- AddEndGuards checkbox (WinForms addEndGuardsCheckBox, Checked=true by default) -->
+        <CheckBox Content="Add EndGuards on export"
+                  IsChecked="{Binding AddEndGuards}" />
+
+        <!-- Export Events button (WinForms ExportEAButton) -->
+        <Button Content="Export Events in EA format" Height="35"
+                HorizontalAlignment="Stretch" Click="ExportEvents_Click" />
+
+        <!-- Export World Map Events button (WinForms ExportWMAPEventEAButton) -->
+        <Button Content="Export World Map Events in EA format" Height="35"
+                HorizontalAlignment="Stretch" Click="ExportWMapEvents_Click" />
+
+        <!-- Export World Map Events (selected) button (WinForms ExportWMAPEvent2EAButton) -->
+        <Button Content="Export World Map Events (selected) in EA format" Height="35"
+                HorizontalAlignment="Stretch" Click="ExportWMapEvents2_Click" />
+
+        <!-- Note about EA version -->
+        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
+                   Text="The latest EA may not dump extended area data. In that case, use EA ver9." />
+
+        <!-- Data group (WinForms J_40 GroupBox) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Data" FontWeight="Bold" />
+            <Button Content="Export Main Tables" Height="35"
+                    HorizontalAlignment="Stretch" Click="ExportMainTable_Click" />
+            <TextBlock TextWrapping="Wrap" Text="Dumps unit, class, item, and other tables." />
+          </StackPanel>
+        </Border>
+
+        <!-- Undo Buffer group (WinForms customColorGroupBox1) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Undo Buffer" FontWeight="Bold" />
+            <Button Content="Export Undo Buffer" Height="35"
+                    HorizontalAlignment="Stretch" Click="ExportUndoData_Click" />
+            <TextBlock TextWrapping="Wrap" Text="Export changes made to the ROM in this session." />
+          </StackPanel>
+        </Border>
+
+        <!-- Status text -->
+        <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+
+        <!-- Import hint (WinForms label2) -->
+        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0"
+                   Text="For import, use Run > Event Assembler Add." />
+      </StackPanel>
+    </Border>
+  </Grid>
 </Window>

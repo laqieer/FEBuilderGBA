@@ -10,38 +10,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9, _b10, _b11;
-        uint _p12;
+        bool _canWrite;
+        uint _id0, _id1, _id2, _id3, _id4, _id5, _id6, _id7, _id8, _id9, _id10, _id11;
+        uint _palettePointer;
+        string _identifierName = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        // B0
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        // B1
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        // B2
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        // B3
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        // B4
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        // B5
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        // B6
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        // B7
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        // B8
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        // B9
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        // B10
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        // B11
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
+        // B0-B11: Identifier string bytes (12 chars)
+        public uint Id0 { get => _id0; set => SetField(ref _id0, value); }
+        public uint Id1 { get => _id1; set => SetField(ref _id1, value); }
+        public uint Id2 { get => _id2; set => SetField(ref _id2, value); }
+        public uint Id3 { get => _id3; set => SetField(ref _id3, value); }
+        public uint Id4 { get => _id4; set => SetField(ref _id4, value); }
+        public uint Id5 { get => _id5; set => SetField(ref _id5, value); }
+        public uint Id6 { get => _id6; set => SetField(ref _id6, value); }
+        public uint Id7 { get => _id7; set => SetField(ref _id7, value); }
+        public uint Id8 { get => _id8; set => SetField(ref _id8, value); }
+        public uint Id9 { get => _id9; set => SetField(ref _id9, value); }
+        public uint Id10 { get => _id10; set => SetField(ref _id10, value); }
+        public uint Id11 { get => _id11; set => SetField(ref _id11, value); }
+
+        // Decoded identifier name from B0-B11
+        public string IdentifierName { get => _identifierName; set => SetField(ref _identifierName, value); }
+
         // P12: Palette data pointer
-        public uint P12 { get => _p12; set => SetField(ref _p12, value); }
+        public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -61,21 +57,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            P12 = rom.u32(addr + 12);
+            Id0 = rom.u8(addr + 0);
+            Id1 = rom.u8(addr + 1);
+            Id2 = rom.u8(addr + 2);
+            Id3 = rom.u8(addr + 3);
+            Id4 = rom.u8(addr + 4);
+            Id5 = rom.u8(addr + 5);
+            Id6 = rom.u8(addr + 6);
+            Id7 = rom.u8(addr + 7);
+            Id8 = rom.u8(addr + 8);
+            Id9 = rom.u8(addr + 9);
+            Id10 = rom.u8(addr + 10);
+            Id11 = rom.u8(addr + 11);
+            PalettePointer = rom.u32(addr + 12);
+
+            // Decode identifier as ASCII string
+            var chars = new char[12];
+            for (int i = 0; i < 12; i++)
+            {
+                uint b = rom.u8(addr + (uint)i);
+                chars[i] = (b >= 0x20 && b < 0x7F) ? (char)b : '.';
+            }
+            IdentifierName = new string(chars).TrimEnd();
 
             IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u8(addr + 0, Id0);
+            rom.write_u8(addr + 1, Id1);
+            rom.write_u8(addr + 2, Id2);
+            rom.write_u8(addr + 3, Id3);
+            rom.write_u8(addr + 4, Id4);
+            rom.write_u8(addr + 5, Id5);
+            rom.write_u8(addr + 6, Id6);
+            rom.write_u8(addr + 7, Id7);
+            rom.write_u8(addr + 8, Id8);
+            rom.write_u8(addr + 9, Id9);
+            rom.write_u8(addr + 10, Id10);
+            rom.write_u8(addr + 11, Id11);
+            rom.write_u32(addr + 12, PalettePointer);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -85,19 +112,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["P12"] = $"0x{P12:X08}",
+                ["Identifier"] = IdentifierName,
+                ["Id0"] = $"0x{Id0:X02}",
+                ["Id1"] = $"0x{Id1:X02}",
+                ["Id2"] = $"0x{Id2:X02}",
+                ["Id3"] = $"0x{Id3:X02}",
+                ["Id4"] = $"0x{Id4:X02}",
+                ["Id5"] = $"0x{Id5:X02}",
+                ["Id6"] = $"0x{Id6:X02}",
+                ["Id7"] = $"0x{Id7:X02}",
+                ["Id8"] = $"0x{Id8:X02}",
+                ["Id9"] = $"0x{Id9:X02}",
+                ["Id10"] = $"0x{Id10:X02}",
+                ["Id11"] = $"0x{Id11:X02}",
+                ["PalettePointer"] = $"0x{PalettePointer:X08}",
             };
         }
 

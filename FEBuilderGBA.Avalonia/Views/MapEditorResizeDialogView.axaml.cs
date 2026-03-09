@@ -31,12 +31,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.X = (int)(XInput.Value ?? 0);
-            _vm.Y = (int)(YInput.Value ?? 0);
-            _vm.T = (int)(TInput.Value ?? 0);
-            _vm.L = (int)(LInput.Value ?? 0);
-            _vm.R = (int)(RInput.Value ?? 0);
-            _vm.B = (int)(BInput.Value ?? 0);
+            _vm.PositionX = (int)(XInput.Value ?? 0);
+            _vm.PositionY = (int)(YInput.Value ?? 0);
+            _vm.PaddingTop = (int)(TInput.Value ?? 0);
+            _vm.PaddingLeft = (int)(LInput.Value ?? 0);
+            _vm.PaddingRight = (int)(RInput.Value ?? 0);
+            _vm.PaddingBottom = (int)(BInput.Value ?? 0);
             _vm.DialogResult = "OK";
             Close(true);
         }

@@ -52,17 +52,37 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            EnglishNamePtrBox.Value = _vm.EnglishNamePointer;
+            DescTextIdLowBox.Value = _vm.DescriptionTextIdLow;
+            JpNamePtrBox.Value = _vm.JapaneseNamePointer;
+            JpNameLenBox.Value = _vm.JapaneseNameLength;
+            PaletteIdBox.Value = _vm.PaletteId;
+            DisplayWeaponBox.Value = _vm.DisplayWeapon;
             ClassIdBox.Value = _vm.ClassId;
-            AnimTypeBox.Value = _vm.AnimationType;
+            AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             BattleAnimeBox.Value = _vm.BattleAnime;
+            MagicEffectBox.Value = _vm.MagicEffect;
+            TerrainLeftBox.Value = _vm.TerrainLeft;
+            TerrainRightBox.Value = _vm.TerrainRight;
+            AnimePtrBox.Value = _vm.AnimePointer;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.B15 = (uint)(ClassIdBox.Value ?? 0);
-            _vm.B16 = (uint)(AnimTypeBox.Value ?? 0);
-            _vm.B17 = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.EnglishNamePointer = (uint)(EnglishNamePtrBox.Value ?? 0);
+            _vm.DescriptionTextIdLow = (uint)(DescTextIdLowBox.Value ?? 0);
+            _vm.JapaneseNamePointer = (uint)(JpNamePtrBox.Value ?? 0);
+            _vm.JapaneseNameLength = (uint)(JpNameLenBox.Value ?? 0);
+            _vm.PaletteId = (uint)(PaletteIdBox.Value ?? 0);
+            _vm.DisplayWeapon = (uint)(DisplayWeaponBox.Value ?? 0);
+            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.AllyEnemyColor = (uint)(AllyEnemyColorBox.Value ?? 0);
+            _vm.BattleAnime = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.MagicEffect = (uint)(MagicEffectBox.Value ?? 0);
+            _vm.TerrainLeft = (uint)(TerrainLeftBox.Value ?? 0);
+            _vm.TerrainRight = (uint)(TerrainRightBox.Value ?? 0);
+            _vm.AnimePointer = (uint)(AnimePtrBox.Value ?? 0);
             _vm.WriteEntry();
             CoreState.Services?.ShowInfo("OP Class Demo (FE7) data written.");
         }

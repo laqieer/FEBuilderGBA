@@ -7,18 +7,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _w0;
-        uint _b2;
-        uint _b3;
+        uint _unit;
+        uint _squad;
+        uint _chapterId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // W0: u16 field at offset 0
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
-        // B2: u8 field at offset 2
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        // B3: u8 field at offset 3
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
+        // W0: Unit ID (u16 at offset 0)
+        public uint Unit { get => _unit; set => SetField(ref _unit, value); }
+        // B2: Squad number (u8 at offset 2)
+        public uint Squad { get => _squad; set => SetField(ref _squad, value); }
+        // B3: Chapter ID / Map ID (u8 at offset 3)
+        public uint ChapterId { get => _chapterId; set => SetField(ref _chapterId, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -37,10 +37,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
+            Unit = rom.u16(addr + 0);
+            Squad = rom.u8(addr + 2);
+            ChapterId = rom.u8(addr + 3);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u16(a + 0, Unit);
+            rom.write_u8(a + 2, Squad);
+            rom.write_u8(a + 3, ChapterId);
         }
 
         public int GetListCount() => 0;
@@ -49,9 +61,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["W0"] = W0.ToString("X04"),
-                ["B2"] = B2.ToString("X02"),
-                ["B3"] = B3.ToString("X02"),
+                ["Unit"] = Unit.ToString("X04"),
+                ["Squad"] = Squad.ToString("X02"),
+                ["ChapterId"] = ChapterId.ToString("X02"),
             };
         }
 
@@ -64,9 +76,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["u16@0x00_Unit"] = $"0x{rom.u16(a + 0):X04}",
+                ["u8@0x02_Squad"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_ChapterId"] = $"0x{rom.u8(a + 3):X02}",
             };
         }
     }

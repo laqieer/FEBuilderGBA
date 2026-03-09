@@ -15,13 +15,23 @@ namespace FEBuilderGBA.Avalonia.Views
         public PointerToolView()
         {
             InitializeComponent();
+            DataContext = _vm;
             _vm.Initialize();
         }
 
-        void Search_Click(object? sender, RoutedEventArgs e) { }
+        void Search_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.AddressInput = AddressTextBox.Text ?? "";
+        }
+
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
 
-        public void NavigateTo(uint address) { }
+        public void NavigateTo(uint address)
+        {
+            _vm.AddressInput = $"0x{address:X08}";
+            AddressTextBox.Text = _vm.AddressInput;
+        }
+
         public void SelectFirstItem() { }
     }
 }

@@ -8,15 +8,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _w2;
+        uint _weaponType;
+        uint _special;
+        uint _animeNumber;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
+        public uint WeaponType { get => _weaponType; set => SetField(ref _weaponType, value); }
+        public uint Special { get => _special; set => SetField(ref _special, value); }
+        public uint AnimeNumber { get => _animeNumber; set => SetField(ref _animeNumber, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -33,10 +33,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            W2 = rom.u16(addr + 2);
+            WeaponType = rom.u8(addr + 0);
+            Special = rom.u8(addr + 1);
+            AnimeNumber = rom.u16(addr + 2);
             IsLoaded = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(addr + 0, (byte)WeaponType);
+            rom.write_u8(addr + 1, (byte)Special);
+            rom.write_u16(addr + 2, (ushort)AnimeNumber);
         }
 
         public int GetListCount() => 0;
@@ -46,9 +58,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["W2"] = $"0x{W2:X04}",
+                ["B0_WeaponType"] = $"0x{WeaponType:X02}",
+                ["B1_Special"] = $"0x{Special:X02}",
+                ["W2_AnimeNumber"] = $"0x{AnimeNumber:X04}",
             };
         }
 
@@ -60,9 +72,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u8@0x00_WeaponType"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_Special"] = $"0x{rom.u8(a + 1):X02}",
+                ["u16@0x02_AnimeNumber"] = $"0x{rom.u16(a + 2):X04}",
             };
         }
     }

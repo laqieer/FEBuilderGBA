@@ -23,19 +23,19 @@
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Commander:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit Info:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Level/Growth:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Coordinates:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="??:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Special:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="00 (B7):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Padding (B7):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="P8 (Pointer):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="AI Pointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" />

@@ -10,9 +10,29 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="TSA Animation Editor v2" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="200,200,20,200,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Row 1: Unknown0, Unknown2 -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unknown 0 (W0):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Unknown0Box" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Unknown 2 (W2):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Unknown2Box" Minimum="0" Maximum="65535" />
+
+          <!-- Row 2: Unknown4, Unknown6 -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown 4 (W4):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unknown4Box" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Unknown 6 (W6):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="Unknown6Box" Minimum="0" Maximum="65535" />
+
+          <!-- Row 3: TSA Header Pointer -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="TSA w/ Header (P8):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="TSAHeaderPointerBox" Width="160" />
+
+          <!-- Row 4: Write button -->
+          <Button Grid.Row="4" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

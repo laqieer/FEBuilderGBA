@@ -4,7 +4,17 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    /// <summary>Text dictionary browser ViewModel.</summary>
+    /// <summary>Text dictionary browser ViewModel.
+    /// WinForms: TextDicForm — record size 12 bytes, three sub-lists (main, chapter, title).
+    /// B0 / J_0 = Title Index (references N2_AddressList).
+    /// B1 / J_1 = Chapter Index (references N1_AddressList).
+    /// W2 / J_2_TEXT = Text ID 1 (with L_2_TEXT_DICNAME1 display).
+    /// W4 / J_4_TEXT = Text ID 2 (with L_4_TEXT display).
+    /// W6 / J_6_FLAG = Flag 1.
+    /// W8 / J_8_FLAG = Flag 2.
+    /// B10 / J_10 = Unit ID (with L_10_UNIT / L_10_UNITICON display).
+    /// B11 / J_11 = Class ID (with L_11_CLASS / L_11_CLASSICON display).
+    /// </summary>
     public class TextDicViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
@@ -12,7 +22,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _searchTerm = "";
         string _selectedEntry = "";
         ObservableCollection<string> _entries = new();
-        uint _b0, _b1, _w2, _w4, _w6, _w8, _b10, _b11;
+        uint _titleIndex, _chapterIndex, _textId1, _textId2, _flag1, _flag2, _unitId, _classId;
+        string _titleName = "";
+        string _chapterName = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -20,14 +32,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SelectedEntry { get => _selectedEntry; set => SetField(ref _selectedEntry, value); }
         public ObservableCollection<string> Entries { get => _entries; set => SetField(ref _entries, value); }
 
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        public uint W8 { get => _w8; set => SetField(ref _w8, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
+        /// <summary>Title index (u8@0). WinForms: B0 / J_0, maps to N2_AddressList.</summary>
+        public uint TitleIndex { get => _titleIndex; set => SetField(ref _titleIndex, value); }
+
+        /// <summary>Chapter index (u8@1). WinForms: B1 / J_1, maps to N1_AddressList.</summary>
+        public uint ChapterIndex { get => _chapterIndex; set => SetField(ref _chapterIndex, value); }
+
+        /// <summary>Text ID 1 (u16@2). WinForms: W2 / J_2_TEXT with L_2_TEXT_DICNAME1.</summary>
+        public uint TextId1 { get => _textId1; set => SetField(ref _textId1, value); }
+
+        /// <summary>Text ID 2 (u16@4). WinForms: W4 / J_4_TEXT with L_4_TEXT.</summary>
+        public uint TextId2 { get => _textId2; set => SetField(ref _textId2, value); }
+
+        /// <summary>Flag 1 (u16@6). WinForms: W6 / J_6_FLAG.</summary>
+        public uint Flag1 { get => _flag1; set => SetField(ref _flag1, value); }
+
+        /// <summary>Flag 2 (u16@8). WinForms: W8 / J_8_FLAG.</summary>
+        public uint Flag2 { get => _flag2; set => SetField(ref _flag2, value); }
+
+        /// <summary>Unit ID (u8@10). WinForms: B10 / J_10 with L_10_UNIT / L_10_UNITICON.</summary>
+        public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
+
+        /// <summary>Class ID (u8@11). WinForms: B11 / J_11 with L_11_CLASS / L_11_CLASSICON.</summary>
+        public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
+
+        /// <summary>Resolved title name from N2_AddressList. WinForms: X_1.</summary>
+        public string TitleName { get => _titleName; set => SetField(ref _titleName, value); }
+
+        /// <summary>Resolved chapter name from N1_AddressList. WinForms: X_2.</summary>
+        public string ChapterName { get => _chapterName; set => SetField(ref _chapterName, value); }
+
+        // Legacy aliases
+        public uint B0 { get => TitleIndex; set => TitleIndex = value; }
+        public uint B1 { get => ChapterIndex; set => ChapterIndex = value; }
+        public uint W2 { get => TextId1; set => TextId1 = value; }
+        public uint W4 { get => TextId2; set => TextId2 = value; }
+        public uint W6 { get => Flag1; set => Flag1 = value; }
+        public uint W8 { get => Flag2; set => Flag2 = value; }
+        public uint B10 { get => UnitId; set => UnitId = value; }
+        public uint B11 { get => ClassId; set => ClassId = value; }
 
         public void Initialize()
         {
@@ -41,16 +84,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 11 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            W2 = rom.u16(addr + 2);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
-            W8 = rom.u16(addr + 8);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
+            TitleIndex = rom.u8(addr + 0);
+            ChapterIndex = rom.u8(addr + 1);
+            TextId1 = rom.u16(addr + 2);
+            TextId2 = rom.u16(addr + 4);
+            Flag1 = rom.u16(addr + 6);
+            Flag2 = rom.u16(addr + 8);
+            UnitId = rom.u8(addr + 10);
+            ClassId = rom.u8(addr + 11);
 
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 11 >= (uint)rom.Data.Length) return;
+
+            rom.write_u8(CurrentAddr + 0, (byte)TitleIndex);
+            rom.write_u8(CurrentAddr + 1, (byte)ChapterIndex);
+            rom.write_u16(CurrentAddr + 2, (ushort)TextId1);
+            rom.write_u16(CurrentAddr + 4, (ushort)TextId2);
+            rom.write_u16(CurrentAddr + 6, (ushort)Flag1);
+            rom.write_u16(CurrentAddr + 8, (ushort)Flag2);
+            rom.write_u8(CurrentAddr + 10, (byte)UnitId);
+            rom.write_u8(CurrentAddr + 11, (byte)ClassId);
         }
 
         public int GetListCount() => 0;
@@ -60,14 +119,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["W2"] = $"0x{W2:X04}",
-                ["W4"] = $"0x{W4:X04}",
-                ["W6"] = $"0x{W6:X04}",
-                ["W8"] = $"0x{W8:X04}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
+                ["TitleIndex"] = $"0x{TitleIndex:X02}",
+                ["ChapterIndex"] = $"0x{ChapterIndex:X02}",
+                ["TextId1"] = $"0x{TextId1:X04}",
+                ["TextId2"] = $"0x{TextId2:X04}",
+                ["Flag1"] = $"0x{Flag1:X04}",
+                ["Flag2"] = $"0x{Flag2:X04}",
+                ["UnitId"] = $"0x{UnitId:X02}",
+                ["ClassId"] = $"0x{ClassId:X02}",
             };
         }
 

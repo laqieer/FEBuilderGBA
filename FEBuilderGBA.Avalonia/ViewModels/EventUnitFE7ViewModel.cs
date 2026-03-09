@@ -6,36 +6,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
     /// ViewModel for EventUnitFE7Form (FE7 — 16-byte unit placement blocks).
-    /// Fields: B0-B15 (all byte fields).
+    /// Layout: UnitID(B0), ClassID(B1), LeaderUnitID(B2), UnitInfo(B3),
+    ///         StartX(B4), StartY(B5), EndX(B6), EndY(B7),
+    ///         Item1(B8), Item2(B9), Item3(B10), Item4(B11),
+    ///         AI1Primary(B12), AI2Secondary(B13), AI3TargetRecovery(B14), AI4Retreat(B15).
     /// </summary>
     public class EventUnitFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _isLoaded;
 
-        // B0-B15: byte fields at offsets 0-15
-        uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7;
-        uint _b8, _b9, _b10, _b11, _b12, _b13, _b14, _b15;
+        uint _unitID, _classID, _leaderUnitID, _unitInfo;
+        uint _startX, _startY, _endX, _endY;
+        uint _item1, _item2, _item3, _item4;
+        uint _ai1Primary, _ai2Secondary, _ai3TargetRecovery, _ai4Retreat;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
+        public uint UnitID { get => _unitID; set => SetField(ref _unitID, value); }
+        public uint ClassID { get => _classID; set => SetField(ref _classID, value); }
+        public uint LeaderUnitID { get => _leaderUnitID; set => SetField(ref _leaderUnitID, value); }
+        public uint UnitInfo { get => _unitInfo; set => SetField(ref _unitInfo, value); }
+        public uint StartX { get => _startX; set => SetField(ref _startX, value); }
+        public uint StartY { get => _startY; set => SetField(ref _startY, value); }
+        public uint EndX { get => _endX; set => SetField(ref _endX, value); }
+        public uint EndY { get => _endY; set => SetField(ref _endY, value); }
+        public uint Item1 { get => _item1; set => SetField(ref _item1, value); }
+        public uint Item2 { get => _item2; set => SetField(ref _item2, value); }
+        public uint Item3 { get => _item3; set => SetField(ref _item3, value); }
+        public uint Item4 { get => _item4; set => SetField(ref _item4, value); }
+        public uint AI1Primary { get => _ai1Primary; set => SetField(ref _ai1Primary, value); }
+        public uint AI2Secondary { get => _ai2Secondary; set => SetField(ref _ai2Secondary, value); }
+        public uint AI3TargetRecovery { get => _ai3TargetRecovery; set => SetField(ref _ai3TargetRecovery, value); }
+        public uint AI4Retreat { get => _ai4Retreat; set => SetField(ref _ai4Retreat, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -59,22 +63,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
+            UnitID = rom.u8(addr + 0);
+            ClassID = rom.u8(addr + 1);
+            LeaderUnitID = rom.u8(addr + 2);
+            UnitInfo = rom.u8(addr + 3);
+            StartX = rom.u8(addr + 4);
+            StartY = rom.u8(addr + 5);
+            EndX = rom.u8(addr + 6);
+            EndY = rom.u8(addr + 7);
+            Item1 = rom.u8(addr + 8);
+            Item2 = rom.u8(addr + 9);
+            Item3 = rom.u8(addr + 10);
+            Item4 = rom.u8(addr + 11);
+            AI1Primary = rom.u8(addr + 12);
+            AI2Secondary = rom.u8(addr + 13);
+            AI3TargetRecovery = rom.u8(addr + 14);
+            AI4Retreat = rom.u8(addr + 15);
 
             IsLoaded = true;
         }
@@ -85,22 +89,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)B0);
-            rom.write_u8(addr + 1, (byte)B1);
-            rom.write_u8(addr + 2, (byte)B2);
-            rom.write_u8(addr + 3, (byte)B3);
-            rom.write_u8(addr + 4, (byte)B4);
-            rom.write_u8(addr + 5, (byte)B5);
-            rom.write_u8(addr + 6, (byte)B6);
-            rom.write_u8(addr + 7, (byte)B7);
-            rom.write_u8(addr + 8, (byte)B8);
-            rom.write_u8(addr + 9, (byte)B9);
-            rom.write_u8(addr + 10, (byte)B10);
-            rom.write_u8(addr + 11, (byte)B11);
-            rom.write_u8(addr + 12, (byte)B12);
-            rom.write_u8(addr + 13, (byte)B13);
-            rom.write_u8(addr + 14, (byte)B14);
-            rom.write_u8(addr + 15, (byte)B15);
+            rom.write_u8(addr + 0, (byte)UnitID);
+            rom.write_u8(addr + 1, (byte)ClassID);
+            rom.write_u8(addr + 2, (byte)LeaderUnitID);
+            rom.write_u8(addr + 3, (byte)UnitInfo);
+            rom.write_u8(addr + 4, (byte)StartX);
+            rom.write_u8(addr + 5, (byte)StartY);
+            rom.write_u8(addr + 6, (byte)EndX);
+            rom.write_u8(addr + 7, (byte)EndY);
+            rom.write_u8(addr + 8, (byte)Item1);
+            rom.write_u8(addr + 9, (byte)Item2);
+            rom.write_u8(addr + 10, (byte)Item3);
+            rom.write_u8(addr + 11, (byte)Item4);
+            rom.write_u8(addr + 12, (byte)AI1Primary);
+            rom.write_u8(addr + 13, (byte)AI2Secondary);
+            rom.write_u8(addr + 14, (byte)AI3TargetRecovery);
+            rom.write_u8(addr + 15, (byte)AI4Retreat);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -110,22 +114,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["B12"] = $"0x{B12:X02}",
-                ["B13"] = $"0x{B13:X02}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
+                ["UnitID"] = $"0x{UnitID:X02}",
+                ["ClassID"] = $"0x{ClassID:X02}",
+                ["LeaderUnitID"] = $"0x{LeaderUnitID:X02}",
+                ["UnitInfo"] = $"0x{UnitInfo:X02}",
+                ["StartX"] = $"0x{StartX:X02}",
+                ["StartY"] = $"0x{StartY:X02}",
+                ["EndX"] = $"0x{EndX:X02}",
+                ["EndY"] = $"0x{EndY:X02}",
+                ["Item1"] = $"0x{Item1:X02}",
+                ["Item2"] = $"0x{Item2:X02}",
+                ["Item3"] = $"0x{Item3:X02}",
+                ["Item4"] = $"0x{Item4:X02}",
+                ["AI1Primary"] = $"0x{AI1Primary:X02}",
+                ["AI2Secondary"] = $"0x{AI2Secondary:X02}",
+                ["AI3TargetRecovery"] = $"0x{AI3TargetRecovery:X02}",
+                ["AI4Retreat"] = $"0x{AI4Retreat:X02}",
             };
         }
 
@@ -138,22 +142,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
-                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["UnitID@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["ClassID@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["LeaderUnitID@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["UnitInfo@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["StartX@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["StartY@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["EndX@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["EndY@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["Item1@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["Item2@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["Item3@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["Item4@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["AI1Primary@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["AI2Secondary@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["AI3TargetRecovery@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["AI4Retreat@0x0F"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
     }

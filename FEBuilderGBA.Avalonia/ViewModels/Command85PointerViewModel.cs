@@ -8,11 +8,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _p0;
+        uint _pointerValue;
+        string _asmLabel = string.Empty;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
+        /// <summary>Pointer value at the command 0x85 address.</summary>
+        public uint PointerValue { get => _pointerValue; set => SetField(ref _pointerValue, value); }
+        /// <summary>ASM label name if the pointer resolves to a known function.</summary>
+        public string AsmLabel { get => _asmLabel; set => SetField(ref _asmLabel, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -29,8 +33,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+            PointerValue = rom.u32(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
+            rom.write_u32(CurrentAddr + 0, PointerValue);
         }
 
         public int GetListCount() => 0;
@@ -40,7 +52,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["P0"] = $"0x{P0:X08}",
+                ["Pointer Value"] = $"0x{PointerValue:X08}",
+                ["ASM Label"] = AsmLabel,
             };
         }
 

@@ -7,7 +7,7 @@
         CanResize="False">
   <StackPanel Margin="22,31,15,15">
     <TextBlock TextWrapping="Wrap" Height="36"
-               Text="No emulator is configured.&#x0a;Please configure the emulator to be used for test play." />
+               Text="{Binding MessageText}" />
     <Button Content="Automatically configure with Init Wizard" Height="37"
             HorizontalAlignment="Stretch" Margin="0,27,0,0" Click="UseInitWizard_Click" />
     <Button Content="Manually configure from Options screen" Height="37"

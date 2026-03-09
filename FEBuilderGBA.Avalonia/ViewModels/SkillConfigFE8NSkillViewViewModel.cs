@@ -8,26 +8,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _w0, _w2;
-        uint _b4, _b5, _b6, _b7, _b8, _b9, _b10, _b11, _b12, _b13, _b14, _b15;
+        uint _icon, _description;
+        uint _conditionUnit1, _conditionUnit2, _conditionUnit3, _conditionUnit4;
+        uint _conditionClass1, _conditionClass2, _conditionClass3, _conditionClass4;
+        uint _conditionItem1, _conditionItem2, _conditionItem3, _conditionItem4;
         string _statusMessage = "Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
+        public uint Icon { get => _icon; set => SetField(ref _icon, value); }
+        public uint Description { get => _description; set => SetField(ref _description, value); }
+        public uint ConditionUnit1 { get => _conditionUnit1; set => SetField(ref _conditionUnit1, value); }
+        public uint ConditionUnit2 { get => _conditionUnit2; set => SetField(ref _conditionUnit2, value); }
+        public uint ConditionUnit3 { get => _conditionUnit3; set => SetField(ref _conditionUnit3, value); }
+        public uint ConditionUnit4 { get => _conditionUnit4; set => SetField(ref _conditionUnit4, value); }
+        public uint ConditionClass1 { get => _conditionClass1; set => SetField(ref _conditionClass1, value); }
+        public uint ConditionClass2 { get => _conditionClass2; set => SetField(ref _conditionClass2, value); }
+        public uint ConditionClass3 { get => _conditionClass3; set => SetField(ref _conditionClass3, value); }
+        public uint ConditionClass4 { get => _conditionClass4; set => SetField(ref _conditionClass4, value); }
+        public uint ConditionItem1 { get => _conditionItem1; set => SetField(ref _conditionItem1, value); }
+        public uint ConditionItem2 { get => _conditionItem2; set => SetField(ref _conditionItem2, value); }
+        public uint ConditionItem3 { get => _conditionItem3; set => SetField(ref _conditionItem3, value); }
+        public uint ConditionItem4 { get => _conditionItem4; set => SetField(ref _conditionItem4, value); }
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
         public void LoadEntry(uint addr)
@@ -36,21 +38,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
+            Icon = rom.u16(addr + 0);
+            Description = rom.u16(addr + 2);
+            ConditionUnit1 = rom.u8(addr + 4);
+            ConditionUnit2 = rom.u8(addr + 5);
+            ConditionUnit3 = rom.u8(addr + 6);
+            ConditionUnit4 = rom.u8(addr + 7);
+            ConditionClass1 = rom.u8(addr + 8);
+            ConditionClass2 = rom.u8(addr + 9);
+            ConditionClass3 = rom.u8(addr + 10);
+            ConditionClass4 = rom.u8(addr + 11);
+            ConditionItem1 = rom.u8(addr + 12);
+            ConditionItem2 = rom.u8(addr + 13);
+            ConditionItem3 = rom.u8(addr + 14);
+            ConditionItem4 = rom.u8(addr + 15);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u16(addr + 0, Icon);
+            rom.write_u16(addr + 2, Description);
+            rom.write_u8(addr + 4, ConditionUnit1);
+            rom.write_u8(addr + 5, ConditionUnit2);
+            rom.write_u8(addr + 6, ConditionUnit3);
+            rom.write_u8(addr + 7, ConditionUnit4);
+            rom.write_u8(addr + 8, ConditionClass1);
+            rom.write_u8(addr + 9, ConditionClass2);
+            rom.write_u8(addr + 10, ConditionClass3);
+            rom.write_u8(addr + 11, ConditionClass4);
+            rom.write_u8(addr + 12, ConditionItem1);
+            rom.write_u8(addr + 13, ConditionItem2);
+            rom.write_u8(addr + 14, ConditionItem3);
+            rom.write_u8(addr + 15, ConditionItem4);
         }
 
         public void Initialize() { IsLoaded = true; }
@@ -61,20 +85,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
-                ["W2"] = $"0x{W2:X04}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["B12"] = $"0x{B12:X02}",
-                ["B13"] = $"0x{B13:X02}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
+                ["Icon"] = $"0x{Icon:X04}",
+                ["Description"] = $"0x{Description:X04}",
+                ["ConditionUnit1"] = $"0x{ConditionUnit1:X02}",
+                ["ConditionUnit2"] = $"0x{ConditionUnit2:X02}",
+                ["ConditionUnit3"] = $"0x{ConditionUnit3:X02}",
+                ["ConditionUnit4"] = $"0x{ConditionUnit4:X02}",
+                ["ConditionClass1"] = $"0x{ConditionClass1:X02}",
+                ["ConditionClass2"] = $"0x{ConditionClass2:X02}",
+                ["ConditionClass3"] = $"0x{ConditionClass3:X02}",
+                ["ConditionClass4"] = $"0x{ConditionClass4:X02}",
+                ["ConditionItem1"] = $"0x{ConditionItem1:X02}",
+                ["ConditionItem2"] = $"0x{ConditionItem2:X02}",
+                ["ConditionItem3"] = $"0x{ConditionItem3:X02}",
+                ["ConditionItem4"] = $"0x{ConditionItem4:X02}",
             };
         }
 

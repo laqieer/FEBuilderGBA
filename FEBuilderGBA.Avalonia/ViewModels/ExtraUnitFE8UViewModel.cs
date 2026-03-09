@@ -8,13 +8,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        uint _p4;
+        uint _flagId;
+        uint _unitInfoPtr;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint P4 { get => _p4; set => SetField(ref _p4, value); }
+        public uint FlagId { get => _flagId; set => SetField(ref _flagId, value); }
+        public uint UnitInfoPtr { get => _unitInfoPtr; set => SetField(ref _unitInfoPtr, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -31,8 +31,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 8 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            P4 = rom.u32(addr + 4);
+            FlagId = rom.u32(addr + 0);
+            UnitInfoPtr = rom.u32(addr + 4);
             IsLoaded = true;
         }
 
@@ -42,8 +42,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, D0);
-            rom.write_u32(addr + 4, P4);
+            rom.write_u32(addr + 0, FlagId);
+            rom.write_u32(addr + 4, UnitInfoPtr);
         }
 
         public int GetListCount() => 0;
@@ -53,8 +53,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["P4"] = $"0x{P4:X08}",
+                ["D0_FlagId"] = $"0x{FlagId:X08}",
+                ["P4_UnitInfoPtr"] = $"0x{UnitInfoPtr:X08}",
             };
         }
 
@@ -66,8 +66,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00_FlagId"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_UnitInfoPtr"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

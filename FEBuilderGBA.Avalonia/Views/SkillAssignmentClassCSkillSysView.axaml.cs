@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -14,7 +15,21 @@ namespace FEBuilderGBA.Avalonia.Views
         public SkillAssignmentClassCSkillSysView()
         {
             InitializeComponent();
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => _vm.Initialize();
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.ClassSkill = (uint)(ClassSkillBox.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SkillAssignmentClassCSkillSysView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) { }

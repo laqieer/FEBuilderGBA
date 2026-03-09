@@ -7,49 +7,57 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
-        uint _b4;
-        uint _b5;
-        uint _b6;
-        uint _b7;
-        uint _b8;
-        uint _b9;
-        uint _b10;
-        uint _b11;
-        uint _b12;
-        uint _b13;
-        uint _b14;
-        uint _b15;
-        uint _b16;
-        uint _b17;
-        uint _b18;
-        uint _b19;
+        uint _lethalDamagePriority;
+        uint _enemyRemainingHPPriority;
+        uint _enemyDistancePriority;
+        uint _enemyClassPriority;
+        uint _currentTurnPriority;
+        uint _counterDamageWarning;
+        uint _surroundWarning;
+        uint _selfRemainingHPWarning;
+        uint _unknown8;
+        uint _unknown9;
+        uint _unknown10;
+        uint _unknown11;
+        uint _unknown12;
+        uint _unknown13;
+        uint _unknown14;
+        uint _unknown15;
+        uint _unknown16;
+        uint _unknown17;
+        uint _unknown18;
+        uint _unknown19;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
-        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
-        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
-        public uint B18 { get => _b18; set => SetField(ref _b18, value); }
-        public uint B19 { get => _b19; set => SetField(ref _b19, value); }
+        /// <summary>Lethal damage and final damage priority (offset 0)</summary>
+        public uint LethalDamagePriority { get => _lethalDamagePriority; set => SetField(ref _lethalDamagePriority, value); }
+        /// <summary>Enemy remaining HP priority (offset 1)</summary>
+        public uint EnemyRemainingHPPriority { get => _enemyRemainingHPPriority; set => SetField(ref _enemyRemainingHPPriority, value); }
+        /// <summary>Enemy distance priority (offset 2)</summary>
+        public uint EnemyDistancePriority { get => _enemyDistancePriority; set => SetField(ref _enemyDistancePriority, value); }
+        /// <summary>Enemy class priority (offset 3)</summary>
+        public uint EnemyClassPriority { get => _enemyClassPriority; set => SetField(ref _enemyClassPriority, value); }
+        /// <summary>Current turn priority (offset 4)</summary>
+        public uint CurrentTurnPriority { get => _currentTurnPriority; set => SetField(ref _currentTurnPriority, value); }
+        /// <summary>Counter damage warning level (offset 5)</summary>
+        public uint CounterDamageWarning { get => _counterDamageWarning; set => SetField(ref _counterDamageWarning, value); }
+        /// <summary>Surround warning level (offset 6)</summary>
+        public uint SurroundWarning { get => _surroundWarning; set => SetField(ref _surroundWarning, value); }
+        /// <summary>Self remaining HP warning level (offset 7)</summary>
+        public uint SelfRemainingHPWarning { get => _selfRemainingHPWarning; set => SetField(ref _selfRemainingHPWarning, value); }
+        public uint Unknown8 { get => _unknown8; set => SetField(ref _unknown8, value); }
+        public uint Unknown9 { get => _unknown9; set => SetField(ref _unknown9, value); }
+        public uint Unknown10 { get => _unknown10; set => SetField(ref _unknown10, value); }
+        public uint Unknown11 { get => _unknown11; set => SetField(ref _unknown11, value); }
+        public uint Unknown12 { get => _unknown12; set => SetField(ref _unknown12, value); }
+        public uint Unknown13 { get => _unknown13; set => SetField(ref _unknown13, value); }
+        public uint Unknown14 { get => _unknown14; set => SetField(ref _unknown14, value); }
+        public uint Unknown15 { get => _unknown15; set => SetField(ref _unknown15, value); }
+        public uint Unknown16 { get => _unknown16; set => SetField(ref _unknown16, value); }
+        public uint Unknown17 { get => _unknown17; set => SetField(ref _unknown17, value); }
+        public uint Unknown18 { get => _unknown18; set => SetField(ref _unknown18, value); }
+        public uint Unknown19 { get => _unknown19; set => SetField(ref _unknown19, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -68,27 +76,55 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 20 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
-            B18 = rom.u8(addr + 18);
-            B19 = rom.u8(addr + 19);
+            LethalDamagePriority = rom.u8(addr + 0);
+            EnemyRemainingHPPriority = rom.u8(addr + 1);
+            EnemyDistancePriority = rom.u8(addr + 2);
+            EnemyClassPriority = rom.u8(addr + 3);
+            CurrentTurnPriority = rom.u8(addr + 4);
+            CounterDamageWarning = rom.u8(addr + 5);
+            SurroundWarning = rom.u8(addr + 6);
+            SelfRemainingHPWarning = rom.u8(addr + 7);
+            Unknown8 = rom.u8(addr + 8);
+            Unknown9 = rom.u8(addr + 9);
+            Unknown10 = rom.u8(addr + 10);
+            Unknown11 = rom.u8(addr + 11);
+            Unknown12 = rom.u8(addr + 12);
+            Unknown13 = rom.u8(addr + 13);
+            Unknown14 = rom.u8(addr + 14);
+            Unknown15 = rom.u8(addr + 15);
+            Unknown16 = rom.u8(addr + 16);
+            Unknown17 = rom.u8(addr + 17);
+            Unknown18 = rom.u8(addr + 18);
+            Unknown19 = rom.u8(addr + 19);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u8(addr + 0, LethalDamagePriority);
+            rom.write_u8(addr + 1, EnemyRemainingHPPriority);
+            rom.write_u8(addr + 2, EnemyDistancePriority);
+            rom.write_u8(addr + 3, EnemyClassPriority);
+            rom.write_u8(addr + 4, CurrentTurnPriority);
+            rom.write_u8(addr + 5, CounterDamageWarning);
+            rom.write_u8(addr + 6, SurroundWarning);
+            rom.write_u8(addr + 7, SelfRemainingHPWarning);
+            rom.write_u8(addr + 8, Unknown8);
+            rom.write_u8(addr + 9, Unknown9);
+            rom.write_u8(addr + 10, Unknown10);
+            rom.write_u8(addr + 11, Unknown11);
+            rom.write_u8(addr + 12, Unknown12);
+            rom.write_u8(addr + 13, Unknown13);
+            rom.write_u8(addr + 14, Unknown14);
+            rom.write_u8(addr + 15, Unknown15);
+            rom.write_u8(addr + 16, Unknown16);
+            rom.write_u8(addr + 17, Unknown17);
+            rom.write_u8(addr + 18, Unknown18);
+            rom.write_u8(addr + 19, Unknown19);
         }
 
         public int GetListCount() => 0;
@@ -97,26 +133,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                { "B0", B0.ToString("X02") },
-                { "B1", B1.ToString("X02") },
-                { "B2", B2.ToString("X02") },
-                { "B3", B3.ToString("X02") },
-                { "B4", B4.ToString("X02") },
-                { "B5", B5.ToString("X02") },
-                { "B6", B6.ToString("X02") },
-                { "B7", B7.ToString("X02") },
-                { "B8", B8.ToString("X02") },
-                { "B9", B9.ToString("X02") },
-                { "B10", B10.ToString("X02") },
-                { "B11", B11.ToString("X02") },
-                { "B12", B12.ToString("X02") },
-                { "B13", B13.ToString("X02") },
-                { "B14", B14.ToString("X02") },
-                { "B15", B15.ToString("X02") },
-                { "B16", B16.ToString("X02") },
-                { "B17", B17.ToString("X02") },
-                { "B18", B18.ToString("X02") },
-                { "B19", B19.ToString("X02") },
+                { "LethalDamagePriority", LethalDamagePriority.ToString("X02") },
+                { "EnemyRemainingHPPriority", EnemyRemainingHPPriority.ToString("X02") },
+                { "EnemyDistancePriority", EnemyDistancePriority.ToString("X02") },
+                { "EnemyClassPriority", EnemyClassPriority.ToString("X02") },
+                { "CurrentTurnPriority", CurrentTurnPriority.ToString("X02") },
+                { "CounterDamageWarning", CounterDamageWarning.ToString("X02") },
+                { "SurroundWarning", SurroundWarning.ToString("X02") },
+                { "SelfRemainingHPWarning", SelfRemainingHPWarning.ToString("X02") },
+                { "Unknown8", Unknown8.ToString("X02") },
+                { "Unknown9", Unknown9.ToString("X02") },
+                { "Unknown10", Unknown10.ToString("X02") },
+                { "Unknown11", Unknown11.ToString("X02") },
+                { "Unknown12", Unknown12.ToString("X02") },
+                { "Unknown13", Unknown13.ToString("X02") },
+                { "Unknown14", Unknown14.ToString("X02") },
+                { "Unknown15", Unknown15.ToString("X02") },
+                { "Unknown16", Unknown16.ToString("X02") },
+                { "Unknown17", Unknown17.ToString("X02") },
+                { "Unknown18", Unknown18.ToString("X02") },
+                { "Unknown19", Unknown19.ToString("X02") },
             };
         }
 
@@ -128,26 +164,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
-                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
-                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
-                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
-                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
-                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                ["u8@0x00_LethalDamagePriority"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_EnemyRemainingHPPriority"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_EnemyDistancePriority"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_EnemyClassPriority"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x04_CurrentTurnPriority"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05_CounterDamageWarning"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06_SurroundWarning"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07_SelfRemainingHPWarning"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08_Unknown8"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09_Unknown9"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_Unknown10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_Unknown11"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x0C_Unknown12"] = $"0x{rom.u8(a + 12):X02}",
+                ["u8@0x0D_Unknown13"] = $"0x{rom.u8(a + 13):X02}",
+                ["u8@0x0E_Unknown14"] = $"0x{rom.u8(a + 14):X02}",
+                ["u8@0x0F_Unknown15"] = $"0x{rom.u8(a + 15):X02}",
+                ["u8@0x10_Unknown16"] = $"0x{rom.u8(a + 16):X02}",
+                ["u8@0x11_Unknown17"] = $"0x{rom.u8(a + 17):X02}",
+                ["u8@0x12_Unknown18"] = $"0x{rom.u8(a + 18):X02}",
+                ["u8@0x13_Unknown19"] = $"0x{rom.u8(a + 19):X02}",
             };
         }
     }

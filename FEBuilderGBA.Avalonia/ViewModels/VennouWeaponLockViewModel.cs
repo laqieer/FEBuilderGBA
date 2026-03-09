@@ -3,15 +3,31 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>Vennou weapon lock editor.
+    /// WinForms: VennouWeaponLockForm — B0/J_0 = Lock Type or Unit/Class ID,
+    /// X_LINK = linked name display, X_LINK_ICON = icon, Explain = description.
+    /// Record size: 1 byte per entry (variable-length list terminated by 0x00).
+    /// </summary>
     public class VennouWeaponLockViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _b0;
+        uint _lockTypeOrId;
+        string _linkedName = "";
+        string _explanation = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
+
+        /// <summary>Lock type (first entry) or Unit/Class ID (subsequent entries).
+        /// WinForms: B0 / J_0.</summary>
+        public uint LockTypeOrId { get => _lockTypeOrId; set => SetField(ref _lockTypeOrId, value); }
+
+        /// <summary>Display name resolved from LockTypeOrId. WinForms: X_LINK.</summary>
+        public string LinkedName { get => _linkedName; set => SetField(ref _linkedName, value); }
+
+        /// <summary>Explanation text. WinForms: Explain TextBox.</summary>
+        public string Explanation { get => _explanation; set => SetField(ref _explanation, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -20,8 +36,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
+            LockTypeOrId = rom.u8(addr + 0);
             CanWrite = true;
+        }
+
+        public void Write()
+        {
+            WriteEntry();
         }
 
         public void WriteEntry()
@@ -30,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 1 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)B0);
+            rom.write_u8(CurrentAddr + 0, (byte)LockTypeOrId);
         }
 
         public int GetListCount() => 0;
@@ -40,7 +61,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
+                ["LockTypeOrId"] = $"0x{LockTypeOrId:X02}",
+                ["LinkedName"] = LinkedName,
             };
         }
 

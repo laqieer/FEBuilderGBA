@@ -10,22 +10,22 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Map Tile Animation Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="W0 (u16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="W0Box" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Interval:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="W2 (u16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="W2Box" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Data Count:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Anim Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Width="120" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Animation Pointer:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Width="160" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" Margin="0,4,0,0" />
           <TextBlock Grid.Row="4" Grid.Column="1" Name="RawBytesLabel" VerticalAlignment="Top"
-                     FontFamily="Consolas,Courier New,monospace" />
+                     FontFamily="Consolas,Courier New,monospace" Margin="0,4,0,0" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Write" Click="Write_Click" />

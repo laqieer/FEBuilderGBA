@@ -48,23 +48,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            P0Box.Text = string.Format("0x{0:X08}", _vm.P0);
-            B4Box.Value = _vm.B4;
-            B5Box.Value = _vm.B5;
-            B6Box.Value = _vm.B6;
-            B7Box.Value = _vm.B7;
-            P8Box.Text = string.Format("0x{0:X08}", _vm.P8);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            PathDataPointerBox.Text = $"0x{_vm.PathDataPointer:X08}";
+            StartBasePointIdBox.Value = _vm.StartBasePointId;
+            EndBasePointIdBox.Value = _vm.EndBasePointId;
+            Padding6Box.Value = _vm.Padding6;
+            Padding7Box.Value = _vm.Padding7;
+            PathMovePointerBox.Text = $"0x{_vm.PathMovePointer:X08}";
         }
 
         void ReadFromUI()
         {
-            _vm.P0 = U.atoh(P0Box.Text ?? "");
-            _vm.B4 = (uint)(B4Box.Value ?? 0);
-            _vm.B5 = (uint)(B5Box.Value ?? 0);
-            _vm.B6 = (uint)(B6Box.Value ?? 0);
-            _vm.B7 = (uint)(B7Box.Value ?? 0);
-            _vm.P8 = U.atoh(P8Box.Text ?? "");
+            _vm.PathDataPointer = U.atoh(PathDataPointerBox.Text ?? "");
+            _vm.StartBasePointId = (uint)(StartBasePointIdBox.Value ?? 0);
+            _vm.EndBasePointId = (uint)(EndBasePointIdBox.Value ?? 0);
+            _vm.Padding6 = (uint)(Padding6Box.Value ?? 0);
+            _vm.Padding7 = (uint)(Padding7Box.Value ?? 0);
+            _vm.PathMovePointer = U.atoh(PathMovePointerBox.Text ?? "");
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -72,7 +72,8 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 ReadFromUI();
-                _vm.WriteEntry();
+                _vm.Write();
+                CoreState.Services?.ShowInfo("World map path data written.");
             }
             catch (Exception ex)
             {

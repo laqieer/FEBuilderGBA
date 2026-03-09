@@ -10,10 +10,17 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Skill Assignment (Class)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class Skill:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ClassSkillBox" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="Assigns a skill to each class via the SkillSystem patch." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

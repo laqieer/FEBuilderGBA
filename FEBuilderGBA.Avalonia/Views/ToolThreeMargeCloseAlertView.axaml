@@ -7,7 +7,7 @@
         CanResize="False">
   <StackPanel Margin="13">
     <TextBlock TextWrapping="Wrap" Height="140"
-               Text="Do you want to close the comparison tool?&#x0a;Currently, only some changes have been applied.&#x0a;Do you really want to close this tool now?&#x0a;&#x0a;If you want to abort the merge, please cancel all changes and exit." />
+               Text="{Binding AlertMessage}" />
     <Button Content="Continue merging without closing." Height="42"
             HorizontalAlignment="Stretch" Margin="0,3,0,0" Click="Cancel_Click" />
     <Button Content="Abort merge. Cancel all merge changes." Height="42"

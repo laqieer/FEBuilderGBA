@@ -51,9 +51,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
-            FlagBox.Value = _vm.Flag;
-            B2Box.Value = _vm.B2;
-            B3Box.Value = _vm.B3;
+            ConditionBox.Value = _vm.Condition;
+            Unknown2Box.Value = _vm.Unknown2;
+            Unknown3Box.Value = _vm.Unknown3;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -61,9 +61,9 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.CanWrite) return;
 
             _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.Flag = (uint)(FlagBox.Value ?? 0);
-            _vm.B2 = (uint)(B2Box.Value ?? 0);
-            _vm.B3 = (uint)(B3Box.Value ?? 0);
+            _vm.Condition = (uint)(ConditionBox.Value ?? 0);
+            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
             _vm.WriteED();
             CoreState.Services?.ShowInfo("Ending event data written.");
         }

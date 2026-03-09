@@ -929,9 +929,11 @@ namespace FEBuilderGBA.Tests.Unit
                 @"rom\.(u8|u16|u32|p32)\((?:addr|baseAddr|address|a)\)",
                 RegexOptions.Compiled);
 
-            // Pattern for raw report entries — matches both hex (u8@0x0A) and decimal (u8@10) formats
+            // Pattern for raw report entries — matches multiple naming conventions:
+            //   u8@0x0A (type prefix), u8@0x00_FieldName (type prefix + suffix),
+            //   FieldName@0x00 (name prefix), FieldName@0 (name prefix, decimal)
             var rawReportEntryPattern = new Regex(
-                @"\[""(?:u8|u16|u32|p32|s8)@(?:0x[0-9A-Fa-f]+|\d+)""\]",
+                @"\[""(?:(?:u8|u16|u32|p32|s8)@(?:0x[0-9A-Fa-f]+|\d+)(?:_\w+)?|\w+@(?:0x[0-9A-Fa-f]+|\d+))""\]",
                 RegexOptions.Compiled);
 
             var mappedVmTypes = new HashSet<string>(

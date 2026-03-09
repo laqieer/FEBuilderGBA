@@ -9,17 +9,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         uint _imagePointer, _tsaPointer, _paletteColorPointer;
-        uint _b8, _b9, _b10, _b11;
+        uint _waitFrames, _unknown9, _unknown10, _unknown11;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
         public uint PaletteColorPointer { get => _paletteColorPointer; set => SetField(ref _paletteColorPointer, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
+        public uint WaitFrames { get => _waitFrames; set => SetField(ref _waitFrames, value); }
+        public uint Unknown9 { get => _unknown9; set => SetField(ref _unknown9, value); }
+        public uint Unknown10 { get => _unknown10; set => SetField(ref _unknown10, value); }
+        public uint Unknown11 { get => _unknown11; set => SetField(ref _unknown11, value); }
 
         public List<AddrResult> LoadOPPrologueList()
         {
@@ -54,10 +54,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             ImagePointer = rom.u32(addr + 0);
             TSAPointer = rom.u32(addr + 4);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
+            WaitFrames = rom.u8(addr + 8);
+            Unknown9 = rom.u8(addr + 9);
+            Unknown10 = rom.u8(addr + 10);
+            Unknown11 = rom.u8(addr + 11);
 
             // Palette comes from a separate pointer in ROM info
             uint palPtrAddr = rom.RomInfo.op_prologue_palette_color_pointer;
@@ -130,10 +130,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             rom.write_u32(addr + 0, ImagePointer);
             rom.write_u32(addr + 4, TSAPointer);
-            rom.write_u8(addr + 8, (byte)B8);
-            rom.write_u8(addr + 9, (byte)B9);
-            rom.write_u8(addr + 10, (byte)B10);
-            rom.write_u8(addr + 11, (byte)B11);
+            rom.write_u8(addr + 8, (byte)WaitFrames);
+            rom.write_u8(addr + 9, (byte)Unknown9);
+            rom.write_u8(addr + 10, (byte)Unknown10);
+            rom.write_u8(addr + 11, (byte)Unknown11);
         }
 
         public int GetListCount() => LoadOPPrologueList().Count;
@@ -146,6 +146,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["ImagePointer"] = $"0x{ImagePointer:X08}",
                 ["TSAPointer"] = $"0x{TSAPointer:X08}",
                 ["PaletteColorPointer"] = $"0x{PaletteColorPointer:X08}",
+                ["WaitFrames"] = $"0x{WaitFrames:X02}",
+                ["Unknown9"] = $"0x{Unknown9:X02}",
+                ["Unknown10"] = $"0x{Unknown10:X02}",
+                ["Unknown11"] = $"0x{Unknown11:X02}",
             };
         }
 
@@ -158,12 +162,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u32@0x00_ImagePointer"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_TSAPointer"] = $"0x{rom.u32(a + 4):X08}",
+                ["u8@0x08_WaitFrames"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09_Unknown9"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_Unknown10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_Unknown11"] = $"0x{rom.u8(a + 11):X02}",
             };
         }
     }

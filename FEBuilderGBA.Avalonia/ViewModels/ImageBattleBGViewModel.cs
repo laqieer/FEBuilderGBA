@@ -10,17 +10,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0, _d4, _d8;
+        bool _canWrite;
+        uint _imagePointer, _tsaPointer, _palettePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         // D0: Image data pointer
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        // D4: Palette pointer
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
-        // D8: TSA pointer
-        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
+        public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
+        // D4: TSA data pointer
+        public uint TSAPointer { get => _tsaPointer; set => SetField(ref _tsaPointer, value); }
+        // D8: Palette data pointer
+        public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -40,11 +42,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            D0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
-            D8 = rom.u32(addr + 8);
+            ImagePointer = rom.u32(addr + 0);
+            TSAPointer = rom.u32(addr + 4);
+            PalettePointer = rom.u32(addr + 8);
 
             IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, ImagePointer);
+            rom.write_u32(addr + 4, TSAPointer);
+            rom.write_u32(addr + 8, PalettePointer);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -54,9 +68,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["D4"] = $"0x{D4:X08}",
-                ["D8"] = $"0x{D8:X08}",
+                ["ImagePointer"] = $"0x{ImagePointer:X08}",
+                ["TSAPointer"] = $"0x{TSAPointer:X08}",
+                ["PalettePointer"] = $"0x{PalettePointer:X08}",
             };
         }
 

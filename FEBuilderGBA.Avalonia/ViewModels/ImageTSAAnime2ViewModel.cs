@@ -10,22 +10,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _w0, _w2, _w4, _w6;
-        uint _p8;
+        bool _canWrite;
+        uint _unknown0, _unknown2, _unknown4, _unknown6;
+        uint _tsaHeaderPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        // W0
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
-        // W2
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
-        // W4
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        // W6
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        // P8: TSA data pointer
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
+        // W0: Unknown parameter 0
+        public uint Unknown0 { get => _unknown0; set => SetField(ref _unknown0, value); }
+        // W2: Unknown parameter 2
+        public uint Unknown2 { get => _unknown2; set => SetField(ref _unknown2, value); }
+        // W4: Unknown parameter 4
+        public uint Unknown4 { get => _unknown4; set => SetField(ref _unknown4, value); }
+        // W6: Unknown parameter 6
+        public uint Unknown6 { get => _unknown6; set => SetField(ref _unknown6, value); }
+        // D8: TSA header pointer
+        public uint TSAHeaderPointer { get => _tsaHeaderPointer; set => SetField(ref _tsaHeaderPointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -45,13 +47,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
-            P8 = rom.u32(addr + 8);
+            Unknown0 = rom.u16(addr + 0);
+            Unknown2 = rom.u16(addr + 2);
+            Unknown4 = rom.u16(addr + 4);
+            Unknown6 = rom.u16(addr + 6);
+            TSAHeaderPointer = rom.u32(addr + 8);
 
             IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u16(addr + 0, Unknown0);
+            rom.write_u16(addr + 2, Unknown2);
+            rom.write_u16(addr + 4, Unknown4);
+            rom.write_u16(addr + 6, Unknown6);
+            rom.write_u32(addr + 8, TSAHeaderPointer);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -61,11 +77,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["W0"] = $"0x{W0:X04}",
-                ["W2"] = $"0x{W2:X04}",
-                ["W4"] = $"0x{W4:X04}",
-                ["W6"] = $"0x{W6:X04}",
-                ["P8"] = $"0x{P8:X08}",
+                ["Unknown0"] = $"0x{Unknown0:X04}",
+                ["Unknown2"] = $"0x{Unknown2:X04}",
+                ["Unknown4"] = $"0x{Unknown4:X04}",
+                ["Unknown6"] = $"0x{Unknown6:X04}",
+                ["TSAHeaderPointer"] = $"0x{TSAHeaderPointer:X08}",
             };
         }
 

@@ -8,7 +8,7 @@
   <StackPanel Margin="12,24,12,12">
     <!-- Info label -->
     <TextBlock TextWrapping="Wrap" Height="54"
-               Text="A SAV file is needed to reproduce the problem. If you have a SAV file from the emulator, please specify its path." />
+               Text="{Binding MessageText}" />
     <!-- File selection row -->
     <Grid ColumnDefinitions="157,Auto,130" Margin="0,49,0,0">
       <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1"

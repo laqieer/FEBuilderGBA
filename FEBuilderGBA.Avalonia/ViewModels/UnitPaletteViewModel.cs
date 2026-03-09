@@ -8,23 +8,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
-        uint _b4;
-        uint _b5;
-        uint _b6;
+        uint _traineeClass;
+        uint _baseClass1;
+        uint _baseClass2;
+        uint _advancedClass1;
+        uint _advancedClass2;
+        uint _advancedClass3;
+        uint _advancedClass4;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
+        public uint TraineeClass { get => _traineeClass; set => SetField(ref _traineeClass, value); }
+        public uint BaseClass1 { get => _baseClass1; set => SetField(ref _baseClass1, value); }
+        public uint BaseClass2 { get => _baseClass2; set => SetField(ref _baseClass2, value); }
+        public uint AdvancedClass1 { get => _advancedClass1; set => SetField(ref _advancedClass1, value); }
+        public uint AdvancedClass2 { get => _advancedClass2; set => SetField(ref _advancedClass2, value); }
+        public uint AdvancedClass3 { get => _advancedClass3; set => SetField(ref _advancedClass3, value); }
+        public uint AdvancedClass4 { get => _advancedClass4; set => SetField(ref _advancedClass4, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -41,14 +41,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 7 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
+            TraineeClass = rom.u8(addr + 0);
+            BaseClass1 = rom.u8(addr + 1);
+            BaseClass2 = rom.u8(addr + 2);
+            AdvancedClass1 = rom.u8(addr + 3);
+            AdvancedClass2 = rom.u8(addr + 4);
+            AdvancedClass3 = rom.u8(addr + 5);
+            AdvancedClass4 = rom.u8(addr + 6);
             IsLoaded = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 7 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(addr + 0, (byte)TraineeClass);
+            rom.write_u8(addr + 1, (byte)BaseClass1);
+            rom.write_u8(addr + 2, (byte)BaseClass2);
+            rom.write_u8(addr + 3, (byte)AdvancedClass1);
+            rom.write_u8(addr + 4, (byte)AdvancedClass2);
+            rom.write_u8(addr + 5, (byte)AdvancedClass3);
+            rom.write_u8(addr + 6, (byte)AdvancedClass4);
         }
 
         public int GetListCount() => 0;
@@ -58,13 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
+                ["B0_TraineeClass"] = $"0x{TraineeClass:X02}",
+                ["B1_BaseClass1"] = $"0x{BaseClass1:X02}",
+                ["B2_BaseClass2"] = $"0x{BaseClass2:X02}",
+                ["B3_AdvancedClass1"] = $"0x{AdvancedClass1:X02}",
+                ["B4_AdvancedClass2"] = $"0x{AdvancedClass2:X02}",
+                ["B5_AdvancedClass3"] = $"0x{AdvancedClass3:X02}",
+                ["B6_AdvancedClass4"] = $"0x{AdvancedClass4:X02}",
             };
         }
 
@@ -76,13 +92,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x00_TraineeClass"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01_BaseClass1"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_BaseClass2"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_AdvancedClass1"] = $"0x{rom.u8(a + 3):X02}",
+                ["u8@0x04_AdvancedClass2"] = $"0x{rom.u8(a + 4):X02}",
+                ["u8@0x05_AdvancedClass3"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06_AdvancedClass4"] = $"0x{rom.u8(a + 6):X02}",
             };
         }
     }

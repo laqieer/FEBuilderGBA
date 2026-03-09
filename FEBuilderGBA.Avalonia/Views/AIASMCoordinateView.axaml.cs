@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,6 +50,26 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            XBox.Value = _vm.X;
+            YBox.Value = _vm.Y;
+            Unused2Box.Value = _vm.Unused2;
+            Unused3Box.Value = _vm.Unused3;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.X = (uint)(XBox.Value ?? 0);
+                _vm.Y = (uint)(YBox.Value ?? 0);
+                _vm.Unused2 = (uint)(Unused2Box.Value ?? 0);
+                _vm.Unused3 = (uint)(Unused3Box.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIASMCoordinateView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

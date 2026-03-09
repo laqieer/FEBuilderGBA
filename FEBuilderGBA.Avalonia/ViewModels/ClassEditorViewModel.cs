@@ -31,12 +31,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _capHp, _capStr, _capSkl, _capSpd, _capDef, _capRes;
         // B40-B43: ability flags
         uint _ability1, _ability2, _ability3, _ability4;
-        // B44-B51: additional fields (weapon levels continued or flags)
-        uint _b44, _b45, _b46, _b47, _b48, _b49, _b50, _b51;
-        // P52, P56, P60, P64, P68, P72, P76: pointers
-        uint _ptr52, _ptr56, _ptr60, _ptr64, _ptr68, _ptr72, _ptr76;
-        // D80: u32 field
-        uint _d80;
+        // B44-B51: weapon rank levels (Sword, Lance, Axe, Bow, Staff, Anima, Light, Dark)
+        uint _wepRankSword, _wepRankLance, _wepRankAxe, _wepRankBow;
+        uint _wepRankStaff, _wepRankAnima, _wepRankLight, _wepRankDark;
+        // P52: Battle animation pointer, P56-P64: Move cost pointers
+        uint _battleAnimePtr, _moveCostPtr, _moveCostRainPtr, _moveCostSnowPtr;
+        // P68: Terrain avoid, P72: Terrain defense, P76: Terrain resistance
+        uint _terrainAvoidPtr, _terrainDefPtr, _terrainResPtr;
+        // D80: unknown u32
+        uint _unknownD80;
 
         bool _canWrite;
 
@@ -106,27 +109,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Ability3 { get => _ability3; set => SetField(ref _ability3, value); }
         public uint Ability4 { get => _ability4; set => SetField(ref _ability4, value); }
 
-        // B44-B51: Additional fields
-        public uint B44 { get => _b44; set => SetField(ref _b44, value); }
-        public uint B45 { get => _b45; set => SetField(ref _b45, value); }
-        public uint B46 { get => _b46; set => SetField(ref _b46, value); }
-        public uint B47 { get => _b47; set => SetField(ref _b47, value); }
-        public uint B48 { get => _b48; set => SetField(ref _b48, value); }
-        public uint B49 { get => _b49; set => SetField(ref _b49, value); }
-        public uint B50 { get => _b50; set => SetField(ref _b50, value); }
-        public uint B51 { get => _b51; set => SetField(ref _b51, value); }
+        // B44-B51: Weapon rank levels
+        public uint WepRankSword { get => _wepRankSword; set => SetField(ref _wepRankSword, value); }
+        public uint WepRankLance { get => _wepRankLance; set => SetField(ref _wepRankLance, value); }
+        public uint WepRankAxe { get => _wepRankAxe; set => SetField(ref _wepRankAxe, value); }
+        public uint WepRankBow { get => _wepRankBow; set => SetField(ref _wepRankBow, value); }
+        public uint WepRankStaff { get => _wepRankStaff; set => SetField(ref _wepRankStaff, value); }
+        public uint WepRankAnima { get => _wepRankAnima; set => SetField(ref _wepRankAnima, value); }
+        public uint WepRankLight { get => _wepRankLight; set => SetField(ref _wepRankLight, value); }
+        public uint WepRankDark { get => _wepRankDark; set => SetField(ref _wepRankDark, value); }
 
-        // P52-P76: Pointers
-        public uint Ptr52 { get => _ptr52; set => SetField(ref _ptr52, value); }
-        public uint Ptr56 { get => _ptr56; set => SetField(ref _ptr56, value); }
-        public uint Ptr60 { get => _ptr60; set => SetField(ref _ptr60, value); }
-        public uint Ptr64 { get => _ptr64; set => SetField(ref _ptr64, value); }
-        public uint Ptr68 { get => _ptr68; set => SetField(ref _ptr68, value); }
-        public uint Ptr72 { get => _ptr72; set => SetField(ref _ptr72, value); }
-        public uint Ptr76 { get => _ptr76; set => SetField(ref _ptr76, value); }
+        // P52: Battle animation pointer
+        public uint BattleAnimePtr { get => _battleAnimePtr; set => SetField(ref _battleAnimePtr, value); }
+        // P56: Move cost (normal)
+        public uint MoveCostPtr { get => _moveCostPtr; set => SetField(ref _moveCostPtr, value); }
+        // P60: Move cost (rain)
+        public uint MoveCostRainPtr { get => _moveCostRainPtr; set => SetField(ref _moveCostRainPtr, value); }
+        // P64: Move cost (snow)
+        public uint MoveCostSnowPtr { get => _moveCostSnowPtr; set => SetField(ref _moveCostSnowPtr, value); }
+        // P68: Terrain avoid
+        public uint TerrainAvoidPtr { get => _terrainAvoidPtr; set => SetField(ref _terrainAvoidPtr, value); }
+        // P72: Terrain defense
+        public uint TerrainDefPtr { get => _terrainDefPtr; set => SetField(ref _terrainDefPtr, value); }
+        // P76: Terrain resistance
+        public uint TerrainResPtr { get => _terrainResPtr; set => SetField(ref _terrainResPtr, value); }
 
-        // D80: u32 field
-        public uint D80 { get => _d80; set => SetField(ref _d80, value); }
+        // D80: Unknown u32
+        public uint UnknownD80 { get => _unknownD80; set => SetField(ref _unknownD80, value); }
 
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
@@ -227,27 +236,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Ability3 = rom.u8(addr + 42);     // B42
             Ability4 = rom.u8(addr + 43);     // B43
 
-            // Additional fields
-            B44 = rom.u8(addr + 44);          // B44
-            B45 = rom.u8(addr + 45);          // B45
-            B46 = rom.u8(addr + 46);          // B46
-            B47 = rom.u8(addr + 47);          // B47
-            B48 = rom.u8(addr + 48);          // B48
-            B49 = rom.u8(addr + 49);          // B49
-            B50 = rom.u8(addr + 50);          // B50
-            B51 = rom.u8(addr + 51);          // B51
+            // Weapon rank levels
+            WepRankSword = rom.u8(addr + 44); // B44
+            WepRankLance = rom.u8(addr + 45); // B45
+            WepRankAxe = rom.u8(addr + 46);   // B46
+            WepRankBow = rom.u8(addr + 47);   // B47
+            WepRankStaff = rom.u8(addr + 48); // B48
+            WepRankAnima = rom.u8(addr + 49); // B49
+            WepRankLight = rom.u8(addr + 50); // B50
+            WepRankDark = rom.u8(addr + 51);  // B51
 
             // Pointers
-            Ptr52 = rom.u32(addr + 52);       // P52
-            Ptr56 = rom.u32(addr + 56);       // P56
-            Ptr60 = rom.u32(addr + 60);       // P60
-            Ptr64 = rom.u32(addr + 64);       // P64
-            Ptr68 = rom.u32(addr + 68);       // P68
-            Ptr72 = rom.u32(addr + 72);       // P72
-            Ptr76 = rom.u32(addr + 76);       // P76
+            BattleAnimePtr = rom.u32(addr + 52);   // P52
+            MoveCostPtr = rom.u32(addr + 56);      // P56
+            MoveCostRainPtr = rom.u32(addr + 60);  // P60
+            MoveCostSnowPtr = rom.u32(addr + 64);  // P64
+            TerrainAvoidPtr = rom.u32(addr + 68);  // P68
+            TerrainDefPtr = rom.u32(addr + 72);    // P72
+            TerrainResPtr = rom.u32(addr + 76);    // P76
 
             // D80
-            D80 = rom.u32(addr + 80);         // D80
+            UnknownD80 = rom.u32(addr + 80);      // D80
 
             CanWrite = true;
         }
@@ -300,22 +309,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B41_Ability2"] = $"0x{Ability2:X02}",
                 ["B42_Ability3"] = $"0x{Ability3:X02}",
                 ["B43_Ability4"] = $"0x{Ability4:X02}",
-                ["B44"] = $"0x{B44:X02}",
-                ["B45"] = $"0x{B45:X02}",
-                ["B46"] = $"0x{B46:X02}",
-                ["B47"] = $"0x{B47:X02}",
-                ["B48"] = $"0x{B48:X02}",
-                ["B49"] = $"0x{B49:X02}",
-                ["B50"] = $"0x{B50:X02}",
-                ["B51"] = $"0x{B51:X02}",
-                ["P52_Ptr52"] = $"0x{Ptr52:X08}",
-                ["P56_Ptr56"] = $"0x{Ptr56:X08}",
-                ["P60_Ptr60"] = $"0x{Ptr60:X08}",
-                ["P64_Ptr64"] = $"0x{Ptr64:X08}",
-                ["P68_Ptr68"] = $"0x{Ptr68:X08}",
-                ["P72_Ptr72"] = $"0x{Ptr72:X08}",
-                ["P76_Ptr76"] = $"0x{Ptr76:X08}",
-                ["D80"] = $"0x{D80:X08}",
+                ["B44_WepRankSword"] = $"0x{WepRankSword:X02}",
+                ["B45_WepRankLance"] = $"0x{WepRankLance:X02}",
+                ["B46_WepRankAxe"] = $"0x{WepRankAxe:X02}",
+                ["B47_WepRankBow"] = $"0x{WepRankBow:X02}",
+                ["B48_WepRankStaff"] = $"0x{WepRankStaff:X02}",
+                ["B49_WepRankAnima"] = $"0x{WepRankAnima:X02}",
+                ["B50_WepRankLight"] = $"0x{WepRankLight:X02}",
+                ["B51_WepRankDark"] = $"0x{WepRankDark:X02}",
+                ["P52_BattleAnimePtr"] = $"0x{BattleAnimePtr:X08}",
+                ["P56_MoveCostPtr"] = $"0x{MoveCostPtr:X08}",
+                ["P60_MoveCostRainPtr"] = $"0x{MoveCostRainPtr:X08}",
+                ["P64_MoveCostSnowPtr"] = $"0x{MoveCostSnowPtr:X08}",
+                ["P68_TerrainAvoidPtr"] = $"0x{TerrainAvoidPtr:X08}",
+                ["P72_TerrainDefPtr"] = $"0x{TerrainDefPtr:X08}",
+                ["P76_TerrainResPtr"] = $"0x{TerrainResPtr:X08}",
+                ["D80_Unknown"] = $"0x{UnknownD80:X08}",
             };
             return d;
         }
@@ -335,8 +344,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
                 ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
                 ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
                 ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
                 ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
                 ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
@@ -444,24 +452,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 42, Ability3);
             rom.write_u8(addr + 43, Ability4);
 
-            rom.write_u8(addr + 44, B44);
-            rom.write_u8(addr + 45, B45);
-            rom.write_u8(addr + 46, B46);
-            rom.write_u8(addr + 47, B47);
-            rom.write_u8(addr + 48, B48);
-            rom.write_u8(addr + 49, B49);
-            rom.write_u8(addr + 50, B50);
-            rom.write_u8(addr + 51, B51);
+            rom.write_u8(addr + 44, WepRankSword);
+            rom.write_u8(addr + 45, WepRankLance);
+            rom.write_u8(addr + 46, WepRankAxe);
+            rom.write_u8(addr + 47, WepRankBow);
+            rom.write_u8(addr + 48, WepRankStaff);
+            rom.write_u8(addr + 49, WepRankAnima);
+            rom.write_u8(addr + 50, WepRankLight);
+            rom.write_u8(addr + 51, WepRankDark);
 
-            rom.write_u32(addr + 52, Ptr52);
-            rom.write_u32(addr + 56, Ptr56);
-            rom.write_u32(addr + 60, Ptr60);
-            rom.write_u32(addr + 64, Ptr64);
-            rom.write_u32(addr + 68, Ptr68);
-            rom.write_u32(addr + 72, Ptr72);
-            rom.write_u32(addr + 76, Ptr76);
+            rom.write_u32(addr + 52, BattleAnimePtr);
+            rom.write_u32(addr + 56, MoveCostPtr);
+            rom.write_u32(addr + 60, MoveCostRainPtr);
+            rom.write_u32(addr + 64, MoveCostSnowPtr);
+            rom.write_u32(addr + 68, TerrainAvoidPtr);
+            rom.write_u32(addr + 72, TerrainDefPtr);
+            rom.write_u32(addr + 76, TerrainResPtr);
 
-            rom.write_u32(addr + 80, D80);
+            rom.write_u32(addr + 80, UnknownD80);
         }
     }
 }

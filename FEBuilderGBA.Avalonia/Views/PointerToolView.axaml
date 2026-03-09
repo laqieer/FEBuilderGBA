@@ -1,22 +1,124 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolView"
-        Title="Pointer Tool" Width="800" Height="500"
+        Title="Pointer Tool" Width="1050" Height="650"
         WindowStartupLocation="CenterOwner">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Pointer Tool" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+  <DockPanel Margin="12">
+    <!-- Bottom buttons -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
+                Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Content="Batch" Width="160" Click="Search_Click" />
+      <Button Content="What Is" Width="160" Click="Search_Click" />
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-      <TextBlock Text="Address:" VerticalAlignment="Center" />
-      <TextBox Name="AddressTextBox" Width="200" Watermark="e.g. 0x08000000" />
-      <Button Content="Search" Click="Search_Click" />
-    </StackPanel>
-    <TextBlock DockPanel.Dock="Top" Text="Search Results:" FontWeight="SemiBold" Margin="0,4,0,4" />
-    <ScrollViewer>
-      <TextBox Name="ResultsTextBox" IsReadOnly="True" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" />
-    </ScrollViewer>
+    <!-- Main content in two columns -->
+    <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
+      <!-- Left: Address fields -->
+      <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+        <!-- Address input -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Address" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox Name="AddressTextBox" Width="200" Watermark="e.g. 0x08000000"
+                   Text="{Binding AddressInput}" />
+        </StackPanel>
+        <!-- Pointer value -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Pointer" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding PointerValue}" />
+        </StackPanel>
+        <!-- Little Endian -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Little Endian" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding LittleEndianValue}" />
+        </StackPanel>
+        <!-- First Reference -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="First Reference" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding FirstReference}" />
+        </StackPanel>
+        <!-- Data Address -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="44">
+            <TextBlock Text="Data Address&#x0a;(if pointer)" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding DataAddress}" />
+        </StackPanel>
+        <!-- Other ROM section -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+          <TextBlock Text="{Binding OtherRomName}" FontStyle="Italic" />
+        </StackPanel>
+        <!-- Other ROM Address -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="44">
+            <TextBlock Text="Other ROM&#x0a;Data Address" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding OtherRomAddress}" />
+        </StackPanel>
+        <!-- Other ROM Ref Pointer -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Other ROM Ref" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox Width="200" IsReadOnly="True" Text="{Binding OtherRomRefPointer}" />
+        </StackPanel>
+        <!-- Use ASM MAP checkbox -->
+        <CheckBox Content="Use ASM Map for search" IsChecked="{Binding UseAsmMap}"
+                  Margin="0,8,0,0" />
+      </StackPanel>
+      <!-- Right: Search options -->
+      <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="8">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Search Options" FontWeight="Bold" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Comparison Size" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding TestMatchDataSize}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Content Type" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding DataType}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Match Method" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding GrepType}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Slide Search" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding SlideSize}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Auto Tracking" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding AutoTrackingLevel}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Border BorderBrush="Gray" BorderThickness="1" Width="160" Height="30">
+              <TextBlock Text="Warning Level" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ComboBox Width="200" SelectedIndex="{Binding WarningLevel}" />
+          </StackPanel>
+          <TextBlock Text="Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8."
+                     TextWrapping="Wrap" Foreground="Gray" FontSize="11" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+    </Grid>
   </DockPanel>
 </Window>

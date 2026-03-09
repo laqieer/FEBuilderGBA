@@ -109,25 +109,25 @@ namespace FEBuilderGBA.Avalonia.Views
             Ability3Box.Value = _vm.Ability3;
             Ability4Box.Value = _vm.Ability4;
 
-            // Additional
-            B44Box.Value = _vm.B44;
-            B45Box.Value = _vm.B45;
-            B46Box.Value = _vm.B46;
-            B47Box.Value = _vm.B47;
-            B48Box.Value = _vm.B48;
-            B49Box.Value = _vm.B49;
-            B50Box.Value = _vm.B50;
-            B51Box.Value = _vm.B51;
+            // Weapon rank levels
+            B44Box.Value = _vm.WepRankSword;
+            B45Box.Value = _vm.WepRankLance;
+            B46Box.Value = _vm.WepRankAxe;
+            B47Box.Value = _vm.WepRankBow;
+            B48Box.Value = _vm.WepRankStaff;
+            B49Box.Value = _vm.WepRankAnima;
+            B50Box.Value = _vm.WepRankLight;
+            B51Box.Value = _vm.WepRankDark;
 
             // Pointers
-            Ptr52Box.Text = $"0x{_vm.Ptr52:X08}";
-            Ptr56Box.Text = $"0x{_vm.Ptr56:X08}";
-            Ptr60Box.Text = $"0x{_vm.Ptr60:X08}";
-            Ptr64Box.Text = $"0x{_vm.Ptr64:X08}";
-            Ptr68Box.Text = $"0x{_vm.Ptr68:X08}";
-            Ptr72Box.Text = $"0x{_vm.Ptr72:X08}";
-            Ptr76Box.Text = $"0x{_vm.Ptr76:X08}";
-            D80Box.Text = $"0x{_vm.D80:X08}";
+            Ptr52Box.Text = $"0x{_vm.BattleAnimePtr:X08}";
+            Ptr56Box.Text = $"0x{_vm.MoveCostPtr:X08}";
+            Ptr60Box.Text = $"0x{_vm.MoveCostRainPtr:X08}";
+            Ptr64Box.Text = $"0x{_vm.MoveCostSnowPtr:X08}";
+            Ptr68Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
+            Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
+            Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
+            D80Box.Text = $"0x{_vm.UnknownD80:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -179,23 +179,23 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Ability3 = (uint)(Ability3Box.Value ?? 0);
             _vm.Ability4 = (uint)(Ability4Box.Value ?? 0);
 
-            _vm.B44 = (uint)(B44Box.Value ?? 0);
-            _vm.B45 = (uint)(B45Box.Value ?? 0);
-            _vm.B46 = (uint)(B46Box.Value ?? 0);
-            _vm.B47 = (uint)(B47Box.Value ?? 0);
-            _vm.B48 = (uint)(B48Box.Value ?? 0);
-            _vm.B49 = (uint)(B49Box.Value ?? 0);
-            _vm.B50 = (uint)(B50Box.Value ?? 0);
-            _vm.B51 = (uint)(B51Box.Value ?? 0);
+            _vm.WepRankSword = (uint)(B44Box.Value ?? 0);
+            _vm.WepRankLance = (uint)(B45Box.Value ?? 0);
+            _vm.WepRankAxe = (uint)(B46Box.Value ?? 0);
+            _vm.WepRankBow = (uint)(B47Box.Value ?? 0);
+            _vm.WepRankStaff = (uint)(B48Box.Value ?? 0);
+            _vm.WepRankAnima = (uint)(B49Box.Value ?? 0);
+            _vm.WepRankLight = (uint)(B50Box.Value ?? 0);
+            _vm.WepRankDark = (uint)(B51Box.Value ?? 0);
 
-            _vm.Ptr52 = ParseHexText(Ptr52Box.Text);
-            _vm.Ptr56 = ParseHexText(Ptr56Box.Text);
-            _vm.Ptr60 = ParseHexText(Ptr60Box.Text);
-            _vm.Ptr64 = ParseHexText(Ptr64Box.Text);
-            _vm.Ptr68 = ParseHexText(Ptr68Box.Text);
-            _vm.Ptr72 = ParseHexText(Ptr72Box.Text);
-            _vm.Ptr76 = ParseHexText(Ptr76Box.Text);
-            _vm.D80 = ParseHexText(D80Box.Text);
+            _vm.BattleAnimePtr = ParseHexText(Ptr52Box.Text);
+            _vm.MoveCostPtr = ParseHexText(Ptr56Box.Text);
+            _vm.MoveCostRainPtr = ParseHexText(Ptr60Box.Text);
+            _vm.MoveCostSnowPtr = ParseHexText(Ptr64Box.Text);
+            _vm.TerrainAvoidPtr = ParseHexText(Ptr68Box.Text);
+            _vm.TerrainDefPtr = ParseHexText(Ptr72Box.Text);
+            _vm.TerrainResPtr = ParseHexText(Ptr76Box.Text);
+            _vm.UnknownD80 = ParseHexText(D80Box.Text);
 
             _vm.WriteClass();
             CoreState.Services.ShowInfo("Class data written.");

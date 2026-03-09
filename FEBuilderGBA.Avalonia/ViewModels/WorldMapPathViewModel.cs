@@ -9,28 +9,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.worldmap_road_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "World Map Paths", 0));
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = (uint)(baseAddr + i * 12);
+                if (addr + 12 > (uint)rom.Data.Length) break;
+
+                // Termination: first u32 must be a pointer
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                string name = U.ToHexString(i) + " Path";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _p0;
-        uint _b4;
-        uint _b5;
-        uint _b6;
-        uint _b7;
-        uint _p8;
+        uint _pathDataPointer;
+        uint _startBasePointId;
+        uint _endBasePointId;
+        uint _padding6;
+        uint _padding7;
+        uint _pathMovePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint P8 { get => _p8; set => SetField(ref _p8, value); }
+
+        /// <summary>P0: Pointer to path tile data</summary>
+        public uint PathDataPointer { get => _pathDataPointer; set => SetField(ref _pathDataPointer, value); }
+        /// <summary>B4: Start base point ID (origin node)</summary>
+        public uint StartBasePointId { get => _startBasePointId; set => SetField(ref _startBasePointId, value); }
+        /// <summary>B5: End base point ID (destination node)</summary>
+        public uint EndBasePointId { get => _endBasePointId; set => SetField(ref _endBasePointId, value); }
+        /// <summary>B6: Padding / unknown</summary>
+        public uint Padding6 { get => _padding6; set => SetField(ref _padding6, value); }
+        /// <summary>B7: Padding / unknown</summary>
+        public uint Padding7 { get => _padding7; set => SetField(ref _padding7, value); }
+        /// <summary>P8: Pointer to path movement data (NULL = straight line)</summary>
+        public uint PathMovePointer { get => _pathMovePointer; set => SetField(ref _pathMovePointer, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -39,42 +63,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 12 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            P8 = rom.u32(addr + 8);
+            PathDataPointer = rom.u32(addr + 0);
+            StartBasePointId = rom.u8(addr + 4);
+            EndBasePointId = rom.u8(addr + 5);
+            Padding6 = rom.u8(addr + 6);
+            Padding7 = rom.u8(addr + 7);
+            PathMovePointer = rom.u32(addr + 8);
             IsLoaded = true;
         }
 
-        public void WriteEntry()
+        public void Write()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, P0);
-            rom.write_u8(addr + 4, (byte)B4);
-            rom.write_u8(addr + 5, (byte)B5);
-            rom.write_u8(addr + 6, (byte)B6);
-            rom.write_u8(addr + 7, (byte)B7);
-            rom.write_u32(addr + 8, P8);
+            rom.write_u32(addr + 0, PathDataPointer);
+            rom.write_u8(addr + 4, (byte)StartBasePointId);
+            rom.write_u8(addr + 5, (byte)EndBasePointId);
+            rom.write_u8(addr + 6, (byte)Padding6);
+            rom.write_u8(addr + 7, (byte)Padding7);
+            rom.write_u32(addr + 8, PathMovePointer);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["P0"] = $"0x{P0:X08}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["P8"] = $"0x{P8:X08}",
+                ["PathDataPointer"] = $"0x{PathDataPointer:X08}",
+                ["StartBasePointId"] = $"0x{StartBasePointId:X02}",
+                ["EndBasePointId"] = $"0x{EndBasePointId:X02}",
+                ["Padding6"] = $"0x{Padding6:X02}",
+                ["Padding7"] = $"0x{Padding7:X02}",
+                ["PathMovePointer"] = $"0x{PathMovePointer:X08}",
             };
         }
 
@@ -86,12 +110,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+                ["PathDataPointer@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["StartBasePointId@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["EndBasePointId@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["Padding6@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["Padding7@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["PathMovePointer@0x08"] = $"0x{rom.u32(a + 8):X08}",
             };
         }
     }

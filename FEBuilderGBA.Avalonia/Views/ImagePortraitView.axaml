@@ -10,9 +10,64 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Portrait Image Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="160,200,Auto,60,Auto,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 1: Unit Face (D0) -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Face:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="PortraitImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 2: Map Face (D4) -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="MiniPortraitPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 3: Palette (D8) -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 4: Mouth Frames (D12) -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Mouth Frames:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Name="MouthFramesPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 5: Class Card (D16) -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Class Card:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="ClassCardPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 6: Mouth Coord -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth Coord:" VerticalAlignment="Center" Margin="0,2" />
+          <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="X:" VerticalAlignment="Center" />
+            <TextBlock Name="MouthXLabel" VerticalAlignment="Center" />
+            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
+            <TextBlock Name="MouthYLabel" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <!-- Row 7: Eye Coord -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Eye Coord:" VerticalAlignment="Center" Margin="0,2" />
+          <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="X:" VerticalAlignment="Center" />
+            <TextBlock Name="EyeXLabel" VerticalAlignment="Center" />
+            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
+            <TextBlock Name="EyeYLabel" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <!-- Row 8: Status (B24) -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Status:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="8" Grid.Column="1" Name="StatusLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 9: Unused25 (B25) -->
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Unused (B25):" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="9" Grid.Column="1" Name="Unused25Label" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 10: Unused26 (B26) -->
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Unused (B26):" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Name="Unused26Label" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 11: Unused27 (B27) -->
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Unused (B27):" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="11" Grid.Column="1" Name="Unused27Label" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

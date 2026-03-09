@@ -8,38 +8,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _b0, _b1, _b2, _b3, _b4, _b5;
-        uint _w6;
-        uint _b8, _b9, _b10, _b11;
-        uint _d12, _d16, _d20;
-        uint _w24, _w26;
+        uint _alwaysAccessible;
+        uint _freeMapType;
+        uint _preClearIcon;
+        uint _postClearIcon;
+        uint _chapterId1;
+        uint _chapterId2;
+        uint _eventBranchFlag;
+        uint _nextNodeEirika;
+        uint _nextNodeEphraim;
+        uint _nextNodeEirika2nd;
+        uint _nextNodeEphraim2nd;
+        uint _armoryPointer;
+        uint _vendorPointer;
+        uint _secretShopPointer;
+        uint _coordinateX;
+        uint _coordinateY;
         uint _nameTextId;
-        uint _b30, _b31;
+        uint _shipSetting;
+        uint _unknown31;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint D12 { get => _d12; set => SetField(ref _d12, value); }
-        public uint D16 { get => _d16; set => SetField(ref _d16, value); }
-        public uint D20 { get => _d20; set => SetField(ref _d20, value); }
-        public uint W24 { get => _w24; set => SetField(ref _w24, value); }
-        public uint W26 { get => _w26; set => SetField(ref _w26, value); }
+
+        /// <summary>B0: Whether this node is always accessible</summary>
+        public uint AlwaysAccessible { get => _alwaysAccessible; set => SetField(ref _alwaysAccessible, value); }
+        /// <summary>B1: Free map type (no monsters, monsters, tower/ruins)</summary>
+        public uint FreeMapType { get => _freeMapType; set => SetField(ref _freeMapType, value); }
+        /// <summary>B2: Icon shown before clearing the chapter</summary>
+        public uint PreClearIcon { get => _preClearIcon; set => SetField(ref _preClearIcon, value); }
+        /// <summary>B3: Icon shown after clearing the chapter</summary>
+        public uint PostClearIcon { get => _postClearIcon; set => SetField(ref _postClearIcon, value); }
+        /// <summary>B4: Chapter ID loaded when entering this node</summary>
+        public uint ChapterId1 { get => _chapterId1; set => SetField(ref _chapterId1, value); }
+        /// <summary>B5: Second chapter ID (used with event branch flag)</summary>
+        public uint ChapterId2 { get => _chapterId2; set => SetField(ref _chapterId2, value); }
+        /// <summary>W6: Event branch flag for route splitting</summary>
+        public uint EventBranchFlag { get => _eventBranchFlag; set => SetField(ref _eventBranchFlag, value); }
+        /// <summary>B8: Next node ID for Eirika route</summary>
+        public uint NextNodeEirika { get => _nextNodeEirika; set => SetField(ref _nextNodeEirika, value); }
+        /// <summary>B9: Next node ID for Ephraim route</summary>
+        public uint NextNodeEphraim { get => _nextNodeEphraim; set => SetField(ref _nextNodeEphraim, value); }
+        /// <summary>B10: Next node ID for Eirika 2nd visit</summary>
+        public uint NextNodeEirika2nd { get => _nextNodeEirika2nd; set => SetField(ref _nextNodeEirika2nd, value); }
+        /// <summary>B11: Next node ID for Ephraim 2nd visit</summary>
+        public uint NextNodeEphraim2nd { get => _nextNodeEphraim2nd; set => SetField(ref _nextNodeEphraim2nd, value); }
+        /// <summary>P12: Armory shop item list pointer</summary>
+        public uint ArmoryPointer { get => _armoryPointer; set => SetField(ref _armoryPointer, value); }
+        /// <summary>P16: Vendor shop item list pointer</summary>
+        public uint VendorPointer { get => _vendorPointer; set => SetField(ref _vendorPointer, value); }
+        /// <summary>P20: Secret shop item list pointer</summary>
+        public uint SecretShopPointer { get => _secretShopPointer; set => SetField(ref _secretShopPointer, value); }
+        /// <summary>W24: X coordinate on world map</summary>
+        public uint CoordinateX { get => _coordinateX; set => SetField(ref _coordinateX, value); }
+        /// <summary>W26: Y coordinate on world map</summary>
+        public uint CoordinateY { get => _coordinateY; set => SetField(ref _coordinateY, value); }
+        /// <summary>W28: Name text ID</summary>
         public uint NameTextId { get => _nameTextId; set => SetField(ref _nameTextId, value); }
-        public uint B30 { get => _b30; set => SetField(ref _b30, value); }
-        public uint B31 { get => _b31; set => SetField(ref _b31, value); }
-        // Legacy aliases
-        public uint X => B0 | (B1 << 8);
-        public uint Y => B2 | (B3 << 8);
+        /// <summary>B30: Ship setting (0=no ship, 1=use ship)</summary>
+        public uint ShipSetting { get => _shipSetting; set => SetField(ref _shipSetting, value); }
+        /// <summary>B31: Unknown</summary>
+        public uint Unknown31 { get => _unknown31; set => SetField(ref _unknown31, value); }
 
         public List<AddrResult> LoadWorldMapPointList()
         {
@@ -76,54 +105,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 32 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            W6 = rom.u16(addr + 6);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            D12 = rom.u32(addr + 12);
-            D16 = rom.u32(addr + 16);
-            D20 = rom.u32(addr + 20);
-            W24 = rom.u16(addr + 24);
-            W26 = rom.u16(addr + 26);
+            AlwaysAccessible = rom.u8(addr + 0);
+            FreeMapType = rom.u8(addr + 1);
+            PreClearIcon = rom.u8(addr + 2);
+            PostClearIcon = rom.u8(addr + 3);
+            ChapterId1 = rom.u8(addr + 4);
+            ChapterId2 = rom.u8(addr + 5);
+            EventBranchFlag = rom.u16(addr + 6);
+            NextNodeEirika = rom.u8(addr + 8);
+            NextNodeEphraim = rom.u8(addr + 9);
+            NextNodeEirika2nd = rom.u8(addr + 10);
+            NextNodeEphraim2nd = rom.u8(addr + 11);
+            ArmoryPointer = rom.u32(addr + 12);
+            VendorPointer = rom.u32(addr + 16);
+            SecretShopPointer = rom.u32(addr + 20);
+            CoordinateX = rom.u16(addr + 24);
+            CoordinateY = rom.u16(addr + 26);
             NameTextId = rom.u16(addr + 28);
-            B30 = rom.u8(addr + 30);
-            B31 = rom.u8(addr + 31);
+            ShipSetting = rom.u8(addr + 30);
+            Unknown31 = rom.u8(addr + 31);
             CanWrite = true;
         }
 
-        public void WriteWorldMapPoint()
+        public void Write()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
             if (addr + 32 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)B0);
-            rom.write_u8(addr + 1, (byte)B1);
-            rom.write_u8(addr + 2, (byte)B2);
-            rom.write_u8(addr + 3, (byte)B3);
-            rom.write_u8(addr + 4, (byte)B4);
-            rom.write_u8(addr + 5, (byte)B5);
-            rom.write_u16(addr + 6, (ushort)W6);
-            rom.write_u8(addr + 8, (byte)B8);
-            rom.write_u8(addr + 9, (byte)B9);
-            rom.write_u8(addr + 10, (byte)B10);
-            rom.write_u8(addr + 11, (byte)B11);
-            rom.write_u32(addr + 12, D12);
-            rom.write_u32(addr + 16, D16);
-            rom.write_u32(addr + 20, D20);
-            rom.write_u16(addr + 24, (ushort)W24);
-            rom.write_u16(addr + 26, (ushort)W26);
+            rom.write_u8(addr + 0, (byte)AlwaysAccessible);
+            rom.write_u8(addr + 1, (byte)FreeMapType);
+            rom.write_u8(addr + 2, (byte)PreClearIcon);
+            rom.write_u8(addr + 3, (byte)PostClearIcon);
+            rom.write_u8(addr + 4, (byte)ChapterId1);
+            rom.write_u8(addr + 5, (byte)ChapterId2);
+            rom.write_u16(addr + 6, (ushort)EventBranchFlag);
+            rom.write_u8(addr + 8, (byte)NextNodeEirika);
+            rom.write_u8(addr + 9, (byte)NextNodeEphraim);
+            rom.write_u8(addr + 10, (byte)NextNodeEirika2nd);
+            rom.write_u8(addr + 11, (byte)NextNodeEphraim2nd);
+            rom.write_u32(addr + 12, ArmoryPointer);
+            rom.write_u32(addr + 16, VendorPointer);
+            rom.write_u32(addr + 20, SecretShopPointer);
+            rom.write_u16(addr + 24, (ushort)CoordinateX);
+            rom.write_u16(addr + 26, (ushort)CoordinateY);
             rom.write_u16(addr + 28, (ushort)NameTextId);
-            rom.write_u8(addr + 30, (byte)B30);
-            rom.write_u8(addr + 31, (byte)B31);
+            rom.write_u8(addr + 30, (byte)ShipSetting);
+            rom.write_u8(addr + 31, (byte)Unknown31);
         }
 
         public int GetListCount() => LoadWorldMapPointList().Count;
@@ -133,25 +162,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["W6"] = $"0x{W6:X04}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["D12"] = $"0x{D12:X08}",
-                ["D16"] = $"0x{D16:X08}",
-                ["D20"] = $"0x{D20:X08}",
-                ["W24"] = $"0x{W24:X04}",
-                ["W26"] = $"0x{W26:X04}",
+                ["AlwaysAccessible"] = $"0x{AlwaysAccessible:X02}",
+                ["FreeMapType"] = $"0x{FreeMapType:X02}",
+                ["PreClearIcon"] = $"0x{PreClearIcon:X02}",
+                ["PostClearIcon"] = $"0x{PostClearIcon:X02}",
+                ["ChapterId1"] = $"0x{ChapterId1:X02}",
+                ["ChapterId2"] = $"0x{ChapterId2:X02}",
+                ["EventBranchFlag"] = $"0x{EventBranchFlag:X04}",
+                ["NextNodeEirika"] = $"0x{NextNodeEirika:X02}",
+                ["NextNodeEphraim"] = $"0x{NextNodeEphraim:X02}",
+                ["NextNodeEirika2nd"] = $"0x{NextNodeEirika2nd:X02}",
+                ["NextNodeEphraim2nd"] = $"0x{NextNodeEphraim2nd:X02}",
+                ["ArmoryPointer"] = $"0x{ArmoryPointer:X08}",
+                ["VendorPointer"] = $"0x{VendorPointer:X08}",
+                ["SecretShopPointer"] = $"0x{SecretShopPointer:X08}",
+                ["CoordinateX"] = $"0x{CoordinateX:X04}",
+                ["CoordinateY"] = $"0x{CoordinateY:X04}",
                 ["NameTextId"] = $"0x{NameTextId:X04}",
-                ["B30"] = $"0x{B30:X02}",
-                ["B31"] = $"0x{B31:X02}",
+                ["ShipSetting"] = $"0x{ShipSetting:X02}",
+                ["Unknown31"] = $"0x{Unknown31:X02}",
             };
         }
 
@@ -163,25 +192,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
-                ["u32@0x10"] = $"0x{rom.u32(a + 16):X08}",
-                ["u32@0x14"] = $"0x{rom.u32(a + 20):X08}",
-                ["u16@0x18"] = $"0x{rom.u16(a + 24):X04}",
-                ["u16@0x1A"] = $"0x{rom.u16(a + 26):X04}",
-                ["u16@0x1C"] = $"0x{rom.u16(a + 28):X04}",
-                ["u8@0x1E"] = $"0x{rom.u8(a + 30):X02}",
-                ["u8@0x1F"] = $"0x{rom.u8(a + 31):X02}",
+                ["AlwaysAccessible@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["FreeMapType@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["PreClearIcon@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["PostClearIcon@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["ChapterId1@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["ChapterId2@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["EventBranchFlag@0x06"] = $"0x{rom.u16(a + 6):X04}",
+                ["NextNodeEirika@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["NextNodeEphraim@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["NextNodeEirika2nd@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["NextNodeEphraim2nd@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["ArmoryPointer@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["VendorPointer@0x10"] = $"0x{rom.u32(a + 16):X08}",
+                ["SecretShopPointer@0x14"] = $"0x{rom.u32(a + 20):X08}",
+                ["CoordinateX@0x18"] = $"0x{rom.u16(a + 24):X04}",
+                ["CoordinateY@0x1A"] = $"0x{rom.u16(a + 26):X04}",
+                ["NameTextId@0x1C"] = $"0x{rom.u16(a + 28):X04}",
+                ["ShipSetting@0x1E"] = $"0x{rom.u8(a + 30):X02}",
+                ["Unknown31@0x1F"] = $"0x{rom.u8(a + 31):X02}",
             };
         }
     }

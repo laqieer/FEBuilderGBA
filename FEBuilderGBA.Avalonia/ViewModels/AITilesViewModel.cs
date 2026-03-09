@@ -7,11 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
+        uint _tile;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
+        /// <summary>Tile ID for AI evaluation (u8 at offset 0)</summary>
+        public uint Tile { get => _tile; set => SetField(ref _tile, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -30,8 +31,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
+            Tile = rom.u8(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+
+            rom.write_u8(addr + 0, Tile);
         }
 
         public int GetListCount() => 0;
@@ -40,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                { "B0", B0.ToString("X02") },
+                { "Tile", Tile.ToString("X02") },
             };
         }
 
@@ -52,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x00_Tile"] = $"0x{rom.u8(a + 0):X02}",
             };
         }
     }

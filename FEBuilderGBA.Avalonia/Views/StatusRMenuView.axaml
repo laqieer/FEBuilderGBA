@@ -10,33 +10,36 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Status R-Menu Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Up Pointer (u32@0):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Up RMenuPointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="1" Name="UpPtrBox" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Down Pointer (u32@4):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Down RMenuPointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="2" Grid.Column="1" Name="DownPtrBox" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Left Pointer (u32@8):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Left RMenuPointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="3" Grid.Column="1" Name="LeftPtrBox" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Right Pointer (u32@12):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Right RMenuPointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="4" Grid.Column="1" Name="RightPtrBox" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="B16 (u8@16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="B16Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="X Position:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="B17 (u8@17):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B17Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Y Position:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Text ID (u16@18):" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Text ID (TID):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="P20 (u32@20):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="8" Grid.Column="1" Name="P20Box" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Loop Routine:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="8" Grid.Column="1" Name="LoopBox" Width="200" Margin="0,2" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Getter Routine:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="9" Grid.Column="1" Name="GetterBox" Width="200" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

@@ -48,7 +48,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            HeaderBox.Value = _vm.Header;
+            FrequencyBox.Value = _vm.FrequencyHz1024;
+            LoopStartBox.Value = _vm.LoopStartByte;
+            LengthBox.Value = _vm.LengthByte;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _vm.Header = (uint)(HeaderBox.Value ?? 0);
+            _vm.FrequencyHz1024 = (uint)(FrequencyBox.Value ?? 0);
+            _vm.LoopStartByte = (uint)(LoopStartBox.Value ?? 0);
+            // LengthByte is read-only
+            _vm.Write();
+            CoreState.Services.ShowInfo("Direct sound data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

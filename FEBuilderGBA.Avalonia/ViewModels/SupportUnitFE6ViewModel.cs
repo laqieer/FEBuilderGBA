@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///   B10-B19 : Initial support values
     ///   B20-B29 : Support growth rates
     ///   B30     : Support partner count
-    ///   B31     : Reserved / padding
+    ///   B31     : Separator / padding
     /// </summary>
     public class SupportUnitFE6ViewModel : ViewModelBase, IDataVerifiable
     {
@@ -20,57 +20,60 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
 
-        // B0-B9: Partner unit IDs
-        uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9;
-        // B10-B19: Initial values
-        uint _b10, _b11, _b12, _b13, _b14, _b15, _b16, _b17, _b18, _b19;
-        // B20-B29: Growth rates
-        uint _b20, _b21, _b22, _b23, _b24, _b25, _b26, _b27, _b28, _b29;
-        // B30: Partner count, B31: reserved
-        uint _b30, _b31;
+        // Partner unit IDs (10 slots)
+        uint _partner1, _partner2, _partner3, _partner4, _partner5;
+        uint _partner6, _partner7, _partner8, _partner9, _partner10;
+        // Initial support values
+        uint _initialValue1, _initialValue2, _initialValue3, _initialValue4, _initialValue5;
+        uint _initialValue6, _initialValue7, _initialValue8, _initialValue9, _initialValue10;
+        // Support growth rates
+        uint _growthRate1, _growthRate2, _growthRate3, _growthRate4, _growthRate5;
+        uint _growthRate6, _growthRate7, _growthRate8, _growthRate9, _growthRate10;
+        // Partner count + separator
+        uint _partnerCount, _separator;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         // Partner unit IDs
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
+        public uint Partner1 { get => _partner1; set => SetField(ref _partner1, value); }
+        public uint Partner2 { get => _partner2; set => SetField(ref _partner2, value); }
+        public uint Partner3 { get => _partner3; set => SetField(ref _partner3, value); }
+        public uint Partner4 { get => _partner4; set => SetField(ref _partner4, value); }
+        public uint Partner5 { get => _partner5; set => SetField(ref _partner5, value); }
+        public uint Partner6 { get => _partner6; set => SetField(ref _partner6, value); }
+        public uint Partner7 { get => _partner7; set => SetField(ref _partner7, value); }
+        public uint Partner8 { get => _partner8; set => SetField(ref _partner8, value); }
+        public uint Partner9 { get => _partner9; set => SetField(ref _partner9, value); }
+        public uint Partner10 { get => _partner10; set => SetField(ref _partner10, value); }
 
-        // Initial values
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
-        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
-        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
-        public uint B18 { get => _b18; set => SetField(ref _b18, value); }
-        public uint B19 { get => _b19; set => SetField(ref _b19, value); }
+        // Initial support values
+        public uint InitialValue1 { get => _initialValue1; set => SetField(ref _initialValue1, value); }
+        public uint InitialValue2 { get => _initialValue2; set => SetField(ref _initialValue2, value); }
+        public uint InitialValue3 { get => _initialValue3; set => SetField(ref _initialValue3, value); }
+        public uint InitialValue4 { get => _initialValue4; set => SetField(ref _initialValue4, value); }
+        public uint InitialValue5 { get => _initialValue5; set => SetField(ref _initialValue5, value); }
+        public uint InitialValue6 { get => _initialValue6; set => SetField(ref _initialValue6, value); }
+        public uint InitialValue7 { get => _initialValue7; set => SetField(ref _initialValue7, value); }
+        public uint InitialValue8 { get => _initialValue8; set => SetField(ref _initialValue8, value); }
+        public uint InitialValue9 { get => _initialValue9; set => SetField(ref _initialValue9, value); }
+        public uint InitialValue10 { get => _initialValue10; set => SetField(ref _initialValue10, value); }
 
         // Growth rates
-        public uint B20 { get => _b20; set => SetField(ref _b20, value); }
-        public uint B21 { get => _b21; set => SetField(ref _b21, value); }
-        public uint B22 { get => _b22; set => SetField(ref _b22, value); }
-        public uint B23 { get => _b23; set => SetField(ref _b23, value); }
-        public uint B24 { get => _b24; set => SetField(ref _b24, value); }
-        public uint B25 { get => _b25; set => SetField(ref _b25, value); }
-        public uint B26 { get => _b26; set => SetField(ref _b26, value); }
-        public uint B27 { get => _b27; set => SetField(ref _b27, value); }
-        public uint B28 { get => _b28; set => SetField(ref _b28, value); }
-        public uint B29 { get => _b29; set => SetField(ref _b29, value); }
+        public uint GrowthRate1 { get => _growthRate1; set => SetField(ref _growthRate1, value); }
+        public uint GrowthRate2 { get => _growthRate2; set => SetField(ref _growthRate2, value); }
+        public uint GrowthRate3 { get => _growthRate3; set => SetField(ref _growthRate3, value); }
+        public uint GrowthRate4 { get => _growthRate4; set => SetField(ref _growthRate4, value); }
+        public uint GrowthRate5 { get => _growthRate5; set => SetField(ref _growthRate5, value); }
+        public uint GrowthRate6 { get => _growthRate6; set => SetField(ref _growthRate6, value); }
+        public uint GrowthRate7 { get => _growthRate7; set => SetField(ref _growthRate7, value); }
+        public uint GrowthRate8 { get => _growthRate8; set => SetField(ref _growthRate8, value); }
+        public uint GrowthRate9 { get => _growthRate9; set => SetField(ref _growthRate9, value); }
+        public uint GrowthRate10 { get => _growthRate10; set => SetField(ref _growthRate10, value); }
 
-        // Partner count + reserved
-        public uint B30 { get => _b30; set => SetField(ref _b30, value); }
-        public uint B31 { get => _b31; set => SetField(ref _b31, value); }
+        // Partner count + separator
+        public uint PartnerCount { get => _partnerCount; set => SetField(ref _partnerCount, value); }
+        public uint Separator { get => _separator; set => SetField(ref _separator, value); }
 
         public List<AddrResult> LoadSupportUnitList()
         {
@@ -122,41 +125,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            B0  = rom.u8(addr + 0);
-            B1  = rom.u8(addr + 1);
-            B2  = rom.u8(addr + 2);
-            B3  = rom.u8(addr + 3);
-            B4  = rom.u8(addr + 4);
-            B5  = rom.u8(addr + 5);
-            B6  = rom.u8(addr + 6);
-            B7  = rom.u8(addr + 7);
-            B8  = rom.u8(addr + 8);
-            B9  = rom.u8(addr + 9);
+            Partner1  = rom.u8(addr + 0);
+            Partner2  = rom.u8(addr + 1);
+            Partner3  = rom.u8(addr + 2);
+            Partner4  = rom.u8(addr + 3);
+            Partner5  = rom.u8(addr + 4);
+            Partner6  = rom.u8(addr + 5);
+            Partner7  = rom.u8(addr + 6);
+            Partner8  = rom.u8(addr + 7);
+            Partner9  = rom.u8(addr + 8);
+            Partner10 = rom.u8(addr + 9);
 
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
-            B18 = rom.u8(addr + 18);
-            B19 = rom.u8(addr + 19);
+            InitialValue1  = rom.u8(addr + 10);
+            InitialValue2  = rom.u8(addr + 11);
+            InitialValue3  = rom.u8(addr + 12);
+            InitialValue4  = rom.u8(addr + 13);
+            InitialValue5  = rom.u8(addr + 14);
+            InitialValue6  = rom.u8(addr + 15);
+            InitialValue7  = rom.u8(addr + 16);
+            InitialValue8  = rom.u8(addr + 17);
+            InitialValue9  = rom.u8(addr + 18);
+            InitialValue10 = rom.u8(addr + 19);
 
-            B20 = rom.u8(addr + 20);
-            B21 = rom.u8(addr + 21);
-            B22 = rom.u8(addr + 22);
-            B23 = rom.u8(addr + 23);
-            B24 = rom.u8(addr + 24);
-            B25 = rom.u8(addr + 25);
-            B26 = rom.u8(addr + 26);
-            B27 = rom.u8(addr + 27);
-            B28 = rom.u8(addr + 28);
-            B29 = rom.u8(addr + 29);
+            GrowthRate1  = rom.u8(addr + 20);
+            GrowthRate2  = rom.u8(addr + 21);
+            GrowthRate3  = rom.u8(addr + 22);
+            GrowthRate4  = rom.u8(addr + 23);
+            GrowthRate5  = rom.u8(addr + 24);
+            GrowthRate6  = rom.u8(addr + 25);
+            GrowthRate7  = rom.u8(addr + 26);
+            GrowthRate8  = rom.u8(addr + 27);
+            GrowthRate9  = rom.u8(addr + 28);
+            GrowthRate10 = rom.u8(addr + 29);
 
-            B30 = rom.u8(addr + 30);
-            B31 = rom.u8(addr + 31);
+            PartnerCount = rom.u8(addr + 30);
+            Separator = rom.u8(addr + 31);
 
             IsLoaded = true;
         }
@@ -168,64 +171,83 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  B0);
-            rom.write_u8(a + 1,  B1);
-            rom.write_u8(a + 2,  B2);
-            rom.write_u8(a + 3,  B3);
-            rom.write_u8(a + 4,  B4);
-            rom.write_u8(a + 5,  B5);
-            rom.write_u8(a + 6,  B6);
-            rom.write_u8(a + 7,  B7);
-            rom.write_u8(a + 8,  B8);
-            rom.write_u8(a + 9,  B9);
+            rom.write_u8(a + 0,  Partner1);
+            rom.write_u8(a + 1,  Partner2);
+            rom.write_u8(a + 2,  Partner3);
+            rom.write_u8(a + 3,  Partner4);
+            rom.write_u8(a + 4,  Partner5);
+            rom.write_u8(a + 5,  Partner6);
+            rom.write_u8(a + 6,  Partner7);
+            rom.write_u8(a + 7,  Partner8);
+            rom.write_u8(a + 8,  Partner9);
+            rom.write_u8(a + 9,  Partner10);
 
-            rom.write_u8(a + 10, B10);
-            rom.write_u8(a + 11, B11);
-            rom.write_u8(a + 12, B12);
-            rom.write_u8(a + 13, B13);
-            rom.write_u8(a + 14, B14);
-            rom.write_u8(a + 15, B15);
-            rom.write_u8(a + 16, B16);
-            rom.write_u8(a + 17, B17);
-            rom.write_u8(a + 18, B18);
-            rom.write_u8(a + 19, B19);
+            rom.write_u8(a + 10, InitialValue1);
+            rom.write_u8(a + 11, InitialValue2);
+            rom.write_u8(a + 12, InitialValue3);
+            rom.write_u8(a + 13, InitialValue4);
+            rom.write_u8(a + 14, InitialValue5);
+            rom.write_u8(a + 15, InitialValue6);
+            rom.write_u8(a + 16, InitialValue7);
+            rom.write_u8(a + 17, InitialValue8);
+            rom.write_u8(a + 18, InitialValue9);
+            rom.write_u8(a + 19, InitialValue10);
 
-            rom.write_u8(a + 20, B20);
-            rom.write_u8(a + 21, B21);
-            rom.write_u8(a + 22, B22);
-            rom.write_u8(a + 23, B23);
-            rom.write_u8(a + 24, B24);
-            rom.write_u8(a + 25, B25);
-            rom.write_u8(a + 26, B26);
-            rom.write_u8(a + 27, B27);
-            rom.write_u8(a + 28, B28);
-            rom.write_u8(a + 29, B29);
+            rom.write_u8(a + 20, GrowthRate1);
+            rom.write_u8(a + 21, GrowthRate2);
+            rom.write_u8(a + 22, GrowthRate3);
+            rom.write_u8(a + 23, GrowthRate4);
+            rom.write_u8(a + 24, GrowthRate5);
+            rom.write_u8(a + 25, GrowthRate6);
+            rom.write_u8(a + 26, GrowthRate7);
+            rom.write_u8(a + 27, GrowthRate8);
+            rom.write_u8(a + 28, GrowthRate9);
+            rom.write_u8(a + 29, GrowthRate10);
 
-            rom.write_u8(a + 30, B30);
-            rom.write_u8(a + 31, B31);
+            rom.write_u8(a + 30, PartnerCount);
+            rom.write_u8(a + 31, Separator);
         }
 
         public int GetListCount() => LoadSupportUnitList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
-            var report = new Dictionary<string, string>
+            return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Partner1"] = $"0x{Partner1:X02}",
+                ["Partner2"] = $"0x{Partner2:X02}",
+                ["Partner3"] = $"0x{Partner3:X02}",
+                ["Partner4"] = $"0x{Partner4:X02}",
+                ["Partner5"] = $"0x{Partner5:X02}",
+                ["Partner6"] = $"0x{Partner6:X02}",
+                ["Partner7"] = $"0x{Partner7:X02}",
+                ["Partner8"] = $"0x{Partner8:X02}",
+                ["Partner9"] = $"0x{Partner9:X02}",
+                ["Partner10"] = $"0x{Partner10:X02}",
+                ["InitialValue1"] = $"0x{InitialValue1:X02}",
+                ["InitialValue2"] = $"0x{InitialValue2:X02}",
+                ["InitialValue3"] = $"0x{InitialValue3:X02}",
+                ["InitialValue4"] = $"0x{InitialValue4:X02}",
+                ["InitialValue5"] = $"0x{InitialValue5:X02}",
+                ["InitialValue6"] = $"0x{InitialValue6:X02}",
+                ["InitialValue7"] = $"0x{InitialValue7:X02}",
+                ["InitialValue8"] = $"0x{InitialValue8:X02}",
+                ["InitialValue9"] = $"0x{InitialValue9:X02}",
+                ["InitialValue10"] = $"0x{InitialValue10:X02}",
+                ["GrowthRate1"] = $"0x{GrowthRate1:X02}",
+                ["GrowthRate2"] = $"0x{GrowthRate2:X02}",
+                ["GrowthRate3"] = $"0x{GrowthRate3:X02}",
+                ["GrowthRate4"] = $"0x{GrowthRate4:X02}",
+                ["GrowthRate5"] = $"0x{GrowthRate5:X02}",
+                ["GrowthRate6"] = $"0x{GrowthRate6:X02}",
+                ["GrowthRate7"] = $"0x{GrowthRate7:X02}",
+                ["GrowthRate8"] = $"0x{GrowthRate8:X02}",
+                ["GrowthRate9"] = $"0x{GrowthRate9:X02}",
+                ["GrowthRate10"] = $"0x{GrowthRate10:X02}",
+                ["PartnerCount"] = $"0x{PartnerCount:X02}",
+                ["Separator"] = $"0x{Separator:X02}",
             };
-            for (int i = 0; i < 32; i++)
-            {
-                uint val = i switch
-                {
-                    0 => B0, 1 => B1, 2 => B2, 3 => B3, 4 => B4, 5 => B5, 6 => B6,
-                    7 => B7, 8 => B8, 9 => B9, 10 => B10, 11 => B11, 12 => B12, 13 => B13,
-                    14 => B14, 15 => B15, 16 => B16, 17 => B17, 18 => B18, 19 => B19,
-                    20 => B20, 21 => B21, 22 => B22, 23 => B23, 24 => B24, 25 => B25,
-                    26 => B26, 27 => B27, 28 => B28, 29 => B29, 30 => B30, _ => B31,
-                };
-                report[$"B{i}"] = $"0x{val:X02}";
-            }
-            return report;
         }
 
         public Dictionary<string, string> GetRawRomReport()
@@ -236,38 +258,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 3):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 5):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 11):X02}",
-                ["u8@0x0C"] = $"0x{rom.u8(a + 12):X02}",
-                ["u8@0x0D"] = $"0x{rom.u8(a + 13):X02}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
-                ["u8@0x10"] = $"0x{rom.u8(a + 16):X02}",
-                ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
-                ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
-                ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
-                ["u8@0x14"] = $"0x{rom.u8(a + 20):X02}",
-                ["u8@0x15"] = $"0x{rom.u8(a + 21):X02}",
-                ["u8@0x16"] = $"0x{rom.u8(a + 22):X02}",
-                ["u8@0x17"] = $"0x{rom.u8(a + 23):X02}",
-                ["u8@0x18"] = $"0x{rom.u8(a + 24):X02}",
-                ["u8@0x19"] = $"0x{rom.u8(a + 25):X02}",
-                ["u8@0x1A"] = $"0x{rom.u8(a + 26):X02}",
-                ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
-                ["u8@0x1C"] = $"0x{rom.u8(a + 28):X02}",
-                ["u8@0x1D"] = $"0x{rom.u8(a + 29):X02}",
-                ["u8@0x1E"] = $"0x{rom.u8(a + 30):X02}",
-                ["u8@0x1F"] = $"0x{rom.u8(a + 31):X02}",
+                ["Partner1@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["Partner2@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["Partner3@0x02"] = $"0x{rom.u8(a + 2):X02}",
+                ["Partner4@0x03"] = $"0x{rom.u8(a + 3):X02}",
+                ["Partner5@0x04"] = $"0x{rom.u8(a + 4):X02}",
+                ["Partner6@0x05"] = $"0x{rom.u8(a + 5):X02}",
+                ["Partner7@0x06"] = $"0x{rom.u8(a + 6):X02}",
+                ["Partner8@0x07"] = $"0x{rom.u8(a + 7):X02}",
+                ["Partner9@0x08"] = $"0x{rom.u8(a + 8):X02}",
+                ["Partner10@0x09"] = $"0x{rom.u8(a + 9):X02}",
+                ["InitialValue1@0x0A"] = $"0x{rom.u8(a + 10):X02}",
+                ["InitialValue2@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["InitialValue3@0x0C"] = $"0x{rom.u8(a + 12):X02}",
+                ["InitialValue4@0x0D"] = $"0x{rom.u8(a + 13):X02}",
+                ["InitialValue5@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["InitialValue6@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["InitialValue7@0x10"] = $"0x{rom.u8(a + 16):X02}",
+                ["InitialValue8@0x11"] = $"0x{rom.u8(a + 17):X02}",
+                ["InitialValue9@0x12"] = $"0x{rom.u8(a + 18):X02}",
+                ["InitialValue10@0x13"] = $"0x{rom.u8(a + 19):X02}",
+                ["GrowthRate1@0x14"] = $"0x{rom.u8(a + 20):X02}",
+                ["GrowthRate2@0x15"] = $"0x{rom.u8(a + 21):X02}",
+                ["GrowthRate3@0x16"] = $"0x{rom.u8(a + 22):X02}",
+                ["GrowthRate4@0x17"] = $"0x{rom.u8(a + 23):X02}",
+                ["GrowthRate5@0x18"] = $"0x{rom.u8(a + 24):X02}",
+                ["GrowthRate6@0x19"] = $"0x{rom.u8(a + 25):X02}",
+                ["GrowthRate7@0x1A"] = $"0x{rom.u8(a + 26):X02}",
+                ["GrowthRate8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
+                ["GrowthRate9@0x1C"] = $"0x{rom.u8(a + 28):X02}",
+                ["GrowthRate10@0x1D"] = $"0x{rom.u8(a + 29):X02}",
+                ["PartnerCount@0x1E"] = $"0x{rom.u8(a + 30):X02}",
+                ["Separator@0x1F"] = $"0x{rom.u8(a + 31):X02}",
             };
         }
     }

@@ -7,12 +7,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
+        uint _moveDirection;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // B0: u8 field at offset 0
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
+        // B0: Move direction (u8 at offset 0)
+        // 00=Left, 01=Right, 02=Down, 03=Up, 09=Highlight, 0A=Enemy collision mark, 0C=Speed change, 04=Term(End)
+        public uint MoveDirection { get => _moveDirection; set => SetField(ref _moveDirection, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -31,8 +32,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
+            MoveDirection = rom.u8(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 1 > (uint)rom.Data.Length) return;
+
+            rom.write_u8(a + 0, MoveDirection);
         }
 
         public int GetListCount() => 0;
@@ -41,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["B0"] = B0.ToString("X02"),
+                ["MoveDirection"] = MoveDirection.ToString("X02"),
             };
         }
 
@@ -54,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x00_MoveDirection"] = $"0x{rom.u8(a + 0):X02}",
             };
         }
     }

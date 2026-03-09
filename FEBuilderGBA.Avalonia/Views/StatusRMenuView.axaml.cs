@@ -54,10 +54,11 @@ namespace FEBuilderGBA.Avalonia.Views
             DownPtrBox.Text = $"0x{_vm.DownPtr:X08}";
             LeftPtrBox.Text = $"0x{_vm.LeftPtr:X08}";
             RightPtrBox.Text = $"0x{_vm.RightPtr:X08}";
-            B16Box.Value = _vm.B16;
-            B17Box.Value = _vm.B17;
+            PosXBox.Value = _vm.PosX;
+            PosYBox.Value = _vm.PosY;
             TextIdBox.Value = _vm.TextId;
-            P20Box.Text = $"0x{_vm.P20:X08}";
+            LoopBox.Text = $"0x{_vm.LoopRoutine:X08}";
+            GetterBox.Text = $"0x{_vm.GetterRoutine:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -68,10 +69,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.DownPtr = ParseHexText(DownPtrBox.Text);
             _vm.LeftPtr = ParseHexText(LeftPtrBox.Text);
             _vm.RightPtr = ParseHexText(RightPtrBox.Text);
-            _vm.B16 = (uint)(B16Box.Value ?? 0);
-            _vm.B17 = (uint)(B17Box.Value ?? 0);
+            _vm.PosX = (uint)(PosXBox.Value ?? 0);
+            _vm.PosY = (uint)(PosYBox.Value ?? 0);
             _vm.TextId = (uint)(TextIdBox.Value ?? 0);
-            _vm.P20 = ParseHexText(P20Box.Text);
+            _vm.LoopRoutine = ParseHexText(LoopBox.Text);
+            _vm.GetterRoutine = ParseHexText(GetterBox.Text);
             _vm.WriteStatusRMenu();
             CoreState.Services?.ShowInfo("Status R-Menu data written.");
         }

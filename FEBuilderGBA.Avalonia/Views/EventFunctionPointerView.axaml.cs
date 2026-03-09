@@ -10,13 +10,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly EventFunctionPointerViewModel _vm = new();
 
-        public string ViewTitle => "Function Pointer Editor";
+        public string ViewTitle => "Event Function Pointer Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
         public EventFunctionPointerView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,6 +50,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            FuncPointerUpDown.Value = _vm.EventCommandFunctionPointer;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.EventCommandFunctionPointer = (uint)(FuncPointerUpDown.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventFunctionPointerView.OnWrite failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

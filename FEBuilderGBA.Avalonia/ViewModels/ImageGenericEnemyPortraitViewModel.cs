@@ -10,13 +10,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
+        uint _imagePointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        // D0: Portrait data pointer
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
+        // D0: Image data pointer (J_0: "Image")
+        public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -36,9 +36,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            D0 = rom.u32(addr + 0);
+            ImagePointer = rom.u32(addr + 0);
 
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, ImagePointer);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -48,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
+                ["ImagePointer"] = $"0x{ImagePointer:X08}",
             };
         }
 
@@ -61,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0_ImagePtr"] = $"0x{rom.u32(a + 0):X08}",
             };
         }
     }

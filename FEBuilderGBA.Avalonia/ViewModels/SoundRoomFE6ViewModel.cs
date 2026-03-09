@@ -16,15 +16,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        uint _d4;
-        uint _d8;
+        uint _bgmId;
+        uint _songNameTextId;
+        uint _descriptionTextId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
-        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
+        /// <summary>BGM / Song ID (D0).</summary>
+        public uint BgmId { get => _bgmId; set => SetField(ref _bgmId, value); }
+        /// <summary>Text ID for the song name (D4).</summary>
+        public uint SongNameTextId { get => _songNameTextId; set => SetField(ref _songNameTextId, value); }
+        /// <summary>Text ID for the description (D8).</summary>
+        public uint DescriptionTextId { get => _descriptionTextId; set => SetField(ref _descriptionTextId, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -33,20 +36,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 12 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
-            D8 = rom.u32(addr + 8);
+            BgmId = rom.u32(addr + 0);
+            SongNameTextId = rom.u32(addr + 4);
+            DescriptionTextId = rom.u32(addr + 8);
             IsLoaded = true;
         }
 
-        public void WriteEntry()
+        public void Write()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u32(a + 0, D0);
-            rom.write_u32(a + 4, D4);
-            rom.write_u32(a + 8, D8);
+            rom.write_u32(a + 0, BgmId);
+            rom.write_u32(a + 4, SongNameTextId);
+            rom.write_u32(a + 8, DescriptionTextId);
         }
 
         public int GetListCount() => 0;
@@ -56,9 +59,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0_SongId"] = $"0x{D0:X08}",
-                ["D4_SongName"] = $"0x{D4:X08}",
-                ["D8_Description"] = $"0x{D8:X08}",
+                ["BgmId"] = $"0x{BgmId:X08}",
+                ["SongNameTextId"] = $"0x{SongNameTextId:X08}",
+                ["DescriptionTextId"] = $"0x{DescriptionTextId:X08}",
             };
         }
 
@@ -70,9 +73,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
+                ["BgmId@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["SongNameTextId@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["DescriptionTextId@0x08"] = $"0x{rom.u32(a + 8):X08}",
             };
         }
     }

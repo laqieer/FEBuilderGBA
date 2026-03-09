@@ -48,7 +48,29 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            AnimationPointerBox.Text = $"0x{_vm.AnimationPointer:X08}";
+            Padding1Box.Value = _vm.Padding1;
+            Padding2Box.Value = _vm.Padding2;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.AnimationPointer = ParseHexText(AnimationPointerBox.Text);
+            _vm.Padding1 = (uint)(Padding1Box.Value ?? 0);
+            _vm.Padding2 = (uint)(Padding2Box.Value ?? 0);
+            _vm.Write();
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(2);
+            if (uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint val))
+                return val;
+            return 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

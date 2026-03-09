@@ -8,19 +8,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _unit1Id, _unit2Id;      // B0, B1
-        uint _textC, _textB, _textA;  // W4, W8, W12 (u16)
-        uint _b14, _b15;              // B14, B15
+        uint _supportPartner1, _supportPartner2;      // B0, B1
+        uint _textC, _textB, _textA;                   // W4, W8, W12 (u16)
+        uint _padding1, _padding2;                     // B14, B15
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint Unit1Id { get => _unit1Id; set => SetField(ref _unit1Id, value); }
-        public uint Unit2Id { get => _unit2Id; set => SetField(ref _unit2Id, value); }
+        public uint SupportPartner1 { get => _supportPartner1; set => SetField(ref _supportPartner1, value); }
+        public uint SupportPartner2 { get => _supportPartner2; set => SetField(ref _supportPartner2, value); }
         public uint TextC { get => _textC; set => SetField(ref _textC, value); }
         public uint TextB { get => _textB; set => SetField(ref _textB, value); }
         public uint TextA { get => _textA; set => SetField(ref _textA, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
+        public uint Padding1 { get => _padding1; set => SetField(ref _padding1, value); }
+        public uint Padding2 { get => _padding2; set => SetField(ref _padding2, value); }
 
         public List<AddrResult> LoadSupportTalkList()
         {
@@ -66,13 +66,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Unit1Id = rom.u8(addr + 0);
-            Unit2Id = rom.u8(addr + 1);
+            SupportPartner1 = rom.u8(addr + 0);
+            SupportPartner2 = rom.u8(addr + 1);
             TextC = rom.u16(addr + 4);
             TextB = rom.u16(addr + 8);
             TextA = rom.u16(addr + 12);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
+            Padding1 = rom.u8(addr + 14);
+            Padding2 = rom.u8(addr + 15);
 
             IsLoaded = true;
         }
@@ -84,13 +84,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  Unit1Id);
-            rom.write_u8(a + 1,  Unit2Id);
+            rom.write_u8(a + 0,  SupportPartner1);
+            rom.write_u8(a + 1,  SupportPartner2);
             rom.write_u16(a + 4, (uint)TextC);
             rom.write_u16(a + 8, (uint)TextB);
             rom.write_u16(a + 12, (uint)TextA);
-            rom.write_u8(a + 14, B14);
-            rom.write_u8(a + 15, B15);
+            rom.write_u8(a + 14, Padding1);
+            rom.write_u8(a + 15, Padding2);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;
@@ -100,13 +100,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Unit1Id"] = $"0x{Unit1Id:X02}",
-                ["Unit2Id"] = $"0x{Unit2Id:X02}",
+                ["SupportPartner1"] = $"0x{SupportPartner1:X02}",
+                ["SupportPartner2"] = $"0x{SupportPartner2:X02}",
                 ["TextC"] = $"0x{TextC:X04}",
                 ["TextB"] = $"0x{TextB:X04}",
                 ["TextA"] = $"0x{TextA:X04}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
+                ["Padding1"] = $"0x{Padding1:X02}",
+                ["Padding2"] = $"0x{Padding2:X02}",
             };
         }
 
@@ -118,13 +118,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
-                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 14):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
+                ["SupportPartner1@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["SupportPartner2@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["TextC@0x04"] = $"0x{rom.u16(a + 4):X04}",
+                ["TextB@0x08"] = $"0x{rom.u16(a + 8):X04}",
+                ["TextA@0x0C"] = $"0x{rom.u16(a + 12):X04}",
+                ["Padding1@0x0E"] = $"0x{rom.u8(a + 14):X02}",
+                ["Padding2@0x0F"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
     }

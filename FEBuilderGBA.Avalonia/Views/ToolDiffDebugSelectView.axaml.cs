@@ -38,16 +38,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Compare_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.SelectedIndex < 0 || _vm.SelectedIndex >= _vm.BackupList.Count)
+            if (_vm.GetSelectedBackupPath() == null)
                 return;
-            // Comparison placeholder - would open ToolThreeMargeView with selected backup
+            _vm.DialogResult = "compare";
+            // Placeholder: would open ToolThreeMargeView with selected backup
         }
 
         void TestPlay_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.SelectedIndex < 0 || _vm.SelectedIndex >= _vm.BackupList.Count)
+            if (_vm.GetSelectedBackupPath() == null)
                 return;
-            // Test play placeholder - would launch emulator with selected backup ROM
+            _vm.DialogResult = "testplay";
+            // Placeholder: would launch emulator with selected backup ROM
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)

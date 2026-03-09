@@ -11,35 +11,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _dataSize;
 
-        // --- D0: Pointer/CString at offset 0 ---
-        uint _d0;
-        // --- W4: Object type PLIST (u16) ---
-        uint _w4;
-        // --- B6-B19: byte fields ---
-        uint _b6, _b7, _b8, _b9, _b10, _b11;
-        uint _b12, _b13, _b14, _b15, _b16, _b17, _b18, _b19;
-        // --- W20-W42: word fields ---
-        uint _w20, _w22, _w24, _w26, _w28, _w30, _w32, _w34, _w36, _w38, _w40, _w42;
-        // --- B44-B61: byte fields ---
-        uint _b44, _b45, _b46, _b47, _b48, _b49, _b50, _b51;
-        uint _b52, _b53, _b54, _b55, _b56, _b57, _b58, _b59, _b60, _b61;
-        // --- W62-W94: word fields ---
-        uint _w62, _w64, _w66, _w68, _w70, _w72, _w74, _w76;
-        uint _w78, _w80, _w82, _w84, _w86, _w88, _w90, _w92, _w94;
-        // --- D96-D108: dword fields ---
-        uint _d96, _d100, _d104, _d108;
-        // --- W112-W118: word fields ---
-        uint _w112, _w114, _w116, _w118;
-        // --- B120, B121 ---
-        uint _b120, _b121;
-        // --- W122-W128: word fields ---
-        uint _w122, _w124, _w126, _w128;
-        // --- B130-B139 ---
-        uint _b130, _b131, _b132, _b133, _b134, _b135, _b136, _b137, _b138, _b139;
-        // --- W140, W142: text IDs ---
-        uint _w140, _w142;
-        // --- B144-B151 ---
-        uint _b144, _b145, _b146, _b147, _b148, _b149, _b150, _b151;
+        // --- ChapterPointer: Pointer/CString at offset 0 ---
+        uint _chapterPointer;
+        // --- ObjectTypePLIST: Object type PLIST (u16) ---
+        uint _objectTypePLIST;
+        // --- PalettePLIST-BattleBG: byte fields ---
+        uint _palettePLIST, _chipsetConfigPLIST, _mapPointerPLIST, _tileAnimation1PLIST, _tileAnimation2PLIST, _mapChangePLIST;
+        uint _fogLevel, _battlePreparation, _chapterTitleImage, _chapterTitleImage2, _padding16, _padding17, _weather, _battleBG;
+        // --- DifficultyAdjust-PrologueBGMHector: word fields ---
+        uint _difficultyAdjust, _playerPhaseBGM, _enemyPhaseBGM, _npcBGM, _playerPhaseBGM2, _enemyPhaseBGM2, _npcBGM2, _playerPhaseBGMFlag4, _enemyPhaseBGMFlag4, _prologueBGMCommon, _prologueBGMEliwood, _prologueBGMHector;
+        // --- BreakableWallHP-UnknownB61: byte fields ---
+        uint _breakableWallHP, _ratingAEliwoodNormal, _ratingAEliwoodHard, _ratingAHectorNormal, _ratingAHectorHard, _ratingBEliwoodNormal, _ratingBEliwoodHard, _ratingBHectorNormal;
+        uint _ratingBHectorHard, _ratingCEliwoodNormal, _ratingCEliwoodHard, _ratingCHectorNormal, _ratingCHectorHard, _ratingDEliwoodNormal, _ratingDEliwoodHard, _ratingDHectorNormal, _ratingDHectorHard, _unknownB61;
+        // --- RatingAEliwoodNormalW-UnknownW94: word fields ---
+        uint _ratingAEliwoodNormalW, _ratingAEliwoodHardW, _ratingAHectorNormalW, _ratingAHectorHardW, _ratingBEliwoodNormalW, _ratingBEliwoodHardW, _ratingBHectorNormalW, _ratingBHectorHardW;
+        uint _ratingCEliwoodNormalW, _ratingCEliwoodHardW, _ratingCHectorNormalW, _ratingCHectorHardW, _ratingDEliwoodNormalW, _ratingDEliwoodHardW, _ratingDHectorNormalW, _ratingDHectorHardW, _unknownW94;
+        // --- EliwoodNormalPtr-HectorHardPtr: dword fields ---
+        uint _eliwoodNormalPtr, _eliwoodHardPtr, _hectorNormalPtr, _hectorHardPtr;
+        // --- ChapterTitleEliwoodTextId-ChapterTitleHectorText2Id: word fields ---
+        uint _chapterTitleEliwoodTextId, _chapterTitleHectorTextId, _chapterTitleEliwoodText2Id, _chapterTitleHectorText2Id;
+        // --- EventPLIST, WorldMapAutoEvent ---
+        uint _eventPLIST, _worldMapAutoEvent;
+        // --- FortuneDialogOpeningTextId-FortuneDialogConfirmTextId: word fields ---
+        uint _fortuneDialogOpeningTextId, _fortuneDialogEliwoodTextId, _fortuneDialogHectorTextId, _fortuneDialogConfirmTextId;
+        // --- FortunePortrait-DarkenBeforeStartEvent ---
+        uint _fortunePortrait, _fortuneFee, _prepScreenChNo1, _prepScreenChNo2, _unknownB134, _unknownB135, _unknownB136, _unknownB137, _victoryBGMEnemyCount, _darkenBeforeStartEvent;
+        // --- ClearConditionTextId, DetailClearConditionTextId: text IDs ---
+        uint _clearConditionTextId, _detailClearConditionTextId;
+        // --- SpecialDisplay-UnknownB151 ---
+        uint _specialDisplay, _turnCountDisplay, _defenseUnitMark, _escapeMarkerX, _escapeMarkerY, _unknownB149, _unknownB150, _unknownB151;
 
         // ---- Properties ----
 
@@ -48,137 +48,137 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint DataSize { get => _dataSize; set => SetField(ref _dataSize, value); }
 
-        // D0: CP / CString pointer
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
+        // ChapterPointer: CP / CString pointer
+        public uint ChapterPointer { get => _chapterPointer; set => SetField(ref _chapterPointer, value); }
 
-        // W4: Object type PLIST
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
+        // ObjectTypePLIST: Object type PLIST
+        public uint ObjectTypePLIST { get => _objectTypePLIST; set => SetField(ref _objectTypePLIST, value); }
 
-        // B6-B19
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
-        public uint B12 { get => _b12; set => SetField(ref _b12, value); }
-        public uint B13 { get => _b13; set => SetField(ref _b13, value); }
-        public uint B14 { get => _b14; set => SetField(ref _b14, value); }
-        public uint B15 { get => _b15; set => SetField(ref _b15, value); }
-        public uint B16 { get => _b16; set => SetField(ref _b16, value); }
-        public uint B17 { get => _b17; set => SetField(ref _b17, value); }
-        public uint B18 { get => _b18; set => SetField(ref _b18, value); }
-        public uint B19 { get => _b19; set => SetField(ref _b19, value); }
+        // PalettePLIST-BattleBG
+        public uint PalettePLIST { get => _palettePLIST; set => SetField(ref _palettePLIST, value); }
+        public uint ChipsetConfigPLIST { get => _chipsetConfigPLIST; set => SetField(ref _chipsetConfigPLIST, value); }
+        public uint MapPointerPLIST { get => _mapPointerPLIST; set => SetField(ref _mapPointerPLIST, value); }
+        public uint TileAnimation1PLIST { get => _tileAnimation1PLIST; set => SetField(ref _tileAnimation1PLIST, value); }
+        public uint TileAnimation2PLIST { get => _tileAnimation2PLIST; set => SetField(ref _tileAnimation2PLIST, value); }
+        public uint MapChangePLIST { get => _mapChangePLIST; set => SetField(ref _mapChangePLIST, value); }
+        public uint FogLevel { get => _fogLevel; set => SetField(ref _fogLevel, value); }
+        public uint BattlePreparation { get => _battlePreparation; set => SetField(ref _battlePreparation, value); }
+        public uint ChapterTitleImage { get => _chapterTitleImage; set => SetField(ref _chapterTitleImage, value); }
+        public uint ChapterTitleImage2 { get => _chapterTitleImage2; set => SetField(ref _chapterTitleImage2, value); }
+        public uint Padding16 { get => _padding16; set => SetField(ref _padding16, value); }
+        public uint Padding17 { get => _padding17; set => SetField(ref _padding17, value); }
+        public uint Weather { get => _weather; set => SetField(ref _weather, value); }
+        public uint BattleBG { get => _battleBG; set => SetField(ref _battleBG, value); }
 
-        // W20-W42
-        public uint W20 { get => _w20; set => SetField(ref _w20, value); }
-        public uint W22 { get => _w22; set => SetField(ref _w22, value); }
-        public uint W24 { get => _w24; set => SetField(ref _w24, value); }
-        public uint W26 { get => _w26; set => SetField(ref _w26, value); }
-        public uint W28 { get => _w28; set => SetField(ref _w28, value); }
-        public uint W30 { get => _w30; set => SetField(ref _w30, value); }
-        public uint W32 { get => _w32; set => SetField(ref _w32, value); }
-        public uint W34 { get => _w34; set => SetField(ref _w34, value); }
-        public uint W36 { get => _w36; set => SetField(ref _w36, value); }
-        public uint W38 { get => _w38; set => SetField(ref _w38, value); }
-        public uint W40 { get => _w40; set => SetField(ref _w40, value); }
-        public uint W42 { get => _w42; set => SetField(ref _w42, value); }
+        // DifficultyAdjust-PrologueBGMHector
+        public uint DifficultyAdjust { get => _difficultyAdjust; set => SetField(ref _difficultyAdjust, value); }
+        public uint PlayerPhaseBGM { get => _playerPhaseBGM; set => SetField(ref _playerPhaseBGM, value); }
+        public uint EnemyPhaseBGM { get => _enemyPhaseBGM; set => SetField(ref _enemyPhaseBGM, value); }
+        public uint NpcBGM { get => _npcBGM; set => SetField(ref _npcBGM, value); }
+        public uint PlayerPhaseBGM2 { get => _playerPhaseBGM2; set => SetField(ref _playerPhaseBGM2, value); }
+        public uint EnemyPhaseBGM2 { get => _enemyPhaseBGM2; set => SetField(ref _enemyPhaseBGM2, value); }
+        public uint NpcBGM2 { get => _npcBGM2; set => SetField(ref _npcBGM2, value); }
+        public uint PlayerPhaseBGMFlag4 { get => _playerPhaseBGMFlag4; set => SetField(ref _playerPhaseBGMFlag4, value); }
+        public uint EnemyPhaseBGMFlag4 { get => _enemyPhaseBGMFlag4; set => SetField(ref _enemyPhaseBGMFlag4, value); }
+        public uint PrologueBGMCommon { get => _prologueBGMCommon; set => SetField(ref _prologueBGMCommon, value); }
+        public uint PrologueBGMEliwood { get => _prologueBGMEliwood; set => SetField(ref _prologueBGMEliwood, value); }
+        public uint PrologueBGMHector { get => _prologueBGMHector; set => SetField(ref _prologueBGMHector, value); }
 
-        // B44-B61
-        public uint B44 { get => _b44; set => SetField(ref _b44, value); }
-        public uint B45 { get => _b45; set => SetField(ref _b45, value); }
-        public uint B46 { get => _b46; set => SetField(ref _b46, value); }
-        public uint B47 { get => _b47; set => SetField(ref _b47, value); }
-        public uint B48 { get => _b48; set => SetField(ref _b48, value); }
-        public uint B49 { get => _b49; set => SetField(ref _b49, value); }
-        public uint B50 { get => _b50; set => SetField(ref _b50, value); }
-        public uint B51 { get => _b51; set => SetField(ref _b51, value); }
-        public uint B52 { get => _b52; set => SetField(ref _b52, value); }
-        public uint B53 { get => _b53; set => SetField(ref _b53, value); }
-        public uint B54 { get => _b54; set => SetField(ref _b54, value); }
-        public uint B55 { get => _b55; set => SetField(ref _b55, value); }
-        public uint B56 { get => _b56; set => SetField(ref _b56, value); }
-        public uint B57 { get => _b57; set => SetField(ref _b57, value); }
-        public uint B58 { get => _b58; set => SetField(ref _b58, value); }
-        public uint B59 { get => _b59; set => SetField(ref _b59, value); }
-        public uint B60 { get => _b60; set => SetField(ref _b60, value); }
-        public uint B61 { get => _b61; set => SetField(ref _b61, value); }
+        // BreakableWallHP-UnknownB61
+        public uint BreakableWallHP { get => _breakableWallHP; set => SetField(ref _breakableWallHP, value); }
+        public uint RatingAEliwoodNormal { get => _ratingAEliwoodNormal; set => SetField(ref _ratingAEliwoodNormal, value); }
+        public uint RatingAEliwoodHard { get => _ratingAEliwoodHard; set => SetField(ref _ratingAEliwoodHard, value); }
+        public uint RatingAHectorNormal { get => _ratingAHectorNormal; set => SetField(ref _ratingAHectorNormal, value); }
+        public uint RatingAHectorHard { get => _ratingAHectorHard; set => SetField(ref _ratingAHectorHard, value); }
+        public uint RatingBEliwoodNormal { get => _ratingBEliwoodNormal; set => SetField(ref _ratingBEliwoodNormal, value); }
+        public uint RatingBEliwoodHard { get => _ratingBEliwoodHard; set => SetField(ref _ratingBEliwoodHard, value); }
+        public uint RatingBHectorNormal { get => _ratingBHectorNormal; set => SetField(ref _ratingBHectorNormal, value); }
+        public uint RatingBHectorHard { get => _ratingBHectorHard; set => SetField(ref _ratingBHectorHard, value); }
+        public uint RatingCEliwoodNormal { get => _ratingCEliwoodNormal; set => SetField(ref _ratingCEliwoodNormal, value); }
+        public uint RatingCEliwoodHard { get => _ratingCEliwoodHard; set => SetField(ref _ratingCEliwoodHard, value); }
+        public uint RatingCHectorNormal { get => _ratingCHectorNormal; set => SetField(ref _ratingCHectorNormal, value); }
+        public uint RatingCHectorHard { get => _ratingCHectorHard; set => SetField(ref _ratingCHectorHard, value); }
+        public uint RatingDEliwoodNormal { get => _ratingDEliwoodNormal; set => SetField(ref _ratingDEliwoodNormal, value); }
+        public uint RatingDEliwoodHard { get => _ratingDEliwoodHard; set => SetField(ref _ratingDEliwoodHard, value); }
+        public uint RatingDHectorNormal { get => _ratingDHectorNormal; set => SetField(ref _ratingDHectorNormal, value); }
+        public uint RatingDHectorHard { get => _ratingDHectorHard; set => SetField(ref _ratingDHectorHard, value); }
+        public uint UnknownB61 { get => _unknownB61; set => SetField(ref _unknownB61, value); }
 
-        // W62-W94
-        public uint W62 { get => _w62; set => SetField(ref _w62, value); }
-        public uint W64 { get => _w64; set => SetField(ref _w64, value); }
-        public uint W66 { get => _w66; set => SetField(ref _w66, value); }
-        public uint W68 { get => _w68; set => SetField(ref _w68, value); }
-        public uint W70 { get => _w70; set => SetField(ref _w70, value); }
-        public uint W72 { get => _w72; set => SetField(ref _w72, value); }
-        public uint W74 { get => _w74; set => SetField(ref _w74, value); }
-        public uint W76 { get => _w76; set => SetField(ref _w76, value); }
-        public uint W78 { get => _w78; set => SetField(ref _w78, value); }
-        public uint W80 { get => _w80; set => SetField(ref _w80, value); }
-        public uint W82 { get => _w82; set => SetField(ref _w82, value); }
-        public uint W84 { get => _w84; set => SetField(ref _w84, value); }
-        public uint W86 { get => _w86; set => SetField(ref _w86, value); }
-        public uint W88 { get => _w88; set => SetField(ref _w88, value); }
-        public uint W90 { get => _w90; set => SetField(ref _w90, value); }
-        public uint W92 { get => _w92; set => SetField(ref _w92, value); }
-        public uint W94 { get => _w94; set => SetField(ref _w94, value); }
+        // RatingAEliwoodNormalW-UnknownW94
+        public uint RatingAEliwoodNormalW { get => _ratingAEliwoodNormalW; set => SetField(ref _ratingAEliwoodNormalW, value); }
+        public uint RatingAEliwoodHardW { get => _ratingAEliwoodHardW; set => SetField(ref _ratingAEliwoodHardW, value); }
+        public uint RatingAHectorNormalW { get => _ratingAHectorNormalW; set => SetField(ref _ratingAHectorNormalW, value); }
+        public uint RatingAHectorHardW { get => _ratingAHectorHardW; set => SetField(ref _ratingAHectorHardW, value); }
+        public uint RatingBEliwoodNormalW { get => _ratingBEliwoodNormalW; set => SetField(ref _ratingBEliwoodNormalW, value); }
+        public uint RatingBEliwoodHardW { get => _ratingBEliwoodHardW; set => SetField(ref _ratingBEliwoodHardW, value); }
+        public uint RatingBHectorNormalW { get => _ratingBHectorNormalW; set => SetField(ref _ratingBHectorNormalW, value); }
+        public uint RatingBHectorHardW { get => _ratingBHectorHardW; set => SetField(ref _ratingBHectorHardW, value); }
+        public uint RatingCEliwoodNormalW { get => _ratingCEliwoodNormalW; set => SetField(ref _ratingCEliwoodNormalW, value); }
+        public uint RatingCEliwoodHardW { get => _ratingCEliwoodHardW; set => SetField(ref _ratingCEliwoodHardW, value); }
+        public uint RatingCHectorNormalW { get => _ratingCHectorNormalW; set => SetField(ref _ratingCHectorNormalW, value); }
+        public uint RatingCHectorHardW { get => _ratingCHectorHardW; set => SetField(ref _ratingCHectorHardW, value); }
+        public uint RatingDEliwoodNormalW { get => _ratingDEliwoodNormalW; set => SetField(ref _ratingDEliwoodNormalW, value); }
+        public uint RatingDEliwoodHardW { get => _ratingDEliwoodHardW; set => SetField(ref _ratingDEliwoodHardW, value); }
+        public uint RatingDHectorNormalW { get => _ratingDHectorNormalW; set => SetField(ref _ratingDHectorNormalW, value); }
+        public uint RatingDHectorHardW { get => _ratingDHectorHardW; set => SetField(ref _ratingDHectorHardW, value); }
+        public uint UnknownW94 { get => _unknownW94; set => SetField(ref _unknownW94, value); }
 
-        // D96-D108
-        public uint D96 { get => _d96; set => SetField(ref _d96, value); }
-        public uint D100 { get => _d100; set => SetField(ref _d100, value); }
-        public uint D104 { get => _d104; set => SetField(ref _d104, value); }
-        public uint D108 { get => _d108; set => SetField(ref _d108, value); }
+        // EliwoodNormalPtr-HectorHardPtr
+        public uint EliwoodNormalPtr { get => _eliwoodNormalPtr; set => SetField(ref _eliwoodNormalPtr, value); }
+        public uint EliwoodHardPtr { get => _eliwoodHardPtr; set => SetField(ref _eliwoodHardPtr, value); }
+        public uint HectorNormalPtr { get => _hectorNormalPtr; set => SetField(ref _hectorNormalPtr, value); }
+        public uint HectorHardPtr { get => _hectorHardPtr; set => SetField(ref _hectorHardPtr, value); }
 
-        // W112-W118: map name text IDs and related
-        public uint W112 { get => _w112; set => SetField(ref _w112, value); }
-        public uint W114 { get => _w114; set => SetField(ref _w114, value); }
-        public uint W116 { get => _w116; set => SetField(ref _w116, value); }
-        public uint W118 { get => _w118; set => SetField(ref _w118, value); }
+        // ChapterTitleEliwoodTextId-ChapterTitleHectorText2Id: map name text IDs and related
+        public uint ChapterTitleEliwoodTextId { get => _chapterTitleEliwoodTextId; set => SetField(ref _chapterTitleEliwoodTextId, value); }
+        public uint ChapterTitleHectorTextId { get => _chapterTitleHectorTextId; set => SetField(ref _chapterTitleHectorTextId, value); }
+        public uint ChapterTitleEliwoodText2Id { get => _chapterTitleEliwoodText2Id; set => SetField(ref _chapterTitleEliwoodText2Id, value); }
+        public uint ChapterTitleHectorText2Id { get => _chapterTitleHectorText2Id; set => SetField(ref _chapterTitleHectorText2Id, value); }
 
-        // B120, B121: event ID PLIST, world map auto event
-        public uint B120 { get => _b120; set => SetField(ref _b120, value); }
-        public uint B121 { get => _b121; set => SetField(ref _b121, value); }
+        // EventPLIST, WorldMapAutoEvent: event ID PLIST, world map auto event
+        public uint EventPLIST { get => _eventPLIST; set => SetField(ref _eventPLIST, value); }
+        public uint WorldMapAutoEvent { get => _worldMapAutoEvent; set => SetField(ref _worldMapAutoEvent, value); }
 
-        // W122-W128
-        public uint W122 { get => _w122; set => SetField(ref _w122, value); }
-        public uint W124 { get => _w124; set => SetField(ref _w124, value); }
-        public uint W126 { get => _w126; set => SetField(ref _w126, value); }
-        public uint W128 { get => _w128; set => SetField(ref _w128, value); }
+        // FortuneDialogOpeningTextId-FortuneDialogConfirmTextId
+        public uint FortuneDialogOpeningTextId { get => _fortuneDialogOpeningTextId; set => SetField(ref _fortuneDialogOpeningTextId, value); }
+        public uint FortuneDialogEliwoodTextId { get => _fortuneDialogEliwoodTextId; set => SetField(ref _fortuneDialogEliwoodTextId, value); }
+        public uint FortuneDialogHectorTextId { get => _fortuneDialogHectorTextId; set => SetField(ref _fortuneDialogHectorTextId, value); }
+        public uint FortuneDialogConfirmTextId { get => _fortuneDialogConfirmTextId; set => SetField(ref _fortuneDialogConfirmTextId, value); }
 
-        // B130-B139
-        public uint B130 { get => _b130; set => SetField(ref _b130, value); }
-        public uint B131 { get => _b131; set => SetField(ref _b131, value); }
-        public uint B132 { get => _b132; set => SetField(ref _b132, value); }
-        public uint B133 { get => _b133; set => SetField(ref _b133, value); }
-        public uint B134 { get => _b134; set => SetField(ref _b134, value); }
-        public uint B135 { get => _b135; set => SetField(ref _b135, value); }
-        public uint B136 { get => _b136; set => SetField(ref _b136, value); }
-        public uint B137 { get => _b137; set => SetField(ref _b137, value); }
-        public uint B138 { get => _b138; set => SetField(ref _b138, value); }
-        public uint B139 { get => _b139; set => SetField(ref _b139, value); }
+        // FortunePortrait-DarkenBeforeStartEvent
+        public uint FortunePortrait { get => _fortunePortrait; set => SetField(ref _fortunePortrait, value); }
+        public uint FortuneFee { get => _fortuneFee; set => SetField(ref _fortuneFee, value); }
+        public uint PrepScreenChNo1 { get => _prepScreenChNo1; set => SetField(ref _prepScreenChNo1, value); }
+        public uint PrepScreenChNo2 { get => _prepScreenChNo2; set => SetField(ref _prepScreenChNo2, value); }
+        public uint UnknownB134 { get => _unknownB134; set => SetField(ref _unknownB134, value); }
+        public uint UnknownB135 { get => _unknownB135; set => SetField(ref _unknownB135, value); }
+        public uint UnknownB136 { get => _unknownB136; set => SetField(ref _unknownB136, value); }
+        public uint UnknownB137 { get => _unknownB137; set => SetField(ref _unknownB137, value); }
+        public uint VictoryBGMEnemyCount { get => _victoryBGMEnemyCount; set => SetField(ref _victoryBGMEnemyCount, value); }
+        public uint DarkenBeforeStartEvent { get => _darkenBeforeStartEvent; set => SetField(ref _darkenBeforeStartEvent, value); }
 
-        // W140, W142: text IDs
-        public uint W140 { get => _w140; set => SetField(ref _w140, value); }
-        public uint W142 { get => _w142; set => SetField(ref _w142, value); }
+        // ClearConditionTextId, DetailClearConditionTextId: text IDs
+        public uint ClearConditionTextId { get => _clearConditionTextId; set => SetField(ref _clearConditionTextId, value); }
+        public uint DetailClearConditionTextId { get => _detailClearConditionTextId; set => SetField(ref _detailClearConditionTextId, value); }
 
-        // B144-B151
-        public uint B144 { get => _b144; set => SetField(ref _b144, value); }
-        public uint B145 { get => _b145; set => SetField(ref _b145, value); }
-        public uint B146 { get => _b146; set => SetField(ref _b146, value); }
-        public uint B147 { get => _b147; set => SetField(ref _b147, value); }
-        public uint B148 { get => _b148; set => SetField(ref _b148, value); }
-        public uint B149 { get => _b149; set => SetField(ref _b149, value); }
-        public uint B150 { get => _b150; set => SetField(ref _b150, value); }
-        public uint B151 { get => _b151; set => SetField(ref _b151, value); }
+        // SpecialDisplay-UnknownB151
+        public uint SpecialDisplay { get => _specialDisplay; set => SetField(ref _specialDisplay, value); }
+        public uint TurnCountDisplay { get => _turnCountDisplay; set => SetField(ref _turnCountDisplay, value); }
+        public uint DefenseUnitMark { get => _defenseUnitMark; set => SetField(ref _defenseUnitMark, value); }
+        public uint EscapeMarkerX { get => _escapeMarkerX; set => SetField(ref _escapeMarkerX, value); }
+        public uint EscapeMarkerY { get => _escapeMarkerY; set => SetField(ref _escapeMarkerY, value); }
+        public uint UnknownB149 { get => _unknownB149; set => SetField(ref _unknownB149, value); }
+        public uint UnknownB150 { get => _unknownB150; set => SetField(ref _unknownB150, value); }
+        public uint UnknownB151 { get => _unknownB151; set => SetField(ref _unknownB151, value); }
 
         // ---- Helpers for label text resolution ----
 
-        public string W112Text => ResolveText(W112);
-        public string W114Text => ResolveText(W114);
-        public string W116Text => ResolveText(W116);
-        public string W118Text => ResolveText(W118);
-        public string W140Text => ResolveText(W140);
-        public string W142Text => ResolveText(W142);
+        public string ChapterTitleEliwoodText => ResolveText(ChapterTitleEliwoodTextId);
+        public string ChapterTitleHectorText => ResolveText(ChapterTitleHectorTextId);
+        public string ChapterTitleEliwoodText2 => ResolveText(ChapterTitleEliwoodText2Id);
+        public string ChapterTitleHectorText2 => ResolveText(ChapterTitleHectorText2Id);
+        public string ClearConditionText => ResolveText(ClearConditionTextId);
+        public string DetailClearConditionText => ResolveText(DetailClearConditionTextId);
 
         static string ResolveText(uint id)
         {
@@ -217,128 +217,128 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             DataSize = dataSize;
 
-            // D0: dword at offset 0
-            D0 = rom.u32(addr + 0);
+            // ChapterPointer: dword at offset 0
+            ChapterPointer = rom.u32(addr + 0);
 
-            // W4: word at offset 4
-            W4 = rom.u16(addr + 4);
+            // ObjectTypePLIST: word at offset 4
+            ObjectTypePLIST = rom.u16(addr + 4);
 
-            // B6-B19
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
-            B18 = rom.u8(addr + 18);
-            B19 = rom.u8(addr + 19);
+            // PalettePLIST-BattleBG
+            PalettePLIST = rom.u8(addr + 6);
+            ChipsetConfigPLIST = rom.u8(addr + 7);
+            MapPointerPLIST = rom.u8(addr + 8);
+            TileAnimation1PLIST = rom.u8(addr + 9);
+            TileAnimation2PLIST = rom.u8(addr + 10);
+            MapChangePLIST = rom.u8(addr + 11);
+            FogLevel = rom.u8(addr + 12);
+            BattlePreparation = rom.u8(addr + 13);
+            ChapterTitleImage = rom.u8(addr + 14);
+            ChapterTitleImage2 = rom.u8(addr + 15);
+            Padding16 = rom.u8(addr + 16);
+            Padding17 = rom.u8(addr + 17);
+            Weather = rom.u8(addr + 18);
+            BattleBG = rom.u8(addr + 19);
 
-            // W20-W42
-            W20 = rom.u16(addr + 20);
-            W22 = rom.u16(addr + 22);
-            W24 = rom.u16(addr + 24);
-            W26 = rom.u16(addr + 26);
-            W28 = rom.u16(addr + 28);
-            W30 = rom.u16(addr + 30);
-            W32 = rom.u16(addr + 32);
-            W34 = rom.u16(addr + 34);
-            W36 = rom.u16(addr + 36);
-            W38 = rom.u16(addr + 38);
-            W40 = rom.u16(addr + 40);
-            W42 = rom.u16(addr + 42);
+            // DifficultyAdjust-PrologueBGMHector
+            DifficultyAdjust = rom.u16(addr + 20);
+            PlayerPhaseBGM = rom.u16(addr + 22);
+            EnemyPhaseBGM = rom.u16(addr + 24);
+            NpcBGM = rom.u16(addr + 26);
+            PlayerPhaseBGM2 = rom.u16(addr + 28);
+            EnemyPhaseBGM2 = rom.u16(addr + 30);
+            NpcBGM2 = rom.u16(addr + 32);
+            PlayerPhaseBGMFlag4 = rom.u16(addr + 34);
+            EnemyPhaseBGMFlag4 = rom.u16(addr + 36);
+            PrologueBGMCommon = rom.u16(addr + 38);
+            PrologueBGMEliwood = rom.u16(addr + 40);
+            PrologueBGMHector = rom.u16(addr + 42);
 
-            // B44-B61
-            B44 = rom.u8(addr + 44);
-            if (dataSize > 45) B45 = rom.u8(addr + 45);
-            if (dataSize > 46) B46 = rom.u8(addr + 46);
-            if (dataSize > 47) B47 = rom.u8(addr + 47);
-            if (dataSize > 48) B48 = rom.u8(addr + 48);
-            if (dataSize > 49) B49 = rom.u8(addr + 49);
-            if (dataSize > 50) B50 = rom.u8(addr + 50);
-            if (dataSize > 51) B51 = rom.u8(addr + 51);
-            if (dataSize > 52) B52 = rom.u8(addr + 52);
-            if (dataSize > 53) B53 = rom.u8(addr + 53);
-            if (dataSize > 54) B54 = rom.u8(addr + 54);
-            if (dataSize > 55) B55 = rom.u8(addr + 55);
-            if (dataSize > 56) B56 = rom.u8(addr + 56);
-            if (dataSize > 57) B57 = rom.u8(addr + 57);
-            if (dataSize > 58) B58 = rom.u8(addr + 58);
-            if (dataSize > 59) B59 = rom.u8(addr + 59);
-            if (dataSize > 60) B60 = rom.u8(addr + 60);
-            if (dataSize > 61) B61 = rom.u8(addr + 61);
+            // BreakableWallHP-UnknownB61
+            BreakableWallHP = rom.u8(addr + 44);
+            if (dataSize > 45) RatingAEliwoodNormal = rom.u8(addr + 45);
+            if (dataSize > 46) RatingAEliwoodHard = rom.u8(addr + 46);
+            if (dataSize > 47) RatingAHectorNormal = rom.u8(addr + 47);
+            if (dataSize > 48) RatingAHectorHard = rom.u8(addr + 48);
+            if (dataSize > 49) RatingBEliwoodNormal = rom.u8(addr + 49);
+            if (dataSize > 50) RatingBEliwoodHard = rom.u8(addr + 50);
+            if (dataSize > 51) RatingBHectorNormal = rom.u8(addr + 51);
+            if (dataSize > 52) RatingBHectorHard = rom.u8(addr + 52);
+            if (dataSize > 53) RatingCEliwoodNormal = rom.u8(addr + 53);
+            if (dataSize > 54) RatingCEliwoodHard = rom.u8(addr + 54);
+            if (dataSize > 55) RatingCHectorNormal = rom.u8(addr + 55);
+            if (dataSize > 56) RatingCHectorHard = rom.u8(addr + 56);
+            if (dataSize > 57) RatingDEliwoodNormal = rom.u8(addr + 57);
+            if (dataSize > 58) RatingDEliwoodHard = rom.u8(addr + 58);
+            if (dataSize > 59) RatingDHectorNormal = rom.u8(addr + 59);
+            if (dataSize > 60) RatingDHectorHard = rom.u8(addr + 60);
+            if (dataSize > 61) UnknownB61 = rom.u8(addr + 61);
 
-            // W62-W94
-            if (dataSize > 63) W62 = rom.u16(addr + 62);
-            if (dataSize > 65) W64 = rom.u16(addr + 64);
-            if (dataSize > 67) W66 = rom.u16(addr + 66);
-            if (dataSize > 69) W68 = rom.u16(addr + 68);
-            if (dataSize > 71) W70 = rom.u16(addr + 70);
-            if (dataSize > 73) W72 = rom.u16(addr + 72);
-            if (dataSize > 75) W74 = rom.u16(addr + 74);
-            if (dataSize > 77) W76 = rom.u16(addr + 76);
-            if (dataSize > 79) W78 = rom.u16(addr + 78);
-            if (dataSize > 81) W80 = rom.u16(addr + 80);
-            if (dataSize > 83) W82 = rom.u16(addr + 82);
-            if (dataSize > 85) W84 = rom.u16(addr + 84);
-            if (dataSize > 87) W86 = rom.u16(addr + 86);
-            if (dataSize > 89) W88 = rom.u16(addr + 88);
-            if (dataSize > 91) W90 = rom.u16(addr + 90);
-            if (dataSize > 93) W92 = rom.u16(addr + 92);
-            if (dataSize > 95) W94 = rom.u16(addr + 94);
+            // RatingAEliwoodNormalW-UnknownW94
+            if (dataSize > 63) RatingAEliwoodNormalW = rom.u16(addr + 62);
+            if (dataSize > 65) RatingAEliwoodHardW = rom.u16(addr + 64);
+            if (dataSize > 67) RatingAHectorNormalW = rom.u16(addr + 66);
+            if (dataSize > 69) RatingAHectorHardW = rom.u16(addr + 68);
+            if (dataSize > 71) RatingBEliwoodNormalW = rom.u16(addr + 70);
+            if (dataSize > 73) RatingBEliwoodHardW = rom.u16(addr + 72);
+            if (dataSize > 75) RatingBHectorNormalW = rom.u16(addr + 74);
+            if (dataSize > 77) RatingBHectorHardW = rom.u16(addr + 76);
+            if (dataSize > 79) RatingCEliwoodNormalW = rom.u16(addr + 78);
+            if (dataSize > 81) RatingCEliwoodHardW = rom.u16(addr + 80);
+            if (dataSize > 83) RatingCHectorNormalW = rom.u16(addr + 82);
+            if (dataSize > 85) RatingCHectorHardW = rom.u16(addr + 84);
+            if (dataSize > 87) RatingDEliwoodNormalW = rom.u16(addr + 86);
+            if (dataSize > 89) RatingDEliwoodHardW = rom.u16(addr + 88);
+            if (dataSize > 91) RatingDHectorNormalW = rom.u16(addr + 90);
+            if (dataSize > 93) RatingDHectorHardW = rom.u16(addr + 92);
+            if (dataSize > 95) UnknownW94 = rom.u16(addr + 94);
 
-            // D96-D108
-            if (dataSize > 99) D96 = rom.u32(addr + 96);
-            if (dataSize > 103) D100 = rom.u32(addr + 100);
-            if (dataSize > 107) D104 = rom.u32(addr + 104);
-            if (dataSize > 111) D108 = rom.u32(addr + 108);
+            // EliwoodNormalPtr-HectorHardPtr
+            if (dataSize > 99) EliwoodNormalPtr = rom.u32(addr + 96);
+            if (dataSize > 103) EliwoodHardPtr = rom.u32(addr + 100);
+            if (dataSize > 107) HectorNormalPtr = rom.u32(addr + 104);
+            if (dataSize > 111) HectorHardPtr = rom.u32(addr + 108);
 
-            // W112-W118
-            if (dataSize > 113) W112 = rom.u16(addr + 112);
-            if (dataSize > 115) W114 = rom.u16(addr + 114);
-            if (dataSize > 117) W116 = rom.u16(addr + 116);
-            if (dataSize > 119) W118 = rom.u16(addr + 118);
+            // ChapterTitleEliwoodTextId-ChapterTitleHectorText2Id
+            if (dataSize > 113) ChapterTitleEliwoodTextId = rom.u16(addr + 112);
+            if (dataSize > 115) ChapterTitleHectorTextId = rom.u16(addr + 114);
+            if (dataSize > 117) ChapterTitleEliwoodText2Id = rom.u16(addr + 116);
+            if (dataSize > 119) ChapterTitleHectorText2Id = rom.u16(addr + 118);
 
-            // B120, B121
-            if (dataSize > 120) B120 = rom.u8(addr + 120);
-            if (dataSize > 121) B121 = rom.u8(addr + 121);
+            // EventPLIST, WorldMapAutoEvent
+            if (dataSize > 120) EventPLIST = rom.u8(addr + 120);
+            if (dataSize > 121) WorldMapAutoEvent = rom.u8(addr + 121);
 
-            // W122-W128
-            if (dataSize > 123) W122 = rom.u16(addr + 122);
-            if (dataSize > 125) W124 = rom.u16(addr + 124);
-            if (dataSize > 127) W126 = rom.u16(addr + 126);
-            if (dataSize > 129) W128 = rom.u16(addr + 128);
+            // FortuneDialogOpeningTextId-FortuneDialogConfirmTextId
+            if (dataSize > 123) FortuneDialogOpeningTextId = rom.u16(addr + 122);
+            if (dataSize > 125) FortuneDialogEliwoodTextId = rom.u16(addr + 124);
+            if (dataSize > 127) FortuneDialogHectorTextId = rom.u16(addr + 126);
+            if (dataSize > 129) FortuneDialogConfirmTextId = rom.u16(addr + 128);
 
-            // B130-B139
-            if (dataSize > 130) B130 = rom.u8(addr + 130);
-            if (dataSize > 131) B131 = rom.u8(addr + 131);
-            if (dataSize > 132) B132 = rom.u8(addr + 132);
-            if (dataSize > 133) B133 = rom.u8(addr + 133);
-            if (dataSize > 134) B134 = rom.u8(addr + 134);
-            if (dataSize > 135) B135 = rom.u8(addr + 135);
-            if (dataSize > 136) B136 = rom.u8(addr + 136);
-            if (dataSize > 137) B137 = rom.u8(addr + 137);
-            if (dataSize > 138) B138 = rom.u8(addr + 138);
-            if (dataSize > 139) B139 = rom.u8(addr + 139);
+            // FortunePortrait-DarkenBeforeStartEvent
+            if (dataSize > 130) FortunePortrait = rom.u8(addr + 130);
+            if (dataSize > 131) FortuneFee = rom.u8(addr + 131);
+            if (dataSize > 132) PrepScreenChNo1 = rom.u8(addr + 132);
+            if (dataSize > 133) PrepScreenChNo2 = rom.u8(addr + 133);
+            if (dataSize > 134) UnknownB134 = rom.u8(addr + 134);
+            if (dataSize > 135) UnknownB135 = rom.u8(addr + 135);
+            if (dataSize > 136) UnknownB136 = rom.u8(addr + 136);
+            if (dataSize > 137) UnknownB137 = rom.u8(addr + 137);
+            if (dataSize > 138) VictoryBGMEnemyCount = rom.u8(addr + 138);
+            if (dataSize > 139) DarkenBeforeStartEvent = rom.u8(addr + 139);
 
-            // W140, W142
-            if (dataSize > 141) W140 = rom.u16(addr + 140);
-            if (dataSize > 143) W142 = rom.u16(addr + 142);
+            // ClearConditionTextId, DetailClearConditionTextId
+            if (dataSize > 141) ClearConditionTextId = rom.u16(addr + 140);
+            if (dataSize > 143) DetailClearConditionTextId = rom.u16(addr + 142);
 
-            // B144-B151
-            if (dataSize > 144) B144 = rom.u8(addr + 144);
-            if (dataSize > 145) B145 = rom.u8(addr + 145);
-            if (dataSize > 146) B146 = rom.u8(addr + 146);
-            if (dataSize > 147) B147 = rom.u8(addr + 147);
-            if (dataSize > 148) B148 = rom.u8(addr + 148);
-            if (dataSize > 149) B149 = rom.u8(addr + 149);
-            if (dataSize > 150) B150 = rom.u8(addr + 150);
-            if (dataSize > 151) B151 = rom.u8(addr + 151);
+            // SpecialDisplay-UnknownB151
+            if (dataSize > 144) SpecialDisplay = rom.u8(addr + 144);
+            if (dataSize > 145) TurnCountDisplay = rom.u8(addr + 145);
+            if (dataSize > 146) DefenseUnitMark = rom.u8(addr + 146);
+            if (dataSize > 147) EscapeMarkerX = rom.u8(addr + 147);
+            if (dataSize > 148) EscapeMarkerY = rom.u8(addr + 148);
+            if (dataSize > 149) UnknownB149 = rom.u8(addr + 149);
+            if (dataSize > 150) UnknownB150 = rom.u8(addr + 150);
+            if (dataSize > 151) UnknownB151 = rom.u8(addr + 151);
 
             // Resolve map name for display
             try
@@ -360,12 +360,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Notify text-resolved properties changed
-            OnPropertyChanged(nameof(W112Text));
-            OnPropertyChanged(nameof(W114Text));
-            OnPropertyChanged(nameof(W116Text));
-            OnPropertyChanged(nameof(W118Text));
-            OnPropertyChanged(nameof(W140Text));
-            OnPropertyChanged(nameof(W142Text));
+            OnPropertyChanged(nameof(ChapterTitleEliwoodText));
+            OnPropertyChanged(nameof(ChapterTitleHectorText));
+            OnPropertyChanged(nameof(ChapterTitleEliwoodText2));
+            OnPropertyChanged(nameof(ChapterTitleHectorText2));
+            OnPropertyChanged(nameof(ClearConditionText));
+            OnPropertyChanged(nameof(DetailClearConditionText));
 
             IsLoaded = true;
         }
@@ -389,127 +389,127 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 undoData.list.Add(new Undo.UndoPostion(addr, dataSize));
             }
 
-            // D0
-            rom.write_u32(addr + 0, D0);
-            // W4
-            rom.write_u16(addr + 4, W4);
+            // ChapterPointer
+            rom.write_u32(addr + 0, ChapterPointer);
+            // ObjectTypePLIST
+            rom.write_u16(addr + 4, ObjectTypePLIST);
 
-            // B6-B19
-            rom.write_u8(addr + 6, B6);
-            rom.write_u8(addr + 7, B7);
-            rom.write_u8(addr + 8, B8);
-            rom.write_u8(addr + 9, B9);
-            rom.write_u8(addr + 10, B10);
-            rom.write_u8(addr + 11, B11);
-            rom.write_u8(addr + 12, B12);
-            rom.write_u8(addr + 13, B13);
-            rom.write_u8(addr + 14, B14);
-            rom.write_u8(addr + 15, B15);
-            rom.write_u8(addr + 16, B16);
-            rom.write_u8(addr + 17, B17);
-            rom.write_u8(addr + 18, B18);
-            rom.write_u8(addr + 19, B19);
+            // PalettePLIST-BattleBG
+            rom.write_u8(addr + 6, PalettePLIST);
+            rom.write_u8(addr + 7, ChipsetConfigPLIST);
+            rom.write_u8(addr + 8, MapPointerPLIST);
+            rom.write_u8(addr + 9, TileAnimation1PLIST);
+            rom.write_u8(addr + 10, TileAnimation2PLIST);
+            rom.write_u8(addr + 11, MapChangePLIST);
+            rom.write_u8(addr + 12, FogLevel);
+            rom.write_u8(addr + 13, BattlePreparation);
+            rom.write_u8(addr + 14, ChapterTitleImage);
+            rom.write_u8(addr + 15, ChapterTitleImage2);
+            rom.write_u8(addr + 16, Padding16);
+            rom.write_u8(addr + 17, Padding17);
+            rom.write_u8(addr + 18, Weather);
+            rom.write_u8(addr + 19, BattleBG);
 
-            // W20-W42
-            rom.write_u16(addr + 20, W20);
-            rom.write_u16(addr + 22, W22);
-            rom.write_u16(addr + 24, W24);
-            rom.write_u16(addr + 26, W26);
-            rom.write_u16(addr + 28, W28);
-            rom.write_u16(addr + 30, W30);
-            rom.write_u16(addr + 32, W32);
-            rom.write_u16(addr + 34, W34);
-            rom.write_u16(addr + 36, W36);
-            rom.write_u16(addr + 38, W38);
-            rom.write_u16(addr + 40, W40);
-            rom.write_u16(addr + 42, W42);
+            // DifficultyAdjust-PrologueBGMHector
+            rom.write_u16(addr + 20, DifficultyAdjust);
+            rom.write_u16(addr + 22, PlayerPhaseBGM);
+            rom.write_u16(addr + 24, EnemyPhaseBGM);
+            rom.write_u16(addr + 26, NpcBGM);
+            rom.write_u16(addr + 28, PlayerPhaseBGM2);
+            rom.write_u16(addr + 30, EnemyPhaseBGM2);
+            rom.write_u16(addr + 32, NpcBGM2);
+            rom.write_u16(addr + 34, PlayerPhaseBGMFlag4);
+            rom.write_u16(addr + 36, EnemyPhaseBGMFlag4);
+            rom.write_u16(addr + 38, PrologueBGMCommon);
+            rom.write_u16(addr + 40, PrologueBGMEliwood);
+            rom.write_u16(addr + 42, PrologueBGMHector);
 
-            // B44-B61
-            rom.write_u8(addr + 44, B44);
-            if (dataSize > 45) rom.write_u8(addr + 45, B45);
-            if (dataSize > 46) rom.write_u8(addr + 46, B46);
-            if (dataSize > 47) rom.write_u8(addr + 47, B47);
-            if (dataSize > 48) rom.write_u8(addr + 48, B48);
-            if (dataSize > 49) rom.write_u8(addr + 49, B49);
-            if (dataSize > 50) rom.write_u8(addr + 50, B50);
-            if (dataSize > 51) rom.write_u8(addr + 51, B51);
-            if (dataSize > 52) rom.write_u8(addr + 52, B52);
-            if (dataSize > 53) rom.write_u8(addr + 53, B53);
-            if (dataSize > 54) rom.write_u8(addr + 54, B54);
-            if (dataSize > 55) rom.write_u8(addr + 55, B55);
-            if (dataSize > 56) rom.write_u8(addr + 56, B56);
-            if (dataSize > 57) rom.write_u8(addr + 57, B57);
-            if (dataSize > 58) rom.write_u8(addr + 58, B58);
-            if (dataSize > 59) rom.write_u8(addr + 59, B59);
-            if (dataSize > 60) rom.write_u8(addr + 60, B60);
-            if (dataSize > 61) rom.write_u8(addr + 61, B61);
+            // BreakableWallHP-UnknownB61
+            rom.write_u8(addr + 44, BreakableWallHP);
+            if (dataSize > 45) rom.write_u8(addr + 45, RatingAEliwoodNormal);
+            if (dataSize > 46) rom.write_u8(addr + 46, RatingAEliwoodHard);
+            if (dataSize > 47) rom.write_u8(addr + 47, RatingAHectorNormal);
+            if (dataSize > 48) rom.write_u8(addr + 48, RatingAHectorHard);
+            if (dataSize > 49) rom.write_u8(addr + 49, RatingBEliwoodNormal);
+            if (dataSize > 50) rom.write_u8(addr + 50, RatingBEliwoodHard);
+            if (dataSize > 51) rom.write_u8(addr + 51, RatingBHectorNormal);
+            if (dataSize > 52) rom.write_u8(addr + 52, RatingBHectorHard);
+            if (dataSize > 53) rom.write_u8(addr + 53, RatingCEliwoodNormal);
+            if (dataSize > 54) rom.write_u8(addr + 54, RatingCEliwoodHard);
+            if (dataSize > 55) rom.write_u8(addr + 55, RatingCHectorNormal);
+            if (dataSize > 56) rom.write_u8(addr + 56, RatingCHectorHard);
+            if (dataSize > 57) rom.write_u8(addr + 57, RatingDEliwoodNormal);
+            if (dataSize > 58) rom.write_u8(addr + 58, RatingDEliwoodHard);
+            if (dataSize > 59) rom.write_u8(addr + 59, RatingDHectorNormal);
+            if (dataSize > 60) rom.write_u8(addr + 60, RatingDHectorHard);
+            if (dataSize > 61) rom.write_u8(addr + 61, UnknownB61);
 
-            // W62-W94
-            if (dataSize > 63) rom.write_u16(addr + 62, W62);
-            if (dataSize > 65) rom.write_u16(addr + 64, W64);
-            if (dataSize > 67) rom.write_u16(addr + 66, W66);
-            if (dataSize > 69) rom.write_u16(addr + 68, W68);
-            if (dataSize > 71) rom.write_u16(addr + 70, W70);
-            if (dataSize > 73) rom.write_u16(addr + 72, W72);
-            if (dataSize > 75) rom.write_u16(addr + 74, W74);
-            if (dataSize > 77) rom.write_u16(addr + 76, W76);
-            if (dataSize > 79) rom.write_u16(addr + 78, W78);
-            if (dataSize > 81) rom.write_u16(addr + 80, W80);
-            if (dataSize > 83) rom.write_u16(addr + 82, W82);
-            if (dataSize > 85) rom.write_u16(addr + 84, W84);
-            if (dataSize > 87) rom.write_u16(addr + 86, W86);
-            if (dataSize > 89) rom.write_u16(addr + 88, W88);
-            if (dataSize > 91) rom.write_u16(addr + 90, W90);
-            if (dataSize > 93) rom.write_u16(addr + 92, W92);
-            if (dataSize > 95) rom.write_u16(addr + 94, W94);
+            // RatingAEliwoodNormalW-UnknownW94
+            if (dataSize > 63) rom.write_u16(addr + 62, RatingAEliwoodNormalW);
+            if (dataSize > 65) rom.write_u16(addr + 64, RatingAEliwoodHardW);
+            if (dataSize > 67) rom.write_u16(addr + 66, RatingAHectorNormalW);
+            if (dataSize > 69) rom.write_u16(addr + 68, RatingAHectorHardW);
+            if (dataSize > 71) rom.write_u16(addr + 70, RatingBEliwoodNormalW);
+            if (dataSize > 73) rom.write_u16(addr + 72, RatingBEliwoodHardW);
+            if (dataSize > 75) rom.write_u16(addr + 74, RatingBHectorNormalW);
+            if (dataSize > 77) rom.write_u16(addr + 76, RatingBHectorHardW);
+            if (dataSize > 79) rom.write_u16(addr + 78, RatingCEliwoodNormalW);
+            if (dataSize > 81) rom.write_u16(addr + 80, RatingCEliwoodHardW);
+            if (dataSize > 83) rom.write_u16(addr + 82, RatingCHectorNormalW);
+            if (dataSize > 85) rom.write_u16(addr + 84, RatingCHectorHardW);
+            if (dataSize > 87) rom.write_u16(addr + 86, RatingDEliwoodNormalW);
+            if (dataSize > 89) rom.write_u16(addr + 88, RatingDEliwoodHardW);
+            if (dataSize > 91) rom.write_u16(addr + 90, RatingDHectorNormalW);
+            if (dataSize > 93) rom.write_u16(addr + 92, RatingDHectorHardW);
+            if (dataSize > 95) rom.write_u16(addr + 94, UnknownW94);
 
-            // D96-D108
-            if (dataSize > 99) rom.write_u32(addr + 96, D96);
-            if (dataSize > 103) rom.write_u32(addr + 100, D100);
-            if (dataSize > 107) rom.write_u32(addr + 104, D104);
-            if (dataSize > 111) rom.write_u32(addr + 108, D108);
+            // EliwoodNormalPtr-HectorHardPtr
+            if (dataSize > 99) rom.write_u32(addr + 96, EliwoodNormalPtr);
+            if (dataSize > 103) rom.write_u32(addr + 100, EliwoodHardPtr);
+            if (dataSize > 107) rom.write_u32(addr + 104, HectorNormalPtr);
+            if (dataSize > 111) rom.write_u32(addr + 108, HectorHardPtr);
 
-            // W112-W118
-            if (dataSize > 113) rom.write_u16(addr + 112, W112);
-            if (dataSize > 115) rom.write_u16(addr + 114, W114);
-            if (dataSize > 117) rom.write_u16(addr + 116, W116);
-            if (dataSize > 119) rom.write_u16(addr + 118, W118);
+            // ChapterTitleEliwoodTextId-ChapterTitleHectorText2Id
+            if (dataSize > 113) rom.write_u16(addr + 112, ChapterTitleEliwoodTextId);
+            if (dataSize > 115) rom.write_u16(addr + 114, ChapterTitleHectorTextId);
+            if (dataSize > 117) rom.write_u16(addr + 116, ChapterTitleEliwoodText2Id);
+            if (dataSize > 119) rom.write_u16(addr + 118, ChapterTitleHectorText2Id);
 
-            // B120, B121
-            if (dataSize > 120) rom.write_u8(addr + 120, B120);
-            if (dataSize > 121) rom.write_u8(addr + 121, B121);
+            // EventPLIST, WorldMapAutoEvent
+            if (dataSize > 120) rom.write_u8(addr + 120, EventPLIST);
+            if (dataSize > 121) rom.write_u8(addr + 121, WorldMapAutoEvent);
 
-            // W122-W128
-            if (dataSize > 123) rom.write_u16(addr + 122, W122);
-            if (dataSize > 125) rom.write_u16(addr + 124, W124);
-            if (dataSize > 127) rom.write_u16(addr + 126, W126);
-            if (dataSize > 129) rom.write_u16(addr + 128, W128);
+            // FortuneDialogOpeningTextId-FortuneDialogConfirmTextId
+            if (dataSize > 123) rom.write_u16(addr + 122, FortuneDialogOpeningTextId);
+            if (dataSize > 125) rom.write_u16(addr + 124, FortuneDialogEliwoodTextId);
+            if (dataSize > 127) rom.write_u16(addr + 126, FortuneDialogHectorTextId);
+            if (dataSize > 129) rom.write_u16(addr + 128, FortuneDialogConfirmTextId);
 
-            // B130-B139
-            if (dataSize > 130) rom.write_u8(addr + 130, B130);
-            if (dataSize > 131) rom.write_u8(addr + 131, B131);
-            if (dataSize > 132) rom.write_u8(addr + 132, B132);
-            if (dataSize > 133) rom.write_u8(addr + 133, B133);
-            if (dataSize > 134) rom.write_u8(addr + 134, B134);
-            if (dataSize > 135) rom.write_u8(addr + 135, B135);
-            if (dataSize > 136) rom.write_u8(addr + 136, B136);
-            if (dataSize > 137) rom.write_u8(addr + 137, B137);
-            if (dataSize > 138) rom.write_u8(addr + 138, B138);
-            if (dataSize > 139) rom.write_u8(addr + 139, B139);
+            // FortunePortrait-DarkenBeforeStartEvent
+            if (dataSize > 130) rom.write_u8(addr + 130, FortunePortrait);
+            if (dataSize > 131) rom.write_u8(addr + 131, FortuneFee);
+            if (dataSize > 132) rom.write_u8(addr + 132, PrepScreenChNo1);
+            if (dataSize > 133) rom.write_u8(addr + 133, PrepScreenChNo2);
+            if (dataSize > 134) rom.write_u8(addr + 134, UnknownB134);
+            if (dataSize > 135) rom.write_u8(addr + 135, UnknownB135);
+            if (dataSize > 136) rom.write_u8(addr + 136, UnknownB136);
+            if (dataSize > 137) rom.write_u8(addr + 137, UnknownB137);
+            if (dataSize > 138) rom.write_u8(addr + 138, VictoryBGMEnemyCount);
+            if (dataSize > 139) rom.write_u8(addr + 139, DarkenBeforeStartEvent);
 
-            // W140, W142
-            if (dataSize > 141) rom.write_u16(addr + 140, W140);
-            if (dataSize > 143) rom.write_u16(addr + 142, W142);
+            // ClearConditionTextId, DetailClearConditionTextId
+            if (dataSize > 141) rom.write_u16(addr + 140, ClearConditionTextId);
+            if (dataSize > 143) rom.write_u16(addr + 142, DetailClearConditionTextId);
 
-            // B144-B151
-            if (dataSize > 144) rom.write_u8(addr + 144, B144);
-            if (dataSize > 145) rom.write_u8(addr + 145, B145);
-            if (dataSize > 146) rom.write_u8(addr + 146, B146);
-            if (dataSize > 147) rom.write_u8(addr + 147, B147);
-            if (dataSize > 148) rom.write_u8(addr + 148, B148);
-            if (dataSize > 149) rom.write_u8(addr + 149, B149);
-            if (dataSize > 150) rom.write_u8(addr + 150, B150);
-            if (dataSize > 151) rom.write_u8(addr + 151, B151);
+            // SpecialDisplay-UnknownB151
+            if (dataSize > 144) rom.write_u8(addr + 144, SpecialDisplay);
+            if (dataSize > 145) rom.write_u8(addr + 145, TurnCountDisplay);
+            if (dataSize > 146) rom.write_u8(addr + 146, DefenseUnitMark);
+            if (dataSize > 147) rom.write_u8(addr + 147, EscapeMarkerX);
+            if (dataSize > 148) rom.write_u8(addr + 148, EscapeMarkerY);
+            if (dataSize > 149) rom.write_u8(addr + 149, UnknownB149);
+            if (dataSize > 150) rom.write_u8(addr + 150, UnknownB150);
+            if (dataSize > 151) rom.write_u8(addr + 151, UnknownB151);
 
             if (undo != null && undoData != null)
             {
@@ -527,103 +527,103 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["dataSize"] = $"{DataSize}",
-                ["D0"] = $"0x{D0:X08}",
-                ["W4"] = $"0x{W4:X04}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["B12"] = $"0x{B12:X02}",
-                ["B13"] = $"0x{B13:X02}",
-                ["B14"] = $"0x{B14:X02}",
-                ["B15"] = $"0x{B15:X02}",
-                ["B16"] = $"0x{B16:X02}",
-                ["B17"] = $"0x{B17:X02}",
-                ["B18"] = $"0x{B18:X02}",
-                ["B19"] = $"0x{B19:X02}",
-                ["W20"] = $"0x{W20:X04}",
-                ["W22"] = $"0x{W22:X04}",
-                ["W24"] = $"0x{W24:X04}",
-                ["W26"] = $"0x{W26:X04}",
-                ["W28"] = $"0x{W28:X04}",
-                ["W30"] = $"0x{W30:X04}",
-                ["W32"] = $"0x{W32:X04}",
-                ["W34"] = $"0x{W34:X04}",
-                ["W36"] = $"0x{W36:X04}",
-                ["W38"] = $"0x{W38:X04}",
-                ["W40"] = $"0x{W40:X04}",
-                ["W42"] = $"0x{W42:X04}",
-                ["B44"] = $"0x{B44:X02}",
-                ["B45"] = $"0x{B45:X02}",
-                ["B46"] = $"0x{B46:X02}",
-                ["B47"] = $"0x{B47:X02}",
-                ["B48"] = $"0x{B48:X02}",
-                ["B49"] = $"0x{B49:X02}",
-                ["B50"] = $"0x{B50:X02}",
-                ["B51"] = $"0x{B51:X02}",
-                ["B52"] = $"0x{B52:X02}",
-                ["B53"] = $"0x{B53:X02}",
-                ["B54"] = $"0x{B54:X02}",
-                ["B55"] = $"0x{B55:X02}",
-                ["B56"] = $"0x{B56:X02}",
-                ["B57"] = $"0x{B57:X02}",
-                ["B58"] = $"0x{B58:X02}",
-                ["B59"] = $"0x{B59:X02}",
-                ["B60"] = $"0x{B60:X02}",
-                ["B61"] = $"0x{B61:X02}",
-                ["W62"] = $"0x{W62:X04}",
-                ["W64"] = $"0x{W64:X04}",
-                ["W66"] = $"0x{W66:X04}",
-                ["W68"] = $"0x{W68:X04}",
-                ["W70"] = $"0x{W70:X04}",
-                ["W72"] = $"0x{W72:X04}",
-                ["W74"] = $"0x{W74:X04}",
-                ["W76"] = $"0x{W76:X04}",
-                ["W78"] = $"0x{W78:X04}",
-                ["W80"] = $"0x{W80:X04}",
-                ["W82"] = $"0x{W82:X04}",
-                ["W84"] = $"0x{W84:X04}",
-                ["W86"] = $"0x{W86:X04}",
-                ["W88"] = $"0x{W88:X04}",
-                ["W90"] = $"0x{W90:X04}",
-                ["W92"] = $"0x{W92:X04}",
-                ["W94"] = $"0x{W94:X04}",
-                ["D96"] = $"0x{D96:X08}",
-                ["D100"] = $"0x{D100:X08}",
-                ["D104"] = $"0x{D104:X08}",
-                ["D108"] = $"0x{D108:X08}",
-                ["W112"] = $"0x{W112:X04}",
-                ["W114"] = $"0x{W114:X04}",
-                ["W116"] = $"0x{W116:X04}",
-                ["W118"] = $"0x{W118:X04}",
-                ["B120"] = $"0x{B120:X02}",
-                ["B121"] = $"0x{B121:X02}",
-                ["W122"] = $"0x{W122:X04}",
-                ["W124"] = $"0x{W124:X04}",
-                ["W126"] = $"0x{W126:X04}",
-                ["W128"] = $"0x{W128:X04}",
-                ["B130"] = $"0x{B130:X02}",
-                ["B131"] = $"0x{B131:X02}",
-                ["B132"] = $"0x{B132:X02}",
-                ["B133"] = $"0x{B133:X02}",
-                ["B134"] = $"0x{B134:X02}",
-                ["B135"] = $"0x{B135:X02}",
-                ["B136"] = $"0x{B136:X02}",
-                ["B137"] = $"0x{B137:X02}",
-                ["B138"] = $"0x{B138:X02}",
-                ["B139"] = $"0x{B139:X02}",
-                ["W140"] = $"0x{W140:X04}",
-                ["W142"] = $"0x{W142:X04}",
-                ["B144"] = $"0x{B144:X02}",
-                ["B145"] = $"0x{B145:X02}",
-                ["B146"] = $"0x{B146:X02}",
-                ["B147"] = $"0x{B147:X02}",
-                ["B148"] = $"0x{B148:X02}",
-                ["B149"] = $"0x{B149:X02}",
-                ["B150"] = $"0x{B150:X02}",
-                ["B151"] = $"0x{B151:X02}",
+                ["ChapterPointer"] = $"0x{ChapterPointer:X08}",
+                ["ObjectTypePLIST"] = $"0x{ObjectTypePLIST:X04}",
+                ["PalettePLIST"] = $"0x{PalettePLIST:X02}",
+                ["ChipsetConfigPLIST"] = $"0x{ChipsetConfigPLIST:X02}",
+                ["MapPointerPLIST"] = $"0x{MapPointerPLIST:X02}",
+                ["TileAnimation1PLIST"] = $"0x{TileAnimation1PLIST:X02}",
+                ["TileAnimation2PLIST"] = $"0x{TileAnimation2PLIST:X02}",
+                ["MapChangePLIST"] = $"0x{MapChangePLIST:X02}",
+                ["FogLevel"] = $"0x{FogLevel:X02}",
+                ["BattlePreparation"] = $"0x{BattlePreparation:X02}",
+                ["ChapterTitleImage"] = $"0x{ChapterTitleImage:X02}",
+                ["ChapterTitleImage2"] = $"0x{ChapterTitleImage2:X02}",
+                ["Padding16"] = $"0x{Padding16:X02}",
+                ["Padding17"] = $"0x{Padding17:X02}",
+                ["Weather"] = $"0x{Weather:X02}",
+                ["BattleBG"] = $"0x{BattleBG:X02}",
+                ["DifficultyAdjust"] = $"0x{DifficultyAdjust:X04}",
+                ["PlayerPhaseBGM"] = $"0x{PlayerPhaseBGM:X04}",
+                ["EnemyPhaseBGM"] = $"0x{EnemyPhaseBGM:X04}",
+                ["NpcBGM"] = $"0x{NpcBGM:X04}",
+                ["PlayerPhaseBGM2"] = $"0x{PlayerPhaseBGM2:X04}",
+                ["EnemyPhaseBGM2"] = $"0x{EnemyPhaseBGM2:X04}",
+                ["NpcBGM2"] = $"0x{NpcBGM2:X04}",
+                ["PlayerPhaseBGMFlag4"] = $"0x{PlayerPhaseBGMFlag4:X04}",
+                ["EnemyPhaseBGMFlag4"] = $"0x{EnemyPhaseBGMFlag4:X04}",
+                ["PrologueBGMCommon"] = $"0x{PrologueBGMCommon:X04}",
+                ["PrologueBGMEliwood"] = $"0x{PrologueBGMEliwood:X04}",
+                ["PrologueBGMHector"] = $"0x{PrologueBGMHector:X04}",
+                ["BreakableWallHP"] = $"0x{BreakableWallHP:X02}",
+                ["RatingAEliwoodNormal"] = $"0x{RatingAEliwoodNormal:X02}",
+                ["RatingAEliwoodHard"] = $"0x{RatingAEliwoodHard:X02}",
+                ["RatingAHectorNormal"] = $"0x{RatingAHectorNormal:X02}",
+                ["RatingAHectorHard"] = $"0x{RatingAHectorHard:X02}",
+                ["RatingBEliwoodNormal"] = $"0x{RatingBEliwoodNormal:X02}",
+                ["RatingBEliwoodHard"] = $"0x{RatingBEliwoodHard:X02}",
+                ["RatingBHectorNormal"] = $"0x{RatingBHectorNormal:X02}",
+                ["RatingBHectorHard"] = $"0x{RatingBHectorHard:X02}",
+                ["RatingCEliwoodNormal"] = $"0x{RatingCEliwoodNormal:X02}",
+                ["RatingCEliwoodHard"] = $"0x{RatingCEliwoodHard:X02}",
+                ["RatingCHectorNormal"] = $"0x{RatingCHectorNormal:X02}",
+                ["RatingCHectorHard"] = $"0x{RatingCHectorHard:X02}",
+                ["RatingDEliwoodNormal"] = $"0x{RatingDEliwoodNormal:X02}",
+                ["RatingDEliwoodHard"] = $"0x{RatingDEliwoodHard:X02}",
+                ["RatingDHectorNormal"] = $"0x{RatingDHectorNormal:X02}",
+                ["RatingDHectorHard"] = $"0x{RatingDHectorHard:X02}",
+                ["UnknownB61"] = $"0x{UnknownB61:X02}",
+                ["RatingAEliwoodNormalW"] = $"0x{RatingAEliwoodNormalW:X04}",
+                ["RatingAEliwoodHardW"] = $"0x{RatingAEliwoodHardW:X04}",
+                ["RatingAHectorNormalW"] = $"0x{RatingAHectorNormalW:X04}",
+                ["RatingAHectorHardW"] = $"0x{RatingAHectorHardW:X04}",
+                ["RatingBEliwoodNormalW"] = $"0x{RatingBEliwoodNormalW:X04}",
+                ["RatingBEliwoodHardW"] = $"0x{RatingBEliwoodHardW:X04}",
+                ["RatingBHectorNormalW"] = $"0x{RatingBHectorNormalW:X04}",
+                ["RatingBHectorHardW"] = $"0x{RatingBHectorHardW:X04}",
+                ["RatingCEliwoodNormalW"] = $"0x{RatingCEliwoodNormalW:X04}",
+                ["RatingCEliwoodHardW"] = $"0x{RatingCEliwoodHardW:X04}",
+                ["RatingCHectorNormalW"] = $"0x{RatingCHectorNormalW:X04}",
+                ["RatingCHectorHardW"] = $"0x{RatingCHectorHardW:X04}",
+                ["RatingDEliwoodNormalW"] = $"0x{RatingDEliwoodNormalW:X04}",
+                ["RatingDEliwoodHardW"] = $"0x{RatingDEliwoodHardW:X04}",
+                ["RatingDHectorNormalW"] = $"0x{RatingDHectorNormalW:X04}",
+                ["RatingDHectorHardW"] = $"0x{RatingDHectorHardW:X04}",
+                ["UnknownW94"] = $"0x{UnknownW94:X04}",
+                ["EliwoodNormalPtr"] = $"0x{EliwoodNormalPtr:X08}",
+                ["EliwoodHardPtr"] = $"0x{EliwoodHardPtr:X08}",
+                ["HectorNormalPtr"] = $"0x{HectorNormalPtr:X08}",
+                ["HectorHardPtr"] = $"0x{HectorHardPtr:X08}",
+                ["ChapterTitleEliwoodTextId"] = $"0x{ChapterTitleEliwoodTextId:X04}",
+                ["ChapterTitleHectorTextId"] = $"0x{ChapterTitleHectorTextId:X04}",
+                ["ChapterTitleEliwoodText2Id"] = $"0x{ChapterTitleEliwoodText2Id:X04}",
+                ["ChapterTitleHectorText2Id"] = $"0x{ChapterTitleHectorText2Id:X04}",
+                ["EventPLIST"] = $"0x{EventPLIST:X02}",
+                ["WorldMapAutoEvent"] = $"0x{WorldMapAutoEvent:X02}",
+                ["FortuneDialogOpeningTextId"] = $"0x{FortuneDialogOpeningTextId:X04}",
+                ["FortuneDialogEliwoodTextId"] = $"0x{FortuneDialogEliwoodTextId:X04}",
+                ["FortuneDialogHectorTextId"] = $"0x{FortuneDialogHectorTextId:X04}",
+                ["FortuneDialogConfirmTextId"] = $"0x{FortuneDialogConfirmTextId:X04}",
+                ["FortunePortrait"] = $"0x{FortunePortrait:X02}",
+                ["FortuneFee"] = $"0x{FortuneFee:X02}",
+                ["PrepScreenChNo1"] = $"0x{PrepScreenChNo1:X02}",
+                ["PrepScreenChNo2"] = $"0x{PrepScreenChNo2:X02}",
+                ["UnknownB134"] = $"0x{UnknownB134:X02}",
+                ["UnknownB135"] = $"0x{UnknownB135:X02}",
+                ["UnknownB136"] = $"0x{UnknownB136:X02}",
+                ["UnknownB137"] = $"0x{UnknownB137:X02}",
+                ["VictoryBGMEnemyCount"] = $"0x{VictoryBGMEnemyCount:X02}",
+                ["DarkenBeforeStartEvent"] = $"0x{DarkenBeforeStartEvent:X02}",
+                ["ClearConditionTextId"] = $"0x{ClearConditionTextId:X04}",
+                ["DetailClearConditionTextId"] = $"0x{DetailClearConditionTextId:X04}",
+                ["SpecialDisplay"] = $"0x{SpecialDisplay:X02}",
+                ["TurnCountDisplay"] = $"0x{TurnCountDisplay:X02}",
+                ["DefenseUnitMark"] = $"0x{DefenseUnitMark:X02}",
+                ["EscapeMarkerX"] = $"0x{EscapeMarkerX:X02}",
+                ["EscapeMarkerY"] = $"0x{EscapeMarkerY:X02}",
+                ["UnknownB149"] = $"0x{UnknownB149:X02}",
+                ["UnknownB150"] = $"0x{UnknownB150:X02}",
+                ["UnknownB151"] = $"0x{UnknownB151:X02}",
             };
             return r;
         }
@@ -638,11 +638,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["dataSize"] = $"{ds}",
-                // D0
+                // ChapterPointer
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                // W4
+                // ObjectTypePLIST
                 ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                // B6-B19
+                // PalettePLIST-BattleBG
                 ["u8@0x06"] = $"0x{rom.u8(a + 6):X02}",
                 ["u8@0x07"] = $"0x{rom.u8(a + 7):X02}",
                 ["u8@0x08"] = $"0x{rom.u8(a + 8):X02}",
@@ -657,7 +657,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x11"] = $"0x{rom.u8(a + 17):X02}",
                 ["u8@0x12"] = $"0x{rom.u8(a + 18):X02}",
                 ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
-                // W20-W42
+                // DifficultyAdjust-PrologueBGMHector
                 ["u16@0x14"] = $"0x{rom.u16(a + 20):X04}",
                 ["u16@0x16"] = $"0x{rom.u16(a + 22):X04}",
                 ["u16@0x18"] = $"0x{rom.u16(a + 24):X04}",
@@ -670,10 +670,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x26"] = $"0x{rom.u16(a + 38):X04}",
                 ["u16@0x28"] = $"0x{rom.u16(a + 40):X04}",
                 ["u16@0x2A"] = $"0x{rom.u16(a + 42):X04}",
-                // B44
+                // BreakableWallHP
                 ["u8@0x2C"] = $"0x{rom.u8(a + 44):X02}",
             };
-            // B45-B61 (conditional on dataSize)
+            // RatingAEliwoodNormal-UnknownB61 (conditional on dataSize)
             if (ds > 45) report["u8@0x2D"] = $"0x{rom.u8(a + 45):X02}";
             if (ds > 46) report["u8@0x2E"] = $"0x{rom.u8(a + 46):X02}";
             if (ds > 47) report["u8@0x2F"] = $"0x{rom.u8(a + 47):X02}";
@@ -691,7 +691,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ds > 59) report["u8@0x3B"] = $"0x{rom.u8(a + 59):X02}";
             if (ds > 60) report["u8@0x3C"] = $"0x{rom.u8(a + 60):X02}";
             if (ds > 61) report["u8@0x3D"] = $"0x{rom.u8(a + 61):X02}";
-            // W62-W94
+            // RatingAEliwoodNormalW-UnknownW94
             if (ds > 63) report["u16@0x3E"] = $"0x{rom.u16(a + 62):X04}";
             if (ds > 65) report["u16@0x40"] = $"0x{rom.u16(a + 64):X04}";
             if (ds > 67) report["u16@0x42"] = $"0x{rom.u16(a + 66):X04}";
@@ -709,25 +709,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ds > 91) report["u16@0x5A"] = $"0x{rom.u16(a + 90):X04}";
             if (ds > 93) report["u16@0x5C"] = $"0x{rom.u16(a + 92):X04}";
             if (ds > 95) report["u16@0x5E"] = $"0x{rom.u16(a + 94):X04}";
-            // D96-D108
+            // EliwoodNormalPtr-HectorHardPtr
             if (ds > 99) report["u32@0x60"] = $"0x{rom.u32(a + 96):X08}";
             if (ds > 103) report["u32@0x64"] = $"0x{rom.u32(a + 100):X08}";
             if (ds > 107) report["u32@0x68"] = $"0x{rom.u32(a + 104):X08}";
             if (ds > 111) report["u32@0x6C"] = $"0x{rom.u32(a + 108):X08}";
-            // W112-W118
+            // ChapterTitleEliwoodTextId-ChapterTitleHectorText2Id
             if (ds > 113) report["u16@0x70"] = $"0x{rom.u16(a + 112):X04}";
             if (ds > 115) report["u16@0x72"] = $"0x{rom.u16(a + 114):X04}";
             if (ds > 117) report["u16@0x74"] = $"0x{rom.u16(a + 116):X04}";
             if (ds > 119) report["u16@0x76"] = $"0x{rom.u16(a + 118):X04}";
-            // B120, B121
+            // EventPLIST, WorldMapAutoEvent
             if (ds > 120) report["u8@0x78"] = $"0x{rom.u8(a + 120):X02}";
             if (ds > 121) report["u8@0x79"] = $"0x{rom.u8(a + 121):X02}";
-            // W122-W128
+            // FortuneDialogOpeningTextId-FortuneDialogConfirmTextId
             if (ds > 123) report["u16@0x7A"] = $"0x{rom.u16(a + 122):X04}";
             if (ds > 125) report["u16@0x7C"] = $"0x{rom.u16(a + 124):X04}";
             if (ds > 127) report["u16@0x7E"] = $"0x{rom.u16(a + 126):X04}";
             if (ds > 129) report["u16@0x80"] = $"0x{rom.u16(a + 128):X04}";
-            // B130-B139
+            // FortunePortrait-DarkenBeforeStartEvent
             if (ds > 130) report["u8@0x82"] = $"0x{rom.u8(a + 130):X02}";
             if (ds > 131) report["u8@0x83"] = $"0x{rom.u8(a + 131):X02}";
             if (ds > 132) report["u8@0x84"] = $"0x{rom.u8(a + 132):X02}";
@@ -738,10 +738,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ds > 137) report["u8@0x89"] = $"0x{rom.u8(a + 137):X02}";
             if (ds > 138) report["u8@0x8A"] = $"0x{rom.u8(a + 138):X02}";
             if (ds > 139) report["u8@0x8B"] = $"0x{rom.u8(a + 139):X02}";
-            // W140, W142
+            // ClearConditionTextId, DetailClearConditionTextId
             if (ds > 141) report["u16@0x8C"] = $"0x{rom.u16(a + 140):X04}";
             if (ds > 143) report["u16@0x8E"] = $"0x{rom.u16(a + 142):X04}";
-            // B144-B151
+            // SpecialDisplay-UnknownB151
             if (ds > 144) report["u8@0x90"] = $"0x{rom.u8(a + 144):X02}";
             if (ds > 145) report["u8@0x91"] = $"0x{rom.u8(a + 145):X02}";
             if (ds > 146) report["u8@0x92"] = $"0x{rom.u8(a + 146):X02}";
@@ -753,12 +753,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
-        // Backward-compatible property aliases
-        public uint TilesetPLIST => W4;
-        public uint MapPLIST => B8;
-        public uint PalettePLIST => B6;
-        public uint Weather => B18;
-        public uint ChapterNameId => W112;
-        public uint ObjType => B13;
+        // Backward-compatible property aliases (PalettePLIST and Weather are now primary names)
+        public uint TilesetPLIST => ObjectTypePLIST;
+        public uint MapPLIST => MapPointerPLIST;
+        public uint ChapterNameId => ChapterTitleEliwoodTextId;
+        public uint ObjType => BattlePreparation;
     }
 }

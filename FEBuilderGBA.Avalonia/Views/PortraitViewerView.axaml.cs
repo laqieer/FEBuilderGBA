@@ -59,16 +59,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ImgPtrBox.Text = $"0x{_vm.ImagePointer:X08}";
             MapPtrBox.Text = $"0x{_vm.MapPointer:X08}";
             PalPtrBox.Text = $"0x{_vm.PalettePointer:X08}";
-            D12Box.Text = $"0x{_vm.D12:X08}";
-            D16Box.Text = $"0x{_vm.D16:X08}";
-            B20Box.Value = _vm.B20;
-            B21Box.Value = _vm.B21;
-            B22Box.Value = _vm.B22;
-            B23Box.Value = _vm.B23;
-            B24Box.Value = _vm.B24;
-            B25Box.Value = _vm.B25;
-            B26Box.Value = _vm.B26;
-            B27Box.Value = _vm.B27;
+            D12Box.Text = $"0x{_vm.MouthPointer:X08}";
+            D16Box.Text = $"0x{_vm.ClassCardPointer:X08}";
+            B20Box.Value = _vm.MouthX;
+            B21Box.Value = _vm.MouthY;
+            B22Box.Value = _vm.EyeX;
+            B23Box.Value = _vm.EyeY;
+            B24Box.Value = _vm.State;
+            B25Box.Value = _vm.Padding25;
+            B26Box.Value = _vm.Padding26;
+            B27Box.Value = _vm.Padding27;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -76,16 +76,16 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
             _vm.MapPointer = ParseHexText(MapPtrBox.Text);
             _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
-            _vm.D12 = ParseHexText(D12Box.Text);
-            _vm.D16 = ParseHexText(D16Box.Text);
-            _vm.B20 = (uint)(B20Box.Value ?? 0);
-            _vm.B21 = (uint)(B21Box.Value ?? 0);
-            _vm.B22 = (uint)(B22Box.Value ?? 0);
-            _vm.B23 = (uint)(B23Box.Value ?? 0);
-            _vm.B24 = (uint)(B24Box.Value ?? 0);
-            _vm.B25 = (uint)(B25Box.Value ?? 0);
-            _vm.B26 = (uint)(B26Box.Value ?? 0);
-            _vm.B27 = (uint)(B27Box.Value ?? 0);
+            _vm.MouthPointer = ParseHexText(D12Box.Text);
+            _vm.ClassCardPointer = ParseHexText(D16Box.Text);
+            _vm.MouthX = (uint)(B20Box.Value ?? 0);
+            _vm.MouthY = (uint)(B21Box.Value ?? 0);
+            _vm.EyeX = (uint)(B22Box.Value ?? 0);
+            _vm.EyeY = (uint)(B23Box.Value ?? 0);
+            _vm.State = (uint)(B24Box.Value ?? 0);
+            _vm.Padding25 = (uint)(B25Box.Value ?? 0);
+            _vm.Padding26 = (uint)(B26Box.Value ?? 0);
+            _vm.Padding27 = (uint)(B27Box.Value ?? 0);
             _vm.WritePortrait();
             CoreState.Services.ShowInfo("Portrait data written.");
         }

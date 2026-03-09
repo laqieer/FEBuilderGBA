@@ -50,8 +50,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            W0Box.Value = _vm.W0;
-            W2Box.Value = _vm.W2;
+            AnimIntervalBox.Value = _vm.AnimInterval;
+            DataCountBox.Value = _vm.DataCount;
             AnimPointerBox.Text = $"0x{_vm.AnimPointer:X08}";
             RawBytesLabel.Text = _vm.RawBytes;
         }
@@ -59,8 +59,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.W0 = (uint)(W0Box.Value ?? 0);
-            _vm.W2 = (uint)(W2Box.Value ?? 0);
+            _vm.AnimInterval = (uint)(AnimIntervalBox.Value ?? 0);
+            _vm.DataCount = (uint)(DataCountBox.Value ?? 0);
             _vm.AnimPointer = ParseHexText(AnimPointerBox.Text);
             _vm.WriteMapTileAnimation();
             CoreState.Services?.ShowInfo("Map Tile Animation data written.");

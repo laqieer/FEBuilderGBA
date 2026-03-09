@@ -13,13 +13,15 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageViewerView()
         {
             InitializeComponent();
+            DataContext = _vm;
+            _vm.Initialize();
         }
 
         /// <summary>Display an IImage.</summary>
         public void ShowImage(IImage? image, string? info = null)
         {
             ImageControl.SetImage(image);
-            InfoLabel.Text = info ?? "";
+            _vm.ImageInfo = info ?? "";
         }
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -30,7 +32,11 @@ namespace FEBuilderGBA.Avalonia.Views
         void ZoomBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (ZoomBox.Value.HasValue)
-                ImageControl.Zoom = (int)ZoomBox.Value.Value;
+            {
+                int zoom = (int)ZoomBox.Value.Value;
+                _vm.Zoom = zoom;
+                ImageControl.Zoom = zoom;
+            }
         }
     }
 }

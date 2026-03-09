@@ -52,17 +52,31 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            DescTextIdBox.Value = _vm.DescriptionTextId;
+            DisplayWeaponBox.Value = _vm.DisplayWeapon;
             ClassIdBox.Value = _vm.ClassId;
-            AnimTypeBox.Value = _vm.AnimationType;
+            AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             BattleAnimeBox.Value = _vm.BattleAnime;
+            TerrainLeftBox.Value = _vm.TerrainLeft;
+            TerrainRightBox.Value = _vm.TerrainRight;
+            MagicEffectBox.Value = _vm.MagicEffect;
+            AnimeTypeBox.Value = _vm.AnimeType;
+            AnimePtrBox.Value = _vm.AnimePointer;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.B5 = (uint)(ClassIdBox.Value ?? 0);
-            _vm.B6 = (uint)(AnimTypeBox.Value ?? 0);
-            _vm.B7 = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.DescriptionTextId = (uint)(DescTextIdBox.Value ?? 0);
+            _vm.DisplayWeapon = (uint)(DisplayWeaponBox.Value ?? 0);
+            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.AllyEnemyColor = (uint)(AllyEnemyColorBox.Value ?? 0);
+            _vm.BattleAnime = (uint)(BattleAnimeBox.Value ?? 0);
+            _vm.TerrainLeft = (uint)(TerrainLeftBox.Value ?? 0);
+            _vm.TerrainRight = (uint)(TerrainRightBox.Value ?? 0);
+            _vm.MagicEffect = (uint)(MagicEffectBox.Value ?? 0);
+            _vm.AnimeType = (uint)(AnimeTypeBox.Value ?? 0);
+            _vm.AnimePointer = (uint)(AnimePtrBox.Value ?? 0);
             _vm.WriteEntry();
             CoreState.Services?.ShowInfo("OP Class Demo (FE8U) data written.");
         }

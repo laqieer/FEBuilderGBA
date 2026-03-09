@@ -49,42 +49,42 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            B0Box.Value = _vm.B0;
-            B1Box.Value = _vm.B1;
-            B2Box.Value = _vm.B2;
-            B3Box.Value = _vm.B3;
-            B4Box.Value = _vm.B4;
-            B5Box.Value = _vm.B5;
-            B6Box.Value = _vm.B6;
-            B7Box.Value = _vm.B7;
-            B8Box.Value = _vm.B8;
-            B9Box.Value = _vm.B9;
-            B10Box.Value = _vm.B10;
-            B11Box.Value = _vm.B11;
-            B12Box.Value = _vm.B12;
-            B13Box.Value = _vm.B13;
-            B14Box.Value = _vm.B14;
-            B15Box.Value = _vm.B15;
+            UnitIDBox.Value = _vm.UnitID;
+            ClassIDBox.Value = _vm.ClassID;
+            LeaderUnitIDBox.Value = _vm.LeaderUnitID;
+            UnitInfoBox.Value = _vm.UnitInfo;
+            StartXBox.Value = _vm.StartX;
+            StartYBox.Value = _vm.StartY;
+            EndXBox.Value = _vm.EndX;
+            EndYBox.Value = _vm.EndY;
+            Item1Box.Value = _vm.Item1;
+            Item2Box.Value = _vm.Item2;
+            Item3Box.Value = _vm.Item3;
+            Item4Box.Value = _vm.Item4;
+            AI1PrimaryBox.Value = _vm.AI1Primary;
+            AI2SecondaryBox.Value = _vm.AI2Secondary;
+            AI3TargetRecoveryBox.Value = _vm.AI3TargetRecovery;
+            AI4RetreatBox.Value = _vm.AI4Retreat;
         }
 
         void ReadFromUI()
         {
-            _vm.B0 = (uint)(B0Box.Value ?? 0);
-            _vm.B1 = (uint)(B1Box.Value ?? 0);
-            _vm.B2 = (uint)(B2Box.Value ?? 0);
-            _vm.B3 = (uint)(B3Box.Value ?? 0);
-            _vm.B4 = (uint)(B4Box.Value ?? 0);
-            _vm.B5 = (uint)(B5Box.Value ?? 0);
-            _vm.B6 = (uint)(B6Box.Value ?? 0);
-            _vm.B7 = (uint)(B7Box.Value ?? 0);
-            _vm.B8 = (uint)(B8Box.Value ?? 0);
-            _vm.B9 = (uint)(B9Box.Value ?? 0);
-            _vm.B10 = (uint)(B10Box.Value ?? 0);
-            _vm.B11 = (uint)(B11Box.Value ?? 0);
-            _vm.B12 = (uint)(B12Box.Value ?? 0);
-            _vm.B13 = (uint)(B13Box.Value ?? 0);
-            _vm.B14 = (uint)(B14Box.Value ?? 0);
-            _vm.B15 = (uint)(B15Box.Value ?? 0);
+            _vm.UnitID = (uint)(UnitIDBox.Value ?? 0);
+            _vm.ClassID = (uint)(ClassIDBox.Value ?? 0);
+            _vm.LeaderUnitID = (uint)(LeaderUnitIDBox.Value ?? 0);
+            _vm.UnitInfo = (uint)(UnitInfoBox.Value ?? 0);
+            _vm.StartX = (uint)(StartXBox.Value ?? 0);
+            _vm.StartY = (uint)(StartYBox.Value ?? 0);
+            _vm.EndX = (uint)(EndXBox.Value ?? 0);
+            _vm.EndY = (uint)(EndYBox.Value ?? 0);
+            _vm.Item1 = (uint)(Item1Box.Value ?? 0);
+            _vm.Item2 = (uint)(Item2Box.Value ?? 0);
+            _vm.Item3 = (uint)(Item3Box.Value ?? 0);
+            _vm.Item4 = (uint)(Item4Box.Value ?? 0);
+            _vm.AI1Primary = (uint)(AI1PrimaryBox.Value ?? 0);
+            _vm.AI2Secondary = (uint)(AI2SecondaryBox.Value ?? 0);
+            _vm.AI3TargetRecovery = (uint)(AI3TargetRecoveryBox.Value ?? 0);
+            _vm.AI4Retreat = (uint)(AI4RetreatBox.Value ?? 0);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

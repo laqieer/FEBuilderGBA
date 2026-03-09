@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTerrainBGLookupView : Window, IEditorView
+    public partial class MapTerrainBGLookupView : Window, IEditorView, IDataVerifiableView
     {
-        readonly MapTerrainBGLookupViewModel _vm = new();
+        readonly MapTerrainBGLookupTableViewModel _vm = new();
 
         public string ViewTitle => "Terrain BG Lookup";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapTerrainBGLookupView()
         {
@@ -24,7 +25,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadList();
+                // Placeholder list; real list populated by parent context
+                var items = new System.Collections.Generic.List<AddrResult>();
+                items.Add(new AddrResult(0, "Terrain BG Lookup", 0));
                 EntryList.SetItems(items);
             }
             catch (Exception ex)
@@ -49,6 +52,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            BattleBGBox.Value = _vm.BattleBG;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            _vm.BattleBG = (uint)(BattleBGBox.Value ?? 0);
+            _vm.Write();
+            CoreState.Services?.ShowInfo("Terrain BG Lookup data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

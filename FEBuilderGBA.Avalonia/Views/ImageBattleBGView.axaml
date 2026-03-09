@@ -10,9 +10,25 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Background Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="180,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Row 1: D0 Image Pointer -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Image (D0):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ImagePointerBox" Width="160" />
+
+          <!-- Row 2: D4 TSA Pointer -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="TSA (D4):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="TSAPointerBox" Width="160" />
+
+          <!-- Row 3: D8 Palette Pointer -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette (D8):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="PalettePointerBox" Width="160" />
+
+          <!-- Row 4: Write button -->
+          <Button Grid.Row="4" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

@@ -9,28 +9,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         string _terrainName = "";
-        uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9, _b10, _b11;
+        uint _nameChar0, _nameChar1, _nameChar2, _nameChar3;
+        uint _nameChar4, _nameChar5, _nameChar6, _nameChar7;
+        uint _nameChar8, _nameChar9, _nameChar10, _nameChar11;
         uint _imagePointer, _palettePointer;
-        uint _d20;
+        uint _unknownD20;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string TerrainName { get => _terrainName; set => SetField(ref _terrainName, value); }
-        public uint B0 { get => _b0; set => SetField(ref _b0, value); }
-        public uint B1 { get => _b1; set => SetField(ref _b1, value); }
-        public uint B2 { get => _b2; set => SetField(ref _b2, value); }
-        public uint B3 { get => _b3; set => SetField(ref _b3, value); }
-        public uint B4 { get => _b4; set => SetField(ref _b4, value); }
-        public uint B5 { get => _b5; set => SetField(ref _b5, value); }
-        public uint B6 { get => _b6; set => SetField(ref _b6, value); }
-        public uint B7 { get => _b7; set => SetField(ref _b7, value); }
-        public uint B8 { get => _b8; set => SetField(ref _b8, value); }
-        public uint B9 { get => _b9; set => SetField(ref _b9, value); }
-        public uint B10 { get => _b10; set => SetField(ref _b10, value); }
-        public uint B11 { get => _b11; set => SetField(ref _b11, value); }
+        public uint NameChar0 { get => _nameChar0; set => SetField(ref _nameChar0, value); }
+        public uint NameChar1 { get => _nameChar1; set => SetField(ref _nameChar1, value); }
+        public uint NameChar2 { get => _nameChar2; set => SetField(ref _nameChar2, value); }
+        public uint NameChar3 { get => _nameChar3; set => SetField(ref _nameChar3, value); }
+        public uint NameChar4 { get => _nameChar4; set => SetField(ref _nameChar4, value); }
+        public uint NameChar5 { get => _nameChar5; set => SetField(ref _nameChar5, value); }
+        public uint NameChar6 { get => _nameChar6; set => SetField(ref _nameChar6, value); }
+        public uint NameChar7 { get => _nameChar7; set => SetField(ref _nameChar7, value); }
+        public uint NameChar8 { get => _nameChar8; set => SetField(ref _nameChar8, value); }
+        public uint NameChar9 { get => _nameChar9; set => SetField(ref _nameChar9, value); }
+        public uint NameChar10 { get => _nameChar10; set => SetField(ref _nameChar10, value); }
+        public uint NameChar11 { get => _nameChar11; set => SetField(ref _nameChar11, value); }
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
-        public uint D20 { get => _d20; set => SetField(ref _d20, value); }
+        public uint UnknownD20 { get => _unknownD20; set => SetField(ref _unknownD20, value); }
 
         public List<AddrResult> LoadBattleTerrainList()
         {
@@ -92,22 +94,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch { }
             TerrainName = tname;
 
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            B8 = rom.u8(addr + 8);
-            B9 = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
+            NameChar0 = rom.u8(addr + 0);
+            NameChar1 = rom.u8(addr + 1);
+            NameChar2 = rom.u8(addr + 2);
+            NameChar3 = rom.u8(addr + 3);
+            NameChar4 = rom.u8(addr + 4);
+            NameChar5 = rom.u8(addr + 5);
+            NameChar6 = rom.u8(addr + 6);
+            NameChar7 = rom.u8(addr + 7);
+            NameChar8 = rom.u8(addr + 8);
+            NameChar9 = rom.u8(addr + 9);
+            NameChar10 = rom.u8(addr + 10);
+            NameChar11 = rom.u8(addr + 11);
             // Image pointer at offset 12, palette at offset 16
             ImagePointer = rom.u32(addr + 12);
             PalettePointer = rom.u32(addr + 16);
-            D20 = rom.u32(addr + 20);
+            UnknownD20 = rom.u32(addr + 20);
             CanWrite = true;
         }
 
@@ -116,21 +118,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)B0);
-            rom.write_u8(addr + 1, (byte)B1);
-            rom.write_u8(addr + 2, (byte)B2);
-            rom.write_u8(addr + 3, (byte)B3);
-            rom.write_u8(addr + 4, (byte)B4);
-            rom.write_u8(addr + 5, (byte)B5);
-            rom.write_u8(addr + 6, (byte)B6);
-            rom.write_u8(addr + 7, (byte)B7);
-            rom.write_u8(addr + 8, (byte)B8);
-            rom.write_u8(addr + 9, (byte)B9);
-            rom.write_u8(addr + 10, (byte)B10);
-            rom.write_u8(addr + 11, (byte)B11);
+            rom.write_u8(addr + 0, (byte)NameChar0);
+            rom.write_u8(addr + 1, (byte)NameChar1);
+            rom.write_u8(addr + 2, (byte)NameChar2);
+            rom.write_u8(addr + 3, (byte)NameChar3);
+            rom.write_u8(addr + 4, (byte)NameChar4);
+            rom.write_u8(addr + 5, (byte)NameChar5);
+            rom.write_u8(addr + 6, (byte)NameChar6);
+            rom.write_u8(addr + 7, (byte)NameChar7);
+            rom.write_u8(addr + 8, (byte)NameChar8);
+            rom.write_u8(addr + 9, (byte)NameChar9);
+            rom.write_u8(addr + 10, (byte)NameChar10);
+            rom.write_u8(addr + 11, (byte)NameChar11);
             rom.write_u32(addr + 12, ImagePointer);
             rom.write_u32(addr + 16, PalettePointer);
-            rom.write_u32(addr + 20, D20);
+            rom.write_u32(addr + 20, UnknownD20);
         }
 
         /// <summary>
@@ -180,21 +182,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["TerrainName"] = TerrainName,
-                ["B0"] = $"0x{B0:X02}",
-                ["B1"] = $"0x{B1:X02}",
-                ["B2"] = $"0x{B2:X02}",
-                ["B3"] = $"0x{B3:X02}",
-                ["B4"] = $"0x{B4:X02}",
-                ["B5"] = $"0x{B5:X02}",
-                ["B6"] = $"0x{B6:X02}",
-                ["B7"] = $"0x{B7:X02}",
-                ["B8"] = $"0x{B8:X02}",
-                ["B9"] = $"0x{B9:X02}",
-                ["B10"] = $"0x{B10:X02}",
-                ["B11"] = $"0x{B11:X02}",
-                ["ImagePointer"] = $"0x{ImagePointer:X08}",
-                ["PalettePointer"] = $"0x{PalettePointer:X08}",
-                ["D20"] = $"0x{D20:X08}",
+                ["B0_NameChar0"] = $"0x{NameChar0:X02}",
+                ["B1_NameChar1"] = $"0x{NameChar1:X02}",
+                ["B2_NameChar2"] = $"0x{NameChar2:X02}",
+                ["B3_NameChar3"] = $"0x{NameChar3:X02}",
+                ["B4_NameChar4"] = $"0x{NameChar4:X02}",
+                ["B5_NameChar5"] = $"0x{NameChar5:X02}",
+                ["B6_NameChar6"] = $"0x{NameChar6:X02}",
+                ["B7_NameChar7"] = $"0x{NameChar7:X02}",
+                ["B8_NameChar8"] = $"0x{NameChar8:X02}",
+                ["B9_NameChar9"] = $"0x{NameChar9:X02}",
+                ["B10_NameChar10"] = $"0x{NameChar10:X02}",
+                ["B11_NameChar11"] = $"0x{NameChar11:X02}",
+                ["P12_ImagePointer"] = $"0x{ImagePointer:X08}",
+                ["P16_PalettePointer"] = $"0x{PalettePointer:X08}",
+                ["D20_Unknown"] = $"0x{UnknownD20:X08}",
             };
         }
 

@@ -7,14 +7,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class MapTileAnimationViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
-        uint _w0, _w2;
+        uint _animInterval, _dataCount;
         uint _animPointer;  // P4
         string _rawBytes = "";
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public uint W0 { get => _w0; set => SetField(ref _w0, value); }
-        public uint W2 { get => _w2; set => SetField(ref _w2, value); }
+        /// <summary>Animation interval (W0).</summary>
+        public uint AnimInterval { get => _animInterval; set => SetField(ref _animInterval, value); }
+        /// <summary>Data count (W2).</summary>
+        public uint DataCount { get => _dataCount; set => SetField(ref _dataCount, value); }
         public uint AnimPointer { get => _animPointer; set => SetField(ref _animPointer, value); }
         public string RawBytes { get => _rawBytes; set => SetField(ref _rawBytes, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
@@ -57,8 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            W0 = rom.u16(addr + 0);
-            W2 = rom.u16(addr + 2);
+            AnimInterval = rom.u16(addr + 0);
+            DataCount = rom.u16(addr + 2);
             AnimPointer = rom.u32(addr + 4);
 
             // If pointer is valid, read some raw bytes at the target for display
@@ -97,8 +99,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u16(addr + 0, (ushort)W0);
-            rom.write_u16(addr + 2, (ushort)W2);
+            rom.write_u16(addr + 0, (ushort)AnimInterval);
+            rom.write_u16(addr + 2, (ushort)DataCount);
             rom.write_u32(addr + 4, AnimPointer);
         }
 
@@ -109,6 +111,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
+                ["AnimInterval"] = $"0x{AnimInterval:X04}",
+                ["DataCount"] = $"0x{DataCount:X04}",
                 ["AnimPointer"] = $"0x{AnimPointer:X08}",
             };
         }
@@ -121,9 +125,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
-                ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["AnimInterval@0x00"] = $"0x{rom.u16(a + 0):X04}",
+                ["DataCount@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["AnimPointer@0x04"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

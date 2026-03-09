@@ -7,12 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
+        uint _textId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // D0: u32 field at offset 0
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
+        // D0: Text ID / dialogue pointer (u32 at offset 0)
+        public uint TextId { get => _textId; set => SetField(ref _textId, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -31,8 +31,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
+            TextId = rom.u32(addr + 0);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 4 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(a + 0, TextId);
         }
 
         public int GetListCount() => 0;
@@ -41,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["D0"] = D0.ToString("X08"),
+                ["TextId"] = TextId.ToString("X08"),
             };
         }
 
@@ -54,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x00_TextId"] = $"0x{rom.u32(a + 0):X08}",
             };
         }
     }

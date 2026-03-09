@@ -5,7 +5,24 @@
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Assignment - Unit (FE8N)" FontSize="18" FontWeight="Bold" />
     <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock TextWrapping="Wrap" Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+      <TextBlock TextWrapping="Wrap" Name="StatusText"
+                 Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
     </Border>
+
+    <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Personal Skill:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="PersonalSkillBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="Skill Set 1:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="2" Grid.Column="1" Name="SkillSet1Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Text="Skill Set 2:" VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="3" Grid.Column="1" Name="SkillSet2Box" Minimum="0" Maximum="255" Margin="0,4" />
+    </Grid>
+
+    <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
 </Window>

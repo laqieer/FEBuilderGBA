@@ -6,12 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTerrainFloorLookupView : Window, IEditorView
+    public partial class MapTerrainFloorLookupView : Window, IEditorView, IDataVerifiableView
     {
-        readonly MapTerrainFloorLookupViewModel _vm = new();
+        readonly MapTerrainFloorLookupTableViewModel _vm = new();
 
         public string ViewTitle => "Terrain Floor Lookup";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public MapTerrainFloorLookupView()
         {
@@ -24,7 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadList();
+                var items = new System.Collections.Generic.List<AddrResult>();
+                items.Add(new AddrResult(0, "Terrain Floor Lookup", 0));
                 EntryList.SetItems(items);
             }
             catch (Exception ex)
@@ -49,6 +51,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            TerrainBattleFloorBox.Value = _vm.TerrainBattleFloor;
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            _vm.TerrainBattleFloor = (uint)(TerrainBattleFloorBox.Value ?? 0);
+            _vm.Write();
+            CoreState.Services?.ShowInfo("Terrain Floor Lookup data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

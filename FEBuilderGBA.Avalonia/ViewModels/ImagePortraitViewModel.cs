@@ -10,38 +10,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0, _d4, _d8, _d12, _d16;
-        uint _b20, _b21, _b22, _b23, _b24, _b25, _b26, _b27;
+        uint _portraitImagePtr, _miniPortraitPtr, _palettePtr, _mouthFramesPtr, _classCardPtr;
+        uint _mouthX, _mouthY, _eyeX, _eyeY;
+        uint _status, _unused25, _unused26, _unused27;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        // D0: Portrait image pointer
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        // D4: Mini portrait pointer
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
+        // D0: Portrait image data pointer (Unit Face)
+        public uint PortraitImagePtr { get => _portraitImagePtr; set => SetField(ref _portraitImagePtr, value); }
+        // D4: Mini portrait / map sprite face pointer
+        public uint MiniPortraitPtr { get => _miniPortraitPtr; set => SetField(ref _miniPortraitPtr, value); }
         // D8: Palette pointer
-        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
-        // D12: Mouth frames pointer
-        public uint D12 { get => _d12; set => SetField(ref _d12, value); }
-        // D16: Eye frames pointer
-        public uint D16 { get => _d16; set => SetField(ref _d16, value); }
-        // B20
-        public uint B20 { get => _b20; set => SetField(ref _b20, value); }
-        // B21
-        public uint B21 { get => _b21; set => SetField(ref _b21, value); }
-        // B22
-        public uint B22 { get => _b22; set => SetField(ref _b22, value); }
-        // B23
-        public uint B23 { get => _b23; set => SetField(ref _b23, value); }
-        // B24
-        public uint B24 { get => _b24; set => SetField(ref _b24, value); }
-        // B25
-        public uint B25 { get => _b25; set => SetField(ref _b25, value); }
-        // B26
-        public uint B26 { get => _b26; set => SetField(ref _b26, value); }
-        // B27
-        public uint B27 { get => _b27; set => SetField(ref _b27, value); }
+        public uint PalettePtr { get => _palettePtr; set => SetField(ref _palettePtr, value); }
+        // D12: Mouth animation frames pointer
+        public uint MouthFramesPtr { get => _mouthFramesPtr; set => SetField(ref _mouthFramesPtr, value); }
+        // D16: Class card image pointer
+        public uint ClassCardPtr { get => _classCardPtr; set => SetField(ref _classCardPtr, value); }
+        // B20: Mouth coordinate X
+        public uint MouthX { get => _mouthX; set => SetField(ref _mouthX, value); }
+        // B21: Mouth coordinate Y
+        public uint MouthY { get => _mouthY; set => SetField(ref _mouthY, value); }
+        // B22: Eye coordinate X
+        public uint EyeX { get => _eyeX; set => SetField(ref _eyeX, value); }
+        // B23: Eye coordinate Y
+        public uint EyeY { get => _eyeY; set => SetField(ref _eyeY, value); }
+        // B24: Portrait status / display mode (0=Close mouth, 1=Normal, 6=Close eyes)
+        public uint Status { get => _status; set => SetField(ref _status, value); }
+        // B25: Unused / reserved
+        public uint Unused25 { get => _unused25; set => SetField(ref _unused25, value); }
+        // B26: Unused / reserved
+        public uint Unused26 { get => _unused26; set => SetField(ref _unused26, value); }
+        // B27: Unused / reserved
+        public uint Unused27 { get => _unused27; set => SetField(ref _unused27, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -61,21 +62,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            D0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
-            D8 = rom.u32(addr + 8);
-            D12 = rom.u32(addr + 12);
-            D16 = rom.u32(addr + 16);
-            B20 = rom.u8(addr + 20);
-            B21 = rom.u8(addr + 21);
-            B22 = rom.u8(addr + 22);
-            B23 = rom.u8(addr + 23);
-            B24 = rom.u8(addr + 24);
-            B25 = rom.u8(addr + 25);
-            B26 = rom.u8(addr + 26);
-            B27 = rom.u8(addr + 27);
+            PortraitImagePtr = rom.u32(addr + 0);
+            MiniPortraitPtr = rom.u32(addr + 4);
+            PalettePtr = rom.u32(addr + 8);
+            MouthFramesPtr = rom.u32(addr + 12);
+            ClassCardPtr = rom.u32(addr + 16);
+            MouthX = rom.u8(addr + 20);
+            MouthY = rom.u8(addr + 21);
+            EyeX = rom.u8(addr + 22);
+            EyeY = rom.u8(addr + 23);
+            Status = rom.u8(addr + 24);
+            Unused25 = rom.u8(addr + 25);
+            Unused26 = rom.u8(addr + 26);
+            Unused27 = rom.u8(addr + 27);
 
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + SIZE > (uint)rom.Data.Length) return;
+
+            uint addr = CurrentAddr;
+            rom.write_u32(addr + 0, PortraitImagePtr);
+            rom.write_u32(addr + 4, MiniPortraitPtr);
+            rom.write_u32(addr + 8, PalettePtr);
+            rom.write_u32(addr + 12, MouthFramesPtr);
+            rom.write_u32(addr + 16, ClassCardPtr);
+            rom.write_u8(addr + 20, MouthX);
+            rom.write_u8(addr + 21, MouthY);
+            rom.write_u8(addr + 22, EyeX);
+            rom.write_u8(addr + 23, EyeY);
+            rom.write_u8(addr + 24, Status);
+            rom.write_u8(addr + 25, Unused25);
+            rom.write_u8(addr + 26, Unused26);
+            rom.write_u8(addr + 27, Unused27);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -85,19 +108,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["D4"] = $"0x{D4:X08}",
-                ["D8"] = $"0x{D8:X08}",
-                ["D12"] = $"0x{D12:X08}",
-                ["D16"] = $"0x{D16:X08}",
-                ["B20"] = $"0x{B20:X02}",
-                ["B21"] = $"0x{B21:X02}",
-                ["B22"] = $"0x{B22:X02}",
-                ["B23"] = $"0x{B23:X02}",
-                ["B24"] = $"0x{B24:X02}",
-                ["B25"] = $"0x{B25:X02}",
-                ["B26"] = $"0x{B26:X02}",
-                ["B27"] = $"0x{B27:X02}",
+                ["PortraitImagePtr"] = $"0x{PortraitImagePtr:X08}",
+                ["MiniPortraitPtr"] = $"0x{MiniPortraitPtr:X08}",
+                ["PalettePtr"] = $"0x{PalettePtr:X08}",
+                ["MouthFramesPtr"] = $"0x{MouthFramesPtr:X08}",
+                ["ClassCardPtr"] = $"0x{ClassCardPtr:X08}",
+                ["MouthX"] = $"0x{MouthX:X02}",
+                ["MouthY"] = $"0x{MouthY:X02}",
+                ["EyeX"] = $"0x{EyeX:X02}",
+                ["EyeY"] = $"0x{EyeY:X02}",
+                ["Status"] = $"0x{Status:X02}",
+                ["Unused25"] = $"0x{Unused25:X02}",
+                ["Unused26"] = $"0x{Unused26:X02}",
+                ["Unused27"] = $"0x{Unused27:X02}",
             };
         }
 
@@ -110,19 +133,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@4"] = $"0x{rom.u32(a + 4):X08}",
-                ["u32@8"] = $"0x{rom.u32(a + 8):X08}",
-                ["u32@12"] = $"0x{rom.u32(a + 12):X08}",
-                ["u32@16"] = $"0x{rom.u32(a + 16):X08}",
-                ["u8@20"] = $"0x{rom.u8(a + 20):X02}",
-                ["u8@21"] = $"0x{rom.u8(a + 21):X02}",
-                ["u8@22"] = $"0x{rom.u8(a + 22):X02}",
-                ["u8@23"] = $"0x{rom.u8(a + 23):X02}",
-                ["u8@24"] = $"0x{rom.u8(a + 24):X02}",
-                ["u8@25"] = $"0x{rom.u8(a + 25):X02}",
-                ["u8@26"] = $"0x{rom.u8(a + 26):X02}",
-                ["u8@27"] = $"0x{rom.u8(a + 27):X02}",
+                ["u32@0_PortraitImagePtr"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@4_MiniPortraitPtr"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@8_PalettePtr"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@12_MouthFramesPtr"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@16_ClassCardPtr"] = $"0x{rom.u32(a + 16):X08}",
+                ["u8@20_MouthX"] = $"0x{rom.u8(a + 20):X02}",
+                ["u8@21_MouthY"] = $"0x{rom.u8(a + 21):X02}",
+                ["u8@22_EyeX"] = $"0x{rom.u8(a + 22):X02}",
+                ["u8@23_EyeY"] = $"0x{rom.u8(a + 23):X02}",
+                ["u8@24_Status"] = $"0x{rom.u8(a + 24):X02}",
+                ["u8@25_Unused25"] = $"0x{rom.u8(a + 25):X02}",
+                ["u8@26_Unused26"] = $"0x{rom.u8(a + 26):X02}",
+                ["u8@27_Unused27"] = $"0x{rom.u8(a + 27):X02}",
             };
         }
     }

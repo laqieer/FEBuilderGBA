@@ -15,10 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Flag ID:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="D0Box" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="FlagIdBox" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit Data Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBox Grid.Row="2" Grid.Column="1" Name="P4Box" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit Info Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="UnitInfoPtrBox" Width="120" HorizontalAlignment="Left" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">

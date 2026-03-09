@@ -26,23 +26,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void SetDifficultyValue(uint u16Difficulty)
         {
+            _vm.LoadFromValue(u16Difficulty);
             DifficultyValueInput.Value = u16Difficulty & 0xffff;
-            HardBoostInput.Value = (u16Difficulty & 0xf0) >> 4;
-            EasyPenaltyInput.Value = u16Difficulty & 0x0f;
-            NormalPenaltyInput.Value = (u16Difficulty & 0x0f00) >> 8;
+            HardBoostInput.Value = _vm.HardBoost;
+            NormalPenaltyInput.Value = _vm.NormalPenalty;
+            EasyPenaltyInput.Value = _vm.EasyPenalty;
         }
 
         public uint GetDifficultyValue()
         {
-            return (uint)(DifficultyValueInput.Value ?? 0);
+            return _vm.DifficultyValue;
         }
 
         void OnBoostChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
-            uint hard = (uint)(HardBoostInput.Value ?? 0);
-            uint easy = (uint)(EasyPenaltyInput.Value ?? 0);
-            uint normal = (uint)(NormalPenaltyInput.Value ?? 0);
-            DifficultyValueInput.Value = (hard << 4) | easy | (normal << 8);
+            _vm.HardBoost = (int)(HardBoostInput.Value ?? 0);
+            _vm.NormalPenalty = (int)(NormalPenaltyInput.Value ?? 0);
+            _vm.EasyPenalty = (int)(EasyPenaltyInput.Value ?? 0);
+            DifficultyValueInput.Value = _vm.DifficultyValue;
         }
 
         void OK_Click(object? sender, RoutedEventArgs e)

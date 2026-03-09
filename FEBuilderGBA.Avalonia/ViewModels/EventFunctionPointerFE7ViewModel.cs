@@ -7,15 +7,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _p0;
-        uint _d4;
+        uint _eventCommandFunctionPointer;
+        uint _unknown4;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        // P0: pointer at offset 0
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-        // D4: u32 field at offset 4
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
+        // P0: Event command function pointer (u32 at offset 0) — ASM pointer
+        public uint EventCommandFunctionPointer { get => _eventCommandFunctionPointer; set => SetField(ref _eventCommandFunctionPointer, value); }
+        // D4: Unknown value (u32 at offset 4) — possibly size or category
+        public uint Unknown4 { get => _unknown4; set => SetField(ref _unknown4, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -34,9 +34,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
+            EventCommandFunctionPointer = rom.u32(addr + 0);
+            Unknown4 = rom.u32(addr + 4);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint a = CurrentAddr;
+            if (a + 8 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(a + 0, EventCommandFunctionPointer);
+            rom.write_u32(a + 4, Unknown4);
         }
 
         public int GetListCount() => 0;
@@ -45,8 +56,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["P0"] = P0.ToString("X08"),
-                ["D4"] = D4.ToString("X08"),
+                ["EventCommandFunctionPointer"] = EventCommandFunctionPointer.ToString("X08"),
+                ["Unknown4"] = Unknown4.ToString("X08"),
             };
         }
 
@@ -59,8 +70,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x00_EventCommandFunctionPointer"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_Unknown4"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
     }

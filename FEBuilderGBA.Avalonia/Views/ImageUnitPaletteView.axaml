@@ -10,9 +10,52 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Palette Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="200,120,20,200,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Row 1: Identifier string (decoded) -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Identifier:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="4" Name="IdentNameLabel" VerticalAlignment="Center" FontFamily="Consolas" />
+
+          <!-- Row 2-4: Identifier bytes in pairs -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Id 0:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Id0Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Id 1:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="Id1Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Id 2:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Id2Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Id 3:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="Id3Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Id 4:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Id4Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Text="Id 5:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="4" Name="Id5Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Id 6:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Id6Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Text="Id 7:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="4" Name="Id7Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Id 8:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="Id8Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="6" Grid.Column="3" Text="Id 9:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="4" Name="Id9Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Id 10:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="Id10Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="7" Grid.Column="3" Text="Id 11:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="4" Name="Id11Box" Minimum="0" Maximum="255" />
+
+          <!-- Row 8: Palette Pointer -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Palette Ptr (P12):" VerticalAlignment="Center" />
+          <TextBox Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Name="PalettePointerBox" Width="160" />
+
+          <!-- Row 9: Write button -->
+          <Button Grid.Row="9" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

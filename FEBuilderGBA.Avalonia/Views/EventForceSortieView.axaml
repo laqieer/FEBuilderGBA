@@ -10,10 +10,24 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Force Sortie Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitUpDown" Minimum="0" Maximum="65535"
+                         FormatString="X4" Margin="0,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Squad:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="SquadUpDown" Minimum="0" Maximum="255"
+                         FormatString="X2" Margin="0,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Chapter ID:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ChapterIdUpDown" Minimum="0" Maximum="255"
+                         FormatString="X2" Margin="0,4" />
         </Grid>
+
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

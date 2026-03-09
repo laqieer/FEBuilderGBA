@@ -7,23 +7,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0, _d4, _d8, _d12;
+        bool _canWrite;
+        uint _unitId, _conversationText1, _conversationText2, _conversationText3;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint D4 { get => _d4; set => SetField(ref _d4, value); }
-        public uint D8 { get => _d8; set => SetField(ref _d8, value); }
-        public uint D12 { get => _d12; set => SetField(ref _d12, value); }
+        public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
+        public uint ConversationText1 { get => _conversationText1; set => SetField(ref _conversationText1, value); }
+        public uint ConversationText2 { get => _conversationText2; set => SetField(ref _conversationText2, value); }
+        public uint ConversationText3 { get => _conversationText3; set => SetField(ref _conversationText3, value); }
 
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.senseki_comment_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "ED Senseki Comment", 0));
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = (uint)(baseAddr + i * 16);
+                if (addr + 16 > (uint)rom.Data.Length) break;
+
+                if (rom.u16(addr) == 0x0) break;
+
+                uint uid = rom.u32(addr + 0);
+                string name = U.ToHexString(uid) + " Senseki Comment";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 
@@ -34,12 +52,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 15 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
-            D8 = rom.u32(addr + 8);
-            D12 = rom.u32(addr + 12);
+            UnitId = rom.u32(addr + 0);
+            ConversationText1 = rom.u32(addr + 4);
+            ConversationText2 = rom.u32(addr + 8);
+            ConversationText3 = rom.u32(addr + 12);
 
             IsLoaded = true;
+            CanWrite = true;
+        }
+
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + 16 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(CurrentAddr + 0, UnitId);
+            rom.write_u32(CurrentAddr + 4, ConversationText1);
+            rom.write_u32(CurrentAddr + 8, ConversationText2);
+            rom.write_u32(CurrentAddr + 12, ConversationText3);
         }
 
         public int GetListCount() => LoadList().Count;
@@ -49,10 +80,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["D0"] = $"0x{D0:X08}",
-                ["D4"] = $"0x{D4:X08}",
-                ["D8"] = $"0x{D8:X08}",
-                ["D12"] = $"0x{D12:X08}",
+                ["UnitId"] = $"0x{UnitId:X08}",
+                ["ConversationText1"] = $"0x{ConversationText1:X08}",
+                ["ConversationText2"] = $"0x{ConversationText2:X08}",
+                ["ConversationText3"] = $"0x{ConversationText3:X08}",
             };
         }
 
@@ -64,10 +95,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["u32@0x08"] = $"0x{rom.u32(a + 8):X08}",
-                ["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}",
+                ["u32@0x00_UnitId"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x04_ConversationText1"] = $"0x{rom.u32(a + 4):X08}",
+                ["u32@0x08_ConversationText2"] = $"0x{rom.u32(a + 8):X08}",
+                ["u32@0x0C_ConversationText3"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
     }

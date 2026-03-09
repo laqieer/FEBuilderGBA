@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -49,6 +50,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            UnitUpDown.Value = _vm.Unit;
+            SquadUpDown.Value = _vm.Squad;
+            ChapterIdUpDown.Value = _vm.ChapterId;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.Unit = (uint)(UnitUpDown.Value ?? 0);
+                _vm.Squad = (uint)(SquadUpDown.Value ?? 0);
+                _vm.ChapterId = (uint)(ChapterIdUpDown.Value ?? 0);
+                _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventForceSortieView.OnWrite failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

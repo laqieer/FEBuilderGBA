@@ -10,10 +10,35 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Palette Assignment" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="220,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Trainee Class (trainee only):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TraineeClassBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Base Class 1:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="BaseClass1Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Base Class 2 (trainee only):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="BaseClass2Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Advanced Class 1:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="AdvancedClass1Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Advanced Class 2:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="AdvancedClass2Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Advanced Class 3:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="AdvancedClass3Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Advanced Class 4:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="AdvancedClass4Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

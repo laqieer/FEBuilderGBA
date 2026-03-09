@@ -15,7 +15,7 @@
     <StackPanel Grid.Column="1" Spacing="6">
       <!-- Info textbox (WinForms Info 629x117 readonly multiline) -->
       <TextBox Name="InfoTextBox" Height="117" IsReadOnly="True" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" />
+               Text="{Binding InfoText}" FontFamily="Consolas, Courier New, monospace" />
       <!-- TestPlay button (WinForms TestPlayButton 629x41) -->
       <Button Name="TestPlayButton" Content="Test Play in Emulator" Height="41"
               HorizontalAlignment="Stretch" Click="TestPlay_Click" />

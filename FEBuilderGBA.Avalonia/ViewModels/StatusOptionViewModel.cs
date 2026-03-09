@@ -7,47 +7,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _isLoaded;
-        uint _d0;
-        uint _w4;
-        uint _w6;
-        uint _w8;
-        uint _w10;
-        uint _w12;
-        uint _w14;
-        uint _w16;
-        uint _w18;
-        uint _w20;
-        uint _w22;
-        uint _w24;
-        uint _w26;
-        uint _w28;
-        uint _w30;
-        uint _w32;
-        uint _w34;
-        uint _d36;
-        uint _p40;
+        uint _idTextId;
+        uint _nameTextId;
+        uint _helpTextId;
+        uint _posX;
+        uint _posY;
+        uint _selectionText1;
+        uint _selectionText2;
+        uint _columns;
+        uint _rows;
+        uint _defaultTextId;
+        uint _yesTextId;
+        uint _minValue;
+        uint _maxValue;
+        uint _onOffText1;
+        uint _onOffText2;
+        uint _defaultValue;
+        uint _optionType;
+        uint _iconId;
+        uint _asmPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint D0 { get => _d0; set => SetField(ref _d0, value); }
-        public uint W4 { get => _w4; set => SetField(ref _w4, value); }
-        public uint W6 { get => _w6; set => SetField(ref _w6, value); }
-        public uint W8 { get => _w8; set => SetField(ref _w8, value); }
-        public uint W10 { get => _w10; set => SetField(ref _w10, value); }
-        public uint W12 { get => _w12; set => SetField(ref _w12, value); }
-        public uint W14 { get => _w14; set => SetField(ref _w14, value); }
-        public uint W16 { get => _w16; set => SetField(ref _w16, value); }
-        public uint W18 { get => _w18; set => SetField(ref _w18, value); }
-        public uint W20 { get => _w20; set => SetField(ref _w20, value); }
-        public uint W22 { get => _w22; set => SetField(ref _w22, value); }
-        public uint W24 { get => _w24; set => SetField(ref _w24, value); }
-        public uint W26 { get => _w26; set => SetField(ref _w26, value); }
-        public uint W28 { get => _w28; set => SetField(ref _w28, value); }
-        public uint W30 { get => _w30; set => SetField(ref _w30, value); }
-        public uint W32 { get => _w32; set => SetField(ref _w32, value); }
-        public uint W34 { get => _w34; set => SetField(ref _w34, value); }
-        public uint D36 { get => _d36; set => SetField(ref _d36, value); }
-        public uint P40 { get => _p40; set => SetField(ref _p40, value); }
+        public uint IdTextId { get => _idTextId; set => SetField(ref _idTextId, value); }
+        public uint NameTextId { get => _nameTextId; set => SetField(ref _nameTextId, value); }
+        public uint HelpTextId { get => _helpTextId; set => SetField(ref _helpTextId, value); }
+        public uint PosX { get => _posX; set => SetField(ref _posX, value); }
+        public uint PosY { get => _posY; set => SetField(ref _posY, value); }
+        public uint SelectionText1 { get => _selectionText1; set => SetField(ref _selectionText1, value); }
+        public uint SelectionText2 { get => _selectionText2; set => SetField(ref _selectionText2, value); }
+        public uint Columns { get => _columns; set => SetField(ref _columns, value); }
+        public uint Rows { get => _rows; set => SetField(ref _rows, value); }
+        public uint DefaultTextId { get => _defaultTextId; set => SetField(ref _defaultTextId, value); }
+        public uint YesTextId { get => _yesTextId; set => SetField(ref _yesTextId, value); }
+        public uint MinValue { get => _minValue; set => SetField(ref _minValue, value); }
+        public uint MaxValue { get => _maxValue; set => SetField(ref _maxValue, value); }
+        public uint OnOffText1 { get => _onOffText1; set => SetField(ref _onOffText1, value); }
+        public uint OnOffText2 { get => _onOffText2; set => SetField(ref _onOffText2, value); }
+        public uint DefaultValue { get => _defaultValue; set => SetField(ref _defaultValue, value); }
+        public uint OptionType { get => _optionType; set => SetField(ref _optionType, value); }
+        public uint IconId { get => _iconId; set => SetField(ref _iconId, value); }
+        public uint AsmPointer { get => _asmPointer; set => SetField(ref _asmPointer, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -66,26 +66,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 44 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            D0 = rom.u32(addr + 0);
-            W4 = rom.u16(addr + 4);
-            W6 = rom.u16(addr + 6);
-            W8 = rom.u16(addr + 8);
-            W10 = rom.u16(addr + 10);
-            W12 = rom.u16(addr + 12);
-            W14 = rom.u16(addr + 14);
-            W16 = rom.u16(addr + 16);
-            W18 = rom.u16(addr + 18);
-            W20 = rom.u16(addr + 20);
-            W22 = rom.u16(addr + 22);
-            W24 = rom.u16(addr + 24);
-            W26 = rom.u16(addr + 26);
-            W28 = rom.u16(addr + 28);
-            W30 = rom.u16(addr + 30);
-            W32 = rom.u16(addr + 32);
-            W34 = rom.u16(addr + 34);
-            D36 = rom.u32(addr + 36);
-            P40 = rom.u32(addr + 40);
+            IdTextId = rom.u32(addr + 0);
+            NameTextId = rom.u16(addr + 4);
+            HelpTextId = rom.u16(addr + 6);
+            PosX = rom.u16(addr + 8);
+            PosY = rom.u16(addr + 10);
+            SelectionText1 = rom.u16(addr + 12);
+            SelectionText2 = rom.u16(addr + 14);
+            Columns = rom.u16(addr + 16);
+            Rows = rom.u16(addr + 18);
+            DefaultTextId = rom.u16(addr + 20);
+            YesTextId = rom.u16(addr + 22);
+            MinValue = rom.u16(addr + 24);
+            MaxValue = rom.u16(addr + 26);
+            OnOffText1 = rom.u16(addr + 28);
+            OnOffText2 = rom.u16(addr + 30);
+            DefaultValue = rom.u16(addr + 32);
+            OptionType = rom.u16(addr + 34);
+            IconId = rom.u32(addr + 36);
+            AsmPointer = rom.u32(addr + 40);
             IsLoaded = true;
+        }
+
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            uint addr = CurrentAddr;
+            if (addr + 44 > (uint)rom.Data.Length) return;
+
+            rom.write_u32(addr + 0, IdTextId);
+            rom.write_u16(addr + 4, (ushort)NameTextId);
+            rom.write_u16(addr + 6, (ushort)HelpTextId);
+            rom.write_u16(addr + 8, (ushort)PosX);
+            rom.write_u16(addr + 10, (ushort)PosY);
+            rom.write_u16(addr + 12, (ushort)SelectionText1);
+            rom.write_u16(addr + 14, (ushort)SelectionText2);
+            rom.write_u16(addr + 16, (ushort)Columns);
+            rom.write_u16(addr + 18, (ushort)Rows);
+            rom.write_u16(addr + 20, (ushort)DefaultTextId);
+            rom.write_u16(addr + 22, (ushort)YesTextId);
+            rom.write_u16(addr + 24, (ushort)MinValue);
+            rom.write_u16(addr + 26, (ushort)MaxValue);
+            rom.write_u16(addr + 28, (ushort)OnOffText1);
+            rom.write_u16(addr + 30, (ushort)OnOffText2);
+            rom.write_u16(addr + 32, (ushort)DefaultValue);
+            rom.write_u16(addr + 34, (ushort)OptionType);
+            rom.write_u32(addr + 36, IconId);
+            rom.write_u32(addr + 40, AsmPointer);
         }
 
         public int GetListCount() => 0;
@@ -94,25 +122,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                { "D0", D0.ToString("X08") },
-                { "W4", W4.ToString("X04") },
-                { "W6", W6.ToString("X04") },
-                { "W8", W8.ToString("X04") },
-                { "W10", W10.ToString("X04") },
-                { "W12", W12.ToString("X04") },
-                { "W14", W14.ToString("X04") },
-                { "W16", W16.ToString("X04") },
-                { "W18", W18.ToString("X04") },
-                { "W20", W20.ToString("X04") },
-                { "W22", W22.ToString("X04") },
-                { "W24", W24.ToString("X04") },
-                { "W26", W26.ToString("X04") },
-                { "W28", W28.ToString("X04") },
-                { "W30", W30.ToString("X04") },
-                { "W32", W32.ToString("X04") },
-                { "W34", W34.ToString("X04") },
-                { "D36", D36.ToString("X08") },
-                { "P40", P40.ToString("X08") },
+                { "IdTextId", IdTextId.ToString("X08") },
+                { "NameTextId", NameTextId.ToString("X04") },
+                { "HelpTextId", HelpTextId.ToString("X04") },
+                { "PosX", PosX.ToString("X04") },
+                { "PosY", PosY.ToString("X04") },
+                { "SelectionText1", SelectionText1.ToString("X04") },
+                { "SelectionText2", SelectionText2.ToString("X04") },
+                { "Columns", Columns.ToString("X04") },
+                { "Rows", Rows.ToString("X04") },
+                { "DefaultTextId", DefaultTextId.ToString("X04") },
+                { "YesTextId", YesTextId.ToString("X04") },
+                { "MinValue", MinValue.ToString("X04") },
+                { "MaxValue", MaxValue.ToString("X04") },
+                { "OnOffText1", OnOffText1.ToString("X04") },
+                { "OnOffText2", OnOffText2.ToString("X04") },
+                { "DefaultValue", DefaultValue.ToString("X04") },
+                { "OptionType", OptionType.ToString("X04") },
+                { "IconId", IconId.ToString("X08") },
+                { "AsmPointer", AsmPointer.ToString("X08") },
             };
         }
 
@@ -124,25 +152,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
-                ["u16@0x04"] = $"0x{rom.u16(a + 4):X04}",
-                ["u16@0x06"] = $"0x{rom.u16(a + 6):X04}",
-                ["u16@0x08"] = $"0x{rom.u16(a + 8):X04}",
-                ["u16@0x0A"] = $"0x{rom.u16(a + 10):X04}",
-                ["u16@0x0C"] = $"0x{rom.u16(a + 12):X04}",
-                ["u16@0x0E"] = $"0x{rom.u16(a + 14):X04}",
-                ["u16@0x10"] = $"0x{rom.u16(a + 16):X04}",
-                ["u16@0x12"] = $"0x{rom.u16(a + 18):X04}",
-                ["u16@0x14"] = $"0x{rom.u16(a + 20):X04}",
-                ["u16@0x16"] = $"0x{rom.u16(a + 22):X04}",
-                ["u16@0x18"] = $"0x{rom.u16(a + 24):X04}",
-                ["u16@0x1A"] = $"0x{rom.u16(a + 26):X04}",
-                ["u16@0x1C"] = $"0x{rom.u16(a + 28):X04}",
-                ["u16@0x1E"] = $"0x{rom.u16(a + 30):X04}",
-                ["u16@0x20"] = $"0x{rom.u16(a + 32):X04}",
-                ["u16@0x22"] = $"0x{rom.u16(a + 34):X04}",
-                ["u32@0x24"] = $"0x{rom.u32(a + 36):X08}",
-                ["u32@0x28"] = $"0x{rom.u32(a + 40):X08}",
+                ["u32@0x00_IdTextId"] = $"0x{rom.u32(a + 0):X08}",
+                ["u16@0x04_NameTextId"] = $"0x{rom.u16(a + 4):X04}",
+                ["u16@0x06_HelpTextId"] = $"0x{rom.u16(a + 6):X04}",
+                ["u16@0x08_PosX"] = $"0x{rom.u16(a + 8):X04}",
+                ["u16@0x0A_PosY"] = $"0x{rom.u16(a + 10):X04}",
+                ["u16@0x0C_SelectionText1"] = $"0x{rom.u16(a + 12):X04}",
+                ["u16@0x0E_SelectionText2"] = $"0x{rom.u16(a + 14):X04}",
+                ["u16@0x10_Columns"] = $"0x{rom.u16(a + 16):X04}",
+                ["u16@0x12_Rows"] = $"0x{rom.u16(a + 18):X04}",
+                ["u16@0x14_DefaultTextId"] = $"0x{rom.u16(a + 20):X04}",
+                ["u16@0x16_YesTextId"] = $"0x{rom.u16(a + 22):X04}",
+                ["u16@0x18_MinValue"] = $"0x{rom.u16(a + 24):X04}",
+                ["u16@0x1A_MaxValue"] = $"0x{rom.u16(a + 26):X04}",
+                ["u16@0x1C_OnOffText1"] = $"0x{rom.u16(a + 28):X04}",
+                ["u16@0x1E_OnOffText2"] = $"0x{rom.u16(a + 30):X04}",
+                ["u16@0x20_DefaultValue"] = $"0x{rom.u16(a + 32):X04}",
+                ["u16@0x22_OptionType"] = $"0x{rom.u16(a + 34):X04}",
+                ["u32@0x24_IconId"] = $"0x{rom.u32(a + 36):X08}",
+                ["u32@0x28_AsmPointer"] = $"0x{rom.u32(a + 40):X08}",
             };
         }
     }
