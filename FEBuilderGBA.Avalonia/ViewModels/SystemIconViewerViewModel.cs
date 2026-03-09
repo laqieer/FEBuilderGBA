@@ -8,18 +8,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         bool _canWrite;
-        uint _imagePointer, _palettePointer;
-        uint _selectedIconIndex;
+        uint _iconIndex;
+        uint _tileOffset;
+        uint _imageGbaPointer, _paletteGbaPointer;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
-        public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
-        public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
+        public uint IconIndex { get => _iconIndex; set => SetField(ref _iconIndex, value); }
+        public uint TileOffset { get => _tileOffset; set => SetField(ref _tileOffset, value); }
+        public uint ImageGbaPointer { get => _imageGbaPointer; set => SetField(ref _imageGbaPointer, value); }
+        public uint PaletteGbaPointer { get => _paletteGbaPointer; set => SetField(ref _paletteGbaPointer, value); }
 
         // Cached decoded tile data and palette for the icon sheet
         byte[] _tileData;
         byte[] _palette;
         int _sheetTilesX; // sheet width in tiles
+        uint _imgRomAddr; // ROM offset of compressed image data
 
         public List<AddrResult> LoadSystemIconList()
         {
@@ -29,10 +33,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint imgPtr = rom.RomInfo.system_icon_pointer;
             if (imgPtr == 0) return new List<AddrResult>();
 
-            uint imgAddr = rom.p32(imgPtr);
-            if (!U.isSafetyOffset(imgAddr)) return new List<AddrResult>();
+            _imgRomAddr = rom.p32(imgPtr);
+            if (!U.isSafetyOffset(_imgRomAddr)) return new List<AddrResult>();
 
-            _tileData = LZ77.decompress(rom.Data, imgAddr);
+            _tileData = LZ77.decompress(rom.Data, _imgRomAddr);
             if (_tileData == null || _tileData.Length == 0) return new List<AddrResult>();
 
             uint palPtr = rom.RomInfo.system_icon_palette_pointer;
@@ -60,6 +64,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             for (uint i = 0; i < (uint)totalIcons; i++)
             {
                 string name = U.ToHexString(i) + " System Icon";
+                // Use icon index as addr (passed to LoadSystemIconByIndex via SelectedAddressChanged)
                 result.Add(new AddrResult(i, name, i));
             }
             return result;
@@ -67,20 +72,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void LoadSystemIcon(uint addr)
         {
+            // addr is the icon index (from AddrResult.addr)
+            LoadSystemIconByIndex(addr);
+        }
+
+        /// <summary>
+        /// Load a specific icon by list index.
+        /// </summary>
+        public void LoadSystemIconByIndex(uint index)
+        {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            CurrentAddr = addr;
-            _selectedIconIndex = addr; // addr is the icon index (set as AddrResult.addr = i)
-            ImagePointer = rom.RomInfo.system_icon_pointer;
-            PalettePointer = rom.RomInfo.system_icon_palette_pointer;
+
+            IconIndex = index;
+            _iconIndex = index;
+            CurrentAddr = _imgRomAddr; // ROM offset of compressed image data
+
+            // Store GBA pointers for display
+            ImageGbaPointer = rom.u32(rom.RomInfo.system_icon_pointer);
+            PaletteGbaPointer = rom.u32(rom.RomInfo.system_icon_palette_pointer);
+
+            // Calculate tile offset for this icon within decompressed data
+            int iconsPerRow = _sheetTilesX / 2;
+            if (iconsPerRow > 0)
+            {
+                int iconX = (int)(index % (uint)iconsPerRow);
+                int iconY = (int)(index / (uint)iconsPerRow);
+                int startTileX = iconX * 2;
+                int startTileY = iconY * 2;
+                TileOffset = (uint)((startTileY * _sheetTilesX + startTileX) * 32);
+            }
+
             CanWrite = true;
         }
 
         /// <summary>
         /// Extract and render a single 16×16 icon from the tile sheet.
-        /// Icons are arranged in a grid: iconsPerRow icons across, each 2×2 tiles.
-        /// Tile data is stored row-by-row in the sheet (tile at sheet position (tx,ty)
-        /// is at offset (ty * sheetTilesX + tx) * 32 in the decompressed data).
         /// </summary>
         public IImage TryLoadImage()
         {
@@ -90,15 +117,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             int iconsPerRow = _sheetTilesX / 2;
             if (iconsPerRow <= 0) return null;
 
-            int iconX = (int)(_selectedIconIndex % (uint)iconsPerRow); // icon column
-            int iconY = (int)(_selectedIconIndex / (uint)iconsPerRow); // icon row
+            int iconX = (int)(_iconIndex % (uint)iconsPerRow);
+            int iconY = (int)(_iconIndex / (uint)iconsPerRow);
 
-            // Each icon starts at tile position (iconX*2, iconY*2) in the sheet
             int startTileX = iconX * 2;
             int startTileY = iconY * 2;
 
             // Extract 4 tiles (2×2) into a contiguous 16×16 tile buffer
-            byte[] iconTiles = new byte[4 * 32]; // 4 tiles × 32 bytes per 4bpp tile
+            byte[] iconTiles = new byte[4 * 32];
             for (int ty = 0; ty < 2; ty++)
             {
                 for (int tx = 0; tx < 2; tx++)
@@ -122,8 +148,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["ImagePointer"] = $"0x{ImagePointer:X08}",
-                ["PalettePointer"] = $"0x{PalettePointer:X08}",
+                ["IconIndex"] = $"0x{IconIndex:X02}",
+                ["TileOffset"] = $"0x{TileOffset:X04}",
+                ["ImageGbaPointer"] = $"0x{ImageGbaPointer:X08}",
+                ["PaletteGbaPointer"] = $"0x{PaletteGbaPointer:X08}",
             };
         }
 
@@ -135,8 +163,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["system_icon_pointer"] = $"0x{ImagePointer:X08}",
-                ["system_icon_palette_pointer"] = $"0x{PalettePointer:X08}",
+                ["system_icon_pointer"] = $"0x{rom.RomInfo.system_icon_pointer:X08}",
+                ["system_icon_palette_pointer"] = $"0x{rom.RomInfo.system_icon_palette_pointer:X08}",
+                ["system_icon_width_address"] = $"0x{rom.RomInfo.system_icon_width_address:X08}",
             };
         }
     }

@@ -31,7 +31,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _vm.LoadSystemIcon(addr);
+                // addr here is the icon index (stored in AddrResult.addr)
+                _vm.LoadSystemIconByIndex(addr);
                 UpdateUI();
                 LoadImage();
             }
@@ -40,9 +41,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            IconIndexLabel.Text = $"0x{_vm.IconIndex:X02} ({_vm.IconIndex})";
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrLabel.Text = $"0x{_vm.ImagePointer:X08}";
-            PalPtrLabel.Text = $"0x{_vm.PalettePointer:X08}";
+            ImgPtrLabel.Text = $"0x{_vm.ImageGbaPointer:X08}";
+            PalPtrLabel.Text = $"0x{_vm.PaletteGbaPointer:X08}";
+            TileOffsetLabel.Text = $"0x{_vm.TileOffset:X04}";
         }
 
         void LoadImage()
