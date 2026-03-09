@@ -249,16 +249,16 @@
           <StackPanel Spacing="4">
             <TextBlock Text="Pointers (D96-D108)" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,180" RowDefinitions="Auto,Auto,Auto,Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="D96:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Eliwood Normal (D96):" VerticalAlignment="Center" />
               <TextBox Grid.Row="0" Grid.Column="1" Name="ND96" Width="120" />
 
-              <TextBlock Grid.Row="1" Grid.Column="0" Text="D100:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Eliwood Hard (D100):" VerticalAlignment="Center" />
               <TextBox Grid.Row="1" Grid.Column="1" Name="ND100" Width="120" />
 
-              <TextBlock Grid.Row="2" Grid.Column="0" Text="D104:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Hector Normal (D104):" VerticalAlignment="Center" />
               <TextBox Grid.Row="2" Grid.Column="1" Name="ND104" Width="120" />
 
-              <TextBlock Grid.Row="3" Grid.Column="0" Text="D108:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Hector Hard (D108):" VerticalAlignment="Center" />
               <TextBox Grid.Row="3" Grid.Column="1" Name="ND108" Width="120" />
             </Grid>
           </StackPanel>
@@ -292,42 +292,42 @@
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B118: ??" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB118" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="1" Grid.Column="3" Text="B119:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="?? (B119):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NB119" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="2" Grid.Column="0" Text="B120:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="?? (B120):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB120" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="2" Grid.Column="3" Text="B121:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Grid.Column="3" Text="?? (B121):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NB121" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="3" Grid.Column="0" Text="B122: ??" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="?? (B122):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB122" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="3" Grid.Column="3" Text="B123:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="3" Text="?? (B123):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NB123" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="4" Grid.Column="0" Text="B124:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="?? (B124):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NB124" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="4" Grid.Column="3" Text="B125:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="4" Grid.Column="3" Text="?? (B125):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="4" Grid.Column="4" Name="NB125" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="5" Grid.Column="0" Text="B126: ??" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="?? (B126):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="5" Grid.Column="1" Name="NB126" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="5" Grid.Column="3" Text="B127:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="5" Grid.Column="3" Text="?? (B127):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="5" Grid.Column="4" Name="NB127" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="6" Grid.Column="0" Text="B128: Chapter number" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="Chapter number (B128):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="6" Grid.Column="1" Name="NB128" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="6" Grid.Column="3" Text="B129: ??" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="6" Grid.Column="3" Text="?? (B129):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="6" Grid.Column="4" Name="NB129" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="7" Grid.Column="0" Text="B130:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="?? (B130):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="7" Grid.Column="1" Name="NB130" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="7" Grid.Column="3" Text="B131:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="7" Grid.Column="3" Text="?? (B131):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="7" Grid.Column="4" Name="NB131" Minimum="0" Maximum="255" />
 
-              <TextBlock Grid.Row="8" Grid.Column="0" Text="B132: ??" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="8" Grid.Column="0" Text="?? (B132):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="8" Grid.Column="1" Name="NB132" Minimum="0" Maximum="255" />
-              <TextBlock Grid.Row="8" Grid.Column="3" Text="B133:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="8" Grid.Column="3" Text="?? (B133):" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="8" Grid.Column="4" Name="NB133" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="9" Grid.Column="0" Text="B134: Enemies for victory BGM" VerticalAlignment="Center" />

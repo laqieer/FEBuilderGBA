@@ -102,7 +102,7 @@
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="B30 Count:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B30Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="B31:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="?? (B31):" VerticalAlignment="Center" Margin="8,2,0,2" />
           <NumericUpDown Grid.Row="0" Grid.Column="3" Name="B31Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
