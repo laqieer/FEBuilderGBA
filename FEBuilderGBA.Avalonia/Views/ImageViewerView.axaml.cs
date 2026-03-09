@@ -22,6 +22,11 @@ namespace FEBuilderGBA.Avalonia.Views
             InfoLabel.Text = info ?? "";
         }
 
+        async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            await ImageControl.ExportPng(this, "image.png");
+        }
+
         void ZoomBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (ZoomBox.Value.HasValue)

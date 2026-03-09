@@ -64,6 +64,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
+        static readonly FilePickerFileType PngFileType = new("PNG Image")
+        {
+            Patterns = new[] { "*.png" },
+        };
+
+        /// <summary>Save a PNG image file.</summary>
+        public static async Task<string?> SaveImageFile(Window owner, string? suggestedName = null)
+        {
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Image",
+                SuggestedFileName = suggestedName ?? "image.png",
+                FileTypeChoices = new[] { PngFileType },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(Window owner, string title, string pattern)
         {

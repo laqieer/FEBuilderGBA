@@ -1,8 +1,11 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Controls
 {
@@ -122,6 +125,21 @@ namespace FEBuilderGBA.Avalonia.Controls
                 ImageDisplay.Width = _bitmap.PixelSize.Width * _zoom;
                 ImageDisplay.Height = _bitmap.PixelSize.Height * _zoom;
             }
+        }
+
+        /// <summary>Whether a bitmap is available for export.</summary>
+        public bool HasImage => _bitmap != null;
+
+        /// <summary>Export the current image as PNG via a save dialog.</summary>
+        public async Task ExportPng(Window owner, string? suggestedName = null)
+        {
+            if (_bitmap == null) return;
+
+            string? path = await FileDialogHelper.SaveImageFile(owner, suggestedName);
+            if (string.IsNullOrEmpty(path)) return;
+
+            using var stream = File.Create(path);
+            _bitmap.Save(stream);
         }
     }
 }

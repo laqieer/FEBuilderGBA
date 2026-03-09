@@ -64,6 +64,11 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.Services?.ShowInfo("OP Prologue data written.");
         }
 
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImageDisplay.ExportPng(this, "op_prologue.png");
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

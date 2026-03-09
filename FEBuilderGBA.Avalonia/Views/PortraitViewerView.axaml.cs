@@ -104,6 +104,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            await PortraitImage.ExportPng(this, "portrait.png");
+        }
+
         public void SelectFirstItem()
         {
             PortraitList.SelectFirst();

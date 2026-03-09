@@ -89,6 +89,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { ImageDisplay.SetImage(null); }
         }
 
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImageDisplay.ExportPng(this, "battle_terrain.png");
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

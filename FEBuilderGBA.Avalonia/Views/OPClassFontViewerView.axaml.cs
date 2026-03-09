@@ -61,6 +61,11 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.Services?.ShowInfo("OP Class Font data written.");
         }
 
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImageDisplay.ExportPng(this, "op_class_font.png");
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

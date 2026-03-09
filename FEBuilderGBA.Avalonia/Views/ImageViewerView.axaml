@@ -8,6 +8,7 @@
       <TextBlock Text="Zoom:" VerticalAlignment="Center" />
       <NumericUpDown Name="ZoomBox" Minimum="1" Maximum="8" Value="2" Width="80"
                      ValueChanged="ZoomBox_ValueChanged" />
+      <Button Content="Export PNG" Click="ExportPng_Click" Margin="8,0,0,0" />
       <TextBlock Name="InfoLabel" VerticalAlignment="Center" Margin="16,0,0,0" />
     </StackPanel>
     <ScrollViewer Margin="8">

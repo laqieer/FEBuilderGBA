@@ -16,6 +16,9 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="PalPtrLabel" VerticalAlignment="Center" />
         </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Export PNG" Click="ExportPng_Click" />
+        </StackPanel>
         <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
