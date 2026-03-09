@@ -26,14 +26,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.op_class_font_pointer;
-            if (baseAddr == 0)
+            uint ptrAddr = rom.RomInfo.op_class_font_pointer;
+            if (ptrAddr == 0)
             {
                 UnavailableMessage = "Not available for this ROM version";
                 CanWrite = true;
                 return new List<AddrResult>();
             }
 
+            // Double dereference (same as InputFormRef: p32 in caller + p32 in Init)
+            uint baseAddr = rom.p32p(ptrAddr);
             if (!U.isSafetyOffset(baseAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
@@ -43,7 +45,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             UnavailableMessage = "";
             var result = new List<AddrResult>();
-            // datasize=4, up to 0x7B entries
             for (uint i = 0; i <= 0x7a; i++)
             {
                 uint addr = (uint)(baseAddr + i * 4);

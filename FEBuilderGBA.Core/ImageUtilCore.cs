@@ -113,23 +113,24 @@ namespace FEBuilderGBA
         /// TSA entries are 16-bit: bits 0-9 = tile index, bits 10-11 = flip, bits 12-15 = palette.
         /// </summary>
         public static IImage DecodeTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
-            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true)
+            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true, int tsaOffset = 0)
         {
             if (CoreState.ImageService == null) return null;
 
             int width = screenWidthTiles * 8;
             int height = screenHeightTiles * 8;
-            int colorCount = is4bpp ? 16 : 256;
 
-            // Create output image
             var image = CoreState.ImageService.CreateImage(width, height);
             byte[] pixels = new byte[width * height * 4]; // RGBA
 
-            int tsaEntryCount = Math.Min(tsaData.Length / 2, screenWidthTiles * screenHeightTiles);
+            int maxEntries = screenWidthTiles * screenHeightTiles;
+            int availableEntries = (tsaData.Length - tsaOffset) / 2;
+            int tsaEntryCount = Math.Min(availableEntries, maxEntries);
 
             for (int i = 0; i < tsaEntryCount; i++)
             {
-                ushort tsaEntry = (ushort)(tsaData[i * 2] | (tsaData[i * 2 + 1] << 8));
+                int bytePos = tsaOffset + i * 2;
+                ushort tsaEntry = (ushort)(tsaData[bytePos] | (tsaData[bytePos + 1] << 8));
                 int tileIndex = tsaEntry & 0x3FF;
                 bool hFlip = (tsaEntry & 0x400) != 0;
                 bool vFlip = (tsaEntry & 0x800) != 0;
@@ -138,13 +139,31 @@ namespace FEBuilderGBA
                 int tileX = (i % screenWidthTiles) * 8;
                 int tileY = (i / screenWidthTiles) * 8;
 
-                // Decode one tile
                 DecodeTileToPixels(tileData, tileIndex, gbaPalette, palIndex,
                     pixels, width, tileX, tileY, hFlip, vFlip, is4bpp);
             }
 
             image.SetPixelData(pixels);
             return image;
+        }
+
+        /// <summary>
+        /// Decode TSA with a 2-byte header (used by Big CG, OP Prologue).
+        /// The header contains width/height hints; TSA data follows after 2 bytes.
+        /// </summary>
+        public static IImage DecodeHeaderTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
+            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true)
+        {
+            // Header TSA: first 2 bytes are width/height hints, actual entries start at offset 2
+            int headerOffset = 0;
+            if (tsaData.Length >= 2)
+            {
+                int hdrX = tsaData[0];
+                int hdrY = tsaData[1];
+                if (hdrX <= 32 && hdrY <= 32)
+                    headerOffset = 2;
+            }
+            return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, headerOffset);
         }
 
         static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,

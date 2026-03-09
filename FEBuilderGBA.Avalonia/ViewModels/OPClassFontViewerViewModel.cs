@@ -19,8 +19,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.op_class_font_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptrAddr = rom.RomInfo.op_class_font_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+
+            // Double dereference (same as InputFormRef: p32 in caller + p32 in Init)
+            uint baseAddr = rom.p32p(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)

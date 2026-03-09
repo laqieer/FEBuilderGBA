@@ -98,21 +98,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] tileData = tileDataList.ToArray();
                 if (tileData.Length == 0) return null;
 
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                // Load palette (may contain multiple 16-color sub-palettes)
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
                 if (palette == null) return null;
 
+                // If TSA is available, use TSA-based rendering with palette selection
+                uint tsaPtr = TSAPointer;
+                if (U.isPointer(tsaPtr))
+                {
+                    uint tsaAddr = U.toOffset(tsaPtr);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                        if (tsaData != null && tsaData.Length > 0)
+                            return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20, true);
+                    }
+                }
+
+                // Fallback: render tiles without TSA (32x20 tiles = 256x160)
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
 
                 int tilesX = 32;
-                int tilesY = (totalTiles + tilesX - 1) / tilesX;
-                if (tilesY <= 0) tilesY = 1;
-
-                int width = tilesX * 8;
-                int height = tilesY * 8;
+                int tilesY = 20;
+                if (totalTiles < tilesX * tilesY)
+                {
+                    tilesY = (totalTiles + tilesX - 1) / tilesX;
+                    if (tilesY <= 0) tilesY = 1;
+                }
 
                 if (CoreState.ImageService == null) return null;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch { return null; }
         }

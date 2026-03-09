@@ -21,8 +21,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.battle_bg_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptr = rom.RomInfo.battle_bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -63,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Try to load battle BG image.
-        /// Battle BGs use LZ77-compressed 4bpp tiles + TSA + palette.
+        /// Battle BGs use LZ77-compressed 4bpp tiles + TSA + palette (all compressed).
         /// Returns null on failure.
         /// </summary>
         public IImage TryLoadImage()
@@ -73,6 +76,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 uint imgPtr = ImagePointer;
+                uint tsaPtr = TSAPointer;
                 uint palPtr = PalettePointer;
                 if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return null;
 
@@ -80,24 +84,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palAddr = U.toOffset(palPtr);
                 if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
 
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return null;
-
+                // All 3 components are LZ77-compressed
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
+                byte[] palette = LZ77.decompress(rom.Data, palAddr);
+                if (palette == null || palette.Length == 0) return null;
+
+                // If TSA is available, use TSA-based rendering (240x160)
+                if (U.isPointer(tsaPtr))
+                {
+                    uint tsaAddr = U.toOffset(tsaPtr);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                        if (tsaData != null && tsaData.Length > 0)
+                            return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
+                    }
+                }
+
+                // Fallback: render tiles without TSA
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
-
-                int tilesX = 32;
-                int tilesY = (totalTiles + tilesX - 1) / tilesX;
-                if (tilesY <= 0) tilesY = 1;
-
-                int width = tilesX * 8;
-                int height = tilesY * 8;
-
+                int tilesX = 30;
+                int tilesY = 20;
+                if (totalTiles < tilesX * tilesY)
+                    tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (CoreState.ImageService == null) return null;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch { return null; }
         }

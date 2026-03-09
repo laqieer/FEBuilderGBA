@@ -15,6 +15,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ImagePointer { get => _imagePointer; set => SetField(ref _imagePointer, value); }
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
+        IImage _cachedSheet;
+
         public List<AddrResult> LoadSystemIconList()
         {
             ROM rom = CoreState.ROM;
@@ -26,13 +28,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint imgAddr = rom.p32(imgPtr);
             if (!U.isSafetyOffset(imgAddr)) return new List<AddrResult>();
 
-            // System icons are stored as a single compressed block.
-            // We create virtual entries for each 16x16 icon.
+            byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+            if (tileData == null || tileData.Length == 0) return new List<AddrResult>();
+
+            uint palPtr = rom.RomInfo.system_icon_palette_pointer;
+            if (palPtr == 0) return new List<AddrResult>();
+            uint palAddr = rom.p32(palPtr);
+            if (!U.isSafetyOffset(palAddr)) return new List<AddrResult>();
+
+            byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+            if (palette == null) return new List<AddrResult>();
+
+            // Render full sheet: 16 tiles wide (128px), height from data
+            int totalTiles = tileData.Length / 32;
+            int tilesX = 16;
+            int tilesY = (totalTiles + tilesX - 1) / tilesX;
+            if (tilesY <= 0) tilesY = 1;
+
+            if (CoreState.ImageService != null)
+                _cachedSheet = CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+
+            // Create entries for icons (16x16 = 2x2 tiles each, 8 icons per row)
+            int iconsPerRow = tilesX / 2;
+            int totalIcons = (totalTiles / 2) / 2; // approximate
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x80; i++)
+            for (uint i = 0; i < (uint)totalIcons; i++)
             {
                 string name = U.ToHexString(i) + " System Icon";
-                result.Add(new AddrResult(imgAddr + i * 4, name, i));
+                result.Add(new AddrResult(i, name, i));
             }
             return result;
         }
@@ -48,42 +71,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load the full system icon sheet as an IImage.
-        /// System icons are stored as one compressed 4bpp block.
-        /// Returns null on failure.
+        /// Display the full system icon sheet.
+        /// Individual icon extraction requires 2D tile cropping not yet implemented.
         /// </summary>
         public IImage TryLoadImage()
         {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return null;
-            try
-            {
-                uint imgPtr = rom.RomInfo.system_icon_pointer;
-                uint palPtr = rom.RomInfo.system_icon_palette_pointer;
-                if (imgPtr == 0 || palPtr == 0) return null;
-
-                uint imgAddr = rom.p32(imgPtr);
-                uint palAddr = rom.p32(palPtr);
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return null;
-
-                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
-                if (tileData == null || tileData.Length == 0) return null;
-
-                int totalIcons = tileData.Length / 128;
-                if (totalIcons <= 0) return null;
-
-                int iconsPerRow = 8;
-                int rows = (totalIcons + iconsPerRow - 1) / iconsPerRow;
-                int width = iconsPerRow * 16;
-                int height = rows * 16;
-
-                if (CoreState.ImageService == null) return null;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
-            }
-            catch { return null; }
+            return _cachedSheet;
         }
 
         public int GetListCount() => LoadSystemIconList().Count;

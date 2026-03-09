@@ -37,8 +37,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.battle_terrain_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptr = rom.RomInfo.battle_terrain_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -132,6 +135,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Try to load battle terrain image.
+        /// Image and palette are LZ77-compressed.
         /// Returns null on failure.
         /// </summary>
         public IImage TryLoadImage()
@@ -148,11 +152,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palAddr = U.toOffset(palPtr);
                 if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
 
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return null;
-
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
+
+                // Palette is raw GBA data (not compressed)
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
 
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
@@ -161,11 +166,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (tilesY <= 0) tilesY = 1;
 
-                int width = tilesX * 8;
-                int height = tilesY * 8;
-
                 if (CoreState.ImageService == null) return null;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch { return null; }
         }

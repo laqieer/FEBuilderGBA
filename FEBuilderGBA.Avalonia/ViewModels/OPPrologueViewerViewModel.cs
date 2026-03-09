@@ -26,8 +26,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.op_prologue_image_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptrAddr = rom.RomInfo.op_prologue_image_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -68,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Try to load OP prologue image.
-        /// Uses LZ77-compressed tiles with shared palette.
+        /// Uses LZ77-compressed image + TSA with shared palette.
         /// Returns null on failure.
         /// </summary>
         public IImage TryLoadImage()
@@ -86,12 +89,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palAddr = PaletteColorPointer;
                 if (!U.isSafetyOffset(palAddr)) return null;
 
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                // Palette is raw GBA data (from shared palette pointer)
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
                 if (palette == null) return null;
 
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 
+                // Use TSA if available (256x160 = 32x20 tiles)
+                uint tsaPtr = TSAPointer;
+                if (U.isPointer(tsaPtr))
+                {
+                    uint tsaAddr = U.toOffset(tsaPtr);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                        if (tsaData != null && tsaData.Length > 0)
+                            return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20, true);
+                    }
+                }
+
+                // Fallback: render tiles without TSA
                 int totalTiles = tileData.Length / 32;
                 if (totalTiles <= 0) return null;
 
@@ -99,11 +117,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int tilesY = (totalTiles + tilesX - 1) / tilesX;
                 if (tilesY <= 0) tilesY = 1;
 
-                int width = tilesX * 8;
-                int height = tilesY * 8;
-
                 if (CoreState.ImageService == null) return null;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, width, height, palette);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch { return null; }
         }

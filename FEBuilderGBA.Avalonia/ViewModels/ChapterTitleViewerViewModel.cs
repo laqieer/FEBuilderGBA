@@ -21,8 +21,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.image_chapter_title_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptr = rom.RomInfo.image_chapter_title_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -30,7 +33,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint addr = (uint)(baseAddr + i * 12);
                 if (addr + 12 > (uint)rom.Data.Length) break;
 
-                // Entry validity: offset 0 should be a pointer
                 uint ptr0 = rom.u32(addr + 0);
                 if (!U.isPointer(ptr0)) break;
 

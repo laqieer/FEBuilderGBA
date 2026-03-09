@@ -9,7 +9,6 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SystemIconViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SystemIconViewerViewModel _vm = new();
-        uint _selectedIndex;
 
         public string ViewTitle => "System Icon Viewer";
         public bool IsLoaded => _vm.CanWrite;
@@ -32,14 +31,6 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Calculate the selected index from the address list
-                var items = _vm.LoadSystemIconList();
-                _selectedIndex = 0;
-                for (int i = 0; i < items.Count; i++)
-                {
-                    if (items[i].addr == addr) { _selectedIndex = items[i].tag; break; }
-                }
-
                 _vm.LoadSystemIcon(addr);
                 UpdateUI();
                 LoadImage();

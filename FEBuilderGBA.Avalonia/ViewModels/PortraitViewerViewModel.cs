@@ -124,7 +124,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load portrait image using Core image utils.
+        /// Try to load portrait map sprite (offset +4) as a 32x32 image.
+        /// Map portraits are always LZ77-compressed 4bpp, 4x4 tiles.
         /// Returns null if the portrait cannot be decoded.
         /// </summary>
         public IImage TryLoadPortraitImage()
@@ -134,22 +135,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                uint imgPtr = rom.u32(CurrentAddr + 0);
+                // Use map portrait (offset +4) — it's a simple 32x32 image
+                // Unit portrait (offset +0) requires complex multi-part assembly
+                uint mapPtr = rom.u32(CurrentAddr + 4);
                 uint palPtr = rom.u32(CurrentAddr + 8);
 
-                if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return null;
+                if (!U.isPointer(mapPtr) || !U.isPointer(palPtr)) return null;
 
-                uint imgAddr = imgPtr - 0x08000000;
-                uint palAddr = palPtr - 0x08000000;
+                uint mapAddr = U.toOffset(mapPtr);
+                uint palAddr = U.toOffset(palPtr);
 
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+                if (!U.isSafetyOffset(mapAddr) || !U.isSafetyOffset(palAddr)) return null;
 
-                // Load palette (16 colors * 2 bytes = 32 bytes)
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                // Load compressed image tiles (typically 4bpp, 32x32 = 4 tiles x 4 tiles)
-                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                return ImageUtilCore.LoadROMTiles4bpp(mapAddr, palette, 4, 4, true);
             }
             catch
             {
