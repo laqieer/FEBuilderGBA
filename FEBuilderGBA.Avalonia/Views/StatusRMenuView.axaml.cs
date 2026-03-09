@@ -50,30 +50,38 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UpPtrBox.Value = _vm.UpPtr;
-            DownPtrBox.Value = _vm.DownPtr;
-            LeftPtrBox.Value = _vm.LeftPtr;
-            RightPtrBox.Value = _vm.RightPtr;
+            UpPtrBox.Text = $"0x{_vm.UpPtr:X08}";
+            DownPtrBox.Text = $"0x{_vm.DownPtr:X08}";
+            LeftPtrBox.Text = $"0x{_vm.LeftPtr:X08}";
+            RightPtrBox.Text = $"0x{_vm.RightPtr:X08}";
             B16Box.Value = _vm.B16;
             B17Box.Value = _vm.B17;
             TextIdBox.Value = _vm.TextId;
-            P20Box.Value = _vm.P20;
+            P20Box.Text = $"0x{_vm.P20:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.UpPtr = (uint)(UpPtrBox.Value ?? 0);
-            _vm.DownPtr = (uint)(DownPtrBox.Value ?? 0);
-            _vm.LeftPtr = (uint)(LeftPtrBox.Value ?? 0);
-            _vm.RightPtr = (uint)(RightPtrBox.Value ?? 0);
+            _vm.UpPtr = ParseHexText(UpPtrBox.Text);
+            _vm.DownPtr = ParseHexText(DownPtrBox.Text);
+            _vm.LeftPtr = ParseHexText(LeftPtrBox.Text);
+            _vm.RightPtr = ParseHexText(RightPtrBox.Text);
             _vm.B16 = (uint)(B16Box.Value ?? 0);
             _vm.B17 = (uint)(B17Box.Value ?? 0);
             _vm.TextId = (uint)(TextIdBox.Value ?? 0);
-            _vm.P20 = (uint)(P20Box.Value ?? 0);
+            _vm.P20 = ParseHexText(P20Box.Text);
             _vm.WriteStatusRMenu();
             CoreState.Services?.ShowInfo("Status R-Menu data written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            HeaderBox.Value = _vm.HeaderPointer;
+            HeaderBox.Text = $"0x{_vm.HeaderPointer:X08}";
             D4Box.Value = _vm.D4;
             TrackCountLabel.Text = _vm.TrackCount.ToString();
             PriorityLabel.Text = _vm.Priority.ToString();
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.HeaderPointer = (uint)(HeaderBox.Value ?? 0);
+            _vm.HeaderPointer = ParseHexText(HeaderBox.Text);
             _vm.D4 = (uint)(D4Box.Value ?? 0);
             _vm.WriteSong();
             CoreState.Services.ShowInfo("Song table data written.");
@@ -77,5 +77,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

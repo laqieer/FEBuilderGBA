@@ -56,11 +56,11 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrBox.Value = _vm.ImagePointer;
-            MapPtrBox.Value = _vm.MapPointer;
-            PalPtrBox.Value = _vm.PalettePointer;
-            D12Box.Value = _vm.D12;
-            D16Box.Value = _vm.D16;
+            ImgPtrBox.Text = $"0x{_vm.ImagePointer:X08}";
+            MapPtrBox.Text = $"0x{_vm.MapPointer:X08}";
+            PalPtrBox.Text = $"0x{_vm.PalettePointer:X08}";
+            D12Box.Text = $"0x{_vm.D12:X08}";
+            D16Box.Text = $"0x{_vm.D16:X08}";
             B20Box.Value = _vm.B20;
             B21Box.Value = _vm.B21;
             B22Box.Value = _vm.B22;
@@ -73,11 +73,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
-            _vm.MapPointer = (uint)(MapPtrBox.Value ?? 0);
-            _vm.PalettePointer = (uint)(PalPtrBox.Value ?? 0);
-            _vm.D12 = (uint)(D12Box.Value ?? 0);
-            _vm.D16 = (uint)(D16Box.Value ?? 0);
+            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+            _vm.MapPointer = ParseHexText(MapPtrBox.Text);
+            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+            _vm.D12 = ParseHexText(D12Box.Text);
+            _vm.D16 = ParseHexText(D16Box.Text);
             _vm.B20 = (uint)(B20Box.Value ?? 0);
             _vm.B21 = (uint)(B21Box.Value ?? 0);
             _vm.B22 = (uint)(B22Box.Value ?? 0);
@@ -112,6 +112,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             PortraitList.SelectFirst();
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
     }
 }

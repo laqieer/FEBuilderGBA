@@ -41,8 +41,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrBox.Value = _vm.ImagePointer;
-            TsaPtrBox.Value = _vm.TSAPointer;
+            ImgPtrBox.Text = $"0x{_vm.ImagePointer:X08}";
+            TsaPtrBox.Text = $"0x{_vm.TSAPointer:X08}";
             PalAddrLabel.Text = $"0x{_vm.PaletteColorPointer:X08}";
         }
 
@@ -58,8 +58,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
-            _vm.TSAPointer = (uint)(TsaPtrBox.Value ?? 0);
+            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+            _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
             _vm.WriteOPPrologue();
             CoreState.Services?.ShowInfo("OP Prologue data written.");
         }
@@ -71,5 +71,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

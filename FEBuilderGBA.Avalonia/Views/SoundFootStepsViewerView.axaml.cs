@@ -49,16 +49,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            DataPointerBox.Value = _vm.DataPointer;
+            DataPointerBox.Text = $"0x{_vm.DataPointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.DataPointer = (uint)(DataPointerBox.Value ?? 0);
+            _vm.DataPointer = ParseHexText(DataPointerBox.Text);
             _vm.WriteSoundFootSteps();
             CoreState.Services.ShowInfo("Footstep sounds data written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

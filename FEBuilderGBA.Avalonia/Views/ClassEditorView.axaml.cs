@@ -120,13 +120,13 @@ namespace FEBuilderGBA.Avalonia.Views
             B51Box.Value = _vm.B51;
 
             // Pointers
-            Ptr52Box.Value = _vm.Ptr52;
-            Ptr56Box.Value = _vm.Ptr56;
-            Ptr60Box.Value = _vm.Ptr60;
-            Ptr64Box.Value = _vm.Ptr64;
-            Ptr68Box.Value = _vm.Ptr68;
-            Ptr72Box.Value = _vm.Ptr72;
-            Ptr76Box.Value = _vm.Ptr76;
+            Ptr52Box.Text = $"0x{_vm.Ptr52:X08}";
+            Ptr56Box.Text = $"0x{_vm.Ptr56:X08}";
+            Ptr60Box.Text = $"0x{_vm.Ptr60:X08}";
+            Ptr64Box.Text = $"0x{_vm.Ptr64:X08}";
+            Ptr68Box.Text = $"0x{_vm.Ptr68:X08}";
+            Ptr72Box.Text = $"0x{_vm.Ptr72:X08}";
+            Ptr76Box.Text = $"0x{_vm.Ptr76:X08}";
             D80Box.Value = _vm.D80;
         }
 
@@ -188,13 +188,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.B50 = (uint)(B50Box.Value ?? 0);
             _vm.B51 = (uint)(B51Box.Value ?? 0);
 
-            _vm.Ptr52 = (uint)(Ptr52Box.Value ?? 0);
-            _vm.Ptr56 = (uint)(Ptr56Box.Value ?? 0);
-            _vm.Ptr60 = (uint)(Ptr60Box.Value ?? 0);
-            _vm.Ptr64 = (uint)(Ptr64Box.Value ?? 0);
-            _vm.Ptr68 = (uint)(Ptr68Box.Value ?? 0);
-            _vm.Ptr72 = (uint)(Ptr72Box.Value ?? 0);
-            _vm.Ptr76 = (uint)(Ptr76Box.Value ?? 0);
+            _vm.Ptr52 = ParseHexText(Ptr52Box.Text);
+            _vm.Ptr56 = ParseHexText(Ptr56Box.Text);
+            _vm.Ptr60 = ParseHexText(Ptr60Box.Text);
+            _vm.Ptr64 = ParseHexText(Ptr64Box.Text);
+            _vm.Ptr68 = ParseHexText(Ptr68Box.Text);
+            _vm.Ptr72 = ParseHexText(Ptr72Box.Text);
+            _vm.Ptr76 = ParseHexText(Ptr76Box.Text);
             _vm.D80 = (uint)(D80Box.Value ?? 0);
 
             _vm.WriteClass();
@@ -206,6 +206,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             ClassList.SelectFirst();
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
     }
 }

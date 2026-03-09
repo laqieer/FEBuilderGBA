@@ -15,19 +15,19 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Width="120" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="MapPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="MapPtrBox" Width="120" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="PalPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="PalPtrBox" Width="120" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="D12:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="D12Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="4" Grid.Column="1" Name="D12Box" Width="120" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="D16:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="D16Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="5" Grid.Column="1" Name="D16Box" Width="120" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="B20:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B20Box" Minimum="0" Maximum="255" />

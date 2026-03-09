@@ -45,11 +45,11 @@
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Trait 4 (B11):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Trait4Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="5" Grid.Column="3" Text="Stat Bonus (P12):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="4" Name="StatBonusesPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="5" Grid.Column="4" Name="StatBonusesPtrBox" Width="120" />
 
           <!-- Row 6: P16 Effectiveness -->
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Effective (P16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="EffectivenessPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="6" Grid.Column="1" Name="EffectivenessPtrBox" Width="120" />
 
           <!-- Row 7: B20 Uses, B21 Might -->
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center" />

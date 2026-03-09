@@ -50,13 +50,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            MapDataPointerBox.Value = _vm.MapDataPointer;
+            MapDataPointerBox.Text = $"0x{_vm.MapDataPointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.MapDataPointer = (uint)(MapDataPointerBox.Value ?? 0);
+            _vm.MapDataPointer = ParseHexText(MapDataPointerBox.Text);
             _vm.WriteMapPointer();
             CoreState.Services?.ShowInfo("Map Pointer data written.");
         }
@@ -64,6 +64,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address)
         {
             EntryList.SelectAddress(address);
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void SelectFirstItem()

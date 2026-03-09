@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             B9Box.Value = _vm.B9;
             B10Box.Value = _vm.B10;
             B11Box.Value = _vm.B11;
-            NamePointerBox.Value = _vm.NamePointer;
+            NamePointerBox.Text = $"0x{_vm.NamePointer:X08}";
             NameLabel.Text = _vm.NameText;
         }
 
@@ -70,12 +70,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.B9 = (uint)(B9Box.Value ?? 0);
             _vm.B10 = (uint)(B10Box.Value ?? 0);
             _vm.B11 = (uint)(B11Box.Value ?? 0);
-            _vm.NamePointer = (uint)(NamePointerBox.Value ?? 0);
+            _vm.NamePointer = ParseHexText(NamePointerBox.Text);
             _vm.WriteStatusParam();
             CoreState.Services?.ShowInfo("Status parameter data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

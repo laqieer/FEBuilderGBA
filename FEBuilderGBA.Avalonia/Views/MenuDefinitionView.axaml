@@ -30,7 +30,7 @@
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="D4Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Handler Ptr (u32@8):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="HandlerPtrBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="6" Grid.Column="1" Name="HandlerPtrBox" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="P12 (u32@12):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="P12Box" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />

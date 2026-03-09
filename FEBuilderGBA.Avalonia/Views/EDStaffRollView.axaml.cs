@@ -49,18 +49,26 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            DataPtrBox.Value = _vm.DataPointer;
-            PalettePtrBox.Value = _vm.PalettePointer;
+            DataPtrBox.Text = $"0x{_vm.DataPointer:X08}";
+            PalettePtrBox.Text = $"0x{_vm.PalettePointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.DataPointer = (uint)(DataPtrBox.Value ?? 0);
-            _vm.PalettePointer = (uint)(PalettePtrBox.Value ?? 0);
+            _vm.DataPointer = ParseHexText(DataPtrBox.Text);
+            _vm.PalettePointer = ParseHexText(PalettePtrBox.Text);
             _vm.WriteEDStaffRoll();
             CoreState.Services?.ShowInfo("Staff roll data written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

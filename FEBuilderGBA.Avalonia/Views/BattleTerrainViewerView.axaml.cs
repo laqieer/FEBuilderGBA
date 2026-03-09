@@ -54,9 +54,9 @@ namespace FEBuilderGBA.Avalonia.Views
             B9Box.Value = _vm.B9;
             B10Box.Value = _vm.B10;
             B11Box.Value = _vm.B11;
-            ImgPtrBox.Value = _vm.ImagePointer;
-            PalPtrBox.Value = _vm.PalettePointer;
-            D20Box.Value = _vm.D20;
+            ImgPtrBox.Text = $"0x{_vm.ImagePointer:X08}";
+            PalPtrBox.Text = $"0x{_vm.PalettePointer:X08}";
+            D20Box.Text = $"0x{_vm.D20:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -73,9 +73,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.B9 = (uint)(B9Box.Value ?? 0);
             _vm.B10 = (uint)(B10Box.Value ?? 0);
             _vm.B11 = (uint)(B11Box.Value ?? 0);
-            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
-            _vm.PalettePointer = (uint)(PalPtrBox.Value ?? 0);
-            _vm.D20 = (uint)(D20Box.Value ?? 0);
+            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+            _vm.D20 = ParseHexText(D20Box.Text);
             _vm.WriteBattleTerrain();
             CoreState.Services.ShowInfo("Battle Terrain data written.");
         }
@@ -96,5 +96,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

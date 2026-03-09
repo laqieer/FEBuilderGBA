@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             W0Box.Value = _vm.W0;
             W2Box.Value = _vm.W2;
-            AnimPointerBox.Value = _vm.AnimPointer;
+            AnimPointerBox.Text = $"0x{_vm.AnimPointer:X08}";
             RawBytesLabel.Text = _vm.RawBytes;
         }
 
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.CanWrite) return;
             _vm.W0 = (uint)(W0Box.Value ?? 0);
             _vm.W2 = (uint)(W2Box.Value ?? 0);
-            _vm.AnimPointer = (uint)(AnimPointerBox.Value ?? 0);
+            _vm.AnimPointer = ParseHexText(AnimPointerBox.Text);
             _vm.WriteMapTileAnimation();
             CoreState.Services?.ShowInfo("Map Tile Animation data written.");
         }
@@ -69,6 +69,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address)
         {
             EntryList.SelectAddress(address);
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void SelectFirstItem()

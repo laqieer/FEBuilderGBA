@@ -21,7 +21,7 @@
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="W2Box" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Anim Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Width="120" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" />
           <TextBlock Grid.Row="4" Grid.Column="1" Name="RawBytesLabel" VerticalAlignment="Top"

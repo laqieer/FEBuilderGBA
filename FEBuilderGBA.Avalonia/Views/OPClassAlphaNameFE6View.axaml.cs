@@ -52,16 +52,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            NamePointerBox.Value = _vm.NamePointer;
+            NamePointerBox.Text = $"0x{_vm.NamePointer:X08}";
             AlphaNameLabel.Text = _vm.AlphaName;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.NamePointer = (uint)(NamePointerBox.Value ?? 0);
+            _vm.NamePointer = ParseHexText(NamePointerBox.Text);
             _vm.WriteEntry();
             CoreState.Services?.ShowInfo("OP Class Alpha Name (FE6) data written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

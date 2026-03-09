@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            ImgPtrBox.Value = _vm.ImagePointer;
+            ImgPtrBox.Text = $"0x{_vm.ImagePointer:X08}";
         }
 
         void LoadImage()
@@ -56,9 +56,17 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ImagePointer = (uint)(ImgPtrBox.Value ?? 0);
+            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
             _vm.WriteOPClassFont();
             CoreState.Services?.ShowInfo("OP Class Font data written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)

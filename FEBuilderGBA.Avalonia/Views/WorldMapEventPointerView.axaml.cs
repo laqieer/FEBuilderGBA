@@ -49,16 +49,24 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            EventPtrBox.Value = _vm.EventPointer;
+            EventPtrBox.Text = $"0x{_vm.EventPointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
 
-            _vm.EventPointer = (uint)(EventPtrBox.Value ?? 0);
+            _vm.EventPointer = ParseHexText(EventPtrBox.Text);
             _vm.WriteWorldMapEvent();
             CoreState.Services?.ShowInfo("World map event pointer written.");
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

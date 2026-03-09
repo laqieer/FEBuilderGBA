@@ -50,17 +50,25 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            UsabilityPointerBox.Value = _vm.UsabilityPointer;
+            UsabilityPointerBox.Text = $"0x{_vm.UsabilityPointer:X08}";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.UsabilityPointer = (uint)(UsabilityPointerBox.Value ?? 0);
+            _vm.UsabilityPointer = ParseHexText(UsabilityPointerBox.Text);
             _vm.WriteItemUsagePointer();
             CoreState.Services.ShowInfo("Item Usage Pointer data written.");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

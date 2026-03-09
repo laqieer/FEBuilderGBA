@@ -33,7 +33,7 @@
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B11Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Name Pointer (u32@12):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="NamePointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="7" Grid.Column="1" Name="NamePointerBox" Width="120" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="8" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />

@@ -15,7 +15,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Event Pointer (u32@0):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="EventPtrBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="EventPtrBox" Width="200" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

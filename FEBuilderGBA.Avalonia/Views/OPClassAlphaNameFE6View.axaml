@@ -16,7 +16,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NamePointerBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="NamePointerBox" Width="120" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Alpha Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="AlphaNameLabel" VerticalAlignment="Center" />

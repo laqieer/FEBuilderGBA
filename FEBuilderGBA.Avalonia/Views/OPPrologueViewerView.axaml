@@ -12,9 +12,9 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ImgPtrBox" Width="120" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="TSA Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="TsaPtrBox" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="TsaPtrBox" Width="120" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="3" Grid.Column="1" Name="PalAddrLabel" VerticalAlignment="Center" />
         </Grid>

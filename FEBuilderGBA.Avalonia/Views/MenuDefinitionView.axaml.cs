@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Avalonia.Views
             B2Box.Value = _vm.B2;
             B3Box.Value = _vm.B3;
             D4Box.Value = _vm.D4;
-            HandlerPtrBox.Value = _vm.HandlerPtr;
+            HandlerPtrBox.Text = $"0x{_vm.HandlerPtr:X08}";
             P12Box.Value = _vm.P12;
             P16Box.Value = _vm.P16;
             P20Box.Value = _vm.P20;
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.B2 = (uint)(B2Box.Value ?? 0);
             _vm.B3 = (uint)(B3Box.Value ?? 0);
             _vm.D4 = (uint)(D4Box.Value ?? 0);
-            _vm.HandlerPtr = (uint)(HandlerPtrBox.Value ?? 0);
+            _vm.HandlerPtr = ParseHexText(HandlerPtrBox.Text);
             _vm.P12 = (uint)(P12Box.Value ?? 0);
             _vm.P16 = (uint)(P16Box.Value ?? 0);
             _vm.P20 = (uint)(P20Box.Value ?? 0);
@@ -84,5 +84,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

@@ -165,22 +165,22 @@
 
         <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="P52:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="Ptr52Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="0" Grid.Column="1" Name="Ptr52Box" Width="120" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="P56:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Ptr56Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="0" Grid.Column="4" Name="Ptr56Box" Width="120" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="P60:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Ptr60Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="Ptr60Box" Width="120" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="P64:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Width="120" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="P68:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Ptr68Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="Ptr68Box" Width="120" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="P72:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="Ptr72Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="2" Grid.Column="4" Name="Ptr72Box" Width="120" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="P76:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Ptr76Box" Minimum="0" Maximum="4294967295" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="Ptr76Box" Width="120" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="D80:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="3" Grid.Column="4" Name="D80Box" Minimum="0" Maximum="4294967295" />
         </Grid>

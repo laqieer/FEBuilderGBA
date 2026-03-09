@@ -60,8 +60,8 @@ namespace FEBuilderGBA.Avalonia.Views
             Trait2Box.Value = _vm.Trait2;
             Trait3Box.Value = _vm.Trait3;
             Trait4Box.Value = _vm.Trait4;
-            StatBonusesPtrBox.Value = _vm.StatBonusesPtr;
-            EffectivenessPtrBox.Value = _vm.EffectivenessPtr;
+            StatBonusesPtrBox.Text = $"0x{_vm.StatBonusesPtr:X08}";
+            EffectivenessPtrBox.Text = $"0x{_vm.EffectivenessPtr:X08}";
             UsesBox.Value = _vm.Uses;
             MightBox.Value = _vm.Might;
             HitBox.Value = _vm.Hit;
@@ -86,8 +86,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Trait2 = (uint)(Trait2Box.Value ?? 0);
             _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
             _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
-            _vm.StatBonusesPtr = (uint)(StatBonusesPtrBox.Value ?? 0);
-            _vm.EffectivenessPtr = (uint)(EffectivenessPtrBox.Value ?? 0);
+            _vm.StatBonusesPtr = ParseHexText(StatBonusesPtrBox.Text);
+            _vm.EffectivenessPtr = ParseHexText(EffectivenessPtrBox.Text);
             _vm.Uses = (uint)(UsesBox.Value ?? 0);
             _vm.Might = (uint)(MightBox.Value ?? 0);
             _vm.Hit = (uint)(HitBox.Value ?? 0);
@@ -106,5 +106,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

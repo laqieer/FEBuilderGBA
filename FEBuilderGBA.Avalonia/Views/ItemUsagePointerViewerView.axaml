@@ -16,7 +16,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Usability Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UsabilityPointerBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="UsabilityPointerBox" Width="120" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
