@@ -419,6 +419,324 @@ namespace FEBuilderGBA
             return indexed;
         }
 
+        /// <summary>Result of remapping RGBA pixels to a multi-sub-palette.</summary>
+        public class MultiPaletteRemapResult
+        {
+            /// <summary>Indexed pixels (1 byte/pixel), 0-15 local to each tile's sub-palette.</summary>
+            public byte[] IndexedPixels { get; set; }
+            /// <summary>Per-tile palette index (row-major, one per 8x8 tile).</summary>
+            public int[] TilePaletteIndices { get; set; }
+            public int Width { get; set; }
+            public int Height { get; set; }
+        }
+
+        /// <summary>
+        /// Remap RGBA pixels to a multi-sub-palette by assigning each 8x8 tile
+        /// to the best-fitting sub-palette (lowest total color distance).
+        /// </summary>
+        /// <param name="rgbaPixels">RGBA pixel data (4 bytes per pixel)</param>
+        /// <param name="width">Image width (must be multiple of 8)</param>
+        /// <param name="height">Image height (must be multiple of 8)</param>
+        /// <param name="gbaPalette">Full GBA palette (subPaletteCount * 16 colors * 2 bytes)</param>
+        /// <param name="subPaletteCount">Number of 16-color sub-palettes</param>
+        public static MultiPaletteRemapResult RemapToMultiPalette(
+            byte[] rgbaPixels, int width, int height,
+            byte[] gbaPalette, int subPaletteCount)
+        {
+            if (rgbaPixels == null || gbaPalette == null) return null;
+            if (width % 8 != 0 || height % 8 != 0) return null;
+            if (CoreState.ImageService == null) return null;
+            if (subPaletteCount <= 0) return null;
+
+            int pixelCount = width * height;
+            if (rgbaPixels.Length < pixelCount * 4) return null;
+
+            // Pre-convert all sub-palette colors to RGB
+            byte[][] palR = new byte[subPaletteCount][];
+            byte[][] palG = new byte[subPaletteCount][];
+            byte[][] palB = new byte[subPaletteCount][];
+            for (int sp = 0; sp < subPaletteCount; sp++)
+            {
+                palR[sp] = new byte[16];
+                palG[sp] = new byte[16];
+                palB[sp] = new byte[16];
+                for (int c = 0; c < 16; c++)
+                {
+                    int palByteIdx = (sp * 16 + c) * 2;
+                    if (palByteIdx + 1 < gbaPalette.Length)
+                    {
+                        ushort gbaColor = (ushort)(gbaPalette[palByteIdx] | (gbaPalette[palByteIdx + 1] << 8));
+                        CoreState.ImageService.GBAColorToRGBA(gbaColor, out palR[sp][c], out palG[sp][c], out palB[sp][c]);
+                    }
+                }
+            }
+
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            int totalTiles = tilesX * tilesY;
+
+            byte[] indexed = new byte[pixelCount];
+            int[] tilePalIndices = new int[totalTiles];
+
+            for (int ty = 0; ty < tilesY; ty++)
+            {
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    int tileIdx = ty * tilesX + tx;
+
+                    // Find the best sub-palette for this tile
+                    long bestDist = long.MaxValue;
+                    int bestPal = 0;
+
+                    for (int sp = 0; sp < subPaletteCount; sp++)
+                    {
+                        long totalDist = 0;
+                        for (int py = 0; py < 8; py++)
+                        {
+                            for (int px = 0; px < 8; px++)
+                            {
+                                int pixIdx = (ty * 8 + py) * width + (tx * 8 + px);
+                                int off = pixIdx * 4;
+                                byte pr = rgbaPixels[off + 0];
+                                byte pg = rgbaPixels[off + 1];
+                                byte pb = rgbaPixels[off + 2];
+                                byte pa = rgbaPixels[off + 3];
+
+                                if (pa < 128) continue; // transparent → index 0, no distance
+
+                                // Find closest color in this sub-palette (skip index 0)
+                                int minColorDist = int.MaxValue;
+                                for (int c = 1; c < 16; c++)
+                                {
+                                    int dr = pr - palR[sp][c];
+                                    int dg = pg - palG[sp][c];
+                                    int db = pb - palB[sp][c];
+                                    int d = dr * dr + dg * dg + db * db;
+                                    if (d < minColorDist) minColorDist = d;
+                                }
+                                totalDist += minColorDist;
+                            }
+                        }
+
+                        if (totalDist < bestDist)
+                        {
+                            bestDist = totalDist;
+                            bestPal = sp;
+                        }
+                    }
+
+                    tilePalIndices[tileIdx] = bestPal;
+
+                    // Remap tile pixels to local indices in the winning sub-palette
+                    for (int py = 0; py < 8; py++)
+                    {
+                        for (int px = 0; px < 8; px++)
+                        {
+                            int pixIdx = (ty * 8 + py) * width + (tx * 8 + px);
+                            int off = pixIdx * 4;
+                            byte pr = rgbaPixels[off + 0];
+                            byte pg = rgbaPixels[off + 1];
+                            byte pb = rgbaPixels[off + 2];
+                            byte pa = rgbaPixels[off + 3];
+
+                            if (pa < 128)
+                            {
+                                indexed[pixIdx] = 0;
+                                continue;
+                            }
+
+                            int bestIndex = 1;
+                            int bestColorDist = int.MaxValue;
+                            for (int c = 1; c < 16; c++)
+                            {
+                                int dr = pr - palR[bestPal][c];
+                                int dg = pg - palG[bestPal][c];
+                                int db = pb - palB[bestPal][c];
+                                int d = dr * dr + dg * dg + db * db;
+                                if (d < bestColorDist)
+                                {
+                                    bestColorDist = d;
+                                    bestIndex = c;
+                                }
+                            }
+                            indexed[pixIdx] = (byte)bestIndex;
+                        }
+                    }
+                }
+            }
+
+            return new MultiPaletteRemapResult
+            {
+                IndexedPixels = indexed,
+                TilePaletteIndices = tilePalIndices,
+                Width = width,
+                Height = height,
+            };
+        }
+
+        /// <summary>
+        /// Encode indexed pixel data into deduplicated 4bpp tiles + TSA map with per-tile palette indices.
+        /// Like EncodeTSA but each tile gets its own palette index in TSA bits 12-15.
+        /// Tile dedup only matches tiles with the same palette index.
+        /// </summary>
+        public static TSAEncodeResult EncodeTSAMultiPalette(byte[] indexedPixels, int width, int height,
+            int[] tilePaletteIndices)
+        {
+            if (indexedPixels == null || width % 8 != 0 || height % 8 != 0) return null;
+            if (tilePaletteIndices == null) return null;
+
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            int totalTiles = tilesX * tilesY;
+
+            if (tilePaletteIndices.Length < totalTiles) return null;
+
+            // Extract all 8x8 tiles as 32-byte 4bpp blocks
+            var allTiles = new List<byte[]>();
+            for (int ty = 0; ty < tilesY; ty++)
+            {
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    byte[] tile = ExtractTile4bpp(indexedPixels, width, tx * 8, ty * 8);
+                    allTiles.Add(tile);
+                }
+            }
+
+            // Deduplicate tiles with flip search — only match if same palette index
+            var uniqueTiles = new List<byte[]>();
+            var uniquePalIndices = new List<int>();
+            var tsaEntries = new ushort[totalTiles];
+
+            for (int i = 0; i < totalTiles; i++)
+            {
+                byte[] tile = allTiles[i];
+                int palIdx = tilePaletteIndices[i];
+                int matchIndex = -1;
+                int flipFlags = 0;
+
+                // Search for exact match (same palette only)
+                matchIndex = FindTileMatchWithPalette(uniqueTiles, uniquePalIndices, tile, palIdx);
+                if (matchIndex >= 0)
+                {
+                    flipFlags = 0;
+                }
+                else
+                {
+                    // Search H-flip
+                    byte[] hFlipped = FlipTileH4bpp(tile);
+                    matchIndex = FindTileMatchWithPalette(uniqueTiles, uniquePalIndices, hFlipped, palIdx);
+                    if (matchIndex >= 0)
+                    {
+                        flipFlags = 0x0400;
+                    }
+                    else
+                    {
+                        // Search V-flip
+                        byte[] vFlipped = FlipTileV4bpp(tile);
+                        matchIndex = FindTileMatchWithPalette(uniqueTiles, uniquePalIndices, vFlipped, palIdx);
+                        if (matchIndex >= 0)
+                        {
+                            flipFlags = 0x0800;
+                        }
+                        else
+                        {
+                            // Search HV-flip
+                            byte[] hvFlipped = FlipTileV4bpp(hFlipped);
+                            matchIndex = FindTileMatchWithPalette(uniqueTiles, uniquePalIndices, hvFlipped, palIdx);
+                            if (matchIndex >= 0)
+                            {
+                                flipFlags = 0x0C00;
+                            }
+                        }
+                    }
+                }
+
+                if (matchIndex < 0)
+                {
+                    matchIndex = uniqueTiles.Count;
+                    uniqueTiles.Add(tile);
+                    uniquePalIndices.Add(palIdx);
+                    flipFlags = 0;
+                }
+
+                tsaEntries[i] = (ushort)(matchIndex | flipFlags | ((palIdx & 0xF) << 12));
+            }
+
+            byte[] tileData = new byte[uniqueTiles.Count * 32];
+            for (int i = 0; i < uniqueTiles.Count; i++)
+                Array.Copy(uniqueTiles[i], 0, tileData, i * 32, 32);
+
+            byte[] tsaData = new byte[totalTiles * 2];
+            for (int i = 0; i < totalTiles; i++)
+            {
+                tsaData[i * 2] = (byte)(tsaEntries[i] & 0xFF);
+                tsaData[i * 2 + 1] = (byte)((tsaEntries[i] >> 8) & 0xFF);
+            }
+
+            return new TSAEncodeResult
+            {
+                TileData = tileData,
+                TSAData = tsaData,
+                UniqueTileCount = uniqueTiles.Count,
+            };
+        }
+
+        /// <summary>
+        /// Full 3-pointer import with multi-sub-palette support.
+        /// Remaps each 8x8 tile to the best-fitting sub-palette, preserving per-tile palette indices in TSA.
+        /// </summary>
+        public static ImportResult Import3PointerMultiPalette(ROM rom, byte[] rgbaPixels, byte[] gbaPalette,
+            int width, int height, uint imgPointerAddr, uint tsaPointerAddr, uint palPointerAddr,
+            int subPaletteCount = 16, bool compressPalette = false)
+        {
+            var result = new ImportResult();
+
+            var remap = RemapToMultiPalette(rgbaPixels, width, height, gbaPalette, subPaletteCount);
+            if (remap == null)
+            {
+                result.Error = "Failed to remap image to multi-palette";
+                return result;
+            }
+
+            var tsaResult = EncodeTSAMultiPalette(remap.IndexedPixels, width, height, remap.TilePaletteIndices);
+            if (tsaResult == null)
+            {
+                result.Error = "Failed to encode multi-palette TSA data";
+                return result;
+            }
+
+            uint tileAddr = WriteCompressedToROM(rom, tsaResult.TileData, imgPointerAddr);
+            if (tileAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write compressed tile data (no free space)";
+                return result;
+            }
+
+            uint tsaAddr = WriteCompressedToROM(rom, tsaResult.TSAData, tsaPointerAddr);
+            if (tsaAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write compressed TSA data (no free space)";
+                return result;
+            }
+
+            uint palAddr;
+            if (compressPalette)
+                palAddr = WriteCompressedToROM(rom, gbaPalette, palPointerAddr);
+            else
+                palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
+            if (palAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write palette data (no free space)";
+                return result;
+            }
+
+            result.Success = true;
+            result.TileDataOffset = tileAddr;
+            result.TSADataOffset = tsaAddr;
+            result.PaletteOffset = palAddr;
+            return result;
+        }
+
         // ---- Internal tile manipulation ----
 
         /// <summary>Extract an 8x8 tile from indexed pixel data as 4bpp (32 bytes).</summary>
@@ -465,6 +783,18 @@ namespace FEBuilderGBA
                 Array.Copy(tile, (7 - y) * 4, flipped, y * 4, 4);
             }
             return flipped;
+        }
+
+        /// <summary>Search for an exact tile match in the unique tile list, constrained to same palette index.</summary>
+        static int FindTileMatchWithPalette(List<byte[]> tiles, List<int> palIndices, byte[] target, int palIndex)
+        {
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                if (palIndices[i] != palIndex) continue;
+                if (TilesEqual(tiles[i], target))
+                    return i;
+            }
+            return -1;
         }
 
         /// <summary>Search for an exact tile match in the unique tile list.</summary>

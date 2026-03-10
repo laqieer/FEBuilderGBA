@@ -288,8 +288,7 @@ namespace FEBuilderGBA.Avalonia.Services
             // --- 3-Pointer editors (Import3Pointer) ---
 
             // BattleBGViewer: offsets 0,4,8 (img, TSA, pal) — palette is LZ77 compressed
-            // Higher threshold (30%) because TSA rendering uses multi-sub-palette (palIndex in TSA bits 12-15)
-            // but import quantizes to single 16-color palette. FE6 shows ~26% diff; FE7/FE8 show ~7.5%.
+            // Uses multi-palette import: remaps each 8x8 tile to best sub-palette.
             var battleBG = new BattleBGViewerViewModel();
             editors.Add(new EditorDescriptor
             {
@@ -297,8 +296,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 LoadList = () => battleBG.LoadBattleBGList(),
                 LoadItem = addr => battleBG.LoadBattleBG(addr),
                 GetImage = () => battleBG.TryLoadImage(),
-                Import = (file, pal) => Import3PtrCompressPal(file, pal, battleBG.CurrentAddr, 0, 4, 8, 240, 160),
-                MaxDiffPercent = 30.0,
+                Import = (file, pal) => Import3PtrMultiPal(file, pal, battleBG.CurrentAddr, 0, 4, 8, 240, 160),
+                MaxDiffPercent = 10.0,
             });
 
             // ImageCG: P0=image, P4=palette, P8=TSA → Import3Pointer(addr+0, addr+8, addr+4)
@@ -452,6 +451,81 @@ namespace FEBuilderGBA.Avalonia.Services
 
             var ir = ImageImportCore.Import3Pointer(rom, lr.IndexedPixels, lr.GBAPalette,
                 lr.Width, lr.Height, addr + imgOff, addr + tsaOff, addr + palOff);
+
+            return ir.Success ? null : ir.Error;
+        }
+
+        /// <summary>
+        /// Multi-palette 3-pointer import. Reads the full compressed palette from ROM,
+        /// determines sub-palette count, and remaps each tile to its best sub-palette.
+        /// </summary>
+        static string Import3PtrMultiPal(string file, byte[] pal, uint addr, uint imgOff, uint tsaOff, uint palOff,
+            int expectedW, int expectedH)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "No ROM";
+
+            // Read the full palette from ROM (may be LZ77-compressed)
+            uint palPtr = rom.u32(addr + palOff);
+            byte[] fullPalette = null;
+            if (U.isPointer(palPtr))
+            {
+                uint palAddr = U.toOffset(palPtr);
+                if (U.isSafetyOffset(palAddr))
+                {
+                    // Try LZ77 decompress first (BattleBG palettes are compressed)
+                    fullPalette = LZ77.decompress(rom.Data, palAddr);
+                }
+            }
+            // Fall back to provided palette
+            if (fullPalette == null || fullPalette.Length < 32)
+                fullPalette = pal;
+            if (fullPalette == null) return "No palette available";
+
+            int subPaletteCount = fullPalette.Length / 32; // 16 colors * 2 bytes = 32 bytes per sub-palette
+            if (subPaletteCount < 1) subPaletteCount = 1;
+
+            // Load image as RGBA (no quantization)
+            var imgService = CoreState.ImageService;
+            if (imgService == null) return "Image service not initialized";
+
+            IImage image;
+            try { image = imgService.LoadImage(file); }
+            catch (Exception ex) { return $"Failed to load image: {ex.Message}"; }
+
+            byte[] rgbaPixels;
+            int w, h;
+            using (image)
+            {
+                w = image.Width;
+                h = image.Height;
+                if (image.IsIndexed)
+                {
+                    byte[] indexData = image.GetPixelData();
+                    byte[] palRgba = image.GetPaletteRGBA();
+                    rgbaPixels = new byte[w * h * 4];
+                    for (int i = 0; i < indexData.Length && i < w * h; i++)
+                    {
+                        int palIdx = indexData[i];
+                        int pOff = palIdx * 4;
+                        if (pOff + 3 < palRgba.Length)
+                        {
+                            rgbaPixels[i * 4 + 0] = palRgba[pOff + 0];
+                            rgbaPixels[i * 4 + 1] = palRgba[pOff + 1];
+                            rgbaPixels[i * 4 + 2] = palRgba[pOff + 2];
+                            rgbaPixels[i * 4 + 3] = palRgba[pOff + 3];
+                        }
+                    }
+                }
+                else
+                {
+                    rgbaPixels = image.GetPixelData();
+                }
+            }
+
+            var ir = ImageImportCore.Import3PointerMultiPalette(rom, rgbaPixels, fullPalette,
+                w, h, addr + imgOff, addr + tsaOff, addr + palOff,
+                subPaletteCount, compressPalette: true);
 
             return ir.Success ? null : ir.Error;
         }

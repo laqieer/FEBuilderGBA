@@ -182,11 +182,12 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void ImageImportValidator_BattleBGViewer_HasHigherThreshold()
+        public void ImageImportValidator_BattleBGViewer_UsesMultiPaletteImport()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageImportValidator.cs"));
-            // BattleBGViewer uses multi-sub-palette TSA, needs 30% tolerance
-            Assert.Contains("MaxDiffPercent = 30.0", src);
+            // BattleBGViewer uses multi-palette import (Import3PtrMultiPal), standard 10% threshold
+            Assert.Contains("Import3PtrMultiPal", src);
+            Assert.Contains("MaxDiffPercent = 10.0", src);
         }
 
         [Fact]

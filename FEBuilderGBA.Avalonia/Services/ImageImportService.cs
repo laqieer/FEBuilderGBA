@@ -219,5 +219,83 @@ namespace FEBuilderGBA.Avalonia.Services
 
             return result;
         }
+
+        /// <summary>
+        /// Load image from file and return RGBA pixels (no quantization).
+        /// Used for multi-palette remap where we need raw RGBA to match per-tile sub-palettes.
+        /// </summary>
+        public static LoadResult LoadForMultiPaletteRemap(string filePath, int expectedW, int expectedH,
+            byte[] existingGBAPalette, int subPaletteCount)
+        {
+            var result = new LoadResult();
+            var imgService = CoreState.ImageService;
+            if (imgService == null)
+            {
+                result.Error = "Image service not initialized";
+                return result;
+            }
+
+            IImage image;
+            try
+            {
+                image = imgService.LoadImage(filePath);
+            }
+            catch (Exception ex)
+            {
+                result.Error = $"Failed to load image: {ex.Message}";
+                return result;
+            }
+
+            using (image)
+            {
+                if (image.Width % 8 != 0 || image.Height % 8 != 0)
+                {
+                    result.Error = $"Image dimensions must be multiples of 8 (got {image.Width}x{image.Height})";
+                    return result;
+                }
+
+                // Get RGBA pixel data
+                byte[] rgbaPixels;
+                if (image.IsIndexed)
+                {
+                    byte[] indexData = image.GetPixelData();
+                    byte[] palRgba = image.GetPaletteRGBA();
+                    rgbaPixels = new byte[image.Width * image.Height * 4];
+                    for (int i = 0; i < indexData.Length && i < image.Width * image.Height; i++)
+                    {
+                        int palIdx = indexData[i];
+                        int palOff = palIdx * 4;
+                        if (palOff + 3 < palRgba.Length)
+                        {
+                            rgbaPixels[i * 4 + 0] = palRgba[palOff + 0];
+                            rgbaPixels[i * 4 + 1] = palRgba[palOff + 1];
+                            rgbaPixels[i * 4 + 2] = palRgba[palOff + 2];
+                            rgbaPixels[i * 4 + 3] = palRgba[palOff + 3];
+                        }
+                    }
+                }
+                else
+                {
+                    rgbaPixels = image.GetPixelData();
+                }
+
+                // Remap using multi-palette
+                var remap = ImageImportCore.RemapToMultiPalette(
+                    rgbaPixels, image.Width, image.Height, existingGBAPalette, subPaletteCount);
+                if (remap == null)
+                {
+                    result.Error = "Failed to remap image to multi-palette";
+                    return result;
+                }
+
+                result.Success = true;
+                result.IndexedPixels = remap.IndexedPixels;
+                result.GBAPalette = existingGBAPalette;
+                result.Width = image.Width;
+                result.Height = image.Height;
+            }
+
+            return result;
+        }
     }
 }

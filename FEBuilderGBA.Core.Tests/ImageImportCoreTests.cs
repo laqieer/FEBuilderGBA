@@ -893,6 +893,243 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- RemapToMultiPalette ----
+
+        [Fact]
+        public void RemapToMultiPalette_SingleSubPalette_MapsCorrectly()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                // 1 sub-palette: 0=black, 1=red
+                byte[] gbaPal = new byte[32]; // 16 colors * 2 bytes
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00; // color 1 = red
+
+                // 8x8 RGBA: all red
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    rgba[i * 4 + 0] = 248; // R (31<<3)
+                    rgba[i * 4 + 1] = 0;
+                    rgba[i * 4 + 2] = 0;
+                    rgba[i * 4 + 3] = 255;
+                }
+
+                var result = ImageImportCore.RemapToMultiPalette(rgba, 8, 8, gbaPal, 1);
+
+                Assert.NotNull(result);
+                Assert.Equal(8, result.Width);
+                Assert.Equal(8, result.Height);
+                Assert.Single(result.TilePaletteIndices);
+                Assert.Equal(0, result.TilePaletteIndices[0]); // only sub-palette 0
+                // All pixels should map to index 1 (red)
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(1, result.IndexedPixels[i]);
+            }
+            finally { CoreState.ImageService = prevService; }
+        }
+
+        [Fact]
+        public void RemapToMultiPalette_TwoSubPalettes_PicksBestPerTile()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                // Sub-palette 0: 0=black, 1=red
+                // Sub-palette 1: 0=black, 1=blue
+                byte[] gbaPal = new byte[64]; // 2 * 16 * 2
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00; // pal0 color1 = red
+                gbaPal[32 + 2] = 0x00; gbaPal[32 + 3] = 0x7C; // pal1 color1 = blue
+
+                // 16x8 (2 tiles): tile0=red, tile1=blue
+                byte[] rgba = new byte[16 * 8 * 4];
+                for (int y = 0; y < 8; y++)
+                {
+                    for (int x = 0; x < 8; x++)
+                    {
+                        int i = y * 16 + x;
+                        rgba[i * 4 + 0] = 248; rgba[i * 4 + 3] = 255; // red
+                    }
+                    for (int x = 8; x < 16; x++)
+                    {
+                        int i = y * 16 + x;
+                        rgba[i * 4 + 2] = 248; rgba[i * 4 + 3] = 255; // blue
+                    }
+                }
+
+                var result = ImageImportCore.RemapToMultiPalette(rgba, 16, 8, gbaPal, 2);
+
+                Assert.NotNull(result);
+                Assert.Equal(2, result.TilePaletteIndices.Length);
+                Assert.Equal(0, result.TilePaletteIndices[0]); // red tile → sub-palette 0
+                Assert.Equal(1, result.TilePaletteIndices[1]); // blue tile → sub-palette 1
+            }
+            finally { CoreState.ImageService = prevService; }
+        }
+
+        [Fact]
+        public void RemapToMultiPalette_TransparentPixels_MappedToIndex0()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                byte[] gbaPal = new byte[32];
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00;
+
+                // All transparent
+                byte[] rgba = new byte[8 * 8 * 4]; // alpha = 0 by default
+
+                var result = ImageImportCore.RemapToMultiPalette(rgba, 8, 8, gbaPal, 1);
+
+                Assert.NotNull(result);
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(0, result.IndexedPixels[i]);
+            }
+            finally { CoreState.ImageService = prevService; }
+        }
+
+        [Fact]
+        public void RemapToMultiPalette_NullInput_ReturnsNull()
+        {
+            Assert.Null(ImageImportCore.RemapToMultiPalette(null, 8, 8, new byte[32], 1));
+            Assert.Null(ImageImportCore.RemapToMultiPalette(new byte[256], 8, 8, null, 1));
+        }
+
+        [Fact]
+        public void RemapToMultiPalette_NonMultipleOf8_ReturnsNull()
+        {
+            Assert.Null(ImageImportCore.RemapToMultiPalette(new byte[10 * 10 * 4], 10, 10, new byte[32], 1));
+        }
+
+        // ---- EncodeTSAMultiPalette ----
+
+        [Fact]
+        public void EncodeTSAMultiPalette_PerTilePaletteInTSA()
+        {
+            // 16x8 = 2 tiles: tile 0 → palette 2, tile 1 → palette 5
+            byte[] pixels = new byte[16 * 8];
+            for (int y = 0; y < 8; y++)
+            {
+                for (int x = 0; x < 8; x++)
+                    pixels[y * 16 + x] = 1;
+                for (int x = 8; x < 16; x++)
+                    pixels[y * 16 + x] = 2;
+            }
+            int[] palIndices = new int[] { 2, 5 };
+
+            var result = ImageImportCore.EncodeTSAMultiPalette(pixels, 16, 8, palIndices);
+
+            Assert.NotNull(result);
+            ushort tsa0 = (ushort)(result.TSAData[0] | (result.TSAData[1] << 8));
+            ushort tsa1 = (ushort)(result.TSAData[2] | (result.TSAData[3] << 8));
+            Assert.Equal(2, (tsa0 >> 12) & 0xF);
+            Assert.Equal(5, (tsa1 >> 12) & 0xF);
+        }
+
+        [Fact]
+        public void EncodeTSAMultiPalette_SamePaletteTilesDedup()
+        {
+            // 16x8 = 2 identical tiles, same palette → should dedup
+            byte[] pixels = new byte[16 * 8];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = 3;
+            int[] palIndices = new int[] { 1, 1 };
+
+            var result = ImageImportCore.EncodeTSAMultiPalette(pixels, 16, 8, palIndices);
+
+            Assert.NotNull(result);
+            Assert.Equal(1, result.UniqueTileCount); // deduped
+        }
+
+        [Fact]
+        public void EncodeTSAMultiPalette_DiffPaletteTilesNoDedup()
+        {
+            // 16x8 = 2 identical tiles but different palettes → should NOT dedup
+            byte[] pixels = new byte[16 * 8];
+            for (int i = 0; i < pixels.Length; i++)
+                pixels[i] = 3;
+            int[] palIndices = new int[] { 1, 2 };
+
+            var result = ImageImportCore.EncodeTSAMultiPalette(pixels, 16, 8, palIndices);
+
+            Assert.NotNull(result);
+            Assert.Equal(2, result.UniqueTileCount); // not deduped because different palette
+        }
+
+        [Fact]
+        public void EncodeTSAMultiPalette_NullInput_ReturnsNull()
+        {
+            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(null, 8, 8, new int[] { 0 }));
+            Assert.Null(ImageImportCore.EncodeTSAMultiPalette(new byte[64], 8, 8, null));
+        }
+
+        // ---- Import3PointerMultiPalette ----
+
+        [Fact]
+        public void Import3PointerMultiPalette_ValidInput_Succeeds()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+                var rom = CreateTestRom();
+
+                // 1 sub-palette, 8x8 red image
+                byte[] gbaPal = new byte[32];
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00;
+
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    rgba[i * 4 + 0] = 248;
+                    rgba[i * 4 + 3] = 255;
+                }
+
+                var result = ImageImportCore.Import3PointerMultiPalette(rom, rgba, gbaPal,
+                    8, 8, 0x100, 0x104, 0x108, subPaletteCount: 1);
+
+                Assert.True(result.Success);
+                Assert.NotEqual(U.NOT_FOUND, result.TileDataOffset);
+                Assert.NotEqual(U.NOT_FOUND, result.TSADataOffset);
+                Assert.NotEqual(U.NOT_FOUND, result.PaletteOffset);
+            }
+            finally { CoreState.ImageService = prevService; }
+        }
+
+        [Fact]
+        public void Import3PointerMultiPalette_CompressPalette_WritesLZ77()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+                var rom = CreateTestRom();
+
+                byte[] gbaPal = new byte[32];
+                gbaPal[2] = 0x1F;
+
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    rgba[i * 4 + 0] = 248;
+                    rgba[i * 4 + 3] = 255;
+                }
+
+                var result = ImageImportCore.Import3PointerMultiPalette(rom, rgba, gbaPal,
+                    8, 8, 0x100, 0x104, 0x108, subPaletteCount: 1, compressPalette: true);
+
+                Assert.True(result.Success);
+                Assert.Equal(0x10, rom.Data[result.PaletteOffset]); // LZ77 header
+            }
+            finally { CoreState.ImageService = prevService; }
+        }
+
         [Fact]
         public void RemapToExistingPalette_NullInputReturnsNull()
         {
