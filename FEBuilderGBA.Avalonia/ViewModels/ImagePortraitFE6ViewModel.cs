@@ -36,8 +36,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.portrait_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (dataSize == 0) dataSize = SIZE;
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Portrait Editor (FE6)", 0));
+            int nullCount = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = (uint)(baseAddr + i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                uint u0 = rom.u32(addr + 0);
+                uint u4 = rom.u32(addr + 4);
+                uint u8 = rom.u32(addr + 8);
+                if (i > 0)
+                {
+                    if (!U.isPointerOrNULL(u0) || !U.isPointerOrNULL(u4) || !U.isPointerOrNULL(u8))
+                        break;
+                    if (u0 == 0 && u4 == 0 && u8 == 0)
+                    {
+                        nullCount++;
+                        if (nullCount >= 10) break;
+                    }
+                    else nullCount = 0;
+                }
+
+                string name = U.ToHexString(i) + " Portrait FE6";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 
@@ -74,6 +106,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 13, MouthY);
             rom.write_u8(addr + 14, Unused14);
             rom.write_u8(addr + 15, Unused15);
+        }
+
+        /// <summary>
+        /// Draw the FE6 portrait. Returns the assembled 96x80 portrait image, or the map sprite if no main face.
+        /// </summary>
+        public IImage TryLoadImage()
+        {
+            ROM rom = CoreState.ROM;
+            IImageService svc = CoreState.ImageService;
+            if (rom == null || svc == null || CurrentAddr == 0) return null;
+            try
+            {
+                uint unitFace = PortraitImagePtr;
+                uint mapFace = MiniPortraitPtr;
+                uint palette = PalettePtr;
+
+                // Try main portrait first
+                if (U.isPointer(unitFace) && U.isPointer(palette))
+                {
+                    uint faceOff = U.toOffset(unitFace);
+                    uint palOff = U.toOffset(palette);
+                    if (U.isSafetyOffset(faceOff) && U.isSafetyOffset(palOff))
+                    {
+                        // FE6 portraits are LZ77 compressed
+                        byte[] imageUZ = LZ77.decompress(rom.Data, faceOff);
+                        if (imageUZ != null && imageUZ.Length > 0)
+                        {
+                            // Decode as 256x40 (32*8 x 5*8) tile sheet
+                            byte[] gbaPalette = ImageUtilCore.GetPalette(palOff, 16);
+                            if (gbaPalette != null)
+                            {
+                                // Return the raw sprite sheet (32*8 x 5*8) for comparison
+                                return svc.Decode4bppTiles(imageUZ, 0, 32 * 8, 5 * 8, gbaPalette);
+                            }
+                        }
+                    }
+                }
+
+                // Fallback to map portrait
+                if (U.isPointer(mapFace) && U.isPointer(palette))
+                    return PortraitRendererCore.DrawPortraitMap(mapFace, palette);
+
+                return null;
+            }
+            catch { return null; }
         }
 
         public int GetListCount() => LoadList().Count;

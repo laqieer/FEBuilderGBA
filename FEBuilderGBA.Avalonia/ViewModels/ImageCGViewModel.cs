@@ -27,8 +27,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.bigcg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "CG Image Editor", 0));
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = (uint)(baseAddr + i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p) || !U.isSafetyPointer(p)) break;
+                // Verify 10-split: first pointer in table must also be a pointer
+                uint p2 = rom.u32(U.toOffset(p));
+                if (!U.isPointer(p2) || !U.isSafetyPointer(p2)) break;
+
+                string name = U.ToHexString(i) + " CG Image";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 

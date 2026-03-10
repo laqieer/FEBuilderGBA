@@ -36,8 +36,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.bigcg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "CG Editor (FE7U)", 0));
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = (uint)(baseAddr + i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+
+                // FE7U CG: reserved bytes at +1..+3 must be 0
+                if (rom.u16(addr + 2) != 0x00) break;
+
+                string name = U.ToHexString(i) + " CG FE7U";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 

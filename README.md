@@ -98,6 +98,10 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot
 FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
 # Export decoded graphics editor images (for cross-platform pixel comparison)
+# Exports 16 editors: PortraitViewer, BattleBGViewer, BattleTerrainViewer, BigCGViewer,
+# ChapterTitleViewer, ChapterTitleFE7Viewer, ItemIconViewer, SystemIconViewer,
+# OPClassFontViewer, OPPrologueViewer, ImagePortraitFE6, ImageBG, ImageCG,
+# ImageCGFE7U, ImageTSAAnime, ImageBattleBG
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --export-editor-images --screenshot-dir=./editor_images
 FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=./editor_images
 
@@ -202,7 +206,7 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | `Tests/AvaloniaScreenshotTests.cs` | Yes (×2) | Avalonia: captures PNG screenshots of all 323 editors via `--screenshot-all` — 4 tests, skipped without ROMs |
 | `Tests/WinFormsScreenshotAllTests.cs` | Yes (×2) | WinForms: screenshots of main form + all toolbar-openable editor forms — 4 tests, skipped without ROMs |
 | `Tests/WinFormsScreenshotAllCliTests.cs` | Yes (×2) | WinForms: captures screenshots of all editors via `--screenshot-all` CLI flag — 4 tests, skipped without ROMs |
-| `Tests/EditorImageComparisonTests.cs` | Yes (×1) | Cross-platform image export + comparison: `--export-editor-images` on both WinForms and Avalonia, pixel-level diff — 3 tests, skipped without ROMs |
+| `Tests/EditorImageComparisonTests.cs` | Yes (×1) | Cross-platform image export + pixel-perfect comparison for 16 editors: `--export-editor-images` on both WinForms and Avalonia — 3 tests, strict assertions, skipped without ROMs |
 
 **Without ROMs:** 30 passed, 112 skipped. **With all 5 ROMs:** 142 passed, 0 skipped.
 

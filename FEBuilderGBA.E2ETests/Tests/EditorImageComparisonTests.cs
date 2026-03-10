@@ -172,9 +172,28 @@ namespace FEBuilderGBA.E2ETests.Tests
                 foreach (var detail in mismatchDetails)
                     _output.WriteLine($"COMPARE: Detail: {detail}");
 
-                // We expect at least some matches — don't fail if some editors differ
-                // (palette handling, rounding, etc. may cause minor diffs)
+                // Report per-editor pass/fail summary
+                var expectedEditors = new[]
+                {
+                    "PortraitViewer", "BattleBGViewer", "BattleTerrainViewer", "BigCGViewer",
+                    "ChapterTitleViewer", "ChapterTitleFE7Viewer", "ItemIconViewer",
+                    "SystemIconViewer", "OPClassFontViewer", "OPPrologueViewer",
+                    "ImagePortraitFE6", "ImageBG", "ImageCG", "ImageCGFE7U",
+                    "ImageTSAAnime", "ImageBattleBG"
+                };
+                var coveredEditors = commonEditors.Select(f => f.Split('_')[0]).Distinct().ToHashSet();
+                _output.WriteLine($"COMPARE: Editor coverage: {coveredEditors.Count}/{expectedEditors.Length}");
+                foreach (var editor in expectedEditors)
+                {
+                    bool covered = coveredEditors.Contains(editor);
+                    _output.WriteLine($"COMPARE: Editor {editor}: {(covered ? "COVERED" : "NOT COVERED")}");
+                }
+
+                // Strict: all compared images must match pixel-perfect
                 Assert.True(matches + mismatches > 0, "Expected at least one compared image pair");
+                Assert.True(mismatches == 0,
+                    $"Pixel-perfect comparison failed: {mismatches} mismatched image(s):\n" +
+                    string.Join("\n", mismatchDetails));
             }
             finally
             {

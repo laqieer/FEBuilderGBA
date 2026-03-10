@@ -101,6 +101,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void WinForms_EditorImageExporter_HasAllEditors()
         {
+            // Original 10 editors
             Assert.Contains("PortraitViewer", EditorImageExporterSource);
             Assert.Contains("BattleBGViewer", EditorImageExporterSource);
             Assert.Contains("BattleTerrainViewer", EditorImageExporterSource);
@@ -110,6 +111,13 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("SystemIconViewer", EditorImageExporterSource);
             Assert.Contains("OPClassFontViewer", EditorImageExporterSource);
             Assert.Contains("OPPrologueViewer", EditorImageExporterSource);
+            // 6 new editors
+            Assert.Contains("ImagePortraitFE6", EditorImageExporterSource);
+            Assert.Contains("ImageBG", EditorImageExporterSource);
+            Assert.Contains("ImageCG", EditorImageExporterSource);
+            Assert.Contains("ImageCGFE7U", EditorImageExporterSource);
+            Assert.Contains("ImageTSAAnime", EditorImageExporterSource);
+            Assert.Contains("ImageBattleBG", EditorImageExporterSource);
         }
 
         [Fact]
@@ -161,13 +169,15 @@ namespace FEBuilderGBA.Tests.Unit
         public void NamingConvention_Matches()
         {
             // Both platforms should use the same editor names for matching
-            var avaloniaEditors = new[] {
+            var allEditors = new[] {
                 "PortraitViewer", "BattleBGViewer", "BattleTerrainViewer",
                 "BigCGViewer", "ChapterTitleViewer", "ChapterTitleFE7Viewer",
-                "ItemIconViewer", "SystemIconViewer", "OPClassFontViewer", "OPPrologueViewer"
+                "ItemIconViewer", "SystemIconViewer", "OPClassFontViewer", "OPPrologueViewer",
+                "ImagePortraitFE6", "ImageBG", "ImageCG", "ImageCGFE7U",
+                "ImageTSAAnime", "ImageBattleBG"
             };
 
-            foreach (var editor in avaloniaEditors)
+            foreach (var editor in allEditors)
             {
                 Assert.Contains(editor, MainWindowSource);
                 Assert.Contains(editor, EditorImageExporterSource);

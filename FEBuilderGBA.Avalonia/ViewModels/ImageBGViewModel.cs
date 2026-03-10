@@ -27,8 +27,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Background Image Editor", 0));
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = (uint)(baseAddr + i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+
+                uint a0 = rom.u32(addr + 0);
+                uint a1 = rom.u32(addr + 4);
+                if (!U.isPointerOrNULL(a0) || !U.isPointerOrNULL(a1)) break;
+
+                string name = U.ToHexString(i) + " Background";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 

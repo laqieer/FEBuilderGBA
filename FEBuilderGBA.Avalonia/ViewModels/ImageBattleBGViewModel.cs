@@ -29,8 +29,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.battle_bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Battle Background Editor", 0));
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = (uint)(baseAddr + i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+
+                uint img = rom.u32(addr + 0);
+                uint tsa = rom.u32(addr + 4);
+                if (!U.isPointer(img) || !U.isPointer(tsa)) break;
+
+                string name = U.ToHexString(i) + " Battle BG";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
         }
 
@@ -59,6 +76,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 0, ImagePointer);
             rom.write_u32(addr + 4, TSAPointer);
             rom.write_u32(addr + 8, PalettePointer);
+        }
+
+        /// <summary>
+        /// Render the battle BG image. All 3 components (image, TSA, palette) are LZ77-compressed.
+        /// </summary>
+        public IImage TryLoadImage()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return null;
+            try
+            {
+                if (!U.isPointer(ImagePointer) || !U.isPointer(TSAPointer) || !U.isPointer(PalettePointer))
+                    return null;
+
+                uint imgAddr = U.toOffset(ImagePointer);
+                uint tsaAddr = U.toOffset(TSAPointer);
+                uint palAddr = U.toOffset(PalettePointer);
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(tsaAddr) || !U.isSafetyOffset(palAddr))
+                    return null;
+
+                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+                if (tileData == null || tileData.Length == 0) return null;
+                byte[] palette = LZ77.decompress(rom.Data, palAddr);
+                if (palette == null || palette.Length == 0) return null;
+                byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                if (tsaData == null || tsaData.Length == 0) return null;
+
+                return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
+            }
+            catch { return null; }
         }
 
         public int GetListCount() => LoadList().Count;

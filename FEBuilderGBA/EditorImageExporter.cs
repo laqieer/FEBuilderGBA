@@ -100,6 +100,12 @@ namespace FEBuilderGBA
                 new ExporterEntry { Name = "SystemIconViewer", GetImage = (uint id) => ExportSystemIcon(id) },
                 new ExporterEntry { Name = "OPClassFontViewer", GetImage = (uint id) => DrawOPClassFont(id) },
                 new ExporterEntry { Name = "OPPrologueViewer", GetImage = (uint id) => OPPrologueForm.DrawImageByID(id) },
+                new ExporterEntry { Name = "ImagePortraitFE6", GetImage = (uint id) => ImagePortraitFE6Form.DrawPortraitAuto(id) },
+                new ExporterEntry { Name = "ImageBG", GetImage = (uint id) => ImageBGForm.DrawBG(id) },
+                new ExporterEntry { Name = "ImageCG", GetImage = (uint id) => ImageCGForm.DrawImageByID(id) },
+                new ExporterEntry { Name = "ImageCGFE7U", GetImage = (uint id) => ExportCGFE7U(id) },
+                new ExporterEntry { Name = "ImageTSAAnime", GetImage = (uint id) => ExportTSAAnime(id) },
+                new ExporterEntry { Name = "ImageBattleBG", GetImage = (uint id) => ImageBattleBGForm.DrawBG(id) },
             };
         }
 
@@ -200,6 +206,47 @@ namespace FEBuilderGBA
         {
             if (id != 1) return ImageUtil.BlankDummy();
             return ImageSystemIconForm.BaseImage();
+        }
+
+        /// <summary>
+        /// Export FE7U CG image. Only available for FE7U ROMs.
+        /// </summary>
+        static Bitmap ExportCGFE7U(uint id)
+        {
+            if (Program.ROM.RomInfo.version != 7 || Program.ROM.RomInfo.is_multibyte)
+                return ImageUtil.BlankDummy();
+            return ImageCGFE7UForm.DrawImageByID(id);
+        }
+
+        /// <summary>
+        /// Export TSA anime image by index. Loads TSA anime resource to find known pointers.
+        /// </summary>
+        static Bitmap ExportTSAAnime(uint id)
+        {
+            var tsaAnime = U.LoadTSVResource(U.ConfigDataFilename("tsaanime_"));
+            if (tsaAnime == null || tsaAnime.Count == 0) return ImageUtil.BlankDummy();
+
+            // Get the id-th category's first entry
+            int index = 0;
+            foreach (var pair in tsaAnime)
+            {
+                if (index == (int)(id - 1))
+                {
+                    uint pointer = pair.Key;
+                    uint ptrOff = U.toOffset(pointer);
+                    if (!U.isSafetyOffset(ptrOff)) return ImageUtil.BlankDummy();
+
+                    uint baseAddr = Program.ROM.p32(ptrOff);
+                    if (!U.isSafetyOffset(baseAddr)) return ImageUtil.BlankDummy();
+
+                    uint image = Program.ROM.u32(baseAddr);
+                    uint palette = Program.ROM.u32(baseAddr + 4);
+                    uint tsa = Program.ROM.u32(baseAddr + 8);
+                    return ImageTSAAnimeForm.DrawTSAAnime(image, palette, tsa);
+                }
+                index++;
+            }
+            return ImageUtil.BlankDummy();
         }
     }
 }

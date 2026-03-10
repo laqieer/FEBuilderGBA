@@ -552,6 +552,48 @@ namespace FEBuilderGBA.Avalonia.Views
                 addr => opPrologue.LoadOPPrologue(addr),
                 () => opPrologue.TryLoadImage())));
 
+            // Portrait FE6
+            var portraitFE6 = new ImagePortraitFE6ViewModel();
+            result.Add(("ImagePortraitFE6", new GraphicsExporter(
+                () => portraitFE6.LoadList(),
+                addr => portraitFE6.LoadEntry(addr),
+                () => portraitFE6.TryLoadImage())));
+
+            // Background Image
+            var imageBG = new ImageBGViewModel();
+            result.Add(("ImageBG", new GraphicsExporter(
+                () => imageBG.LoadList(),
+                addr => imageBG.LoadEntry(addr),
+                () => imageBG.TryLoadImage())));
+
+            // CG Image
+            var imageCG = new ImageCGViewModel();
+            result.Add(("ImageCG", new GraphicsExporter(
+                () => imageCG.LoadList(),
+                addr => imageCG.LoadEntry(addr),
+                () => imageCG.TryLoadImage())));
+
+            // CG FE7U
+            var imageCGFE7U = new ImageCGFE7UViewModel();
+            result.Add(("ImageCGFE7U", new GraphicsExporter(
+                () => imageCGFE7U.LoadList(),
+                addr => imageCGFE7U.LoadEntry(addr),
+                () => imageCGFE7U.TryLoadImage())));
+
+            // TSA Animation
+            var imageTSAAnime = new ImageTSAAnimeViewModel();
+            result.Add(("ImageTSAAnime", new GraphicsExporter(
+                () => imageTSAAnime.LoadList(),
+                addr => imageTSAAnime.LoadEntry(addr),
+                () => imageTSAAnime.TryLoadImage())));
+
+            // Battle BG (per-entry editor)
+            var imageBattleBG = new ImageBattleBGViewModel();
+            result.Add(("ImageBattleBG", new GraphicsExporter(
+                () => imageBattleBG.LoadList(),
+                addr => imageBattleBG.LoadEntry(addr),
+                () => imageBattleBG.TryLoadImage())));
+
             return result;
         }
 

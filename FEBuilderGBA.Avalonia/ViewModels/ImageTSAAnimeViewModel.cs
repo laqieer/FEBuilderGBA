@@ -27,8 +27,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            // Load TSA anime resource file to find known pointers
+            // Format: pointer<tab>count<tab>name — LoadTSVResource1 gives pointer → count
+            var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime_"), false);
+            if (tsaAnime == null || tsaAnime.Count == 0) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "TSA Animation Editor", 0));
+            // For each TSA anime category, load the first entry's pointers
+            foreach (var pair in tsaAnime)
+            {
+                uint pointer = pair.Key;
+                uint ptrOff = U.toOffset(pointer);
+                if (!U.isSafetyOffset(ptrOff)) continue;
+
+                uint baseAddr = rom.p32(ptrOff);
+                if (!U.isSafetyOffset(baseAddr)) continue;
+
+                // First entry at baseAddr: 12 bytes (image, palette, tsa)
+                if (baseAddr + SIZE > (uint)rom.Data.Length) continue;
+                uint img = rom.u32(baseAddr);
+                if (!U.isPointer(img)) continue;
+
+                string name = U.ToHexString(pointer) + " " + pair.Value;
+                result.Add(new AddrResult(baseAddr, name, (uint)result.Count));
+
+                if (result.Count >= 20) break; // Limit to avoid huge lists
+            }
             return result;
         }
 
