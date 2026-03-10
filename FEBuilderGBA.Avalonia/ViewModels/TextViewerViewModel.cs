@@ -57,13 +57,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentId = id;
             try
             {
-                DecodedText = FETextDecode.Direct(id) ?? "(empty)";
+                string raw = FETextDecode.Direct(id) ?? "(empty)";
+                DecodedText = ConvertEscapeToFEditor(raw);
             }
             catch
             {
                 DecodedText = "(decode error)";
             }
             CanWrite = true;
+        }
+
+        /// <summary>
+        /// Convert @XXXX escape codes to human-readable [Name] format.
+        /// Mirrors WinForms TextForm.ConvertEscapeToFEditor().
+        /// </summary>
+        static string ConvertEscapeToFEditor(string str)
+        {
+            // Handle @0010@0XXX (LoadFace with parameter) before table_replace
+            str = RegexCache.Replace(str, @"@0010@0([0-9A-F][0-9A-F][0-9A-F])", "[LoadFace][0x$1]");
+            // Convert known codes via table
+            if (CoreState.TextEscape != null)
+                str = CoreState.TextEscape.table_replace(str);
+            // Convert remaining unknown @XXXX codes
+            str = RegexCache.Replace(str, @"@([0-9A-F][0-9A-F][0-9A-F][0-9A-F])", "[0x$1]");
+            return str;
         }
 
         public int GetListCount() => LoadTextList().Count;

@@ -1,6 +1,8 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Controls.Documents;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -62,10 +64,55 @@ namespace FEBuilderGBA.Avalonia.Views
             TextList.SelectAddress(address);
         }
 
+        static readonly IBrush BlueBrush = new SolidColorBrush(Colors.Blue);
+
         void UpdateUI()
         {
             TextIdLabel.Text = $"Text ID: 0x{_vm.CurrentId:X04}";
-            DecodedTextBlock.Text = _vm.DecodedText;
+            ApplyHighlightedText(DecodedTextBlock, _vm.DecodedText);
+        }
+
+        /// <summary>
+        /// Parse text for [...] control code sequences and render them in blue.
+        /// Mirrors WinForms TextForm.KeywordHighLightFEditor() bracket scanning.
+        /// </summary>
+        static void ApplyHighlightedText(SelectableTextBlock block, string text)
+        {
+            block.Inlines?.Clear();
+            if (block.Inlines == null || string.IsNullOrEmpty(text))
+            {
+                block.Text = text ?? "";
+                return;
+            }
+
+            int i = 0;
+            int normalStart = 0;
+            while (i < text.Length)
+            {
+                if (text[i] == '[')
+                {
+                    // Find matching ']'
+                    int close = text.IndexOf(']', i + 1);
+                    if (close > i)
+                    {
+                        // Emit any preceding normal text
+                        if (i > normalStart)
+                            block.Inlines.Add(new Run(text.Substring(normalStart, i - normalStart)));
+                        // Emit the bracketed control code in blue
+                        block.Inlines.Add(new Run(text.Substring(i, close - i + 1))
+                        {
+                            Foreground = BlueBrush
+                        });
+                        i = close + 1;
+                        normalStart = i;
+                        continue;
+                    }
+                }
+                i++;
+            }
+            // Emit trailing normal text
+            if (normalStart < text.Length)
+                block.Inlines.Add(new Run(text.Substring(normalStart)));
         }
 
         public void SelectFirstItem()

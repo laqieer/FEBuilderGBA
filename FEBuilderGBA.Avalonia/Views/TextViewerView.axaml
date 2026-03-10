@@ -13,7 +13,7 @@
         <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
 
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <TextBlock Name="DecodedTextBlock" TextWrapping="Wrap" FontSize="14" />
+          <SelectableTextBlock Name="DecodedTextBlock" TextWrapping="Wrap" FontSize="14" />
         </Border>
       </StackPanel>
     </ScrollViewer>
