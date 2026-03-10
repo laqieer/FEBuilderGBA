@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load BG image. P0=image(LZ77), P4=palette(LZ77), P8=TSA(LZ77).
+        /// Try to load BG image. ROM layout: P0=image(LZ77), P4=TSA(raw header), P8=palette(raw).
         /// </summary>
         public IImage TryLoadImage()
         {
@@ -73,24 +73,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return null;
             try
             {
-                if (!U.isPointer(P0) || !U.isPointer(P4)) return null;
+                // P0=image, P4=TSA, P8=palette (matching WinForms ImageBGForm field order)
+                if (!U.isPointer(P0) || !U.isPointer(P8)) return null;
                 uint imgAddr = U.toOffset(P0);
-                uint palAddr = U.toOffset(P4);
+                uint palAddr = U.toOffset(P8);
                 if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
 
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
-                byte[] palette = LZ77.decompress(rom.Data, palAddr);
+
+                // Palette is raw ROM data (not LZ77 compressed) — read up to 256 colors
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
                 if (palette == null || palette.Length == 0) return null;
 
-                if (U.isPointer(P8))
+                if (U.isPointer(P4))
                 {
-                    uint tsaAddr = U.toOffset(P8);
+                    uint tsaAddr = U.toOffset(P4);
                     if (U.isSafetyOffset(tsaAddr))
                     {
-                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
-                        if (tsaData != null && tsaData.Length > 0)
-                            return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
+                        // TSA is raw ROM data with header format
+                        int tsaLen = Math.Min(32 * 20 * 2 + 4, (int)((uint)rom.Data.Length - tsaAddr));
+                        if (tsaLen > 0)
+                        {
+                            byte[] tsaData = new byte[tsaLen];
+                            Array.Copy(rom.Data, tsaAddr, tsaData, 0, tsaLen);
+                            return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20);
+                        }
                     }
                 }
 

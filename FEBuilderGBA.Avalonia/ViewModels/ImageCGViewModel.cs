@@ -67,7 +67,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Try to load CG image. P0=image(LZ77), P4=palette(LZ77), P8=TSA(LZ77).
+        /// Try to load CG image. ROM layout: P0=table(10-split), P4=TSA(raw), P8=palette(raw).
+        /// The table at P0 contains 10 pointers to LZ77-compressed image parts.
         /// </summary>
         public IImage TryLoadImage()
         {
@@ -75,33 +76,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return null;
             try
             {
-                if (!U.isPointer(P0) || !U.isPointer(P4)) return null;
-                uint imgAddr = U.toOffset(P0);
-                uint palAddr = U.toOffset(P4);
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+                // P0=table, P4=TSA, P8=palette (matching WinForms ImageCGForm)
+                if (!U.isPointer(P0) || !U.isPointer(P4) || !U.isPointer(P8)) return null;
+                uint tableAddr = U.toOffset(P0);
+                uint tsaAddr = U.toOffset(P4);
+                uint palAddr = U.toOffset(P8);
+                if (!U.isSafetyOffset(tableAddr) || !U.isSafetyOffset(tsaAddr) || !U.isSafetyOffset(palAddr))
+                    return null;
 
-                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
-                if (tileData == null || tileData.Length == 0) return null;
-                byte[] palette = LZ77.decompress(rom.Data, palAddr);
-                if (palette == null || palette.Length == 0) return null;
-
-                if (U.isPointer(P8))
+                // Decompress 10-split image parts
+                var imageUZList = new System.Collections.Generic.List<byte>();
+                for (int i = 0; i < 10; i++)
                 {
-                    uint tsaAddr = U.toOffset(P8);
-                    if (U.isSafetyOffset(tsaAddr))
-                    {
-                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
-                        if (tsaData != null && tsaData.Length > 0)
-                            return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
-                    }
+                    uint imagePtr = rom.u32((uint)(tableAddr + i * 4));
+                    if (!U.isPointer(imagePtr)) return null;
+                    byte[] imageUZ = LZ77.decompress(rom.Data, U.toOffset(imagePtr));
+                    if (imageUZ == null || imageUZ.Length == 0) return null;
+                    imageUZList.AddRange(imageUZ);
                 }
 
-                if (CoreState.ImageService == null) return null;
-                int totalTiles = tileData.Length / 32;
-                if (totalTiles <= 0) return null;
-                int tilesX = 30;
-                int tilesY = (totalTiles + tilesX - 1) / tilesX;
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+                byte[] tileData = imageUZList.ToArray();
+                if (tileData.Length == 0) return null;
+
+                // Palette is raw ROM data (not LZ77)
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
+                if (palette == null || palette.Length == 0) return null;
+
+                // TSA is raw ROM data with header format
+                int tsaLen = Math.Min(32 * 20 * 2 + 4, (int)((uint)rom.Data.Length - tsaAddr));
+                if (tsaLen <= 0) return null;
+                byte[] tsaData = new byte[tsaLen];
+                Array.Copy(rom.Data, tsaAddr, tsaData, 0, tsaLen);
+
+                return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20);
             }
             catch { return null; }
         }
