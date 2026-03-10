@@ -1272,5 +1272,353 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null));
             Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, new byte[0]));
         }
+
+        // ---- GrepPointerAll tests ----
+
+        [Fact]
+        public void GrepPointerAll_FindsMultipleReferences()
+        {
+            byte[] data = new byte[0x200];
+            uint target = 0x1000; // offset in ROM
+            uint pointer = U.toPointer(target); // 0x08001000
+            // Write pointer at two locations
+            U.write_u32(data, 0x100, pointer);
+            U.write_u32(data, 0x120, pointer);
+
+            var refs = U.GrepPointerAll(data, target);
+            Assert.Equal(2, refs.Count);
+            Assert.Contains((uint)0x100, refs);
+            Assert.Contains((uint)0x120, refs);
+        }
+
+        [Fact]
+        public void GrepPointerAll_SingleReference()
+        {
+            byte[] data = new byte[0x200];
+            uint target = 0x2000;
+            U.write_u32(data, 0x100, U.toPointer(target));
+
+            var refs = U.GrepPointerAll(data, target);
+            Assert.Single(refs);
+            Assert.Equal((uint)0x100, refs[0]);
+        }
+
+        [Fact]
+        public void GrepPointerAll_NoReferences()
+        {
+            byte[] data = new byte[0x200];
+            var refs = U.GrepPointerAll(data, 0x1000);
+            Assert.Empty(refs);
+        }
+
+        [Fact]
+        public void GrepPointerAll_ZeroAddress_ReturnsEmpty()
+        {
+            byte[] data = new byte[0x200];
+            var refs = U.GrepPointerAll(data, 0);
+            Assert.Empty(refs);
+        }
+
+        [Fact]
+        public void GrepPointerAll_NotFoundAddress_ReturnsEmpty()
+        {
+            byte[] data = new byte[0x200];
+            var refs = U.GrepPointerAll(data, U.NOT_FOUND);
+            Assert.Empty(refs);
+        }
+
+        // ---- IsPointerShared tests ----
+
+        [Fact]
+        public void IsPointerShared_SharedPointer_ReturnsTrue()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x2000];
+            // Place palette data at 0x1000
+            data[0x1000] = 0x01;
+            // Two pointers pointing to 0x1000
+            uint ptr = U.toPointer(0x1000);
+            U.write_u32(data, 0x100, ptr);
+            U.write_u32(data, 0x200, ptr);
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.True(ImageImportCore.IsPointerShared(rom, 0x100));
+        }
+
+        [Fact]
+        public void IsPointerShared_UniquePointer_ReturnsFalse()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x2000];
+            uint ptr = U.toPointer(0x1000);
+            U.write_u32(data, 0x100, ptr);
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.False(ImageImportCore.IsPointerShared(rom, 0x100));
+        }
+
+        [Fact]
+        public void IsPointerShared_NullRom_ReturnsFalse()
+        {
+            Assert.False(ImageImportCore.IsPointerShared(null, 0x100));
+        }
+
+        // ---- ReadPaletteFromROM tests ----
+
+        [Fact]
+        public void ReadPaletteFromROM_ReadsRawPalette()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x2000];
+            // Write 16 colors at 0x1000 (32 bytes)
+            for (int i = 0; i < 32; i++)
+                data[0x1000 + i] = (byte)(i + 1);
+            U.write_u32(data, 0x100, U.toPointer(0x1000));
+            rom.SwapNewROMDataDirect(data);
+
+            byte[] pal = ImageImportCore.ReadPaletteFromROM(rom, 0x100, 16, false);
+            Assert.NotNull(pal);
+            Assert.Equal(32, pal.Length);
+            for (int i = 0; i < 32; i++)
+                Assert.Equal((byte)(i + 1), pal[i]);
+        }
+
+        [Fact]
+        public void ReadPaletteFromROM_NullRom_ReturnsNull()
+        {
+            Assert.Null(ImageImportCore.ReadPaletteFromROM(null, 0x100));
+        }
+
+        // ---- RemapPaletteIndices tests ----
+
+        [Fact]
+        public void RemapPaletteIndices_IdenticalPalettes_NoChange()
+        {
+            byte[] palette = new byte[32]; // 16 colors
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)(i * 2); // arbitrary colors
+                palette[i * 2] = (byte)(color & 0xFF);
+                palette[i * 2 + 1] = (byte)((color >> 8) & 0xFF);
+            }
+
+            byte[] pixels = new byte[] { 0, 1, 2, 3, 4, 5 };
+            byte[] result = ImageImportCore.RemapPaletteIndices(pixels, palette, palette);
+
+            Assert.NotNull(result);
+            Assert.Equal(pixels.Length, result.Length);
+            for (int i = 0; i < pixels.Length; i++)
+                Assert.Equal(pixels[i], result[i]);
+        }
+
+        [Fact]
+        public void RemapPaletteIndices_TransparentIndex0AlwaysMaps0()
+        {
+            byte[] fromPal = new byte[32];
+            byte[] toPal = new byte[32];
+            // Make palettes different
+            fromPal[2] = 0x1F; // color 1 = red
+            toPal[4] = 0x1F;   // color 2 = red in target
+
+            byte[] pixels = new byte[] { 0, 1 };
+            byte[] result = ImageImportCore.RemapPaletteIndices(pixels, fromPal, toPal);
+
+            Assert.NotNull(result);
+            Assert.Equal(0, result[0]); // index 0 always stays 0
+        }
+
+        [Fact]
+        public void RemapPaletteIndices_RemapsToClosestColor()
+        {
+            byte[] fromPal = new byte[32];
+            byte[] toPal = new byte[32];
+
+            // fromPal color 1 = pure red (R=31, G=0, B=0) = 0x001F
+            fromPal[2] = 0x1F; fromPal[3] = 0x00;
+            // toPal color 1 = pure green
+            toPal[2] = 0xE0; toPal[3] = 0x03; // (0, 31, 0)
+            // toPal color 2 = pure red (same as fromPal color 1)
+            toPal[4] = 0x1F; toPal[5] = 0x00;
+
+            byte[] pixels = new byte[] { 1 }; // uses color 1 from fromPal (red)
+            byte[] result = ImageImportCore.RemapPaletteIndices(pixels, fromPal, toPal);
+
+            Assert.NotNull(result);
+            Assert.Equal(2, result[0]); // should map to toPal color 2 (red)
+        }
+
+        [Fact]
+        public void RemapPaletteIndices_NullInputs_ReturnsNull()
+        {
+            byte[] pal = new byte[32];
+            byte[] pix = new byte[] { 1 };
+            Assert.Null(ImageImportCore.RemapPaletteIndices(null, pal, pal));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, null, pal));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, pal, null));
+        }
+
+        [Fact]
+        public void RemapPaletteIndices_ShortPalette_ReturnsNull()
+        {
+            byte[] pix = new byte[] { 1 };
+            byte[] shortPal = new byte[10]; // too short for 16 colors
+            byte[] fullPal = new byte[32];
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, shortPal, fullPal));
+            Assert.Null(ImageImportCore.RemapPaletteIndices(pix, fullPal, shortPal));
+        }
+
+        // ---- Import3Pointer shared palette tests ----
+
+        [Fact]
+        public void Import3Pointer_SharedPalette_PreservesExistingPalette()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x200000];
+            // Fill second half with 0xFF (free space)
+            for (int i = 0x100000; i < data.Length; i++) data[i] = 0xFF;
+
+            // Place a palette at 0x1000 (16 colors = 32 bytes)
+            byte[] existingPalette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)(i * 2);
+                existingPalette[i * 2] = (byte)(color & 0xFF);
+                existingPalette[i * 2 + 1] = (byte)((color >> 8) & 0xFF);
+            }
+            Array.Copy(existingPalette, 0, data, 0x1000, 32);
+
+            // Two entries sharing the same palette pointer
+            uint palPtr = U.toPointer(0x1000);
+            U.write_u32(data, 0x100, palPtr); // entry 1 palette pointer
+            U.write_u32(data, 0x200, palPtr); // entry 2 palette pointer (shared)
+
+            // Image and TSA pointers for entry 1
+            U.write_u32(data, 0x104, U.toPointer(0x2000));
+            U.write_u32(data, 0x108, U.toPointer(0x3000));
+
+            rom.SwapNewROMDataDirect(data);
+
+            // Create an 8x8 image with indexed pixels
+            byte[] indexedPixels = new byte[64];
+            for (int i = 0; i < 64; i++) indexedPixels[i] = (byte)(i % 15 + 1);
+
+            var result = ImageImportCore.Import3Pointer(rom, indexedPixels, existingPalette,
+                8, 8, 0x104, 0x108, 0x100);
+
+            Assert.True(result.Success);
+            Assert.True(result.PaletteWasShared);
+            // The palette pointer at 0x200 should still be valid (unchanged)
+            Assert.Equal(palPtr, U.u32(rom.Data, 0x200));
+        }
+
+        [Fact]
+        public void Import3Pointer_UniquePalette_WritesNewPalette()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x200000];
+            for (int i = 0x100000; i < data.Length; i++) data[i] = 0xFF;
+
+            // Palette at 0x1000 with only ONE reference
+            byte[] existingPalette = new byte[32];
+            existingPalette[2] = 0x1F; // color 1 = red
+            Array.Copy(existingPalette, 0, data, 0x1000, 32);
+            U.write_u32(data, 0x100, U.toPointer(0x1000)); // only reference
+            U.write_u32(data, 0x104, U.toPointer(0x2000));
+            U.write_u32(data, 0x108, U.toPointer(0x3000));
+
+            rom.SwapNewROMDataDirect(data);
+
+            byte[] newPalette = new byte[32];
+            newPalette[2] = 0x00; newPalette[3] = 0x7C; // color 1 = blue
+            byte[] indexedPixels = new byte[64];
+
+            var result = ImageImportCore.Import3Pointer(rom, indexedPixels, newPalette,
+                8, 8, 0x104, 0x108, 0x100);
+
+            Assert.True(result.Success);
+            Assert.False(result.PaletteWasShared);
+        }
+
+        // ---- Import2Pointer shared palette test ----
+
+        [Fact]
+        public void Import2Pointer_SharedPalette_PreservesExistingPalette()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x200000];
+            for (int i = 0x100000; i < data.Length; i++) data[i] = 0xFF;
+
+            byte[] existingPalette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                existingPalette[i * 2] = (byte)(i & 0xFF);
+            }
+            Array.Copy(existingPalette, 0, data, 0x1000, 32);
+
+            uint palPtr = U.toPointer(0x1000);
+            U.write_u32(data, 0x100, palPtr); // entry 1 palette pointer
+            U.write_u32(data, 0x200, palPtr); // entry 2 palette pointer (shared)
+            U.write_u32(data, 0x104, U.toPointer(0x2000)); // image pointer
+
+            rom.SwapNewROMDataDirect(data);
+
+            byte[] indexedPixels = new byte[64];
+            var result = ImageImportCore.Import2Pointer(rom, indexedPixels, existingPalette,
+                8, 8, 0x104, 0x100);
+
+            Assert.True(result.Success);
+            Assert.True(result.PaletteWasShared);
+            Assert.Equal(palPtr, U.u32(rom.Data, 0x200));
+        }
+
+        // ---- Import3PointerMultiPalette shared palette test ----
+
+        [Fact]
+        public void Import3PointerMultiPalette_SharedPalette_UsesExisting()
+        {
+            var oldImageService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                var rom = new ROM();
+                byte[] data = new byte[0x200000];
+                for (int i = 0x100000; i < data.Length; i++) data[i] = 0xFF;
+
+                // Create multi-palette (2 sub-palettes, 16 colors each = 64 bytes)
+                byte[] existingPalette = new byte[64];
+                for (int i = 0; i < 32; i++)
+                {
+                    existingPalette[i * 2] = (byte)(i & 0xFF);
+                }
+                Array.Copy(existingPalette, 0, data, 0x1000, 64);
+
+                uint palPtr = U.toPointer(0x1000);
+                U.write_u32(data, 0x100, palPtr); // entry 1
+                U.write_u32(data, 0x200, palPtr); // entry 2 (shared)
+                U.write_u32(data, 0x104, U.toPointer(0x2000)); // img
+                U.write_u32(data, 0x108, U.toPointer(0x3000)); // tsa
+
+                rom.SwapNewROMDataDirect(data);
+
+                // 8x8 RGBA image (all red pixels)
+                byte[] rgbaPixels = new byte[64 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    rgbaPixels[i * 4 + 0] = 248; // R
+                    rgbaPixels[i * 4 + 3] = 255; // A
+                }
+
+                var result = ImageImportCore.Import3PointerMultiPalette(rom, rgbaPixels, existingPalette,
+                    8, 8, 0x104, 0x108, 0x100, subPaletteCount: 2);
+
+                Assert.True(result.Success);
+                Assert.True(result.PaletteWasShared);
+            }
+            finally
+            {
+                CoreState.ImageService = oldImageService;
+            }
+        }
     }
 }

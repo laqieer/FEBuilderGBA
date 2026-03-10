@@ -31,6 +31,8 @@ namespace FEBuilderGBA
             public uint TSADataOffset { get; set; }
             /// <summary>ROM offset where palette was written.</summary>
             public uint PaletteOffset { get; set; }
+            /// <summary>True if palette pointer was shared and existing palette was preserved.</summary>
+            public bool PaletteWasShared { get; set; }
         }
 
         /// <summary>
@@ -272,8 +274,113 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Check if a pointer in ROM is referenced by more than one location.
+        /// Used to detect shared palettes/TSA.
+        /// </summary>
+        public static bool IsPointerShared(ROM rom, uint pointerAddr)
+        {
+            if (rom == null || rom.Data == null) return false;
+            uint target = rom.p32(pointerAddr);
+            if (target == 0 || target == U.NOT_FOUND) return false;
+            var refs = U.GrepPointerAll(rom.Data, target);
+            return refs.Count > 1;
+        }
+
+        /// <summary>
+        /// Read an existing palette from ROM at the given pointer address.
+        /// </summary>
+        /// <param name="rom">ROM instance</param>
+        /// <param name="pointerAddr">Address of the pointer to the palette</param>
+        /// <param name="colorCount">Number of colors (16 for 4bpp)</param>
+        /// <param name="compressed">If true, palette is LZ77-compressed</param>
+        /// <returns>Raw GBA palette bytes (2 bytes per color), or null on failure</returns>
+        public static byte[] ReadPaletteFromROM(ROM rom, uint pointerAddr, int colorCount = 16, bool compressed = false)
+        {
+            if (rom == null || rom.Data == null) return null;
+            uint target = rom.p32(pointerAddr);
+            if (target == 0 || target == U.NOT_FOUND || target >= (uint)rom.Data.Length) return null;
+
+            if (compressed)
+            {
+                byte[] decompressed = LZ77.decompress(rom.Data, target);
+                if (decompressed == null || decompressed.Length < colorCount * 2) return null;
+                byte[] result = new byte[colorCount * 2];
+                Array.Copy(decompressed, 0, result, 0, result.Length);
+                return result;
+            }
+            else
+            {
+                int size = colorCount * 2;
+                if (target + size > (uint)rom.Data.Length) return null;
+                byte[] result = new byte[size];
+                for (int i = 0; i < size; i++)
+                    result[i] = rom.Data[target + i];
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Remap indexed pixel data from one GBA palette to another by finding closest color matches.
+        /// Index 0 always maps to 0 (transparent). Works purely on GBA 15-bit color values.
+        /// </summary>
+        /// <param name="indexedPixels">1 byte per pixel (palette indices)</param>
+        /// <param name="fromPalette">GBA palette the pixels were quantized against (2 bytes/color)</param>
+        /// <param name="toPalette">Target GBA palette to remap to (2 bytes/color)</param>
+        /// <param name="colorCount">Number of colors per palette</param>
+        /// <returns>New indexed pixel array remapped to toPalette</returns>
+        public static byte[] RemapPaletteIndices(byte[] indexedPixels, byte[] fromPalette, byte[] toPalette, int colorCount = 16)
+        {
+            if (indexedPixels == null || fromPalette == null || toPalette == null) return null;
+            if (fromPalette.Length < colorCount * 2 || toPalette.Length < colorCount * 2) return null;
+
+            // Build mapping table: fromPalette[i] → closest toPalette[j]
+            byte[] mapping = new byte[colorCount];
+            mapping[0] = 0; // transparent always maps to 0
+
+            for (int i = 1; i < colorCount; i++)
+            {
+                ushort fromColor = (ushort)(fromPalette[i * 2] | (fromPalette[i * 2 + 1] << 8));
+                int fromR = (fromColor & 0x1F) << 3;
+                int fromG = ((fromColor >> 5) & 0x1F) << 3;
+                int fromB = ((fromColor >> 10) & 0x1F) << 3;
+
+                int bestIdx = 1;
+                int bestDist = int.MaxValue;
+                for (int j = 1; j < colorCount; j++)
+                {
+                    ushort toColor = (ushort)(toPalette[j * 2] | (toPalette[j * 2 + 1] << 8));
+                    int toR = (toColor & 0x1F) << 3;
+                    int toG = ((toColor >> 5) & 0x1F) << 3;
+                    int toB = ((toColor >> 10) & 0x1F) << 3;
+
+                    int dr = fromR - toR;
+                    int dg = fromG - toG;
+                    int db = fromB - toB;
+                    int dist = dr * dr + dg * dg + db * db;
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestIdx = j;
+                    }
+                }
+                mapping[i] = (byte)bestIdx;
+            }
+
+            // Apply mapping
+            byte[] result = new byte[indexedPixels.Length];
+            for (int i = 0; i < indexedPixels.Length; i++)
+            {
+                byte idx = indexedPixels[i];
+                result[i] = (idx < colorCount) ? mapping[idx] : idx;
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Full 3-pointer import: image (LZ77) + TSA (LZ77) + palette.
         /// Used by BattleBG, CG, BG editors.
+        /// If palette pointer is shared by multiple entries, remaps pixels to the existing palette
+        /// instead of overwriting it, preserving visual consistency for other entries.
         /// </summary>
         /// <param name="compressPalette">When true, palette is LZ77-compressed (required by BattleBG which reads palette via LZ77.decompress).</param>
         public static ImportResult Import3Pointer(ROM rom, byte[] indexedPixels, byte[] gbaPalette,
@@ -282,8 +389,37 @@ namespace FEBuilderGBA
         {
             var result = new ImportResult();
 
+            // Check if palette pointer is shared with other entries
+            byte[] activePalette = gbaPalette;
+            byte[] activePixels = indexedPixels;
+            bool paletteShared = IsPointerShared(rom, palPointerAddr);
+
+            if (paletteShared)
+            {
+                byte[] existingPalette = ReadPaletteFromROM(rom, palPointerAddr, 16, compressPalette);
+                if (existingPalette != null)
+                {
+                    activePixels = RemapPaletteIndices(indexedPixels, gbaPalette, existingPalette);
+                    if (activePixels != null)
+                    {
+                        activePalette = existingPalette;
+                        result.PaletteWasShared = true;
+                    }
+                    else
+                    {
+                        // Fallback: remapping failed, use original
+                        activePixels = indexedPixels;
+                        paletteShared = false;
+                    }
+                }
+                else
+                {
+                    paletteShared = false;
+                }
+            }
+
             // Encode TSA with deduplication
-            var tsaResult = EncodeTSA(indexedPixels, width, height, paletteIndex);
+            var tsaResult = EncodeTSA(activePixels, width, height, paletteIndex);
             if (tsaResult == null)
             {
                 result.Error = "Failed to encode TSA data";
@@ -306,16 +442,23 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            // Write palette (raw or LZ77-compressed depending on editor)
+            // Skip palette write if shared (existing palette preserved)
             uint palAddr;
-            if (compressPalette)
-                palAddr = WriteCompressedToROM(rom, gbaPalette, palPointerAddr);
-            else
-                palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
-            if (palAddr == U.NOT_FOUND)
+            if (paletteShared && result.PaletteWasShared)
             {
-                result.Error = "Failed to write palette data (no free space)";
-                return result;
+                palAddr = rom.p32(palPointerAddr);
+            }
+            else
+            {
+                if (compressPalette)
+                    palAddr = WriteCompressedToROM(rom, activePalette, palPointerAddr);
+                else
+                    palAddr = WritePaletteToROM(rom, activePalette, palPointerAddr);
+                if (palAddr == U.NOT_FOUND)
+                {
+                    result.Error = "Failed to write palette data (no free space)";
+                    return result;
+                }
             }
 
             result.Success = true;
@@ -334,7 +477,35 @@ namespace FEBuilderGBA
         {
             var result = new ImportResult();
 
-            byte[] tileData = EncodeDirectTiles4bpp(indexedPixels, width, height);
+            // Check if palette pointer is shared with other entries
+            byte[] activePalette = gbaPalette;
+            byte[] activePixels = indexedPixels;
+            bool paletteShared = IsPointerShared(rom, palPointerAddr);
+
+            if (paletteShared)
+            {
+                byte[] existingPalette = ReadPaletteFromROM(rom, palPointerAddr, 16, false);
+                if (existingPalette != null)
+                {
+                    activePixels = RemapPaletteIndices(indexedPixels, gbaPalette, existingPalette);
+                    if (activePixels != null)
+                    {
+                        activePalette = existingPalette;
+                        result.PaletteWasShared = true;
+                    }
+                    else
+                    {
+                        activePixels = indexedPixels;
+                        paletteShared = false;
+                    }
+                }
+                else
+                {
+                    paletteShared = false;
+                }
+            }
+
+            byte[] tileData = EncodeDirectTiles4bpp(activePixels, width, height);
             if (tileData == null)
             {
                 result.Error = "Failed to encode tile data";
@@ -348,11 +519,19 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            uint palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
-            if (palAddr == U.NOT_FOUND)
+            uint palAddr;
+            if (paletteShared && result.PaletteWasShared)
             {
-                result.Error = "Failed to write palette data (no free space)";
-                return result;
+                palAddr = rom.p32(palPointerAddr);
+            }
+            else
+            {
+                palAddr = WritePaletteToROM(rom, activePalette, palPointerAddr);
+                if (palAddr == U.NOT_FOUND)
+                {
+                    result.Error = "Failed to write palette data (no free space)";
+                    return result;
+                }
             }
 
             result.Success = true;
@@ -714,7 +893,26 @@ namespace FEBuilderGBA
         {
             var result = new ImportResult();
 
-            var remap = RemapToMultiPalette(rgbaPixels, width, height, gbaPalette, subPaletteCount);
+            // Check if palette pointer is shared with other entries
+            byte[] activePalette = gbaPalette;
+            bool paletteShared = IsPointerShared(rom, palPointerAddr);
+
+            if (paletteShared)
+            {
+                int totalColors = subPaletteCount * 16;
+                byte[] existingPalette = ReadPaletteFromROM(rom, palPointerAddr, totalColors, compressPalette);
+                if (existingPalette != null)
+                {
+                    activePalette = existingPalette;
+                    result.PaletteWasShared = true;
+                }
+                else
+                {
+                    paletteShared = false;
+                }
+            }
+
+            var remap = RemapToMultiPalette(rgbaPixels, width, height, activePalette, subPaletteCount);
             if (remap == null)
             {
                 result.Error = "Failed to remap image to multi-palette";
@@ -743,14 +941,21 @@ namespace FEBuilderGBA
             }
 
             uint palAddr;
-            if (compressPalette)
-                palAddr = WriteCompressedToROM(rom, gbaPalette, palPointerAddr);
-            else
-                palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
-            if (palAddr == U.NOT_FOUND)
+            if (paletteShared && result.PaletteWasShared)
             {
-                result.Error = "Failed to write palette data (no free space)";
-                return result;
+                palAddr = rom.p32(palPointerAddr);
+            }
+            else
+            {
+                if (compressPalette)
+                    palAddr = WriteCompressedToROM(rom, activePalette, palPointerAddr);
+                else
+                    palAddr = WritePaletteToROM(rom, activePalette, palPointerAddr);
+                if (palAddr == U.NOT_FOUND)
+                {
+                    result.Error = "Failed to write palette data (no free space)";
+                    return result;
+                }
             }
 
             result.Success = true;

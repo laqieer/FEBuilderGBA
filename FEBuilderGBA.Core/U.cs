@@ -684,6 +684,28 @@ namespace FEBuilderGBA
             }
             return U.NOT_FOUND;
         }
+        public static List<uint> GrepPointerAll(byte[] data, uint needaddr, uint start = 0x100, uint end = 0)
+        {
+            List<uint> ret = new List<uint>();
+            if (needaddr == 0 || needaddr == U.NOT_FOUND) return ret;
+            if (end == 0 || end == U.NOT_FOUND) end = (uint)data.Length;
+            else end = (uint)Math.Min((uint)data.Length, end);
+            if (end < 4) return ret;
+            end -= 4;
+
+            byte[] matchData = new byte[4];
+            U.write_u32(matchData, 0, U.toPointer(needaddr));
+
+            for (uint i = start; i <= end; i += 4)
+            {
+                if (data[i] != matchData[0]) continue;
+                if (data[i + 1] != matchData[1]) continue;
+                if (data[i + 2] != matchData[2]) continue;
+                if (data[i + 3] != matchData[3]) continue;
+                ret.Add(i);
+            }
+            return ret;
+        }
         public static uint GrepEnablePointer(byte[] data, uint start = 0x100, uint end = 0)
         {
             if (end == 0 || end == U.NOT_FOUND) end = (uint)data.Length;

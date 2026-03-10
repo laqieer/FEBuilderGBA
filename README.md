@@ -105,6 +105,9 @@ FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=.
 # Validated on all 5 ROM variants: FE6, FE7J, FE7U, FE8J, FE8U
 # Note: Image import auto-expands ROM (up to 32MB max) when no free space is found,
 # appending data to the end of the ROM rather than overwriting existing data.
+# Shared palette detection: If a palette pointer is referenced by multiple entries,
+# the import remaps pixel indices to the existing palette instead of overwriting it,
+# preserving visual consistency for all entries sharing that palette.
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-import
 
 # Cross-platform publish (self-contained)
