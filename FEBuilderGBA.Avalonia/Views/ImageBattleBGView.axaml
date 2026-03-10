@@ -31,6 +31,8 @@
           <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
             <Button Content="Write" Click="Write_Click" />
             <Button Content="Import PNG" Click="ImportPng_Click" />
+            <Button Content="Export PAL" Click="ExportPal_Click" />
+            <Button Content="Import PAL" Click="ImportPal_Click" />
           </StackPanel>
         </Grid>
       </StackPanel>

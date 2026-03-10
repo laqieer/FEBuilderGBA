@@ -113,5 +113,36 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
+
+        static readonly FilePickerFileType PalFileType = new("GBA Palette Files")
+        {
+            Patterns = new[] { "*.pal" },
+        };
+
+        /// <summary>Save a GBA palette (.pal) file.</summary>
+        public static async Task<string?> SavePaletteFile(Window owner, string? suggestedName = null)
+        {
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Palette",
+                SuggestedFileName = suggestedName ?? "palette.pal",
+                FileTypeChoices = new[] { PalFileType, AllFileType },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
+        /// <summary>Open a GBA palette (.pal) file for import.</summary>
+        public static async Task<string?> OpenPaletteFile(Window owner)
+        {
+            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Import Palette",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { PalFileType, AllFileType },
+            });
+
+            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        }
     }
 }

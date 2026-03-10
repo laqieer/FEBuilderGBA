@@ -22,6 +22,8 @@
           <Button Content="Write" Click="Write_Click" />
           <Button Content="Import PNG" Click="ImportPng_Click" />
           <Button Content="Export PNG" Click="ExportPng_Click" />
+          <Button Content="Export PAL" Click="ExportPal_Click" />
+          <Button Content="Import PAL" Click="ImportPal_Click" />
         </StackPanel>
         <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>

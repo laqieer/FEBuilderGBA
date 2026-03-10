@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -120,6 +122,46 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("BigCG image imported successfully.");
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint addr = _vm.CurrentAddr;
+                uint palPtr = rom.u32(addr + 8);
+                if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
+                uint palAddr = U.toOffset(palPtr);
+                byte[] pal = ImageUtilCore.GetPalette(palAddr, 256);
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                string path = await FileDialogHelper.SavePaletteFile(this, "big_cg_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
+        }
+
+        async void ImportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                string path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+                byte[] palData = File.ReadAllBytes(path);
+                if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                uint addr = _vm.CurrentAddr;
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                _vm.LoadBigCG(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Palette imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

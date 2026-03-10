@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -57,6 +59,19 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
             await ImageDisplay.ExportPng(this, "item_icon.png");
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] pal = _vm.CachedPalette;
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("No palette loaded"); return; }
+                string? path = await FileDialogHelper.SavePaletteFile(this, "item_icon_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }
 
         async void ImportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)

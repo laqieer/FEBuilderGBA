@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -160,6 +162,48 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
             await MainPortraitImage.ExportPng(this, "portrait.png");
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint palPtr = _vm.PalettePointer;
+                if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
+                uint palAddr = U.toOffset(palPtr);
+                // Portrait palette is raw (not compressed), 16 colors = 32 bytes
+                byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                string? path = await FileDialogHelper.SavePaletteFile(this, "portrait_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
+        }
+
+        async void ImportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+                byte[] palData = File.ReadAllBytes(path);
+                if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+                // Portrait palette is raw at offset +8
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                _vm.LoadPortrait(addr);
+                UpdateUI();
+                TryShowPortraitImage();
+                CoreState.Services.ShowInfo("Palette imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void SelectFirstItem()

@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -92,6 +94,47 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint palAddr = _vm.PaletteColorPointer;
+                if (!U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette pointer"); return; }
+                byte[] pal = ImageUtilCore.GetPalette(palAddr, 256);
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                string path = await FileDialogHelper.SavePaletteFile(this, "op_prologue_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
+        }
+
+        async void ImportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                string path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+                byte[] palData = File.ReadAllBytes(path);
+                if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                uint palAddr = _vm.PaletteColorPointer;
+                if (!U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette address to write to"); return; }
+                // Write raw palette data directly at the shared palette address
+                int writeLen = Math.Min(palData.Length, 256 * 2);
+                for (int i = 0; i < writeLen; i++)
+                    rom.write_u8(palAddr + (uint)i, palData[i]);
+                _vm.LoadOPPrologue(_vm.CurrentAddr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Palette imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

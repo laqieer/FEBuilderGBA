@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -95,6 +97,46 @@ namespace FEBuilderGBA.Avalonia.Views
             if (uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint val))
                 return val;
             return 0;
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint palPtr = _vm.PalettePointer;
+                if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
+                uint palAddr = U.toOffset(palPtr);
+                // BattleBG palette is LZ77-compressed
+                byte[] pal = LZ77.decompress(rom.Data, palAddr);
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                string path = await FileDialogHelper.SavePaletteFile(this, "battle_bg_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
+        }
+
+        async void ImportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                string path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+                byte[] palData = File.ReadAllBytes(path);
+                if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                uint addr = _vm.CurrentAddr;
+                // BattleBG palette is LZ77-compressed
+                uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                CoreState.Services.ShowInfo("Palette imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

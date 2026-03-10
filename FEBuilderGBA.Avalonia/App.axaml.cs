@@ -34,6 +34,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run export→import→export roundtrip validation for graphics editors.</summary>
         public static bool ValidateImportMode { get; set; }
 
+        /// <summary>When true, run palette export→import→export roundtrip validation.</summary>
+        public static bool ValidatePaletteMode { get; set; }
+
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
@@ -119,6 +122,11 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ValidateImportMode = true;
+                }
+                else if (args[i] == "--validate-palette")
+                {
+                    SmokeTestMode = true;
+                    ValidatePaletteMode = true;
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {

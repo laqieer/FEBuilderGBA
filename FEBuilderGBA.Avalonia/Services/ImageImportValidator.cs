@@ -707,5 +707,338 @@ namespace FEBuilderGBA.Avalonia.Services
 
             return null;
         }
+
+        // ======================== Palette Validation ========================
+
+        /// <summary>
+        /// Describes a palette editor for roundtrip validation.
+        /// </summary>
+        public class PaletteEditorDescriptor
+        {
+            public string Name { get; set; }
+            public Func<List<AddrResult>> LoadList { get; set; }
+            public Action<uint> LoadItem { get; set; }
+            /// <summary>Read palette bytes from ROM for the currently loaded entry.</summary>
+            public Func<byte[]> ExportPalette { get; set; }
+            /// <summary>Write palette bytes to ROM for the currently loaded entry. Returns null on success, error on failure.</summary>
+            public Func<byte[], string> ImportPalette { get; set; }
+            public int TestIndex { get; set; } = 1;
+        }
+
+        /// <summary>
+        /// Run palette roundtrip validation: export → import → re-export → binary compare.
+        /// Returns number of failures.
+        /// </summary>
+        public static int RunAllPalette()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+            {
+                Console.WriteLine("VALIDATE_PALETTE: No ROM loaded");
+                return 1;
+            }
+
+            var editors = GetAllPaletteEditors();
+            Console.WriteLine($"VALIDATE_PALETTE: Testing {editors.Count} editors...");
+
+            int passed = 0, failed = 0, skipped = 0;
+            var failures = new List<string>();
+
+            foreach (var editor in editors)
+            {
+                var result = ValidatePaletteEditor(editor, rom);
+                if (result == null)
+                {
+                    skipped++;
+                    Console.WriteLine($"VALIDATE_PALETTE: {editor.Name} ... SKIP");
+                    continue;
+                }
+
+                if (result.Success)
+                {
+                    passed++;
+                    Console.WriteLine($"VALIDATE_PALETTE: {result.EditorName} ... PASS");
+                }
+                else
+                {
+                    failed++;
+                    failures.Add(result.EditorName);
+                    Console.WriteLine($"VALIDATE_PALETTE: {result.EditorName} ... FAIL: {result.Error}");
+                }
+            }
+
+            Console.WriteLine($"VALIDATE_PALETTE: Results: {passed} passed, {failed} failed, {skipped} skipped");
+            if (failures.Count > 0)
+                Console.WriteLine($"VALIDATE_PALETTE: Failures: {string.Join(", ", failures)}");
+
+            return failed;
+        }
+
+        /// <summary>
+        /// Validate a single palette editor roundtrip: export → import → re-export → binary compare.
+        /// Returns null if the editor can't be tested.
+        /// </summary>
+        static ValidationResult ValidatePaletteEditor(PaletteEditorDescriptor editor, ROM rom)
+        {
+            try
+            {
+                var list = editor.LoadList();
+                if (list == null || list.Count == 0) return null;
+
+                int idx = Math.Min(editor.TestIndex, list.Count - 1);
+                if (idx < 0) idx = 0;
+                uint testAddr = list[idx].addr;
+
+                // Step 1: Load entry and export palette
+                editor.LoadItem(testAddr);
+                byte[] pal1 = editor.ExportPalette();
+                if (pal1 == null || pal1.Length < 32) return null;
+
+                // Step 2: Back up ROM
+                byte[] romBackup = new byte[rom.Data.Length];
+                Array.Copy(rom.Data, romBackup, rom.Data.Length);
+
+                try
+                {
+                    // Step 3: Import the exported palette back
+                    string importError = editor.ImportPalette(pal1);
+                    if (importError != null)
+                    {
+                        return new ValidationResult
+                        {
+                            EditorName = editor.Name,
+                            Success = false,
+                            Error = $"Import failed: {importError}"
+                        };
+                    }
+
+                    // Step 4: Re-export palette
+                    editor.LoadItem(testAddr);
+                    byte[] pal2 = editor.ExportPalette();
+                    if (pal2 == null)
+                    {
+                        return new ValidationResult
+                        {
+                            EditorName = editor.Name,
+                            Success = false,
+                            Error = "Could not export palette after import"
+                        };
+                    }
+
+                    // Step 5: Binary compare (exact match required for palettes)
+                    bool match = pal1.Length == pal2.Length;
+                    if (match)
+                    {
+                        for (int i = 0; i < pal1.Length; i++)
+                        {
+                            if (pal1[i] != pal2[i]) { match = false; break; }
+                        }
+                    }
+
+                    return new ValidationResult
+                    {
+                        EditorName = editor.Name,
+                        Success = match,
+                        Error = match ? null : $"Palette mismatch: exported {pal1.Length} bytes vs re-exported {pal2.Length} bytes",
+                        TotalPixels = pal1.Length / 2, // colors
+                        DifferentPixels = match ? 0 : 1,
+                    };
+                }
+                finally
+                {
+                    Array.Copy(romBackup, rom.Data, romBackup.Length);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ValidationResult
+                {
+                    EditorName = editor.Name,
+                    Success = false,
+                    Error = $"Exception: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Helper: read compressed palette from ROM at pointer address.
+        /// </summary>
+        static byte[] ReadCompressedPalette(ROM rom, uint pointerAddr)
+        {
+            uint ptr = rom.u32(pointerAddr);
+            if (!U.isPointer(ptr)) return null;
+            uint addr = U.toOffset(ptr);
+            if (!U.isSafetyOffset(addr)) return null;
+            return LZ77.decompress(rom.Data, addr);
+        }
+
+        /// <summary>
+        /// Helper: read raw palette from ROM at pointer address.
+        /// </summary>
+        static byte[] ReadRawPalette(ROM rom, uint pointerAddr, int colorCount = 16)
+        {
+            return ImageImportCore.ReadPaletteFromROM(rom, pointerAddr, colorCount, compressed: false);
+        }
+
+        /// <summary>
+        /// Build the list of palette editors for validation.
+        /// </summary>
+        static List<PaletteEditorDescriptor> GetAllPaletteEditors()
+        {
+            var editors = new List<PaletteEditorDescriptor>();
+            ROM rom = CoreState.ROM;
+
+            // BattleBGViewer: offset 8, compressed
+            var battleBG = new BattleBGViewerViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "BattleBGViewer_Palette",
+                LoadList = () => battleBG.LoadBattleBGList(),
+                LoadItem = addr => battleBG.LoadBattleBG(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, battleBG.CurrentAddr + 8),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, battleBG.CurrentAddr + 8);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // ImageCG: offset 4, compressed
+            var imageCG = new ImageCGViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "ImageCG_Palette",
+                LoadList = () => imageCG.LoadList(),
+                LoadItem = addr => imageCG.LoadEntry(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, imageCG.CurrentAddr + 4),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, imageCG.CurrentAddr + 4);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // ImageCGFE7U: offset 12, compressed
+            var imageCGFE7U = new ImageCGFE7UViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "ImageCGFE7U_Palette",
+                LoadList = () => imageCGFE7U.LoadList(),
+                LoadItem = addr => imageCGFE7U.LoadEntry(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, imageCGFE7U.CurrentAddr + 12),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, imageCGFE7U.CurrentAddr + 12);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // ImageBG: offset 4, compressed
+            var imageBG = new ImageBGViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "ImageBG_Palette",
+                LoadList = () => imageBG.LoadList(),
+                LoadItem = addr => imageBG.LoadEntry(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, imageBG.CurrentAddr + 4),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, imageBG.CurrentAddr + 4);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // ImageTSAAnime: offset 4, compressed
+            var tsaAnime = new ImageTSAAnimeViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "ImageTSAAnime_Palette",
+                LoadList = () => tsaAnime.LoadList(),
+                LoadItem = addr => tsaAnime.LoadEntry(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, tsaAnime.CurrentAddr + 4),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, tsaAnime.CurrentAddr + 4);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // OPPrologue: offset 8, compressed
+            var opPrologue = new OPPrologueViewerViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "OPPrologueViewer_Palette",
+                LoadList = () => opPrologue.LoadOPPrologueList(),
+                LoadItem = addr => opPrologue.LoadOPPrologue(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, opPrologue.CurrentAddr + 8),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, opPrologue.CurrentAddr + 8);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // BigCG: offset 8, compressed
+            var bigCG = new BigCGViewerViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "BigCGViewer_Palette",
+                LoadList = () => bigCG.LoadBigCGList(),
+                LoadItem = addr => bigCG.LoadBigCG(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, bigCG.CurrentAddr + 8),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, bigCG.CurrentAddr + 8);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // ImageBattleBG: offset 8, compressed
+            var imageBattleBG = new ImageBattleBGViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "ImageBattleBG_Palette",
+                LoadList = () => imageBattleBG.LoadList(),
+                LoadItem = addr => imageBattleBG.LoadEntry(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, imageBattleBG.CurrentAddr + 8),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, imageBattleBG.CurrentAddr + 8);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // BattleTerrain: offset 16, compressed
+            var battleTerrain = new BattleTerrainViewerViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "BattleTerrainViewer_Palette",
+                LoadList = () => battleTerrain.LoadBattleTerrainList(),
+                LoadItem = addr => battleTerrain.LoadBattleTerrain(addr),
+                ExportPalette = () => ReadCompressedPalette(rom, battleTerrain.CurrentAddr + 16),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WriteCompressedToROM(rom, pal, battleTerrain.CurrentAddr + 16);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            // Portrait: offset 8, raw (not compressed)
+            var portrait = new PortraitViewerViewModel();
+            editors.Add(new PaletteEditorDescriptor
+            {
+                Name = "PortraitViewer_Palette",
+                LoadList = () => portrait.LoadPortraitList(),
+                LoadItem = addr => portrait.LoadPortrait(addr),
+                ExportPalette = () => ReadRawPalette(rom, portrait.CurrentAddr + 8),
+                ImportPalette = pal =>
+                {
+                    uint a = ImageImportCore.WritePaletteToROM(rom, pal, portrait.CurrentAddr + 8);
+                    return a == U.NOT_FOUND ? "Failed to write palette" : null;
+                },
+            });
+
+            return editors;
+        }
     }
 }

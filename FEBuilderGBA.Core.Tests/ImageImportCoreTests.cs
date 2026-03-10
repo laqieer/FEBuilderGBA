@@ -1620,5 +1620,114 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = oldImageService;
             }
         }
+
+        // ======================== Palette roundtrip tests ========================
+
+        [Fact]
+        public void WritePaletteToROM_ThenReadBack_RoundtripsExactly()
+        {
+            var rom = CreateTestRom();
+            // Create a 16-color GBA palette (32 bytes)
+            byte[] palette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)(i | (i << 5) | (i << 10)); // BGR555
+                palette[i * 2] = (byte)(color & 0xFF);
+                palette[i * 2 + 1] = (byte)(color >> 8);
+            }
+
+            // Write palette to ROM at pointer address 0x100
+            // First, set up a dummy pointer at 0x100
+            uint pointerAddr = 0x100;
+            uint writeAddr = ImageImportCore.WritePaletteToROM(rom, palette, pointerAddr);
+            Assert.NotEqual(U.NOT_FOUND, writeAddr);
+
+            // Read it back
+            byte[] readBack = ImageImportCore.ReadPaletteFromROM(rom, pointerAddr, 16, compressed: false);
+            Assert.NotNull(readBack);
+            Assert.Equal(palette.Length, readBack.Length);
+            for (int i = 0; i < palette.Length; i++)
+                Assert.Equal(palette[i], readBack[i]);
+        }
+
+        [Fact]
+        public void WriteCompressedPalette_ThenReadBack_RoundtripsExactly()
+        {
+            var rom = CreateTestRom();
+            // Create a 16-color GBA palette (32 bytes)
+            byte[] palette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)((i * 2) | ((i * 2) << 5) | ((i * 2) << 10));
+                palette[i * 2] = (byte)(color & 0xFF);
+                palette[i * 2 + 1] = (byte)(color >> 8);
+            }
+
+            // Write compressed palette
+            uint pointerAddr = 0x100;
+            uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, palette, pointerAddr);
+            Assert.NotEqual(U.NOT_FOUND, writeAddr);
+
+            // Read it back (compressed)
+            byte[] readBack = ImageImportCore.ReadPaletteFromROM(rom, pointerAddr, 16, compressed: true);
+            Assert.NotNull(readBack);
+            Assert.Equal(palette.Length, readBack.Length);
+            for (int i = 0; i < palette.Length; i++)
+                Assert.Equal(palette[i], readBack[i]);
+        }
+
+        [Fact]
+        public void WriteMultiPalette_ThenReadBack_Roundtrips()
+        {
+            var rom = CreateTestRom();
+            // Create multi-palette: 4 sub-palettes = 128 bytes
+            byte[] palette = new byte[128];
+            for (int sub = 0; sub < 4; sub++)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    ushort color = (ushort)((sub * 4 + i) & 0x7FFF);
+                    int off = (sub * 16 + i) * 2;
+                    palette[off] = (byte)(color & 0xFF);
+                    palette[off + 1] = (byte)(color >> 8);
+                }
+            }
+
+            // Write compressed multi-palette
+            uint pointerAddr = 0x100;
+            uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, palette, pointerAddr);
+            Assert.NotEqual(U.NOT_FOUND, writeAddr);
+
+            // Read back full palette (64 colors = 4 sub-palettes)
+            byte[] readBack = ImageImportCore.ReadPaletteFromROM(rom, pointerAddr, 64, compressed: true);
+            Assert.NotNull(readBack);
+            Assert.Equal(palette.Length, readBack.Length);
+            for (int i = 0; i < palette.Length; i++)
+                Assert.Equal(palette[i], readBack[i]);
+        }
+
+        [Fact]
+        public void ReadPaletteFromROM_InvalidPointer_ReturnsNull()
+        {
+            var rom = CreateTestRom();
+            // Pointer at 0x100 is 0 (no valid pointer)
+            byte[] result = ImageImportCore.ReadPaletteFromROM(rom, 0x100, 16, compressed: false);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void WritePaletteToROM_NullRom_ReturnsNotFound()
+        {
+            uint result = ImageImportCore.WritePaletteToROM(null, new byte[32], 0x100);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        [Fact]
+        public void WritePaletteToROM_NullPalette_ReturnsNotFound()
+        {
+            var rom = CreateTestRom();
+            uint result = ImageImportCore.WritePaletteToROM(rom, null, 0x100);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
     }
 }

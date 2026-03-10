@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -67,6 +69,23 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
             await ImageDisplay.ExportPng(this, "chapter_title.png");
+        }
+
+        async void ExportPal_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint palAddr = rom.RomInfo.image_chapter_title_palette;
+                if (palAddr == 0 || !U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette address"); return; }
+                byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
+                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                string? path = await FileDialogHelper.SavePaletteFile(this, "chapter_title_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                File.WriteAllBytes(path, pal);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)

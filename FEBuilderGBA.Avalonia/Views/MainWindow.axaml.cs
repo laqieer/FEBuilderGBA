@@ -166,6 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.ValidatePaletteMode)
+            {
+                RunValidatePalette();
+                return;
+            }
+
             if (App.ValidateImportMode)
             {
                 RunValidateImport();
@@ -371,6 +377,19 @@ namespace FEBuilderGBA.Avalonia.Views
             Dispatcher.UIThread.Post(() =>
             {
                 int failures = ImageImportValidator.RunAll();
+                Environment.ExitCode = failures > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Run palette export→import→export roundtrip validation.
+        /// </summary>
+        private void RunValidatePalette()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                int failures = ImageImportValidator.RunAllPalette();
                 Environment.ExitCode = failures > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
