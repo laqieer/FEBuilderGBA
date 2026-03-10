@@ -171,6 +171,32 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(File.Exists(Path.Combine(AvaloniaDir, "ViewModels", "ViewModelBase.cs")));
         }
 
+        // ---- ImageImportValidator ----
+
+        [Fact]
+        public void ImageImportValidator_EditorDescriptor_MaxDiffPercent_DefaultIs10()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageImportValidator.cs"));
+            // Default is 10%
+            Assert.Contains("MaxDiffPercent { get; set; } = 10.0", src);
+        }
+
+        [Fact]
+        public void ImageImportValidator_BattleBGViewer_HasHigherThreshold()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageImportValidator.cs"));
+            // BattleBGViewer uses multi-sub-palette TSA, needs 30% tolerance
+            Assert.Contains("MaxDiffPercent = 30.0", src);
+        }
+
+        [Fact]
+        public void ImageImportValidator_UsesEditorMaxDiffPercent()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageImportValidator.cs"));
+            // Verify it uses the per-editor threshold, not a hardcoded value
+            Assert.Contains("editor.MaxDiffPercent", src);
+        }
+
         // ---- All Avalonia editors have their corresponding .axaml view ----
 
         [Theory]

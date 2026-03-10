@@ -102,6 +102,7 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --export-edi
 FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=./editor_images
 
 # Validate image import roundtrip (export→import→export→compare for all graphics editors)
+# Validated on all 5 ROM variants: FE6, FE7J, FE7U, FE8J, FE8U
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-import
 
 # Cross-platform publish (self-contained)
