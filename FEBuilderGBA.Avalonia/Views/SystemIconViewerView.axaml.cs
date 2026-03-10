@@ -66,7 +66,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 16, 16, 16, strictSize: true);
+                if (_vm.CachedPalette == null)
+                {
+                    CoreState.Services.ShowError("No palette loaded. Select an icon first.");
+                    return;
+                }
+
+                // Remap to existing shared palette instead of quantizing a new one
+                var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(
+                    this, 16, 16, _vm.CachedPalette, 16, strictSize: true);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 

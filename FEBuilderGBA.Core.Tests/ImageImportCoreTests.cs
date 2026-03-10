@@ -4,6 +4,31 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    /// <summary>
+    /// Minimal IImageService mock that only implements GBAColorToRGBA (for RemapToExistingPalette tests).
+    /// </summary>
+    internal class MinimalImageService : IImageService
+    {
+        public IImage CreateImage(int w, int h) => null;
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => null;
+        public IImage LoadImage(string f) => null;
+        public IImage LoadImageFromBytes(byte[] d) => null;
+        public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
+        {
+            r = (byte)((gbaColor & 0x1F) << 3);
+            g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
+            b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
+        }
+        public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
+        public byte[] Encode4bppTiles(IImage i) => null;
+        public byte[] Encode8bppTiles(IImage i) => null;
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+    }
+
     [Collection("SharedState")]
     public class ImageImportCoreTests
     {
@@ -701,6 +726,174 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0xBB, rom.Data[addr + 1]);
             Assert.Equal(0xCC, rom.Data[addr + 2]);
             Assert.Equal(0xDD, rom.Data[addr + 3]);
+        }
+
+        // ---- RemapToExistingPalette ----
+
+        [Fact]
+        public void RemapToExistingPalette_MapsPixelsToClosestColor()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                // Build a 2-color GBA palette: index 0 = black (transparent), index 1 = bright red
+                // GBA format: R=31,G=0,B=0 → 0x001F
+                byte[] gbaPal = new byte[4];
+                gbaPal[0] = 0x00; gbaPal[1] = 0x00; // color 0: black
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00; // color 1: red (R=31)
+
+                // 8x8 RGBA image: all pixels are red (255, 0, 0, 255)
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 8 * 8; i++)
+                {
+                    rgba[i * 4 + 0] = 255; // R
+                    rgba[i * 4 + 1] = 0;   // G
+                    rgba[i * 4 + 2] = 0;   // B
+                    rgba[i * 4 + 3] = 255; // A
+                }
+
+                byte[] indexed = ImageImportCore.RemapToExistingPalette(rgba, 8, 8, gbaPal, 2);
+
+                Assert.NotNull(indexed);
+                Assert.Equal(64, indexed.Length);
+                // All pixels should map to index 1 (red)
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(1, indexed[i]);
+            }
+            finally
+            {
+                CoreState.ImageService = prevService;
+            }
+        }
+
+        [Fact]
+        public void RemapToExistingPalette_TransparentPixelsMapToIndex0()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                byte[] gbaPal = new byte[4];
+                gbaPal[0] = 0x00; gbaPal[1] = 0x00;
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00;
+
+                // All transparent
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 8 * 8; i++)
+                {
+                    rgba[i * 4 + 0] = 255;
+                    rgba[i * 4 + 1] = 0;
+                    rgba[i * 4 + 2] = 0;
+                    rgba[i * 4 + 3] = 0; // transparent
+                }
+
+                byte[] indexed = ImageImportCore.RemapToExistingPalette(rgba, 8, 8, gbaPal, 2);
+
+                Assert.NotNull(indexed);
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(0, indexed[i]);
+            }
+            finally
+            {
+                CoreState.ImageService = prevService;
+            }
+        }
+
+        [Fact]
+        public void RemapToExistingPalette_PicksClosestColor()
+        {
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                // 3-color palette: 0=black, 1=red, 2=blue
+                byte[] gbaPal = new byte[6];
+                gbaPal[0] = 0x00; gbaPal[1] = 0x00; // black
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00; // red (R=31<<3=248)
+                gbaPal[4] = 0x00; gbaPal[5] = 0x7C; // blue (B=31<<3=248) → 0x7C00
+
+                // One pixel: pure blue (0, 0, 255)
+                byte[] rgba = new byte[8 * 8 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    rgba[i * 4 + 0] = 0;   // R
+                    rgba[i * 4 + 1] = 0;   // G
+                    rgba[i * 4 + 2] = 255; // B
+                    rgba[i * 4 + 3] = 255; // A
+                }
+
+                byte[] indexed = ImageImportCore.RemapToExistingPalette(rgba, 8, 8, gbaPal, 3);
+
+                Assert.NotNull(indexed);
+                // Should map to index 2 (blue)
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(2, indexed[i]);
+            }
+            finally
+            {
+                CoreState.ImageService = prevService;
+            }
+        }
+
+        [Fact]
+        public void RemapToExistingPalette_NullInputReturnsNull()
+        {
+            Assert.Null(ImageImportCore.RemapToExistingPalette(null, 8, 8, new byte[4], 2));
+            Assert.Null(ImageImportCore.RemapToExistingPalette(new byte[256], 8, 8, null, 2));
+        }
+
+        [Fact]
+        public void RemapToExistingPalette_ExportImportRoundtrip()
+        {
+            // Simulates: export PNG (palette indices → RGBA) → import PNG (RGBA → remap to same palette)
+            // Should produce identical palette indices
+            var prevService = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new MinimalImageService();
+
+                // 4-color palette typical of a GBA icon
+                byte[] gbaPal = new byte[8];
+                gbaPal[0] = 0x00; gbaPal[1] = 0x00; // 0: black (transparent)
+                gbaPal[2] = 0x1F; gbaPal[3] = 0x00; // 1: red
+                gbaPal[4] = 0xE0; gbaPal[5] = 0x03; // 2: green
+                gbaPal[6] = 0x00; gbaPal[7] = 0x7C; // 3: blue
+
+                // Original indexed pixels: pattern of 0,1,2,3
+                byte[] origIndexed = new byte[8 * 8];
+                for (int i = 0; i < 64; i++)
+                    origIndexed[i] = (byte)(i % 4);
+
+                // Simulate export: convert indexed → RGBA using palette
+                byte[] rgba = new byte[64 * 4];
+                for (int i = 0; i < 64; i++)
+                {
+                    int idx = origIndexed[i];
+                    ushort gbaColor = (ushort)(gbaPal[idx * 2] | (gbaPal[idx * 2 + 1] << 8));
+                    CoreState.ImageService.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+                    rgba[i * 4 + 0] = r;
+                    rgba[i * 4 + 1] = g;
+                    rgba[i * 4 + 2] = b;
+                    rgba[i * 4 + 3] = (byte)(idx == 0 ? 0 : 255); // index 0 = transparent
+                }
+
+                // Simulate import: remap RGBA back to palette indices
+                byte[] remapped = ImageImportCore.RemapToExistingPalette(rgba, 8, 8, gbaPal, 4);
+
+                Assert.NotNull(remapped);
+                Assert.Equal(64, remapped.Length);
+                // Every pixel should match the original index
+                for (int i = 0; i < 64; i++)
+                    Assert.Equal(origIndexed[i], remapped[i]);
+            }
+            finally
+            {
+                CoreState.ImageService = prevService;
+            }
         }
     }
 }

@@ -25,6 +25,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _sheetTilesX; // sheet width in tiles
         uint _imgRomAddr; // ROM offset of compressed image data
 
+        /// <summary>The shared GBA palette used by all system icons.</summary>
+        public byte[] CachedPalette => _palette;
+
         public List<AddrResult> LoadSystemIconList()
         {
             ROM rom = CoreState.ROM;

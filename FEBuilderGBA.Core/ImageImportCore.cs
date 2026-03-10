@@ -348,6 +348,72 @@ namespace FEBuilderGBA
             return true;
         }
 
+        /// <summary>
+        /// Re-index RGBA pixel data to an existing GBA palette by finding the closest color match.
+        /// Used when importing into editors that share a fixed palette (e.g. item icons).
+        /// Palette index 0 is treated as transparent (pixels with alpha &lt; 128).
+        /// </summary>
+        /// <param name="rgbaPixels">RGBA pixel data (4 bytes per pixel)</param>
+        /// <param name="width">Image width</param>
+        /// <param name="height">Image height</param>
+        /// <param name="gbaPalette">Existing GBA palette to map to (2 bytes per color)</param>
+        /// <param name="colorCount">Number of colors in the palette</param>
+        /// <returns>Indexed pixel data (1 byte per pixel) mapped to the existing palette</returns>
+        public static byte[] RemapToExistingPalette(byte[] rgbaPixels, int width, int height,
+            byte[] gbaPalette, int colorCount)
+        {
+            if (rgbaPixels == null || gbaPalette == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            int pixelCount = width * height;
+            if (rgbaPixels.Length < pixelCount * 4) return null;
+
+            // Convert GBA palette to RGBA for distance calculation
+            byte[][] palColors = new byte[colorCount][];
+            for (int i = 0; i < colorCount && i * 2 + 1 < gbaPalette.Length; i++)
+            {
+                ushort gbaColor = (ushort)(gbaPalette[i * 2] | (gbaPalette[i * 2 + 1] << 8));
+                CoreState.ImageService.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+                palColors[i] = new byte[] { r, g, b };
+            }
+
+            byte[] indexed = new byte[pixelCount];
+            for (int i = 0; i < pixelCount; i++)
+            {
+                byte pr = rgbaPixels[i * 4 + 0];
+                byte pg = rgbaPixels[i * 4 + 1];
+                byte pb = rgbaPixels[i * 4 + 2];
+                byte pa = rgbaPixels[i * 4 + 3];
+
+                // Transparent pixel → index 0
+                if (pa < 128)
+                {
+                    indexed[i] = 0;
+                    continue;
+                }
+
+                // Find closest palette color (skip index 0 = transparent)
+                int bestIndex = 1;
+                int bestDist = int.MaxValue;
+                for (int c = 1; c < colorCount; c++)
+                {
+                    if (palColors[c] == null) continue;
+                    int dr = pr - palColors[c][0];
+                    int dg = pg - palColors[c][1];
+                    int db = pb - palColors[c][2];
+                    int dist = dr * dr + dg * dg + db * db;
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        bestIndex = c;
+                    }
+                }
+                indexed[i] = (byte)bestIndex;
+            }
+
+            return indexed;
+        }
+
         // ---- Internal tile manipulation ----
 
         /// <summary>Extract an 8x8 tile from indexed pixel data as 4bpp (32 bytes).</summary>

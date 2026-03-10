@@ -18,6 +18,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _baseAddr;
         byte[] _cachedPalette;
 
+        /// <summary>The shared GBA palette used by all item icons.</summary>
+        public byte[] CachedPalette => _cachedPalette;
+
         public List<AddrResult> LoadItemIconList()
         {
             ROM rom = CoreState.ROM;
