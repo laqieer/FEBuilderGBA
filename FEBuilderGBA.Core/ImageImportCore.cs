@@ -229,10 +229,33 @@ namespace FEBuilderGBA
                 // Try from beginning
                 addr = rom.FindFreeSpace(0x100, needSize);
             }
-            if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+
+            if (addr == U.NOT_FOUND)
+            {
+                // No free space found — append to ROM end and expand
+                addr = AppendToRomEnd(rom, needSize);
+                if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+            }
 
             // Write data to ROM
             WriteBytes(rom, addr, data);
+            return addr;
+        }
+
+        /// <summary>
+        /// Append data to the end of the ROM, expanding the ROM data array if needed.
+        /// Matches WinForms AppendEndOfFile + write_resize_data pattern.
+        /// Max ROM size: 32MB (0x02000000).
+        /// </summary>
+        internal static uint AppendToRomEnd(ROM rom, uint needSize)
+        {
+            uint addr = U.Padding4((uint)rom.Data.Length);
+            uint newEnd = addr + needSize;
+            if (newEnd > 0x02000000) return U.NOT_FOUND; // 32MB max
+
+            if (!rom.write_resize_data(newEnd))
+                return U.NOT_FOUND;
+
             return addr;
         }
 

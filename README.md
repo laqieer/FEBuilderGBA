@@ -25,7 +25,7 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
 | `FEBuilderGBA.CLI` | net9.0 | Cross-platform CLI tool (18 commands: `--version`, `--help`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test`, `--testonly`; flags: `--force-version`, `--noScale`, `--noReserve1stColor`, `--ignoreTSA`) |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp implementation of IImageService (GBA 4bpp/8bpp tiles, palette conversion) |
-| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, 323 editors covering all WinForms forms: unit/item/class editors with read/write; map/event/AI/text/audio/graphics/portrait/world map/support/arena/monster/summon/menu/credits viewers; image editors with PNG import (quantize→encode→LZ77→write to ROM; multi-sub-palette TSA support for BattleBG); hex/disasm/patch/font/option tools; status screen/skill system/error dialogs/version-specific/bit flag editors; 13 functional dialog views — map sub-dialogs, hex editor dialogs, disassembly tools; lint runner; categorized navigation; version-aware button filtering — hides editors incompatible with loaded ROM version) |
+| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia UI (ROM loading, 323 editors covering all WinForms forms: unit/item/class editors with read/write; map/event/AI/text/audio/graphics/portrait/world map/support/arena/monster/summon/menu/credits viewers; image editors with PNG import (quantize→encode→LZ77→write to ROM with auto-expand up to 32MB; multi-sub-palette TSA support for BattleBG); hex/disasm/patch/font/option tools; status screen/skill system/error dialogs/version-specific/bit flag editors; 13 functional dialog views — map sub-dialogs, hex editor dialogs, disassembly tools; lint runner; categorized navigation; version-aware button filtering — hides editors incompatible with loaded ROM version) |
 | `FEBuilderGBA.Tests` | net9.0-windows | Unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (runs on Linux/macOS/Windows) |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
@@ -103,6 +103,8 @@ FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=.
 
 # Validate image import roundtrip (export→import→export→compare for all graphics editors)
 # Validated on all 5 ROM variants: FE6, FE7J, FE7U, FE8J, FE8U
+# Note: Image import auto-expands ROM (up to 32MB max) when no free space is found,
+# appending data to the end of the ROM rather than overwriting existing data.
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-import
 
 # Cross-platform publish (self-contained)

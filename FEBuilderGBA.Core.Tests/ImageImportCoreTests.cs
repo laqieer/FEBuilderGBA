@@ -1186,5 +1186,91 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = prevService;
             }
         }
+
+        // ---- Auto-expand ROM tests ----
+
+        [Fact]
+        public void FindAndWriteData_NoFreeSpace_AppendsToRomEnd()
+        {
+            // Create a ROM filled with non-free data (0x01) so FindFreeSpace returns NOT_FOUND
+            var rom = new ROM();
+            int size = 0x1000;
+            var data = new byte[size];
+            for (int i = 0; i < size; i++) data[i] = 0x01;
+            rom.SwapNewROMDataDirect(data);
+
+            byte[] toWrite = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD };
+            uint addr = ImageImportCore.FindAndWriteData(rom, toWrite);
+
+            Assert.NotEqual(U.NOT_FOUND, addr);
+            // Should be appended at the old ROM end (aligned)
+            Assert.True(addr >= (uint)size);
+            // Verify data was written
+            Assert.Equal((uint)0xAA, rom.u8(addr));
+            Assert.Equal((uint)0xBB, rom.u8(addr + 1));
+            Assert.Equal((uint)0xCC, rom.u8(addr + 2));
+            Assert.Equal((uint)0xDD, rom.u8(addr + 3));
+        }
+
+        [Fact]
+        public void FindAndWriteData_AppendExpands_RomGrows()
+        {
+            var rom = new ROM();
+            int originalSize = 0x800;
+            var data = new byte[originalSize];
+            for (int i = 0; i < originalSize; i++) data[i] = 0x01;
+            rom.SwapNewROMDataDirect(data);
+
+            byte[] toWrite = new byte[0x100];
+            for (int i = 0; i < toWrite.Length; i++) toWrite[i] = 0x42;
+
+            uint addr = ImageImportCore.FindAndWriteData(rom, toWrite);
+
+            Assert.NotEqual(U.NOT_FOUND, addr);
+            // ROM should have grown
+            Assert.True(rom.Data.Length > originalSize);
+            // Verify written data
+            for (int i = 0; i < toWrite.Length; i++)
+                Assert.Equal((uint)0x42, rom.u8(addr + (uint)i));
+        }
+
+        [Fact]
+        public void FindAndWriteData_MaxRomSize_ReturnsNotFound()
+        {
+            // Create a small ROM, then request a size that would exceed 32MB
+            var rom = new ROM();
+            var data = new byte[0x100];
+            rom.SwapNewROMDataDirect(data);
+
+            // Request more space than would fit in 32MB
+            uint tooLarge = 0x02000000; // requesting exactly 32MB on top of existing data
+            uint result = ImageImportCore.AppendToRomEnd(rom, tooLarge);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        [Fact]
+        public void AppendToRomEnd_ExpandsRom()
+        {
+            var rom = new ROM();
+            int originalSize = 0x400;
+            var data = new byte[originalSize];
+            rom.SwapNewROMDataDirect(data);
+
+            uint needSize = 0x100;
+            uint addr = ImageImportCore.AppendToRomEnd(rom, needSize);
+
+            Assert.NotEqual(U.NOT_FOUND, addr);
+            Assert.Equal((uint)originalSize, addr); // appended at old end
+            Assert.Equal((int)(originalSize + needSize), rom.Data.Length);
+        }
+
+        [Fact]
+        public void FindAndWriteData_NullOrEmpty_ReturnsNotFound()
+        {
+            var rom = CreateTestRom();
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(null, new byte[1]));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, null));
+            Assert.Equal(U.NOT_FOUND, ImageImportCore.FindAndWriteData(rom, new byte[0]));
+        }
     }
 }
