@@ -62,6 +62,30 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Write();
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+
+                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         static uint ParseHexText(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return 0;

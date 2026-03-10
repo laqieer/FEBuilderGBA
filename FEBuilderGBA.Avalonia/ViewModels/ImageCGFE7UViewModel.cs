@@ -76,6 +76,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 12, PalettePtr);
         }
 
+        /// <summary>
+        /// Try to load CG image. P4=image(LZ77), P8=TSA(LZ77), P12=palette(LZ77).
+        /// </summary>
+        public IImage TryLoadImage()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return null;
+            try
+            {
+                if (!U.isPointer(SplitImagePtr) || !U.isPointer(PalettePtr)) return null;
+                uint imgAddr = U.toOffset(SplitImagePtr);
+                uint palAddr = U.toOffset(PalettePtr);
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+
+                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+                if (tileData == null || tileData.Length == 0) return null;
+                byte[] palette = LZ77.decompress(rom.Data, palAddr);
+                if (palette == null || palette.Length == 0) return null;
+
+                if (U.isPointer(TSAPtr))
+                {
+                    uint tsaAddr = U.toOffset(TSAPtr);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                        if (tsaData != null && tsaData.Length > 0)
+                            return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
+                    }
+                }
+
+                if (CoreState.ImageService == null) return null;
+                int totalTiles = tileData.Length / 32;
+                if (totalTiles <= 0) return null;
+                int tilesX = 30;
+                int tilesY = (totalTiles + tilesX - 1) / tilesX;
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+            }
+            catch { return null; }
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()

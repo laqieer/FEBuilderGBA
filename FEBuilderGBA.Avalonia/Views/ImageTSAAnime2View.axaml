@@ -33,6 +33,7 @@
 
           <!-- Row 4: Write button -->
           <Button Grid.Row="4" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
+          <Button Grid.Row="4" Grid.Column="1" Content="Import PNG" Click="ImportPng_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

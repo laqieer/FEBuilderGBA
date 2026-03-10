@@ -39,6 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                LoadImage();
             }
             catch (Exception ex)
             {
@@ -55,6 +56,46 @@ namespace FEBuilderGBA.Avalonia.Views
             SplitImagePtrLabel.Text = $"0x{_vm.SplitImagePtr:X08}";
             TSAPtrLabel.Text = $"0x{_vm.TSAPtr:X08}";
             PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
+        }
+
+        void LoadImage()
+        {
+            try
+            {
+                ImageDisplay.SetImage(_vm.TryLoadImage());
+            }
+            catch { ImageDisplay.SetImage(null); }
+        }
+
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                // P4=image, P8=TSA, P12=palette
+                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height, addr + 4, addr + 8, addr + 12);
+
+                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImageDisplay.ExportPng(this, "cg_fe7u.png");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

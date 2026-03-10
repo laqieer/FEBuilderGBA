@@ -82,6 +82,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return file?.TryGetLocalPath();
         }
 
+        static readonly FilePickerFileType ImageFileType = new("Image Files")
+        {
+            Patterns = new[] { "*.png", "*.bmp" },
+        };
+
+        /// <summary>Open an image file (PNG, BMP) for import.</summary>
+        public static async Task<string?> OpenImageFile(Window owner)
+        {
+            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Import Image",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { ImageFileType, AllFileType },
+            });
+
+            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+        }
+
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(Window owner, string title, string pattern)
         {

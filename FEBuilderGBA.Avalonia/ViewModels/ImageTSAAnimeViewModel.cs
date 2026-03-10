@@ -47,6 +47,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        /// <summary>
+        /// Try to load TSA animation image. P0=image(LZ77), P4=palette(LZ77), P8=TSA(LZ77).
+        /// </summary>
+        public IImage TryLoadImage()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return null;
+            try
+            {
+                if (!U.isPointer(P0) || !U.isPointer(P4)) return null;
+                uint imgAddr = U.toOffset(P0);
+                uint palAddr = U.toOffset(P4);
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+
+                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+                if (tileData == null || tileData.Length == 0) return null;
+                byte[] palette = LZ77.decompress(rom.Data, palAddr);
+                if (palette == null || palette.Length == 0) return null;
+
+                if (U.isPointer(P8))
+                {
+                    uint tsaAddr = U.toOffset(P8);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        byte[] tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                        if (tsaData != null && tsaData.Length > 0)
+                            return ImageUtilCore.DecodeTSA(tileData, tsaData, palette, 30, 20, true);
+                    }
+                }
+
+                if (CoreState.ImageService == null) return null;
+                int totalTiles = tileData.Length / 32;
+                if (totalTiles <= 0) return null;
+                int tilesX = 30;
+                int tilesY = (totalTiles + tilesX - 1) / tilesX;
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+            }
+            catch { return null; }
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()

@@ -123,6 +123,40 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Portrait face tiles: no strict size, quantize to 16 colors
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 0, 0, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+
+                // Encode tiles and write compressed to ROM (ImagePointer at offset 0)
+                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tileData == null) { CoreState.Services.ShowError("Failed to encode tiles"); return; }
+
+                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+                if (tileAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for tile data"); return; }
+
+                // PalettePointer at offset 8
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for palette"); return; }
+
+                _vm.LoadPortrait(addr);
+                UpdateUI();
+                TryShowPortraitImage();
+                CoreState.Services.ShowInfo("Portrait imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
             await MainPortraitImage.ExportPng(this, "portrait.png");

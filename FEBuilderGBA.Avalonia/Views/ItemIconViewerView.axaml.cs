@@ -59,6 +59,27 @@ namespace FEBuilderGBA.Avalonia.Views
             await ImageDisplay.ExportPng(this, "item_icon.png");
         }
 
+        async void ImportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 16, 16, 16, strictSize: true);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                bool ok = ImageImportCore.ImportFixedIcon(rom, loadResult.IndexedPixels, 16, 16, _vm.CurrentAddr);
+                if (!ok) { CoreState.Services.ShowError("Failed to write icon data"); return; }
+
+                _vm.LoadItemIcon(_vm.CurrentAddr);
+                LoadImage();
+                CoreState.Services.ShowInfo("Icon imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

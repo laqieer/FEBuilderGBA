@@ -89,6 +89,32 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { ImageDisplay.SetImage(null); }
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 0, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                // BattleTerrain: Image at offset 12, Palette at offset 16 (2-pointer, LZ77 compressed tiles)
+                var importResult = ImageImportCore.Import2Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height, addr + 12, addr + 16);
+
+                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+
+                _vm.LoadBattleTerrain(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
             await ImageDisplay.ExportPng(this, "battle_terrain.png");

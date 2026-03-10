@@ -69,6 +69,59 @@ namespace FEBuilderGBA.Avalonia.Views
             await ImageDisplay.ExportPng(this, "big_cg.png");
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+
+                // Encode TSA with tile deduplication
+                var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tsaResult == null) { CoreState.Services.ShowError("Failed to encode TSA"); return; }
+
+                // Write compressed TSA
+                uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 4);
+                if (tsaAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for TSA data"); return; }
+
+                // Write palette
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for palette"); return; }
+
+                // For tile data: write as single compressed block and update first table entry
+                uint tablePtr = rom.u32(addr + 0);
+                if (U.isPointer(tablePtr))
+                {
+                    uint tableAddr = U.toOffset(tablePtr);
+                    byte[] compressed = LZ77.compress(tsaResult.TileData);
+                    if (compressed != null)
+                    {
+                        uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                        if (tileAddr != U.NOT_FOUND)
+                        {
+                            // Update first table entry to point to the tile data
+                            rom.write_p32(tableAddr, tileAddr);
+                            // Zero out remaining table entries (entries 1-9)
+                            for (int i = 1; i < 10; i++)
+                                rom.write_u32(tableAddr + (uint)(i * 4), 0);
+                        }
+                    }
+                }
+
+                _vm.LoadBigCG(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("BigCG image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 

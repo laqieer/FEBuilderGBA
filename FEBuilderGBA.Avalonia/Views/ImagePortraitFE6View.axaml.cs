@@ -39,6 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                TryShowPortraitImage();
             }
             catch (Exception ex)
             {
@@ -56,6 +57,61 @@ namespace FEBuilderGBA.Avalonia.Views
             MouthYLabel.Text = _vm.MouthY.ToString();
             Unused14Label.Text = $"0x{_vm.Unused14:X02}";
             Unused15Label.Text = $"0x{_vm.Unused15:X02}";
+        }
+
+        void TryShowPortraitImage()
+        {
+            try
+            {
+                // FE6 portrait: use PortraitRendererCore with available pointers
+                var img = PortraitRendererCore.DrawPortraitUnit(
+                    _vm.PortraitImagePtr, _vm.PalettePtr,
+                    0, 0, 0); // FE6 has no eye coords in this struct
+                PortraitImage.SetImage(img);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitFE6View.TryShowPortraitImage failed: {0}", ex.Message);
+                PortraitImage.SetImage(null);
+            }
+        }
+
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Portrait face tiles: no strict size, quantize to 16 colors
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 0, 0, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+
+                // Encode tiles and write compressed to ROM
+                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tileData == null) { CoreState.Services.ShowError("Failed to encode tiles"); return; }
+
+                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+                if (tileAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for tile data"); return; }
+
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for palette"); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                TryShowPortraitImage();
+                CoreState.Services.ShowInfo("Portrait imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            await PortraitImage.ExportPng(this, "portrait_fe6.png");
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

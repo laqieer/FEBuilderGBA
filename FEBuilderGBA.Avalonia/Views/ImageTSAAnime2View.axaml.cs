@@ -77,6 +77,33 @@ namespace FEBuilderGBA.Avalonia.Views
             return 0;
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                // TSA Animation v2 only has TSA header pointer at offset 8.
+                // Write compressed TSA data to ROM and update the pointer.
+                var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tsaResult == null) { CoreState.Services.ShowError("Failed to encode TSA data"); return; }
+
+                uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 8);
+                if (tsaAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write TSA data (no free space)"); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                CoreState.Services.ShowInfo("TSA data imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

@@ -64,6 +64,31 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { ImageDisplay.SetImage(null); }
         }
 
+        async void ImportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                if (loadResult == null) return; // cancelled
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+
+                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+
+                _vm.LoadBattleBG(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
         {
             await ImageDisplay.ExportPng(this, "battle_bg.png");

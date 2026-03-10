@@ -65,6 +65,34 @@ namespace FEBuilderGBA.Avalonia.Views
             await ImageDisplay.ExportPng(this, "chapter_title_fe7.png");
         }
 
+        async void ImportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            try
+            {
+                // FE7 chapter title: LZ77 compressed 4bpp tiles, variable size
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 0, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                // FE7 chapter title has a single pointer at addr+0 (P0 = SaveImagePointer)
+                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tileData == null) { CoreState.Services.ShowError("Failed to encode tile data"); return; }
+
+                uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr);
+                if (writeAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write compressed tile data (no free space)"); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Chapter title FE7 image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
