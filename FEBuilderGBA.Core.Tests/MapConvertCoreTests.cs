@@ -1,9 +1,66 @@
+using System;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
-    public class MapConvertCoreTests
+    /// <summary>
+    /// IImageService mock that implements RGBAPaletteToGBA (needed by DecreaseColorCore.Quantize).
+    /// </summary>
+    internal class MapConvertImageService : IImageService
     {
+        public IImage CreateImage(int w, int h) => null;
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => null;
+        public IImage LoadImage(string f) => null;
+        public IImage LoadImageFromBytes(byte[] d) => null;
+        public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
+        {
+            r = (byte)((gbaColor & 0x1F) << 3);
+            g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
+            b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
+        }
+        public ushort RGBAToGBAColor(byte r, byte g, byte b)
+        {
+            return (ushort)(((r >> 3) & 0x1F) | (((g >> 3) & 0x1F) << 5) | (((b >> 3) & 0x1F) << 10));
+        }
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => null;
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => null;
+        public byte[] Encode4bppTiles(IImage i) => null;
+        public byte[] Encode8bppTiles(IImage i) => null;
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
+        public byte[] RGBAPaletteToGBA(byte[] rgbaPalette, int colorCount)
+        {
+            byte[] gba = new byte[colorCount * 2];
+            for (int i = 0; i < colorCount; i++)
+            {
+                int off = i * 4;
+                if (off + 2 < rgbaPalette.Length)
+                {
+                    ushort c16 = RGBAToGBAColor(rgbaPalette[off], rgbaPalette[off + 1], rgbaPalette[off + 2]);
+                    gba[i * 2] = (byte)(c16 & 0xFF);
+                    gba[i * 2 + 1] = (byte)((c16 >> 8) & 0xFF);
+                }
+            }
+            return gba;
+        }
+    }
+
+    [Collection("SharedState")]
+    public class MapConvertCoreTests : IDisposable
+    {
+        private readonly IImageService _prevService;
+
+        public MapConvertCoreTests()
+        {
+            _prevService = CoreState.ImageService;
+            CoreState.ImageService = new MapConvertImageService();
+        }
+
+        public void Dispose()
+        {
+            CoreState.ImageService = _prevService;
+        }
+
         [Fact]
         public void ConvertImage_ValidInput_ReturnsResult()
         {
