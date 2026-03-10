@@ -15,7 +15,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text Detail:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Configures skill text details for the SkillSystem patch." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

@@ -15,10 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Header:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="HeaderBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="HeaderBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Frequency Hz*1024:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="FrequencyBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="FrequencyBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Loop Start Byte:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="LoopStartBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />

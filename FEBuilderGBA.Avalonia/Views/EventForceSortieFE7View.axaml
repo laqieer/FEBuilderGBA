@@ -16,23 +16,23 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit List Pointer:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitListPointerUpDown" Minimum="0" Maximum="4294967295"
-                         FormatString="X8" Margin="0,4" />
+                         Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UnitIdUpDown" Minimum="0" Maximum="255"
-                         FormatString="X2" Margin="0,4" />
+                         Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown1UpDown" Minimum="0" Maximum="255"
-                         FormatString="X2" Margin="0,4" />
+                         Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown 2:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unknown2UpDown" Minimum="0" Maximum="255"
-                         FormatString="X2" Margin="0,4" />
+                         Margin="0,4" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown 3:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Unknown3UpDown" Minimum="0" Maximum="255"
-                         FormatString="X2" Margin="0,4" />
+                         Margin="0,4" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />

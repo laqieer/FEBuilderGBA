@@ -15,16 +15,16 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="4294967295" FormatString="X8" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Conversation Text 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ConvText1Box" Minimum="0" Maximum="4294967295" FormatString="X8" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ConvText1Box" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Conversation Text 2:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ConvText2Box" Minimum="0" Maximum="4294967295" FormatString="X8" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ConvText2Box" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Conversation Text 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="ConvText3Box" Minimum="0" Maximum="4294967295" FormatString="X8" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="ConvText3Box" Minimum="0" Maximum="4294967295" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

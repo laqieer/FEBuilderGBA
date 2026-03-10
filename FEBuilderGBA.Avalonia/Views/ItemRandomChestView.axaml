@@ -15,7 +15,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Item:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ItemIdBox" Minimum="0" Maximum="255" FormatString="X2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ItemIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Probability %:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ProbabilityBox" Minimum="0" Maximum="255" />

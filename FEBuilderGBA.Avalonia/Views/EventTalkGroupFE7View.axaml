@@ -16,7 +16,7 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextIdUpDown" Minimum="0" Maximum="4294967295"
-                         FormatString="X8" Margin="0,4" />
+                         Margin="0,4" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />

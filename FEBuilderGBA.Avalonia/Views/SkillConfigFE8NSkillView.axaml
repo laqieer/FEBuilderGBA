@@ -14,10 +14,10 @@
       <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Icon:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,4" />
+      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" FormatString="X4" Margin="0,4" />
+      <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
       <TextBlock Grid.Row="3" Grid.Column="0" Text="Condition Unit 1:" VerticalAlignment="Center" Margin="0,4" />
       <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ConditionUnit1Box" Minimum="0" Maximum="255" Margin="0,4" />

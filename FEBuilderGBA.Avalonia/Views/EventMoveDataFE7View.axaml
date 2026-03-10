@@ -16,7 +16,7 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Move Direction:" VerticalAlignment="Center" Margin="0,4" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
-                         FormatString="X2" Margin="0,4" />
+                         Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change"

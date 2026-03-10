@@ -15,16 +15,16 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" FormatString="X2" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Condition:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ConditionBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" FormatString="X2" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ConditionBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" FormatString="X2" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" FormatString="X2" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
         </Grid>
 
         <TextBlock Text="Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed" FontSize="12" Foreground="Gray" />
