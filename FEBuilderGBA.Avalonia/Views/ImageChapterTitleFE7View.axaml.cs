@@ -69,16 +69,24 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // FE7 chapter title: LZ77 compressed 4bpp tiles, variable size
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 0, 16);
-                if (loadResult == null) return;
-                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
-
+                // FE7 chapter title uses a shared palette at rom.RomInfo.image_chapter_title_palette
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
+                uint paletteAddr = rom.RomInfo.image_chapter_title_palette;
+                if (paletteAddr == 0 || !U.isSafetyOffset(paletteAddr))
+                {
+                    CoreState.Services.ShowError("Could not locate shared chapter title palette");
+                    return;
+                }
+                byte[] existingPalette = ImageUtilCore.GetPalette(paletteAddr, 16);
+                if (existingPalette == null) { CoreState.Services.ShowError("Failed to read palette"); return; }
+
+                var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(this, 256, 0, existingPalette, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
                 uint addr = _vm.CurrentAddr;
-                // FE7 chapter title has a single pointer at addr+0 (P0 = SaveImagePointer)
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null) { CoreState.Services.ShowError("Failed to encode tile data"); return; }
 

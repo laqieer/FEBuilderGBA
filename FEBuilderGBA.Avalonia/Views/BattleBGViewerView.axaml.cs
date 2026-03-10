@@ -76,8 +76,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
+                // BattleBG stores all 3 components LZ77-compressed (including palette)
                 var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
-                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8, compressPalette: true);
 
                 if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
 

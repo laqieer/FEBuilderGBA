@@ -31,6 +31,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, export decoded editor images (not full screenshots) as PNG.</summary>
         public static bool ExportEditorImagesMode { get; set; }
 
+        /// <summary>When true, run export→import→export roundtrip validation for graphics editors.</summary>
+        public static bool ValidateImportMode { get; set; }
+
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
@@ -111,6 +114,11 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ExportEditorImagesMode = true;
+                }
+                else if (args[i] == "--validate-import")
+                {
+                    SmokeTestMode = true;
+                    ValidateImportMode = true;
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {

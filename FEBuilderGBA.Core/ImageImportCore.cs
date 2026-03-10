@@ -249,12 +249,13 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Full 3-pointer import: image (LZ77) + TSA (LZ77) + palette (raw).
+        /// Full 3-pointer import: image (LZ77) + TSA (LZ77) + palette.
         /// Used by BattleBG, CG, BG editors.
         /// </summary>
+        /// <param name="compressPalette">When true, palette is LZ77-compressed (required by BattleBG which reads palette via LZ77.decompress).</param>
         public static ImportResult Import3Pointer(ROM rom, byte[] indexedPixels, byte[] gbaPalette,
             int width, int height, uint imgPointerAddr, uint tsaPointerAddr, uint palPointerAddr,
-            int paletteIndex = 0)
+            int paletteIndex = 0, bool compressPalette = false)
         {
             var result = new ImportResult();
 
@@ -282,8 +283,12 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            // Write palette (raw, not compressed)
-            uint palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
+            // Write palette (raw or LZ77-compressed depending on editor)
+            uint palAddr;
+            if (compressPalette)
+                palAddr = WriteCompressedToROM(rom, gbaPalette, palPointerAddr);
+            else
+                palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
             if (palAddr == U.NOT_FOUND)
             {
                 result.Error = "Failed to write palette data (no free space)";

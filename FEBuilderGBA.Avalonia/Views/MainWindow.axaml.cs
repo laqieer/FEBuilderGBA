@@ -166,6 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunSmokeTest()
         {
+            if (App.ValidateImportMode)
+            {
+                RunValidateImport();
+                return;
+            }
+
             if (App.ExportEditorImagesMode)
             {
                 RunExportEditorImages();
@@ -353,6 +359,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     Console.WriteLine($"SCREENSHOT: Failures: {string.Join(", ", failures)}");
 
                 Environment.ExitCode = failed > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Run export→import→export roundtrip validation for all graphics editors.
+        /// </summary>
+        private void RunValidateImport()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                int failures = ImageImportValidator.RunAll();
+                Environment.ExitCode = failures > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
         }

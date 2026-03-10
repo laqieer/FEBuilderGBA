@@ -87,11 +87,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 for (int i = 0; i < 10; i++)
                 {
                     uint partPtr = rom.u32((uint)(tableAddr + i * 4));
-                    if (!U.isPointer(partPtr)) return null;
+                    if (!U.isPointer(partPtr)) break; // Stop at first non-pointer entry
                     uint partAddr = U.toOffset(partPtr);
-                    if (!U.isSafetyOffset(partAddr)) return null;
+                    if (!U.isSafetyOffset(partAddr)) break;
                     byte[] partData = LZ77.decompress(rom.Data, partAddr);
-                    if (partData == null) return null;
+                    if (partData == null) break;
                     tileDataList.AddRange(partData);
                 }
 

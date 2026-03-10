@@ -588,6 +588,60 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Import3Pointer_CompressPalette_WritesLZ77CompressedPalette()
+        {
+            var rom = CreateTestRom();
+            int w = 8, h = 8;
+            byte[] pixels = MakeSolidTile(1, w, h);
+            byte[] palette = new byte[32]; // 16 colors * 2 bytes
+            palette[2] = 0x1F; // color 1 = red
+
+            uint imgPtrAddr = 0x100;
+            uint tsaPtrAddr = 0x104;
+            uint palPtrAddr = 0x108;
+
+            var result = ImageImportCore.Import3Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, tsaPtrAddr, palPtrAddr, compressPalette: true);
+
+            Assert.True(result.Success);
+            Assert.NotEqual(U.NOT_FOUND, result.PaletteOffset);
+
+            // Verify palette is LZ77 compressed (starts with 0x10)
+            Assert.Equal(0x10, rom.Data[result.PaletteOffset]);
+
+            // Verify we can decompress it back
+            byte[] decompressed = LZ77.decompress(rom.Data, result.PaletteOffset);
+            Assert.NotNull(decompressed);
+            Assert.Equal(palette.Length, decompressed.Length);
+            Assert.Equal(palette[2], decompressed[2]); // red color preserved
+        }
+
+        [Fact]
+        public void Import3Pointer_DefaultPalette_WritesRawPalette()
+        {
+            var rom = CreateTestRom();
+            int w = 8, h = 8;
+            byte[] pixels = MakeSolidTile(1, w, h);
+            byte[] palette = new byte[32];
+            palette[2] = 0x1F;
+
+            uint imgPtrAddr = 0x100;
+            uint tsaPtrAddr = 0x104;
+            uint palPtrAddr = 0x108;
+
+            var result = ImageImportCore.Import3Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, tsaPtrAddr, palPtrAddr);
+
+            Assert.True(result.Success);
+
+            // Default (compressPalette=false): palette written raw, NOT LZ77 compressed
+            // Raw palette should NOT start with 0x10 (unless coincidence, so check content matches)
+            Assert.Equal(palette[0], rom.Data[result.PaletteOffset]);
+            Assert.Equal(palette[1], rom.Data[result.PaletteOffset + 1]);
+            Assert.Equal(palette[2], rom.Data[result.PaletteOffset + 2]);
+        }
+
+        [Fact]
         public void Import3Pointer_NullPixels_ReturnsError()
         {
             var rom = CreateTestRom();
