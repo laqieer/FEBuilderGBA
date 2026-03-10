@@ -72,7 +72,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("No palette loaded"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "system_icon_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
-                File.WriteAllBytes(path, pal);
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
+                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

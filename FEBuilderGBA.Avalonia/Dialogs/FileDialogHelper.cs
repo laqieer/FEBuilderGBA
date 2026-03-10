@@ -114,32 +114,57 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
-        static readonly FilePickerFileType PalFileType = new("GBA Palette Files")
+        static readonly FilePickerFileType JascPalFileType = new("JASC-PAL (Aseprite/GIMP)")
         {
             Patterns = new[] { "*.pal" },
         };
 
-        /// <summary>Save a GBA palette (.pal) file.</summary>
+        static readonly FilePickerFileType GbaRawPalFileType = new("GBA Raw Palette")
+        {
+            Patterns = new[] { "*.gbapal" },
+        };
+
+        static readonly FilePickerFileType AdobeActFileType = new("Adobe ACT (Photoshop)")
+        {
+            Patterns = new[] { "*.act" },
+        };
+
+        static readonly FilePickerFileType GimpGplFileType = new("GIMP GPL Palette")
+        {
+            Patterns = new[] { "*.gpl" },
+        };
+
+        static readonly FilePickerFileType HexTextPalFileType = new("Hex Text Palette")
+        {
+            Patterns = new[] { "*.txt" },
+        };
+
+        static readonly FilePickerFileType AnyPaletteFileType = new("All Palette Files")
+        {
+            Patterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" },
+        };
+
+        /// <summary>Save a palette file with multi-format choices.</summary>
         public static async Task<string?> SavePaletteFile(Window owner, string? suggestedName = null)
         {
             var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Export Palette",
                 SuggestedFileName = suggestedName ?? "palette.pal",
-                FileTypeChoices = new[] { PalFileType, AllFileType },
+                FileTypeChoices = new[] { JascPalFileType, GbaRawPalFileType, AdobeActFileType, GimpGplFileType, HexTextPalFileType },
             });
 
             return file?.TryGetLocalPath();
         }
 
-        /// <summary>Open a GBA palette (.pal) file for import.</summary>
+        /// <summary>Open a palette file (any supported format) for import.</summary>
         public static async Task<string?> OpenPaletteFile(Window owner)
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "Import Palette",
                 AllowMultiple = false,
-                FileTypeFilter = new[] { PalFileType, AllFileType },
+                FileTypeFilter = new[] { AnyPaletteFileType, JascPalFileType, GbaRawPalFileType, AdobeActFileType, GimpGplFileType, HexTextPalFileType, AllFileType },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;

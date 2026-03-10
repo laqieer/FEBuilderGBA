@@ -136,7 +136,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "portrait_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
-                File.WriteAllBytes(path, pal);
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
+                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }
@@ -149,7 +150,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 string? path = await FileDialogHelper.OpenPaletteFile(this);
                 if (string.IsNullOrEmpty(path)) return;
-                byte[] palData = File.ReadAllBytes(path);
+                byte[] fileData = File.ReadAllBytes(path);
+                PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
+                byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }

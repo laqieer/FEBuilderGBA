@@ -835,13 +835,58 @@ namespace FEBuilderGBA.Avalonia.Services
                         }
                     }
 
+                    if (!match)
+                    {
+                        return new ValidationResult
+                        {
+                            EditorName = editor.Name,
+                            Success = false,
+                            Error = $"Palette mismatch: exported {pal1.Length} bytes vs re-exported {pal2.Length} bytes",
+                            TotalPixels = pal1.Length / 2,
+                            DifferentPixels = 1,
+                        };
+                    }
+
+                    // Step 6: Validate roundtrip through each non-GbaRaw palette format
+                    var formats = new[] { PaletteFormat.JascPal, PaletteFormat.AdobeAct, PaletteFormat.GimpGpl, PaletteFormat.HexText };
+                    foreach (var fmt in formats)
+                    {
+                        byte[] exported = PaletteFormatConverter.ExportToFormat(pal1, fmt);
+                        byte[] reimported = PaletteFormatConverter.ImportFromFormat(exported, fmt);
+                        if (pal1.Length != reimported.Length)
+                        {
+                            return new ValidationResult
+                            {
+                                EditorName = editor.Name,
+                                Success = false,
+                                Error = $"Format roundtrip failed ({fmt}): size {pal1.Length} vs {reimported.Length}",
+                                TotalPixels = pal1.Length / 2,
+                                DifferentPixels = 1,
+                            };
+                        }
+                        for (int i = 0; i < pal1.Length; i++)
+                        {
+                            if (pal1[i] != reimported[i])
+                            {
+                                return new ValidationResult
+                                {
+                                    EditorName = editor.Name,
+                                    Success = false,
+                                    Error = $"Format roundtrip failed ({fmt}): byte mismatch at offset {i}",
+                                    TotalPixels = pal1.Length / 2,
+                                    DifferentPixels = 1,
+                                };
+                            }
+                        }
+                    }
+
                     return new ValidationResult
                     {
                         EditorName = editor.Name,
-                        Success = match,
-                        Error = match ? null : $"Palette mismatch: exported {pal1.Length} bytes vs re-exported {pal2.Length} bytes",
-                        TotalPixels = pal1.Length / 2, // colors
-                        DifferentPixels = match ? 0 : 1,
+                        Success = true,
+                        Error = null,
+                        TotalPixels = pal1.Length / 2,
+                        DifferentPixels = 0,
                     };
                 }
                 finally

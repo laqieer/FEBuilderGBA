@@ -51,7 +51,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_palette == null || _palette.Length < 32) { CoreState.Services.ShowError("No palette data available"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "image_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
-                File.WriteAllBytes(path, _palette);
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
+                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(_palette, fmt));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

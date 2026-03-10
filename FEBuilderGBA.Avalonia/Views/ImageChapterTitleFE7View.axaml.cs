@@ -80,7 +80,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "chapter_title_fe7_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
-                File.WriteAllBytes(path, pal);
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
+                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }
