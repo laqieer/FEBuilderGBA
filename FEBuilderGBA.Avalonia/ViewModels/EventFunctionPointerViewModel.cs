@@ -19,8 +19,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.event_function_pointer_table_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Function Pointer", 0));
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint funcPtr = rom.u32(addr);
+                if (!U.isPointer(funcPtr)) break;
+
+                string ptrStr = $"0x{funcPtr:X08}";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", (uint)i));
+            }
             return result;
         }
 
@@ -45,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(a + 0, EventCommandFunctionPointer);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

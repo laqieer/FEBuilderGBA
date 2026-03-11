@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~50% average across all domains (updated 2026-03-12 after round 6 gap fixes)
+**Overall Avalonia Completeness:** ~51% average across all domains (updated 2026-03-12 after round 7 gap fixes)
 
 ---
 
@@ -207,10 +207,10 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | EventUnitFE7Form / EventUnitFE7VM | 25% | Map preview, coordinate handling |
 | EventBattleTalkForm / EventBattleTalkVM | 40% | Auto-populated list, JumpTo, FELint |
 | EventBattleTalkFE6/FE7 | 40% | Two tables, owner-drawn lists |
-| EventHaikuForm / EventHaikuVM | 40% | Auto-populated list, patch detection |
+| EventHaikuForm / EventHaikuVM | **55%** | ~~Auto-populated list~~ **FIXED** — list from event_haiku_pointer with unit name resolution. Missing: patch detection |
 | EventHaikuFE6/FE7 | 40-45% | Chapter filter, two tables |
-| EventForceSortie/FE7 | 45-50% | Multi-level navigation, AllocIfNeed |
-| EventFunctionPointer/FE7 | 30-35% | Filter combo, event info lookup |
+| EventForceSortie/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_force_sortie_pointer with unit name resolution. Missing: AllocIfNeed |
+| EventFunctionPointer/FE7 | **45%** | ~~List stub~~ **FIXED** — list from event_function_pointer_table_pointer. Missing: filter combo |
 | EventTalkGroupFE7 | 30% | AllocIfNeed, RecycleOldData |
 | EventMoveDataFE7 | 25% | Variable-size records, direction types |
 
@@ -471,3 +471,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 5):** Three map forms improved: MapTileAnimation1 (35→50%, list from tileanime1_pointer), MapTileAnimation2 (35→50%, list from tileanime2_pointer), MapLoadFunction (25→50%, list from switch1 count + write support + pointer info).
 
 **Updated 2026-03-12 (round 6):** Three more forms improved: ImageGenericEnemyPortrait (25→40%, list from pointer/count), StatusOption (40→55%, list from status_game_option_pointer with name resolution), WorldMapPathMoveEditor (35→50%, BuildList with node display and terminator detection).
+
+**Updated 2026-03-12 (round 7):** Six more forms fixed: EventHaiku (40→55%, list from event_haiku_pointer + unit names), EventForceSortie (45→55%, list from event_force_sortie_pointer + unit names), EventFunctionPointer (30→45%, list from function pointer table), AIStealItem/AIPerformStaff/AIPerformItem (all list stubs replaced with proper ROM pointer enumeration + item name resolution).
