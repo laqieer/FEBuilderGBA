@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 string raw = FETextDecode.Direct(id) ?? "(empty)";
-                DecodedText = ConvertEscapeToFEditor(raw);
+                DecodedText = ReplaceControlChars(ConvertEscapeToFEditor(raw));
             }
             catch
             {
@@ -101,6 +101,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (c < 0x20 && c != '\n' && c != '\r')
                     continue; // skip raw control chars
                 sb.Append(c);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Replace raw non-printable control characters with [0xXX] bracket notation
+        /// for display in the detail text box. Preserves \n and \r.
+        /// </summary>
+        static string ReplaceControlChars(string str)
+        {
+            if (string.IsNullOrEmpty(str)) return str;
+            var sb = new System.Text.StringBuilder(str.Length);
+            foreach (char c in str)
+            {
+                if (c < 0x20 && c != '\n' && c != '\r')
+                    sb.Append($"[0x{(int)c:X04}]");
+                else
+                    sb.Append(c);
             }
             return sb.ToString();
         }
