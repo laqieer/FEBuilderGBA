@@ -72,7 +72,7 @@ dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --out=texts.t
 dotnet run --project FEBuilderGBA.CLI -- --translate --rom=rom.gba --in=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --translate-roundtrip --rom=rom.gba --out=diff
-dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --out=units.tsv
+dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=units --out=units.tsv  # 19 tables: units, classes, items, portraits, sound_room, sound_boss_bgm, support_units, support_talks, support_attributes, event_haiku, event_battle_talk, event_force_sortie, worldmap_points, worldmap_paths, worldmap_bgm, map_settings, link_arena_deny, cc_branch, menu_definitions
 dotnet run --project FEBuilderGBA.CLI -- --export-data --rom=rom.gba --table=all --out=data
 dotnet run --project FEBuilderGBA.CLI -- --import-data --rom=rom.gba --table=units --in=units.tsv
 dotnet run --project FEBuilderGBA.CLI -- --data-roundtrip --rom=rom.gba --table=all

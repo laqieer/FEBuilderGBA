@@ -6,7 +6,7 @@ using System.Text;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// Cross-platform struct data export/import for ROM tables (units, classes, items).
+    /// Cross-platform struct data export/import for ROM tables.
     /// Mirrors TranslateCore pattern: export to TSV, import from TSV, round-trip validation.
     /// </summary>
     public static class StructExportCore
@@ -32,6 +32,17 @@ namespace FEBuilderGBA
         static readonly Dictionary<string, TableDef> _tables = new Dictionary<string, TableDef>(StringComparer.OrdinalIgnoreCase);
 
         static StructExportCore()
+        {
+            RegisterCoreTables();
+            RegisterPortraitTables();
+            RegisterSoundTables();
+            RegisterSupportTables();
+            RegisterEventTables();
+            RegisterWorldMapTables();
+            RegisterMiscTables();
+        }
+
+        static void RegisterCoreTables()
         {
             RegisterTable(new TableDef
             {
@@ -84,6 +95,406 @@ namespace FEBuilderGBA
                     {
                         if (i > 0xFF) return false;
                         return U.isPointerOrNULL(rom.u32(addr + 12));
+                    });
+                },
+            });
+        }
+
+        static void RegisterPortraitTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "portraits",
+                StructNameFE6 = "Portrait_FE6",
+                StructNameFE78 = "Portrait_FE78",
+                MetadataFileFE6 = "struct_portrait_fe6.txt",
+                MetadataFileFE78 = "struct_portrait_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.portrait_pointer),
+                GetDataSize = rom => rom.RomInfo.portrait_datasize,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.portrait_pointer);
+                    uint dataSize = rom.RomInfo.portrait_datasize;
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i == 0) return true;
+                        if (i > 0x3FF) return false;
+                        // All three pointers at +0, +4, +8 must be valid pointers or NULL
+                        return U.isPointerOrNULL(rom.u32(addr))
+                            && U.isPointerOrNULL(rom.u32(addr + 4))
+                            && U.isPointerOrNULL(rom.u32(addr + 8));
+                    });
+                },
+            });
+        }
+
+        static void RegisterSoundTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "sound_room",
+                StructNameFE6 = "SoundRoom_FE6",
+                StructNameFE78 = "SoundRoom_FE78",
+                MetadataFileFE6 = "struct_soundroom_fe6.txt",
+                MetadataFileFE78 = "struct_soundroom_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.sound_room_pointer),
+                GetDataSize = rom => rom.RomInfo.sound_room_datasize,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.sound_room_pointer);
+                    uint dataSize = rom.RomInfo.sound_room_datasize;
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u32(addr) != 0xFFFFFFFF;
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "sound_boss_bgm",
+                StructNameFE6 = "SoundBossBGM",
+                StructNameFE78 = "SoundBossBGM",
+                MetadataFileFE6 = "struct_sound_boss_bgm.txt",
+                MetadataFileFE78 = "struct_sound_boss_bgm.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.sound_boss_bgm_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.sound_boss_bgm_pointer);
+                },
+                GetDataSize = rom => 8,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.sound_boss_bgm_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.sound_boss_bgm_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 8, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u16(addr) != 0xFFFF;
+                    });
+                },
+            });
+        }
+
+        static void RegisterSupportTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "support_units",
+                StructNameFE6 = "SupportUnit_FE6",
+                StructNameFE78 = "SupportUnit_FE78",
+                MetadataFileFE6 = "struct_support_unit_fe6.txt",
+                MetadataFileFE78 = "struct_support_unit_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.support_unit_pointer),
+                GetDataSize = rom => (uint)(rom.RomInfo.version == 6 ? 32 : 24),
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.support_unit_pointer);
+                    uint dataSize = (uint)(rom.RomInfo.version == 6 ? 32 : 24);
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u16(addr) != 0;
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "support_talks",
+                StructNameFE6 = "SupportTalk_FE6",
+                StructNameFE78 = "SupportTalk_FE78",
+                MetadataFileFE6 = "struct_support_talk_fe6.txt",
+                MetadataFileFE78 = "struct_support_talk_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.support_talk_pointer),
+                GetDataSize = rom => 16,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.support_talk_pointer);
+                    return rom.getBlockDataCount(baseAddr, 16, (int i, uint addr) =>
+                    {
+                        if (i > 0xFFF) return false;
+                        return rom.u16(addr) != 0xFFFF && (i <= 10 || rom.u16(addr) != 0);
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "support_attributes",
+                StructNameFE6 = "SupportAttribute",
+                StructNameFE78 = "SupportAttribute",
+                MetadataFileFE6 = "struct_support_attribute.txt",
+                MetadataFileFE78 = "struct_support_attribute.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.support_attribute_pointer),
+                GetDataSize = rom => 8,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.support_attribute_pointer);
+                    return rom.getBlockDataCount(baseAddr, 8, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u8(addr) != 0;
+                    });
+                },
+            });
+        }
+
+        static void RegisterEventTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "event_haiku",
+                StructNameFE6 = "EventHaiku_FE6",
+                StructNameFE78 = "EventHaiku_FE78",
+                MetadataFileFE6 = "struct_event_haiku_fe6.txt",
+                MetadataFileFE78 = "struct_event_haiku_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.event_haiku_pointer),
+                GetDataSize = rom => (uint)(rom.RomInfo.version == 6 ? 16 : 12),
+                GetEntryCount = rom =>
+                {
+                    uint dataSize = (uint)(rom.RomInfo.version == 6 ? 16 : 12);
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.event_haiku_pointer);
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i > 0xFFF) return false;
+                        return rom.u16(addr) != 0xFFFF && (i <= 10 || rom.u16(addr) != 0);
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "event_battle_talk",
+                StructNameFE6 = "EventBattleTalk_FE6",
+                StructNameFE78 = "EventBattleTalk_FE78",
+                MetadataFileFE6 = "struct_event_battle_talk_fe6.txt",
+                MetadataFileFE78 = "struct_event_battle_talk_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.event_ballte_talk_pointer),
+                GetDataSize = rom => (uint)(rom.RomInfo.version == 6 ? 12 : 16),
+                GetEntryCount = rom =>
+                {
+                    uint dataSize = (uint)(rom.RomInfo.version == 6 ? 12 : 16);
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.event_ballte_talk_pointer);
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i > 0xFFF) return false;
+                        return rom.u16(addr) != 0xFFFF && (i <= 10 || rom.u16(addr) != 0);
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "event_force_sortie",
+                StructNameFE6 = "EventForceSortie",
+                StructNameFE78 = "EventForceSortie",
+                MetadataFileFE6 = "struct_event_force_sortie.txt",
+                MetadataFileFE78 = "struct_event_force_sortie.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.event_force_sortie_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.event_force_sortie_pointer);
+                },
+                GetDataSize = rom => 4,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.event_force_sortie_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.event_force_sortie_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 4, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u16(addr) != 0xFFFF;
+                    });
+                },
+            });
+        }
+
+        static void RegisterWorldMapTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "worldmap_points",
+                StructNameFE6 = "WorldMapPoint",
+                StructNameFE78 = "WorldMapPoint",
+                MetadataFileFE6 = "struct_worldmap_point.txt",
+                MetadataFileFE78 = "struct_worldmap_point.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.worldmap_point_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.worldmap_point_pointer);
+                },
+                GetDataSize = rom => 32,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.worldmap_point_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.worldmap_point_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 32, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return U.isPointerOrNULL(rom.u32(addr + 12))
+                            && U.isPointerOrNULL(rom.u32(addr + 16))
+                            && U.isPointerOrNULL(rom.u32(addr + 20));
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "worldmap_paths",
+                StructNameFE6 = "WorldMapPath",
+                StructNameFE78 = "WorldMapPath",
+                MetadataFileFE6 = "struct_worldmap_path.txt",
+                MetadataFileFE78 = "struct_worldmap_path.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.worldmap_road_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.worldmap_road_pointer);
+                },
+                GetDataSize = rom => 12,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.worldmap_road_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.worldmap_road_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 12, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return U.isPointerOrNULL(rom.u32(addr));
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "worldmap_bgm",
+                StructNameFE6 = "WorldMapBGM",
+                StructNameFE78 = "WorldMapBGM",
+                MetadataFileFE6 = "struct_worldmap_bgm.txt",
+                MetadataFileFE78 = "struct_worldmap_bgm.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.worldmap_bgm_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.worldmap_bgm_pointer);
+                },
+                GetDataSize = rom => 4,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.worldmap_bgm_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.worldmap_bgm_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 4, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        // Stop if we see (1,0) or (0,0)
+                        uint w0 = rom.u16(addr);
+                        uint w2 = rom.u16(addr + 2);
+                        if (w0 <= 1 && w2 == 0) return false;
+                        return true;
+                    });
+                },
+            });
+        }
+
+        static void RegisterMiscTables()
+        {
+            RegisterTable(new TableDef
+            {
+                Name = "map_settings",
+                StructNameFE6 = "MapSetting_FE6",
+                StructNameFE78 = "MapSetting_FE78",
+                MetadataFileFE6 = "struct_map_setting_fe6.txt",
+                MetadataFileFE78 = "struct_map_setting_fe78.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.map_setting_pointer),
+                GetDataSize = rom => rom.RomInfo.map_setting_datasize,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.map_setting_pointer);
+                    uint dataSize = rom.RomInfo.map_setting_datasize;
+                    return rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return U.isPointerOrNULL(rom.u32(addr));
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "link_arena_deny",
+                StructNameFE6 = "LinkArenaDeny",
+                StructNameFE78 = "LinkArenaDeny",
+                MetadataFileFE6 = "struct_link_arena_deny.txt",
+                MetadataFileFE78 = "struct_link_arena_deny.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.link_arena_deny_unit_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.link_arena_deny_unit_pointer);
+                },
+                GetDataSize = rom => 2,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.link_arena_deny_unit_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.link_arena_deny_unit_pointer);
+                    if (baseAddr == 0) return 0;
+                    return rom.getBlockDataCount(baseAddr, 2, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return rom.u8(addr) != 0;
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "cc_branch",
+                StructNameFE6 = "CCBranch",
+                StructNameFE78 = "CCBranch",
+                MetadataFileFE6 = "struct_cc_branch.txt",
+                MetadataFileFE78 = "struct_cc_branch.txt",
+                GetBaseAddress = rom =>
+                {
+                    if (rom.RomInfo.ccbranch_pointer == 0) return 0;
+                    return ResolvePointer(rom, rom.RomInfo.ccbranch_pointer);
+                },
+                GetDataSize = rom => 2,
+                GetEntryCount = rom =>
+                {
+                    if (rom.RomInfo.ccbranch_pointer == 0) return 0;
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.ccbranch_pointer);
+                    if (baseAddr == 0) return 0;
+                    // CC branch count matches class count
+                    uint classBase = ResolvePointer(rom, rom.RomInfo.class_pointer);
+                    uint classSize = rom.RomInfo.class_datasize;
+                    return rom.getBlockDataCount(classBase, classSize, (int i, uint addr) =>
+                    {
+                        if (i == 0) return true;
+                        if (i > 0xFF) return false;
+                        return rom.u8(addr + 4) != 0;
+                    });
+                },
+            });
+
+            RegisterTable(new TableDef
+            {
+                Name = "menu_definitions",
+                StructNameFE6 = "MenuDefinition",
+                StructNameFE78 = "MenuDefinition",
+                MetadataFileFE6 = "struct_menu_definition.txt",
+                MetadataFileFE78 = "struct_menu_definition.txt",
+                GetBaseAddress = rom => ResolvePointer(rom, rom.RomInfo.menu_definiton_pointer),
+                GetDataSize = rom => 36,
+                GetEntryCount = rom =>
+                {
+                    uint baseAddr = ResolvePointer(rom, rom.RomInfo.menu_definiton_pointer);
+                    return rom.getBlockDataCount(baseAddr, 36, (int i, uint addr) =>
+                    {
+                        if (i > 0xFF) return false;
+                        return U.isPointerOrNULL(rom.u32(addr + 8));
                     });
                 },
             });

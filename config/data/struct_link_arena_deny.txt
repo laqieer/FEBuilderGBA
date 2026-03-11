@@ -1,0 +1,5 @@
+// Link Arena Deny Unit struct definition (FE7U/FE8 only)
+// 2 bytes per entry
+@LinkArenaDeny 02
+0x00	B	UnitID	Denied unit ID
+0x01	B	Field01	Field 0x01

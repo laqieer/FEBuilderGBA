@@ -1,0 +1,11 @@
+// Support Attribute struct definition (all versions)
+// 8 bytes per entry
+@SupportAttribute 08
+0x00	B	Attack	Attack bonus
+0x01	B	Defense	Defense bonus
+0x02	B	Hit	Hit bonus
+0x03	B	Avoid	Avoid bonus
+0x04	B	Critical	Critical bonus
+0x05	B	CritAvoid	Critical avoid bonus
+0x06	B	Field06	Field 0x06
+0x07	B	Field07	Field 0x07

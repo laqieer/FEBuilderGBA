@@ -127,7 +127,7 @@ namespace FEBuilderGBA
                 FieldType ft = ParseFieldType(fieldParts[1]);
                 current.Fields.Add(new FieldDef
                 {
-                    Offset = U.atoh(fieldParts[0]),
+                    Offset = U.atoi0x(fieldParts[0]),
                     Type = ft,
                     Name = fieldParts[2],
                     Comment = fieldParts.Length > 3 ? fieldParts[3] : ""

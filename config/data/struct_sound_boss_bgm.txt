@@ -1,0 +1,7 @@
+// Boss BGM struct definition (all versions)
+// 8 bytes per entry
+@SoundBossBGM 08
+0x00	W	UnitID	Unit ID
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	D	BGMID	BGM song ID

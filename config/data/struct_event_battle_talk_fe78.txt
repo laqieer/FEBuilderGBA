@@ -1,0 +1,12 @@
+// Battle Talk struct definition for FE7/FE8
+// 16 bytes per entry
+@EventBattleTalk_FE78 10
+0x00	W	UnitID1	Unit 1 ID
+0x02	W	UnitID2	Unit 2 ID
+0x04	B	Field04	Field 0x04
+0x05	B	Field05	Field 0x05
+0x06	W	TextID	Battle talk text ID
+0x08	W	Field08	Field 0x08
+0x0A	B	Field0A	Field 0x0A
+0x0B	B	Field0B	Field 0x0B
+0x0C	P	ConditionPtr	Condition pointer

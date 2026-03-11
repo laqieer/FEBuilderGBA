@@ -85,9 +85,12 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff  # saves diff.export1.tsv + diff.export2.tsv
 
-# Export struct data to TSV (units, classes, items)
+# Export struct data to TSV (19 tables: units, classes, items, portraits, sound_room,
+# sound_boss_bgm, support_units, support_talks, support_attributes, event_haiku,
+# event_battle_talk, event_force_sortie, worldmap_points, worldmap_paths, worldmap_bgm,
+# map_settings, link_arena_deny, cc_branch, menu_definitions)
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv
-./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data  # data.units.tsv, data.classes.tsv, data.items.tsv
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data  # data.{table}.tsv per table
 
 # Import struct data from TSV
 ./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv

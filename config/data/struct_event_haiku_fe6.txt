@@ -1,0 +1,16 @@
+// Death Quote (Haiku) struct definition for FE6
+// 16 bytes per entry
+@EventHaiku_FE6 10
+0x00	B	UnitID	Unit ID
+0x01	B	Field01	Field 0x01
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	W	TextID1	Death quote text ID 1
+0x06	B	Field06	Field 0x06
+0x07	B	Field07	Field 0x07
+0x08	W	TextID2	Death quote text ID 2
+0x0A	B	Field0A	Field 0x0A
+0x0B	B	Field0B	Field 0x0B
+0x0C	W	TextID3	Death quote text ID 3
+0x0E	B	Field0E	Field 0x0E
+0x0F	B	Field0F	Field 0x0F
