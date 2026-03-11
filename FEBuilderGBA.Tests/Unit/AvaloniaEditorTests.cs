@@ -1175,7 +1175,7 @@ namespace FEBuilderGBA.Tests.Unit
             // Must still have NumericUpDown controls
             Assert.Contains("NumericUpDown", src);
             Assert.Contains("NameIdBox", src);
-            Assert.Contains("ClassIdBox", src);
+            Assert.Contains("ClassIdCombo", src);
             Assert.Contains("LevelBox", src);
             Assert.Contains("HPBox", src);
         }
@@ -1226,7 +1226,7 @@ namespace FEBuilderGBA.Tests.Unit
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
             // UpdateUI must set Value on each NumericUpDown
             Assert.Contains("NameIdBox.Value = ", src);
-            Assert.Contains("ClassIdBox.Value = ", src);
+            Assert.Contains("ClassIdCombo.SelectedIndex", src);
             Assert.Contains("LevelBox.Value = ", src);
             Assert.Contains("HPBox.Value = ", src);
             Assert.Contains("StrBox.Value = ", src);
@@ -1243,7 +1243,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml.cs"));
             Assert.Contains("NameIdBox.Value = ", src);
-            Assert.Contains("WeaponTypeBox.Value = ", src);
+            Assert.Contains("WeaponTypeCombo.SelectedIndex", src);
             Assert.Contains("MightBox.Value = ", src);
             Assert.Contains("HitBox.Value = ", src);
             Assert.Contains("PriceBox.Value = ", src);

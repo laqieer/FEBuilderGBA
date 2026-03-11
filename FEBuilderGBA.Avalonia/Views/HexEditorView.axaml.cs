@@ -27,6 +27,11 @@ namespace FEBuilderGBA.Avalonia.Views
             AddressBox.Text = $"0x{address:X08}";
         }
 
+        public void SelectFirstItem()
+        {
+            NavigateTo(0);
+        }
+
         void UpdateUI()
         {
             HexGrid.Text = _vm.HexDisplay;
