@@ -39,6 +39,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     string decoded = FETextDecode.Direct(i);
                     if (decoded != null)
                         decoded = ConvertEscapeToFEditor(decoded);
+                    if (decoded != null)
+                        decoded = StripControlChars(decoded);
                     if (decoded != null && decoded.Length > 40)
                         decoded = decoded.Substring(0, 40) + "...";
                     preview = decoded ?? "";
@@ -83,6 +85,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Convert remaining unknown @XXXX codes
             str = RegexCache.Replace(str, @"@([0-9A-F][0-9A-F][0-9A-F][0-9A-F])", "[0x$1]");
             return str;
+        }
+
+        /// <summary>
+        /// Strip raw non-printable control characters (0x00-0x1F) that weren't
+        /// converted to @XXXX escape codes by FETextDecode.
+        /// Preserves \n and \r for display.
+        /// </summary>
+        static string StripControlChars(string str)
+        {
+            if (string.IsNullOrEmpty(str)) return str;
+            var sb = new System.Text.StringBuilder(str.Length);
+            foreach (char c in str)
+            {
+                if (c < 0x20 && c != '\n' && c != '\r')
+                    continue; // skip raw control chars
+                sb.Append(c);
+            }
+            return sb.ToString();
         }
 
         public int GetListCount() => LoadTextList().Count;
