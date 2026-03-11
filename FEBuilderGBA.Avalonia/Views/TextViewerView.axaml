@@ -10,6 +10,11 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Text Editor" FontSize="18" FontWeight="Bold" />
 
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button Name="ExportButton" Content="Export All Texts (TSV)" Click="OnExportClick" />
+          <Button Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
+        </StackPanel>
+
         <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
 
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">

@@ -1,8 +1,11 @@
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Documents;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -113,6 +116,56 @@ namespace FEBuilderGBA.Avalonia.Views
             // Emit trailing normal text
             if (normalStart < text.Length)
                 block.Inlines.Add(new Run(text.Substring(normalStart)));
+        }
+
+        async void OnExportClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var tsvType = new FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } };
+                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export Texts",
+                    SuggestedFileName = "texts.tsv",
+                    FileTypeChoices = new[] { tsvType, allType },
+                });
+                string? path = file?.TryGetLocalPath();
+                if (path == null) return;
+
+                int count = _vm.ExportAllTexts(path);
+                await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Export failed: {0}", ex.Message);
+                await MessageBoxWindow.Show(this, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
+
+        async void OnImportClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(this, "TSV Files", "*.tsv");
+                if (path == null) return;
+
+                int count = _vm.ImportAllTexts(path);
+                if (count > 0)
+                {
+                    LoadList(); // Refresh the list to show updated texts
+                    await MessageBoxWindow.Show(this, $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok);
+                }
+                else
+                {
+                    await MessageBoxWindow.Show(this, "No texts were imported. Check the file format.", "Import", MessageBoxMode.Ok);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Import failed: {0}", ex.Message);
+                await MessageBoxWindow.Show(this, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
         }
 
         public void SelectFirstItem()

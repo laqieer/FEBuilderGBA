@@ -84,5 +84,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadTextList().Count;
+
+        /// <summary>
+        /// Export all ROM texts to a TSV file via TranslateCore.
+        /// </summary>
+        public int ExportAllTexts(string path)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            var entries = TranslateCore.DumpTexts(rom);
+            TranslateCore.ExportToTSV(entries, path);
+            return entries.Count;
+        }
+
+        /// <summary>
+        /// Import texts from a TSV file and write them back to ROM.
+        /// </summary>
+        public int ImportAllTexts(string path)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            var entries = TranslateCore.ImportFromTSV(path);
+            if (entries.Count == 0) return 0;
+
+            return TranslateCore.WriteTexts(rom, entries);
+        }
     }
 }
