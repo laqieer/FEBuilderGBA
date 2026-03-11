@@ -30,8 +30,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.unit_palette_color_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 7;
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (maxCount == 0) maxCount = 0x100;
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Unit Palette Assignment", 0));
+            for (uint i = 0; i < maxCount; i++)
+            {
+                uint addr = baseAddr + (i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                string unitName = NameResolver.GetUnitName(i + 1);
+                result.Add(new AddrResult(addr, $"0x{(i + 1):X2} {unitName}", i + 1));
+            }
             return result;
         }
 
@@ -67,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 6, (byte)AdvancedClass4);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

@@ -18,13 +18,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Special { get => _special; set => SetField(ref _special, value); }
         public uint AnimeNumber { get => _animeNumber; set => SetField(ref _animeNumber, value); }
 
+        /// <summary>Build list from a given base address (set via JumpTo/NavigateTo).
+        /// Each entry is 4 bytes: WeaponType (u8), Special (u8), AnimeNumber (u16).
+        /// Terminated when u32(addr) == 0.</summary>
+        public List<AddrResult> BuildList(uint baseAddr)
+        {
+            _baseAddr = baseAddr;
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom == null || baseAddr == 0) return result;
+
+            const uint blockSize = 4;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0) break;
+
+                uint wt = rom.u8(addr);
+                uint animeNum = rom.u16(addr + 2);
+                result.Add(new AddrResult(addr, $"0x{i:X2} Weapon={wt:X2} Anim={animeNum:X4}", (uint)i));
+            }
+            return result;
+        }
+        uint _baseAddr;
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Custom Battle Animation", 0));
-            return result;
+
+            // If navigated to with a base address, use that
+            if (_baseAddr != 0) return BuildList(_baseAddr);
+
+            // Otherwise try unit_custom_battle_anime_pointer
+            uint pointer = rom.RomInfo.unit_custom_battle_anime_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+            return BuildList(baseAddr);
         }
 
         public void LoadEntry(uint addr)
@@ -51,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u16(addr + 2, (ushort)AnimeNumber);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

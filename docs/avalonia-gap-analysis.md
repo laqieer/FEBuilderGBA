@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~52% average across all domains (updated 2026-03-12 after round 8 gap fixes)
+**Overall Avalonia Completeness:** ~53% average across all domains (updated 2026-03-12 after round 9 gap fixes)
 
 ---
 
@@ -70,9 +70,9 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
 | ExtraUnitFE8UForm / ExtraUnitFE8UVM | 35% | Proper List, Address Tracking |
 | UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, Rework Patch, Action Names |
-| UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | 30% | Dual Lists, SP Names, Independence, Preview |
+| UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | **40%** | ~~List stub~~ **FIXED** — BuildList with weapon/anim display. Missing: SP Names, Preview |
 | UnitIncreaseHeightForm / UnitIncreaseHeightVM | 25% | Write, Proper List, Switch2, Height Options |
-| UnitPaletteForm / UnitPaletteVM | 30% | Dual Tables, Battle Anime Preview, Synced Lists |
+| UnitPaletteForm / UnitPaletteVM | **40%** | ~~List stub~~ **FIXED** — list from unit_palette_color_pointer with unit names. Missing: Dual Tables, Preview |
 | UnitsShortTextForm / UnitsShortTextVM | **50%** | ~~Proper List~~ **FIXED** — AddressListControl with unit names, text ID decode/preview. Missing: Alloc, Recycling |
 
 ### Cross-Cutting Gaps
@@ -163,9 +163,9 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| ImagePortrait | 35% | Import, Drag-drop, Palette link |
+| ImagePortrait | **45%** | ~~List stub~~ **FIXED** — list from portrait_pointer with unit name hints. Missing: Import, Drag-drop |
 | ImagePortraitFE6 | 35% | Import, Advanced import dialog |
-| ImageBattleAnime | 18% | Two-level list, Animation playback, Import/Export (4 formats) |
+| ImageBattleAnime | **28%** | ~~List stub~~ **FIXED** — list from image_battle_animelist_pointer. Missing: Two-level list, Animation playback, Import/Export |
 | ImageBattleBG | 45% | Import, Drag-drop, DecreaseColor |
 | ImageCG / BigCGViewer | 45% | Import, 10-split LZ77 compress |
 | ImageCGFE7U | 45% | Import, Drag-drop |
@@ -475,3 +475,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 7):** Six more forms fixed: EventHaiku (40→55%, list from event_haiku_pointer + unit names), EventForceSortie (45→55%, list from event_force_sortie_pointer + unit names), EventFunctionPointer (30→45%, list from function pointer table), AIStealItem/AIPerformStaff/AIPerformItem (all list stubs replaced with proper ROM pointer enumeration + item name resolution).
 
 **Updated 2026-03-12 (round 8):** Six more forms fixed: EventHaikuFE6/FE7 (list from event_haiku_pointer 16-byte blocks + unit names), EventForceSortieFE7 (list from force_sortie_pointer, 23 map entries), EventFunctionPointerFE7 (list from function_pointer_table), AIMapSetting (list from ai_map_setting_pointer), MapTerrainNameEng (list from map_terrain_name_pointer + text decode).
+
+**Updated 2026-03-12 (round 9):** Four more forms fixed: ImagePortrait (35→45%, list from portrait_pointer with unit name hints), ImageBattleAnime (18→28%, list from image_battle_animelist_pointer), UnitPalette (30→40%, list from unit_palette_color_pointer + unit names), UnitCustomBattleAnime (30→40%, BuildList with weapon/anim display).

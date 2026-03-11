@@ -49,8 +49,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.portrait_pointer;
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (pointer == 0 || dataSize == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Portrait Image Editor", 0));
+            int nullCount = 0;
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                // Stop after several consecutive null entries
+                if (rom.u32(addr) == 0) { nullCount++; if (nullCount > 3) break; }
+                else nullCount = 0;
+
+                string name = $"0x{i:X2}";
+                // Try to get unit name if this portrait index corresponds to a unit
+                try { string uname = NameResolver.GetUnitName((uint)i); if (uname != "???" && uname != $"#{i}") name += $" {uname}"; }
+                catch { }
+                result.Add(new AddrResult(addr, name, (uint)i));
+            }
             return result;
         }
 

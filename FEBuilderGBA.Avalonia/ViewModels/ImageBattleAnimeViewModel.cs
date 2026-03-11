@@ -29,8 +29,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.image_battle_animelist_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Battle Animation Editor", 0));
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X2} Anim", (uint)i));
+            }
             return result;
         }
 
