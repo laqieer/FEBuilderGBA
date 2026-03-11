@@ -4,6 +4,7 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class DisassemblerCoreTests
     {
         [Fact]

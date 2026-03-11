@@ -2,6 +2,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class PortraitRendererCoreTests
     {
         [Fact]

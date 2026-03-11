@@ -3,6 +3,7 @@ using FEBuilderGBA;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class NameResolverTests
     {
         [Fact]
