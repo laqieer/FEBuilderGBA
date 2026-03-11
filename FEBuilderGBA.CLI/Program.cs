@@ -88,6 +88,21 @@ namespace FEBuilderGBA.CLI
                 return RunTranslate(argsDic);
             }
 
+            if (argsDic.ContainsKey("--data-roundtrip"))
+            {
+                return RunDataRoundTrip(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--export-data"))
+            {
+                return RunExportData(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--import-data"))
+            {
+                return RunImportData(argsDic);
+            }
+
             if (argsDic.ContainsKey("--lastrom"))
             {
                 return RunLastRom(argsDic);
@@ -154,6 +169,14 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
             Console.WriteLine("  --translate-roundtrip    Validate text export/import losslessness (requires --rom)");
             Console.WriteLine("    --out=<base>           Save before/after TSVs as <base>.export1.tsv and <base>.export2.tsv");
+            Console.WriteLine("  --export-data            Export struct data to TSV (requires --rom, --table)");
+            Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all");
+            Console.WriteLine("    --out=<path>           Output TSV file path (or base path for --table=all)");
+            Console.WriteLine("  --import-data            Import struct data from TSV (requires --rom, --table, --in)");
+            Console.WriteLine("    --table=<name>         Table name: units, classes, items");
+            Console.WriteLine("    --in=<path>            Input TSV file path");
+            Console.WriteLine("  --data-roundtrip         Validate struct data export/import losslessness (requires --rom)");
+            Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all (default: all)");
             Console.WriteLine("  --lastrom                Load last-used ROM from config");
             Console.WriteLine("  --force-detail           Force detailed editor mode (Avalonia GUI)");
             Console.WriteLine("  --translate_batch        Batch translation: export + import all text");
@@ -177,6 +200,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all");
             Console.WriteLine("  FEBuilderGBA.CLI --lastrom");
             Console.WriteLine("  FEBuilderGBA.CLI --translate_batch --rom=rom.gba --out=texts.tsv --in=translated.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --test --rom=rom.gba");
@@ -1156,6 +1183,226 @@ namespace FEBuilderGBA.CLI
             }
 
             return failed > 0 ? 1 : 0;
+        }
+
+        static int RunExportData(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-data requires --rom=<rom_file>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--table") || string.IsNullOrEmpty(argsDic["--table"]))
+            {
+                Console.Error.WriteLine("Error: --export-data requires --table=<name> (units, classes, items, or all)");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string tableName = argsDic["--table"];
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+
+            var tableNames = tableName.Equals("all", StringComparison.OrdinalIgnoreCase)
+                ? new List<string>(StructExportCore.GetTableNames())
+                : new List<string> { tableName };
+
+            foreach (string tName in tableNames)
+            {
+                var table = StructExportCore.GetTable(tName);
+                if (table == null)
+                {
+                    Console.Error.WriteLine($"Error: Unknown table '{tName}'. Available: {string.Join(", ", StructExportCore.GetTableNames())}");
+                    return 1;
+                }
+
+                var structDef = StructExportCore.LoadStructDef(CoreState.ROM, table);
+                if (structDef == null)
+                {
+                    Console.Error.WriteLine($"Error: Could not load struct definition for table '{tName}'.");
+                    return 1;
+                }
+
+                var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
+
+                string outPath;
+                if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+                {
+                    if (tableNames.Count > 1)
+                        outPath = argsDic["--out"] + "." + tName + ".tsv";
+                    else
+                        outPath = argsDic["--out"];
+                }
+                else
+                {
+                    outPath = Path.ChangeExtension(romPath, "." + tName + ".tsv");
+                }
+
+                StructExportCore.ExportToTSV(entries, structDef, outPath);
+                Console.WriteLine($"Exported {entries.Count} {tName} entries to: {outPath}");
+            }
+
+            return 0;
+        }
+
+        static int RunImportData(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --import-data requires --rom=<rom_file>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--table") || string.IsNullOrEmpty(argsDic["--table"]))
+            {
+                Console.Error.WriteLine("Error: --import-data requires --table=<name> (units, classes, items)");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            {
+                Console.Error.WriteLine("Error: --import-data requires --in=<path.tsv>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string tableName = argsDic["--table"];
+            string inputPath = argsDic["--in"];
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            if (!File.Exists(inputPath))
+            {
+                Console.Error.WriteLine($"Error: Input file not found: {inputPath}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+
+            var table = StructExportCore.GetTable(tableName);
+            if (table == null)
+            {
+                Console.Error.WriteLine($"Error: Unknown table '{tableName}'. Available: {string.Join(", ", StructExportCore.GetTableNames())}");
+                return 1;
+            }
+
+            var structDef = StructExportCore.LoadStructDef(CoreState.ROM, table);
+            if (structDef == null)
+            {
+                Console.Error.WriteLine($"Error: Could not load struct definition for table '{tableName}'.");
+                return 1;
+            }
+
+            var entries = StructExportCore.ImportFromTSV(inputPath, structDef);
+            Console.WriteLine($"Parsed {entries.Count} entries from TSV.");
+
+            int written = StructExportCore.WriteTable(CoreState.ROM, table, structDef, entries);
+            Console.WriteLine($"Wrote {written} entries to ROM.");
+
+            CoreState.ROM.Save(romPath, true);
+            Console.WriteLine($"ROM saved: {romPath}");
+            return 0;
+        }
+
+        static int RunDataRoundTrip(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --data-roundtrip requires --rom=<rom_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            if (!File.Exists(romPath))
+            {
+                Console.Error.WriteLine($"Error: ROM file not found: {romPath}");
+                return 1;
+            }
+
+            string tableName = argsDic.ContainsKey("--table") && !string.IsNullOrEmpty(argsDic["--table"])
+                ? argsDic["--table"]
+                : "all";
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            // Work on a temporary copy
+            string tempRom = Path.Combine(Path.GetTempPath(), $"data_roundtrip_{Guid.NewGuid():N}.gba");
+            try
+            {
+                File.Copy(romPath, tempRom, true);
+
+                RomLoader.InitEnvironment();
+                if (!RomLoader.LoadRom(tempRom, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+
+                Console.WriteLine($"ROM: {romPath}");
+                Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+                Console.WriteLine("Running struct data round-trip validation...");
+
+                List<StructExportCore.DataRoundTripResult> results;
+                if (tableName.Equals("all", StringComparison.OrdinalIgnoreCase))
+                {
+                    results = StructExportCore.ValidateRoundTripAll(CoreState.ROM);
+                }
+                else
+                {
+                    results = new List<StructExportCore.DataRoundTripResult>
+                    {
+                        StructExportCore.ValidateRoundTrip(CoreState.ROM, tableName)
+                    };
+                }
+
+                bool allLossless = true;
+                foreach (var result in results)
+                {
+                    Console.WriteLine($"\nTable: {result.TableName}");
+                    Console.WriteLine($"  Entries: {result.TotalEntries}");
+                    Console.WriteLine($"  Match: {result.MatchCount}");
+                    Console.WriteLine($"  Mismatch: {result.MismatchCount}");
+
+                    if (!result.IsLossless)
+                    {
+                        allLossless = false;
+                        int shown = 0;
+                        foreach (var (idx, fieldName, before, after) in result.Mismatches)
+                        {
+                            if (shown >= 20)
+                            {
+                                Console.WriteLine($"  ... and {result.Mismatches.Count - 20} more mismatches");
+                                break;
+                            }
+                            Console.WriteLine($"  MISMATCH [{idx}].{fieldName}: {before} → {after}");
+                            shown++;
+                        }
+                    }
+                }
+
+                Console.WriteLine();
+                if (allLossless)
+                {
+                    Console.WriteLine("RESULT: All tables are lossless (round-trip OK).");
+                    return 0;
+                }
+                else
+                {
+                    Console.WriteLine("RESULT: Some tables have mismatches.");
+                    return 2;
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(tempRom)) File.Delete(tempRom); } catch { }
+            }
         }
 
         /// <summary>

@@ -84,6 +84,16 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Validate text export/import round-trip (exit 0=lossless, 2=mismatches)
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba
 ./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff  # saves diff.export1.tsv + diff.export2.tsv
+
+# Export struct data to TSV (units, classes, items)
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data  # data.units.tsv, data.classes.tsv, data.items.tsv
+
+# Import struct data from TSV
+./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv
+
+# Validate struct data round-trip (exit 0=lossless, 2=mismatches)
+./FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all
 ```
 
 ### Dependencies

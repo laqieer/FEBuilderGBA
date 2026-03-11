@@ -57,6 +57,27 @@ namespace FEBuilderGBA
                     _ => rom.u8(addr),
                 };
             }
+
+            /// <summary>Write a value to ROM at the given struct base + field offset.</summary>
+            public void WriteField(ROM rom, uint baseAddr, FieldDef field, uint value)
+            {
+                uint addr = baseAddr + field.Offset;
+                switch (field.Type)
+                {
+                    case FieldType.Byte:
+                        rom.write_u8(addr, value);
+                        break;
+                    case FieldType.Word:
+                        rom.write_u16(addr, value);
+                        break;
+                    case FieldType.DWord:
+                        rom.write_u32(addr, value);
+                        break;
+                    case FieldType.Pointer:
+                        rom.write_u32(addr, value);
+                        break;
+                }
+            }
         }
 
         readonly Dictionary<string, StructDef> _structs = new Dictionary<string, StructDef>(StringComparer.OrdinalIgnoreCase);
