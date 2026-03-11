@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class BattleTerrainViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly BattleTerrainViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Battle Terrain Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,12 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadBattleTerrainList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("BattleTerrainViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadBattleTerrain(addr);
@@ -38,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("BattleTerrainViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -63,23 +68,34 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.NameChar0 = (uint)(B0Box.Value ?? 0);
-            _vm.NameChar1 = (uint)(B1Box.Value ?? 0);
-            _vm.NameChar2 = (uint)(B2Box.Value ?? 0);
-            _vm.NameChar3 = (uint)(B3Box.Value ?? 0);
-            _vm.NameChar4 = (uint)(B4Box.Value ?? 0);
-            _vm.NameChar5 = (uint)(B5Box.Value ?? 0);
-            _vm.NameChar6 = (uint)(B6Box.Value ?? 0);
-            _vm.NameChar7 = (uint)(B7Box.Value ?? 0);
-            _vm.NameChar8 = (uint)(B8Box.Value ?? 0);
-            _vm.NameChar9 = (uint)(B9Box.Value ?? 0);
-            _vm.NameChar10 = (uint)(B10Box.Value ?? 0);
-            _vm.NameChar11 = (uint)(B11Box.Value ?? 0);
-            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
-            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
-            _vm.UnknownD20 = ParseHexText(D20Box.Text);
-            _vm.WriteBattleTerrain();
-            CoreState.Services.ShowInfo("Battle Terrain data written.");
+            _undoService.Begin("Edit Battle Terrain");
+            try
+            {
+                _vm.NameChar0 = (uint)(B0Box.Value ?? 0);
+                _vm.NameChar1 = (uint)(B1Box.Value ?? 0);
+                _vm.NameChar2 = (uint)(B2Box.Value ?? 0);
+                _vm.NameChar3 = (uint)(B3Box.Value ?? 0);
+                _vm.NameChar4 = (uint)(B4Box.Value ?? 0);
+                _vm.NameChar5 = (uint)(B5Box.Value ?? 0);
+                _vm.NameChar6 = (uint)(B6Box.Value ?? 0);
+                _vm.NameChar7 = (uint)(B7Box.Value ?? 0);
+                _vm.NameChar8 = (uint)(B8Box.Value ?? 0);
+                _vm.NameChar9 = (uint)(B9Box.Value ?? 0);
+                _vm.NameChar10 = (uint)(B10Box.Value ?? 0);
+                _vm.NameChar11 = (uint)(B11Box.Value ?? 0);
+                _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+                _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+                _vm.UnknownD20 = ParseHexText(D20Box.Text);
+                _vm.WriteBattleTerrain();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Battle Terrain data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
         }
 
         void LoadImage()
@@ -103,18 +119,21 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle Terrain Image");
                 // BattleTerrain: Image at offset 12, Palette at offset 16 (2-pointer, LZ77 compressed tiles)
                 var importResult = ImageImportCore.Import2Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
                     loadResult.Width, loadResult.Height, addr + 12, addr + 16);
 
-                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+                if (!importResult.Success) { _undoService.Rollback(); CoreState.Services.ShowError(importResult.Error); return; }
 
+                _undoService.Commit();
                 _vm.LoadBattleTerrain(addr);
                 UpdateUI();
                 LoadImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
@@ -155,15 +174,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle Terrain Palette");
                 // BattleTerrain palette is LZ77-compressed at offset +16
                 uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 16);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                _undoService.Commit();
                 _vm.LoadBattleTerrain(addr);
                 UpdateUI();
                 LoadImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

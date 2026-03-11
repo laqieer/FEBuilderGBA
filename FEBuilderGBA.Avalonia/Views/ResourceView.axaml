@@ -1,19 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ResourceView"
-        Title="Resources" Width="793" Height="474"
+        Title="Resources" Width="793" Height="520"
         WindowStartupLocation="CenterOwner">
-  <StackPanel Margin="24" Spacing="12">
-    <TextBlock Text="Resources" FontSize="24" FontWeight="Bold" />
-    <TextBlock Text="Available Resource Information" FontSize="14" Foreground="Gray" />
-    <Separator Margin="0,8" />
-    <TextBlock TextWrapping="Wrap"
-               Text="This view provides information about resources available in the current ROM and configuration." />
-    <Separator Margin="0,8" />
-    <TextBlock Text="Resource Types" FontSize="16" FontWeight="SemiBold" />
-    <TextBlock TextWrapping="Wrap" Text="- Patches: Located in config/patch2/{VERSION}/" />
-    <TextBlock TextWrapping="Wrap" Text="- Translations: Located in config/translate/{LANG}.txt" />
-    <TextBlock TextWrapping="Wrap" Text="- Game Data: Located in config/data/" />
-    <TextBlock TextWrapping="Wrap" Text="- ROM-Specific Data: Located in config/etc/" />
-  </StackPanel>
+  <ScrollViewer>
+    <StackPanel Margin="24" Spacing="12">
+      <TextBlock Text="Resources" FontSize="24" FontWeight="Bold" />
+      <TextBlock Text="Available Resource Information" FontSize="14" Foreground="Gray" />
+
+      <Separator Margin="0,8" />
+      <TextBlock Text="ROM Information" FontSize="16" FontWeight="SemiBold" />
+      <TextBox Name="RomInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
+               FontFamily="Consolas, Courier New, monospace" FontSize="13"
+               Text="{Binding RomInfoText}" MinHeight="80" />
+
+      <Separator Margin="0,8" />
+      <TextBlock Text="Configuration" FontSize="16" FontWeight="SemiBold" />
+      <TextBox Name="ConfigInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
+               FontFamily="Consolas, Courier New, monospace" FontSize="13"
+               Text="{Binding ConfigInfoText}" MinHeight="60" />
+
+      <Separator Margin="0,8" />
+      <TextBlock Text="Resource Types" FontSize="16" FontWeight="SemiBold" />
+      <TextBlock TextWrapping="Wrap" Text="- Patches: Located in config/patch2/{VERSION}/" />
+      <TextBlock TextWrapping="Wrap" Text="- Translations: Located in config/translate/{LANG}.txt" />
+      <TextBlock TextWrapping="Wrap" Text="- Game Data: Located in config/data/" />
+      <TextBlock TextWrapping="Wrap" Text="- ROM-Specific Data: Located in config/etc/" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SongTableView : Window, IEditorView, IDataVerifiableView
     {
         readonly SongTableViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Song Table";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSongList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SongTableView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSongSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSong(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SongTableView.OnSongSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -65,10 +78,21 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.SongHeaderPointer = ParseHexText(HeaderBox.Text);
-            _vm.PlayerType = (uint)(PlayerTypeBox.Value ?? 0);
-            _vm.WriteSong();
-            CoreState.Services.ShowInfo("Song table data written.");
+            _undoService.Begin("Edit Song Table");
+            try
+            {
+                _vm.SongHeaderPointer = ParseHexText(HeaderBox.Text);
+                _vm.PlayerType = (uint)(PlayerTypeBox.Value ?? 0);
+                _vm.WriteSong();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Song table data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongTableView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void SelectFirstItem()

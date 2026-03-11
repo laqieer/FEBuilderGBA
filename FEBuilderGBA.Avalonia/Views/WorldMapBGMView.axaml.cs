@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class WorldMapBGMView : Window, IEditorView, IDataVerifiableView
     {
         readonly WorldMapBGMViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "World Map BGM";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadWorldMapBGMList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapBGMView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadWorldMapBGM(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("WorldMapBGMView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -57,10 +70,21 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.SongId1 = (uint)(SongId1Box.Value ?? 0);
-            _vm.SongId2 = (uint)(SongId2Box.Value ?? 0);
-            _vm.WriteWorldMapBGM();
-            CoreState.Services?.ShowInfo("World map BGM data written.");
+            _undoService.Begin("Edit World Map BGM");
+            try
+            {
+                _vm.SongId1 = (uint)(SongId1Box.Value ?? 0);
+                _vm.SongId2 = (uint)(SongId2Box.Value ?? 0);
+                _vm.WriteWorldMapBGM();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("World map BGM data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("WorldMapBGMView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

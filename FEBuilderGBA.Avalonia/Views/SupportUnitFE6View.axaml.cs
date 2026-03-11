@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SupportUnitFE6View : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportUnitFE6ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Support Units (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSupportUnitList();
@@ -32,10 +34,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SupportUnitFE6View.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSupportUnit(addr);
@@ -44,6 +52,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SupportUnitFE6View.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -90,6 +103,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit Support Unit (FE6)");
             try
             {
                 _vm.Partner1  = (uint)(Partner1Nud.Value ?? 0);
@@ -129,9 +143,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Separator = (uint)(SeparatorNud.Value ?? 0);
 
                 _vm.WriteSupportUnit();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SupportUnitFE6View.Write_Click failed: {0}", ex.Message);
             }
         }

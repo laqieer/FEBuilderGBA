@@ -7,11 +7,12 @@
     <TextBlock Text="This editor requires a target address." FontSize="14" HorizontalAlignment="Center" />
     <TextBlock Text="Open it from another editor (JumpTo pattern)." Foreground="Gray" HorizontalAlignment="Center" />
     <TextBlock Text="Data size: 1 byte per entry (ClassId u8). Null-terminated list." Foreground="Gray" HorizontalAlignment="Center" TextWrapping="Wrap" />
-    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" HorizontalAlignment="Center">
+    <Grid ColumnDefinitions="140,200,*" RowDefinitions="Auto,Auto" HorizontalAlignment="Center">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
       <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID (u8):" VerticalAlignment="Center" />
       <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B0Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+      <TextBlock Grid.Row="1" Grid.Column="2" Name="ClassNameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
     </Grid>
     <Button Content="Write" Click="Write_Click" HorizontalAlignment="Center" />
   </StackPanel>

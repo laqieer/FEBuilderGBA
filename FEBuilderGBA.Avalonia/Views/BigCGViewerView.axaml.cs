@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class BigCGViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly BigCGViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Big CG Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,12 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadBigCGList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("BigCGViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadBigCG(addr);
@@ -38,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("BigCGViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -50,11 +55,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.TablePointer = ParseHexText(TablePtrBox.Text);
-            _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
-            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
-            _vm.WriteBigCG();
-            CoreState.Services.ShowInfo("Big CG data written.");
+            _undoService.Begin("Edit Big CG");
+            try
+            {
+                _vm.TablePointer = ParseHexText(TablePtrBox.Text);
+                _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
+                _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+                _vm.WriteBigCG();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Big CG data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("BigCGViewerView.Write: {0}", ex.Message); }
         }
 
         void LoadImage()
@@ -82,44 +94,51 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
-                uint addr = _vm.CurrentAddr;
-
-                // Encode TSA with tile deduplication
-                var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                if (tsaResult == null) { CoreState.Services.ShowError("Failed to encode TSA"); return; }
-
-                // Write compressed TSA
-                uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 4);
-                if (tsaAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for TSA data"); return; }
-
-                // Write palette
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for palette"); return; }
-
-                // For tile data: write as single compressed block and update first table entry
-                uint tablePtr = rom.u32(addr + 0);
-                if (U.isPointer(tablePtr))
+                _undoService.Begin("Import Big CG Image");
+                try
                 {
-                    uint tableAddr = U.toOffset(tablePtr);
-                    byte[] compressed = LZ77.compress(tsaResult.TileData);
-                    if (compressed != null)
+                    uint addr = _vm.CurrentAddr;
+
+                    // Encode TSA with tile deduplication
+                    var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                    if (tsaResult == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode TSA"); return; }
+
+                    // Write compressed TSA
+                    uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 4);
+                    if (tsaAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for TSA data"); return; }
+
+                    // Write palette
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                    if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
+
+                    // For tile data: write as single compressed block and update first table entry
+                    uint tablePtr = rom.u32(addr + 0);
+                    if (U.isPointer(tablePtr))
                     {
-                        uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
-                        if (tileAddr != U.NOT_FOUND)
+                        uint tableAddr = U.toOffset(tablePtr);
+                        byte[] compressed = LZ77.compress(tsaResult.TileData);
+                        if (compressed != null)
                         {
-                            // Update first table entry to point to the tile data
-                            rom.write_p32(tableAddr, tileAddr);
-                            // Zero out remaining table entries (entries 1-9)
-                            for (int i = 1; i < 10; i++)
-                                rom.write_u32(tableAddr + (uint)(i * 4), 0);
+                            uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                            if (tileAddr != U.NOT_FOUND)
+                            {
+                                // Update first table entry to point to the tile data
+                                rom.write_p32(tableAddr, tileAddr);
+                                // Zero out remaining table entries (entries 1-9)
+                                for (int i = 1; i < 10; i++)
+                                    rom.write_u32(tableAddr + (uint)(i * 4), 0);
+                            }
                         }
                     }
-                }
 
-                _vm.LoadBigCG(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("BigCG image imported successfully.");
+                    _undoService.Commit();
+                    _vm.LoadBigCG(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("BigCG image imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
@@ -156,13 +175,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
-                uint addr = _vm.CurrentAddr;
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
-                _vm.LoadBigCG(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Palette imported successfully.");
+                _undoService.Begin("Import Big CG Palette");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
+                    if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                    _undoService.Commit();
+                    _vm.LoadBigCG(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Palette imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }

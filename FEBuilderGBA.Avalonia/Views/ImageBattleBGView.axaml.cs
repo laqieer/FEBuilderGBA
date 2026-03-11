@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageBattleBGView : Window, IEditorView
     {
         readonly ImageBattleBGViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Battle Background Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -24,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -33,10 +35,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleBGView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -46,6 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleBGView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -58,10 +63,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.ImagePointer = ParseHexText(ImagePointerBox.Text);
-            _vm.TSAPointer = ParseHexText(TSAPointerBox.Text);
-            _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
-            _vm.Write();
+            _undoService.Begin("Edit Battle BG");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImagePointerBox.Text);
+                _vm.TSAPointer = ParseHexText(TSAPointerBox.Text);
+                _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
         }
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
@@ -76,16 +92,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle BG Image");
                 var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
                     loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
 
-                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+                if (!importResult.Success) { _undoService.Rollback(); CoreState.Services.ShowError(importResult.Error); return; }
 
+                _undoService.Commit();
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         static uint ParseHexText(string? text)
@@ -132,14 +151,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle BG Palette");
                 // BattleBG palette is LZ77-compressed
                 uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                _undoService.Commit();
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

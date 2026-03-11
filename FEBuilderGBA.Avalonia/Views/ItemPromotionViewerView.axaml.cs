@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemPromotionViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Promotion";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemPromotion(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemPromotionViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -56,8 +61,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _vm.TargetClassId = (uint)(TargetClassIdBox.Value ?? 0);
-            _vm.WriteItemPromotion();
-            CoreState.Services.ShowInfo("Item Promotion data written.");
+
+            _undoService.Begin("Edit Item Promotion");
+            try
+            {
+                _vm.WriteItemPromotion();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item Promotion data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

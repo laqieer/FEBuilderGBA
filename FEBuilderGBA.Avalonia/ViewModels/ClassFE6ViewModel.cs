@@ -165,6 +165,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint dataSize = rom.RomInfo?.class_datasize ?? 84;
             if (addr + dataSize > (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = addr;
 
             // Text IDs
@@ -242,6 +243,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CanWrite = true;
             IsLoaded = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public int GetListCount() => LoadList().Count;

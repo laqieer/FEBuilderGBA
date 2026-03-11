@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SoundBossBGMViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SoundBossBGMViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Boss BGM";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSoundBossBGMList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SoundBossBGMViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSoundBossBGM(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SoundBossBGMViewerView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -60,13 +73,24 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
-            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
-            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
-            _vm.SongId = (uint)(SongIdBox.Value ?? 0);
-            _vm.WriteSoundBossBGM();
-            CoreState.Services.ShowInfo("Boss BGM data written.");
+            _undoService.Begin("Edit Boss BGM");
+            try
+            {
+                _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+                _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+                _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+                _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+                _vm.SongId = (uint)(SongIdBox.Value ?? 0);
+                _vm.WriteSoundBossBGM();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Boss BGM data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SoundBossBGMViewerView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

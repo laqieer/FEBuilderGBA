@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SummonsDemonKingViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SummonsDemonKingViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Demon King Summon";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSummonsDemonKingList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SummonsDemonKingViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSummonsDemonKing(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SummonsDemonKingViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -70,25 +75,31 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
-            _vm.Commander = (uint)(Unknown1Box.Value ?? 0);
-            _vm.LevelGrowth = (uint)(B3Box.Value ?? 0);
-            _vm.Coordinates = (uint)(W4Box.Value ?? 0);
-            _vm.Special = (uint)(B6Box.Value ?? 0);
-            _vm.Padding7 = (uint)(B7Box.Value ?? 0);
-            _vm.AIPointer = ParseHexText(P8Box.Text);
-            _vm.Item1 = (uint)(B12Box.Value ?? 0);
-            _vm.Item2 = (uint)(B13Box.Value ?? 0);
-            _vm.Item3 = (uint)(B14Box.Value ?? 0);
-            _vm.Item4 = (uint)(B15Box.Value ?? 0);
-            _vm.PrimaryAI = (uint)(B16Box.Value ?? 0);
-            _vm.SecondaryAI = (uint)(B17Box.Value ?? 0);
-            _vm.TargetRecoveryAI = (uint)(B18Box.Value ?? 0);
-            _vm.RetreatAI = (uint)(B19Box.Value ?? 0);
-            _vm.WriteSummonsDemonKing();
-            CoreState.Services.ShowInfo("Demon king summon data written.");
+            _undoService.Begin("Edit Demon King Summon");
+            try
+            {
+                _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+                _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+                _vm.Commander = (uint)(Unknown1Box.Value ?? 0);
+                _vm.LevelGrowth = (uint)(B3Box.Value ?? 0);
+                _vm.Coordinates = (uint)(W4Box.Value ?? 0);
+                _vm.Special = (uint)(B6Box.Value ?? 0);
+                _vm.Padding7 = (uint)(B7Box.Value ?? 0);
+                _vm.AIPointer = ParseHexText(P8Box.Text);
+                _vm.Item1 = (uint)(B12Box.Value ?? 0);
+                _vm.Item2 = (uint)(B13Box.Value ?? 0);
+                _vm.Item3 = (uint)(B14Box.Value ?? 0);
+                _vm.Item4 = (uint)(B15Box.Value ?? 0);
+                _vm.PrimaryAI = (uint)(B16Box.Value ?? 0);
+                _vm.SecondaryAI = (uint)(B17Box.Value ?? 0);
+                _vm.TargetRecoveryAI = (uint)(B18Box.Value ?? 0);
+                _vm.RetreatAI = (uint)(B19Box.Value ?? 0);
+                _vm.WriteSummonsDemonKing();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Demon king summon data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonsDemonKingViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

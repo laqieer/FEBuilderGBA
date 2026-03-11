@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ItemEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly ItemEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -37,11 +38,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItem(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemEditorView.OnItemSelected failed: {0}", ex.Message);
             }
         }
@@ -125,8 +130,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unk33 = (uint)(Unk33Box.Value ?? 0);
             _vm.Unk34 = (uint)(Unk34Box.Value ?? 0);
             _vm.Unk35 = (uint)(Unk35Box.Value ?? 0);
-            _vm.WriteItem();
-            CoreState.Services.ShowInfo("Item data written.");
+
+            _undoService.Begin("Edit Item");
+            try
+            {
+                _vm.WriteItem();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public ViewModelBase? DataViewModel => _vm;

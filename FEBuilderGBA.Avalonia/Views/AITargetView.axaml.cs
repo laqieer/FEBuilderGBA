@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class AITargetView : Window, IEditorView
     {
         readonly AITargetViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "AI Targeting";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -32,18 +34,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AITargetView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("AITargetView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -74,6 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit AI Target");
             try
             {
                 _vm.LethalDamagePriority = (uint)(LethalDamagePriorityBox.Value ?? 0);
@@ -97,9 +111,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unknown18 = (uint)(Unknown18Box.Value ?? 0);
                 _vm.Unknown19 = (uint)(Unknown19Box.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("AITargetView.Write failed: {0}", ex.Message);
             }
         }

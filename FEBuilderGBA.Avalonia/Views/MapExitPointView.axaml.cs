@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapExitPointView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapExitPointViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Exit Point Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMapExitPointList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapExitPointView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapExitPoint(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapExitPointView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,9 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ExitPointer = ParseHexText(ExitPointerBox.Text);
-            _vm.WriteMapExitPoint();
-            CoreState.Services?.ShowInfo("Map Exit Point data written.");
+            _undoService.Begin("Edit Map Exit Point");
+            try
+            {
+                _vm.ExitPointer = ParseHexText(ExitPointerBox.Text);
+                _vm.WriteMapExitPoint();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Map Exit Point data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address)

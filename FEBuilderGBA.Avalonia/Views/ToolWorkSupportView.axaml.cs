@@ -16,7 +16,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             DataContext = _vm;
+            _vm.IsLoading = true;
             _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
         void Update_Click(object? sender, RoutedEventArgs e)
@@ -63,7 +66,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Reload_Click(object? sender, RoutedEventArgs e)
         {
+            _vm.IsLoading = true;
             _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)

@@ -6,6 +6,7 @@ using System.Text;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
@@ -13,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class DataExportView : Window
     {
         readonly DataExportViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public DataExportView()
         {
@@ -121,12 +123,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (files.Count == 0) return;
 
+            _undoService.Begin("Import Data");
             try
             {
                 var path = files[0].Path.LocalPath;
                 var lines = File.ReadAllLines(path, Encoding.UTF8);
                 if (lines.Length < 2)
                 {
+                    _undoService.Rollback();
                     _vm.StatusMessage = "TSV file has no data rows.";
                     return;
                 }
@@ -134,6 +138,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var table = StructExportCore.GetTable(_vm.SelectedTable);
                 if (table == null)
                 {
+                    _undoService.Rollback();
                     _vm.StatusMessage = $"Table '{_vm.SelectedTable}' not found.";
                     return;
                 }
@@ -141,6 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var structDef = StructExportCore.LoadStructDef(rom, table);
                 if (structDef == null)
                 {
+                    _undoService.Rollback();
                     _vm.StatusMessage = $"No struct definition for '{_vm.SelectedTable}'. Ensure config/data/ has the definition file.";
                     return;
                 }
@@ -158,10 +164,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 int written = StructExportCore.WriteTable(rom, table, structDef, entries);
+                _undoService.Commit();
                 _vm.StatusMessage = $"Imported {written} entries from {Path.GetFileName(path)}";
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 _vm.StatusMessage = $"Import failed: {ex.Message}";
             }
         }

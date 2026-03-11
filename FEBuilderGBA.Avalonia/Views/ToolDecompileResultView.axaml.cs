@@ -15,7 +15,11 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolDecompileResultView()
         {
             InitializeComponent();
+            DataContext = _vm;
+            _vm.IsLoading = true;
             _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
         void CopyToClipboard_Click(object? sender, RoutedEventArgs e) { }

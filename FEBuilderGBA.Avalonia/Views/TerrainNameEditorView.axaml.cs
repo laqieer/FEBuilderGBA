@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TerrainNameEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly TerrainNameEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Terrain Name Editor";
         public new bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadTerrainNameList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("TerrainNameEditorView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnTerrainSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadTerrainName(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("TerrainNameEditorView.OnTerrainSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         public void NavigateTo(uint address)
@@ -61,9 +66,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.TextId = (uint)(TextIdBox.Value ?? 0);
-            _vm.WriteTerrainName();
-            CoreState.Services.ShowInfo("Terrain name written.");
+            _undoService.Begin("Edit Terrain Name");
+            try
+            {
+                _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+                _vm.WriteTerrainName();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Terrain name written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("TerrainNameEditorView.Write: {0}", ex.Message); }
         }
 
         public void SelectFirstItem()

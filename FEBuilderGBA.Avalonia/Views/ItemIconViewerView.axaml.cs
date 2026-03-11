@@ -12,6 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemIconViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item/Weapon Icon Viewer";
         public bool IsLoaded => _vm.CanWrite;
@@ -33,11 +34,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemIcon(addr);
                 UpdateUI();
                 LoadImage();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
-            catch (Exception ex) { Log.Error("ItemIconViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex)
+            {
+                _vm.IsLoading = false;
+                Log.Error("ItemIconViewerView.OnSelected: {0}", ex.Message);
+            }
         }
 
         void UpdateUI()
@@ -94,8 +102,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
-                bool ok = ImageImportCore.ImportFixedIcon(rom, loadResult.IndexedPixels, 16, 16, _vm.CurrentAddr);
-                if (!ok) { CoreState.Services.ShowError("Failed to write icon data"); return; }
+                _undoService.Begin("Import Item Icon");
+                try
+                {
+                    bool ok = ImageImportCore.ImportFixedIcon(rom, loadResult.IndexedPixels, 16, 16, _vm.CurrentAddr);
+                    if (!ok)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError("Failed to write icon data");
+                        return;
+                    }
+                    _undoService.Commit();
+                }
+                catch
+                {
+                    _undoService.Rollback();
+                    throw;
+                }
 
                 _vm.LoadItemIcon(_vm.CurrentAddr);
                 LoadImage();

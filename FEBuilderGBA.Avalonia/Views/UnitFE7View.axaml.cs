@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class UnitFE7View : Window, IEditorView, IDataVerifiableView
     {
         readonly UnitFE7ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Units (FE7) Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -37,11 +38,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadUnit(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("UnitFE7View.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -176,8 +181,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unk50 = (uint)(Unk50Box.Value ?? 0);
             _vm.Unk51 = (uint)(Unk51Box.Value ?? 0);
 
-            _vm.WriteUnit();
-            CoreState.Services?.ShowInfo("Unit (FE7) data written.");
+            _undoService.Begin("Edit Unit (FE7)");
+            try
+            {
+                _vm.WriteUnit();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Unit (FE7) data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

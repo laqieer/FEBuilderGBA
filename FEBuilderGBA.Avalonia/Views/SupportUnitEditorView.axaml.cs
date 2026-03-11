@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SupportUnitEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportUnitEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Support Unit Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSupportUnitList();
@@ -34,10 +36,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SupportUnitEditorView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSupportSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSupportUnit(addr);
@@ -46,6 +54,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SupportUnitEditorView.OnSupportSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -89,6 +102,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit Support Unit");
             try
             {
                 _vm.Partner1 = (uint)(Partner1Nud.Value ?? 0);
@@ -120,9 +134,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Separator2 = (uint)(Separator2Nud.Value ?? 0);
 
                 _vm.WriteSupportUnit();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SupportUnitEditorView.Write_Click failed: {0}", ex.Message);
             }
         }

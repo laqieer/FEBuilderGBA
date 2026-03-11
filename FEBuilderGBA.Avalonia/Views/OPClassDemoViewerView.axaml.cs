@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OPClassDemoViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPClassDemoViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "OP Class Demo Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,18 +24,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("OPClassDemoViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadOPClassDemo(addr);
                 UpdateUI();
             }
             catch (Exception ex) { Log.Error("OPClassDemoViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -58,21 +63,28 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.EnglishNamePointer = (uint)(EnglishNamePtrBox.Value ?? 0);
-            _vm.DescriptionTextId = (uint)(DescTextIdBox.Value ?? 0);
-            _vm.JapaneseNamePointer = (uint)(JpNamePtrBox.Value ?? 0);
-            _vm.JapaneseNameLength = (uint)(JpNameLenBox.Value ?? 0);
-            _vm.PaletteId = (uint)(PaletteIdBox.Value ?? 0);
-            _vm.DisplayWeapon = (uint)(DisplayWeaponBox.Value ?? 0);
-            _vm.AllyEnemyColor = (uint)(AllyEnemyColorBox.Value ?? 0);
-            _vm.BattleAnime = (uint)(BattleAnimeBox.Value ?? 0);
-            _vm.MagicEffect = (uint)(MagicEffectBox.Value ?? 0);
-            _vm.Unknown18 = (uint)(Unknown18Box.Value ?? 0);
-            _vm.TerrainLeft = (uint)(TerrainLeftBox.Value ?? 0);
-            _vm.TerrainRight = (uint)(TerrainRightBox.Value ?? 0);
-            _vm.AnimePointer = (uint)(AnimePtrBox.Value ?? 0);
-            _vm.WriteOPClassDemo();
-            CoreState.Services?.ShowInfo("OP Class Demo data written.");
+            _undoService.Begin("Edit OP Class Demo");
+            try
+            {
+                _vm.EnglishNamePointer = (uint)(EnglishNamePtrBox.Value ?? 0);
+                _vm.DescriptionTextId = (uint)(DescTextIdBox.Value ?? 0);
+                _vm.JapaneseNamePointer = (uint)(JpNamePtrBox.Value ?? 0);
+                _vm.JapaneseNameLength = (uint)(JpNameLenBox.Value ?? 0);
+                _vm.PaletteId = (uint)(PaletteIdBox.Value ?? 0);
+                _vm.DisplayWeapon = (uint)(DisplayWeaponBox.Value ?? 0);
+                _vm.AllyEnemyColor = (uint)(AllyEnemyColorBox.Value ?? 0);
+                _vm.BattleAnime = (uint)(BattleAnimeBox.Value ?? 0);
+                _vm.MagicEffect = (uint)(MagicEffectBox.Value ?? 0);
+                _vm.Unknown18 = (uint)(Unknown18Box.Value ?? 0);
+                _vm.TerrainLeft = (uint)(TerrainLeftBox.Value ?? 0);
+                _vm.TerrainRight = (uint)(TerrainRightBox.Value ?? 0);
+                _vm.AnimePointer = (uint)(AnimePtrBox.Value ?? 0);
+                _vm.WriteOPClassDemo();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("OP Class Demo data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassDemoViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MonsterProbabilityViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MonsterProbabilityViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Monster Probability";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMonsterProbabilityList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterProbabilityViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMonsterProbability(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterProbabilityViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -66,21 +71,27 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.ClassId1 = (uint)(ClassId1Box.Value ?? 0);
-            _vm.ClassId2 = (uint)(ClassId2Box.Value ?? 0);
-            _vm.ClassId3 = (uint)(ClassId3Box.Value ?? 0);
-            _vm.ClassId4 = (uint)(ClassId4Box.Value ?? 0);
-            _vm.ClassId5 = (uint)(ClassId5Box.Value ?? 0);
-            _vm.Prob1 = (uint)(Prob1Box.Value ?? 0);
-            _vm.Prob2 = (uint)(Prob2Box.Value ?? 0);
-            _vm.Prob3 = (uint)(Prob3Box.Value ?? 0);
-            _vm.Prob4 = (uint)(Prob4Box.Value ?? 0);
-            _vm.Prob5 = (uint)(Prob5Box.Value ?? 0);
-            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
-            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
-            _vm.WriteMonsterProbability();
-            CoreState.Services.ShowInfo("Monster probability data written.");
+            _undoService.Begin("Edit Monster Probability");
+            try
+            {
+                _vm.ClassId1 = (uint)(ClassId1Box.Value ?? 0);
+                _vm.ClassId2 = (uint)(ClassId2Box.Value ?? 0);
+                _vm.ClassId3 = (uint)(ClassId3Box.Value ?? 0);
+                _vm.ClassId4 = (uint)(ClassId4Box.Value ?? 0);
+                _vm.ClassId5 = (uint)(ClassId5Box.Value ?? 0);
+                _vm.Prob1 = (uint)(Prob1Box.Value ?? 0);
+                _vm.Prob2 = (uint)(Prob2Box.Value ?? 0);
+                _vm.Prob3 = (uint)(Prob3Box.Value ?? 0);
+                _vm.Prob4 = (uint)(Prob4Box.Value ?? 0);
+                _vm.Prob5 = (uint)(Prob5Box.Value ?? 0);
+                _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+                _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+                _vm.WriteMonsterProbability();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Monster probability data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterProbabilityViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

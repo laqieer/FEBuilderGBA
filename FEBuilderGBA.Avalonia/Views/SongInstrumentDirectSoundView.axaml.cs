@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SongInstrumentDirectSoundView : Window, IEditorView
     {
         readonly SongInstrumentDirectSoundViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Direct Sound Instruments";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SongInstrumentDirectSoundView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SongInstrumentDirectSoundView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -59,12 +72,23 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
 
-            _vm.Header = (uint)(HeaderBox.Value ?? 0);
-            _vm.FrequencyHz1024 = (uint)(FrequencyBox.Value ?? 0);
-            _vm.LoopStartByte = (uint)(LoopStartBox.Value ?? 0);
-            // LengthByte is read-only
-            _vm.Write();
-            CoreState.Services.ShowInfo("Direct sound data written.");
+            _undoService.Begin("Edit Direct Sound Instrument");
+            try
+            {
+                _vm.Header = (uint)(HeaderBox.Value ?? 0);
+                _vm.FrequencyHz1024 = (uint)(FrequencyBox.Value ?? 0);
+                _vm.LoopStartByte = (uint)(LoopStartBox.Value ?? 0);
+                // LengthByte is read-only
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Direct sound data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongInstrumentDirectSoundView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

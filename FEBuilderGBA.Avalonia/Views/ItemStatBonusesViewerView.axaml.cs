@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemStatBonusesViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Stat Bonuses";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemStatBonuses(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemStatBonusesViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -78,8 +83,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unknown9 = (uint)(Unknown9Box.Value ?? 0);
             _vm.Unknown10 = (uint)(Unknown10Box.Value ?? 0);
             _vm.Unknown11 = (uint)(Unknown11Box.Value ?? 0);
-            _vm.WriteItemStatBonuses();
-            CoreState.Services.ShowInfo("Item Stat Bonuses data written.");
+
+            _undoService.Begin("Edit Item Stat Bonuses");
+            try
+            {
+                _vm.WriteItemStatBonuses();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item Stat Bonuses data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OPPrologueViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPPrologueViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "OP Prologue Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,12 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadOPPrologueList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("OPPrologueViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadOPPrologue(addr);
@@ -38,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("OPPrologueViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -60,10 +65,17 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
-            _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
-            _vm.WriteOPPrologue();
-            CoreState.Services?.ShowInfo("OP Prologue data written.");
+            _undoService.Begin("Edit OP Prologue");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+                _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
+                _vm.WriteOPPrologue();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("OP Prologue data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPPrologueViewerView.Write: {0}", ex.Message); }
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
@@ -82,16 +94,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
-                uint addr = _vm.CurrentAddr;
-                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
-                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+                _undoService.Begin("Import OP Prologue Image");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                        loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
 
-                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+                    if (!importResult.Success) { _undoService.Rollback(); CoreState.Services.ShowError(importResult.Error); return; }
 
-                _vm.LoadOPPrologue(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Image imported successfully.");
+                    _vm.LoadOPPrologue(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Image imported successfully.");
+                }
+                catch { _undoService.Rollback(); throw; }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
@@ -128,14 +147,21 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint palAddr = _vm.PaletteColorPointer;
                 if (!U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("No palette address to write to"); return; }
-                // Write raw palette data directly at the shared palette address
-                int writeLen = Math.Min(palData.Length, 256 * 2);
-                for (int i = 0; i < writeLen; i++)
-                    rom.write_u8(palAddr + (uint)i, palData[i]);
-                _vm.LoadOPPrologue(_vm.CurrentAddr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Palette imported successfully.");
+
+                _undoService.Begin("Import OP Prologue Palette");
+                try
+                {
+                    int writeLen = Math.Min(palData.Length, 256 * 2);
+                    for (int i = 0; i < writeLen; i++)
+                        rom.write_u8(palAddr + (uint)i, palData[i]);
+                    _vm.LoadOPPrologue(_vm.CurrentAddr);
+                    UpdateUI();
+                    LoadImage();
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Palette imported successfully.");
+                }
+                catch { _undoService.Rollback(); throw; }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }

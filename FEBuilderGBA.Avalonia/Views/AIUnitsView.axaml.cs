@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class AIUnitsView : Window, IEditorView
     {
         readonly AIUnitsViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "AI Units Evaluation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -32,18 +34,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AIUnitsView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("AIUnitsView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -56,14 +69,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit AI Units");
             try
             {
                 _vm.Unit = (uint)(UnitBox.Value ?? 0);
                 _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("AIUnitsView.Write failed: {0}", ex.Message);
             }
         }

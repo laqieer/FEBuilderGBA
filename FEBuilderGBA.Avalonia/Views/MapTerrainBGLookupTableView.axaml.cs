@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapTerrainBGLookupTableView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapTerrainBGLookupTableViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Terrain BG Lookup Table";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -31,6 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapTerrainBGLookupTableView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -42,9 +45,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-            _vm.BattleBG = (uint)(BattleBGBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("Terrain BG lookup data written.");
+            _undoService.Begin("Edit Terrain BG Lookup");
+            try
+            {
+                _vm.BattleBG = (uint)(BattleBGBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Terrain BG lookup data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTerrainBGLookupTableView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

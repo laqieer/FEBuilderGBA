@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapSettingView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapSettingViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Settings";
         public bool IsLoaded => _vm.IsLoaded;
@@ -24,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMapSettingList();
@@ -33,10 +35,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapSettingView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnMapSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapSetting(addr);
@@ -46,6 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapSettingView.OnMapSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         public void NavigateTo(uint address)
@@ -285,16 +290,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWriteClick(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit Map Setting");
             try
             {
                 ReadUIToVM();
                 _vm.WriteMapSetting();
+                _undoService.Commit();
+                _vm.MarkClean();
                 // Reload to confirm write
                 _vm.LoadMapSetting(_vm.CurrentAddr);
                 UpdateUI();
+                CoreState.Services?.ShowInfo("Map Setting data written.");
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("MapSettingView.Write failed: {0}", ex.Message);
             }
         }

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OPClassAlphaNameView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPClassAlphaNameViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "OP Class Alpha Name Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -34,10 +36,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("OPClassAlphaNameView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -47,6 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("OPClassAlphaNameView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -58,9 +63,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.AlphaName = AlphaNameBox.Text ?? "";
-            _vm.WriteEntry();
-            CoreState.Services?.ShowInfo("OP Class Alpha Name data written.");
+            _undoService.Begin("Edit OP Class Alpha Name");
+            try
+            {
+                _vm.AlphaName = AlphaNameBox.Text ?? "";
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("OP Class Alpha Name data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassAlphaNameView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

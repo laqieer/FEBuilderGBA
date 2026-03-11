@@ -23,18 +23,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadHoverColorList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("SystemHoverColorViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadHoverColor(addr);
                 StatusLabel.Text = _vm.StatusMessage;
             }
             catch (Exception ex) { Log.Error("SystemHoverColorViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

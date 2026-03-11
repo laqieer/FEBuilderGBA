@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemRandomChestViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Random Chest Items";
         public bool IsLoaded => _vm.IsLoaded;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemRandomChestView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -58,8 +63,20 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
             _vm.Probability = (uint)(ProbabilityBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services.ShowInfo("Random Chest data written.");
+
+            _undoService.Begin("Edit Random Chest");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Random Chest data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

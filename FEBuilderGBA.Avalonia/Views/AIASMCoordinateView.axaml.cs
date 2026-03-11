@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class AIASMCoordinateView : Window, IEditorView
     {
         readonly AIASMCoordinateViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "AI Coordinate Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -32,18 +34,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AIASMCoordinateView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("AIASMCoordinateView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -58,6 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit AI Coordinate");
             try
             {
                 _vm.X = (uint)(XBox.Value ?? 0);
@@ -65,9 +79,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unused2 = (uint)(Unused2Box.Value ?? 0);
                 _vm.Unused3 = (uint)(Unused3Box.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("AIASMCoordinateView.Write failed: {0}", ex.Message);
             }
         }

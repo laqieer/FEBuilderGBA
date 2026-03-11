@@ -17,7 +17,11 @@ namespace FEBuilderGBA.Avalonia.Views
         public GraphicsToolView()
         {
             InitializeComponent();
+            DataContext = _vm;
+            _vm.IsLoading = true;
             _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();

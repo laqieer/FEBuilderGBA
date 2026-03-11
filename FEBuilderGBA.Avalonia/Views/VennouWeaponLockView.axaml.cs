@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class VennouWeaponLockView : Window, IEditorView, IDataVerifiableView
     {
         readonly VennouWeaponLockViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Weapon Lock (Vennou) Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -20,8 +21,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address)
         {
-            _vm.LoadEntry(address);
-            UpdateUI();
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadEntry(address);
+                UpdateUI();
+            }
+            catch (Exception ex) { Log.Error("VennouWeaponLockView.NavigateTo: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         public void SelectFirstItem() { }
@@ -38,9 +45,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.LockTypeOrId = (uint)(LockTypeBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("Weapon lock data written.");
+            _undoService.Begin("Edit Weapon Lock");
+            try
+            {
+                _vm.LockTypeOrId = (uint)(LockTypeBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Weapon lock data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("VennouWeaponLockView.Write: {0}", ex.Message); }
         }
     }
 }

@@ -25,8 +25,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address)
         {
-            _vm.LoadEntry(address);
-            UpdateUI();
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadEntry(address);
+                UpdateUI();
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         public void SelectFirstItem() { if (_vm.CharCodes.Count > 0) CharCodeList.SelectedIndex = 0; }

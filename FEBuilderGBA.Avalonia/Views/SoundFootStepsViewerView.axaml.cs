@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SoundFootStepsViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SoundFootStepsViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Footstep Sounds";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSoundFootStepsList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SoundFootStepsViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSoundFootSteps(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SoundFootStepsViewerView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -56,9 +69,20 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.DataPointer = ParseHexText(DataPointerBox.Text);
-            _vm.WriteSoundFootSteps();
-            CoreState.Services.ShowInfo("Footstep sounds data written.");
+            _undoService.Begin("Edit Footstep Sounds");
+            try
+            {
+                _vm.DataPointer = ParseHexText(DataPointerBox.Text);
+                _vm.WriteSoundFootSteps();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Footstep sounds data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SoundFootStepsViewerView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         static uint ParseHexText(string? text)

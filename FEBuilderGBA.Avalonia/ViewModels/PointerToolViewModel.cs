@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -70,6 +73,97 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Initialize()
         {
             IsLoaded = true;
+        }
+
+        /// <summary>Parse the AddressInput hex string into a uint address.</summary>
+        bool TryParseAddress(out uint address)
+        {
+            address = 0;
+            string text = (AddressInput ?? "").Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(2);
+            return uint.TryParse(text, NumberStyles.HexNumber, null, out address);
+        }
+
+        /// <summary>Run pointer search: populate PointerValue, LittleEndianValue, DataAddress, and SearchResults.</summary>
+        public void RunSearch()
+        {
+            if (!TryParseAddress(out uint addr))
+            {
+                SearchResults = "Invalid address.";
+                return;
+            }
+
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                SearchResults = "No ROM loaded.";
+                return;
+            }
+
+            // Compute pointer and little-endian representations
+            PointerValue = $"0x{(addr + 0x08000000):X08}";
+            if (addr + 3 < (uint)rom.Data.Length)
+            {
+                uint val = rom.u32(addr);
+                byte b0 = (byte)(val & 0xFF);
+                byte b1 = (byte)((val >> 8) & 0xFF);
+                byte b2 = (byte)((val >> 16) & 0xFF);
+                byte b3 = (byte)((val >> 24) & 0xFF);
+                LittleEndianValue = $"{b0:X02} {b1:X02} {b2:X02} {b3:X02}";
+
+                // If the value at address looks like a pointer, show target
+                if (val >= 0x08000000 && val < 0x0A000000)
+                    DataAddress = $"0x{(val - 0x08000000):X08}";
+                else
+                    DataAddress = "";
+            }
+
+            // Search for all pointers referencing this address
+            var refs = SearchPointer(addr);
+            if (refs.Count == 0)
+            {
+                FirstReference = "";
+                SearchResults = "No pointer references found.";
+            }
+            else
+            {
+                FirstReference = $"0x{refs[0]:X08}";
+                var sb = new StringBuilder();
+                sb.AppendLine($"Found {refs.Count} reference(s):");
+                int showCount = Math.Min(refs.Count, 100);
+                for (int i = 0; i < showCount; i++)
+                    sb.AppendLine($"  0x{refs[i]:X08}");
+                if (refs.Count > 100)
+                    sb.AppendLine($"  ... and {refs.Count - 100} more");
+                SearchResults = sb.ToString();
+            }
+
+            // Warn about zero-filled or very far addresses
+            HasZeroWarning = addr + 3 < (uint)rom.Data.Length && rom.u32(addr) == 0;
+            HasVeryFarWarning = addr > (uint)(rom.Data.Length * 3 / 4);
+        }
+
+        /// <summary>Search the ROM for all 4-byte-aligned pointer references to the given address.</summary>
+        public List<uint> SearchPointer(uint targetAddr)
+        {
+            var results = new List<uint>();
+            var rom = CoreState.ROM;
+            if (rom == null) return results;
+            uint searchVal = targetAddr + 0x08000000;
+            for (uint i = 0; i + 3 < (uint)rom.Data.Length; i += 4)
+            {
+                if (rom.u32(i) == searchVal)
+                    results.Add(i);
+            }
+            return results;
+        }
+
+        /// <summary>Write a pointer value at the current address (placeholder for future ROM write logic).</summary>
+        public void WritePointerValue()
+        {
+            // Placeholder: actual write logic would parse a target value and write it
+            // using rom.write_u32(addr, val) within an undo scope.
         }
     }
 }

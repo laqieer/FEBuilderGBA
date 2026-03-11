@@ -8,10 +8,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         uint _classId;
+        string _classDisplayName = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
+        public string ClassDisplayName { get => _classDisplayName; set => SetField(ref _classDisplayName, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -19,9 +21,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 1 > (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = addr;
             ClassId = rom.u8(addr + 0);
+            ClassDisplayName = NameResolver.GetClassName(ClassId);
             CanWrite = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public void WriteEntry()

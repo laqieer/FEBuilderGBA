@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class StatusOptionView : Window, IEditorView, IDataVerifiableView
     {
         readonly StatusOptionViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Status Screen Options";
         public bool IsLoaded => _vm.IsLoaded;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("StatusOptionView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("StatusOptionView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -74,28 +79,34 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
-
-            _vm.IdTextId = (uint)(IdTextIdBox.Value ?? 0);
-            _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
-            _vm.HelpTextId = (uint)(HelpTextIdBox.Value ?? 0);
-            _vm.PosX = (uint)(PosXBox.Value ?? 0);
-            _vm.PosY = (uint)(PosYBox.Value ?? 0);
-            _vm.SelectionText1 = (uint)(Sel1Box.Value ?? 0);
-            _vm.SelectionText2 = (uint)(Sel2Box.Value ?? 0);
-            _vm.Columns = (uint)(ColumnsBox.Value ?? 0);
-            _vm.Rows = (uint)(RowsBox.Value ?? 0);
-            _vm.DefaultTextId = (uint)(DefaultTextIdBox.Value ?? 0);
-            _vm.YesTextId = (uint)(YesTextIdBox.Value ?? 0);
-            _vm.MinValue = (uint)(MinValueBox.Value ?? 0);
-            _vm.MaxValue = (uint)(MaxValueBox.Value ?? 0);
-            _vm.OnOffText1 = (uint)(OnOff1Box.Value ?? 0);
-            _vm.OnOffText2 = (uint)(OnOff2Box.Value ?? 0);
-            _vm.DefaultValue = (uint)(DefaultValueBox.Value ?? 0);
-            _vm.OptionType = (uint)(OptionTypeBox.Value ?? 0);
-            _vm.IconId = (uint)(IconIdBox.Value ?? 0);
-            _vm.AsmPointer = ParseHexText(AsmPointerBox.Text);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("Status option data written.");
+            _undoService.Begin("Edit Status Option");
+            try
+            {
+                _vm.IdTextId = (uint)(IdTextIdBox.Value ?? 0);
+                _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
+                _vm.HelpTextId = (uint)(HelpTextIdBox.Value ?? 0);
+                _vm.PosX = (uint)(PosXBox.Value ?? 0);
+                _vm.PosY = (uint)(PosYBox.Value ?? 0);
+                _vm.SelectionText1 = (uint)(Sel1Box.Value ?? 0);
+                _vm.SelectionText2 = (uint)(Sel2Box.Value ?? 0);
+                _vm.Columns = (uint)(ColumnsBox.Value ?? 0);
+                _vm.Rows = (uint)(RowsBox.Value ?? 0);
+                _vm.DefaultTextId = (uint)(DefaultTextIdBox.Value ?? 0);
+                _vm.YesTextId = (uint)(YesTextIdBox.Value ?? 0);
+                _vm.MinValue = (uint)(MinValueBox.Value ?? 0);
+                _vm.MaxValue = (uint)(MaxValueBox.Value ?? 0);
+                _vm.OnOffText1 = (uint)(OnOff1Box.Value ?? 0);
+                _vm.OnOffText2 = (uint)(OnOff2Box.Value ?? 0);
+                _vm.DefaultValue = (uint)(DefaultValueBox.Value ?? 0);
+                _vm.OptionType = (uint)(OptionTypeBox.Value ?? 0);
+                _vm.IconId = (uint)(IconIdBox.Value ?? 0);
+                _vm.AsmPointer = ParseHexText(AsmPointerBox.Text);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Status option data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusOptionView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

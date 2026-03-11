@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageSystemAreaView : Window, IEditorView
     {
         readonly ImageSystemAreaViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "System Area Graphics";
         public bool IsLoaded => _vm.IsLoaded;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageSystemAreaView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageSystemAreaView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -68,8 +73,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GBAColor = (uint)(GBAColorBox.Value ?? 0);
-            _vm.Write();
+            _undoService.Begin("Edit System Area Color");
+            try
+            {
+                _vm.GBAColor = (uint)(GBAColorBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageSystemAreaView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

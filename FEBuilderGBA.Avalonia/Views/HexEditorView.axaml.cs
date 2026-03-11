@@ -16,42 +16,47 @@ namespace FEBuilderGBA.Avalonia.Views
         public HexEditorView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            DataContext = _vm;
+            Opened += (_, _) => { _vm.RefreshDisplay(); UpdateUI(); };
         }
 
-        void LoadList()
+        public void NavigateTo(uint address)
         {
-            try
-            {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("HexEditorView.LoadList failed: {0}", ex.Message);
-            }
-        }
-
-        void OnSelected(uint addr)
-        {
-            try
-            {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("HexEditorView.OnSelected failed: {0}", ex.Message);
-            }
+            _vm.JumpTo(address);
+            UpdateUI();
+            AddressBox.Text = $"0x{address:X08}";
         }
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            HexGrid.Text = _vm.HexDisplay;
+            InfoLabel.Text = _vm.AddressInfo;
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        void Go_Click(object? sender, RoutedEventArgs e)
+        {
+            uint addr = U.atoh(AddressBox.Text ?? "0");
+            _vm.JumpTo(addr);
+            UpdateUI();
+        }
+
+        void Search_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<HexEditorSearchView>();
+        }
+
+        void PageUp_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PageUp();
+            UpdateUI();
+            AddressBox.Text = $"0x{_vm.BaseAddress:X08}";
+        }
+
+        void PageDown_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PageDown();
+            UpdateUI();
+            AddressBox.Text = $"0x{_vm.BaseAddress:X08}";
+        }
     }
 }

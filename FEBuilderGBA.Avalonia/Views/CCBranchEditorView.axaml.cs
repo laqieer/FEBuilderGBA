@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class CCBranchEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly CCBranchEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "CC Branch Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -57,14 +58,28 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             Promo1Box.Value = _vm.PromotionClass1;
             Promo2Box.Value = _vm.PromotionClass2;
+            Promo1NameLabel.Text = _vm.PromoName1;
+            Promo2NameLabel.Text = _vm.PromoName2;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PromotionClass1 = (uint)(Promo1Box.Value ?? 0);
             _vm.PromotionClass2 = (uint)(Promo2Box.Value ?? 0);
-            _vm.WriteCCBranch();
-            CoreState.Services.ShowInfo("CC Branch data written.");
+
+            _undoService.Begin("Edit CC Branch");
+            try
+            {
+                _vm.WriteCCBranch();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("CC Branch data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("CCBranchEditorView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void SelectFirstItem()

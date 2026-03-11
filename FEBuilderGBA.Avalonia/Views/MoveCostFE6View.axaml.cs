@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MoveCostFE6View : Window, IEditorView, IDataVerifiableView
     {
         readonly MoveCostFE6ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Move Cost (FE6)";
         public bool IsLoaded => _vm.CanWrite;
@@ -71,8 +72,19 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.WriteMoveCost();
-            CoreState.Services?.ShowInfo("Move cost data written.");
+            _undoService.Begin("Edit Move Cost FE6");
+            try
+            {
+                _vm.WriteMoveCost();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Move cost data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MoveCostFE6View.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

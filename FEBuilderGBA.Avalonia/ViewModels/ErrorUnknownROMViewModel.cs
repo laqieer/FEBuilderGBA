@@ -1,3 +1,5 @@
+using System;
+
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ErrorUnknownROMViewModel : ViewModelBase
@@ -20,6 +22,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Init(string version)
         {
             VersionInfoText = "ROM version info: " + version;
+        }
+
+        /// <summary>
+        /// Initialize with ROM file details for better diagnostics.
+        /// </summary>
+        public void InitFromFile(string filePath, byte[]? data)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("ROM version info: Unknown");
+            if (!string.IsNullOrEmpty(filePath))
+                sb.AppendLine($"File: {System.IO.Path.GetFileName(filePath)}");
+            if (data != null)
+            {
+                sb.AppendLine($"Size: {data.Length:N0} bytes (0x{data.Length:X})");
+                // Show first 16 header bytes
+                int headerLen = Math.Min(16, data.Length);
+                var headerHex = new System.Text.StringBuilder();
+                for (int i = 0; i < headerLen; i++)
+                    headerHex.Append($"{data[i]:X2} ");
+                sb.AppendLine($"Header: {headerHex.ToString().Trim()}");
+
+                // Try to extract game title from GBA header (offset 0xA0, 12 bytes)
+                if (data.Length >= 0xAC)
+                {
+                    string title = System.Text.Encoding.ASCII.GetString(data, 0xA0, 12).Trim('\0', ' ');
+                    if (!string.IsNullOrWhiteSpace(title))
+                        sb.AppendLine($"Game Title: {title}");
+                }
+            }
+            VersionInfoText = sb.ToString().TrimEnd();
         }
     }
 }

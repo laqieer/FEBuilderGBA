@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapChangeView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapChangeViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Change Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMapChangeList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapChangeView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapChange(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapChangeView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,9 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ChangePointer = ParseHexText(ChangePointerBox.Text);
-            _vm.WriteMapChange();
-            CoreState.Services?.ShowInfo("Map Change data written.");
+            _undoService.Begin("Edit Map Change");
+            try
+            {
+                _vm.ChangePointer = ParseHexText(ChangePointerBox.Text);
+                _vm.WriteMapChange();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Map Change data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapChangeView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address)

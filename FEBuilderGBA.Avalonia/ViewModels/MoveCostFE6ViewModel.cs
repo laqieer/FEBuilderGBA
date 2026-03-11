@@ -125,6 +125,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint dataSize = rom.RomInfo.class_datasize;
             if (classAddr + dataSize > (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = classAddr;
 
             // W0: u16 name text ID at offset 0
@@ -227,6 +228,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B50 = terrainCount > 50 ? costs[50] : (byte)0;
 
             CanWrite = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         void ClearAllB()

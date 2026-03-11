@@ -34,9 +34,17 @@
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+                <NumericUpDown Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" Width="80" />
+                <TextBlock Name="ClassNameLabel" VerticalAlignment="Center" Foreground="Gray" />
+                <Button Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+              </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown Grid.Row="1" Grid.Column="7" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
+              <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">
+                <NumericUpDown Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="80" />
+                <TextBlock Name="PortraitNameLabel" VerticalAlignment="Center" Foreground="Gray" />
+                <Button Content="Jump" Click="JumpToPortrait_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+              </StackPanel>
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />

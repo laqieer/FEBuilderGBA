@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ClassEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly ClassEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Class Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -197,8 +198,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.TerrainResPtr = ParseHexText(Ptr76Box.Text);
             _vm.UnknownD80 = ParseHexText(D80Box.Text);
 
-            _vm.WriteClass();
-            CoreState.Services.ShowInfo("Class data written.");
+            _undoService.Begin("Edit Class");
+            try
+            {
+                _vm.WriteClass();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Class data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ClassEditorView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public ViewModelBase? DataViewModel => _vm;

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SoundRoomCGView : Window, IEditorView
     {
         readonly SoundRoomCGViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Sound Room CG";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SoundRoomCGView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SoundRoomCGView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -56,9 +69,20 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
 
-            _vm.CgId = (uint)(CGIdBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services.ShowInfo("Sound room CG data written.");
+            _undoService.Begin("Edit Sound Room CG");
+            try
+            {
+                _vm.CgId = (uint)(CGIdBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Sound room CG data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SoundRoomCGView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

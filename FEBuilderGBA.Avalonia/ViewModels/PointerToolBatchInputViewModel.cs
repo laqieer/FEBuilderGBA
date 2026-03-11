@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Text;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -19,6 +21,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Initialize()
         {
             IsLoaded = true;
+        }
+
+        /// <summary>Process batch input: convert each line from address to GBA pointer.</summary>
+        public void ProcessBatch()
+        {
+            if (string.IsNullOrWhiteSpace(BatchInput))
+            {
+                BatchOutput = "";
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (string rawLine in BatchInput.Split('\n'))
+            {
+                string line = rawLine.Trim();
+                if (string.IsNullOrEmpty(line))
+                {
+                    sb.AppendLine();
+                    continue;
+                }
+
+                string hex = line;
+                if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    hex = hex.Substring(2);
+
+                if (uint.TryParse(hex, NumberStyles.HexNumber, null, out uint addr))
+                    sb.AppendLine($"0x{(addr + 0x08000000):X08}");
+                else
+                    sb.AppendLine($"ERROR: {line}");
+            }
+
+            BatchOutput = sb.ToString().TrimEnd();
         }
     }
 }

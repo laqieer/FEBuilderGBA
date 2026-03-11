@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SoundRoomViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SoundRoomViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Sound Room";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSoundRoomList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SoundRoomViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSoundRoom(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SoundRoomViewerView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -59,12 +72,23 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.SongId = (uint)(SongIdBox.Value ?? 0);
-            _vm.Raw4 = (uint)(Raw4Box.Value ?? 0);
-            _vm.Raw8 = (uint)(Raw8Box.Value ?? 0);
-            _vm.TextId = (uint)(TextIdBox.Value ?? 0);
-            _vm.WriteSoundRoom();
-            CoreState.Services.ShowInfo("Sound room data written.");
+            _undoService.Begin("Edit Sound Room");
+            try
+            {
+                _vm.SongId = (uint)(SongIdBox.Value ?? 0);
+                _vm.Raw4 = (uint)(Raw4Box.Value ?? 0);
+                _vm.Raw8 = (uint)(Raw8Box.Value ?? 0);
+                _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+                _vm.WriteSoundRoom();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Sound room data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SoundRoomViewerView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

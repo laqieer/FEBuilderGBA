@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class WorldMapEventPointerView : Window, IEditorView, IDataVerifiableView
     {
         readonly WorldMapEventPointerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "World Map Event";
         public bool IsLoaded => _vm.CanWrite;
@@ -24,11 +25,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadWorldMapEventList();
                 EntryList.SetItems(items);
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapEventPointerView.LoadList failed: {0}", ex.Message);
             }
         }
@@ -37,11 +42,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadWorldMapEvent(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapEventPointerView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -57,8 +66,20 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.CanWrite) return;
 
             _vm.EventPointer = ParseHexText(EventPtrBox.Text);
-            _vm.WriteWorldMapEvent();
-            CoreState.Services?.ShowInfo("World map event pointer written.");
+
+            _undoService.Begin("Edit World Map Event");
+            try
+            {
+                _vm.WriteWorldMapEvent();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("World map event pointer written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("WorldMapEventPointerView.Write failed: {0}", ex.Message);
+            }
         }
 
         static uint ParseHexText(string? text)

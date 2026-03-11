@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemStatBonusesSkillSystemsViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Stat Bonuses (Skill Systems)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemStatBonusesSkillSystemsView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -103,8 +108,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Padding1 = (int)(Padding1Box.Value ?? 0);
             _vm.Padding2 = (int)(Padding2Box.Value ?? 0);
 
-            _vm.Write();
-            CoreState.Services.ShowInfo("Stat Bonuses (Skill Systems) data written.");
+            _undoService.Begin("Edit Stat Bonuses (Skill Systems)");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Stat Bonuses (Skill Systems) data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

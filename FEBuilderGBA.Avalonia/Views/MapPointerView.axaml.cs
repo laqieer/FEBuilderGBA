@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapPointerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapPointerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Pointer Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMapPointerList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapPointerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapPointer(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapPointerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,9 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.MapDataPointer = ParseHexText(MapDataPointerBox.Text);
-            _vm.WriteMapPointer();
-            CoreState.Services?.ShowInfo("Map Pointer data written.");
+            _undoService.Begin("Edit Map Pointer");
+            try
+            {
+                _vm.MapDataPointer = ParseHexText(MapDataPointerBox.Text);
+                _vm.WriteMapPointer();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Map Pointer data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapPointerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address)

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageUnitPaletteView : Window, IEditorView
     {
         readonly ImageUnitPaletteViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Unit Palette Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageUnitPaletteView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageUnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -67,20 +72,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.Id0 = (uint)(Id0Box.Value ?? 0);
-            _vm.Id1 = (uint)(Id1Box.Value ?? 0);
-            _vm.Id2 = (uint)(Id2Box.Value ?? 0);
-            _vm.Id3 = (uint)(Id3Box.Value ?? 0);
-            _vm.Id4 = (uint)(Id4Box.Value ?? 0);
-            _vm.Id5 = (uint)(Id5Box.Value ?? 0);
-            _vm.Id6 = (uint)(Id6Box.Value ?? 0);
-            _vm.Id7 = (uint)(Id7Box.Value ?? 0);
-            _vm.Id8 = (uint)(Id8Box.Value ?? 0);
-            _vm.Id9 = (uint)(Id9Box.Value ?? 0);
-            _vm.Id10 = (uint)(Id10Box.Value ?? 0);
-            _vm.Id11 = (uint)(Id11Box.Value ?? 0);
-            _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
-            _vm.Write();
+            _undoService.Begin("Edit Unit Palette");
+            try
+            {
+                _vm.Id0 = (uint)(Id0Box.Value ?? 0);
+                _vm.Id1 = (uint)(Id1Box.Value ?? 0);
+                _vm.Id2 = (uint)(Id2Box.Value ?? 0);
+                _vm.Id3 = (uint)(Id3Box.Value ?? 0);
+                _vm.Id4 = (uint)(Id4Box.Value ?? 0);
+                _vm.Id5 = (uint)(Id5Box.Value ?? 0);
+                _vm.Id6 = (uint)(Id6Box.Value ?? 0);
+                _vm.Id7 = (uint)(Id7Box.Value ?? 0);
+                _vm.Id8 = (uint)(Id8Box.Value ?? 0);
+                _vm.Id9 = (uint)(Id9Box.Value ?? 0);
+                _vm.Id10 = (uint)(Id10Box.Value ?? 0);
+                _vm.Id11 = (uint)(Id11Box.Value ?? 0);
+                _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageUnitPaletteView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

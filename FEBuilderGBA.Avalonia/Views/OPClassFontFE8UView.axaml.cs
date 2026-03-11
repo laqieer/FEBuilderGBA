@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OPClassFontFE8UView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPClassFontFE8UViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "OP Class Font (FE8U) Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -34,10 +36,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("OPClassFontFE8UView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -47,6 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("OPClassFontFE8UView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -58,9 +63,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ImagePointer = ParseHexText(ImagePointerBox.Text);
-            _vm.WriteEntry();
-            CoreState.Services?.ShowInfo("OP Class Font (FE8U) data written.");
+            _undoService.Begin("Edit OP Class Font (FE8U)");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImagePointerBox.Text);
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("OP Class Font (FE8U) data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassFontFE8UView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

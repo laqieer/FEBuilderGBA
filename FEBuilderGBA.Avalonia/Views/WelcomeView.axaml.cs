@@ -18,6 +18,17 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             DataContext = _vm;
             _vm.Initialize();
+
+            // Show version info
+            try
+            {
+#if DEBUG
+                VersionText.Text = "Version: Debug Build";
+#else
+                VersionText.Text = $"Version: {U.getVersion()}";
+#endif
+            }
+            catch { VersionText.Text = ""; }
         }
 
         void OpenLastROM_Click(object? sender, RoutedEventArgs e)

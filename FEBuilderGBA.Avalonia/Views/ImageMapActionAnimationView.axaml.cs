@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageMapActionAnimationView : Window, IEditorView
     {
         readonly ImageMapActionAnimationViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Action Animation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageMapActionAnimationView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageMapActionAnimationView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,10 +61,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.AnimationPointer = ParseHexText(AnimationPointerBox.Text);
-            _vm.Padding1 = (uint)(Padding1Box.Value ?? 0);
-            _vm.Padding2 = (uint)(Padding2Box.Value ?? 0);
-            _vm.Write();
+            _undoService.Begin("Edit Map Action Animation");
+            try
+            {
+                _vm.AnimationPointer = ParseHexText(AnimationPointerBox.Text);
+                _vm.Padding1 = (uint)(Padding1Box.Value ?? 0);
+                _vm.Padding2 = (uint)(Padding2Box.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageMapActionAnimationView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

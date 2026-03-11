@@ -17,7 +17,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             DataContext = _vm;
+            _vm.IsLoading = true;
             _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
         async void Browse_Click(object? sender, RoutedEventArgs e)

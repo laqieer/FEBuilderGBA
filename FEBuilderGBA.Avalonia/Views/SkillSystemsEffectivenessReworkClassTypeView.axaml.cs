@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SkillSystemsEffectivenessReworkClassTypeView : Window, IEditorView, IDataVerifiableView
     {
         readonly SkillSystemsEffectivenessReworkClassTypeViewViewModel _vm = new();
+        readonly UndoService _undoService = new();
         public string ViewTitle => "Effectiveness Rework - Class Type";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -21,13 +22,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _vm.ClassType = (uint)(ClassTypeBox.Value ?? 0);
+
+            _undoService.Begin("Edit Effectiveness Rework Class Type");
             try
             {
-                _vm.ClassType = (uint)(ClassTypeBox.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SkillSystemsEffectivenessReworkClassTypeView.Write failed: {0}", ex.Message);
             }
         }

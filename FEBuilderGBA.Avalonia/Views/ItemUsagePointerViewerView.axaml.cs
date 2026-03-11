@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemUsagePointerViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Usage Pointer";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemUsagePointer(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemUsagePointerViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -56,8 +61,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UsabilityPointer = ParseHexText(UsabilityPointerBox.Text);
-            _vm.WriteItemUsagePointer();
-            CoreState.Services.ShowInfo("Item Usage Pointer data written.");
+
+            _undoService.Begin("Edit Item Usage Pointer");
+            try
+            {
+                _vm.WriteItemUsagePointer();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item Usage Pointer data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

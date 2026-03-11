@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MenuDefinitionView : Window, IEditorView, IDataVerifiableView
     {
         readonly MenuDefinitionViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Menu Definition";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMenuDefinitionList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MenuDefinitionView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMenuDefinition(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MenuDefinitionView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -67,21 +72,27 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.PosX = (uint)(PosXBox.Value ?? 0);
-            _vm.PosY = (uint)(PosYBox.Value ?? 0);
-            _vm.Width = (uint)(WidthBox.Value ?? 0);
-            _vm.Height = (uint)(HeightBox.Value ?? 0);
-            _vm.StyleData = ParseHexText(StyleDataBox.Text);
-            _vm.MenuCommandPtr = ParseHexText(MenuCommandPtrBox.Text);
-            _vm.OnInitRoutine = ParseHexText(OnInitBox.Text);
-            _vm.OnEndRoutine = ParseHexText(OnEndBox.Text);
-            _vm.UnknownRoutine = ParseHexText(UnknownBox.Text);
-            _vm.OnBPressRoutine = ParseHexText(OnBPressBox.Text);
-            _vm.OnRPressRoutine = ParseHexText(OnRPressBox.Text);
-            _vm.OnHelpBoxRoutine = ParseHexText(OnHelpBoxBox.Text);
-            _vm.WriteMenuDefinition();
-            CoreState.Services?.ShowInfo("Menu definition data written.");
+            _undoService.Begin("Edit Menu Definition");
+            try
+            {
+                _vm.PosX = (uint)(PosXBox.Value ?? 0);
+                _vm.PosY = (uint)(PosYBox.Value ?? 0);
+                _vm.Width = (uint)(WidthBox.Value ?? 0);
+                _vm.Height = (uint)(HeightBox.Value ?? 0);
+                _vm.StyleData = ParseHexText(StyleDataBox.Text);
+                _vm.MenuCommandPtr = ParseHexText(MenuCommandPtrBox.Text);
+                _vm.OnInitRoutine = ParseHexText(OnInitBox.Text);
+                _vm.OnEndRoutine = ParseHexText(OnEndBox.Text);
+                _vm.UnknownRoutine = ParseHexText(UnknownBox.Text);
+                _vm.OnBPressRoutine = ParseHexText(OnBPressBox.Text);
+                _vm.OnRPressRoutine = ParseHexText(OnRPressBox.Text);
+                _vm.OnHelpBoxRoutine = ParseHexText(OnHelpBoxBox.Text);
+                _vm.WriteMenuDefinition();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Menu definition data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MenuDefinitionView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -27,6 +28,99 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Initialize()
         {
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Scan the ROM for a contiguous block of free space (0xFF or 0x00 bytes).
+        /// Returns the start address of the block, or null if not found.
+        /// </summary>
+        public uint? FindFreeSpace(uint requestedSize, byte fillByte = 0xFF)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || requestedSize == 0) return null;
+            uint consecutive = 0;
+            for (uint i = 0; i < (uint)rom.Data.Length; i++)
+            {
+                if (rom.u8(i) == fillByte || rom.u8(i) == 0x00)
+                {
+                    consecutive++;
+                    if (consecutive >= requestedSize)
+                        return i - requestedSize + 1;
+                }
+                else
+                {
+                    consecutive = 0;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Parse a hex string (with optional 0x prefix) into a uint.</summary>
+        static bool TryParseHex(string input, out uint value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(input)) return false;
+            string text = input.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(2);
+            return uint.TryParse(text, NumberStyles.HexNumber, null, out value);
+        }
+
+        /// <summary>
+        /// Execute the move operation: find free space for the requested size,
+        /// update FreeSpaceAddress/NewAddress, and copy data + update pointer.
+        /// </summary>
+        public void ExecuteMove()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                StatusMessage = "No ROM loaded.";
+                return;
+            }
+
+            if (!TryParseHex(DataSize, out uint size) || size == 0)
+            {
+                StatusMessage = "Invalid or zero data size.";
+                return;
+            }
+
+            if (!TryParseHex(CurrentAddress, out uint srcAddr))
+            {
+                StatusMessage = "Invalid current address.";
+                return;
+            }
+
+            uint? freeAddr = FindFreeSpace(size);
+            if (freeAddr == null)
+            {
+                StatusMessage = $"Could not find {size} bytes of free space.";
+                FreeSpaceAddress = "";
+                NewAddress = "";
+                return;
+            }
+
+            uint dst = freeAddr.Value;
+            FreeSpaceAddress = $"0x{dst:X08}";
+
+            // Copy data from source to destination
+            if (srcAddr + size <= (uint)rom.Data.Length && dst + size <= (uint)rom.Data.Length)
+            {
+                for (uint i = 0; i < size; i++)
+                    rom.write_u8(dst + i, rom.u8(srcAddr + i));
+
+                // Clear old location
+                for (uint i = 0; i < size; i++)
+                    rom.write_u8(srcAddr + i, 0xFF);
+
+                NewAddress = $"0x{dst:X08}";
+                StatusMessage = $"Moved {size} bytes from 0x{srcAddr:X08} to 0x{dst:X08}.";
+                DialogResult = "Moved";
+            }
+            else
+            {
+                StatusMessage = "Address range exceeds ROM bounds.";
+            }
         }
     }
 }

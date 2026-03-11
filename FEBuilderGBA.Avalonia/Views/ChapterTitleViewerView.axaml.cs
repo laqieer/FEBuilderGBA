@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ChapterTitleViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly ChapterTitleViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Chapter Title Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,12 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadChapterTitleList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("ChapterTitleViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadChapterTitle(addr);
@@ -38,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("ChapterTitleViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -50,11 +55,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SaveImagePointer = ParseHexText(SaveImgBox.Text);
-            _vm.ChapterImagePointer = ParseHexText(ChapterImgBox.Text);
-            _vm.TitleImagePointer = ParseHexText(TitleImgBox.Text);
-            _vm.WriteChapterTitle();
-            CoreState.Services.ShowInfo("Chapter Title data written.");
+            _undoService.Begin("Edit Chapter Title");
+            try
+            {
+                _vm.SaveImagePointer = ParseHexText(SaveImgBox.Text);
+                _vm.ChapterImagePointer = ParseHexText(ChapterImgBox.Text);
+                _vm.TitleImagePointer = ParseHexText(TitleImgBox.Text);
+                _vm.WriteChapterTitle();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Chapter Title data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ChapterTitleViewerView.Write: {0}", ex.Message); }
         }
 
         void LoadImage()
@@ -110,17 +122,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
-                uint addr = _vm.CurrentAddr;
-                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                if (tileData == null) { CoreState.Services.ShowError("Failed to encode tile data"); return; }
+                _undoService.Begin("Import Chapter Title Image");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                    if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tile data"); return; }
 
-                uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
-                if (writeAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write compressed tile data (no free space)"); return; }
+                    uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
+                    if (writeAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write compressed tile data (no free space)"); return; }
 
-                _vm.LoadChapterTitle(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Chapter title image imported successfully.");
+                    _undoService.Commit();
+                    _vm.LoadChapterTitle(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Chapter title image imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }

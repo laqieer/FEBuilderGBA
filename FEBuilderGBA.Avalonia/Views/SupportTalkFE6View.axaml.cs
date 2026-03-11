@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SupportTalkFE6View : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportTalkFE6ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Support Talk (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSupportTalkList();
@@ -32,10 +34,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SupportTalkFE6View.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSupportTalk(addr);
@@ -44,6 +52,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SupportTalkFE6View.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -61,6 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit Support Talk (FE6)");
             try
             {
                 _vm.SupportPartner1 = (uint)(SupportPartner1Nud.Value ?? 0);
@@ -72,9 +86,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Padding2 = (uint)(Padding2Nud.Value ?? 0);
 
                 _vm.WriteSupportTalk();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SupportTalkFE6View.Write_Click failed: {0}", ex.Message);
             }
         }

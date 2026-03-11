@@ -10,12 +10,15 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Terrain Name (English)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Terrain Name Text ID:" VerticalAlignment="Center" Margin="0,4,0,0" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TerrainNameTextIDBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Resolved Name:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" Margin="0,4,0,0" Foreground="Gray" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

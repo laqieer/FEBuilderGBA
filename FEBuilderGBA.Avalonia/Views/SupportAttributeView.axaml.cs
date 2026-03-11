@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SupportAttributeView : Window, IEditorView, IDataVerifiableView
     {
         readonly SupportAttributeViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Support Attribute";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSupportAttributeList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SupportAttributeView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSupportAttribute(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SupportAttributeView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -63,16 +76,27 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
 
-            _vm.AffinityType = (uint)(AffinityTypeBox.Value ?? 0);
-            _vm.AttackBonus = (uint)(AttackBonusBox.Value ?? 0);
-            _vm.DefenseBonus = (uint)(DefenseBonusBox.Value ?? 0);
-            _vm.HitBonus = (uint)(HitBonusBox.Value ?? 0);
-            _vm.AvoidBonus = (uint)(AvoidBonusBox.Value ?? 0);
-            _vm.CritBonus = (uint)(CritBonusBox.Value ?? 0);
-            _vm.CritAvoidBonus = (uint)(CritAvoidBonusBox.Value ?? 0);
-            _vm.Unknown7 = (uint)(Unknown7Box.Value ?? 0);
-            _vm.WriteSupportAttribute();
-            CoreState.Services.ShowInfo("Support attribute data written.");
+            _undoService.Begin("Edit Support Attribute");
+            try
+            {
+                _vm.AffinityType = (uint)(AffinityTypeBox.Value ?? 0);
+                _vm.AttackBonus = (uint)(AttackBonusBox.Value ?? 0);
+                _vm.DefenseBonus = (uint)(DefenseBonusBox.Value ?? 0);
+                _vm.HitBonus = (uint)(HitBonusBox.Value ?? 0);
+                _vm.AvoidBonus = (uint)(AvoidBonusBox.Value ?? 0);
+                _vm.CritBonus = (uint)(CritBonusBox.Value ?? 0);
+                _vm.CritAvoidBonus = (uint)(CritAvoidBonusBox.Value ?? 0);
+                _vm.Unknown7 = (uint)(Unknown7Box.Value ?? 0);
+                _vm.WriteSupportAttribute();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Support attribute data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SupportAttributeView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

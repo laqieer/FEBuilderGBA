@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemShopViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Shop";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemShop(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemShopViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -58,8 +63,20 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
             _vm.Quantity = (uint)(QuantityBox.Value ?? 0);
-            _vm.WriteItemShop();
-            CoreState.Services.ShowInfo("Item Shop data written.");
+
+            _undoService.Begin("Edit Item Shop");
+            try
+            {
+                _vm.WriteItemShop();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item Shop data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

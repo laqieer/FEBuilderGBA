@@ -203,6 +203,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint dataSize = rom.RomInfo.class_datasize;
             if (classAddr + dataSize > (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = classAddr;
 
             uint nameId = rom.u16(classAddr + 0);
@@ -318,6 +319,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B64 = (byte)rom.u8(moveCostAddr + 64);
 
             CanWrite = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         /// <summary>

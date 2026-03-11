@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MenuCommandView : Window, IEditorView, IDataVerifiableView
     {
         readonly MenuCommandViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Menu Command";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMenuCommandList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MenuCommandView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMenuCommand(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MenuCommandView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -65,19 +70,25 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.JpNamePointer = ParseHexText(JpNamePtrBox.Text);
-            _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
-            _vm.HelpTextId = (uint)(HelpTextIdBox.Value ?? 0);
-            _vm.ColorAndIdDword = ParseHexText(ColorIdBox.Text);
-            _vm.UsabilityRoutine = ParseHexText(UsabilityBox.Text);
-            _vm.DrawRoutine = ParseHexText(DrawBox.Text);
-            _vm.EffectRoutine = ParseHexText(EffectBox.Text);
-            _vm.PerTurnCallback = ParseHexText(PerTurnBox.Text);
-            _vm.CursorSelectAction = ParseHexText(CursorSelBox.Text);
-            _vm.CancelAction = ParseHexText(CancelBox.Text);
-            _vm.WriteMenuCommand();
-            CoreState.Services?.ShowInfo("Menu command data written.");
+            _undoService.Begin("Edit Menu Command");
+            try
+            {
+                _vm.JpNamePointer = ParseHexText(JpNamePtrBox.Text);
+                _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
+                _vm.HelpTextId = (uint)(HelpTextIdBox.Value ?? 0);
+                _vm.ColorAndIdDword = ParseHexText(ColorIdBox.Text);
+                _vm.UsabilityRoutine = ParseHexText(UsabilityBox.Text);
+                _vm.DrawRoutine = ParseHexText(DrawBox.Text);
+                _vm.EffectRoutine = ParseHexText(EffectBox.Text);
+                _vm.PerTurnCallback = ParseHexText(PerTurnBox.Text);
+                _vm.CursorSelectAction = ParseHexText(CursorSelBox.Text);
+                _vm.CancelAction = ParseHexText(CancelBox.Text);
+                _vm.WriteMenuCommand();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Menu command data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MenuCommandView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

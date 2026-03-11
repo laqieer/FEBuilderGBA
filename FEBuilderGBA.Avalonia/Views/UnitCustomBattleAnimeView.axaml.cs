@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class UnitCustomBattleAnimeView : Window, IEditorView, IDataVerifiableView
     {
         readonly UnitCustomBattleAnimeViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Custom Battle Animation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -37,11 +38,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("UnitCustomBattleAnimeView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -62,8 +67,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Special = (uint)(SpecialBox.Value ?? 0);
             _vm.AnimeNumber = (uint)(AnimeNumberBox.Value ?? 0);
 
-            _vm.WriteEntry();
-            CoreState.Services?.ShowInfo("Custom battle animation data written.");
+            _undoService.Begin("Edit Custom Battle Animation");
+            try
+            {
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Custom battle animation data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

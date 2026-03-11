@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SoundRoomFE6View : Window, IEditorView
     {
         readonly SoundRoomFE6ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Sound Room (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SoundRoomFE6View.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -43,6 +51,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SoundRoomFE6View.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -58,11 +71,22 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
 
-            _vm.BgmId = (uint)(BgmIdBox.Value ?? 0);
-            _vm.SongNameTextId = (uint)(SongNameBox.Value ?? 0);
-            _vm.DescriptionTextId = (uint)(DescriptionBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services.ShowInfo("Sound room (FE6) data written.");
+            _undoService.Begin("Edit Sound Room (FE6)");
+            try
+            {
+                _vm.BgmId = (uint)(BgmIdBox.Value ?? 0);
+                _vm.SongNameTextId = (uint)(SongNameBox.Value ?? 0);
+                _vm.DescriptionTextId = (uint)(DescriptionBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Sound room (FE6) data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SoundRoomFE6View.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

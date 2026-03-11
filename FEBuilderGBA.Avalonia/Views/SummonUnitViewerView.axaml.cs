@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SummonUnitViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly SummonUnitViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Summon Unit";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSummonUnitList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SummonUnitViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadSummonUnit(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("SummonUnitViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,11 +61,17 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.Unknown = (uint)(UnknownBox.Value ?? 0);
-            _vm.WriteSummonUnit();
-            CoreState.Services.ShowInfo("Summon unit data written.");
+            _undoService.Begin("Edit Summon Unit");
+            try
+            {
+                _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+                _vm.Unknown = (uint)(UnknownBox.Value ?? 0);
+                _vm.WriteSummonUnit();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Summon unit data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonUnitViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

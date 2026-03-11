@@ -12,6 +12,8 @@
                    HorizontalAlignment="Center" />
         <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="16"
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
+        <TextBlock Name="VersionText" FontSize="12"
+                   Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
       </StackPanel>
     </Border>
     <!-- Buttons (WinForms 851x47/50 each, centered at X:214) -->

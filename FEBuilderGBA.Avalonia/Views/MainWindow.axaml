@@ -58,6 +58,16 @@
         <TextBlock Name="NoRomLabel" Text="Open a ROM file to begin editing."
                    FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0" />
 
+        <!-- Search/Filter (visible when ROM loaded) -->
+        <DockPanel Name="SearchPanel" IsVisible="False" Margin="0,0,0,4">
+          <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
+          <Button Content="Clear" Click="ClearFilter_Click" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,4" />
+          <TextBox Name="FilterTextBox" Watermark="Type to filter editors..." />
+        </DockPanel>
+
+        <!-- Match count label -->
+        <TextBlock Name="FilterMatchLabel" IsVisible="False" Foreground="Gray" FontSize="12" Margin="0,0,0,4" />
+
         <!-- Editor Buttons Grid (visible when ROM loaded) -->
         <StackPanel Name="EditorPanel" IsVisible="False" Spacing="16">
           <!-- Units & Classes -->

@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemWeaponTriangleViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Weapon Triangle";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemWeaponTriangle(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemWeaponTriangleViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -62,8 +67,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.WeaponType2 = (uint)(WeaponType2Box.Value ?? 0);
             _vm.Bonus = (uint)(BonusBox.Value ?? 0);
             _vm.Penalty = (uint)(PenaltyBox.Value ?? 0);
-            _vm.WriteItemWeaponTriangle();
-            CoreState.Services.ShowInfo("Weapon Triangle data written.");
+
+            _undoService.Begin("Edit Weapon Triangle");
+            try
+            {
+                _vm.WriteItemWeaponTriangle();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Weapon Triangle data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class WorldMapPathView : Window, IEditorView
     {
         readonly WorldMapPathViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "World Map Paths";
         public bool IsLoaded => _vm.IsLoaded;
@@ -24,11 +25,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapPathView.LoadList failed: {0}", ex.Message);
             }
         }
@@ -37,11 +42,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapPathView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -69,14 +78,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            ReadFromUI();
+            _undoService.Begin("Edit World Map Path");
             try
             {
-                ReadFromUI();
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
                 CoreState.Services?.ShowInfo("World map path data written.");
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("WorldMapPathView.Write failed: {0}", ex.Message);
             }
         }

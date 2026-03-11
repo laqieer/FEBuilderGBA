@@ -19,6 +19,10 @@
   <ItemGroup>
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Include ComboResourceHelper source directly to avoid pulling in Avalonia UI dependencies -->
+    <Compile Include="..\FEBuilderGBA.Avalonia\Services\ComboResourceHelper.cs" Link="ComboResourceHelper.cs" />
+  </ItemGroup>
   <!-- Copy config/ to output for tests that need config files (conditional) -->
   <Target Name="CopyConfig" AfterTargets="Build" Condition="Exists('..\config\config.xml')">
     <ItemGroup>

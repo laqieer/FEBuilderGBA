@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SkillAssignmentUnitCSkillSysView : Window, IEditorView, IDataVerifiableView
     {
         readonly SkillAssignmentUnitCSkillSysViewViewModel _vm = new();
+        readonly UndoService _undoService = new();
         public string ViewTitle => "Skill Assignment - Unit (CSkillSys)";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -21,13 +22,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _vm.UnitSkill = (uint)(UnitSkillBox.Value ?? 0);
+
+            _undoService.Begin("Edit Skill Assignment Unit CSkillSys");
             try
             {
-                _vm.UnitSkill = (uint)(UnitSkillBox.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SkillAssignmentUnitCSkillSysView.Write failed: {0}", ex.Message);
             }
         }

@@ -14,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public ResourceView()
         {
             InitializeComponent();
+            DataContext = _vm;
             Opened += (_, _) => _vm.Initialize();
         }
 

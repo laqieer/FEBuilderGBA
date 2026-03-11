@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageCGFE7UView : Window, IEditorView
     {
         readonly ImageCGFE7UViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "CG Editor (FE7U)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -24,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -33,10 +35,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageCGFE7UView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -47,6 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageCGFE7UView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -80,17 +85,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
-                uint addr = _vm.CurrentAddr;
-                // P4=image, P8=TSA, P12=palette
-                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
-                    loadResult.Width, loadResult.Height, addr + 4, addr + 8, addr + 12);
+                _undoService.Begin("Import CG FE7U Image");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    // P4=image, P8=TSA, P12=palette
+                    var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                        loadResult.Width, loadResult.Height, addr + 4, addr + 8, addr + 12);
 
-                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+                    if (!importResult.Success) { _undoService.Rollback(); CoreState.Services.ShowError(importResult.Error); return; }
 
-                _vm.LoadEntry(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Image imported successfully.");
+                    _undoService.Commit();
+                    _vm.LoadEntry(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Image imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
@@ -132,13 +144,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
-                uint addr = _vm.CurrentAddr;
-                uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 12);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
-                _vm.LoadEntry(addr);
-                UpdateUI();
-                LoadImage();
-                CoreState.Services.ShowInfo("Palette imported successfully.");
+                _undoService.Begin("Import CG FE7U Palette");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 12);
+                    if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                    _undoService.Commit();
+                    _vm.LoadEntry(addr);
+                    UpdateUI();
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Palette imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }

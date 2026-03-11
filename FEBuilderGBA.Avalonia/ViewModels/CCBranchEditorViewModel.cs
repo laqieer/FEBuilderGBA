@@ -9,12 +9,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         string _className = "";
         uint _promotionClass1, _promotionClass2;
+        string _promoName1 = "", _promoName2 = "";
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string ClassName { get => _className; set => SetField(ref _className, value); }
         public uint PromotionClass1 { get => _promotionClass1; set => SetField(ref _promotionClass1, value); }
         public uint PromotionClass2 { get => _promotionClass2; set => SetField(ref _promotionClass2, value); }
+        public string PromoName1 { get => _promoName1; set => SetField(ref _promoName1, value); }
+        public string PromoName2 { get => _promoName2; set => SetField(ref _promoName2, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadCCBranchList()
@@ -82,10 +85,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (addr + 1 >= (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = addr;
             PromotionClass1 = rom.u8(addr + 0);
             PromotionClass2 = rom.u8(addr + 1);
+            PromoName1 = NameResolver.GetClassName(PromotionClass1);
+            PromoName2 = NameResolver.GetClassName(PromotionClass2);
             CanWrite = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public void WriteCCBranch()

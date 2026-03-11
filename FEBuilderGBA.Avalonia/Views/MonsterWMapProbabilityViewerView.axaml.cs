@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MonsterWMapProbabilityViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MonsterWMapProbabilityViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "World Map Monster";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMonsterWMapProbabilityList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterWMapProbabilityViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMonsterWMapProbability(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterWMapProbabilityViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -55,10 +60,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.BasePointId = (uint)(BasePointIdBox.Value ?? 0);
-            _vm.WriteMonsterWMapProbability();
-            CoreState.Services.ShowInfo("World map monster data written.");
+            _undoService.Begin("Edit World Map Monster");
+            try
+            {
+                _vm.BasePointId = (uint)(BasePointIdBox.Value ?? 0);
+                _vm.WriteMonsterWMapProbability();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("World map monster data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterWMapProbabilityViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

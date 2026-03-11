@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class PortraitViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly PortraitViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Portrait Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadPortraitList();
@@ -34,10 +36,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("PortraitViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnPortraitSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadPortrait(addr);
@@ -48,6 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("PortraitViewerView.OnPortraitSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         public void NavigateTo(uint address)
@@ -75,21 +80,32 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
-            _vm.MapPointer = ParseHexText(MapPtrBox.Text);
-            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
-            _vm.MouthPointer = ParseHexText(D12Box.Text);
-            _vm.ClassCardPointer = ParseHexText(D16Box.Text);
-            _vm.MouthX = (uint)(B20Box.Value ?? 0);
-            _vm.MouthY = (uint)(B21Box.Value ?? 0);
-            _vm.EyeX = (uint)(B22Box.Value ?? 0);
-            _vm.EyeY = (uint)(B23Box.Value ?? 0);
-            _vm.State = (uint)(B24Box.Value ?? 0);
-            _vm.Padding25 = (uint)(B25Box.Value ?? 0);
-            _vm.Padding26 = (uint)(B26Box.Value ?? 0);
-            _vm.Padding27 = (uint)(B27Box.Value ?? 0);
-            _vm.WritePortrait();
-            CoreState.Services.ShowInfo("Portrait data written.");
+            _undoService.Begin("Edit Portrait");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+                _vm.MapPointer = ParseHexText(MapPtrBox.Text);
+                _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+                _vm.MouthPointer = ParseHexText(D12Box.Text);
+                _vm.ClassCardPointer = ParseHexText(D16Box.Text);
+                _vm.MouthX = (uint)(B20Box.Value ?? 0);
+                _vm.MouthY = (uint)(B21Box.Value ?? 0);
+                _vm.EyeX = (uint)(B22Box.Value ?? 0);
+                _vm.EyeY = (uint)(B23Box.Value ?? 0);
+                _vm.State = (uint)(B24Box.Value ?? 0);
+                _vm.Padding25 = (uint)(B25Box.Value ?? 0);
+                _vm.Padding26 = (uint)(B26Box.Value ?? 0);
+                _vm.Padding27 = (uint)(B27Box.Value ?? 0);
+                _vm.WritePortrait();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Portrait data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
         }
 
         void TryShowPortraitImage()
@@ -140,23 +156,26 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
 
+                _undoService.Begin("Import Portrait Image");
                 // Encode tiles and write compressed to ROM (ImagePointer at offset 0)
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                if (tileData == null) { CoreState.Services.ShowError("Failed to encode tiles"); return; }
+                if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tiles"); return; }
 
                 uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, addr + 0);
-                if (tileAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for tile data"); return; }
+                if (tileAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for tile data"); return; }
 
                 // PalettePointer at offset 8
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("No free space for palette"); return; }
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
+                _undoService.Commit();
                 _vm.LoadPortrait(addr);
                 UpdateUI();
                 TryShowPortraitImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -198,15 +217,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+                _undoService.Begin("Import Portrait Palette");
                 // Portrait palette is raw at offset +8
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                _undoService.Commit();
                 _vm.LoadPortrait(addr);
                 UpdateUI();
                 TryShowPortraitImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void SelectFirstItem()

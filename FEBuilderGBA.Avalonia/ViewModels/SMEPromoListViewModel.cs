@@ -33,6 +33,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void Initialize()
         {
+            IsLoading = true;
             try
             {
                 LoadList();
@@ -42,6 +43,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Log.Error("SMEPromoListViewModel", ex.ToString());
             }
             IsLoaded = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public void Reload()
@@ -63,17 +66,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (_selectedIndex < 0 || CoreState.ROM == null) return;
 
+            IsLoading = true;
             try
             {
                 uint addr = _baseAddress + (uint)(_selectedIndex * 2);
+                CurrentAddress = (int)addr;
                 B0 = (int)CoreState.ROM.u8(addr);
                 B1 = (int)CoreState.ROM.u8(addr + 1);
-                // Class name lookup would use EtcCache
+                ClassName0 = NameResolver.GetClassName((uint)B0);
+                ClassName1 = NameResolver.GetClassName((uint)B1);
             }
             catch (Exception ex)
             {
                 Log.Error("SMEPromoListViewModel.OnSelected", ex.ToString());
             }
+            IsLoading = false;
+            MarkClean();
+        }
+
+        public void WriteEntry()
+        {
+            if (_selectedIndex < 0 || CoreState.ROM == null) return;
+
+            uint addr = _baseAddress + (uint)(_selectedIndex * 2);
+            CoreState.ROM.write_u8(addr, (uint)B0);
+            CoreState.ROM.write_u8(addr + 1, (uint)B1);
         }
     }
 }

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapTileAnimationView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapTileAnimationViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Tile Animation Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMapTileAnimationList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapTileAnimationView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapTileAnimation(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapTileAnimationView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -59,11 +64,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.AnimInterval = (uint)(AnimIntervalBox.Value ?? 0);
-            _vm.DataCount = (uint)(DataCountBox.Value ?? 0);
-            _vm.AnimPointer = ParseHexText(AnimPointerBox.Text);
-            _vm.WriteMapTileAnimation();
-            CoreState.Services?.ShowInfo("Map Tile Animation data written.");
+            _undoService.Begin("Edit Map Tile Animation");
+            try
+            {
+                _vm.AnimInterval = (uint)(AnimIntervalBox.Value ?? 0);
+                _vm.DataCount = (uint)(DataCountBox.Value ?? 0);
+                _vm.AnimPointer = ParseHexText(AnimPointerBox.Text);
+                _vm.WriteMapTileAnimation();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Map Tile Animation data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimationView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address)

@@ -12,6 +12,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MoveCostEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly MoveCostEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
         readonly NumericUpDown[] _nudFields = new NumericUpDown[MoveCostEditorViewModel.TerrainCount];
         readonly TextBlock[] _labelFields = new TextBlock[MoveCostEditorViewModel.TerrainCount];
         bool _suppressEvents;
@@ -166,12 +167,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWriteClick(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit Move Cost");
             try
             {
                 _vm.WriteMoveCost();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("MoveCostEditorView.OnWriteClick failed: {0}", ex.Message);
             }
         }

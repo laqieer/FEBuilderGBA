@@ -25,6 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             WindowManager.Instance.MainWindow = this;
             Opened += MainWindow_Opened;
+            Closing += MainWindow_Closing;
+            FilterTextBox.TextChanged += FilterTextBox_TextChanged;
         }
 
         private async void MainWindow_Opened(object? sender, EventArgs e)
@@ -138,6 +140,7 @@ namespace FEBuilderGBA.Avalonia.Views
             StatusText.Text = _vm.StatusText;
             NoRomLabel.IsVisible = false;
             EditorPanel.IsVisible = true;
+            SearchPanel.IsVisible = true;
             SaveMenuItem.IsEnabled = true;
             SaveAsMenuItem.IsEnabled = true;
             UndoMenuItem.IsEnabled = true;
@@ -1307,6 +1310,92 @@ namespace FEBuilderGBA.Avalonia.Views
             Close();
         }
 
+        // ===== Search / Filter =====
+
+        private void FilterTextBox_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            ApplyFilter(FilterTextBox.Text ?? "");
+        }
+
+        private void ClearFilter_Click(object? sender, RoutedEventArgs e)
+        {
+            FilterTextBox.Text = "";
+        }
+
+        /// <summary>
+        /// Show/hide buttons and section headers based on the filter text.
+        /// Case-insensitive substring match on button Content.
+        /// </summary>
+        void ApplyFilter(string filter)
+        {
+            bool hasFilter = !string.IsNullOrWhiteSpace(filter);
+            filter = filter.Trim();
+            int matchCount = 0;
+
+            foreach (var child in EditorPanel.Children)
+            {
+                if (child is not WrapPanel wp) continue;
+                foreach (var item in wp.Children)
+                {
+                    if (item is not Button btn) continue;
+                    string content = btn.Content?.ToString() ?? "";
+
+                    // Respect version-hidden buttons (Tag == false means version-hidden)
+                    if (btn.Tag is bool versionVisible && !versionVisible)
+                    {
+                        btn.IsVisible = false;
+                        continue;
+                    }
+
+                    if (hasFilter)
+                    {
+                        bool match = content.Contains(filter, StringComparison.OrdinalIgnoreCase);
+                        btn.IsVisible = match;
+                        if (match) matchCount++;
+                    }
+                    else
+                    {
+                        btn.IsVisible = true;
+                    }
+                }
+            }
+
+            // Auto-hide section headers when no buttons are visible
+            AutoHideEmptySections(EditorPanel);
+
+            FilterMatchLabel.IsVisible = hasFilter;
+            if (hasFilter)
+                FilterMatchLabel.Text = $"{matchCount} editor(s) matching \"{filter}\"";
+        }
+
+        // ===== Closing Dirty Check =====
+
+        private async void MainWindow_Closing(object? sender, global::Avalonia.Controls.WindowClosingEventArgs e)
+        {
+            // Check if ROM has unsaved changes via undo buffer
+            var undo = CoreState.Undo;
+            if (undo == null || CoreState.ROM == null) return;
+
+            bool hasUnsavedChanges = undo.Postion != undo.PostionWhenFileSaving;
+            if (!hasUnsavedChanges) return;
+
+            // Cancel close, show prompt, then re-close if confirmed
+            e.Cancel = true;
+            var result = await MessageBoxWindow.Show(this,
+                "You have unsaved changes. Close without saving?",
+                "Unsaved Changes",
+                MessageBoxMode.YesNo);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // Detach handler to prevent re-entry, then close
+                Closing -= MainWindow_Closing;
+                Close();
+            }
+        }
+
+        // ===== Editor Open Handlers =====
+
         private void OpenUnits_Click(object? sender, RoutedEventArgs e)
         {
             WindowManager.Instance.Open<UnitEditorView>();
@@ -1944,7 +2033,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (child is WrapPanel wp)
                 {
                     foreach (var btn in wp.Children)
+                    {
                         btn.IsVisible = true;
+                        if (btn is Button b) b.Tag = null; // clear version tag
+                    }
                 }
             }
         }
@@ -1952,6 +2044,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Walk all WrapPanels inside the editor panel, check each Button's Content
         /// text for a version tag, and hide buttons that don't match.
+        /// Also stores version visibility in Tag property so the search filter can respect it.
         /// </summary>
         static void HideVersionMismatchedButtons(StackPanel panel, int ver, bool isMultibyte)
         {
@@ -1964,7 +2057,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     string content = btn.Content?.ToString() ?? "";
                     bool? visible = GetVersionVisibility(content, ver, isMultibyte);
                     if (visible.HasValue)
+                    {
                         btn.IsVisible = visible.Value;
+                        if (!visible.Value)
+                            btn.Tag = false; // mark as version-hidden for filter
+                    }
                 }
             }
         }

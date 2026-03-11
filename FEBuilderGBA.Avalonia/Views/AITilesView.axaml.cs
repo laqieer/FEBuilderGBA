@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class AITilesView : Window, IEditorView
     {
         readonly AITilesViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "AI Tiles Evaluation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -32,18 +34,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AITilesView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("AITilesView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -55,13 +68,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit AI Tiles");
             try
             {
                 _vm.Tile = (uint)(TileBox.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("AITilesView.Write failed: {0}", ex.Message);
             }
         }

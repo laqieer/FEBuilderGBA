@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageTSAAnime2View : Window, IEditorView
     {
         readonly ImageTSAAnime2ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "TSA Animation Editor v2";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageTSAAnime2View.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageTSAAnime2View.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -58,12 +63,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.Unknown0 = (uint)(Unknown0Box.Value ?? 0);
-            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
-            _vm.Unknown4 = (uint)(Unknown4Box.Value ?? 0);
-            _vm.Unknown6 = (uint)(Unknown6Box.Value ?? 0);
-            _vm.TSAHeaderPointer = ParseHexText(TSAHeaderPointerBox.Text);
-            _vm.Write();
+            _undoService.Begin("Edit TSA Animation v2");
+            try
+            {
+                _vm.Unknown0 = (uint)(Unknown0Box.Value ?? 0);
+                _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+                _vm.Unknown4 = (uint)(Unknown4Box.Value ?? 0);
+                _vm.Unknown6 = (uint)(Unknown6Box.Value ?? 0);
+                _vm.TSAHeaderPointer = ParseHexText(TSAHeaderPointerBox.Text);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageTSAAnime2View.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)
@@ -88,18 +100,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
-                uint addr = _vm.CurrentAddr;
-                // TSA Animation v2 only has TSA header pointer at offset 8.
-                // Write compressed TSA data to ROM and update the pointer.
-                var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                if (tsaResult == null) { CoreState.Services.ShowError("Failed to encode TSA data"); return; }
+                _undoService.Begin("Import TSA Animation v2 Image");
+                try
+                {
+                    uint addr = _vm.CurrentAddr;
+                    // TSA Animation v2 only has TSA header pointer at offset 8.
+                    // Write compressed TSA data to ROM and update the pointer.
+                    var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                    if (tsaResult == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode TSA data"); return; }
 
-                uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 8);
-                if (tsaAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write TSA data (no free space)"); return; }
+                    uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 8);
+                    if (tsaAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write TSA data (no free space)"); return; }
 
-                _vm.LoadEntry(addr);
-                UpdateUI();
-                CoreState.Services.ShowInfo("TSA data imported successfully.");
+                    _undoService.Commit();
+                    _vm.LoadEntry(addr);
+                    UpdateUI();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("TSA data imported successfully.");
+                }
+                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }

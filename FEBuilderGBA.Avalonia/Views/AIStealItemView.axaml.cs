@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class AIStealItemView : Window, IEditorView
     {
         readonly AIStealItemViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "AI Steal Item Logic";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,6 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -32,18 +34,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AIStealItemView.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("AIStealItemView.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -56,14 +69,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _undoService.Begin("Edit AI Steal Item");
             try
             {
                 _vm.Item = (uint)(ItemBox.Value ?? 0);
                 _vm.Unused1 = (uint)(Unused1Box.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("AIStealItemView.Write failed: {0}", ex.Message);
             }
         }

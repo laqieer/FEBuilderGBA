@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ItemFE6View : Window, IEditorView, IDataVerifiableView
     {
         readonly ItemFE6ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Items (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -37,11 +38,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItem(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemFE6View.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -99,8 +104,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Icon = (uint)(IconBox.Value ?? 0);
             _vm.UsageEffect = (uint)(UsageEffectBox.Value ?? 0);
             _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
-            _vm.WriteItem();
-            CoreState.Services.ShowInfo("Item data written.");
+
+            _undoService.Begin("Edit Item (FE6)");
+            try
+            {
+                _vm.WriteItem();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

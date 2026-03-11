@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class UnitPaletteView : Window, IEditorView, IDataVerifiableView
     {
         readonly UnitPaletteViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Unit Palette Assignment";
         public bool IsLoaded => _vm.IsLoaded;
@@ -37,11 +38,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("UnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -70,8 +75,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.AdvancedClass3 = (uint)(AdvancedClass3Box.Value ?? 0);
             _vm.AdvancedClass4 = (uint)(AdvancedClass4Box.Value ?? 0);
 
-            _vm.WriteEntry();
-            CoreState.Services?.ShowInfo("Unit palette data written.");
+            _undoService.Begin("Edit Unit Palette");
+            try
+            {
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Unit palette data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

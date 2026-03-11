@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class BattleBGViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly BattleBGViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Battle Background Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -25,12 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadBattleBGList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("BattleBGViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadBattleBG(addr);
@@ -38,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("BattleBGViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -50,11 +55,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
-            _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
-            _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
-            _vm.WriteBattleBG();
-            CoreState.Services.ShowInfo("Battle Background data written.");
+            _undoService.Begin("Edit Battle BG");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+                _vm.TSAPointer = ParseHexText(TsaPtrBox.Text);
+                _vm.PalettePointer = ParseHexText(PalPtrBox.Text);
+                _vm.WriteBattleBG();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Battle Background data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
         }
 
         void LoadImage()
@@ -78,18 +94,21 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle BG Image");
                 // BattleBG stores all 3 components LZ77-compressed (including palette)
                 var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
                     loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8, compressPalette: true);
 
-                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+                if (!importResult.Success) { _undoService.Rollback(); CoreState.Services.ShowError(importResult.Error); return; }
 
+                _undoService.Commit();
                 _vm.LoadBattleBG(addr);
                 UpdateUI();
                 LoadImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
@@ -130,15 +149,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
+                _undoService.Begin("Import Battle BG Palette");
                 // BattleBG palette is LZ77-compressed
                 uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 8);
-                if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                _undoService.Commit();
                 _vm.LoadBattleBG(addr);
                 UpdateUI();
                 LoadImage();
+                _vm.MarkClean();
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
-            catch (Exception ex) { CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

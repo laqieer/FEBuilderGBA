@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class StatusParamView : Window, IEditorView, IDataVerifiableView
     {
         readonly StatusParamViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Status Parameters";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadStatusParamList();
@@ -32,10 +34,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("StatusParamView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadStatusParam(addr);
@@ -45,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("StatusParamView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -63,16 +68,22 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.MenuTextStruct = (uint)(MenuTextStructBox.Value ?? 0);
-            _vm.Bitmap = (uint)(BitmapBox.Value ?? 0);
-            _vm.ColorType = (uint)(ColorTypeBox.Value ?? 0);
-            _vm.Indent = (uint)(IndentBox.Value ?? 0);
-            _vm.B10 = (uint)(B10Box.Value ?? 0);
-            _vm.B11 = (uint)(B11Box.Value ?? 0);
-            _vm.StringPointer = ParseHexText(StringPointerBox.Text);
-            _vm.WriteStatusParam();
-            CoreState.Services?.ShowInfo("Status parameter data written.");
+            _undoService.Begin("Edit Status Parameter");
+            try
+            {
+                _vm.MenuTextStruct = (uint)(MenuTextStructBox.Value ?? 0);
+                _vm.Bitmap = (uint)(BitmapBox.Value ?? 0);
+                _vm.ColorType = (uint)(ColorTypeBox.Value ?? 0);
+                _vm.Indent = (uint)(IndentBox.Value ?? 0);
+                _vm.B10 = (uint)(B10Box.Value ?? 0);
+                _vm.B11 = (uint)(B11Box.Value ?? 0);
+                _vm.StringPointer = ParseHexText(StringPointerBox.Text);
+                _vm.WriteStatusParam();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Status parameter data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusParamView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

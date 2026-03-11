@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ArenaEnemyWeaponViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly ArenaEnemyWeaponViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Arena Enemy Weapon";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadArenaEnemyWeaponList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ArenaEnemyWeaponViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadArenaEnemyWeapon(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ArenaEnemyWeaponViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -54,9 +59,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.WeaponId = (uint)(WeaponIdBox.Value ?? 0);
-            _vm.WriteArenaEnemyWeapon();
-            CoreState.Services.ShowInfo("Arena Enemy Weapon data written.");
+            if (!_vm.CanWrite) return;
+            _undoService.Begin("Edit Arena Enemy Weapon");
+            try
+            {
+                _vm.WeaponId = (uint)(WeaponIdBox.Value ?? 0);
+                _vm.WriteArenaEnemyWeapon();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Arena Enemy Weapon data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OPClassFontViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly OPClassFontViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "OP Class Font Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -23,12 +24,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try { var items = _vm.LoadOPClassFontList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error("OPClassFontViewerView.LoadList: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadOPClassFont(addr);
@@ -36,6 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadImage();
             }
             catch (Exception ex) { Log.Error("OPClassFontViewerView.OnSelected: {0}", ex.Message); }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -56,9 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
-            _vm.WriteOPClassFont();
-            CoreState.Services?.ShowInfo("OP Class Font data written.");
+            _undoService.Begin("Edit OP Class Font");
+            try
+            {
+                _vm.ImagePointer = ParseHexText(ImgPtrBox.Text);
+                _vm.WriteOPClassFont();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("OP Class Font data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassFontViewerView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

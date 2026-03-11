@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemWeaponEffectViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Item Weapon Effect";
         public bool IsLoaded => _vm.CanWrite;
@@ -38,11 +39,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadItemWeaponEffect(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("ItemWeaponEffectViewerView.OnSelected: {0}", ex.Message);
             }
         }
@@ -76,8 +81,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Motion = (uint)(MotionBox.Value ?? 0);
             _vm.HitColor = (uint)(HitColorBox.Value ?? 0);
             _vm.Unknown15 = (uint)(Unknown15Box.Value ?? 0);
-            _vm.WriteItemWeaponEffect();
-            CoreState.Services.ShowInfo("Item Weapon Effect data written.");
+
+            _undoService.Begin("Edit Item Weapon Effect");
+            try
+            {
+                _vm.WriteItemWeaponEffect();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Item Weapon Effect data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

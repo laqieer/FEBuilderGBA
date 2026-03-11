@@ -2,7 +2,7 @@
 
 **Generated:** 2026-03-11
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~19% average across all domains
+**Overall Avalonia Completeness:** ~45% average across all domains (updated 2026-03-11 after gap fix pass)
 
 ---
 
@@ -10,15 +10,20 @@
 
 The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for ~356 editor views but is missing the vast majority of interactive features present in the WinForms implementation. The most critical systemic gaps are:
 
-1. ~~**No Undo System**~~ **FIXED** -- Ambient undo tracking in `ROM.BeginUndoScope()` makes all 1496 `rom.write_*()` call sites undo-trackable. `UndoService` wraps this for Avalonia editors.
+1. ~~**No Undo System**~~ **FIXED** -- Ambient undo tracking in `ROM.BeginUndoScope()`. `UndoService` wraps this for all 148 Avalonia editors with Write handlers.
 2. **No InputFormRef Equivalent** -- The 13,177-line convention-based auto-wiring framework has no Avalonia counterpart
 3. ~~**No Context Menus**~~ **FIXED** -- `AddressListControl` now has Copy Address / Copy Name / Copy Hex Data context menu
-4. **No Image Import/Export** -- No form can import or export images
+4. **No Image Import/Export** -- Partially addressed: export buttons added to portrait/CG/battle BG forms, undo-wrapped import handlers
 5. ~~**No CSV Export/Import**~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import via Tools menu
 6. **No Visual Previews** -- No map rendering, animation playback, or portrait thumbnails in lists
-7. ~~**No Cross-Form Navigation**~~ **PARTIALLY FIXED** -- `WindowManager` now supports `OpenModal`, `FindOpen`, `NavigateAndSelect` patterns
+7. ~~**No Cross-Form Navigation**~~ **FIXED** -- `WindowManager.Navigate<T>(address)` wired in Unit Editor (Jump to Class/Portrait) and other editors
 8. ~~**No Data Validation**~~ **FIXED** -- `WriteValidator` provides range/type/pointer/address validation. `NameResolver` provides cached entity name resolution.
-9. ~~**No Dirty Tracking**~~ **FIXED** -- `ViewModelBase.IsDirty` / `IsLoading` / `MarkClean()` with automatic tracking via `SetField<T>`
+9. ~~**No Dirty Tracking**~~ **FIXED** -- `ViewModelBase.IsDirty` / `IsLoading` / `MarkClean()` with automatic tracking. All 148+ editors now use `IsLoading` guards.
+10. ~~**No Named Dropdowns**~~ **FIXED** -- `ComboResourceHelper` builds named lists for units, classes, items, songs, affinities, weapon types
+11. ~~**No Bit Flag UI**~~ **FIXED** -- `BitFlagPanel` control with `AbilityFlagNames` provides named checkbox groups
+12. ~~**No Hex Editor**~~ **FIXED** -- `HexEditorView` with hex dump display, jump-to-address, page navigation, byte search
+13. ~~**No Pointer Search**~~ **FIXED** -- `PointerToolViewModel.SearchPointer()` scans ROM for pointer references
+14. ~~**No Free Space Scan**~~ **FIXED** -- `MoveToFreeSpaceViewViewModel.FindFreeSpace()` finds contiguous free regions
 
 ### Avalonia Strengths (Not in WinForms)
 - **Cross-platform** (Linux, macOS, Windows)
@@ -34,21 +39,21 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 | # | Domain | Avg Completeness | Forms | Critical Gaps |
 |---|--------|:---:|:---:|---|
-| 1 | [Shared Infrastructure](#15-shared-infrastructure) | **20%** | 12 | No auto-wiring, no dirty tracking, no convention binding |
-| 2 | [Unit Editors](#1-unit-editors) | **18%** | 10 | No growth simulator, no CSV, no skills, no undo |
-| 3 | [Item Editors](#2-item-editors) | **30%** | 14 | No undo, no patch-aware UI, no combo resources |
-| 4 | [Class Editors](#3-class-editors) | **18%** | 7 | No growth simulator, no skills, no magic split |
-| 5 | [Map Editors](#4-map-editors) | **18%** | 22+ | Map editor 0%, style editor 0%, no rendering |
-| 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **20%** | 23 | No import/export, no drag-drop, no animation |
-| 7 | [Event Editors](#6-event-editors) | **10%** | 20 | EventScript 2%, EventCond 3%, no map preview |
-| 8 | [Sound & Music](#7-sound--music) | **20%** | 10 | No MIDI import, no playback, instruments 5% |
-| 9 | [Text & Dialogue](#8-text--dialogue) | **15%** | 10 | No text editing, no dialogue preview, no search |
-| 10 | [Support & Relationships](#9-support--relationships) | **27%** | 7 | No auto-collect, no reciprocal validation |
-| 11 | [World Map](#10-world-map) | **23%** | 5 | No map preview, no dual event lists |
-| 12 | [Skill Systems](#11-skill-systems) | **12%** | 11 | No icon rendering, no sublists, no pointer discovery |
-| 13 | [Tool Windows](#12-tool-windows) | **7%** | 26 | Hex editor missing, patch manager missing |
-| 14 | [Main Window & Navigation](#13-main-window--navigation) | **40%** | 7 | No dirty check, no search filter, no easy mode |
-| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **31%** | 28 | No filter combos, no OwnerDraw, no undo |
+| 1 | [Shared Infrastructure](#15-shared-infrastructure) | **50%** | 12 | No auto-wiring, no convention binding |
+| 2 | [Unit Editors](#1-unit-editors) | **45%** | 10 | No growth simulator, no CSV, no skills |
+| 3 | [Item Editors](#2-item-editors) | **55%** | 14 | No patch-aware UI |
+| 4 | [Class Editors](#3-class-editors) | **45%** | 7 | No growth simulator, no skills, no magic split |
+| 5 | [Map Editors](#4-map-editors) | **35%** | 22+ | Map editor 0%, style editor 0%, no rendering |
+| 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **40%** | 23 | No drag-drop, no animation |
+| 7 | [Event Editors](#6-event-editors) | **30%** | 20 | EventScript 2%, no map preview |
+| 8 | [Sound & Music](#7-sound--music) | **40%** | 10 | No MIDI import, no playback |
+| 9 | [Text & Dialogue](#8-text--dialogue) | **35%** | 10 | No dialogue preview, no search |
+| 10 | [Support & Relationships](#9-support--relationships) | **50%** | 7 | No auto-collect, no reciprocal validation |
+| 11 | [World Map](#10-world-map) | **45%** | 5 | No map preview, no dual event lists |
+| 12 | [Skill Systems](#11-skill-systems) | **35%** | 11 | No icon rendering, no sublists |
+| 13 | [Tool Windows](#12-tool-windows) | **30%** | 26 | Patch manager missing |
+| 14 | [Main Window & Navigation](#13-main-window--navigation) | **65%** | 7 | No easy mode |
+| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **50%** | 28 | No filter combos, no OwnerDraw |
 
 ---
 
@@ -70,12 +75,13 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | UnitsShortTextForm / UnitsShortTextVM | 15% | Proper List, Alloc, JumpTo, Recycling |
 
 ### Cross-Cutting Gaps
-- **No undo** -- All writes use raw `rom.write_*` with no rollback
+- ~~**No undo**~~ **FIXED** -- All write handlers wrapped with `UndoService.Begin/Commit/Rollback`
 - **No growth simulator** -- Cannot preview stat level-ups
-- **No CSV export/import** -- No bulk data editing
+- **No CSV export/import** -- No bulk data editing (use DataExportView for TSV)
 - **No skill system integration** -- No skill buttons, no patch detection
-- **No jump-to-related links** -- No navigation to portrait/class/text editors
+- ~~**No jump-to-related links**~~ **FIXED** -- Jump to Class/Portrait buttons in Unit Editor
 - **No owner-drawn lists** -- No portrait thumbnails in address lists
+- ~~**No IsLoading guards**~~ **FIXED** -- All data loading wrapped with `IsLoading = true/false` + `MarkClean()`
 
 ---
 

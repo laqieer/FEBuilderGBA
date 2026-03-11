@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SkillConfigSkillSystemView : Window, IEditorView
     {
         readonly SkillConfigSkillSystemViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Skill Config (SkillSystem)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,11 +26,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("SkillConfigSkillSystemView.LoadList failed: {0}", ex.Message);
             }
         }
@@ -38,11 +43,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("SkillConfigSkillSystemView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -55,13 +64,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            _vm.TextDetail = (uint)(TextDetailBox.Value ?? 0);
+
+            _undoService.Begin("Edit Skill Config");
             try
             {
-                _vm.TextDetail = (uint)(TextDetailBox.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("SkillConfigSkillSystemView.Write failed: {0}", ex.Message);
             }
         }

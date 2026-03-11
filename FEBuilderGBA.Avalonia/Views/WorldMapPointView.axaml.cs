@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class WorldMapPointView : Window, IEditorView, IDataVerifiableView
     {
         readonly WorldMapPointViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "World Map Point";
         public bool IsLoaded => _vm.CanWrite;
@@ -24,11 +25,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadWorldMapPointList();
                 EntryList.SetItems(items);
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapPointView.LoadList failed: {0}", ex.Message);
             }
         }
@@ -37,11 +42,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadWorldMapPoint(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("WorldMapPointView.OnSelected failed: {0}", ex.Message);
             }
         }
@@ -91,8 +100,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.CoordinateY = (uint)(CoordinateYBox.Value ?? 0);
             _vm.NameTextId = (uint)(NameTextIdBox.Value ?? 0);
             _vm.ShipSetting = (uint)(ShipSettingBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("World map point data written.");
+
+            _undoService.Begin("Edit World Map Point");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("World map point data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("WorldMapPointView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

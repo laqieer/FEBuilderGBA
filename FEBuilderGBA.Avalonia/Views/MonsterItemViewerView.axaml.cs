@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MonsterItemViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly MonsterItemViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Monster Item";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadMonsterItemList();
@@ -31,10 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterItemViewerView.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMonsterItem(addr);
@@ -44,6 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MonsterItemViewerView.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -59,14 +64,20 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-
-            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
-            _vm.DropRate = (uint)(DropRateBox.Value ?? 0);
-            _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
-            _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
-            _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
-            _vm.WriteMonsterItem();
-            CoreState.Services.ShowInfo("Monster item data written.");
+            _undoService.Begin("Edit Monster Item");
+            try
+            {
+                _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+                _vm.DropRate = (uint)(DropRateBox.Value ?? 0);
+                _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
+                _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
+                _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+                _vm.WriteMonsterItem();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Monster item data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterItemViewerView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

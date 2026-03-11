@@ -189,6 +189,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string ClearConditionTextResolved => ResolveText(ClearConditionText);
         public string DetailClearConditionTextResolved => ResolveText(DetailClearConditionText);
 
+        public string PlayerPhaseBGMResolved => NameResolver.GetSongName(PlayerPhaseBGM);
+        public string EnemyPhaseBGMResolved => NameResolver.GetSongName(EnemyPhaseBGM);
+        public string NpcPhaseBGMResolved => NameResolver.GetSongName(NpcPhaseBGM);
+        public string PlayerPhaseBGM2Resolved => NameResolver.GetSongName(PlayerPhaseBGM2);
+        public string EnemyPhaseBGM2Resolved => NameResolver.GetSongName(EnemyPhaseBGM2);
+        public string NpcPhaseBGM2Resolved => NameResolver.GetSongName(NpcPhaseBGM2);
+
         static string ResolveText(uint id)
         {
             if (id == 0) return "(none)";
@@ -356,6 +363,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OnPropertyChanged(nameof(MapNameText2Resolved));
             OnPropertyChanged(nameof(ClearConditionTextResolved));
             OnPropertyChanged(nameof(DetailClearConditionTextResolved));
+            OnPropertyChanged(nameof(PlayerPhaseBGMResolved));
+            OnPropertyChanged(nameof(EnemyPhaseBGMResolved));
+            OnPropertyChanged(nameof(NpcPhaseBGMResolved));
+            OnPropertyChanged(nameof(PlayerPhaseBGM2Resolved));
+            OnPropertyChanged(nameof(EnemyPhaseBGM2Resolved));
+            OnPropertyChanged(nameof(NpcPhaseBGM2Resolved));
 
             IsLoaded = true;
         }

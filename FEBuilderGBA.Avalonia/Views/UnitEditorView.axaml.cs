@@ -39,13 +39,17 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadUnit(addr);
                 UpdateUI();
                 UpdateFE78Visibility();
                 TryShowPortrait();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("UnitEditorView.OnUnitSelected failed: {0}", ex.Message);
             }
         }
@@ -70,7 +74,9 @@ namespace FEBuilderGBA.Avalonia.Views
             DescIdBox.Value = _vm.DescId;
             UnitIdBox.Value = _vm.UnitId;
             ClassIdBox.Value = _vm.ClassId;
+            ClassNameLabel.Text = NameResolver.GetClassName(_vm.ClassId);
             PortraitIdBox.Value = _vm.PortraitId;
+            PortraitNameLabel.Text = NameResolver.GetUnitName(_vm.PortraitId);
             MapFaceBox.Value = _vm.MapFace;
             AffinityBox.Value = _vm.Affinity;
             SortOrderBox.Value = _vm.SortOrder;
@@ -213,8 +219,57 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             ReadFromUI();
-            _vm.WriteUnit();
-            CoreState.Services.ShowInfo("Unit data written.");
+            _undoService.Begin("Edit Unit");
+            try
+            {
+                _vm.WriteUnit();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Unit data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("Write failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToClass_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint classId = (uint)(ClassIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
+                WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToClass failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToPortrait_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+                uint addr = baseAddr + portraitId * dataSize;
+                WindowManager.Instance.Navigate<PortraitViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToPortrait failed: {0}", ex.Message);
+            }
         }
 
         void Undo_Click(object? sender, RoutedEventArgs e)
