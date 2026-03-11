@@ -44,7 +44,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.image_unit_palette_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+                // Validate: pointer at offset 12 must be valid
+                uint p = rom.u32(addr + 12);
+                if (!U.isPointer(p)) break;
+
+                // Read identifier string from bytes 0-11
+                string ident = "";
+                for (int j = 0; j < 12; j++)
+                {
+                    byte b = rom.Data[addr + (uint)j];
+                    if (b >= 0x20 && b < 0x7F) ident += (char)b;
+                    else if (b == 0) break;
+                }
+                result.Add(new AddrResult(addr, $"0x{i:X2} {ident}", (uint)i));
+            }
             result.Add(new AddrResult(0, "Unit Palette Editor", 0));
             return result;
         }

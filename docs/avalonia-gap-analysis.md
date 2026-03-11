@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~53% average across all domains (updated 2026-03-12 after round 9 gap fixes)
+**Overall Avalonia Completeness:** ~54% average across all domains (updated 2026-03-12 after round 10 gap fixes)
 
 ---
 
@@ -177,7 +177,7 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | ImageSystemArea | 30% | Color swatch rendering, Filter combo |
 | ImageTSAAnime | 40% | Import, DecreaseColor |
 | ImageTSAAnime2 | 22% | Three-level navigation |
-| ImageUnitPalette | 25% | PaletteFormRef (color picker), Sprite preview |
+| ImageUnitPalette | **35%** | ~~List stub~~ **FIXED** — list from image_unit_palette_pointer with identifier string. Missing: PaletteFormRef, Sprite preview |
 | ImageViewer | 50% | Utility viewer, mostly adequate |
 | ChapterTitle (FE7+FE8) | 45% | Import |
 | GraphicsTool | 15% | All rendering logic, decode options |
@@ -205,8 +205,8 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | EventUnitForm / EventUnitVM | 25% | 3-level navigation, map preview, growth sim |
 | EventUnitFE6Form / EventUnitFE6VM | 28% | Map preview, AI combos, growth sim |
 | EventUnitFE7Form / EventUnitFE7VM | 25% | Map preview, coordinate handling |
-| EventBattleTalkForm / EventBattleTalkVM | 40% | Auto-populated list, JumpTo, FELint |
-| EventBattleTalkFE6/FE7 | 40% | Two tables, owner-drawn lists |
+| EventBattleTalkForm / EventBattleTalkVM | **55%** | ~~List stub~~ **FIXED** — list from event_ballte_talk_pointer with attacker vs defender unit names |
+| EventBattleTalkFE6/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_ballte_talk_pointer (FE6: 12-byte, FE7: 16-byte blocks) + unit names |
 | EventHaikuForm / EventHaikuVM | **55%** | ~~Auto-populated list~~ **FIXED** — list from event_haiku_pointer with unit name resolution. Missing: patch detection |
 | EventHaikuFE6/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_haiku_pointer (16-byte blocks) + unit names. Missing: chapter filter |
 | EventForceSortie/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_force_sortie_pointer with unit name resolution. Missing: AllocIfNeed |
@@ -477,3 +477,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 8):** Six more forms fixed: EventHaikuFE6/FE7 (list from event_haiku_pointer 16-byte blocks + unit names), EventForceSortieFE7 (list from force_sortie_pointer, 23 map entries), EventFunctionPointerFE7 (list from function_pointer_table), AIMapSetting (list from ai_map_setting_pointer), MapTerrainNameEng (list from map_terrain_name_pointer + text decode).
 
 **Updated 2026-03-12 (round 9):** Four more forms fixed: ImagePortrait (35→45%, list from portrait_pointer with unit name hints), ImageBattleAnime (18→28%, list from image_battle_animelist_pointer), UnitPalette (30→40%, list from unit_palette_color_pointer + unit names), UnitCustomBattleAnime (30→40%, BuildList with weapon/anim display).
+
+**Updated 2026-03-12 (round 10):** Six more forms fixed: EventBattleTalk/FE6/FE7 (40→55%, list from event_ballte_talk_pointer with attacker vs defender unit names), EventFinalSerifFE7 (list from event_final_serif_pointer + unit names), ImageUnitPalette (25→35%, list from image_unit_palette_pointer with identifier strings). Also fixed leftover stub in EventForceSortieFE7.

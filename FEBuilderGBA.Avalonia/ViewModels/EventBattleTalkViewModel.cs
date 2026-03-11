@@ -33,8 +33,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.event_ballte_talk_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Battle Dialogue Editor", 0));
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+
+                uint attacker = rom.u16(addr);
+                uint defender = rom.u16(addr + 2);
+                string atkName = NameResolver.GetUnitName(attacker);
+                string defName = NameResolver.GetUnitName(defender);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
+            }
             return result;
         }
 
@@ -72,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(a + 12, EventPointer);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

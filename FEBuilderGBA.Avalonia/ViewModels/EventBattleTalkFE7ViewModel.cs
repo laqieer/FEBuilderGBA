@@ -37,7 +37,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.event_ballte_talk_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 16; // FE7 uses 16-byte blocks
             var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint unit = rom.u16(addr);
+                if (unit == 0 || unit == 0xFFFF) break;
+
+                string atkName = NameResolver.GetUnitName(rom.u8(addr));
+                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
+            }
             result.Add(new AddrResult(0, "Battle Dialogue (FE7)", 0));
             return result;
         }
@@ -80,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(a + 15, (byte)Unknown0F);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

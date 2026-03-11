@@ -52,7 +52,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint mapId = (uint)i + 0x17;
                 result.Add(new AddrResult(addr, $"0x{i:X2} Map 0x{mapId:X2}", (uint)i));
             }
-            result.Add(new AddrResult(0, "Force Sortie (FE7)", 0));
             return result;
         }
 
