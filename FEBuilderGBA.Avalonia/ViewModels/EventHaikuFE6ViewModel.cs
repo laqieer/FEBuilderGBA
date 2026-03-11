@@ -41,8 +41,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.event_haiku_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Death Quote (FE6)", 0));
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint unitId = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
             return result;
         }
 
@@ -88,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(a + 15, (byte)Unknown0F);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

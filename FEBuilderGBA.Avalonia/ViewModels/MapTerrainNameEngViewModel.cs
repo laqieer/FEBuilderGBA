@@ -9,8 +9,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.map_terrain_name_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 2;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Terrain Name (English)", 0));
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint textId = rom.u16(addr);
+                if (textId == 0x0000) break;
+
+                string name = NameResolver.GetTextById(textId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {name}", (uint)i));
+            }
             return result;
         }
 
@@ -41,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u16(CurrentAddr + 0, (ushort)TerrainNameTextID);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

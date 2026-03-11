@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~51% average across all domains (updated 2026-03-12 after round 7 gap fixes)
+**Overall Avalonia Completeness:** ~52% average across all domains (updated 2026-03-12 after round 8 gap fixes)
 
 ---
 
@@ -146,7 +146,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | **MapEditorForm** | **0%** | **Empty stub -- entire visual map editor missing (planned for round 2)** |
 | **MapStyleEditorForm** | **0%** | **Empty stub -- tileset/palette editor missing** |
 | **MapTerrainNameForm** | **0%** | **Empty stub -- terrain name list missing** |
-| MapTerrainNameEngForm | 40% | Proper list, GetName helper |
+| MapTerrainNameEngForm | **55%** | ~~Proper list~~ **FIXED** — list from map_terrain_name_pointer with text decode |
 | MapTileAnimation1Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime1_pointer with pointer validation. Missing: filter combo, animation frame display |
 | MapTileAnimation2Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime2_pointer with palette pointer validation. Missing: three-level navigation |
 | MapLoadFunctionForm | **50%** | ~~List stub~~ **FIXED** — proper list from switch1 count + pointer validation, write support, pointer info display |
@@ -208,7 +208,7 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | EventBattleTalkForm / EventBattleTalkVM | 40% | Auto-populated list, JumpTo, FELint |
 | EventBattleTalkFE6/FE7 | 40% | Two tables, owner-drawn lists |
 | EventHaikuForm / EventHaikuVM | **55%** | ~~Auto-populated list~~ **FIXED** — list from event_haiku_pointer with unit name resolution. Missing: patch detection |
-| EventHaikuFE6/FE7 | 40-45% | Chapter filter, two tables |
+| EventHaikuFE6/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_haiku_pointer (16-byte blocks) + unit names. Missing: chapter filter |
 | EventForceSortie/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_force_sortie_pointer with unit name resolution. Missing: AllocIfNeed |
 | EventFunctionPointer/FE7 | **45%** | ~~List stub~~ **FIXED** — list from event_function_pointer_table_pointer. Missing: filter combo |
 | EventTalkGroupFE7 | 30% | AllocIfNeed, RecycleOldData |
@@ -473,3 +473,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 6):** Three more forms improved: ImageGenericEnemyPortrait (25→40%, list from pointer/count), StatusOption (40→55%, list from status_game_option_pointer with name resolution), WorldMapPathMoveEditor (35→50%, BuildList with node display and terminator detection).
 
 **Updated 2026-03-12 (round 7):** Six more forms fixed: EventHaiku (40→55%, list from event_haiku_pointer + unit names), EventForceSortie (45→55%, list from event_force_sortie_pointer + unit names), EventFunctionPointer (30→45%, list from function pointer table), AIStealItem/AIPerformStaff/AIPerformItem (all list stubs replaced with proper ROM pointer enumeration + item name resolution).
+
+**Updated 2026-03-12 (round 8):** Six more forms fixed: EventHaikuFE6/FE7 (list from event_haiku_pointer 16-byte blocks + unit names), EventForceSortieFE7 (list from force_sortie_pointer, 23 map entries), EventFunctionPointerFE7 (list from function_pointer_table), AIMapSetting (list from ai_map_setting_pointer), MapTerrainNameEng (list from map_terrain_name_pointer + text decode).

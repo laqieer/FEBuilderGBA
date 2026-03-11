@@ -37,7 +37,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.event_force_sortie_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
             var result = new List<AddrResult>();
+            // FE7: 23 entries starting from Dragon's Gate (map 0x17)
+            for (int i = 0; i < 23; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint mapId = (uint)i + 0x17;
+                result.Add(new AddrResult(addr, $"0x{i:X2} Map 0x{mapId:X2}", (uint)i));
+            }
             result.Add(new AddrResult(0, "Force Sortie (FE7)", 0));
             return result;
         }
@@ -89,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(a + 3, Unknown3);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
