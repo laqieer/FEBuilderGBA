@@ -56,7 +56,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
-            result.Add(new AddrResult(0, "Battle Dialogue (FE7)", 0));
             return result;
         }
 

@@ -20,13 +20,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // W0: GBA color value (15-bit RGB555)
         public uint GBAColor { get => _gbaColor; set => SetField(ref _gbaColor, value); }
 
+        int _filterIndex;
+        public int FilterIndex { get => _filterIndex; set => SetField(ref _filterIndex, value); }
+        public string[] FilterNames => new[] { "Move Range", "Attack Range", "Staff Range" };
+
+        uint GetFilterPointer(int index)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return index switch
+            {
+                0 => rom.RomInfo.systemarea_move_gradation_palette_pointer,
+                1 => rom.RomInfo.systemarea_attack_gradation_palette_pointer,
+                2 => rom.RomInfo.systemarea_staff_gradation_palette_pointer,
+                _ => 0
+            };
+        }
+
         public List<AddrResult> LoadList()
+        {
+            return LoadColorList(FilterIndex);
+        }
+
+        public List<AddrResult> LoadColorList(int filterIndex)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = GetFilterPointer(filterIndex);
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            // 30 u16 colors = 60 bytes
+            int colorCount = 30;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "System Area Graphics", 0));
+            for (int i = 0; i < colorCount; i++)
+            {
+                uint addr = baseAddr + (uint)(i * SIZE);
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+                uint color = rom.u16(addr);
+                int r = (int)(color & 0x1F) * 8;
+                int g = (int)((color >> 5) & 0x1F) * 8;
+                int b = (int)((color >> 10) & 0x1F) * 8;
+                result.Add(new AddrResult(addr, $"0x{i:X2} #{r:X2}{g:X2}{b:X2}", color));
+            }
             return result;
         }
 

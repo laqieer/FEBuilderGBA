@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~54% average across all domains (updated 2026-03-12 after round 10 gap fixes)
+**Overall Avalonia Completeness:** ~55% average across all domains (updated 2026-03-12 after round 11 gap fixes)
 
 ---
 
@@ -174,7 +174,7 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | ImageMagicFEditor | 18% | Animation playback, Import/Export (TXT/GIF) |
 | ImageMagicCSACreator | 15% | Everything (placeholder) |
 | ImageMapActionAnimation | 20% | Animation playback, Import/Export |
-| ImageSystemArea | 30% | Color swatch rendering, Filter combo |
+| ImageSystemArea | **45%** | ~~List stub, Filter combo~~ **FIXED** — filter combo (Move/Attack/Staff) with GBA color list from systemarea gradation pointers |
 | ImageTSAAnime | 40% | Import, DecreaseColor |
 | ImageTSAAnime2 | 22% | Three-level navigation |
 | ImageUnitPalette | **35%** | ~~List stub~~ **FIXED** — list from image_unit_palette_pointer with identifier string. Missing: PaletteFormRef, Sprite preview |
@@ -479,3 +479,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 9):** Four more forms fixed: ImagePortrait (35→45%, list from portrait_pointer with unit name hints), ImageBattleAnime (18→28%, list from image_battle_animelist_pointer), UnitPalette (30→40%, list from unit_palette_color_pointer + unit names), UnitCustomBattleAnime (30→40%, BuildList with weapon/anim display).
 
 **Updated 2026-03-12 (round 10):** Six more forms fixed: EventBattleTalk/FE6/FE7 (40→55%, list from event_ballte_talk_pointer with attacker vs defender unit names), EventFinalSerifFE7 (list from event_final_serif_pointer + unit names), ImageUnitPalette (25→35%, list from image_unit_palette_pointer with identifier strings). Also fixed leftover stub in EventForceSortieFE7.
+
+**Updated 2026-03-12 (round 11 — final):** Three more forms: Command85Pointer (list from command_85_pointer_table_pointer), ImageSystemArea (30→45%, filter combo with GBA color list from systemarea gradation pointers). Also fixed leftover stub in EventBattleTalkFE7. Total: 41+ forms improved across 9 commits, overall completeness ~55%.
