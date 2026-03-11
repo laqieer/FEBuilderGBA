@@ -37,6 +37,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 try
                 {
                     string decoded = FETextDecode.Direct(i);
+                    if (decoded != null)
+                        decoded = ConvertEscapeToFEditor(decoded);
                     if (decoded != null && decoded.Length > 40)
                         decoded = decoded.Substring(0, 40) + "...";
                     preview = decoded ?? "";
