@@ -1,0 +1,4 @@
+// Generic Enemy Portrait struct definition (all versions)
+// 4 bytes per entry
+@GenericEnemyPortrait 04
+0x00	D	PaletteIndex	Palette index value

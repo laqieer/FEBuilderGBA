@@ -1,0 +1,7 @@
+// ED Epithet (Ending epithet/title) struct definition
+// 8 bytes per entry (ed_2_pointer, FE7/FE8 only)
+@EDEpithet 08
+0x00	W	TextID	Text ID
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	D	Field04	Extended data

@@ -61,8 +61,33 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("link_arena_deny", names);
             Assert.Contains("cc_branch", names);
             Assert.Contains("menu_definitions", names);
+            // Universal tables 2
+            Assert.Contains("item_weapon_triangle", names);
+            Assert.Contains("map_exit_points", names);
+            Assert.Contains("ai_map_settings", names);
+            Assert.Contains("ai_perform_items", names);
+            Assert.Contains("ai_perform_staff", names);
+            Assert.Contains("ai_steal_items", names);
+            Assert.Contains("ai_targets", names);
+            Assert.Contains("generic_enemy_portraits", names);
+            Assert.Contains("status_options", names);
+            // Ending tables
+            Assert.Contains("ed_retreat", names);
+            Assert.Contains("ed_epithet", names);
+            Assert.Contains("ed_epilogue_a", names);
+            Assert.Contains("ed_epilogue_b", names);
+            Assert.Contains("ed_epilogue_c", names);
+            // OP tables
+            Assert.Contains("op_class_demo", names);
+            Assert.Contains("op_class_font", names);
+            Assert.Contains("op_prologue", names);
+            Assert.Contains("class_alpha_names", names);
+            // FE8 tables
+            Assert.Contains("summon_units", names);
+            Assert.Contains("summons_demon_king", names);
+            Assert.Contains("monster_probability", names);
             // Total count
-            Assert.True(names.Count >= 19, $"Expected at least 19 tables, got {names.Count}");
+            Assert.True(names.Count >= 40, $"Expected at least 40 tables, got {names.Count}");
         }
 
         [Fact]
@@ -277,6 +302,31 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("menu_definitions", "struct_menu_definition.txt", "MenuDefinition")]
         [InlineData("map_settings", "struct_map_setting_fe6.txt", "MapSetting_FE6")]
         [InlineData("map_settings", "struct_map_setting_fe78.txt", "MapSetting_FE78")]
+        // Universal tables 2
+        [InlineData("item_weapon_triangle", "struct_item_weapon_triangle.txt", "ItemWeaponTriangle")]
+        [InlineData("map_exit_points", "struct_map_exit_point.txt", "MapExitPoint")]
+        [InlineData("ai_map_settings", "struct_ai_map_setting.txt", "AIMapSetting")]
+        [InlineData("ai_perform_items", "struct_ai_perform_item.txt", "AIPerformItem")]
+        [InlineData("ai_perform_staff", "struct_ai_perform_staff.txt", "AIPerformStaff")]
+        [InlineData("ai_steal_items", "struct_ai_steal_item.txt", "AIStealItem")]
+        [InlineData("ai_targets", "struct_ai_target.txt", "AITarget")]
+        [InlineData("generic_enemy_portraits", "struct_generic_enemy_portrait.txt", "GenericEnemyPortrait")]
+        [InlineData("status_options", "struct_status_option.txt", "StatusOption")]
+        // Ending tables
+        [InlineData("ed_retreat", "struct_ed_retreat.txt", "EDRetreat")]
+        [InlineData("ed_epithet", "struct_ed_epithet.txt", "EDEpithet")]
+        [InlineData("ed_epilogue_a", "struct_ed_epilogue.txt", "EDEpilogue")]
+        [InlineData("ed_epilogue_b", "struct_ed_epilogue.txt", "EDEpilogue")]
+        [InlineData("ed_epilogue_c", "struct_ed_epilogue.txt", "EDEpilogue")]
+        // OP tables
+        [InlineData("op_class_demo", "struct_op_class_demo.txt", "OPClassDemo")]
+        [InlineData("op_class_font", "struct_op_class_font.txt", "OPClassFont")]
+        [InlineData("op_prologue", "struct_op_prologue.txt", "OPPrologue")]
+        [InlineData("class_alpha_names", "struct_class_alpha_name.txt", "ClassAlphaName")]
+        // FE8 tables
+        [InlineData("summon_units", "struct_summon_unit.txt", "SummonUnit")]
+        [InlineData("summons_demon_king", "struct_summons_demon_king.txt", "SummonsDemonKing")]
+        [InlineData("monster_probability", "struct_monster_probability.txt", "MonsterProbability")]
         public void MetadataFile_LoadsSuccessfully(string tableName, string fileName, string structName)
         {
             EnsureBaseDirectory();

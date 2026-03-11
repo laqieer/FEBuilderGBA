@@ -1,0 +1,9 @@
+// OP Prologue struct definition (FE8 only)
+// 12 bytes per entry
+@OPPrologue 0C
+0x00	P	ImagePointer	Image pointer
+0x04	P	Pointer4	Second pointer
+0x08	B	Field08	Byte 08
+0x09	B	Field09	Byte 09
+0x0A	B	Field0A	Byte 0A
+0x0B	B	Field0B	Byte 0B

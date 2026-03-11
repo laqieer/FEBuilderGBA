@@ -1,0 +1,8 @@
+// ED Epilogue struct definition (ed_3a/3b/3c_pointer)
+// 8 bytes per entry
+@EDEpilogue 08
+0x00	B	UnitID1	Unit ID 1
+0x01	B	UnitID2	Unit ID 2
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	D	Field04	Extended data

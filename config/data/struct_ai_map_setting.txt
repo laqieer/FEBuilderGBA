@@ -1,0 +1,7 @@
+// AI Map Setting struct definition (all versions)
+// 4 bytes per entry
+@AIMapSetting 04
+0x00	B	Field00	AI setting byte 0
+0x01	B	Field01	AI setting byte 1
+0x02	B	Field02	AI setting byte 2
+0x03	B	Field03	AI setting byte 3

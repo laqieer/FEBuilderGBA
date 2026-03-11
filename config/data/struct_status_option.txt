@@ -1,0 +1,22 @@
+// Status Game Option struct definition (all versions)
+// 44 bytes per entry
+@StatusOption 2C
+0x00	D	Field00	Option dword 0
+0x04	W	Field04	Option word 4
+0x06	W	Field06	Option word 6
+0x08	W	Field08	Option word 8
+0x0A	W	Field0A	Option word A
+0x0C	W	Field0C	Option word C
+0x0E	W	Field0E	Option word E
+0x10	W	Field10	Option word 10
+0x12	W	Field12	Option word 12
+0x14	W	Field14	Option word 14
+0x16	W	Field16	Option word 16
+0x18	W	Field18	Option word 18
+0x1A	W	Field1A	Option word 1A
+0x1C	W	Field1C	Option word 1C
+0x1E	W	Field1E	Option word 1E
+0x20	W	Field20	Option word 20
+0x22	W	Field22	Option word 22
+0x24	D	Field24	Option dword 24
+0x28	P	ASMPointer	ASM function pointer
