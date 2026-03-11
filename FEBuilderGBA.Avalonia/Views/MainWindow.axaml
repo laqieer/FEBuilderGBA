@@ -106,7 +106,6 @@
           <!-- Graphics -->
           <TextBlock Text="Graphics" FontSize="16" FontWeight="SemiBold" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Image Viewer" Click="OpenImageViewer_Click" Margin="4" MinWidth="100" />
             <Button Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
             <Button Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
             <Button Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
