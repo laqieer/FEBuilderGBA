@@ -8,12 +8,21 @@
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Load Functions" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Map Load Functions (FE8)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Function pointers called when entering each map chapter." Foreground="Gray" TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto" Margin="0,8,0,0">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Info:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="PointerInfoLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
         </Grid>
+
+        <Button Content="Write" Click="Write_Click" Width="168" Height="30" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

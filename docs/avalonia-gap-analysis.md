@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~48% average across all domains (updated 2026-03-12 after round 4 gap fixes)
+**Overall Avalonia Completeness:** ~49% average across all domains (updated 2026-03-12 after round 5 gap fixes)
 
 ---
 
@@ -147,9 +147,9 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | **MapStyleEditorForm** | **0%** | **Empty stub -- tileset/palette editor missing** |
 | **MapTerrainNameForm** | **0%** | **Empty stub -- terrain name list missing** |
 | MapTerrainNameEngForm | 40% | Proper list, GetName helper |
-| MapTileAnimation1Form | 35% | Filter combo, animation frame display |
-| MapTileAnimation2Form | 35% | Three-level navigation, palette colors |
-| MapLoadFunctionForm | 25% | Function pointer combo, switch validation |
+| MapTileAnimation1Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime1_pointer with pointer validation. Missing: filter combo, animation frame display |
+| MapTileAnimation2Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime2_pointer with palette pointer validation. Missing: three-level navigation |
+| MapLoadFunctionForm | **50%** | ~~List stub~~ **FIXED** — proper list from switch1 count + pointer validation, write support, pointer info display |
 | Dialog VMs (9 total) | ~30% avg | View layer only, no logic |
 
 ### Critical: Map Editor (0%) and Map Style Editor (0%)
@@ -467,3 +467,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 3):** Six forms improved: SMEPromoList (25→55%), SomeClassList (25→55%), VennouWeaponLock (35→60%), ResourceView (10→50%), SystemHoverColor (15→45%), UnitsShortText (30→50%). Key improvements: proper list loading with AddressListControl, type resolution, name lookup, ROM info display, GBA color decode.
 
 **Updated 2026-03-12 (round 4):** Four more forms improved: CCBranchEditor (30→45%, upstream chain display), SoundRoomFE6 (35→55%, list + song name/description preview), SoundRoomCG (30→45%, list from ROM pointer), TextDic (30→50%, AddressListControl + text decode + unit/class name resolution).
+
+**Updated 2026-03-12 (round 5):** Three map forms improved: MapTileAnimation1 (35→50%, list from tileanime1_pointer), MapTileAnimation2 (35→50%, list from tileanime2_pointer), MapLoadFunction (25→50%, list from switch1 count + write support + pointer info).
