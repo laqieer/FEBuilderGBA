@@ -14,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TextViewerView : Window, IEditorView, IDataVerifiableView
     {
         readonly TextViewerViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Text Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             TextList.SelectedAddressChanged += OnTextSelected;
+            WriteTextButton.Click += OnWriteTextClick;
             Opened += (_, _) => LoadList();
         }
 
@@ -73,6 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             TextIdLabel.Text = $"Text ID: 0x{_vm.CurrentId:X04}";
             ApplyHighlightedText(DecodedTextBlock, _vm.DecodedText);
+            EditTextBox.Text = _vm.DecodedText;
         }
 
         /// <summary>
@@ -165,6 +168,30 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("Import failed: {0}", ex.Message);
                 await MessageBoxWindow.Show(this, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
+
+        void OnWriteTextClick(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            string editedText = EditTextBox.Text ?? "";
+            _undoService.Begin("Edit Text");
+            try
+            {
+                _vm.WriteText(_vm.CurrentId, editedText);
+                _undoService.Commit();
+                _vm.MarkClean();
+                WriteStatusLabel.Text = "Written successfully.";
+                // Reload to show updated text
+                _vm.LoadText(_vm.CurrentId);
+                UpdateUI();
+                LoadList(); // refresh list preview
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                WriteStatusLabel.Text = $"Write failed: {ex.Message}";
+                Log.Error("WriteText failed: {0}", ex.Message);
             }
         }
 

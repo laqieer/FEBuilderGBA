@@ -35,8 +35,7 @@
               <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
-                <NumericUpDown Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" Width="80" />
-                <TextBlock Name="ClassNameLabel" VerticalAlignment="Center" Foreground="Gray" />
+                <ComboBox Name="ClassIdCombo" Width="200" Margin="0,2" />
                 <Button Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
@@ -49,7 +48,7 @@
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="AffinityBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <ComboBox Grid.Row="2" Grid.Column="4" Name="AffinityCombo" Width="200" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="6" Text="Sort:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
@@ -136,20 +135,28 @@
           </Grid>
         </Border>
 
+        <!-- Growth Simulator -->
+        <TextBlock Text="Growth Simulator" FontWeight="Bold" Margin="0,8,0,2" />
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <StackPanel Spacing="4">
+            <Button Content="Calculate Growth" Click="CalculateGrowth_Click" />
+            <TextBlock Name="GrowthSimLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
         <!-- Ability Flags Section -->
         <TextBlock Text="Ability Flags" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Byte1:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="3" Text="Byte2:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Margin="0,2" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Byte3:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="Byte4:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Margin="0,2" />
-          </Grid>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Byte 1:" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability1Flags" />
+            <TextBlock Text="Byte 2:" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability2Flags" />
+            <TextBlock Text="Byte 3:" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability3Flags" />
+            <TextBlock Text="Byte 4:" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability4Flags" />
+          </StackPanel>
         </Border>
 
         <!-- Support & Other Section -->

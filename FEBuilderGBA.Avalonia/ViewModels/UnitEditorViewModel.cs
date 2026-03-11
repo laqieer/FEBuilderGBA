@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -111,6 +112,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Portrait image
         public IImage? PortraitImage => _portraitImage;
+
+        // Growth simulator
+        string _growthSimText = "";
+        public string GrowthSimText { get => _growthSimText; set => SetField(ref _growthSimText, value); }
 
         public List<AddrResult> LoadUnitList()
         {
@@ -484,6 +489,71 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch
             {
                 _portraitImage = null;
+            }
+        }
+
+        /// <summary>
+        /// Calculate projected stats at levels 10 and 20 using GrowSimulator.
+        /// Reads class base stats and growth rates from ROM for the unit's ClassId.
+        /// </summary>
+        public void CalculateGrowth()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) { GrowthSimText = ""; return; }
+
+            try
+            {
+                uint classPtr = rom.RomInfo.class_pointer;
+                uint classBase = rom.p32(classPtr);
+                uint classSize = rom.RomInfo.class_datasize;
+                uint classAddr = classBase + ClassId * classSize;
+
+                if (!U.isSafetyOffset(classAddr) || classAddr + classSize > (uint)rom.Data.Length)
+                {
+                    GrowthSimText = "Cannot load class data.";
+                    return;
+                }
+
+                var sim = new GrowSimulator();
+                sim.SetUnitBase((int)Level, HP, Str, Skl, Spd, Def, Res, Lck, 0);
+
+                // Class base stats: B11=HP, B12=Str, B13=Skl, B14=Spd, B15=Def, B16=Res
+                int classHp  = (int)rom.u8(classAddr + 11);
+                int classStr = (int)rom.u8(classAddr + 12);
+                int classSkl = (int)rom.u8(classAddr + 13);
+                int classSpd = (int)rom.u8(classAddr + 14);
+                int classDef = (int)rom.u8(classAddr + 15);
+                int classRes = (int)rom.u8(classAddr + 16);
+                sim.SetClassBase(classHp, classStr, classSkl, classSpd, classDef, classRes, 0);
+
+                // Unit growth rates
+                sim.SetUnitGrow((int)GrowHP, (int)GrowStr, (int)GrowSkl, (int)GrowSpd, (int)GrowDef, (int)GrowRes, (int)GrowLck, 0);
+
+                // Class growth rates: B27=HP, B28=Str, B29=Skl, B30=Spd, B31=Def, B32=Res, B33=Lck
+                int classGrowHp  = (int)rom.u8(classAddr + 27);
+                int classGrowStr = (int)rom.u8(classAddr + 28);
+                int classGrowSkl = (int)rom.u8(classAddr + 29);
+                int classGrowSpd = (int)rom.u8(classAddr + 30);
+                int classGrowDef = (int)rom.u8(classAddr + 31);
+                int classGrowRes = (int)rom.u8(classAddr + 32);
+                int classGrowLck = (int)rom.u8(classAddr + 33);
+                sim.SetClassGrow(classGrowHp, classGrowStr, classGrowSkl, classGrowSpd, classGrowDef, classGrowRes, classGrowLck, 0);
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Growth Simulator (Unit Growth):");
+                sb.AppendLine("LV   HP  Str  Skl  Spd  Def  Res  Lck");
+
+                sim.Grow(10, GrowSimulator.GrowOptionEnum.UnitGrow);
+                sb.AppendLine($"10  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+
+                sim.Grow(20, GrowSimulator.GrowOptionEnum.UnitGrow);
+                sb.AppendLine($"20  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+
+                GrowthSimText = sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                GrowthSimText = $"Growth sim error: {ex.Message}";
             }
         }
     }

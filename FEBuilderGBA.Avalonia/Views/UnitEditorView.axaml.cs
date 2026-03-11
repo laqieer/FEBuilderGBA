@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -11,6 +13,9 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly UnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        List<(uint id, string name)> _classList = new();
+        List<(uint id, string name)> _affinityList = new();
+
         public string ViewTitle => "Unit Editor";
         public bool IsLoaded => _vm.CanWrite;
 
@@ -19,6 +24,12 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             UnitList.SelectedAddressChanged += OnUnitSelected;
             Opened += (_, _) => LoadList();
+
+            // Set bit flag names
+            Ability1Flags.SetBitNames(AbilityFlagNames.UnitAbility1);
+            Ability2Flags.SetBitNames(AbilityFlagNames.UnitAbility2);
+            Ability3Flags.SetBitNames(AbilityFlagNames.UnitAbility3);
+            Ability4Flags.SetBitNames(AbilityFlagNames.UnitAbility4);
         }
 
         void LoadList()
@@ -28,6 +39,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadUnitList();
                 UnitList.SetItems(items);
                 UpdateFE78Visibility();
+
+                // Populate combo dropdowns
+                _classList = ComboResourceHelper.MakeClassList();
+                ClassIdCombo.ItemsSource = _classList.Select(x => x.name).ToList();
+
+                _affinityList = ComboResourceHelper.MakeAffinityList();
+                AffinityCombo.ItemsSource = _affinityList.Select(x => x.name).ToList();
             }
             catch (Exception ex)
             {
@@ -44,6 +62,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 UpdateFE78Visibility();
                 TryShowPortrait();
+                _vm.CalculateGrowth();
+                GrowthSimLabel.Text = _vm.GrowthSimText;
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -73,12 +93,19 @@ namespace FEBuilderGBA.Avalonia.Views
             NameIdBox.Value = _vm.NameId;
             DescIdBox.Value = _vm.DescId;
             UnitIdBox.Value = _vm.UnitId;
-            ClassIdBox.Value = _vm.ClassId;
-            ClassNameLabel.Text = NameResolver.GetClassName(_vm.ClassId);
+
+            // Class combo
+            int classIdx = _classList.FindIndex(x => x.id == _vm.ClassId);
+            ClassIdCombo.SelectedIndex = classIdx >= 0 ? classIdx : (int)_vm.ClassId;
+
             PortraitIdBox.Value = _vm.PortraitId;
             PortraitNameLabel.Text = NameResolver.GetUnitName(_vm.PortraitId);
             MapFaceBox.Value = _vm.MapFace;
-            AffinityBox.Value = _vm.Affinity;
+
+            // Affinity combo
+            int affIdx = _affinityList.FindIndex(x => x.id == _vm.Affinity);
+            AffinityCombo.SelectedIndex = affIdx >= 0 ? affIdx : (int)_vm.Affinity;
+
             SortOrderBox.Value = _vm.SortOrder;
             LevelBox.Value = _vm.Level;
 
@@ -118,11 +145,11 @@ namespace FEBuilderGBA.Avalonia.Views
             Unk38Box.Value = _vm.Unk38;
             Unk39Box.Value = _vm.Unk39;
 
-            // Ability flags
-            Ability1Box.Value = _vm.Ability1;
-            Ability2Box.Value = _vm.Ability2;
-            Ability3Box.Value = _vm.Ability3;
-            Ability4Box.Value = _vm.Ability4;
+            // Ability flags (BitFlagPanel)
+            Ability1Flags.Value = (byte)_vm.Ability1;
+            Ability2Flags.Value = (byte)_vm.Ability2;
+            Ability3Flags.Value = (byte)_vm.Ability3;
+            Ability4Flags.Value = (byte)_vm.Ability4;
 
             // Support pointer (hex)
             SupportPtrBox.Text = $"0x{_vm.SupportPtr:X08}";
@@ -132,6 +159,9 @@ namespace FEBuilderGBA.Avalonia.Views
             Unk49Box.Value = _vm.Unk49;
             Unk50Box.Value = _vm.Unk50;
             Unk51Box.Value = _vm.Unk51;
+
+            // Growth simulator
+            GrowthSimLabel.Text = _vm.GrowthSimText;
         }
 
         void ReadFromUI()
@@ -140,10 +170,18 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.NameId = (uint)(NameIdBox.Value ?? 0);
             _vm.DescId = (uint)(DescIdBox.Value ?? 0);
             _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+
+            // Class from combo
+            int classIdx = ClassIdCombo.SelectedIndex;
+            _vm.ClassId = classIdx >= 0 && classIdx < _classList.Count ? _classList[classIdx].id : 0;
+
             _vm.PortraitId = (uint)(PortraitIdBox.Value ?? 0);
             _vm.MapFace = (uint)(MapFaceBox.Value ?? 0);
-            _vm.Affinity = (uint)(AffinityBox.Value ?? 0);
+
+            // Affinity from combo
+            int affIdx = AffinityCombo.SelectedIndex;
+            _vm.Affinity = affIdx >= 0 && affIdx < _affinityList.Count ? _affinityList[affIdx].id : 0;
+
             _vm.SortOrder = (uint)(SortOrderBox.Value ?? 0);
             _vm.Level = (uint)(LevelBox.Value ?? 0);
 
@@ -183,11 +221,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unk38 = (uint)(Unk38Box.Value ?? 0);
             _vm.Unk39 = (uint)(Unk39Box.Value ?? 0);
 
-            // Ability flags
-            _vm.Ability1 = (uint)(Ability1Box.Value ?? 0);
-            _vm.Ability2 = (uint)(Ability2Box.Value ?? 0);
-            _vm.Ability3 = (uint)(Ability3Box.Value ?? 0);
-            _vm.Ability4 = (uint)(Ability4Box.Value ?? 0);
+            // Ability flags (BitFlagPanel)
+            _vm.Ability1 = Ability1Flags.Value;
+            _vm.Ability2 = Ability2Flags.Value;
+            _vm.Ability3 = Ability3Flags.Value;
+            _vm.Ability4 = Ability4Flags.Value;
 
             // Support pointer (parse hex)
             _vm.SupportPtr = U.atoh(SupportPtrBox.Text ?? "0");
@@ -240,7 +278,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
-                uint classId = (uint)(ClassIdBox.Value ?? 0);
+                int classIdx = ClassIdCombo.SelectedIndex;
+                uint classId = classIdx >= 0 && classIdx < _classList.Count ? _classList[classIdx].id : 0;
                 uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
                 if (!U.isSafetyOffset(baseAddr)) return;
                 uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
@@ -270,6 +309,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("JumpToPortrait failed: {0}", ex.Message);
             }
+        }
+
+        void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
+        {
+            ReadFromUI();
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
         }
 
         void Undo_Click(object? sender, RoutedEventArgs e)

@@ -125,49 +125,56 @@
 
           <!-- Ability Flags -->
           <TextBlock Grid.Row="25" Grid.Column="0" Text="--- Abilities ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
-
-          <TextBlock Grid.Row="26" Grid.Column="0" Text="Ability1 (B40):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="26" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="26" Grid.Column="3" Text="Ability2 (B41):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="26" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" />
-
-          <TextBlock Grid.Row="27" Grid.Column="0" Text="Ability3 (B42):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="27" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="27" Grid.Column="3" Text="Ability4 (B43):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="27" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" />
-
-          <!-- Weapon Levels -->
-          <TextBlock Grid.Row="28" Grid.Column="0" Text="--- Weapon Levels ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
-
-          <TextBlock Grid.Row="29" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="29" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="29" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="29" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
-
-          <TextBlock Grid.Row="30" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="30" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="30" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="30" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
-
-          <TextBlock Grid.Row="31" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="31" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="31" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="31" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
-
-          <TextBlock Grid.Row="32" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="32" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="32" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="32" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
-
-          <!-- Pointers & D80 -->
-          <TextBlock Grid.Row="33" Grid.Column="0" Text="--- Pointers ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
         </Grid>
 
-        <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+        <!-- Ability BitFlag Panels (outside the inner grid for full width) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Ability 1 (B40):" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability1Flags" />
+            <TextBlock Text="Ability 2 (B41):" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability2Flags" />
+            <TextBlock Text="Ability 3 (B42):" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability3Flags" />
+            <TextBlock Text="Ability 4 (B43):" FontWeight="SemiBold" Margin="0,2" />
+            <controls:BitFlagPanel Name="Ability4Flags" />
+          </StackPanel>
+        </Border>
+
+        <!-- Weapon Rank Levels -->
+        <TextBlock Text="--- Weapon Rank Levels ---" FontWeight="SemiBold" Margin="0,6,0,2" />
+        <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="0" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
+        </Grid>
+
+        <!-- Pointers & D80 -->
+        <TextBlock Text="--- Pointers ---" FontWeight="SemiBold" Margin="0,6,0,2" />
+        <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Battle Anime (P52):" VerticalAlignment="Center" />
           <TextBox Grid.Row="0" Grid.Column="1" Name="Ptr52Box" Width="120" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Move Cost (P56):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="0" Grid.Column="4" Name="Ptr56Box" Width="120" />
+          <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <TextBox Name="Ptr56Box" Width="120" />
+            <Button Content="Jump" Click="JumpToMoveCost_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Move Cost Rain (P60):" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="1" Name="Ptr60Box" Width="120" />

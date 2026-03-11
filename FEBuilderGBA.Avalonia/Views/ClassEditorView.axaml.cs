@@ -19,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             ClassList.SelectedAddressChanged += OnClassSelected;
             Opened += (_, _) => LoadList();
+
+            // Set bit flag names for class abilities
+            Ability1Flags.SetBitNames(AbilityFlagNames.ClassAbility1);
+            Ability2Flags.SetBitNames(AbilityFlagNames.ClassAbility2);
         }
 
         void LoadList()
@@ -104,11 +108,11 @@ namespace FEBuilderGBA.Avalonia.Views
             CapDefBox.Value = _vm.CapDef;
             CapResBox.Value = _vm.CapRes;
 
-            // Abilities
-            Ability1Box.Value = _vm.Ability1;
-            Ability2Box.Value = _vm.Ability2;
-            Ability3Box.Value = _vm.Ability3;
-            Ability4Box.Value = _vm.Ability4;
+            // Abilities (BitFlagPanel)
+            Ability1Flags.Value = (byte)_vm.Ability1;
+            Ability2Flags.Value = (byte)_vm.Ability2;
+            Ability3Flags.Value = (byte)_vm.Ability3;
+            Ability4Flags.Value = (byte)_vm.Ability4;
 
             // Weapon rank levels
             B44Box.Value = _vm.WepRankSword;
@@ -175,10 +179,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.CapDef = (int)(CapDefBox.Value ?? 0);
             _vm.CapRes = (int)(CapResBox.Value ?? 0);
 
-            _vm.Ability1 = (uint)(Ability1Box.Value ?? 0);
-            _vm.Ability2 = (uint)(Ability2Box.Value ?? 0);
-            _vm.Ability3 = (uint)(Ability3Box.Value ?? 0);
-            _vm.Ability4 = (uint)(Ability4Box.Value ?? 0);
+            // Abilities from BitFlagPanel
+            _vm.Ability1 = Ability1Flags.Value;
+            _vm.Ability2 = Ability2Flags.Value;
+            _vm.Ability3 = Ability3Flags.Value;
+            _vm.Ability4 = Ability4Flags.Value;
 
             _vm.WepRankSword = (uint)(B44Box.Value ?? 0);
             _vm.WepRankLance = (uint)(B45Box.Value ?? 0);
@@ -210,6 +215,22 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("ClassEditorView.Write_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToMoveCost_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint ptr = ParseHexText(Ptr56Box.Text);
+                if (!U.isPointer(ptr)) return;
+                uint addr = ptr - 0x08000000;
+                if (!U.isSafetyOffset(addr)) return;
+                WindowManager.Instance.Navigate<MoveCostEditorView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToMoveCost failed: {0}", ex.Message);
             }
         }
 

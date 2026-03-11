@@ -108,6 +108,29 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectFirst();
         }
 
+        void JumpToTextC_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextIdCNud.Value ?? 0));
+        void JumpToTextB_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextIdBNud.Value ?? 0));
+        void JumpToTextA_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextIdANud.Value ?? 0));
+
+        void JumpToText(uint textId)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint ptr = rom.RomInfo.text_pointer;
+                if (ptr == 0) return;
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToText failed: {0}", ex.Message);
+            }
+        }
+
         public ViewModelBase? DataViewModel => _vm;
     }
 }

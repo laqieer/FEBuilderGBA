@@ -95,6 +95,29 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        void JumpToUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint unitId = (uint)(UnitIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                // FE6 skips entry 0
+                if (rom.RomInfo.version == 6)
+                    baseAddr += dataSize;
+                uint addr = baseAddr + unitId * dataSize;
+                WindowManager.Instance.Navigate<UnitEditorView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToUnit failed: {0}", ex.Message);
+            }
+        }
+
         public ViewModelBase? DataViewModel => _vm;
     }
 }

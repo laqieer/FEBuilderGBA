@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
+            <Button Content="Jump" Click="JumpToUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />

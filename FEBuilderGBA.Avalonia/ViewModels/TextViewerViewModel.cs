@@ -7,10 +7,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentId;
         string _decodedText = "";
+        string _editText = "";
         bool _canWrite;
 
         public uint CurrentId { get => _currentId; set => SetField(ref _currentId, value); }
         public string DecodedText { get => _decodedText; set => SetField(ref _decodedText, value); }
+        public string EditText { get => _editText; set => SetField(ref _editText, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadTextList()
@@ -122,6 +124,142 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     sb.Append(c);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Convert FEditor [Name] codes back to @XXXX escape format.
+        /// Reverse of ConvertEscapeToFEditor(). Mirrors WinForms TextForm.ConvertFEditorToEscape().
+        /// </summary>
+        public static string ConvertFEditorToEscape(string str)
+        {
+            // Handle [LoadFace][0xXXX] → @0010@0XXX
+            str = RegexCache.Replace(str, @"\[LoadFace\]\[0x00([0-9A-F][0-9A-F][0-9A-F])\]", "@0010@0$1");
+            str = RegexCache.Replace(str, @"\[LoadFace\]\[0x([0-9A-F][0-9A-F][0-9A-F])\]", "@0010@0$1");
+            // Convert named codes back via table
+            if (CoreState.TextEscape != null)
+                str = CoreState.TextEscape.table_replace_rev(str);
+            // Strip [N] and [X] markers
+            str = str.Replace("[N]", "");
+            str = str.Replace("[X]", "");
+            // Convert remaining [0xXXXX] codes back to @XXXX
+            str = RegexCache.Replace(str, @"\[0x([0-9A-F])\]", "@000$1");
+            str = RegexCache.Replace(str, @"\[0x([0-9A-F][0-9A-F])\]", "@00$1");
+            str = RegexCache.Replace(str, @"\[0x([0-9A-F][0-9A-F][0-9A-F])\]", "@0$1");
+            str = RegexCache.Replace(str, @"\[0x([0-9A-F][0-9A-F][0-9A-F][0-9A-F])\]", "@$1");
+            return str;
+        }
+
+        /// <summary>
+        /// Write edited text back to ROM for the given text ID.
+        /// Converts FEditor format to escape codes, Huffman-encodes, and writes to ROM.
+        /// </summary>
+        public void WriteText(uint id, string text)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+                throw new InvalidOperationException("No ROM loaded.");
+            if (CoreState.FETextEncoder == null)
+                throw new InvalidOperationException("Text encoder not initialized.");
+
+            // Convert FEditor display format back to internal escape codes
+            string escaped = ConvertFEditorToEscape(text);
+
+            // Huffman-encode
+            byte[] encoded;
+            bool useUnHuffman = false;
+            string error = CoreState.FETextEncoder.Encode(escaped, out encoded);
+            if (error != null && error.Length > 0)
+            {
+                // Huffman encoding failed — try UnHuffman fallback
+                CoreState.FETextEncoder.UnHuffmanEncode(escaped, out encoded);
+                useUnHuffman = true;
+            }
+
+            uint textBase = rom.p32(rom.RomInfo.text_pointer);
+            if (!U.isSafetyOffset(textBase, rom))
+                throw new InvalidOperationException("Invalid text pointer table.");
+
+            uint writePointer = textBase + (id * 4);
+            if (!U.isSafetyOffset(writePointer, rom))
+                throw new InvalidOperationException($"Text ID 0x{id:X} out of range.");
+
+            if (encoded == null || encoded.Length == 0)
+            {
+                // Empty text: point to same as text ID 0
+                uint text0Pointer = rom.u32(textBase);
+                rom.write_u32(writePointer, text0Pointer);
+                return;
+            }
+
+            // Get original data size by decoding current text
+            uint currentPointerValue = rom.u32(writePointer);
+            uint originalSize = 0;
+            bool currentIsUnHuffman = FETextEncode.IsUnHuffmanPatchPointer(currentPointerValue);
+            uint currentDataAddr;
+            if (currentIsUnHuffman)
+                currentDataAddr = U.toOffset(FETextEncode.ConvertUnHuffmanPatchToPointer(currentPointerValue));
+            else if (U.isPointer(currentPointerValue))
+                currentDataAddr = U.toOffset(currentPointerValue);
+            else
+                currentDataAddr = 0;
+
+            if (currentDataAddr > 0 && U.isSafetyOffset(currentDataAddr, rom))
+            {
+                try
+                {
+                    var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+                    int dataSize;
+                    if (currentIsUnHuffman)
+                        decoder.UnHffmanPatchDecode(currentDataAddr, out dataSize);
+                    else
+                        decoder.Decode(id, out dataSize);
+                    originalSize = (uint)Math.Max(0, dataSize);
+                }
+                catch
+                {
+                    originalSize = 0;
+                }
+            }
+
+            if (originalSize > 20000)
+            {
+                originalSize = 0;
+                currentDataAddr = 0;
+            }
+
+            if (currentDataAddr > 0 && originalSize >= (uint)encoded.Length)
+            {
+                // Fits in original space — overwrite in place
+                rom.write_range(currentDataAddr, encoded);
+                if (originalSize > (uint)encoded.Length)
+                    rom.write_fill(currentDataAddr + (uint)encoded.Length, originalSize - (uint)encoded.Length, 0x00);
+                if (useUnHuffman)
+                    rom.write_u32(writePointer, FETextEncode.ConvertPointerToUnHuffmanPatchPointer(U.toPointer(currentDataAddr)));
+                else
+                    rom.write_u32(writePointer, U.toPointer(currentDataAddr));
+            }
+            else
+            {
+                // Need new space — append to ROM end
+                uint paddedSize = U.Padding4((uint)encoded.Length) + 4;
+                uint newAddr = U.Padding4((uint)rom.Data.Length);
+
+                if (newAddr + paddedSize >= 0x02000000)
+                    throw new InvalidOperationException("ROM would exceed 32MB limit.");
+
+                rom.write_resize_data(newAddr + paddedSize);
+
+                // Clear old data if valid
+                if (currentDataAddr > 0 && originalSize > 0 && U.isSafetyOffset(currentDataAddr, rom))
+                    rom.write_fill(currentDataAddr, originalSize, 0x00);
+
+                rom.write_range(newAddr, encoded);
+
+                if (useUnHuffman)
+                    rom.write_u32(writePointer, FETextEncode.ConvertPointerToUnHuffmanPatchPointer(U.toPointer(newAddr)));
+                else
+                    rom.write_p32(writePointer, newAddr);
+            }
         }
 
         public int GetListCount() => LoadTextList().Count;

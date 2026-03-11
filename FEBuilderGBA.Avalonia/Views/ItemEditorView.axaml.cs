@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -11,6 +13,8 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        List<(uint id, string name)> _weaponTypeList = new();
+
         public string ViewTitle => "Item Editor";
         public bool IsLoaded => _vm.CanWrite;
 
@@ -19,6 +23,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             ItemList.SelectedAddressChanged += OnItemSelected;
             Opened += (_, _) => LoadList();
+
+            // Set trait flag names
+            Trait1Flags.SetBitNames(AbilityFlagNames.ItemTrait1);
+            Trait2Flags.SetBitNames(AbilityFlagNames.ItemTrait2);
         }
 
         void LoadList()
@@ -27,6 +35,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadItemList();
                 ItemList.SetItems(items);
+
+                // Populate weapon type combo
+                _weaponTypeList = ComboResourceHelper.MakeWeaponTypeList();
+                WeaponTypeCombo.ItemsSource = _weaponTypeList.Select(x => x.name).ToList();
             }
             catch (Exception ex)
             {
@@ -68,13 +80,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Identity
             ItemNumberBox.Value = _vm.ItemNumber;
-            WeaponTypeBox.Value = _vm.WeaponType;
 
-            // Traits
-            Trait1Box.Value = _vm.Trait1;
-            Trait2Box.Value = _vm.Trait2;
-            Trait3Box.Value = _vm.Trait3;
-            Trait4Box.Value = _vm.Trait4;
+            // Weapon type combo
+            int wtIdx = _weaponTypeList.FindIndex(x => x.id == _vm.WeaponType);
+            WeaponTypeCombo.SelectedIndex = wtIdx >= 0 ? wtIdx : (int)_vm.WeaponType;
+
+            // Trait flags (BitFlagPanel)
+            Trait1Flags.Value = (byte)_vm.Trait1;
+            Trait2Flags.Value = (byte)_vm.Trait2;
+            Trait3Flags.Value = (byte)_vm.Trait3;
+            Trait4Flags.Value = (byte)_vm.Trait4;
 
             // Pointers
             StatBonusesPtrBox.Text = $"0x{_vm.StatBonusesPtr:X08}";
@@ -102,17 +117,23 @@ namespace FEBuilderGBA.Avalonia.Views
             Unk35Box.Value = _vm.Unk35;
         }
 
-        void Write_Click(object? sender, RoutedEventArgs e)
+        void ReadFromUI()
         {
             _vm.NameId = (uint)(NameIdBox.Value ?? 0);
             _vm.DescId = (uint)(DescIdBox.Value ?? 0);
             _vm.UseDescId = (uint)(UseDescIdBox.Value ?? 0);
             _vm.ItemNumber = (uint)(ItemNumberBox.Value ?? 0);
-            _vm.WeaponType = (uint)(WeaponTypeBox.Value ?? 0);
-            _vm.Trait1 = (uint)(Trait1Box.Value ?? 0);
-            _vm.Trait2 = (uint)(Trait2Box.Value ?? 0);
-            _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
-            _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
+
+            // Weapon type from combo
+            int wtIdx = WeaponTypeCombo.SelectedIndex;
+            _vm.WeaponType = wtIdx >= 0 && wtIdx < _weaponTypeList.Count ? _weaponTypeList[wtIdx].id : 0;
+
+            // Trait flags from BitFlagPanel
+            _vm.Trait1 = Trait1Flags.Value;
+            _vm.Trait2 = Trait2Flags.Value;
+            _vm.Trait3 = Trait3Flags.Value;
+            _vm.Trait4 = Trait4Flags.Value;
+
             _vm.StatBonusesPtr = ParseHexText(StatBonusesPtrBox.Text);
             _vm.EffectivenessPtr = ParseHexText(EffectivenessPtrBox.Text);
             _vm.Uses = (uint)(UsesBox.Value ?? 0);
@@ -130,6 +151,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unk33 = (uint)(Unk33Box.Value ?? 0);
             _vm.Unk34 = (uint)(Unk34Box.Value ?? 0);
             _vm.Unk35 = (uint)(Unk35Box.Value ?? 0);
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            ReadFromUI();
 
             _undoService.Begin("Edit Item");
             try
@@ -143,6 +169,38 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("Write failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToStatBonuses_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint ptr = ParseHexText(StatBonusesPtrBox.Text);
+                if (!U.isPointer(ptr)) return;
+                uint addr = ptr - 0x08000000;
+                if (!U.isSafetyOffset(addr)) return;
+                WindowManager.Instance.Navigate<ItemStatBonusesViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToStatBonuses failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToEffectiveness_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint ptr = ParseHexText(EffectivenessPtrBox.Text);
+                if (!U.isPointer(ptr)) return;
+                uint addr = ptr - 0x08000000;
+                if (!U.isSafetyOffset(addr)) return;
+                WindowManager.Instance.Navigate<ItemEffectivenessViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToEffectiveness failed: {0}", ex.Message);
             }
         }
 

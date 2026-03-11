@@ -1,15 +1,38 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptPopupView"
-        Title="Event Script Command Reference" Width="1563" Height="922"
+        Title="Event Script Disassembler" Width="900" Height="700"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Event Script Command Reference" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <TextBlock DockPanel.Dock="Top" Text="Event Script Disassembler" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <!-- Address input bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
+               FontFamily="Consolas" FontSize="13" />
+      <Button Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
+      <TextBlock Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" />
+    </StackPanel>
+
+    <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
-    <TextBox Name="InfoBox" AcceptsReturn="True" IsReadOnly="True"
-             FontFamily="Consolas" FontSize="12"
-             TextWrapping="Wrap" />
+
+    <!-- Main content area -->
+    <Grid RowDefinitions="3*,Auto,1*">
+      <!-- Disassembled commands list -->
+      <ListBox Name="CommandsList" Grid.Row="0"
+               FontFamily="Consolas" FontSize="12"
+               SelectionMode="Single" />
+
+      <!-- Expander for reference text -->
+      <Expander Grid.Row="1" Header="Command Reference" IsExpanded="False" Margin="0,8,0,0">
+        <TextBox Name="InfoBox" AcceptsReturn="True" IsReadOnly="True"
+                 FontFamily="Consolas" FontSize="11"
+                 TextWrapping="Wrap" Height="200" />
+      </Expander>
+    </Grid>
   </DockPanel>
 </Window>
