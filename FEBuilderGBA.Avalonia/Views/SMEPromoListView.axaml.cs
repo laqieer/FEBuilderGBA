@@ -42,7 +42,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) { }
-        public void SelectFirstItem() { }
+        public void NavigateTo(uint address)
+        {
+            _vm.InitializeWithAddress(address);
+        }
+
+        public void SelectFirstItem()
+        {
+            if (_vm.AddressList.Count > 0)
+                _vm.SelectedIndex = 0;
+        }
     }
 }

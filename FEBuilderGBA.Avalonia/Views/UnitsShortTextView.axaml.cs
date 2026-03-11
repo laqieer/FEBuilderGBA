@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly UnitsShortTextViewModel _vm = new();
         readonly UndoService _undoService = new();
+        uint _baseAddr;
 
         public string ViewTitle => "Units Short Text Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -17,21 +18,31 @@ namespace FEBuilderGBA.Avalonia.Views
         public UnitsShortTextView()
         {
             InitializeComponent();
+            EntryList.SelectedAddressChanged += OnSelected;
         }
 
         public void NavigateTo(uint address)
+        {
+            _baseAddr = address;
+            var items = _vm.BuildList(address);
+            EntryList.SetItems(items);
+        }
+
+        public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
+
+        void OnSelected(uint address)
         {
             _vm.LoadEntry(address);
             UpdateUI();
         }
 
-        public void SelectFirstItem() { }
-        public ViewModelBase? DataViewModel => _vm;
-
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            UnitNameLabel.Text = _vm.UnitName;
             TextIdBox.Value = _vm.TextId;
+            TextPreviewLabel.Text = _vm.TextPreview;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -45,6 +56,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteEntry();
                 _undoService.Commit();
                 _vm.MarkClean();
+                _vm.TextPreview = _vm.TextId > 0 ? NameResolver.GetTextById(_vm.TextId) : "(empty)";
+                UpdateUI();
+                // Refresh list
+                var items = _vm.BuildList(_baseAddr);
+                EntryList.SetItems(items);
                 CoreState.Services?.ShowInfo("Units short text data written.");
             }
             catch (Exception ex)

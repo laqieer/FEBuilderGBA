@@ -2,14 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SystemHoverColorViewerView"
-        Title="System Hover Color Viewer" Width="1238" Height="604">
+        Title="System Area Color Viewer" Width="1238" Height="604">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <DockPanel Grid.Column="0" Margin="4">
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="4,4,4,8">
+        <TextBlock Text="Filter:" VerticalAlignment="Center" />
+        <ComboBox Name="FilterCombo" Width="170" SelectedIndex="0" />
+      </StackPanel>
+      <controls:AddressListControl Name="EntryList" />
+    </DockPanel>
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="System Hover Color Viewer" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="StatusLabel" TextWrapping="Wrap" Margin="0,16,0,0"
-                   Text="System hover color data requires the WinForms version." />
+        <TextBlock Text="System Area Gradation Color Viewer" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="GBA 15-bit color palette entries for move/attack/staff range display." Foreground="Gray" TextWrapping="Wrap" />
+        <TextBox Name="StatusLabel" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas, Courier New, monospace" FontSize="13"
+                 MinHeight="100" TextWrapping="Wrap" Margin="0,16,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SomeClassListViewModel _vm = new();
         readonly UndoService _undoService = new();
+        uint _baseAddr;
 
         public string ViewTitle => "Class List Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -17,16 +18,29 @@ namespace FEBuilderGBA.Avalonia.Views
         public SomeClassListView()
         {
             InitializeComponent();
+            EntryList.SelectedAddressChanged += OnSelected;
         }
 
         public void NavigateTo(uint address)
         {
+            _baseAddr = address;
+            LoadList();
+        }
+
+        public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
+
+        void LoadList()
+        {
+            var items = _vm.BuildList(_baseAddr);
+            EntryList.SetItems(items);
+        }
+
+        void OnSelected(uint address)
+        {
             _vm.LoadEntry(address);
             UpdateUI();
         }
-
-        public void SelectFirstItem() { }
-        public ViewModelBase? DataViewModel => _vm;
 
         void UpdateUI()
         {
@@ -46,6 +60,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteEntry();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // Refresh name display
+                _vm.ClassDisplayName = NameResolver.GetClassName(_vm.ClassId);
+                UpdateUI();
+                LoadList();
                 CoreState.Services?.ShowInfo("Class list data written.");
             }
             catch (Exception ex)

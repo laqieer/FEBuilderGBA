@@ -1,18 +1,28 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.UnitsShortTextView"
         Title="Units Short Text Editor" Width="1155" Height="551">
-  <StackPanel Spacing="12" Margin="24" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <TextBlock Text="Units Short Text Editor" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" />
-    <TextBlock Text="This editor requires a target address." FontSize="14" HorizontalAlignment="Center" />
-    <TextBlock Text="Open it from another editor (JumpTo pattern)." Foreground="Gray" HorizontalAlignment="Center" />
-    <TextBlock Text="Data size: 2 bytes per entry (TextId u16). Max 70 entries." Foreground="Gray" HorizontalAlignment="Center" TextWrapping="Wrap" />
-    <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" HorizontalAlignment="Center">
-      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
-    </Grid>
-    <Button Content="Write" Click="Write_Click" HorizontalAlignment="Center" />
-  </StackPanel>
+  <Grid ColumnDefinitions="245,*">
+    <!-- Left: Address list -->
+    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <!-- Right: Editor area -->
+    <StackPanel Grid.Column="1" Spacing="12" Margin="16" VerticalAlignment="Top">
+      <TextBlock Text="Units Short Text Editor" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Maps each unit index to a description text ID (2 bytes per entry)." Foreground="Gray" TextWrapping="Wrap" />
+
+      <Grid ColumnDefinitions="140,200,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Name="UnitNameLabel" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,4" />
+        <NumericUpDown Grid.Row="2" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" Margin="0,4" />
+        <TextBlock Grid.Row="3" Grid.Column="1" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Grid.ColumnSpan="2" />
+      </Grid>
+      <Button Content="Write" Click="Write_Click" Width="168" Height="30" />
+    </StackPanel>
+  </Grid>
 </Window>

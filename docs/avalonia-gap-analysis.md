@@ -1,9 +1,9 @@
 # Avalonia vs WinForms Function Completeness Gap Analysis
 
 **Generated:** 2026-03-11
-**Updated:** 2026-03-12 (round 1 fixes reflected, round 2 planned)
+**Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~45% average across all domains (updated 2026-03-12 after round 1 gap fixes)
+**Overall Avalonia Completeness:** ~47% average across all domains (updated 2026-03-12 after round 3 gap fixes)
 
 ---
 
@@ -73,7 +73,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | 30% | Dual Lists, SP Names, Independence, Preview |
 | UnitIncreaseHeightForm / UnitIncreaseHeightVM | 25% | Write, Proper List, Switch2, Height Options |
 | UnitPaletteForm / UnitPaletteVM | 30% | Dual Tables, Battle Anime Preview, Synced Lists |
-| UnitsShortTextForm / UnitsShortTextVM | 30% | Proper List, Alloc, JumpTo, Recycling |
+| UnitsShortTextForm / UnitsShortTextVM | **50%** | ~~Proper List~~ **FIXED** — AddressListControl with unit names, text ID decode/preview. Missing: Alloc, Recycling |
 
 ### Cross-Cutting Gaps
 - ~~**No undo**~~ **FIXED** -- All write handlers wrapped with `UndoService.Begin/Commit/Rollback`
@@ -125,8 +125,8 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | ClassForm / ClassEditorVM | 45% | Growth sim, skills, magic split, ability checkboxes |
 | ClassFE6Form / ClassFE6VM | 45% | Growth sim, ability checkboxes, class extends |
 | CCBranchForm / CCBranchEditorVM | 30% | CC3 patch, upstream chain display, class-sharing list |
-| SMEPromoListForm / SMEPromoListVM | 25% | List loading is stub, JumpTo, dynamic address |
-| SomeClassListForm / SomeClassListVM | 25% | No list management, no dynamic address |
+| SMEPromoListForm / SMEPromoListVM | **55%** | ~~List loading is stub~~ **FIXED** — proper 2-byte entry enumeration with class names, NavigateTo support |
+| SomeClassListForm / SomeClassListVM | **55%** | ~~No list management~~ **FIXED** — AddressListControl with null-terminated class list, name resolution |
 | MoveCostForm / MoveCostEditorVM | 35% | Only 1 of 7+ cost types, shared-table/independence |
 | MoveCostFE6Form / MoveCostFE6VM | 35% | Only 1 of multiple cost types |
 
@@ -352,7 +352,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | VersionView | 45% | CRC32, original ROM detection |
 | ErrorUnknownROMView | 80% | Minor ROM header detail |
 | EventErrorIgnoreError | 70% | Lint workflow integration |
-| ResourceView | 10% | Empty placeholder |
+| ResourceView | **50%** | ~~Empty placeholder~~ **FIXED** — ROM header info, free space analysis, data table counts, section pointers, patch/config directory info |
 | MainSimpleMenu (Easy Mode) | 15% | Map-centric view, visual unit overlay |
 
 ### MainWindow Improvements
@@ -389,9 +389,9 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | SummonsDemonKing | 50% | AI combos, expand event |
 | LinkArenaDenyUnit | 50% | Unit name display |
 | TerrainName | 55% | Closest to parity |
-| VennouWeaponLock | 35% | No list loading, no type resolution |
+| VennouWeaponLock | **60%** | ~~No list loading, no type resolution~~ **FIXED** — AddressListControl, TypeIDToString, conditional unit/class name resolution |
 | BitFlag editors (3 VMs) | **80%** | Closest to complete |
-| SystemHoverColor | 15% | Not functional |
+| SystemHoverColor | **45%** | ~~Not functional~~ **FIXED** — reads systemarea gradation palette colors (move/attack/staff), filter combo, GBA RGB decode |
 | SystemIcon | 55% | Read-only, no import/export |
 | MantAnimation | 25% | No write, no expand event |
 
@@ -463,3 +463,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 - **75-100%**: Near feature parity with WinForms
 
 **Updated 2026-03-12:** Second pass reflects round 1 gap fixes (24 WUs) raising average from ~19% to ~45%. Undo, dirty tracking, name resolution, context menus, hex editor, pointer search, free space scan, data export all fixed.
+
+**Updated 2026-03-12 (round 3):** Six forms improved: SMEPromoList (25→55%), SomeClassList (25→55%), VennouWeaponLock (35→60%), ResourceView (10→50%), SystemHoverColor (15→45%), UnitsShortText (30→50%). Key improvements: proper list loading with AddressListControl, type resolution, name lookup, ROM info display, GBA color decode.
