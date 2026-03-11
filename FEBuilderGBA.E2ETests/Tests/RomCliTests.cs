@@ -88,5 +88,51 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { File.Delete(expectedUps); } catch { }
             }
         }
+        // ------------------------------------------------------------------ --translate-roundtrip
+
+        [SkippableTheory]
+        [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
+        public void TranslateRoundTrip_IsLossless(string romName, string? romPath)
+        {
+            Skip.If(romPath == null, $"{romName} ROM not available");
+
+            string outBase = Path.Combine(
+                Path.GetTempPath(),
+                $"FEBuilder_roundtrip_{romName}_{Guid.NewGuid():N}");
+            string tsv1 = outBase + ".export1.tsv";
+            string tsv2 = outBase + ".export2.tsv";
+            try
+            {
+                var (code, stdout, stderr) = RunWithRetry(
+                    ExePath,
+                    $"--translate-roundtrip --rom=\"{romPath}\" --out=\"{outBase}\"",
+                    timeoutMs: 300_000);
+
+                Assert.True(code >= 0,
+                    $"{romName}: --translate-roundtrip crashed with code {code}\nStderr: {stderr}");
+
+                // Exit code 0 = lossless, 2 = mismatches
+                Assert.True(code == 0 || code == 2,
+                    $"{romName}: unexpected exit code {code}\nStdout: {stdout}\nStderr: {stderr}");
+
+                Assert.Contains("Export 1:", stdout);
+                Assert.Contains("Export 2:", stdout);
+                Assert.Contains("Result:", stdout);
+
+                if (code == 0)
+                {
+                    Assert.Contains("PASS", stdout);
+                }
+
+                // TSV files should be created
+                Assert.True(File.Exists(tsv1), $"{romName}: expected {tsv1}");
+                Assert.True(File.Exists(tsv2), $"{romName}: expected {tsv2}");
+            }
+            finally
+            {
+                try { if (File.Exists(tsv1)) File.Delete(tsv1); } catch { }
+                try { if (File.Exists(tsv2)) File.Delete(tsv2); } catch { }
+            }
+        }
     }
 }

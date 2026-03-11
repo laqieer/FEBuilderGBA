@@ -265,5 +265,71 @@ namespace FEBuilderGBA
 
             return written;
         }
+        /// <summary>
+        /// Result of a text round-trip validation.
+        /// </summary>
+        public class TextRoundTripResult
+        {
+            public int TotalEntries { get; set; }
+            public int MatchCount { get; set; }
+            public int MismatchCount { get; set; }
+            public List<(uint textId, string before, string after)> Mismatches { get; set; }
+                = new List<(uint, string, string)>();
+            public bool IsLossless => MismatchCount == 0;
+        }
+
+        /// <summary>
+        /// Validate text round-trip: dump texts → write same texts back → dump again → compare.
+        /// The ROM is modified in-place (caller should work on a copy if preservation is needed).
+        /// </summary>
+        public static TextRoundTripResult ValidateRoundTrip(ROM rom)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (rom.RomInfo == null) throw new ArgumentException("ROM has no RomInfo", nameof(rom));
+
+            // Phase 1: dump original texts
+            var export1 = DumpTexts(rom);
+
+            // Phase 2: write same texts back (encode → write → update pointers)
+            WriteTexts(rom, export1);
+
+            // Phase 3: dump again after write-back
+            var export2 = DumpTexts(rom);
+
+            // Phase 4: compare entry-by-entry
+            var result = new TextRoundTripResult
+            {
+                TotalEntries = export1.Count,
+            };
+
+            // Build lookup for export2
+            var export2Dict = new Dictionary<uint, string>();
+            foreach (var (id, text) in export2)
+                export2Dict[id] = text;
+
+            foreach (var (id, text1) in export1)
+            {
+                if (export2Dict.TryGetValue(id, out string text2))
+                {
+                    if (text1 == text2)
+                    {
+                        result.MatchCount++;
+                    }
+                    else
+                    {
+                        result.MismatchCount++;
+                        result.Mismatches.Add((id, text1, text2));
+                    }
+                }
+                else
+                {
+                    // Entry missing in second export
+                    result.MismatchCount++;
+                    result.Mismatches.Add((id, text1, "(missing)"));
+                }
+            }
+
+            return result;
+        }
     }
 }

@@ -63,6 +63,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--songexchange", stdout);
             Assert.Contains("--convertmap1picture", stdout);
             Assert.Contains("--translate", stdout);
+            Assert.Contains("--translate-roundtrip", stdout);
             Assert.Contains("--lastrom", stdout);
             Assert.Contains("--force-detail", stdout);
             Assert.Contains("--translate_batch", stdout);
@@ -408,6 +409,25 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--translate", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--rom", stderr);
+        }
+
+        // ================================================================ --translate-roundtrip (error paths)
+
+        [Fact]
+        public void TranslateRoundTrip_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--translate-roundtrip", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void TranslateRoundTrip_NonexistentRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe,
+                "--translate-roundtrip --rom=/nonexistent/rom.gba", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("not found", stderr, StringComparison.OrdinalIgnoreCase);
         }
 
         // ================================================================ --lastrom (error path)

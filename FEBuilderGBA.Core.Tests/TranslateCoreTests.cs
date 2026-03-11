@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Xunit;
 
@@ -5,6 +6,58 @@ namespace FEBuilderGBA.Core.Tests
 {
     public class TranslateCoreTests
     {
+        // ================================================================ ValidateRoundTrip null guards
+
+        [Fact]
+        public void ValidateRoundTrip_NullRom_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => TranslateCore.ValidateRoundTrip(null));
+        }
+
+        [Fact]
+        public void ValidateRoundTrip_RomWithNullRomInfo_ThrowsArgumentException()
+        {
+            var rom = new ROM();
+            Assert.Throws<ArgumentException>(() => TranslateCore.ValidateRoundTrip(rom));
+        }
+
+        // ================================================================ TextRoundTripResult logic
+
+        [Fact]
+        public void TextRoundTripResult_IsLossless_WhenNoMismatches()
+        {
+            var result = new TranslateCore.TextRoundTripResult
+            {
+                TotalEntries = 10,
+                MatchCount = 10,
+                MismatchCount = 0,
+            };
+            Assert.True(result.IsLossless);
+        }
+
+        [Fact]
+        public void TextRoundTripResult_IsNotLossless_WhenMismatchesExist()
+        {
+            var result = new TranslateCore.TextRoundTripResult
+            {
+                TotalEntries = 10,
+                MatchCount = 9,
+                MismatchCount = 1,
+            };
+            result.Mismatches.Add((5, "before", "after"));
+            Assert.False(result.IsLossless);
+        }
+
+        [Fact]
+        public void TextRoundTripResult_DefaultMismatches_IsEmptyList()
+        {
+            var result = new TranslateCore.TextRoundTripResult();
+            Assert.NotNull(result.Mismatches);
+            Assert.Empty(result.Mismatches);
+            Assert.True(result.IsLossless);
+        }
+
+        // ================================================================ DumpTexts
         [Fact]
         public void DumpTexts_NullRom_ReturnsEmpty()
         {
@@ -199,6 +252,57 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 System.IO.File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void ExportImportReExport_RoundTrip_FilesIdentical()
+        {
+            // Comprehensive edge cases: empty, newlines, tabs, control codes, long text
+            var entries = new List<(uint textId, string text)>
+            {
+                (0, ""),
+                (1, "Simple text"),
+                (2, "Line1\nLine2\nLine3"),
+                (3, "Tab\there\tand\there"),
+                (4, "Mixed\nnewline\tand\ttab"),
+                (5, "@0001@0002@0010@0100"),  // Control codes
+                (6, "[LoadFace][0x001]"),       // FEditor format codes
+                (7, new string('A', 500)),     // Long text
+                (8, "Special chars: !@#$%^&*(){}|:<>?"),
+                (9, "Unicode: café résumé naïve"),
+                (10, "Backslash: C:\\Users\\data\\file"),
+                (11, "Quotes: \"hello\" 'world'"),
+                (12, "\n\n\n"),                // Only newlines
+                (13, "\t\t"),                  // Only tabs
+            };
+
+            string pathA = System.IO.Path.GetTempFileName();
+            string pathB = System.IO.Path.GetTempFileName();
+            try
+            {
+                // Export → Import → Re-export
+                TranslateCore.ExportToTSV(entries, pathA);
+                var imported = TranslateCore.ImportFromTSV(pathA);
+                TranslateCore.ExportToTSV(imported, pathB);
+
+                // Files should be identical
+                string contentA = System.IO.File.ReadAllText(pathA);
+                string contentB = System.IO.File.ReadAllText(pathB);
+                Assert.Equal(contentA, contentB);
+
+                // Also verify entry-level round-trip
+                Assert.Equal(entries.Count, imported.Count);
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    Assert.Equal(entries[i].textId, imported[i].textId);
+                    Assert.Equal(entries[i].text, imported[i].text);
+                }
+            }
+            finally
+            {
+                System.IO.File.Delete(pathA);
+                System.IO.File.Delete(pathB);
             }
         }
     }

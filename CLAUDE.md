@@ -80,6 +80,10 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Show version
 ./FEBuilderGBA.exe --version
+
+# Validate text export/import round-trip (exit 0=lossless, 2=mismatches)
+./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba
+./FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff  # saves diff.export1.tsv + diff.export2.tsv
 ```
 
 ### Dependencies

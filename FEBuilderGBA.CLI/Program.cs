@@ -78,6 +78,11 @@ namespace FEBuilderGBA.CLI
                 return RunConvertMap1Picture(argsDic);
             }
 
+            if (argsDic.ContainsKey("--translate-roundtrip"))
+            {
+                return RunTranslateRoundTrip(argsDic);
+            }
+
             if (argsDic.ContainsKey("--translate"))
             {
                 return RunTranslate(argsDic);
@@ -147,6 +152,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --translate              Dump or import ROM text (requires --rom)");
             Console.WriteLine("    --out=<path>           Export text to TSV file");
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
+            Console.WriteLine("  --translate-roundtrip    Validate text export/import losslessness (requires --rom)");
+            Console.WriteLine("    --out=<base>           Save before/after TSVs as <base>.export1.tsv and <base>.export2.tsv");
             Console.WriteLine("  --lastrom                Load last-used ROM from config");
             Console.WriteLine("  --force-detail           Force detailed editor mode (Avalonia GUI)");
             Console.WriteLine("  --translate_batch        Batch translation: export + import all text");
@@ -168,6 +175,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff");
             Console.WriteLine("  FEBuilderGBA.CLI --lastrom");
             Console.WriteLine("  FEBuilderGBA.CLI --translate_batch --rom=rom.gba --out=texts.tsv --in=translated.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --test --rom=rom.gba");
@@ -839,6 +848,114 @@ namespace FEBuilderGBA.CLI
             }
 
             return 0;
+        }
+
+        static int RunTranslateRoundTrip(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --translate-roundtrip requires --rom=<rom_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            if (!File.Exists(romPath))
+            {
+                Console.Error.WriteLine($"Error: ROM file not found: {romPath}");
+                return 1;
+            }
+
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+
+            // Work on a temporary copy so the original ROM is not modified
+            string tempRom = Path.Combine(Path.GetTempPath(), $"roundtrip_{Guid.NewGuid():N}.gba");
+            try
+            {
+                File.Copy(romPath, tempRom, true);
+
+                RomLoader.InitEnvironment();
+                if (!RomLoader.LoadRom(tempRom, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+
+                Console.WriteLine($"ROM: {romPath}");
+                Console.WriteLine($"Version: {CoreState.ROM.RomInfo.VersionToFilename}");
+                Console.WriteLine("Running text round-trip validation...");
+
+                // Phase 1: export original texts
+                var export1 = TranslateCore.DumpTexts(CoreState.ROM);
+                Console.WriteLine($"Export 1: {export1.Count} text entries dumped.");
+
+                // Phase 2: write same texts back to ROM
+                int written = TranslateCore.WriteTexts(CoreState.ROM, export1);
+                Console.WriteLine($"Write-back: {written} entries written to ROM.");
+
+                // Phase 3: re-export after write-back
+                var export2 = TranslateCore.DumpTexts(CoreState.ROM);
+                Console.WriteLine($"Export 2: {export2.Count} text entries dumped.");
+
+                // Optionally save TSVs
+                bool hasOut = argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]);
+                if (hasOut)
+                {
+                    string basePath = argsDic["--out"];
+                    string tsv1 = basePath + ".export1.tsv";
+                    string tsv2 = basePath + ".export2.tsv";
+                    TranslateCore.ExportToTSV(export1, tsv1);
+                    TranslateCore.ExportToTSV(export2, tsv2);
+                    Console.WriteLine($"Saved: {tsv1}");
+                    Console.WriteLine($"Saved: {tsv2}");
+                }
+
+                // Phase 4: compare
+                int matches = 0;
+                int mismatches = 0;
+                var export2Dict = new Dictionary<uint, string>();
+                foreach (var (id, text) in export2)
+                    export2Dict[id] = text;
+
+                foreach (var (id, text1) in export1)
+                {
+                    if (export2Dict.TryGetValue(id, out string text2) && text1 == text2)
+                    {
+                        matches++;
+                    }
+                    else
+                    {
+                        mismatches++;
+                        string t2 = export2Dict.TryGetValue(id, out string v) ? v : "(missing)";
+                        Console.WriteLine($"  MISMATCH id={id}:");
+                        Console.WriteLine($"    before: {Truncate(text1, 120)}");
+                        Console.WriteLine($"    after:  {Truncate(t2, 120)}");
+                    }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine($"Result: {matches} match, {mismatches} mismatch out of {export1.Count} entries.");
+
+                if (mismatches == 0)
+                {
+                    Console.WriteLine("PASS: Text round-trip is lossless.");
+                    return 0;
+                }
+                else
+                {
+                    Console.WriteLine("FAIL: Text round-trip has mismatches.");
+                    return 2;
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(tempRom)) File.Delete(tempRom); } catch { }
+            }
+        }
+
+        private static string Truncate(string s, int maxLen)
+        {
+            if (s == null) return "(null)";
+            string escaped = s.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+            if (escaped.Length <= maxLen) return escaped;
+            return escaped.Substring(0, maxLen) + "...";
         }
 
         static int RunLastRom(Dictionary<string, string> argsDic)
