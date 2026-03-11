@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -11,6 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _promotionClass1, _promotionClass2;
         string _promoName1 = "", _promoName2 = "";
         bool _canWrite;
+        string _upstreamChain = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string ClassName { get => _className; set => SetField(ref _className, value); }
@@ -19,6 +21,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string PromoName1 { get => _promoName1; set => SetField(ref _promoName1, value); }
         public string PromoName2 { get => _promoName2; set => SetField(ref _promoName2, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+        /// <summary>Classes that can promote INTO the currently selected class.</summary>
+        public string UpstreamChain { get => _upstreamChain; set => SetField(ref _upstreamChain, value); }
 
         public List<AddrResult> LoadCCBranchList()
         {
@@ -91,9 +95,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             PromotionClass2 = rom.u8(addr + 1);
             PromoName1 = NameResolver.GetClassName(PromotionClass1);
             PromoName2 = NameResolver.GetClassName(PromotionClass2);
+
+            // Calculate upstream chain: which classes promote TO the current class index
+            UpstreamChain = BuildUpstreamChain(addr);
+
             CanWrite = true;
             IsLoading = false;
             MarkClean();
+        }
+
+        string BuildUpstreamChain(uint currentAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return "";
+
+            uint ptr = rom.RomInfo.ccbranch_pointer;
+            if (ptr == 0) return "";
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return "";
+
+            // Determine current class index from address
+            uint classIndex = (currentAddr - baseAddr) / 2;
+
+            // Scan all CC entries to find which classes promote into this one
+            var sb = new StringBuilder();
+            for (uint i = 0; i < 0xFF; i++)
+            {
+                uint addr = baseAddr + i * 2;
+                if (addr + 2 > (uint)rom.Data.Length) break;
+                uint promo1 = rom.u8(addr + 0);
+                uint promo2 = rom.u8(addr + 1);
+                if (promo1 == classIndex || promo2 == classIndex)
+                {
+                    if (sb.Length > 0) sb.Append(", ");
+                    sb.Append($"0x{i:X2} {NameResolver.GetClassName(i)}");
+                }
+            }
+            return sb.Length > 0 ? sb.ToString() : "(none)";
         }
 
         public void WriteCCBranch()

@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~47% average across all domains (updated 2026-03-12 after round 3 gap fixes)
+**Overall Avalonia Completeness:** ~48% average across all domains (updated 2026-03-12 after round 4 gap fixes)
 
 ---
 
@@ -124,7 +124,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 |-----------|:---:|---|
 | ClassForm / ClassEditorVM | 45% | Growth sim, skills, magic split, ability checkboxes |
 | ClassFE6Form / ClassFE6VM | 45% | Growth sim, ability checkboxes, class extends |
-| CCBranchForm / CCBranchEditorVM | 30% | CC3 patch, upstream chain display, class-sharing list |
+| CCBranchForm / CCBranchEditorVM | **45%** | ~~upstream chain display~~ **FIXED** — shows classes that promote to selected class. Missing: CC3 patch, class-sharing |
 | SMEPromoListForm / SMEPromoListVM | **55%** | ~~List loading is stub~~ **FIXED** — proper 2-byte entry enumeration with class names, NavigateTo support |
 | SomeClassListForm / SomeClassListVM | **55%** | ~~No list management~~ **FIXED** — AddressListControl with null-terminated class list, name resolution |
 | MoveCostForm / MoveCostEditorVM | 35% | Only 1 of 7+ cost types, shared-table/independence |
@@ -230,8 +230,8 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | **SongInstrument** | **20%** | **128 instruments, type-specific panels, wave import** |
 | SongInstrumentDirectSound | 50% | DPCM detection, Hz combo, validation |
 | SoundRoom | 45% | Song names, position display, patch detection |
-| SoundRoomFE6 | 35% | Proper list, song names |
-| SoundRoomCG | 30% | Proper list, CG image preview |
+| SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
+| SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
 | SoundBossBGM | 45% | Unit/song names, portraits |
 | SoundFootSteps | 35% | Class names, switch enable check |
 | WorldMapBGM | 50% | World map point names |
@@ -249,7 +249,7 @@ These are the core music editing tools. Without MIDI import/export and instrumen
 |-----------|:---:|---|
 | **TextForm / TextViewerVM** | **30%** | **No dialogue preview, no search, no validation** (has TSV export/import) |
 | TextCharCodeForm / TextCharCodeVM | 35% | No font preview, no frequency analysis |
-| TextDicForm / TextDicVM | 30% | Missing 3-list structure, list not populated |
+| TextDicForm / TextDicVM | **50%** | ~~list not populated~~ **FIXED** — AddressListControl from dic_main_pointer, text decode preview, unit/class name resolution. Missing: chapter/title sub-lists |
 | TextRefAddDialog | 30% | No UseTextIDCache integration |
 | TextToSpeech | 15% | No speech engine (Windows-only) |
 | EDForm / EDVM | 35% | Only 1 of 3 sub-editors |
@@ -465,3 +465,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12:** Second pass reflects round 1 gap fixes (24 WUs) raising average from ~19% to ~45%. Undo, dirty tracking, name resolution, context menus, hex editor, pointer search, free space scan, data export all fixed.
 
 **Updated 2026-03-12 (round 3):** Six forms improved: SMEPromoList (25→55%), SomeClassList (25→55%), VennouWeaponLock (35→60%), ResourceView (10→50%), SystemHoverColor (15→45%), UnitsShortText (30→50%). Key improvements: proper list loading with AddressListControl, type resolution, name lookup, ROM info display, GBA color decode.
+
+**Updated 2026-03-12 (round 4):** Four more forms improved: CCBranchEditor (30→45%, upstream chain display), SoundRoomFE6 (35→55%, list + song name/description preview), SoundRoomCG (30→45%, list from ROM pointer), TextDic (30→50%, AddressListControl + text decode + unit/class name resolution).

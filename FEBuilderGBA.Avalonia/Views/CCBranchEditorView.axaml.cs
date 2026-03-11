@@ -60,6 +60,7 @@ namespace FEBuilderGBA.Avalonia.Views
             Promo2Box.Value = _vm.PromotionClass2;
             Promo1NameLabel.Text = _vm.PromoName1;
             Promo2NameLabel.Text = _vm.PromoName2;
+            UpstreamLabel.Text = _vm.UpstreamChain;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

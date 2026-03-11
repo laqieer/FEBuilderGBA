@@ -25,6 +25,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _titleIndex, _chapterIndex, _textId1, _textId2, _flag1, _flag2, _unitId, _classId;
         string _titleName = "";
         string _chapterName = "";
+        string _text1Preview = "";
+        string _text2Preview = "";
+        string _unitName = "";
+        string _classNameDisplay = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -56,11 +60,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Class ID (u8@11). WinForms: B11 / J_11 with L_11_CLASS / L_11_CLASSICON.</summary>
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
 
-        /// <summary>Resolved title name from N2_AddressList. WinForms: X_1.</summary>
+        /// <summary>Resolved title name from N2_AddressList.</summary>
         public string TitleName { get => _titleName; set => SetField(ref _titleName, value); }
 
-        /// <summary>Resolved chapter name from N1_AddressList. WinForms: X_2.</summary>
+        /// <summary>Resolved chapter name from N1_AddressList.</summary>
         public string ChapterName { get => _chapterName; set => SetField(ref _chapterName, value); }
+
+        public string Text1Preview { get => _text1Preview; set => SetField(ref _text1Preview, value); }
+        public string Text2Preview { get => _text2Preview; set => SetField(ref _text2Preview, value); }
+        public string UnitName { get => _unitName; set => SetField(ref _unitName, value); }
+        public string ClassNameDisplay { get => _classNameDisplay; set => SetField(ref _classNameDisplay, value); }
 
         // Legacy aliases
         public uint B0 { get => TitleIndex; set => TitleIndex = value; }
@@ -71,6 +80,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint W8 { get => Flag2; set => Flag2 = value; }
         public uint B10 { get => UnitId; set => UnitId = value; }
         public uint B11 { get => ClassId; set => ClassId = value; }
+
+        /// <summary>Build the main dictionary list from dic_main_pointer.</summary>
+        public List<AddrResult> BuildList()
+        {
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return result;
+
+            uint pointer = rom.RomInfo.dic_main_pointer;
+            if (pointer == 0) return result;
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
+
+            const uint blockSize = 12;
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint textId1 = rom.u16(addr + 2);
+                uint textId2 = rom.u16(addr + 4);
+                if (textId1 == 0 || textId2 == 0) break;
+
+                string text = NameResolver.GetTextById(textId1);
+                string display = $"0x{i:X2} {text}";
+                result.Add(new AddrResult(addr, display, (uint)i));
+            }
+            return result;
+        }
 
         public void Initialize()
         {
@@ -83,6 +122,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 11 >= (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = addr;
             TitleIndex = rom.u8(addr + 0);
             ChapterIndex = rom.u8(addr + 1);
@@ -93,7 +133,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             UnitId = rom.u8(addr + 10);
             ClassId = rom.u8(addr + 11);
 
+            // Resolve names
+            Text1Preview = TextId1 > 0 ? NameResolver.GetTextById(TextId1) : "";
+            Text2Preview = TextId2 > 0 ? NameResolver.GetTextById(TextId2) : "";
+            UnitName = NameResolver.GetUnitName(UnitId);
+            ClassNameDisplay = NameResolver.GetClassName(ClassId);
+
             IsLoaded = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public void Write()
@@ -112,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(CurrentAddr + 11, (byte)ClassId);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => BuildList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

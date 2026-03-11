@@ -65,6 +65,8 @@ namespace FEBuilderGBA.Avalonia.Views
             BgmIdBox.Value = _vm.BgmId;
             SongNameBox.Value = _vm.SongNameTextId;
             DescriptionBox.Value = _vm.DescriptionTextId;
+            SongNamePreview.Text = _vm.SongNamePreview;
+            DescriptionPreview.Text = _vm.DescriptionPreview;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
