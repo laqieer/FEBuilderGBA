@@ -1,33 +1,59 @@
+using System;
+
 namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
     /// Wrapper around Core Undo class for Avalonia editors.
+    /// Uses ROM.BeginUndoScope() so all rom.write_*() calls within a
+    /// Begin/Commit block are automatically undo-tracked.
     /// </summary>
     public class UndoService
     {
-        Undo? _currentUndo;
+        Undo.UndoData? _currentUndoData;
+        IDisposable? _scope;
 
-        /// <summary>Begin a new undo group.</summary>
-        public Undo Begin()
+        /// <summary>Begin a new undo group. All ROM writes until Commit/Rollback are tracked.</summary>
+        public void Begin(string name)
         {
-            _currentUndo = new Undo();
-            return _currentUndo;
+            var undo = CoreState.Undo;
+            if (undo == null) return;
+
+            _currentUndoData = undo.NewUndoData(name);
+            _scope = ROM.BeginUndoScope(_currentUndoData);
         }
 
-        /// <summary>Rollback the last undo operation via CoreState.Undo.</summary>
-        public void Rollback()
-        {
-            CoreState.Undo?.RunUndo();
-            _currentUndo = null;
-        }
-
-        /// <summary>Commit (discard undo data — changes are permanent until Save).</summary>
+        /// <summary>Commit the undo group to the undo buffer.</summary>
         public void Commit()
         {
-            _currentUndo = null;
+            _scope?.Dispose();
+            _scope = null;
+
+            if (_currentUndoData != null && CoreState.Undo != null)
+            {
+                if (_currentUndoData.list.Count > 0)
+                    CoreState.Undo.Push(_currentUndoData);
+            }
+            _currentUndoData = null;
+        }
+
+        /// <summary>Rollback the current undo group (discard changes).</summary>
+        public void Rollback()
+        {
+            _scope?.Dispose();
+            _scope = null;
+
+            if (_currentUndoData != null && CoreState.Undo != null)
+            {
+                if (_currentUndoData.list.Count > 0)
+                {
+                    CoreState.Undo.Push(_currentUndoData);
+                    CoreState.Undo.RunUndo();
+                }
+            }
+            _currentUndoData = null;
         }
 
         /// <summary>Whether there's an active undo group.</summary>
-        public bool HasPendingUndo => _currentUndo != null;
+        public bool HasPendingUndo => _currentUndoData != null;
     }
 }

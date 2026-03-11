@@ -8,5 +8,8 @@ namespace FEBuilderGBA.Avalonia.Services
         string ViewTitle { get; }
         bool IsLoaded { get; }
         void NavigateTo(uint address);
+
+        /// <summary>Select the first item in the editor list. Default does nothing.</summary>
+        void SelectFirstItem() { }
     }
 }

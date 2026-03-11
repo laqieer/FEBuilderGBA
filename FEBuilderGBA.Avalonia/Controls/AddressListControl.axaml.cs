@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Text;
+using global::Avalonia;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 
 namespace FEBuilderGBA.Avalonia.Controls
@@ -17,6 +20,9 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>Fired when the selected address changes.</summary>
         public event Action<uint>? SelectedAddressChanged;
+
+        /// <summary>Fired when user requests a hex editor for the selected address.</summary>
+        public event Action<uint>? HexEditorRequested;
 
         public AddressListControl()
         {
@@ -119,6 +125,45 @@ namespace FEBuilderGBA.Avalonia.Controls
                 RefreshDisplay();
             else
                 RefreshDisplay(filter);
+        }
+
+        async void CopyAddress_Click(object? sender, RoutedEventArgs e)
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync($"0x{item.addr:X08}");
+        }
+
+        async void CopyName_Click(object? sender, RoutedEventArgs e)
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync(item.name ?? "");
+        }
+
+        async void CopyHexData_Click(object? sender, RoutedEventArgs e)
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            var rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Copy 16 bytes from the address as hex string
+            uint length = Math.Min(16, (uint)(rom.Data.Length - item.addr));
+            var sb = new StringBuilder();
+            for (uint i = 0; i < length; i++)
+            {
+                if (i > 0) sb.Append(' ');
+                sb.Append(rom.u8(item.addr + i).ToString("X02"));
+            }
+
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync(sb.ToString());
         }
     }
 }

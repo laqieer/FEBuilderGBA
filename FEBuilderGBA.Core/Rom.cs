@@ -733,28 +733,59 @@ namespace FEBuilderGBA
             return p32(a);
         }
 
+        /// <summary>
+        /// Thread-local ambient undo data. When set, the no-undo write methods
+        /// automatically record positions into this UndoData, making all existing
+        /// rom.write_*() calls undo-trackable without code changes.
+        /// </summary>
+        [ThreadStatic]
+        static Undo.UndoData? _ambientUndoData;
+
+        /// <summary>
+        /// Begin an ambient undo scope. While the returned IDisposable is alive,
+        /// all no-undo write methods on this thread will record into the given UndoData.
+        /// </summary>
+        public static IDisposable BeginUndoScope(Undo.UndoData undoData)
+        {
+            _ambientUndoData = undoData;
+            return new UndoScope();
+        }
+
+        /// <summary>Get the current ambient undo data (for testing).</summary>
+        internal static Undo.UndoData? GetAmbientUndoData() => _ambientUndoData;
+
+        sealed class UndoScope : IDisposable
+        {
+            public void Dispose() => _ambientUndoData = null;
+        }
+
         public void write_p32(uint addr, uint a)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 4));
             U.write_u32(Data, addr, U.toPointer(a));
             Modified = true;
         }
         public void write_u32(uint addr, uint a)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 4));
             U.write_u32(Data, addr, a);
             Modified = true;
         }
         public void write_u16(uint addr,uint a)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 2));
             U.write_u16(Data, addr, a);
             Modified = true;
         }
         public void write_u8(uint addr,uint a)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 1));
             U.write_u8(Data, addr, a);
             Modified = true;
         }
         public void write_u4(uint addr, uint a, bool isHigh)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 1));
             U.write_u4(Data, addr, a, isHigh);
             Modified = true;
         }
@@ -790,12 +821,14 @@ namespace FEBuilderGBA
         }
         public void write_range(uint addr, byte[] write_data)
         {
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, (uint)write_data.Length));
             U.write_range(Data, addr, write_data);
             Modified = true;
         }
         public void write_fill(uint addr,uint length,byte fill = 0x00)
         {
 //            Debug.Assert(length < 0xFFFF);
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, length));
             U.write_fill(Data, addr, length, fill);
             Modified = true;
         }

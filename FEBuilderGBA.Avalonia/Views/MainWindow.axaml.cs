@@ -142,6 +142,7 @@ namespace FEBuilderGBA.Avalonia.Views
             SaveAsMenuItem.IsEnabled = true;
             UndoMenuItem.IsEnabled = true;
             LintMenuItem.IsEnabled = true;
+            DataExportMenuItem.IsEnabled = true;
 
             // Filter editor buttons for loaded ROM version
             UpdateEditorVisibility();
@@ -1603,6 +1604,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 _ = MessageBoxWindow.Show(this, sb.ToString(), "Lint Results", MessageBoxMode.Ok);
             }
+        }
+
+        private async void DataExport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (CoreState.ROM == null) return;
+            var dialog = new DataExportView();
+            await dialog.ShowDialog(this);
         }
 
         private async void About_Click(object? sender, RoutedEventArgs e)

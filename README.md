@@ -154,10 +154,12 @@ FEBuilderGBA.sln
 │   ├── PointerCalcCore.cs                 Pointer search engine
 │   ├── RebuildCore.cs                     ROM defragmentation
 │   ├── SongExchangeCore.cs                Song exchange between ROMs
-│   └── MapConvertCore.cs                  Map tile conversion
+│   ├── MapConvertCore.cs                  Map tile conversion
+│   ├── NameResolver.cs                    Entity name resolution with caching
+│   └── WriteValidator.cs                  ROM write validation utilities
 ├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 19 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors)
+├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors, with ambient undo, dirty tracking, data export/import)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
 ├── FEBuilderGBA.Tests/          net9.0-windows (unit tests)
 ├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform tests)

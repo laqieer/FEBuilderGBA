@@ -21,6 +21,7 @@
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
+        <MenuItem Header="_Data Export/Import..." Click="DataExport_Click" Name="DataExportMenuItem" IsEnabled="False" />
         <Separator />
         <MenuItem Header="_External Tools">
           <MenuItem Header="Run _Emulator..." Click="RunEmulator_Click" />

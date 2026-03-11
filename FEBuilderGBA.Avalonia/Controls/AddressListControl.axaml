@@ -9,7 +9,15 @@
     </Grid>
 
     <!-- List -->
-    <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged" />
+    <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged">
+      <ListBox.ContextMenu>
+        <ContextMenu>
+          <MenuItem Header="Copy Address" Click="CopyAddress_Click" />
+          <MenuItem Header="Copy Name" Click="CopyName_Click" />
+          <MenuItem Header="Copy Hex Data" Click="CopyHexData_Click" />
+        </ContextMenu>
+      </ListBox.ContextMenu>
+    </ListBox>
 
     <!-- Navigation -->
     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">

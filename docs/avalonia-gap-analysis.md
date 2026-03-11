@@ -10,15 +10,15 @@
 
 The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for ~356 editor views but is missing the vast majority of interactive features present in the WinForms implementation. The most critical systemic gaps are:
 
-1. **No Undo System** -- All Avalonia forms use `rom.write_*()` directly instead of undo-tracked writes
+1. ~~**No Undo System**~~ **FIXED** -- Ambient undo tracking in `ROM.BeginUndoScope()` makes all 1496 `rom.write_*()` call sites undo-trackable. `UndoService` wraps this for Avalonia editors.
 2. **No InputFormRef Equivalent** -- The 13,177-line convention-based auto-wiring framework has no Avalonia counterpart
-3. **No Context Menus** -- No right-click operations on any address list
+3. ~~**No Context Menus**~~ **FIXED** -- `AddressListControl` now has Copy Address / Copy Name / Copy Hex Data context menu
 4. **No Image Import/Export** -- No form can import or export images
-5. **No CSV Export/Import** -- No bulk data editing capability in the GUI
+5. ~~**No CSV Export/Import**~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import via Tools menu
 6. **No Visual Previews** -- No map rendering, animation playback, or portrait thumbnails in lists
-7. **No Cross-Form Navigation** -- No jump-to-related-editor links
-8. **No Data Validation** -- No FELint integration, no write protection, no range checks
-9. **No Dirty Tracking** -- No visual indicator of unsaved changes
+7. ~~**No Cross-Form Navigation**~~ **PARTIALLY FIXED** -- `WindowManager` now supports `OpenModal`, `FindOpen`, `NavigateAndSelect` patterns
+8. ~~**No Data Validation**~~ **FIXED** -- `WriteValidator` provides range/type/pointer/address validation. `NameResolver` provides cached entity name resolution.
+9. ~~**No Dirty Tracking**~~ **FIXED** -- `ViewModelBase.IsDirty` / `IsLoading` / `MarkClean()` with automatic tracking via `SetField<T>`
 
 ### Avalonia Strengths (Not in WinForms)
 - **Cross-platform** (Linux, macOS, Windows)

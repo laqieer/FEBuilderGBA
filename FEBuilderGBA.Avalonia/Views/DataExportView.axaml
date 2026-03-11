@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.DataExportView"
+        Title="Data Export/Import"
+        Width="500" Height="300"
+        WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="16">
+    <!-- Table selection -->
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+      <TextBlock Text="Table:" VerticalAlignment="Center" />
+      <ComboBox Name="TableCombo" Width="300"
+                ItemsSource="{Binding TableNames}"
+                SelectedItem="{Binding SelectedTable}" />
+    </StackPanel>
+
+    <!-- Action buttons -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Export TSV..." Click="Export_Click" />
+      <Button Content="Import TSV..." Click="Import_Click" />
+    </StackPanel>
+
+    <!-- Status -->
+    <TextBlock Grid.Row="2" Name="StatusText" Text="{Binding StatusMessage}"
+               Margin="0,12,0,0" TextWrapping="Wrap" />
+  </Grid>
+</Window>
