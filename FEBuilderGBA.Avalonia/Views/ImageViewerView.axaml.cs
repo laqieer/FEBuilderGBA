@@ -19,6 +19,40 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             DataContext = _vm;
             _vm.Initialize();
+            IconList.SelectedAddressChanged += OnIconSelected;
+            Opened += (_, _) => LoadList();
+            ImageControl.Zoom = _vm.Zoom;
+        }
+
+        void LoadList()
+        {
+            try
+            {
+                var items = _vm.LoadIconList();
+                IconList.SetItems(items);
+                if (items.Count > 0)
+                    IconList.SelectFirst();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageViewerView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void OnIconSelected(uint addr)
+        {
+            try
+            {
+                var image = _vm.DrawIcon(addr);
+                ImageControl.SetImage(image);
+                _palette = _vm.GetPaletteBytes();
+                _vm.ImageInfo = $"16x16 4bpp @ 0x{addr:X06}";
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageViewerView.OnIconSelected failed: {0}", ex.Message);
+                ImageControl.SetImage(null);
+            }
         }
 
         /// <summary>Display an IImage.</summary>
@@ -41,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
-            await ImageControl.ExportPng(this, "image.png");
+            await ImageControl.ExportPng(this, "icon.png");
         }
 
         async void ExportPal_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -49,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (_palette == null || _palette.Length < 32) { CoreState.Services.ShowError("No palette data available"); return; }
-                string? path = await FileDialogHelper.SavePaletteFile(this, "image_palette.pal");
+                string? path = await FileDialogHelper.SavePaletteFile(this, "icon_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
                 PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
                 File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(_palette, fmt));
