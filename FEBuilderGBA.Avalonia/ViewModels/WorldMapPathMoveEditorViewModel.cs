@@ -3,17 +3,12 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>World map path movement node editor.
+    /// WinForms: WorldMapPathMoveEditorForm — 8-byte entries (ElapsedTime u32, X u16, Y u16).
+    /// Terminated when ElapsedTime == 0 (all zeros). Opened via JumpTo with a base address.</summary>
     public class WorldMapPathMoveEditorViewModel : ViewModelBase, IDataVerifiable
     {
-        public List<AddrResult> LoadList()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Path Movement Editor", 0));
-            return result;
-        }
-
+        uint _baseAddr;
         uint _currentAddr;
         bool _isLoaded;
         uint _elapsedTime;
@@ -22,13 +17,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-
-        /// <summary>D0: Elapsed time / duration at this node (lower = longer pause, total across all nodes must be &lt;= 4096)</summary>
         public uint ElapsedTime { get => _elapsedTime; set => SetField(ref _elapsedTime, value); }
-        /// <summary>W4: X coordinate on world map</summary>
         public uint CoordinateX { get => _coordinateX; set => SetField(ref _coordinateX, value); }
-        /// <summary>W6: Y coordinate on world map</summary>
         public uint CoordinateY { get => _coordinateY; set => SetField(ref _coordinateY, value); }
+
+        /// <summary>Build the path node list from a given base address.</summary>
+        public List<AddrResult> BuildList(uint baseAddr)
+        {
+            _baseAddr = baseAddr;
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom == null || baseAddr == 0) return result;
+
+            const uint blockSize = 8;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint elapsed = rom.u32(addr);
+                uint x = rom.u16(addr + 4);
+                uint y = rom.u16(addr + 6);
+
+                // Terminator: all zeros
+                if (elapsed == 0 && x == 0 && y == 0 && i > 0) break;
+
+                string display = $"Node {i}: T={elapsed} ({x},{y})";
+                result.Add(new AddrResult(addr, display, (uint)i));
+            }
+            return result;
+        }
+
+        public List<AddrResult> LoadList()
+        {
+            if (_baseAddr != 0) return BuildList(_baseAddr);
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+            // Try worldmap_road_pointer as fallback
+            uint roadPtr = rom.RomInfo.worldmap_road_pointer;
+            if (roadPtr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(roadPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+            return BuildList(baseAddr);
+        }
 
         public void LoadEntry(uint addr)
         {
@@ -36,11 +68,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 8 > (uint)rom.Data.Length) return;
 
+            IsLoading = true;
             CurrentAddr = addr;
             ElapsedTime = rom.u32(addr + 0);
             CoordinateX = rom.u16(addr + 4);
             CoordinateY = rom.u16(addr + 6);
             IsLoaded = true;
+            IsLoading = false;
+            MarkClean();
         }
 
         public void Write()
@@ -55,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u16(addr + 6, (ushort)CoordinateY);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

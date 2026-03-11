@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~49% average across all domains (updated 2026-03-12 after round 5 gap fixes)
+**Overall Avalonia Completeness:** ~50% average across all domains (updated 2026-03-12 after round 6 gap fixes)
 
 ---
 
@@ -170,7 +170,7 @@ These are the two most complex forms in the map domain (~2700 and ~1300 lines re
 | ImageCG / BigCGViewer | 45% | Import, 10-split LZ77 compress |
 | ImageCGFE7U | 45% | Import, Drag-drop |
 | ImageBG | 40% | Import (2 modes), BG select popup |
-| ImageGenericEnemyPortrait | 25% | Address list, Image rendering, Import |
+| ImageGenericEnemyPortrait | **40%** | ~~Address list~~ **FIXED** — proper list from generic_enemy_portrait_pointer/count. Missing: Image rendering, Import |
 | ImageMagicFEditor | 18% | Animation playback, Import/Export (TXT/GIF) |
 | ImageMagicCSACreator | 15% | Everything (placeholder) |
 | ImageMapActionAnimation | 20% | Animation playback, Import/Export |
@@ -287,7 +287,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 |-----------|:---:|---|
 | WorldMapPoint | 45% | Map preview, coordinate validation, tooltips |
 | WorldMapPath | 40% | Map preview, path rendering |
-| WorldMapPathMoveEditor | 35% | Non-functional (no path selector) |
+| WorldMapPathMoveEditor | **50%** | ~~Non-functional (no path selector)~~ **FIXED** — BuildList from base address, node display with T/X/Y, null-terminator detection |
 | WorldMapEventPointer | 35% | Missing dual list (before/after), no opening/ending events |
 | WorldMapBGM | 55% | Name resolution |
 
@@ -373,7 +373,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | OPClassAlphaName (2 VMs) | 55% | ASCII validation |
 | ArenaClass | 40% | Filter combo (3 weapon types) |
 | ArenaEnemyWeapon | 40% | Two sub-lists (basic + rank-up) |
-| StatusOption | 40% | Address list not populated |
+| StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
 | StatusOptionOrder | 55% | Named option display |
 | StatusParam | 50% | Filter combo (4 parameter tables) |
 | StatusRMenu | 45% | Linked-list traversal, filter combo |
@@ -469,3 +469,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 4):** Four more forms improved: CCBranchEditor (30→45%, upstream chain display), SoundRoomFE6 (35→55%, list + song name/description preview), SoundRoomCG (30→45%, list from ROM pointer), TextDic (30→50%, AddressListControl + text decode + unit/class name resolution).
 
 **Updated 2026-03-12 (round 5):** Three map forms improved: MapTileAnimation1 (35→50%, list from tileanime1_pointer), MapTileAnimation2 (35→50%, list from tileanime2_pointer), MapLoadFunction (25→50%, list from switch1 count + write support + pointer info).
+
+**Updated 2026-03-12 (round 6):** Three more forms improved: ImageGenericEnemyPortrait (25→40%, list from pointer/count), StatusOption (40→55%, list from status_game_option_pointer with name resolution), WorldMapPathMoveEditor (35→50%, BuildList with node display and terminator detection).

@@ -23,8 +23,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.generic_enemy_portrait_pointer;
+            uint count = rom.RomInfo.generic_enemy_portrait_count;
+            if (pointer == 0 || count == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Generic Enemy Portraits", 0));
+            for (uint i = 0; i < count; i++)
+            {
+                uint addr = baseAddr + i * SIZE;
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+                uint imgPtr = rom.u32(addr);
+                string ptrStr = U.isPointer(imgPtr) ? $"0x{imgPtr:X08}" : "NULL";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", i));
+            }
             return result;
         }
 
@@ -49,7 +63,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 0, ImagePointer);
         }
 
-        public int GetListCount() => LoadList().Count;
+        public int GetListCount()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return (int)rom.RomInfo.generic_enemy_portrait_count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

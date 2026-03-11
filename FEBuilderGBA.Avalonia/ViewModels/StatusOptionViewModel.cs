@@ -54,8 +54,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint pointer = rom.RomInfo.status_game_option_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 44;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Status Screen Options", 0));
+            for (int i = 0; i < 64; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // Validate: ASM pointer at offset 40 must be a valid pointer
+                if (!U.isPointer(rom.u32(addr + 40))) break;
+
+                // Get option name from NameTextId at offset 4
+                uint nameTextId = rom.u16(addr + 4);
+                string name = nameTextId > 0 ? NameResolver.GetTextById(nameTextId) : $"Option {i}";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {name}", (uint)i));
+            }
             return result;
         }
 
@@ -116,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 40, AsmPointer);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
