@@ -16,42 +16,64 @@ namespace FEBuilderGBA.Avalonia.Views
         public PatchManagerView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) => LoadPatches();
+            PatchListBox.SelectionChanged += OnPatchSelected;
+            SearchBox.TextChanged += OnSearchTextChanged;
         }
 
-        void LoadList()
+        void LoadPatches()
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                _vm.LoadPatchList();
+                PatchListBox.ItemsSource = _vm.FilteredPatches;
+                UpdateSummary();
             }
             catch (Exception ex)
             {
-                Log.Error("PatchManagerView.LoadList failed: {0}", ex.Message);
+                Log.Error("PatchManagerView.LoadPatches failed: {0}", ex.Message);
             }
         }
 
-        void OnSelected(uint addr)
+        void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
-            try
-            {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("PatchManagerView.OnSelected failed: {0}", ex.Message);
-            }
+            _vm.FilterText = SearchBox.Text ?? "";
+            UpdateSummary();
         }
 
-        void UpdateUI()
+        void OnPatchSelected(object? sender, SelectionChangedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            if (PatchListBox.SelectedItem is PatchEntry patch)
+            {
+                _vm.SelectedPatch = patch;
+                UpdateDetails(patch);
+            }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        void UpdateSummary()
+        {
+            string filter = string.IsNullOrWhiteSpace(_vm.FilterText) ? "" : $" (filtered: {_vm.FilteredPatches.Count})";
+            SummaryLabel.Text = $"Total: {_vm.TotalCount} patches | Installed: {_vm.InstalledCount}{filter}";
+        }
+
+        void UpdateDetails(PatchEntry patch)
+        {
+            DetailName.Text = patch.Name;
+            DetailStatus.Text = patch.StatusText;
+            DetailAuthor.Text = string.IsNullOrEmpty(patch.Author) ? "(unknown)" : patch.Author;
+            DetailType.Text = string.IsNullOrEmpty(patch.Type) ? "(not specified)" : patch.Type;
+            DetailTags.Text = string.IsNullOrEmpty(patch.Tags) ? "(none)" : patch.Tags;
+            DetailDirectory.Text = patch.DirectoryPath;
+            DetailDescription.Text = string.IsNullOrEmpty(patch.Description)
+                ? "(no description available)"
+                : patch.Description;
+        }
+
+        public void NavigateTo(uint address) { }
+        public void SelectFirstItem()
+        {
+            if (PatchListBox.ItemCount > 0)
+                PatchListBox.SelectedIndex = 0;
+        }
     }
 }

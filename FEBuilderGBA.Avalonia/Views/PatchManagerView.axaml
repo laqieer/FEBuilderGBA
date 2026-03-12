@@ -1,20 +1,88 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.PatchManagerView"
-        Title="Patch Manager" Width="1037" Height="529">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Patch Manager" Width="1100" Height="650"
+        WindowStartupLocation="CenterOwner">
+  <Grid ColumnDefinitions="400,*" Margin="8">
+    <!-- Left panel: search + patch list -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,4,0">
+      <!-- Search box -->
+      <TextBox Grid.Row="0" Name="SearchBox" Watermark="Filter patches by name, tag, or author..."
+               Margin="0,0,0,4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Patch Manager" FontSize="18" FontWeight="Bold" />
+      <!-- Summary -->
+      <TextBlock Grid.Row="1" Name="SummaryLabel" Margin="0,0,0,4" FontSize="12"
+                 Foreground="Gray" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
+      <!-- Patch list -->
+      <ListBox Grid.Row="2" Name="PatchListBox" SelectionMode="Single">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:PatchEntry">
+            <Grid ColumnDefinitions="*,Auto" Margin="2">
+              <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                         VerticalAlignment="Center" />
+              <Border Grid.Column="1" Padding="6,2" CornerRadius="4" Margin="4,0,0,0"
+                      VerticalAlignment="Center">
+                <TextBlock Text="{Binding StatusText}" FontSize="11" />
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Grid>
+
+    <!-- Right panel: patch details -->
+    <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" Margin="4,0,0,0">
+      <ScrollViewer>
+        <StackPanel Name="DetailsPanel" Spacing="8">
+          <TextBlock Text="Patch Details" FontSize="18" FontWeight="Bold" Margin="0,0,0,8" />
+
+          <!-- Name -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Name:" FontWeight="SemiBold" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Name="DetailName" TextWrapping="Wrap" />
+          </Grid>
+
+          <!-- Status -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Status:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Name="DetailStatus" />
+          </Grid>
+
+          <!-- Author -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Author:" FontWeight="SemiBold" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Name="DetailAuthor" TextWrapping="Wrap" />
+          </Grid>
+
+          <!-- Type -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Type:" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Name="DetailType" />
+          </Grid>
+
+          <!-- Tags -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Tags:" FontWeight="SemiBold" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Name="DetailTags" TextWrapping="Wrap" />
+          </Grid>
+
+          <!-- Directory -->
+          <Grid ColumnDefinitions="100,*" Margin="0,0,0,4">
+            <TextBlock Grid.Column="0" Text="Directory:" FontWeight="SemiBold" VerticalAlignment="Top" />
+            <TextBlock Grid.Column="1" Name="DetailDirectory" TextWrapping="Wrap" FontSize="11"
+                       Foreground="Gray" />
+          </Grid>
+
+          <!-- Separator -->
+          <Separator Margin="0,4" />
+
+          <!-- Description -->
+          <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4" />
+          <TextBlock Name="DetailDescription" TextWrapping="Wrap" />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
   </Grid>
 </Window>
