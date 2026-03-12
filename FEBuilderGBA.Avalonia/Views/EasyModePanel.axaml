@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.EasyModePanel">
+  <ScrollViewer>
+    <StackPanel Margin="16" Spacing="12">
+      <!-- Title -->
+      <TextBlock Text="Easy Mode" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
+      <TextBlock Text="Common editing tasks organized by category. Click any button to open its editor."
+                 FontSize="13" HorizontalAlignment="Center" Foreground="Gray" Margin="0,0,0,8"
+                 TextWrapping="Wrap" TextAlignment="Center" />
+
+      <!-- Characters -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Characters" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Edit playable and enemy unit stats, class data, and support relationships."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Edit Units" Click="EasyOpenUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Edit Classes" Click="EasyOpenClasses_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Support Units" Click="EasyOpenSupportUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Support Talk" Click="EasyOpenSupportTalk_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Items -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Items" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Edit weapons, items, their effects, shops, and promotions."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Edit Items" Click="EasyOpenItems_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Weapon Effect" Click="EasyOpenWeaponEffect_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Shops" Click="EasyOpenShop_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Promotions" Click="EasyOpenPromotion_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Maps -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Maps" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Configure chapter settings, map layouts, terrain, and movement costs."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Map Settings" Click="EasyOpenMapSettings_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Map Editor" Click="EasyOpenMapEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Terrain Names" Click="EasyOpenTerrainNames_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Move Costs" Click="EasyOpenMoveCost_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Events -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Events" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Edit event scripts that control story scenes, cutscenes, and gameplay triggers."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Event Scripts" Click="EasyOpenEventScript_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Event Conditions" Click="EasyOpenEventCond_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Event Units" Click="EasyOpenEventUnit_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Graphics -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Graphics" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Edit character portraits, battle animations, CGs, and sprite graphics."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Portraits" Click="EasyOpenPortraits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Battle Animations" Click="EasyOpenBattleAnime_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="CG Viewer" Click="EasyOpenBigCG_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Image Viewer" Click="EasyOpenImageViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Music -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Music" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Manage background music, sound effects, and the in-game sound room."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Song Table" Click="EasyOpenSongTable_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Song Tracks" Click="EasyOpenSongTrack_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Sound Room" Click="EasyOpenSoundRoom_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Text -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Text" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Edit in-game dialogue, menus, and all text strings in the ROM."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Text Editor" Click="EasyOpenTextViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Tools -->
+      <Border BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Tools" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Advanced utilities: hex editing, patching, ROM diagnostics, and more."
+                     FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+          <WrapPanel Orientation="Horizontal">
+            <Button Content="Hex Editor" Click="EasyOpenHexEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Patch Manager" Click="EasyOpenPatchManager_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Lint Check" Click="EasyOpenLint_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Pointer Tool" Click="EasyOpenPointerTool_Click" Margin="4" MinWidth="120" Padding="12,8" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
