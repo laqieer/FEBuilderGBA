@@ -14,12 +14,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint MapDataPointer { get => _mapDataPointer; set => SetField(ref _mapDataPointer, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        public List<AddrResult> LoadMapPointerList()
+        /// <summary>Get the list of PLIST type names for the filter combo.</summary>
+        public List<string> GetPlistTypeNames()
+        {
+            return new List<string> { "MAP", "CONFIG", "OBJ/PAL", "CHANGE", "EVENT" };
+        }
+
+        /// <summary>Get ROM pointer for the given PLIST type index.</summary>
+        uint GetPlistPointer(int typeIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return typeIndex switch
+            {
+                1 => rom.RomInfo.map_config_pointer,
+                2 => rom.RomInfo.map_obj_pointer,
+                3 => rom.RomInfo.map_mapchange_pointer,
+                4 => rom.RomInfo.map_event_pointer,
+                _ => rom.RomInfo.map_map_pointer_pointer,
+            };
+        }
+
+        public List<AddrResult> LoadMapPointerList(int typeIndex = 0)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.map_map_pointer_pointer;
+            uint ptr = GetPlistPointer(typeIndex);
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
@@ -28,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint limit = rom.RomInfo.map_map_pointer_list_default_size;
             if (limit == 0) limit = 256;
 
+            string typeName = GetPlistTypeNames()[typeIndex];
             var result = new List<AddrResult>();
             for (uint i = 0; i < limit; i++)
             {
@@ -36,9 +58,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint pointer = rom.u32(addr);
                 string ptrStr = U.isPointer(pointer)
-                    ? "0x" + pointer.ToString("X08")
-                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
-                string name = U.ToHexString(i) + " Map " + ptrStr;
+                    ? $"0x{pointer:X08}"
+                    : (pointer == 0 ? "NULL" : $"0x{pointer:X08}");
+                string name = $"{U.ToHexString(i)} {typeName} {ptrStr}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

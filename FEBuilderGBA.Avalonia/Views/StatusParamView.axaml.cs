@@ -19,15 +19,31 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            TableFilterCombo.SelectionChanged += TableFilter_Changed;
+            Opened += (_, _) => InitFilter();
         }
 
-        void LoadList()
+        void InitFilter()
+        {
+            var names = _vm.GetTableNames();
+            TableFilterCombo.ItemsSource = names;
+            if (names.Count > 0)
+                TableFilterCombo.SelectedIndex = 0;
+            else
+                LoadList(0);
+        }
+
+        void TableFilter_Changed(object? sender, SelectionChangedEventArgs e)
+        {
+            LoadList(TableFilterCombo.SelectedIndex);
+        }
+
+        void LoadList(int tableIndex = 0)
         {
             _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadStatusParamList();
+                var items = _vm.LoadStatusParamList(tableIndex);
                 EntryList.SetItems(items);
             }
             catch (Exception ex)

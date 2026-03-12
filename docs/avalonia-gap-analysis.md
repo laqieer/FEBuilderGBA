@@ -140,7 +140,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 |-----------|:---:|---|
 | MapSettingForm (FE7/8) | 50% | Map picture preview, terrain combo, style change |
 | MapSettingFE6Form | 50% | Map picture preview, terrain combo |
-| MapPointerForm | 30% | PLIST type filter (7 types), split detection |
+| MapPointerForm | **45%** | ~~PLIST type filter~~ **FIXED** — 5-way combo (MAP/CONFIG/OBJ-PAL/CHANGE/EVENT). Missing: split detection |
 | MapChangeForm | 25% | Two-level list, map preview with change overlay |
 | MapExitPointForm | 30% | Two-level list, enemy/NPC filter |
 | MapEditorForm | **25%** | ~~Empty stub~~ **FIXED** — map list from MapSettingCore, visual tile rendering with zoom (1-4x). Missing: tile editing, map save |
@@ -375,7 +375,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | ArenaEnemyWeapon | **45%** | ~~Weapon names~~ **FIXED** — item names in list. Missing: two sub-lists (basic + rank-up) |
 | StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
 | StatusOptionOrder | 55% | Named option display |
-| StatusParam | 50% | Filter combo (4 parameter tables) |
+| StatusParam | **58%** | ~~Filter combo~~ **FIXED** — 4-way combo (Status Param/Owned Items/Weapon Level/Magic Level) |
 | StatusRMenu | 45% | Linked-list traversal, filter combo |
 | StatusUnitsMenu | 50% | OwnerDraw, text decode |
 | MenuCommand | 45% | Filter combo, color combo |

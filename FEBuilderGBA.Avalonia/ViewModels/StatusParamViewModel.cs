@@ -26,12 +26,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint StringPointer { get => _stringPointer; set => SetField(ref _stringPointer, value); }
         public string StringText { get => _stringText; set => SetField(ref _stringText, value); }
 
-        public List<AddrResult> LoadStatusParamList()
+        /// <summary>Get the list of available table names for the filter combo.</summary>
+        public List<string> GetTableNames()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<string> { "Status Param" };
+            var names = new List<string> { "Status Param" };
+            if (rom.RomInfo.status_param2_pointer != 0) names.Add("Owned Items");
+            if (rom.RomInfo.status_param3w_pointer != 0) names.Add("Weapon Level");
+            if (rom.RomInfo.status_param3m_pointer != 0) names.Add("Magic Level");
+            return names;
+        }
+
+        /// <summary>Get ROM pointer for the given table index (0-3).</summary>
+        uint GetTablePointer(int tableIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return tableIndex switch
+            {
+                1 => rom.RomInfo.status_param2_pointer,
+                2 => rom.RomInfo.status_param3w_pointer,
+                3 => rom.RomInfo.status_param3m_pointer,
+                _ => rom.RomInfo.status_param1_pointer,
+            };
+        }
+
+        public List<AddrResult> LoadStatusParamList(int tableIndex = 0)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.status_param1_pointer;
+            uint ptr = GetTablePointer(tableIndex);
             if (ptr == 0) return new List<AddrResult>();
 
             if (!U.isSafetyOffset(ptr)) return new List<AddrResult>();

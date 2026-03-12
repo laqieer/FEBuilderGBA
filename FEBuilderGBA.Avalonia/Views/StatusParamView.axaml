@@ -4,7 +4,10 @@
         x:Class="FEBuilderGBA.Avalonia.Views.StatusParamView"
         Title="Status Parameters Editor" Width="1238" Height="604">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <StackPanel Grid.Column="0" Margin="4">
+      <ComboBox Name="TableFilterCombo" Margin="0,0,0,4" HorizontalAlignment="Stretch" />
+      <controls:AddressListControl Name="EntryList" />
+    </StackPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
