@@ -499,3 +499,15 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 - **Unit Editor** (50→55%): Real-time growth simulation (auto-recalc on value change), configurable SimLevel (1-99), SimLevel NumericUpDown in view
 - **Class Editor** (48→53%): Flexible growth sim (SimLevel 1-99, auto-recalc), growth simulator added to ClassFE6View
 - Full audit report: `docs/avalonia-full-audit-report.md` — 8-domain deep comparison with 300-435 WU implementation plan
+
+**Updated 2026-03-12 (full audit execution — 20 tasks completed):**
+All 20 tasks from the gap closure plan executed. Key improvements:
+- **P0 bugs fixed:** CG/BG/TSAAnime Import3Pointer P4↔P8 swap (6 sites), FE6 class move cost offsets
+- **Event editors (30→45%):** EventScript interactive command editor (arg editing, name resolution, write-back), EventCond multi-type editor (13 types, PLIST resolution, config loading), EventUnit 3-level navigation (map→group→unit with AI descriptions)
+- **Sound (43→65%):** Song track parsing (16 tracks), all 6 instrument types, MIDI export (full GBA→MIDI conversion)
+- **Image (40→55%):** Portrait full rendering (mouth/eye frames, mini), portrait export (face/mini/sheet), LZ77 pipeline verified
+- **Infrastructure:** PatchDetectionService (10 patch types), DataExpansionCore (table expand), PatchMetadataCore (patch listing/detection)
+- **Editor features:** Item computed fields (prices, stat bonuses), Unit/Class real-time growth sim, magic split support in Unit/Class editors, skill field in Item editor
+- **Map (40→50%):** MapChange two-level record editing, MapEditor tile selection and write-back
+- Test count: 406 → 552 (+146 new tests)
+- Overall completeness estimate: ~60% → ~75%
