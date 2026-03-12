@@ -64,8 +64,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.ai3_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 20;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "AI Targeting", 0));
+            for (uint i = 0; i < 16; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // Stop if entire block is zero
+                bool allZero = true;
+                for (uint j = 0; j < blockSize && allZero; j++)
+                    if (rom.u8(addr + j) != 0) allZero = false;
+                if (allZero && i > 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X02} AI Target Profile {i}", i));
+            }
             return result;
         }
 

@@ -31,8 +31,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint ptr = rom.RomInfo.menu_definiton_split_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            const uint blockSize = 40;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Menu Extend Split", 0));
+            for (uint i = 0; i < 32; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // Stop if first string pointer is null
+                uint style = rom.u32(addr + 4);
+                if (style == 0 && i > 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X02} Split Menu {i}", i));
+            }
             return result;
         }
 

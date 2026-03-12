@@ -380,7 +380,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | StatusUnitsMenu | 50% | OwnerDraw, text decode |
 | MenuCommand | 45% | Filter combo, color combo |
 | MenuDefinition | 45% | Menu preview, multi-pointer |
-| MenuExtendSplitMenu | 50% | No list enumeration |
+| MenuExtendSplitMenu | **55%** | ~~No list enumeration~~ **FIXED** — list from menu_definiton_split_pointer |
 | **AOERANGE** | **30%** | **Visual grid editor (core feature) missing** |
 | MonsterItem | **40%** | ~~Generic list~~ **FIXED** — item names in list. Missing: three sub-lists (N1, N2) |
 | MonsterProbability | 50% | Probability sum display |
