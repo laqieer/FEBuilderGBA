@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -144,6 +145,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 2, (byte)Priority);
             rom.write_u8(addr + 3, (byte)Reverb);
             rom.write_u32(addr + 4, InstrumentAddr);
+        }
+
+        /// <summary>
+        /// Export the current song as a MIDI file.
+        /// Returns null on success, or an error message on failure.
+        /// </summary>
+        public string? ExportMidi(string filename)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0)
+                return "No song loaded.";
+
+            try
+            {
+                var tracks = SongMidiCore.ParseTracks(rom, CurrentAddr, TrackCount);
+                if (tracks.Count == 0)
+                    return "No valid tracks found in this song.";
+
+                SongMidiCore.ExportMidiFile(filename, tracks,
+                    (int)NumBlks, (int)Priority, (int)Reverb, InstrumentAddr);
+                return null; // success
+            }
+            catch (System.Exception ex)
+            {
+                return $"MIDI export failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Import a MIDI file into the current song.
+        /// Returns null on success, or an error message on failure.
+        /// </summary>
+        public string? ImportMidi(string filename)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0)
+                return "No song loaded.";
+
+            if (!File.Exists(filename))
+                return $"File not found: {filename}";
+
+            string result = SongMidiCore.ImportMidiFile(filename, CurrentAddr,
+                InstrumentAddr);
+            if (string.IsNullOrEmpty(result))
+                return null; // success
+            return result;
         }
 
         public int GetListCount() => (int)Tracks.Count;

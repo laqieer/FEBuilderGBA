@@ -33,6 +33,8 @@
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Write" Click="Write_Click" />
+          <Button Content="Export MIDI" Click="ExportMidi_Click" />
+          <Button Content="Import MIDI" Click="ImportMidi_Click" />
         </StackPanel>
 
         <!-- Track list -->

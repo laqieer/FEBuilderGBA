@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -94,6 +95,72 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("SongTrackView.Write_Click failed: {0}", ex.Message);
+            }
+        }
+
+        async void ExportMidi_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            try
+            {
+                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export MIDI",
+                    SuggestedFileName = $"song_0x{_vm.CurrentAddr:X06}.mid",
+                    FileTypeChoices = new[] { midiType, allType },
+                });
+
+                string? path = file?.TryGetLocalPath();
+                if (string.IsNullOrEmpty(path)) return;
+
+                string? error = _vm.ExportMidi(path);
+                if (error != null)
+                    CoreState.Services.ShowError(error);
+                else
+                    CoreState.Services.ShowInfo($"MIDI exported to {path}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ExportMidi_Click failed: {0}", ex.Message);
+            }
+        }
+
+        async void ImportMidi_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            try
+            {
+                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import MIDI",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[] { midiType, allType },
+                });
+
+                if (files.Count == 0) return;
+                string? path = files[0].TryGetLocalPath();
+                if (string.IsNullOrEmpty(path)) return;
+
+                string? error = _vm.ImportMidi(path);
+                if (error != null)
+                    CoreState.Services.ShowError(error);
+                else
+                {
+                    CoreState.Services.ShowInfo("MIDI imported successfully.");
+                    // Reload to reflect changes
+                    _vm.LoadEntry(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImportMidi_Click failed: {0}", ex.Message);
             }
         }
 
