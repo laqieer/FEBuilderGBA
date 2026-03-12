@@ -556,3 +556,9 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **MIDI file parser:** Full .mid file parser (format, tracks, tempo, notes, instruments) — import preview instead of generic error
 - Test count: 636 → 696 (+60 new tests)
 - Overall completeness estimate: ~93% → ~95%
+
+**Updated 2026-03-12 (round 8 — EditorFormRef migration + CI fixes):**
+- **EditorFormRef:** Created simplified auto-binding framework (250 lines), wired into 36 editors
+- **Flaky test fix:** Quantize_GBAPaletteFormat now robust without ImageService
+- **CI test fix:** ExtraUnitVM RawRomReport coverage, static key for regex scanner
+- Overall completeness estimate: ~95% → ~96% (EditorFormRef covers 36/148 editors = 24%)
