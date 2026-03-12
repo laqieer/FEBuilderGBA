@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class EDView : Window, IEditorView, IDataVerifiableView
     {
         readonly EDViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Ending Event Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -64,8 +65,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Condition = (uint)(ConditionBox.Value ?? 0);
             _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
             _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
-            _vm.WriteED();
-            CoreState.Services?.ShowInfo("Ending event data written.");
+            _undoService.Begin("Edit Ending Event");
+            try
+            {
+                _vm.WriteED();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Ending event data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EDView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

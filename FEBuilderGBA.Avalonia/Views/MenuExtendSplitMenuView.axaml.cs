@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MenuExtendSplitMenuView : Window, IEditorView, IDataVerifiableView
     {
         readonly MenuExtendSplitMenuViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Menu Extend Split";
         public bool IsLoaded => _vm.IsLoaded;
@@ -80,8 +81,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.String5 = (uint)(Str5Box.Value ?? 0);
             _vm.String6 = (uint)(Str6Box.Value ?? 0);
             _vm.String7 = (uint)(Str7Box.Value ?? 0);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("Split menu data written.");
+            _undoService.Begin("Edit Split Menu");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Split menu data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MenuExtendSplitMenuView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

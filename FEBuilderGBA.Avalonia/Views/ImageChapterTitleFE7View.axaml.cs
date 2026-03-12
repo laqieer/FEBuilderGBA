@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageChapterTitleFE7View : Window, IEditorView, IDataVerifiableView
     {
         readonly ImageChapterTitleFE7ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Chapter Title FE7 Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -50,8 +51,19 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanWrite) return;
             _vm.P0 = ParseHexText(SaveImgBox.Text);
-            _vm.WriteEntry();
-            CoreState.Services?.ShowInfo("Chapter title FE7 data written.");
+            _undoService.Begin("Edit Chapter Title FE7");
+            try
+            {
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Chapter title FE7 data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageChapterTitleFE7View.Write failed: {0}", ex.Message);
+            }
         }
 
         void LoadImage()

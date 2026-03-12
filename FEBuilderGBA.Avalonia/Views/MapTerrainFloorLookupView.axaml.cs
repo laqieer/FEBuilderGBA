@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapTerrainFloorLookupView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapTerrainFloorLookupTableViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Terrain Floor Lookup";
         public bool IsLoaded => _vm.IsLoaded;
@@ -58,8 +59,19 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
             _vm.TerrainBattleFloor = (uint)(TerrainBattleFloorBox.Value ?? 0);
-            _vm.Write();
-            CoreState.Services?.ShowInfo("Terrain Floor Lookup data written.");
+            _undoService.Begin("Edit Terrain Floor Lookup");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo("Terrain Floor Lookup data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapTerrainFloorLookupView.Write failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
