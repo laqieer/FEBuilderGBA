@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
             };
             if (U.isSafetyOffset(flagAddr))
-                report[$"u8@0x{flagAddr:X08}"] = $"0x{rom.u8(flagAddr):X02}";
+                report["u8@0x00_flag"] = $"0x{rom.u8(flagAddr):X02}";
             return report;
         }
     }
