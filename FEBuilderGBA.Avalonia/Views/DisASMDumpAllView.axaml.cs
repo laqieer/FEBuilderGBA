@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -24,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
-        void Run_Click(object? sender, RoutedEventArgs e)
+        async void Run_Click(object? sender, RoutedEventArgs e)
         {
             if (IDAOption.IsChecked == true)
                 _vm.SelectedAction = 1;
@@ -33,7 +36,49 @@ namespace FEBuilderGBA.Avalonia.Views
             else
                 _vm.SelectedAction = 0;
 
-            _vm.Output = $"[Disassembly dump not yet connected to backend — selected format: {_vm.SelectedAction}]";
+            if (CoreState.ROM == null)
+            {
+                _vm.Output = "Error: No ROM loaded.";
+                OutputBox.Text = _vm.Output;
+                return;
+            }
+
+            _vm.StatusMessage = "Disassembling... please wait.";
+            _vm.Output = "Working...";
+            OutputBox.Text = _vm.Output;
+
+            int action = _vm.SelectedAction;
+            List<string>? lines = null;
+            string? error = null;
+
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var core = new DisassemblerCore();
+                    lines = action switch
+                    {
+                        1 => core.ExportIDAMapLines(),
+                        2 => core.ExportNoCashSymLines(),
+                        _ => core.DisassembleToLines(),
+                    };
+                }
+                catch (Exception ex)
+                {
+                    error = $"Error: {ex.Message}";
+                }
+            });
+
+            if (error != null)
+            {
+                _vm.Output = error;
+                _vm.StatusMessage = "Failed.";
+            }
+            else if (lines != null)
+            {
+                _vm.Output = string.Join(Environment.NewLine, lines);
+                _vm.StatusMessage = $"Done. {lines.Count} lines generated.";
+            }
             OutputBox.Text = _vm.Output;
         }
 
