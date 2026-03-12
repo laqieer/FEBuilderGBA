@@ -294,11 +294,22 @@ namespace FEBuilderGBA
             var binBlocks = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
             int totalBytesWritten = 0;
 
+            // Collect regions that will be overwritten (for backup)
+            var regionsToBackup = new List<(uint address, int length)>();
+
             try
             {
                 // Process BIN entries first, then JUMP entries
                 var binEntries = actionParams.Where(p => binKeywords.Contains(p.Keyword)).ToList();
                 var jumpEntries = actionParams.Where(p => p.Keyword == "JUMP").ToList();
+
+                // Pre-scan to collect regions for backup
+                CollectBinRegions(rom, patchDir, binEntries, regionsToBackup);
+                CollectJumpRegions(rom, patchDir, jumpEntries, binEntries, regionsToBackup);
+
+                // Save backup of original bytes before writing
+                if (regionsToBackup.Count > 0)
+                    SaveBackup(rom, patchFilePath, regionsToBackup);
 
                 foreach (var param in binEntries)
                 {
@@ -325,16 +336,146 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Uninstall is not supported in the cross-platform port.
-        /// Uninstallation requires the original (vanilla) ROM for reference,
-        /// which is a WinForms-only feature.
+        /// Get the backup file path for a given patch file.
+        /// Format: {patchDir}/.backup_{patchFileName}.txt
+        /// </summary>
+        public static string GetBackupFilePath(string patchFilePath)
+        {
+            string dir = Path.GetDirectoryName(patchFilePath) ?? "";
+            string patchName = Path.GetFileNameWithoutExtension(patchFilePath);
+            return Path.Combine(dir, $".backup_{patchName}.txt");
+        }
+
+        /// <summary>
+        /// Check whether a backup file exists for the given patch, enabling uninstall.
+        /// </summary>
+        public static bool HasBackup(string patchFilePath)
+        {
+            return File.Exists(GetBackupFilePath(patchFilePath));
+        }
+
+        /// <summary>
+        /// Save a backup of original ROM bytes before they are overwritten.
+        /// Each record is one line: "0xADDRESS:LENGTH:HH HH HH ..."
+        /// </summary>
+        public static void SaveBackup(ROM rom, string patchFilePath, List<(uint address, int length)> regions)
+        {
+            string backupPath = GetBackupFilePath(patchFilePath);
+            var lines = new List<string>();
+            foreach (var (address, length) in regions)
+            {
+                if (address + length > rom.Data.Length)
+                    continue;
+                byte[] original = rom.getBinaryData(address, length);
+                string hexBytes = string.Join(" ", original.Select(b => b.ToString("X2")));
+                lines.Add($"0x{address:X}:{length}:{hexBytes}");
+            }
+            File.WriteAllLines(backupPath, lines);
+        }
+
+        /// <summary>
+        /// Parse a backup file into a list of (address, originalBytes) records.
+        /// Returns null if the file doesn't exist or is malformed.
+        /// </summary>
+        public static List<(uint address, byte[] data)>? ParseBackupFile(string backupPath)
+        {
+            if (!File.Exists(backupPath))
+                return null;
+
+            var records = new List<(uint address, byte[] data)>();
+            string[] lines = File.ReadAllLines(backupPath);
+            foreach (string rawLine in lines)
+            {
+                string line = rawLine.Trim();
+                if (string.IsNullOrEmpty(line)) continue;
+
+                // Format: 0xADDRESS:LENGTH:HH HH HH ...
+                string[] parts = line.Split(':', 3);
+                if (parts.Length < 3) return null;
+
+                string addrStr = parts[0].Trim();
+                if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    addrStr = addrStr.Substring(2);
+                if (!uint.TryParse(addrStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint addr))
+                    return null;
+
+                if (!int.TryParse(parts[1].Trim(), out int length) || length < 0)
+                    return null;
+
+                byte[] data = ParseBackupHexBytes(parts[2].Trim());
+                if (data.Length != length) return null;
+
+                records.Add((addr, data));
+            }
+            return records;
+        }
+
+        /// <summary>Parse space-separated hex bytes (no 0x prefix) from backup file.</summary>
+        static byte[] ParseBackupHexBytes(string hexStr)
+        {
+            if (string.IsNullOrWhiteSpace(hexStr))
+                return Array.Empty<byte>();
+
+            string[] tokens = hexStr.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var result = new byte[tokens.Length];
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                if (!byte.TryParse(tokens[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out result[i]))
+                    return Array.Empty<byte>();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Uninstall a patch by restoring original ROM bytes from a backup file.
+        /// The backup file is created during patch installation.
         /// </summary>
         public static PatchApplyResult UninstallPatch(ROM rom, string patchFilePath)
         {
-            return PatchApplyResult.Fail(
-                "Patch uninstallation is not yet supported in the Avalonia port. " +
-                "Uninstalling patches requires a clean (vanilla) ROM for reference. " +
-                "Use the WinForms version for uninstallation, or restore from a backup.");
+            if (rom == null) return PatchApplyResult.Fail("No ROM loaded.");
+            if (!File.Exists(patchFilePath)) return PatchApplyResult.Fail("Patch file not found.");
+
+            string backupPath = GetBackupFilePath(patchFilePath);
+            if (!File.Exists(backupPath))
+            {
+                return PatchApplyResult.Fail(
+                    "No backup file found for this patch. Uninstall is only possible for patches " +
+                    "installed through the Avalonia port (which saves a backup automatically). " +
+                    "Restore from a ROM backup instead.");
+            }
+
+            var records = ParseBackupFile(backupPath);
+            if (records == null || records.Count == 0)
+            {
+                return PatchApplyResult.Fail("Backup file is empty or malformed.");
+            }
+
+            try
+            {
+                int totalBytes = 0;
+                foreach (var (address, data) in records)
+                {
+                    if (address + data.Length > rom.Data.Length)
+                    {
+                        return PatchApplyResult.Fail(
+                            $"Backup record at 0x{address:X} ({data.Length} bytes) exceeds ROM size. " +
+                            "The ROM may have been modified since the patch was installed.");
+                    }
+                    rom.write_range(address, data);
+                    totalBytes += data.Length;
+                }
+
+                // Delete backup file after successful restore
+                File.Delete(backupPath);
+
+                return PatchApplyResult.Ok(
+                    $"Patch uninstalled successfully. {totalBytes} bytes restored.",
+                    totalBytes);
+            }
+            catch (Exception ex)
+            {
+                return PatchApplyResult.Fail("Patch uninstall error: " + ex.Message);
+            }
         }
 
         /// <summary>Process a single BIN: entry.</summary>
@@ -527,6 +668,63 @@ namespace FEBuilderGBA
                 return endAddr;
 
             return U.NOT_FOUND;
+        }
+
+        /// <summary>
+        /// Pre-scan BIN entries to collect (address, length) regions for backup.
+        /// Skips $FREEAREA entries since those write to free space (no valuable data to back up).
+        /// </summary>
+        static void CollectBinRegions(ROM rom, string patchDir, List<PatchParam> binEntries,
+            List<(uint address, int length)> regions)
+        {
+            foreach (var param in binEntries)
+            {
+                string addrPart = param.KeyParts.Length > 1 ? param.KeyParts[1] : "";
+                string filename = param.Value;
+                string filePath = Path.Combine(patchDir, filename);
+
+                // Skip $FREEAREA — those write to empty space, nothing to back up
+                if (addrPart.StartsWith("$FREEAREA", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!File.Exists(filePath)) continue;
+
+                uint addr = ParseHexAddress(addrPart);
+                if (addr == U.NOT_FOUND) continue;
+
+                int dataLen = (int)new FileInfo(filePath).Length;
+                if (dataLen > 0 && addr + dataLen <= rom.Data.Length)
+                    regions.Add((addr, dataLen));
+            }
+        }
+
+        /// <summary>
+        /// Pre-scan JUMP entries to collect injection-point regions for backup.
+        /// Jump code is typically 4-8 bytes at the injection address.
+        /// We use a conservative 8-byte estimate since exact size depends on register choice.
+        /// </summary>
+        static void CollectJumpRegions(ROM rom, string patchDir, List<PatchParam> jumpEntries,
+            List<PatchParam> binEntries, List<(uint address, int length)> regions)
+        {
+            foreach (var param in jumpEntries)
+            {
+                if (param.KeyParts.Length < 2) continue;
+
+                uint injectionAddr = ParseHexAddress(param.KeyParts[1]);
+                if (injectionAddr == U.NOT_FOUND) continue;
+
+                // Estimate jump code size: $NONE=4, $B/$BL=4, register-based=8
+                int jumpSize = 8;
+                if (param.KeyParts.Length > 2)
+                {
+                    string regStr = param.KeyParts[2];
+                    if (regStr == "$NONE" || regStr == "$BL" || regStr == "$B")
+                        jumpSize = 4;
+                }
+
+                if (injectionAddr + jumpSize <= rom.Data.Length)
+                    regions.Add((injectionAddr, jumpSize));
+            }
         }
     }
 }

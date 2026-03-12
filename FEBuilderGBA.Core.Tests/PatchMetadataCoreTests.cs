@@ -508,13 +508,214 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void UninstallPatch_ReturnsNotSupported()
+        public void UninstallPatch_NoBackup_Fails()
         {
-            var rom = new ROM();
-            rom.SwapNewROMDataDirect(new byte[0x100]);
-            var result = PatchMetadataCore.UninstallPatch(rom, "anything.txt");
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchUninstallNoBackup_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[] { "TYPE=BIN" });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+                var result = PatchMetadataCore.UninstallPatch(rom, patchFile);
+                Assert.False(result.Success);
+                Assert.Contains("No backup file", result.Message);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void UninstallPatch_NullRom_Fails()
+        {
+            var result = PatchMetadataCore.UninstallPatch(null, "anything.txt");
             Assert.False(result.Success);
-            Assert.Contains("not yet supported", result.Message);
+            Assert.Contains("No ROM", result.Message);
+        }
+
+        [Fact]
+        public void SaveBackup_And_ParseBackupFile_RoundTrips()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBackupRoundTrip_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllText(patchFile, "TYPE=BIN");
+
+                byte[] romData = new byte[0x1000];
+                romData[0x100] = 0xAA;
+                romData[0x101] = 0xBB;
+                romData[0x200] = 0xCC;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                var regions = new List<(uint address, int length)>
+                {
+                    (0x100, 2),
+                    (0x200, 1),
+                };
+
+                PatchMetadataCore.SaveBackup(rom, patchFile, regions);
+
+                string backupPath = PatchMetadataCore.GetBackupFilePath(patchFile);
+                Assert.True(File.Exists(backupPath));
+
+                var records = PatchMetadataCore.ParseBackupFile(backupPath);
+                Assert.NotNull(records);
+                Assert.Equal(2, records.Count);
+
+                Assert.Equal(0x100u, records[0].address);
+                Assert.Equal(new byte[] { 0xAA, 0xBB }, records[0].data);
+
+                Assert.Equal(0x200u, records[1].address);
+                Assert.Equal(new byte[] { 0xCC }, records[1].data);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void HasBackup_ReturnsFalse_WhenNoFile()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchHasBackup_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllText(patchFile, "TYPE=BIN");
+                Assert.False(PatchMetadataCore.HasBackup(patchFile));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ApplyPatch_CreatesBackup_Then_UninstallRestores()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchInstallUninstall_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // Set up ROM with known data at 0x200
+                byte[] romData = new byte[0x1000];
+                romData[0x200] = 0x11;
+                romData[0x201] = 0x22;
+                romData[0x202] = 0x33;
+                romData[0x203] = 0x44;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                // Create patch that overwrites 0x200 with different data
+                byte[] binData = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD };
+                File.WriteAllBytes(Path.Combine(tempDir, "test.bin"), binData);
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=BIN",
+                    "BIN:0x200=test.bin",
+                    "PATCHED_IF:0x200=0xAA 0xBB 0xCC 0xDD",
+                });
+
+                // Install patch
+                var installResult = PatchMetadataCore.ApplyPatch(rom, patchFile);
+                Assert.True(installResult.Success);
+                Assert.Equal(0xAAu, rom.u8(0x200));
+                Assert.Equal(0xBBu, rom.u8(0x201));
+                Assert.Equal(0xCCu, rom.u8(0x202));
+                Assert.Equal(0xDDu, rom.u8(0x203));
+
+                // Verify backup was created
+                Assert.True(PatchMetadataCore.HasBackup(patchFile));
+
+                // Uninstall patch
+                var uninstallResult = PatchMetadataCore.UninstallPatch(rom, patchFile);
+                Assert.True(uninstallResult.Success);
+                Assert.Contains("restored", uninstallResult.Message);
+
+                // Verify original bytes restored
+                Assert.Equal(0x11u, rom.u8(0x200));
+                Assert.Equal(0x22u, rom.u8(0x201));
+                Assert.Equal(0x33u, rom.u8(0x202));
+                Assert.Equal(0x44u, rom.u8(0x203));
+
+                // Verify backup file was deleted
+                Assert.False(PatchMetadataCore.HasBackup(patchFile));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ParseBackupFile_MalformedFile_ReturnsNull()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchBadBackup_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string backupPath = Path.Combine(tempDir, ".backup_PATCH_Test.txt");
+                File.WriteAllText(backupPath, "not a valid backup");
+
+                var records = PatchMetadataCore.ParseBackupFile(backupPath);
+                Assert.Null(records);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ParseBackupFile_NonexistentFile_ReturnsNull()
+        {
+            var records = PatchMetadataCore.ParseBackupFile("/nonexistent/.backup_test.txt");
+            Assert.Null(records);
+        }
+
+        [Fact]
+        public void UninstallPatch_MalformedBackup_Fails()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchUninstallBadBackup_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllText(patchFile, "TYPE=BIN");
+
+                // Create a malformed backup file
+                string backupPath = PatchMetadataCore.GetBackupFilePath(patchFile);
+                File.WriteAllText(backupPath, "garbage data");
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+                var result = PatchMetadataCore.UninstallPatch(rom, patchFile);
+                Assert.False(result.Success);
+                Assert.Contains("malformed", result.Message);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void GetBackupFilePath_CorrectFormat()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "someDir");
+            string patchFile = Path.Combine(dir, "PATCH_MyPatch.txt");
+            string expected = Path.Combine(dir, ".backup_PATCH_MyPatch.txt");
+            Assert.Equal(expected, PatchMetadataCore.GetBackupFilePath(patchFile));
         }
 
         [Fact]

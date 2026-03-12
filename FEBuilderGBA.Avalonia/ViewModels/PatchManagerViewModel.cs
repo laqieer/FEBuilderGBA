@@ -90,10 +90,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
             (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
 
-        /// <summary>True when a selected patch is installed (uninstall not yet supported).</summary>
+        /// <summary>True when a selected patch is installed and has a backup file for restore.</summary>
         public bool CanUninstall =>
             _selectedPatch != null &&
-            _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed;
+            _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed &&
+            !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
+            PatchMetadataCore.HasBackup(_selectedPatch.PatchFilePath);
 
         public ObservableCollection<PatchEntry> FilteredPatches => _filteredPatches;
 
@@ -169,15 +171,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Attempt to uninstall the currently selected patch.
+        /// Uninstall the currently selected patch by restoring original bytes from backup.
         /// </summary>
         public string UninstallPatch()
         {
             if (_selectedPatch == null)
                 return "No patch selected.";
 
-            var result = PatchMetadataCore.UninstallPatch(CoreState.ROM, _selectedPatch.PatchFilePath);
-            StatusMessage = result.Message;
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                return "No ROM loaded.";
+
+            var result = PatchMetadataCore.UninstallPatch(rom, _selectedPatch.PatchFilePath);
+
+            if (result.Success)
+            {
+                RefreshSelectedPatchStatus();
+                StatusMessage = result.Message;
+            }
+            else
+            {
+                StatusMessage = "Uninstall failed: " + result.Message;
+            }
+
+            OnPropertyChanged(nameof(CanInstall));
+            OnPropertyChanged(nameof(CanUninstall));
             return StatusMessage;
         }
 
