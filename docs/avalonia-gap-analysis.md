@@ -537,3 +537,9 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **Effectiveness class list:** Display effective-against classes when P16 pointer is valid
 - Test count: 596 → 617 (+21 new tests)
 - Overall completeness estimate: ~87% → ~90%
+
+**Updated 2026-03-12 (round 5 — 2 more tasks):**
+- **Text loading:** UnHuffman patch pointer + RAM pointer (IW/EW-RAM) support
+- **PLIST types:** Added ANIMATION1, ANIMATION2, WORLDMAP (8 types, up from 5)
+- **Lint validation:** Data validation warnings in Unit/Item/Class editors (class/portrait/level/stats checks)
+- Overall completeness estimate: ~90% → ~92%
