@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MoveCostFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppressEvents;
 
         public string ViewTitle => "Move Cost (FE6)";
         public bool IsLoaded => _vm.CanWrite;
@@ -19,6 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            CostTypeCombo.SelectionChanged += OnCostTypeChanged;
             Opened += (_, _) => LoadList();
         }
 
@@ -26,6 +28,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.BuildCostTypeItems();
+
+                _suppressEvents = true;
+                CostTypeCombo.ItemsSource = _vm.CostTypeItems;
+                if (_vm.CostTypeItems.Count > 0)
+                    CostTypeCombo.SelectedIndex = 0;
+                _suppressEvents = false;
+
                 var items = _vm.LoadClassList();
                 EntryList.SetItems(items);
             }
@@ -48,10 +58,34 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void OnCostTypeChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (_suppressEvents) return;
+            if (CostTypeCombo.SelectedItem is CostTypeItem item)
+            {
+                _vm.SelectedCostType = item.CostType;
+                _vm.SelectedCostTypeIndex = CostTypeCombo.SelectedIndex;
+
+                if (_vm.CurrentAddr != 0)
+                {
+                    try
+                    {
+                        _vm.LoadMoveCost(_vm.CurrentAddr, item.CostType);
+                        UpdateUI();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("MoveCostFE6View.OnCostTypeChanged failed: {0}", ex.Message);
+                    }
+                }
+            }
+        }
+
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             ClassNameLabel.Text = _vm.ClassName;
+            CostTypeHeading.Text = $"{_vm.SelectedCostType} (51 entries):";
 
             if (_vm.MoveCosts.Length == 0)
             {

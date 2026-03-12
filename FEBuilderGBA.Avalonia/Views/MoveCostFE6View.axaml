@@ -15,7 +15,11 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Class Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="1" Name="ClassNameLabel" VerticalAlignment="Center" />
         </Grid>
-        <TextBlock Text="Terrain Move Costs (51 entries):" FontWeight="Bold" Margin="0,8,0,4" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,4">
+          <TextBlock Text="Cost Type:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <ComboBox Name="CostTypeCombo" Width="250" />
+        </StackPanel>
+        <TextBlock Name="CostTypeHeading" Text="Terrain Move Costs (51 entries):" FontWeight="Bold" Margin="0,8,0,4" />
         <TextBlock Name="MoveCostsLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
