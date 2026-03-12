@@ -9,6 +9,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// StartPaletteIndex (u8@6), Unknown7 (u8@7).</summary>
     public class MapTileAnimation2ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "B4", "B5", "B6", "B7" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _paletteDataPointer;
@@ -68,11 +71,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            PaletteDataPointer = rom.u32(addr + 0);
-            AnimInterval = rom.u8(addr + 4);
-            DataCount = rom.u8(addr + 5);
-            StartPaletteIndex = rom.u8(addr + 6);
-            Unknown7 = rom.u8(addr + 7);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PaletteDataPointer = values["D0"];
+            AnimInterval = values["B4"];
+            DataCount = values["B5"];
+            StartPaletteIndex = values["B6"];
+            Unknown7 = values["B7"];
             IsLoaded = true;
             IsLoading = false;
             MarkClean();
@@ -82,11 +86,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr + 0, PaletteDataPointer);
-            rom.write_u8(CurrentAddr + 4, (byte)AnimInterval);
-            rom.write_u8(CurrentAddr + 5, (byte)DataCount);
-            rom.write_u8(CurrentAddr + 6, (byte)StartPaletteIndex);
-            rom.write_u8(CurrentAddr + 7, (byte)Unknown7);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = PaletteDataPointer, ["B4"] = AnimInterval,
+                ["B5"] = DataCount, ["B6"] = StartPaletteIndex,
+                ["B7"] = Unknown7,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

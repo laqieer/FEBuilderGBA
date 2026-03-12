@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AIASMCALLTALKViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _fromUnit;
@@ -40,10 +43,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            FromUnit = rom.u8(addr + 0);
-            ToUnit = rom.u8(addr + 1);
-            Unused2 = rom.u8(addr + 2);
-            Unused3 = rom.u8(addr + 3);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            FromUnit = values["B0"];
+            ToUnit = values["B1"];
+            Unused2 = values["B2"];
+            Unused3 = values["B3"];
             IsLoaded = true;
         }
 
@@ -53,10 +57,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, FromUnit);
-            rom.write_u8(addr + 1, ToUnit);
-            rom.write_u8(addr + 2, Unused2);
-            rom.write_u8(addr + 3, Unused3);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = FromUnit, ["B1"] = ToUnit,
+                ["B2"] = Unused2, ["B3"] = Unused3,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => 0;

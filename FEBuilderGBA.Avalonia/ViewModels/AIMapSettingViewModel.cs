@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AIMapSettingViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _trait1;
@@ -55,10 +58,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Trait1 = rom.u8(addr + 0);
-            Trait2 = rom.u8(addr + 1);
-            Trait3 = rom.u8(addr + 2);
-            Trait4 = rom.u8(addr + 3);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Trait1 = values["B0"];
+            Trait2 = values["B1"];
+            Trait3 = values["B2"];
+            Trait4 = values["B3"];
             IsLoaded = true;
         }
 
@@ -68,10 +72,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, Trait1);
-            rom.write_u8(addr + 1, Trait2);
-            rom.write_u8(addr + 2, Trait3);
-            rom.write_u8(addr + 3, Trait4);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Trait1, ["B1"] = Trait2,
+                ["B2"] = Trait3, ["B3"] = Trait4,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

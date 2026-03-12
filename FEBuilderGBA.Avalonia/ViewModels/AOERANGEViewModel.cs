@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AOERANGEViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _width;
@@ -40,10 +43,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Width = rom.u8(addr + 0);
-            Height = rom.u8(addr + 1);
-            CenterX = rom.u8(addr + 2);
-            CenterY = rom.u8(addr + 3);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Width = values["B0"];
+            Height = values["B1"];
+            CenterX = values["B2"];
+            CenterY = values["B3"];
             IsLoaded = true;
         }
 
@@ -53,10 +57,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, Width);
-            rom.write_u8(addr + 1, Height);
-            rom.write_u8(addr + 2, CenterX);
-            rom.write_u8(addr + 3, CenterY);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Width, ["B1"] = Height,
+                ["B2"] = CenterX, ["B3"] = CenterY,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => 0;

@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class Command85PointerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _pointerValue;
@@ -49,7 +52,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            PointerValue = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PointerValue = values["D0"];
             IsLoaded = true;
         }
 
@@ -58,7 +62,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
-            rom.write_u32(CurrentAddr + 0, PointerValue);
+            var values = new Dictionary<string, uint> { ["D0"] = PointerValue };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

@@ -5,6 +5,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AITargetViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] {
+                "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7",
+                "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15",
+                "B16", "B17", "B18", "B19" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _lethalDamagePriority;
@@ -94,26 +100,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 20 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            LethalDamagePriority = rom.u8(addr + 0);
-            EnemyRemainingHPPriority = rom.u8(addr + 1);
-            EnemyDistancePriority = rom.u8(addr + 2);
-            EnemyClassPriority = rom.u8(addr + 3);
-            CurrentTurnPriority = rom.u8(addr + 4);
-            CounterDamageWarning = rom.u8(addr + 5);
-            SurroundWarning = rom.u8(addr + 6);
-            SelfRemainingHPWarning = rom.u8(addr + 7);
-            Unknown8 = rom.u8(addr + 8);
-            Unknown9 = rom.u8(addr + 9);
-            Unknown10 = rom.u8(addr + 10);
-            Unknown11 = rom.u8(addr + 11);
-            Unknown12 = rom.u8(addr + 12);
-            Unknown13 = rom.u8(addr + 13);
-            Unknown14 = rom.u8(addr + 14);
-            Unknown15 = rom.u8(addr + 15);
-            Unknown16 = rom.u8(addr + 16);
-            Unknown17 = rom.u8(addr + 17);
-            Unknown18 = rom.u8(addr + 18);
-            Unknown19 = rom.u8(addr + 19);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            LethalDamagePriority = values["B0"];
+            EnemyRemainingHPPriority = values["B1"];
+            EnemyDistancePriority = values["B2"];
+            EnemyClassPriority = values["B3"];
+            CurrentTurnPriority = values["B4"];
+            CounterDamageWarning = values["B5"];
+            SurroundWarning = values["B6"];
+            SelfRemainingHPWarning = values["B7"];
+            Unknown8 = values["B8"];
+            Unknown9 = values["B9"];
+            Unknown10 = values["B10"];
+            Unknown11 = values["B11"];
+            Unknown12 = values["B12"];
+            Unknown13 = values["B13"];
+            Unknown14 = values["B14"];
+            Unknown15 = values["B15"];
+            Unknown16 = values["B16"];
+            Unknown17 = values["B17"];
+            Unknown18 = values["B18"];
+            Unknown19 = values["B19"];
             IsLoaded = true;
         }
 
@@ -123,26 +130,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, LethalDamagePriority);
-            rom.write_u8(addr + 1, EnemyRemainingHPPriority);
-            rom.write_u8(addr + 2, EnemyDistancePriority);
-            rom.write_u8(addr + 3, EnemyClassPriority);
-            rom.write_u8(addr + 4, CurrentTurnPriority);
-            rom.write_u8(addr + 5, CounterDamageWarning);
-            rom.write_u8(addr + 6, SurroundWarning);
-            rom.write_u8(addr + 7, SelfRemainingHPWarning);
-            rom.write_u8(addr + 8, Unknown8);
-            rom.write_u8(addr + 9, Unknown9);
-            rom.write_u8(addr + 10, Unknown10);
-            rom.write_u8(addr + 11, Unknown11);
-            rom.write_u8(addr + 12, Unknown12);
-            rom.write_u8(addr + 13, Unknown13);
-            rom.write_u8(addr + 14, Unknown14);
-            rom.write_u8(addr + 15, Unknown15);
-            rom.write_u8(addr + 16, Unknown16);
-            rom.write_u8(addr + 17, Unknown17);
-            rom.write_u8(addr + 18, Unknown18);
-            rom.write_u8(addr + 19, Unknown19);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = LethalDamagePriority, ["B1"] = EnemyRemainingHPPriority,
+                ["B2"] = EnemyDistancePriority, ["B3"] = EnemyClassPriority,
+                ["B4"] = CurrentTurnPriority, ["B5"] = CounterDamageWarning,
+                ["B6"] = SurroundWarning, ["B7"] = SelfRemainingHPWarning,
+                ["B8"] = Unknown8, ["B9"] = Unknown9,
+                ["B10"] = Unknown10, ["B11"] = Unknown11,
+                ["B12"] = Unknown12, ["B13"] = Unknown13,
+                ["B14"] = Unknown14, ["B15"] = Unknown15,
+                ["B16"] = Unknown16, ["B17"] = Unknown17,
+                ["B18"] = Unknown18, ["B19"] = Unknown19,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => 0;

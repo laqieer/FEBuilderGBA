@@ -8,6 +8,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Fields: AnimInterval (u16@0), DataCount (u16@2), MapTileDataPointer (u32@4).</summary>
     public class MapTileAnimation1ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2", "D4" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _animInterval;
@@ -62,9 +65,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            AnimInterval = rom.u16(addr + 0);
-            DataCount = rom.u16(addr + 2);
-            MapTileDataPointer = rom.u32(addr + 4);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            AnimInterval = values["W0"];
+            DataCount = values["W2"];
+            MapTileDataPointer = values["D4"];
             IsLoaded = true;
             IsLoading = false;
             MarkClean();
@@ -74,9 +78,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u16(CurrentAddr + 0, (ushort)AnimInterval);
-            rom.write_u16(CurrentAddr + 2, (ushort)DataCount);
-            rom.write_u32(CurrentAddr + 4, MapTileDataPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = AnimInterval, ["W2"] = DataCount,
+                ["D4"] = MapTileDataPointer,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;
