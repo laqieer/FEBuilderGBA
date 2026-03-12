@@ -1,14 +1,59 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ProcsScriptCategorySelectView"
-        Title="Procs Script Category Select" Width="1712" Height="970"
+        Title="Procs Script Editor" Width="1000" Height="750"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Select Procs Script Category" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    <TextBlock DockPanel.Dock="Top" Text="Procs Script Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <!-- Address input bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
+               FontFamily="Consolas" FontSize="13" />
+      <Button Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
+      <TextBlock Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" />
     </StackPanel>
-    <ListBox Name="CategoryList" />
+
+    <!-- Bottom buttons -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+      <Button Content="Close" Width="80" Click="Close_Click" />
+    </StackPanel>
+
+    <!-- Main content: split between command list and parameter editor -->
+    <Grid ColumnDefinitions="*,8,350">
+      <!-- Left: Disassembled commands list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Commands" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox Name="CommandsList" FontFamily="Consolas" FontSize="12"
+                 SelectionMode="Single" SelectionChanged="CommandsList_SelectionChanged" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
+
+      <!-- Right: Parameter editor panel -->
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="Parameters" FontWeight="SemiBold" Margin="0,0,0,4" />
+
+        <!-- Command name header -->
+        <Border DockPanel.Dock="Top" Background="#20808080" CornerRadius="4" Padding="8,4" Margin="0,0,0,8">
+          <TextBlock Name="CommandNameLabel" Text="(select a command)" FontFamily="Consolas" FontSize="13"
+                     TextWrapping="Wrap" />
+        </Border>
+
+        <!-- Write button at bottom -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Name="WriteButton" Content="Write to ROM" Click="Write_Click" IsEnabled="False"
+                  Background="#4060A0" Foreground="White" Padding="16,6" />
+          <Button Name="RefreshButton" Content="Refresh" Click="Refresh_Click" IsEnabled="False"
+                  Padding="16,6" />
+        </StackPanel>
+
+        <!-- Scrollable argument list -->
+        <ScrollViewer>
+          <StackPanel Name="ArgsPanel" Spacing="6" />
+        </ScrollViewer>
+      </DockPanel>
+    </Grid>
   </DockPanel>
 </Window>
