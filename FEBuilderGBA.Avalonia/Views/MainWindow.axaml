@@ -33,6 +33,8 @@
           <MenuItem Header="Run _Sappy..." Click="RunSappy_Click" />
           <MenuItem Header="Run _Custom Tool..." Click="RunCustomTool_Click" />
         </MenuItem>
+        <Separator />
+        <MenuItem Header="_Options..." Click="Options_Click" />
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem Header="_Online Manual" Click="OnlineManual_Click" />

@@ -1,20 +1,46 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OptionsView"
-        Title="Options/Settings" Width="800" Height="500">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Options"
+        Width="520" Height="340"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+  <Grid RowDefinitions="*,Auto" Margin="16">
+    <!-- Settings -->
+    <StackPanel Grid.Row="0" Spacing="12">
+      <!-- Language -->
+      <StackPanel Spacing="4">
+        <TextBlock Text="Language" FontWeight="SemiBold" />
+        <ComboBox Name="LanguageCombo" HorizontalAlignment="Stretch" />
+      </StackPanel>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Options/Settings" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <!-- Git Path -->
+      <StackPanel Spacing="4">
+        <TextBlock Text="Git Executable Path" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Name="GitPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
+          <Button Name="BrowseGitButton" Grid.Column="1" Content="Browse..." Click="BrowseGit_Click" Padding="12,6" />
         </Grid>
       </StackPanel>
-    </ScrollViewer>
+
+      <!-- Emulator Path -->
+      <StackPanel Spacing="4">
+        <TextBlock Text="Emulator Path" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Name="EmulatorPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
+          <Button Name="BrowseEmulatorButton" Grid.Column="1" Content="Browse..." Click="BrowseEmulator_Click" Padding="12,6" />
+        </Grid>
+      </StackPanel>
+
+      <!-- Auto-Backup -->
+      <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
+    </StackPanel>
+
+    <!-- OK / Cancel -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+      <Button Name="OkButton" Content="OK" Width="80" Click="OkButton_Click" />
+      <Button Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
+    </StackPanel>
   </Grid>
 </Window>

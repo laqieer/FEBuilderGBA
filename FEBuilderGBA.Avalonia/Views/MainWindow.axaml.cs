@@ -1790,6 +1790,12 @@ namespace FEBuilderGBA.Avalonia.Views
             await dialog.ShowDialog(this);
         }
 
+        private async void Options_Click(object? sender, RoutedEventArgs e)
+        {
+            var dialog = new OptionsView();
+            await dialog.ShowDialog(this);
+        }
+
         private async void About_Click(object? sender, RoutedEventArgs e)
         {
             await MessageBoxWindow.Show(this,

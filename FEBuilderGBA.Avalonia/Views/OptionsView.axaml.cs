@@ -1,57 +1,88 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using FEBuilderGBA.Avalonia.Services;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OptionsView : Window, IEditorView
+    public partial class OptionsView : Window
     {
         readonly OptionsViewModel _vm = new();
-
-        public string ViewTitle => "Options/Settings";
-        public bool IsLoaded => _vm.IsLoaded;
 
         public OptionsView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += OnOpened;
         }
 
-        void LoadList()
+        void OnOpened(object? sender, EventArgs e)
         {
-            try
-            {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("OptionsView.LoadList failed: {0}", ex.Message);
-            }
+            _vm.Load();
+
+            // Populate language combo
+            LanguageCombo.ItemsSource = _vm.AvailableLanguages;
+            int langIdx = _vm.AvailableLanguages.IndexOf(_vm.Language);
+            LanguageCombo.SelectedIndex = langIdx >= 0 ? langIdx : 0;
+
+            // Populate text fields
+            GitPathTextBox.Text = _vm.GitPath;
+            EmulatorPathTextBox.Text = _vm.EmulatorPath;
+            AutoBackupCheckBox.IsChecked = _vm.AutoBackup;
         }
 
-        void OnSelected(uint addr)
+        async void BrowseGit_Click(object? sender, RoutedEventArgs e)
         {
-            try
+            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
+                Title = "Select Git Executable",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { exeFiles, allFiles },
+            });
+            if (files.Count > 0)
             {
-                Log.Error("OptionsView.OnSelected failed: {0}", ex.Message);
+                string? path = files[0].TryGetLocalPath();
+                if (path != null)
+                    GitPathTextBox.Text = path;
             }
         }
 
-        void UpdateUI()
+        async void BrowseEmulator_Click(object? sender, RoutedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select GBA Emulator",
+                AllowMultiple = false,
+                FileTypeFilter = new[] { exeFiles, allFiles },
+            });
+            if (files.Count > 0)
+            {
+                string? path = files[0].TryGetLocalPath();
+                if (path != null)
+                    EmulatorPathTextBox.Text = path;
+            }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        void OkButton_Click(object? sender, RoutedEventArgs e)
+        {
+            // Push UI values back to ViewModel
+            if (LanguageCombo.SelectedItem is string lang)
+                _vm.Language = lang;
+            _vm.GitPath = GitPathTextBox.Text ?? "git";
+            _vm.EmulatorPath = EmulatorPathTextBox.Text ?? "";
+            _vm.AutoBackup = AutoBackupCheckBox.IsChecked == true;
+
+            _vm.Save();
+            Close(true);
+        }
+
+        void CancelButton_Click(object? sender, RoutedEventArgs e)
+        {
+            Close(false);
+        }
     }
 }

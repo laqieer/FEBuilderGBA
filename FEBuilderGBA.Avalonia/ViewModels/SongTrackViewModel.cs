@@ -175,9 +175,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Import a MIDI file into the current song.
-        /// Parses the file and returns an informational summary since full import
-        /// requires the S-file assembly pipeline (not yet ported from WinForms).
-        /// Returns null on success, or a message string (info or error).
+        /// Converts MIDI to GBA format and writes to ROM.
+        /// Returns null on success, or an error/info message string.
         /// </summary>
         public string? ImportMidi(string filename)
         {
@@ -188,30 +187,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!File.Exists(filename))
                 return $"File not found: {filename}";
 
-            // Parse MIDI and show info
+            // Parse MIDI info for summary
             var midiInfo = SongMidiCore.ParseMidiFile(filename);
-            if (midiInfo != null)
-            {
-                return FormatMidiInfo(midiInfo, filename);
-            }
+            if (midiInfo == null)
+                return "Failed to parse MIDI file — invalid format.";
 
-            // Fall back to import attempt (will return not-implemented message)
-            string result = SongMidiCore.ImportMidiFile(filename, CurrentAddr,
-                InstrumentAddr);
-            if (string.IsNullOrEmpty(result))
-                return null; // success
-            return result;
+            // Convert and write to ROM
+            string result = SongMidiCore.ImportMidiFile(filename, CurrentAddr, InstrumentAddr);
+            if (!string.IsNullOrEmpty(result))
+                return result; // error message
+
+            // Reload the entry to reflect new data
+            LoadEntry(CurrentAddr);
+
+            // Return success summary
+            return FormatMidiImportSuccess(midiInfo, filename);
         }
 
-        /// <summary>Build a human-readable summary of parsed MIDI file info.</summary>
-        static string FormatMidiInfo(SongMidiCore.MidiFileInfo info, string filename)
+        /// <summary>Build a human-readable summary of a successful MIDI import.</summary>
+        static string FormatMidiImportSuccess(SongMidiCore.MidiFileInfo info, string filename)
         {
             int totalNotes = 0;
             foreach (var t in info.Tracks)
                 totalNotes += t.NoteCount;
 
             var sb = new StringBuilder();
-            sb.AppendLine($"MIDI file parsed: {Path.GetFileName(filename)}");
+            sb.AppendLine($"MIDI imported: {Path.GetFileName(filename)}");
             sb.AppendLine($"  Format: {info.Format}");
             sb.AppendLine($"  Tracks: {info.TrackCount}");
             sb.AppendLine($"  Tempo: {info.TempoBPM:F1} BPM");
@@ -234,7 +235,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             sb.AppendLine();
-            sb.Append("Full MIDI import requires the S-file assembly pipeline (not yet ported from WinForms).");
+            sb.Append("Song data written to ROM successfully.");
             return sb.ToString();
         }
 
