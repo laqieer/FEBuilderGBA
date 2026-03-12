@@ -76,7 +76,9 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorView_ImplementsIEditorView()
         {
             var src = ReadView("UnitEditorView.axaml.cs");
-            Assert.Contains("IEditorView", src);
+            // UnitEditorView implements IPickableEditor (which extends IEditorView)
+            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor"),
+                "UnitEditorView should implement IEditorView or IPickableEditor");
             Assert.Contains("IDataVerifiableView", src);
             Assert.Contains("NavigateTo", src);
             Assert.Contains("SelectFirstItem", src);
@@ -399,7 +401,9 @@ namespace FEBuilderGBA.Tests.Unit
         public void View_ImplementsIEditorView(string viewFile)
         {
             var src = ReadView(viewFile);
-            Assert.Contains("IEditorView", src);
+            // Views implement either IEditorView directly or IPickableEditor (which extends IEditorView)
+            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor"),
+                $"View {viewFile} should implement IEditorView or IPickableEditor");
             Assert.Contains("SelectFirstItem", src);
         }
 
