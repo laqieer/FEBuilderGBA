@@ -224,17 +224,21 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemWeaponEffectViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("ItemWeaponEffectViewerViewModel.cs");
-            Assert.Contains("rom.u8(addr + 0)", src);     // ItemId
-            Assert.Contains("rom.u8(addr + 1)", src);     // Unknown1
-            Assert.Contains("rom.u8(addr + 2)", src);     // AnimType
-            Assert.Contains("rom.u8(addr + 3)", src);     // Unknown3
-            Assert.Contains("rom.u16(addr + 4)", src);    // EffectId
-            Assert.Contains("rom.u16(addr + 6)", src);    // Unknown6
-            Assert.Contains("rom.u32(addr + 8)", src);    // MapEffectPointer
-            Assert.Contains("rom.u8(addr + 12)", src);    // DamageEffect
-            Assert.Contains("rom.u8(addr + 13)", src);    // Motion
-            Assert.Contains("rom.u8(addr + 14)", src);    // HitColor
-            Assert.Contains("rom.u8(addr + 15)", src);    // Unknown15
+            // Refactored to use EditorFormRef.DetectFields + ReadFields
+            Assert.Contains("EditorFormRef.DetectFields", src);
+            Assert.Contains("EditorFormRef.ReadFields", src);
+            // Field definitions cover B0, B1, B2, B3, W4, W6, D8, B12, B13, B14, B15
+            Assert.Contains("\"B0\"", src);
+            Assert.Contains("\"B1\"", src);
+            Assert.Contains("\"B2\"", src);
+            Assert.Contains("\"B3\"", src);
+            Assert.Contains("\"W4\"", src);
+            Assert.Contains("\"W6\"", src);
+            Assert.Contains("\"D8\"", src);
+            Assert.Contains("\"B12\"", src);
+            Assert.Contains("\"B13\"", src);
+            Assert.Contains("\"B14\"", src);
+            Assert.Contains("\"B15\"", src);
         }
 
         [Fact]
@@ -433,9 +437,13 @@ namespace FEBuilderGBA.Tests.Unit
             var src = ReadViewModel("WorldMapPointViewModel.cs");
             // World map point entries are 32 bytes each
             Assert.Contains("i * 32", src);
-            Assert.Contains("rom.u8(addr + 0)", src);    // B0
-            Assert.Contains("rom.u8(addr + 1)", src);    // B1
-            Assert.Contains("rom.u16(addr + 28)", src);  // NameTextId
+            // Refactored to use EditorFormRef.DetectFields + ReadFields
+            Assert.Contains("EditorFormRef.DetectFields", src);
+            Assert.Contains("EditorFormRef.ReadFields", src);
+            // Field definitions cover B0, B1, W28 (NameTextId), etc.
+            Assert.Contains("\"B0\"", src);
+            Assert.Contains("\"B1\"", src);
+            Assert.Contains("\"W28\"", src);
         }
 
         [Fact]
@@ -465,10 +473,14 @@ namespace FEBuilderGBA.Tests.Unit
         public void SoundRoomViewModel_ReadsCorrectFieldOffsets()
         {
             var src = ReadViewModel("SoundRoomViewerViewModel.cs");
-            Assert.Contains("rom.u32(addr + 0)", src);   // SongId (D0)
-            Assert.Contains("rom.u32(addr + 4)", src);   // Raw4
-            Assert.Contains("rom.u32(addr + 8)", src);   // Raw8
-            Assert.Contains("rom.u32(addr + 12)", src);  // TextId (D12)
+            // Refactored to use EditorFormRef.DetectFields + ReadFields
+            Assert.Contains("EditorFormRef.DetectFields", src);
+            Assert.Contains("EditorFormRef.ReadFields", src);
+            // Field definitions cover D0, D4, D8, D12
+            Assert.Contains("\"D0\"", src);
+            Assert.Contains("\"D4\"", src);
+            Assert.Contains("\"D8\"", src);
+            Assert.Contains("\"D12\"", src);
         }
 
         // ---------------------------------------------------------------

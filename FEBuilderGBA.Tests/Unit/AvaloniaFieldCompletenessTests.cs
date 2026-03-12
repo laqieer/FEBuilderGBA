@@ -399,6 +399,22 @@ namespace FEBuilderGBA.Tests.Unit
                 fields.Add(m.Groups[1].Value);
             }
 
+            // Detect EditorFormRef.DetectFields(new[] { "B0", "W2", ... }) patterns
+            // These replace direct rom.u8/u16/u32 calls in refactored ViewModels
+            var detectFieldsPattern = new Regex(
+                @"EditorFormRef\.DetectFields\(new\[\]\s*\{([^}]+)\}",
+                RegexOptions.Compiled);
+
+            foreach (Match m in detectFieldsPattern.Matches(source))
+            {
+                string fieldList = m.Groups[1].Value;
+                var fieldNamePattern = new Regex(@"""([BbWDPlh]\d+)""", RegexOptions.Compiled);
+                foreach (Match fm in fieldNamePattern.Matches(fieldList))
+                {
+                    fields.Add(fm.Groups[1].Value);
+                }
+            }
+
             return fields;
         }
 
