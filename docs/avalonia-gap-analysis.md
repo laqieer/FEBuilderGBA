@@ -404,7 +404,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | Category | Coverage | Notes |
 |----------|:---:|---|
 | Convention-based auto-wiring | **0%** | Biggest gap -- InputFormRef's B/W/D/P naming |
-| Write/Undo automation | **90%** | ~~15%~~ **FIXED** -- `UndoService` wraps all 148 editors with Begin/Commit/Rollback |
+| Write/Undo automation | **98%** | ~~15%~~ **FIXED** -- `UndoService` wraps all editors with Write handlers (100% coverage after round 27) |
 | Dirty tracking (yellow highlight) | **80%** | ~~0%~~ **FIXED** -- `ViewModelBase.IsDirty` / `IsLoading` / `MarkClean()` with automatic tracking |
 | Address list management | 50% | Basic list works; no data layer |
 | CSV export/import | **80%** | ~~0%~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import |
