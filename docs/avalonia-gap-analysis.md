@@ -529,3 +529,11 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **Easy mode:** Toggle between normal grid and categorized card layout in MainWindow
 - Test count: 578 → 596 (+18 new tests)
 - Overall completeness estimate: ~82% → ~87%
+
+**Updated 2026-03-12 (round 4 — 4 more tasks):**
+- **Three-way merge:** Full byte-level merge algorithm with conflict detection and resolution UI
+- **Text validation:** Encoded length display with warnings + cross-reference scanning (units/items/classes)
+- **CSV export/import:** Per-editor TSV Export/Import buttons in Unit/Item/Class editors via TableExportImportHelper
+- **Effectiveness class list:** Display effective-against classes when P16 pointer is valid
+- Test count: 596 → 617 (+21 new tests)
+- Overall completeness estimate: ~87% → ~90%
