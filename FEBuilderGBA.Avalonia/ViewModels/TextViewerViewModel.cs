@@ -9,11 +9,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _decodedText = "";
         string _editText = "";
         bool _canWrite;
+        int _encodedLength;
+        int _originalLength;
+        string _lengthWarning = "";
+        List<string> _crossReferences = new();
 
         public uint CurrentId { get => _currentId; set => SetField(ref _currentId, value); }
         public string DecodedText { get => _decodedText; set => SetField(ref _decodedText, value); }
         public string EditText { get => _editText; set => SetField(ref _editText, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+        public int EncodedLength { get => _encodedLength; set => SetField(ref _encodedLength, value); }
+        public int OriginalLength { get => _originalLength; set => SetField(ref _originalLength, value); }
+        public string LengthWarning { get => _lengthWarning; set => SetField(ref _lengthWarning, value); }
+        public List<string> CrossReferences { get => _crossReferences; set => SetField(ref _crossReferences, value); }
 
         public List<AddrResult> LoadTextList()
         {
@@ -71,6 +79,141 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 DecodedText = "(decode error)";
             }
             CanWrite = true;
+
+            // Compute original encoded length
+            OriginalLength = ComputeOriginalEncodedLength(id);
+            // Validate current text
+            ValidateText(DecodedText);
+            // Find cross-references
+            CrossReferences = FindCrossReferences(id);
+        }
+
+        /// <summary>
+        /// Compute the encoded byte length of the current text stored in ROM for the given text ID.
+        /// </summary>
+        int ComputeOriginalEncodedLength(uint id)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return 0;
+
+                uint textBase = rom.p32(rom.RomInfo.text_pointer);
+                if (!U.isSafetyOffset(textBase, rom)) return 0;
+
+                uint writePointer = textBase + (id * 4);
+                if (!U.isSafetyOffset(writePointer, rom)) return 0;
+
+                uint currentPointerValue = rom.u32(writePointer);
+                bool currentIsUnHuffman = FETextEncode.IsUnHuffmanPatchPointer(currentPointerValue);
+                uint currentDataAddr;
+                if (currentIsUnHuffman)
+                    currentDataAddr = U.toOffset(FETextEncode.ConvertUnHuffmanPatchToPointer(currentPointerValue));
+                else if (U.isPointer(currentPointerValue))
+                    currentDataAddr = U.toOffset(currentPointerValue);
+                else
+                    return 0;
+
+                if (currentDataAddr == 0 || !U.isSafetyOffset(currentDataAddr, rom))
+                    return 0;
+
+                var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+                int dataSize;
+                if (currentIsUnHuffman)
+                    decoder.UnHffmanPatchDecode(currentDataAddr, out dataSize);
+                else
+                    decoder.Decode(id, out dataSize);
+                return Math.Max(0, dataSize);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Validate the given text by encoding it and comparing to original length.
+        /// Updates EncodedLength and LengthWarning properties.
+        /// </summary>
+        public void ValidateText(string text)
+        {
+            if (CoreState.FETextEncoder == null || string.IsNullOrEmpty(text))
+            {
+                EncodedLength = 0;
+                LengthWarning = "";
+                return;
+            }
+
+            try
+            {
+                string escaped = ConvertFEditorToEscape(text);
+                byte[] encoded;
+                string error = CoreState.FETextEncoder.Encode(escaped, out encoded);
+                if (error != null && error.Length > 0)
+                {
+                    // Try UnHuffman fallback
+                    CoreState.FETextEncoder.UnHuffmanEncode(escaped, out encoded);
+                }
+
+                int len = encoded?.Length ?? 0;
+                EncodedLength = len;
+
+                if (OriginalLength > 0 && len > OriginalLength)
+                    LengthWarning = $"Encoded: {len} bytes (original: {OriginalLength} bytes) - EXCEEDS ORIGINAL";
+                else if (OriginalLength > 0)
+                    LengthWarning = $"Encoded: {len} bytes (original: {OriginalLength} bytes)";
+                else
+                    LengthWarning = $"Encoded: {len} bytes";
+            }
+            catch (Exception ex)
+            {
+                EncodedLength = 0;
+                LengthWarning = $"Encoding error: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Find units, items, and classes that reference the given text ID in their name field.
+        /// </summary>
+        public List<string> FindCrossReferences(uint textId)
+        {
+            var refs = new List<string>();
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return refs;
+
+                // Scan unit names (first u16 of each unit entry)
+                ScanTable(rom, rom.RomInfo.unit_pointer, rom.RomInfo.unit_datasize,
+                    textId, "Unit", id => NameResolver.GetUnitName(id), refs);
+
+                // Scan class names (first u16 of each class entry)
+                ScanTable(rom, rom.RomInfo.class_pointer, rom.RomInfo.class_datasize,
+                    textId, "Class", id => NameResolver.GetClassName(id), refs);
+
+                // Scan item names (first u16 of each item entry)
+                ScanTable(rom, rom.RomInfo.item_pointer, rom.RomInfo.item_datasize,
+                    textId, "Item", id => NameResolver.GetItemName(id), refs);
+            }
+            catch { }
+            return refs;
+        }
+
+        static void ScanTable(ROM rom, uint baseAddr, uint dataSize, uint textId,
+            string kind, Func<uint, string> nameFunc, List<string> refs)
+        {
+            if (baseAddr == 0 || dataSize == 0) return;
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint entryAddr = baseAddr + (i * dataSize);
+                if (!U.isSafetyOffset(entryAddr + 1, rom)) break;
+                uint nameTextId = rom.u16(entryAddr);
+                if (nameTextId == textId)
+                {
+                    string name = nameFunc(i);
+                    refs.Add($"{kind} 0x{i:X02} ({name})");
+                }
+            }
         }
 
         /// <summary>

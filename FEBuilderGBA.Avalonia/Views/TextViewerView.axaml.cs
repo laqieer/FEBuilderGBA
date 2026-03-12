@@ -19,11 +19,16 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Text Editor";
         public bool IsLoaded => _vm.CanWrite;
 
+        static readonly IBrush YellowBrush = new SolidColorBrush(Colors.Orange);
+        static readonly IBrush RedBrush = new SolidColorBrush(Colors.Red);
+        static readonly IBrush GreenBrush = new SolidColorBrush(Colors.Green);
+
         public TextViewerView()
         {
             InitializeComponent();
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
+            EditTextBox.TextChanged += OnEditTextChanged;
             Opened += (_, _) => LoadList();
         }
 
@@ -76,6 +81,50 @@ namespace FEBuilderGBA.Avalonia.Views
             TextIdLabel.Text = $"Text ID: 0x{_vm.CurrentId:X04}";
             ApplyHighlightedText(DecodedTextBlock, _vm.DecodedText);
             EditTextBox.Text = _vm.DecodedText;
+            UpdateLengthWarning();
+            UpdateCrossReferences();
+        }
+
+        void OnEditTextChanged(object? sender, TextChangedEventArgs e)
+        {
+            if (!_vm.CanWrite) return;
+            string text = EditTextBox.Text ?? "";
+            _vm.ValidateText(text);
+            UpdateLengthWarning();
+        }
+
+        void UpdateLengthWarning()
+        {
+            string warning = _vm.LengthWarning;
+            LengthWarningLabel.Text = warning;
+            if (string.IsNullOrEmpty(warning))
+            {
+                LengthWarningLabel.IsVisible = false;
+            }
+            else if (_vm.OriginalLength > 0 && _vm.EncodedLength > _vm.OriginalLength)
+            {
+                LengthWarningLabel.Foreground = RedBrush;
+                LengthWarningLabel.IsVisible = true;
+            }
+            else if (_vm.OriginalLength > 0 && _vm.EncodedLength == _vm.OriginalLength)
+            {
+                LengthWarningLabel.Foreground = YellowBrush;
+                LengthWarningLabel.IsVisible = true;
+            }
+            else
+            {
+                LengthWarningLabel.Foreground = GreenBrush;
+                LengthWarningLabel.IsVisible = true;
+            }
+        }
+
+        void UpdateCrossReferences()
+        {
+            var refs = _vm.CrossReferences;
+            if (refs.Count == 0)
+                CrossRefList.ItemsSource = new[] { "(No references found)" };
+            else
+                CrossRefList.ItemsSource = refs;
         }
 
         /// <summary>
