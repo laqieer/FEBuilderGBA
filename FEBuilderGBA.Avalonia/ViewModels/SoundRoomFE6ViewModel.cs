@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Fields: BgmId (D0), SongNameTextId (D4), DescriptionTextId (D8).</summary>
     public class SoundRoomFE6ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8" });
         uint _currentAddr;
         bool _isLoaded;
         uint _bgmId;
@@ -85,9 +87,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            BgmId = rom.u32(addr + 0);
-            SongNameTextId = rom.u32(addr + 4);
-            DescriptionTextId = rom.u32(addr + 8);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            BgmId = values["D0"];
+            SongNameTextId = values["D4"];
+            DescriptionTextId = values["D8"];
 
             SongNamePreview = SongNameTextId > 0 && SongNameTextId < 0xFFFF
                 ? NameResolver.GetTextById(SongNameTextId) : "";
@@ -103,10 +106,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint a = CurrentAddr;
-            rom.write_u32(a + 0, BgmId);
-            rom.write_u32(a + 4, SongNameTextId);
-            rom.write_u32(a + 8, DescriptionTextId);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = BgmId, ["D4"] = SongNameTextId, ["D8"] = DescriptionTextId,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

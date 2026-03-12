@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class OPClassDemoViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "D24" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _englishNamePointer;
@@ -73,19 +76,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             CurrentAddr = addr;
-            EnglishNamePointer = rom.u32(addr + 0);
-            DescriptionTextId = rom.u32(addr + 4);
-            JapaneseNamePointer = rom.u32(addr + 8);
-            JapaneseNameLength = rom.u8(addr + 12);
-            PaletteId = rom.u8(addr + 13);
-            DisplayWeapon = rom.u8(addr + 14);
-            AllyEnemyColor = rom.u8(addr + 15);
-            BattleAnime = rom.u8(addr + 16);
-            MagicEffect = rom.u8(addr + 17);
-            Unknown18 = rom.u32(addr + 18);
-            TerrainLeft = rom.u8(addr + 22);
-            TerrainRight = rom.u8(addr + 23);
-            AnimePointer = rom.u32(addr + 24);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            EnglishNamePointer = v["D0"];
+            DescriptionTextId = v["D4"];
+            JapaneseNamePointer = v["D8"];
+            JapaneseNameLength = v["B12"];
+            PaletteId = v["B13"];
+            DisplayWeapon = v["B14"];
+            AllyEnemyColor = v["B15"];
+            BattleAnime = v["B16"];
+            MagicEffect = v["B17"];
+            Unknown18 = v["D18"];
+            TerrainLeft = v["B22"];
+            TerrainRight = v["B23"];
+            AnimePointer = v["D24"];
             CanWrite = true;
         }
 
@@ -93,20 +97,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, EnglishNamePointer);
-            rom.write_u32(addr + 4, DescriptionTextId);
-            rom.write_u32(addr + 8, JapaneseNamePointer);
-            rom.write_u8(addr + 12, (byte)JapaneseNameLength);
-            rom.write_u8(addr + 13, (byte)PaletteId);
-            rom.write_u8(addr + 14, (byte)DisplayWeapon);
-            rom.write_u8(addr + 15, (byte)AllyEnemyColor);
-            rom.write_u8(addr + 16, (byte)BattleAnime);
-            rom.write_u8(addr + 17, (byte)MagicEffect);
-            rom.write_u32(addr + 18, Unknown18);
-            rom.write_u8(addr + 22, (byte)TerrainLeft);
-            rom.write_u8(addr + 23, (byte)TerrainRight);
-            rom.write_u32(addr + 24, AnimePointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = EnglishNamePointer, ["D4"] = DescriptionTextId, ["D8"] = JapaneseNamePointer,
+                ["B12"] = JapaneseNameLength, ["B13"] = PaletteId, ["B14"] = DisplayWeapon,
+                ["B15"] = AllyEnemyColor, ["B16"] = BattleAnime, ["B17"] = MagicEffect,
+                ["D18"] = Unknown18, ["B22"] = TerrainLeft, ["B23"] = TerrainRight, ["D24"] = AnimePointer,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadOPClassDemoList().Count;

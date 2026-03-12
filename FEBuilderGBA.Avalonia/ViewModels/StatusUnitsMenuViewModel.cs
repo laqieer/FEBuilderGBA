@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class StatusUnitsMenuViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _order;
@@ -52,10 +55,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Order = rom.u32(addr + 0);
-            ItemNameTextId = rom.u32(addr + 4);
-            ReferenceData = rom.u32(addr + 8);
-            RMenuTextId = rom.u32(addr + 12);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Order = v["D0"];
+            ItemNameTextId = v["D4"];
+            ReferenceData = v["D8"];
+            RMenuTextId = v["D12"];
             CanWrite = true;
         }
 
@@ -66,10 +70,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, Order);
-            rom.write_u32(addr + 4, ItemNameTextId);
-            rom.write_u32(addr + 8, ReferenceData);
-            rom.write_u32(addr + 12, RMenuTextId);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = Order, ["D4"] = ItemNameTextId, ["D8"] = ReferenceData, ["D12"] = RMenuTextId,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadStatusUnitsMenuList().Count;

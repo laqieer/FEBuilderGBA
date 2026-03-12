@@ -11,6 +11,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class OPClassFontFE8UViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _imagePointer;
@@ -63,7 +66,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ImagePointer = rom.u32(addr);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            ImagePointer = v["D0"];
             CanWrite = true;
         }
 
@@ -118,7 +122,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr, ImagePointer);
+            var values = new Dictionary<string, uint> { ["D0"] = ImagePointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

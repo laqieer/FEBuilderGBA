@@ -6,6 +6,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SoundRoomViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        // Fields: D0=SongId, D4=Raw4, D8=Raw8, D12=TextId (only if dataSize>=16)
+        static readonly List<EditorFormRef.FieldDef> _fields12 =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8" });
+        static readonly List<EditorFormRef.FieldDef> _fields16 =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _songId;
@@ -59,17 +65,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + dataSize > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SongId = rom.u32(addr + 0);      // D0
-            Raw4 = rom.u32(addr + 4);        // D4
-            Raw8 = rom.u32(addr + 8);        // P8
-            if (dataSize >= 16)
-            {
-                TextId = rom.u32(addr + 12); // D12
-            }
-            else
-            {
-                TextId = 0;
-            }
+            bool wide = dataSize >= 16;
+            var fields = wide ? _fields16 : _fields12;
+            var values = EditorFormRef.ReadFields(rom, addr, fields);
+            SongId = values["D0"];
+            Raw4 = values["D4"];
+            Raw8 = values["D8"];
+            TextId = wide ? values["D12"] : 0;
             CanWrite = true;
         }
 
@@ -81,13 +83,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint dataSize = rom.RomInfo.sound_room_datasize;
             if (CurrentAddr + dataSize > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr + 0, SongId);
-            rom.write_u32(CurrentAddr + 4, Raw4);
-            rom.write_u32(CurrentAddr + 8, Raw8);
-            if (dataSize >= 16)
+            bool wide = dataSize >= 16;
+            var fields = wide ? _fields16 : _fields12;
+            var values = new Dictionary<string, uint>
             {
-                rom.write_u32(CurrentAddr + 12, TextId);
-            }
+                ["D0"] = SongId, ["D4"] = Raw4, ["D8"] = Raw8,
+            };
+            if (wide) values["D12"] = TextId;
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, fields);
         }
 
         public int GetListCount() => LoadSoundRoomList().Count;

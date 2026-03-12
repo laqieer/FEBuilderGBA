@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class StatusRMenuViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12", "B16", "B17", "W18", "D20", "D24" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _upPtr;
@@ -71,15 +74,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 28 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UpPtr = rom.u32(addr + 0);
-            DownPtr = rom.u32(addr + 4);
-            LeftPtr = rom.u32(addr + 8);
-            RightPtr = rom.u32(addr + 12);
-            PosX = rom.u8(addr + 16);
-            PosY = rom.u8(addr + 17);
-            TextId = rom.u16(addr + 18);
-            LoopRoutine = rom.u32(addr + 20);
-            GetterRoutine = rom.u32(addr + 24);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            UpPtr = v["D0"];
+            DownPtr = v["D4"];
+            LeftPtr = v["D8"];
+            RightPtr = v["D12"];
+            PosX = v["B16"];
+            PosY = v["B17"];
+            TextId = v["W18"];
+            LoopRoutine = v["D20"];
+            GetterRoutine = v["D24"];
             CanWrite = true;
         }
 
@@ -90,15 +94,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 28 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, UpPtr);
-            rom.write_u32(addr + 4, DownPtr);
-            rom.write_u32(addr + 8, LeftPtr);
-            rom.write_u32(addr + 12, RightPtr);
-            rom.write_u8(addr + 16, (byte)PosX);
-            rom.write_u8(addr + 17, (byte)PosY);
-            rom.write_u16(addr + 18, (ushort)TextId);
-            rom.write_u32(addr + 20, LoopRoutine);
-            rom.write_u32(addr + 24, GetterRoutine);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = UpPtr, ["D4"] = DownPtr, ["D8"] = LeftPtr, ["D12"] = RightPtr,
+                ["B16"] = PosX, ["B17"] = PosY, ["W18"] = TextId,
+                ["D20"] = LoopRoutine, ["D24"] = GetterRoutine,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadStatusRMenuList().Count;

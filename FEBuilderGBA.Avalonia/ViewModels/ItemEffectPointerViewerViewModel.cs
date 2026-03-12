@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemEffectPointerViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
         uint _currentAddr;
         uint _effectPointer;
         bool _canWrite;
@@ -50,7 +52,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            EffectPointer = rom.u32(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            EffectPointer = values["D0"];
 
             CanWrite = true;
         }
@@ -59,8 +62,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u32(addr, EffectPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = EffectPointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadItemEffectPointerList().Count;

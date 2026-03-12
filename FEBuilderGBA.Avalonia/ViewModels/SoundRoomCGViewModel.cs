@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Each entry is a CG image ID (u32).</summary>
     public class SoundRoomCGViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
         uint _currentAddr;
         bool _isLoaded;
         uint _cgId;
@@ -51,7 +53,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            CgId = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            CgId = values["D0"];
             CgDescription = $"CG Image ID: 0x{CgId:X04}";
             IsLoaded = true;
             IsLoading = false;
@@ -62,7 +65,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr, CgId);
+            var values = new Dictionary<string, uint> { ["D0"] = CgId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

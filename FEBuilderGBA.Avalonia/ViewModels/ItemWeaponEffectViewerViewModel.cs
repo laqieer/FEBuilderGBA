@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemWeaponEffectViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "W6", "D8", "B12", "B13", "B14", "B15" });
         uint _currentAddr;
         uint _itemId;
         uint _unknown1;
@@ -72,17 +74,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 15 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ItemId = rom.u8(addr + 0);
-            Unknown1 = rom.u8(addr + 1);
-            AnimType = rom.u8(addr + 2);
-            Unknown3 = rom.u8(addr + 3);
-            EffectId = rom.u16(addr + 4);
-            Unknown6 = rom.u16(addr + 6);
-            MapEffectPointer = rom.u32(addr + 8);
-            DamageEffect = rom.u8(addr + 12);
-            Motion = rom.u8(addr + 13);
-            HitColor = rom.u8(addr + 14);
-            Unknown15 = rom.u8(addr + 15);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ItemId = values["B0"];
+            Unknown1 = values["B1"];
+            AnimType = values["B2"];
+            Unknown3 = values["B3"];
+            EffectId = values["W4"];
+            Unknown6 = values["W6"];
+            MapEffectPointer = values["D8"];
+            DamageEffect = values["B12"];
+            Motion = values["B13"];
+            HitColor = values["B14"];
+            Unknown15 = values["B15"];
 
             CanWrite = true;
         }
@@ -91,18 +94,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)ItemId);
-            rom.write_u8(addr + 1, (byte)Unknown1);
-            rom.write_u8(addr + 2, (byte)AnimType);
-            rom.write_u8(addr + 3, (byte)Unknown3);
-            rom.write_u16(addr + 4, (ushort)EffectId);
-            rom.write_u16(addr + 6, (ushort)Unknown6);
-            rom.write_u32(addr + 8, MapEffectPointer);
-            rom.write_u8(addr + 12, (byte)DamageEffect);
-            rom.write_u8(addr + 13, (byte)Motion);
-            rom.write_u8(addr + 14, (byte)HitColor);
-            rom.write_u8(addr + 15, (byte)Unknown15);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = ItemId, ["B1"] = Unknown1, ["B2"] = AnimType, ["B3"] = Unknown3,
+                ["W4"] = EffectId, ["W6"] = Unknown6, ["D8"] = MapEffectPointer,
+                ["B12"] = DamageEffect, ["B13"] = Motion, ["B14"] = HitColor, ["B15"] = Unknown15,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadItemWeaponEffectList().Count;

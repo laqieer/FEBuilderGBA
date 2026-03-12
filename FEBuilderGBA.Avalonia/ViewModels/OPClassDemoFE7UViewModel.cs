@@ -10,6 +10,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class OPClassDemoFE7UViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "W4", "W8", "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B19", "B20", "B21", "B22", "B23", "D24" });
+
         uint _currentAddr;
         bool _canWrite;
         string _unavailableMessage = "";
@@ -95,23 +98,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 28 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            EnglishNamePointer = rom.u32(addr + 0);
-            DescriptionTextId = rom.u16(addr + 4);
-            JapaneseNamePointer = rom.u16(addr + 8);
-            JapaneseNameLength = rom.u8(addr + 10);
-            ClassId = rom.u8(addr + 11);
-            AllyEnemyColor = rom.u8(addr + 12);
-            BattleAnime = rom.u8(addr + 13);
-            MagicEffect = rom.u8(addr + 14);
-            Unknown15 = rom.u8(addr + 15);
-            Unknown16 = rom.u8(addr + 16);
-            Unknown17 = rom.u8(addr + 17);
-            Unknown19 = rom.u8(addr + 19);
-            TerrainLeft = rom.u8(addr + 20);
-            TerrainRight = rom.u8(addr + 21);
-            Unknown22 = rom.u8(addr + 22);
-            Unknown23 = rom.u8(addr + 23);
-            AnimePointer = rom.u32(addr + 24);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            EnglishNamePointer = v["D0"];
+            DescriptionTextId = v["W4"];
+            JapaneseNamePointer = v["W8"];
+            JapaneseNameLength = v["B10"];
+            ClassId = v["B11"];
+            AllyEnemyColor = v["B12"];
+            BattleAnime = v["B13"];
+            MagicEffect = v["B14"];
+            Unknown15 = v["B15"];
+            Unknown16 = v["B16"];
+            Unknown17 = v["B17"];
+            Unknown19 = v["B19"];
+            TerrainLeft = v["B20"];
+            TerrainRight = v["B21"];
+            Unknown22 = v["B22"];
+            Unknown23 = v["B23"];
+            AnimePointer = v["D24"];
             CanWrite = true;
         }
 
@@ -119,24 +123,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, EnglishNamePointer);
-            rom.write_u16(addr + 4, (ushort)DescriptionTextId);
-            rom.write_u16(addr + 8, (ushort)JapaneseNamePointer);
-            rom.write_u8(addr + 10, (byte)JapaneseNameLength);
-            rom.write_u8(addr + 11, (byte)ClassId);
-            rom.write_u8(addr + 12, (byte)AllyEnemyColor);
-            rom.write_u8(addr + 13, (byte)BattleAnime);
-            rom.write_u8(addr + 14, (byte)MagicEffect);
-            rom.write_u8(addr + 15, (byte)Unknown15);
-            rom.write_u8(addr + 16, (byte)Unknown16);
-            rom.write_u8(addr + 17, (byte)Unknown17);
-            rom.write_u8(addr + 19, (byte)Unknown19);
-            rom.write_u8(addr + 20, (byte)TerrainLeft);
-            rom.write_u8(addr + 21, (byte)TerrainRight);
-            rom.write_u8(addr + 22, (byte)Unknown22);
-            rom.write_u8(addr + 23, (byte)Unknown23);
-            rom.write_u32(addr + 24, AnimePointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = EnglishNamePointer, ["W4"] = DescriptionTextId, ["W8"] = JapaneseNamePointer,
+                ["B10"] = JapaneseNameLength, ["B11"] = ClassId, ["B12"] = AllyEnemyColor,
+                ["B13"] = BattleAnime, ["B14"] = MagicEffect, ["B15"] = Unknown15,
+                ["B16"] = Unknown16, ["B17"] = Unknown17, ["B19"] = Unknown19,
+                ["B20"] = TerrainLeft, ["B21"] = TerrainRight, ["B22"] = Unknown22,
+                ["B23"] = Unknown23, ["D24"] = AnimePointer,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

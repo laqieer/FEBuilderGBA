@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MonsterItemViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4" });
         uint _currentAddr;
         bool _canWrite;
         uint _itemId;
@@ -54,11 +56,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 5 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ItemId = rom.u8(addr + 0);
-            DropRate = rom.u8(addr + 1);
-            Unknown1 = rom.u8(addr + 2);
-            Unknown2 = rom.u8(addr + 3);
-            Unknown3 = rom.u8(addr + 4);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ItemId = values["B0"];
+            DropRate = values["B1"];
+            Unknown1 = values["B2"];
+            Unknown2 = values["B3"];
+            Unknown3 = values["B4"];
             CanWrite = true;
         }
 
@@ -68,11 +71,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 5 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)ItemId);
-            rom.write_u8(CurrentAddr + 1, (byte)DropRate);
-            rom.write_u8(CurrentAddr + 2, (byte)Unknown1);
-            rom.write_u8(CurrentAddr + 3, (byte)Unknown2);
-            rom.write_u8(CurrentAddr + 4, (byte)Unknown3);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = ItemId, ["B1"] = DropRate,
+                ["B2"] = Unknown1, ["B3"] = Unknown2, ["B4"] = Unknown3,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadMonsterItemList().Count;

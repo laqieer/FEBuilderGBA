@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemUsagePointerViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
         uint _currentAddr;
         uint _usabilityPointer;
         bool _canWrite;
@@ -58,7 +60,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UsabilityPointer = rom.u32(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UsabilityPointer = values["D0"];
 
             CanWrite = true;
         }
@@ -67,8 +70,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u32(addr, UsabilityPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = UsabilityPointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadItemUsagePointerList().Count;

@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemShopViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1" });
         uint _currentAddr;
         uint _itemId;
         uint _quantity;
@@ -51,8 +53,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ItemId = rom.u8(addr);
-            Quantity = rom.u8(addr + 1);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ItemId = values["B0"];
+            Quantity = values["B1"];
 
             CanWrite = true;
         }
@@ -61,9 +64,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u8(addr, ItemId);
-            rom.write_u8(addr + 1, Quantity);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = ItemId, ["B1"] = Quantity,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadItemShopList().Count;

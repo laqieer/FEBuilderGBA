@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemPromotionViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
         uint _currentAddr;
         uint _targetClassId;
         bool _canWrite;
@@ -49,7 +51,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            TargetClassId = rom.u8(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            TargetClassId = values["B0"];
 
             CanWrite = true;
         }
@@ -58,8 +61,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u8(addr, TargetClassId);
+            var values = new Dictionary<string, uint> { ["B0"] = TargetClassId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadItemPromotionList().Count;

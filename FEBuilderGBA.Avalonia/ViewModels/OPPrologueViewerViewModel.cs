@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class OPPrologueViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "B8", "B9", "B10", "B11" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _imagePointer, _tsaPointer, _paletteColorPointer;
@@ -52,12 +55,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             CurrentAddr = addr;
-            ImagePointer = rom.u32(addr + 0);
-            TSAPointer = rom.u32(addr + 4);
-            WaitFrames = rom.u8(addr + 8);
-            Unknown9 = rom.u8(addr + 9);
-            Unknown10 = rom.u8(addr + 10);
-            Unknown11 = rom.u8(addr + 11);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            ImagePointer = v["D0"];
+            TSAPointer = v["D4"];
+            WaitFrames = v["B8"];
+            Unknown9 = v["B9"];
+            Unknown10 = v["B10"];
+            Unknown11 = v["B11"];
 
             // Palette comes from a separate pointer in ROM info
             uint palPtrAddr = rom.RomInfo.op_prologue_palette_color_pointer;
@@ -127,13 +131,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, ImagePointer);
-            rom.write_u32(addr + 4, TSAPointer);
-            rom.write_u8(addr + 8, (byte)WaitFrames);
-            rom.write_u8(addr + 9, (byte)Unknown9);
-            rom.write_u8(addr + 10, (byte)Unknown10);
-            rom.write_u8(addr + 11, (byte)Unknown11);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = ImagePointer, ["D4"] = TSAPointer,
+                ["B8"] = WaitFrames, ["B9"] = Unknown9, ["B10"] = Unknown10, ["B11"] = Unknown11,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadOPPrologueList().Count;

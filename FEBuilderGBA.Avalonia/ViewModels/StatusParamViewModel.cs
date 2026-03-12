@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class StatusParamViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "B8", "B9", "B10", "B11", "D12" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _menuTextStruct;
@@ -98,13 +101,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            MenuTextStruct = rom.u32(addr + 0);
-            Bitmap = rom.u32(addr + 4);
-            ColorType = rom.u8(addr + 8);
-            Indent = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            StringPointer = rom.u32(addr + 12);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            MenuTextStruct = v["D0"];
+            Bitmap = v["D4"];
+            ColorType = v["B8"];
+            Indent = v["B9"];
+            B10 = v["B10"];
+            B11 = v["B11"];
+            StringPointer = v["D12"];
 
             // Resolve string text
             StringText = "";
@@ -129,13 +133,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, MenuTextStruct);
-            rom.write_u32(addr + 4, Bitmap);
-            rom.write_u8(addr + 8, (byte)ColorType);
-            rom.write_u8(addr + 9, (byte)Indent);
-            rom.write_u8(addr + 10, (byte)B10);
-            rom.write_u8(addr + 11, (byte)B11);
-            rom.write_u32(addr + 12, StringPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = MenuTextStruct, ["D4"] = Bitmap, ["B8"] = ColorType,
+                ["B9"] = Indent, ["B10"] = B10, ["B11"] = B11, ["D12"] = StringPointer,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadStatusParamList().Count;
