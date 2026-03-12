@@ -4,6 +4,7 @@ using FEBuilderGBA.CLI;
 
 namespace FEBuilderGBA.Tests.Unit
 {
+    [Collection("SharedState")]
     public class CliProjectTests
     {
         [Fact]
