@@ -100,11 +100,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            uint flagAddr = GetFlagAddr(_selectedIndex);
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
             };
+            if (U.isSafetyOffset(flagAddr))
+                report[$"u8@0x{flagAddr:X08}"] = $"0x{rom.u8(flagAddr):X02}";
+            return report;
         }
     }
 }
