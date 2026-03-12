@@ -118,6 +118,35 @@ namespace FEBuilderGBA.Avalonia.Views
             Unk33Box.Value = _vm.Unk33;
             Unk34Box.Value = _vm.Unk34;
             Unk35Box.Value = _vm.Unk35;
+
+            UpdateComputedUI();
+        }
+
+        void UpdateComputedUI()
+        {
+            // Shop prices
+            ShopBuyPriceLabel.Text = _vm.ShopBuyPrice.ToString();
+            ShopSellPriceLabel.Text = _vm.ShopSellPrice.ToString();
+            ShopForgePriceLabel.Text = _vm.ShopForgePrice.ToString();
+
+            // Null pointer warnings
+            AllocStatBonusesWarning.IsVisible = _vm.ShowAllocStatBonuses;
+            AllocEffectivenessWarning.IsVisible = _vm.ShowAllocEffectiveness;
+
+            // Stat bonus preview
+            BonusPreviewBorder.IsVisible = _vm.HasBonusPreview;
+            if (_vm.HasBonusPreview)
+            {
+                BonusHPLabel.Text = $"HP: {_vm.BonusHP:+#;-#;0}";
+                BonusStrLabel.Text = $"Str: {_vm.BonusStr:+#;-#;0}";
+                BonusSklLabel.Text = $"Skl: {_vm.BonusSkl:+#;-#;0}";
+                BonusSpdLabel.Text = $"Spd: {_vm.BonusSpd:+#;-#;0}";
+                BonusDefLabel.Text = $"Def: {_vm.BonusDef:+#;-#;0}";
+                BonusResLabel.Text = $"Res: {_vm.BonusRes:+#;-#;0}";
+                BonusLckLabel.Text = $"Lck: {_vm.BonusLck:+#;-#;0}";
+                BonusMoveLabel.Text = $"Move: {_vm.BonusMove:+#;-#;0}";
+                BonusConLabel.Text = $"Con: {_vm.BonusCon:+#;-#;0}";
+            }
         }
 
         void ReadFromUI()
@@ -159,6 +188,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             ReadFromUI();
+            _vm.RecalcComputed();
+            UpdateComputedUI();
 
             _undoService.Begin("Edit Item");
             try

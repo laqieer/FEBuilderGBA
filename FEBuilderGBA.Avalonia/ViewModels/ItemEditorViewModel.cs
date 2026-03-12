@@ -82,6 +82,79 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unk35 { get => _unk35; set => SetField(ref _unk35, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
+        // --- Computed: Shop prices ---
+        uint _shopBuyPrice, _shopSellPrice, _shopForgePrice;
+        public uint ShopBuyPrice { get => _shopBuyPrice; private set => SetField(ref _shopBuyPrice, value); }
+        public uint ShopSellPrice { get => _shopSellPrice; private set => SetField(ref _shopSellPrice, value); }
+        public uint ShopForgePrice { get => _shopForgePrice; private set => SetField(ref _shopForgePrice, value); }
+
+        // --- Computed: Stat bonus preview ---
+        int _bonusHP, _bonusStr, _bonusSkl, _bonusSpd, _bonusDef, _bonusRes, _bonusLck, _bonusMove, _bonusCon;
+        bool _hasBonusPreview;
+        public int BonusHP { get => _bonusHP; private set => SetField(ref _bonusHP, value); }
+        public int BonusStr { get => _bonusStr; private set => SetField(ref _bonusStr, value); }
+        public int BonusSkl { get => _bonusSkl; private set => SetField(ref _bonusSkl, value); }
+        public int BonusSpd { get => _bonusSpd; private set => SetField(ref _bonusSpd, value); }
+        public int BonusDef { get => _bonusDef; private set => SetField(ref _bonusDef, value); }
+        public int BonusRes { get => _bonusRes; private set => SetField(ref _bonusRes, value); }
+        public int BonusLck { get => _bonusLck; private set => SetField(ref _bonusLck, value); }
+        public int BonusMove { get => _bonusMove; private set => SetField(ref _bonusMove, value); }
+        public int BonusCon { get => _bonusCon; private set => SetField(ref _bonusCon, value); }
+        public bool HasBonusPreview { get => _hasBonusPreview; private set => SetField(ref _hasBonusPreview, value); }
+
+        // --- Computed: Null pointer warnings ---
+        bool _showAllocStatBonuses, _showAllocEffectiveness;
+        uint _currentItemIndex;
+        public bool ShowAllocStatBonuses { get => _showAllocStatBonuses; private set => SetField(ref _showAllocStatBonuses, value); }
+        public bool ShowAllocEffectiveness { get => _showAllocEffectiveness; private set => SetField(ref _showAllocEffectiveness, value); }
+
+        /// <summary>Recalculate all computed fields. Call after loading or UI changes.</summary>
+        public void RecalcComputed()
+        {
+            // Shop prices
+            uint total = Uses * Price;
+            ShopBuyPrice = total;
+            ShopSellPrice = total / 2;
+            ShopForgePrice = (uint)(total * 1.5);
+
+            // Null pointer warnings
+            ShowAllocStatBonuses = StatBonusesPtr == 0 && _currentItemIndex > 0;
+            ShowAllocEffectiveness = EffectivenessPtr == 0 && _currentItemIndex > 0;
+
+            // Stat bonus preview
+            RecalcStatBonuses();
+        }
+
+        void RecalcStatBonuses()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !U.isPointer(StatBonusesPtr))
+            {
+                HasBonusPreview = false;
+                BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef = BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                return;
+            }
+
+            uint addr = StatBonusesPtr - 0x08000000;
+            if (!U.isSafetyOffset(addr) || addr + 9 > (uint)rom.Data.Length)
+            {
+                HasBonusPreview = false;
+                BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef = BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                return;
+            }
+
+            HasBonusPreview = true;
+            BonusHP   = (sbyte)rom.u8(addr + 0);
+            BonusStr  = (sbyte)rom.u8(addr + 1);
+            BonusSkl  = (sbyte)rom.u8(addr + 2);
+            BonusSpd  = (sbyte)rom.u8(addr + 3);
+            BonusDef  = (sbyte)rom.u8(addr + 4);
+            BonusRes  = (sbyte)rom.u8(addr + 5);
+            BonusLck  = (sbyte)rom.u8(addr + 6);
+            BonusMove = (sbyte)rom.u8(addr + 7);
+            BonusCon  = (sbyte)rom.u8(addr + 8);
+        }
+
         // Keep old property names as aliases for backward compatibility with Views
         [Obsolete("Use WeaponRank instead")] public uint Rank { get => WeaponRank; set => WeaponRank = value; }
 
@@ -170,6 +243,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             CanWrite = true;
+
+            // Determine item index from address
+            uint ptr = rom.RomInfo.item_pointer;
+            uint baseAddr = rom.p32(ptr);
+            if (baseAddr > 0 && addr >= baseAddr)
+                _currentItemIndex = (addr - baseAddr) / dataSize;
+            else
+                _currentItemIndex = 0;
+
+            RecalcComputed();
         }
 
         public int GetListCount() => LoadItemList().Count;

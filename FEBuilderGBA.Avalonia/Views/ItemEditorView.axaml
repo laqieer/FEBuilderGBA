@@ -92,7 +92,39 @@
           <!-- Row 12: B35 -->
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="12" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
+
+          <!-- Row 13: Shop prices (computed) -->
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="Buy Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="13" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="13" Grid.Column="3" Text="Sell Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="13" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+
+          <!-- Row 14: Forge price -->
+          <TextBlock Grid.Row="14" Grid.Column="0" Text="Forge Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="14" Grid.Column="1" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
+
+        <!-- Null pointer warnings -->
+        <TextBlock Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
+        <TextBlock Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
+
+        <!-- Stat bonus preview -->
+        <Border Name="BonusPreviewBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Stat Bonuses Preview" FontWeight="Bold" />
+            <WrapPanel>
+              <TextBlock Name="BonusHPLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusStrLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusSklLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusSpdLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusDefLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusResLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusLckLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusMoveLabel" Margin="0,0,12,0" />
+              <TextBlock Name="BonusConLabel" Margin="0,0,12,0" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
 
         <!-- Trait Flags (BitFlagPanels) -->
         <TextBlock Text="Trait Flags" FontWeight="Bold" Margin="0,8,0,2" />
