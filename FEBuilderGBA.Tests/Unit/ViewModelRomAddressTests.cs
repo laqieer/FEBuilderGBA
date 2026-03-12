@@ -487,20 +487,20 @@ namespace FEBuilderGBA.Tests.Unit
         public void MoveCostViewModel_HandlesVersionSpecificOffset()
         {
             var src = ReadViewModel("MoveCostEditorViewModel.cs");
-            // Move cost pointer offset varies by version
+            // GetMoveCostPointerAddr dispatches by version and CostType enum
             Assert.Contains("rom.RomInfo.version == 6", src);
-            Assert.Contains("moveCostPtrOffset = 52", src);  // FE6
-            Assert.Contains("moveCostPtrOffset = 56", src);  // FE7/FE8
+            Assert.Contains("classAddr + 52", src);  // FE6 MoveCostNormal
+            Assert.Contains("classAddr + 56", src);  // FE7/FE8 MoveCostNormal
         }
 
         [Fact]
         public void MoveCostViewModel_ReadsTerrainCosts()
         {
             var src = ReadViewModel("MoveCostEditorViewModel.cs");
-            // Reads all 65 individual terrain move cost bytes (B0-B64)
-            Assert.Contains("rom.u8(moveCostAddr + 0)", src);
-            Assert.Contains("rom.u8(moveCostAddr + 32)", src);
-            Assert.Contains("rom.u8(moveCostAddr + 64)", src);
+            // LoadMoveCost iterates TerrainCount (65) bytes via loop variable
+            Assert.Contains("TerrainCount", src);
+            Assert.Contains("rom.u8((uint)(moveCostAddr + i))", src);
+            Assert.Contains("GetMoveCostPointerAddr(classAddr, costType)", src);
         }
 
         // ---------------------------------------------------------------

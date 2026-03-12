@@ -493,6 +493,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["costType"] = SelectedCostType.ToString(),
+                ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",  // nameId
+                ["u8@0x04"] = $"0x{rom.u8(a + 4):X02}",   // class type
             };
 
             uint pointerAddr = GetMoveCostPointerAddr(a, SelectedCostType);
