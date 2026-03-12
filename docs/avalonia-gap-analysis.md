@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~57% average across all domains (updated 2026-03-12 after round 16 gap fixes)
+**Overall Avalonia Completeness:** ~58% average across all domains (updated 2026-03-12 after round 19 gap fixes)
 
 ---
 
@@ -44,7 +44,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 2 | [Unit Editors](#1-unit-editors) | **~48%** | 10 | ~~Growth sim~~ FIXED, no skills |
 | 3 | [Item Editors](#2-item-editors) | **~55%** | 14 | No patch-aware UI |
 | 4 | [Class Editors](#3-class-editors) | **~45%** | 7 | No growth simulator, no skills, no magic split |
-| 5 | [Map Editors](#4-map-editors) | **~38%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
+| 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
 | 8 | [Sound & Music](#7-sound--music) | **~42%** | 10 | No MIDI import, no playback |
@@ -134,7 +134,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 ## 4. Map Editors
 
-**Domain Average: ~38%**
+**Domain Average: ~40%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
@@ -484,4 +484,6 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 
 **Updated 2026-03-12 (round 12):** Cross-editor pick-and-return infrastructure (`PickResult`, `IPickableEditor`, `WindowManager.PickFromEditor<T>()`). Six editors implement `IPickableEditor`: ClassEditor, PortraitViewer, ItemEditor, UnitEditor, SongTable, ItemFE6. Pick buttons added to UnitEditor (Class/Portrait) and SoundBossBGM (Unit). Three map stubs fixed: MapEditor (0→25%, visual tile rendering with zoom), MapStyleEditor (0→20%, tileset list from map_obj_pointer), MapTerrainName (0→30%, terrain list from map_terrain_name_pointer). Gap analysis accuracy fixes: Unit growth simulator was already implemented (45→55%), item trait BitFlagPanels already wired.
 
-**Updated 2026-03-12 (rounds 13-16):** Systematic name resolution improvements across 15+ forms: SupportTalk/FE6/FE7 (unit names in list), SupportUnitEditor/FE6 (unit names), WorldMapPoint (point names from text ID), WorldMapPath (start/end IDs), WorldMapBGM (song names), ArenaClass/ArenaEnemyWeapon (class/item names), ItemStatBonuses (item names), SoundBossBGM/SoundFootSteps (unit/class names), MonsterItem (item names), SummonUnit/SummonsDemonKing (unit/class names), LinkArenaDenyUnit (unit names). Overall completeness ~57%.
+**Updated 2026-03-12 (rounds 13-16):** Systematic name resolution improvements across 15+ forms: SupportTalk/FE6/FE7 (unit names in list), SupportUnitEditor/FE6 (unit names), WorldMapPoint (point names from text ID), WorldMapPath (start/end IDs), WorldMapBGM (song names), ArenaClass/ArenaEnemyWeapon (class/item names), ItemStatBonuses (item names), SoundBossBGM/SoundFootSteps (unit/class names), MonsterItem (item names), SummonUnit/SummonsDemonKing (unit/class names), LinkArenaDenyUnit (unit names).
+
+**Updated 2026-03-12 (rounds 17-19):** Stub list loading fixes: AITargetVM (from ai3_pointer), MenuExtendSplitMenu (from menu_definiton_split_pointer). Filter combos added: StatusParam (4-way param table switch), MapPointer (5-way PLIST type filter), ArenaClass (3-way weapon type filter). Overall completeness ~58%.
