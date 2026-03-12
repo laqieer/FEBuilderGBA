@@ -3,64 +3,109 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventUnitView"
         Title="Event Unit Placement" Width="1730" Height="1052">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="220,220,220,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Level 1: Map List -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Maps" FontWeight="Bold" Margin="0,0,0,4" />
+      <ListBox Name="MapListBox" />
+    </DockPanel>
+
+    <!-- Level 2: Unit Group List -->
+    <DockPanel Grid.Column="1" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Unit Groups" FontWeight="Bold" Margin="0,0,0,4" />
+      <ListBox Name="GroupListBox" />
+    </DockPanel>
+
+    <!-- Level 3: Unit List -->
+    <DockPanel Grid.Column="2" Margin="4">
+      <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4">
+        <TextBlock Text="Units" FontWeight="Bold" />
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBox Name="ManualAddrBox" Width="120" Watermark="0x Address" />
+          <Button Content="Load" Name="LoadAddrBtn" Click="LoadAddr_Click" />
+        </StackPanel>
+      </StackPanel>
+      <ListBox Name="UnitListBox" />
+    </DockPanel>
+
+    <!-- Detail Panel -->
+    <ScrollViewer Grid.Column="3" Margin="4">
       <StackPanel Spacing="6" Margin="8">
-        <TextBlock Text="Event Unit Placement" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Event Unit Placement (FE8)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="160,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
+          <!-- Unit ID -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Name="UnitNameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
+          <!-- Class ID -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ClassIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Name="ClassNameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
+          <!-- Leader Unit ID -->
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Leader Unit ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="3" Grid.Column="1" Name="LeaderUnitIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Unit Info -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit Info:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="4" Grid.Column="1" Name="UnitInfoBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Unit Growth -->
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Unit Growth:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="5" Grid.Column="1" Name="UnitGrowthBox" Minimum="0" Maximum="65535" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Reserved -->
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Reserved (0x06):" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="6" Grid.Column="1" Name="Reserved6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Coord Count -->
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Coord Count:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="7" Grid.Column="1" Name="CoordCountBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Coord Pointer -->
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Coord Pointer:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox Grid.Row="8" Grid.Column="1" Name="CoordPointerBox" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Items -->
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="9" Grid.Column="1" Name="Item1Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="9" Grid.Column="2" Name="Item1NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="10" Grid.Column="1" Name="Item2Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="2" Name="Item2NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="11" Grid.Column="1" Name="Item3Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="11" Grid.Column="2" Name="Item3NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="12" Grid.Column="1" Name="Item4Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="12" Grid.Column="2" Name="Item4NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
+          <!-- AI -->
           <TextBlock Grid.Row="13" Grid.Column="0" Text="AI1 Primary:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="13" Grid.Column="1" Name="AI1PrimaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="13" Grid.Column="2" Name="AI1DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="AI2 Secondary:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="14" Grid.Column="1" Name="AI2SecondaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="14" Grid.Column="2" Name="AI2DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="AI3 Target/Recovery:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="15" Grid.Column="1" Name="AI3TargetRecoveryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="15" Grid.Column="2" Name="AI3DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
           <TextBlock Grid.Row="16" Grid.Column="0" Text="AI4 Retreat:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown Grid.Row="16" Grid.Column="1" Name="AI4RetreatBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="16" Grid.Column="2" Name="AI4DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">

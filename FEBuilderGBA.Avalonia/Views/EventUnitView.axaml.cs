@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -11,40 +13,152 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly EventUnitViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        readonly ObservableCollection<string> _mapDisplayItems = new();
+        readonly ObservableCollection<string> _groupDisplayItems = new();
+        readonly ObservableCollection<string> _unitDisplayItems = new();
+
+        List<AddrResult> _mapItems = new();
+        List<AddrResult> _groupItems = new();
+        List<AddrResult> _unitItems = new();
+
         public string ViewTitle => "Event Unit Placement";
         public bool IsLoaded => _vm.IsLoaded;
 
         public EventUnitView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            MapListBox.ItemsSource = _mapDisplayItems;
+            GroupListBox.ItemsSource = _groupDisplayItems;
+            UnitListBox.ItemsSource = _unitDisplayItems;
+
+            MapListBox.SelectionChanged += MapListBox_SelectionChanged;
+            GroupListBox.SelectionChanged += GroupListBox_SelectionChanged;
+            UnitListBox.SelectionChanged += UnitListBox_SelectionChanged;
+
+            Opened += (_, _) => LoadMapList();
         }
 
-        void LoadList()
+        void LoadMapList()
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                _mapItems = _vm.LoadMapList();
+                _mapDisplayItems.Clear();
+                foreach (var item in _mapItems)
+                    _mapDisplayItems.Add(item.name);
+
+                if (_mapItems.Count > 0)
+                    MapListBox.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.LoadList failed: {0}", ex.Message);
+                Log.Error("EventUnitView.LoadMapList failed: {0}", ex.Message);
             }
         }
 
-        void OnSelected(uint addr)
+        void MapListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             try
             {
-                _vm.LoadEntry(addr);
+                int idx = MapListBox.SelectedIndex;
+                if (idx < 0 || idx >= _mapItems.Count) return;
+
+                uint mapId = _mapItems[idx].tag;
+                _groupItems = _vm.LoadUnitGroups(mapId);
+                _groupDisplayItems.Clear();
+                foreach (var item in _groupItems)
+                    _groupDisplayItems.Add(item.name);
+
+                _unitDisplayItems.Clear();
+                _unitItems = new List<AddrResult>();
+                ClearDetail();
+
+                if (_groupItems.Count > 0)
+                    GroupListBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.MapListBox_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        void GroupListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                int idx = GroupListBox.SelectedIndex;
+                if (idx < 0 || idx >= _groupItems.Count) return;
+
+                uint groupAddr = _groupItems[idx].addr;
+                LoadUnitsFromAddress(groupAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.GroupListBox_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        void LoadUnitsFromAddress(uint baseAddr)
+        {
+            _unitItems = _vm.LoadUnitList(baseAddr);
+            _unitDisplayItems.Clear();
+            foreach (var item in _unitItems)
+                _unitDisplayItems.Add(item.name);
+
+            ClearDetail();
+
+            if (_unitItems.Count > 0)
+                UnitListBox.SelectedIndex = 0;
+        }
+
+        void UnitListBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                int idx = UnitListBox.SelectedIndex;
+                if (idx < 0 || idx >= _unitItems.Count) return;
+
+                _vm.LoadEntry(_unitItems[idx].addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.OnSelected failed: {0}", ex.Message);
+                Log.Error("EventUnitView.UnitListBox_SelectionChanged failed: {0}", ex.Message);
             }
+        }
+
+        void LoadAddr_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string text = ManualAddrBox.Text ?? "";
+                uint addr = U.atoh(text);
+                if (addr == 0 || !U.isSafetyOffset(addr))
+                {
+                    Log.Error("EventUnitView: Invalid address {0}", text);
+                    return;
+                }
+                LoadUnitsFromAddress(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.LoadAddr_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void ClearDetail()
+        {
+            AddrLabel.Text = "";
+            UnitNameLabel.Text = "";
+            ClassNameLabel.Text = "";
+            Item1NameLabel.Text = "";
+            Item2NameLabel.Text = "";
+            Item3NameLabel.Text = "";
+            Item4NameLabel.Text = "";
+            AI1DescLabel.Text = "";
+            AI2DescLabel.Text = "";
+            AI3DescLabel.Text = "";
+            AI4DescLabel.Text = "";
         }
 
         void UpdateUI()
@@ -66,6 +180,18 @@ namespace FEBuilderGBA.Avalonia.Views
             AI2SecondaryBox.Value = _vm.AI2Secondary;
             AI3TargetRecoveryBox.Value = _vm.AI3TargetRecovery;
             AI4RetreatBox.Value = _vm.AI4Retreat;
+
+            // Name labels
+            UnitNameLabel.Text = _vm.UnitName;
+            ClassNameLabel.Text = _vm.ClassName;
+            Item1NameLabel.Text = _vm.Item1Name;
+            Item2NameLabel.Text = _vm.Item2Name;
+            Item3NameLabel.Text = _vm.Item3Name;
+            Item4NameLabel.Text = _vm.Item4Name;
+            AI1DescLabel.Text = _vm.AI1Desc;
+            AI2DescLabel.Text = _vm.AI2Desc;
+            AI3DescLabel.Text = _vm.AI3Desc;
+            AI4DescLabel.Text = _vm.AI4Desc;
         }
 
         void ReadFromUI()
@@ -105,7 +231,25 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        public void NavigateTo(uint address)
+        {
+            // Try to find the unit in the current list
+            for (int i = 0; i < _unitItems.Count; i++)
+            {
+                if (_unitItems[i].addr == address)
+                {
+                    UnitListBox.SelectedIndex = i;
+                    return;
+                }
+            }
+            // If not found, try loading from address directly
+            LoadUnitsFromAddress(address);
+        }
+
+        public void SelectFirstItem()
+        {
+            if (_mapItems.Count > 0)
+                MapListBox.SelectedIndex = 0;
+        }
     }
 }

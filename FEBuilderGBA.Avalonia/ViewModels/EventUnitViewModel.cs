@@ -6,6 +6,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
     /// ViewModel for EventUnitForm (FE8 — 20-byte unit placement blocks).
+    /// Provides 3-level navigation: Map -> Unit Group -> Unit.
+    ///
     /// Layout: UnitID(B0), ClassID(B1), LeaderUnitID(B2), UnitInfo(B3),
     ///         UnitGrowth(W4), Reserved6(B6), CoordCount(B7), CoordPointer(P8),
     ///         Item1(B12), Item2(B13), Item3(B14), Item4(B15),
@@ -22,6 +24,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _coordPointer;
         uint _item1, _item2, _item3, _item4;
         uint _ai1Primary, _ai2Secondary, _ai3TargetRecovery, _ai4Retreat;
+
+        // Navigation state
+        uint _selectedMapId = uint.MaxValue;
+        uint _selectedGroupAddr;
+
+        // Resolved display names
+        string _unitName = "";
+        string _className = "";
+        string _item1Name = "", _item2Name = "", _item3Name = "", _item4Name = "";
+        string _ai1Desc = "", _ai2Desc = "", _ai3Desc = "", _ai4Desc = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -43,16 +55,56 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint AI3TargetRecovery { get => _ai3TargetRecovery; set => SetField(ref _ai3TargetRecovery, value); }
         public uint AI4Retreat { get => _ai4Retreat; set => SetField(ref _ai4Retreat, value); }
 
+        // Resolved name properties
+        public string UnitName { get => _unitName; set => SetField(ref _unitName, value); }
+        public string ClassName { get => _className; set => SetField(ref _className, value); }
+        public string Item1Name { get => _item1Name; set => SetField(ref _item1Name, value); }
+        public string Item2Name { get => _item2Name; set => SetField(ref _item2Name, value); }
+        public string Item3Name { get => _item3Name; set => SetField(ref _item3Name, value); }
+        public string Item4Name { get => _item4Name; set => SetField(ref _item4Name, value); }
+        public string AI1Desc { get => _ai1Desc; set => SetField(ref _ai1Desc, value); }
+        public string AI2Desc { get => _ai2Desc; set => SetField(ref _ai2Desc, value); }
+        public string AI3Desc { get => _ai3Desc; set => SetField(ref _ai3Desc, value); }
+        public string AI4Desc { get => _ai4Desc; set => SetField(ref _ai4Desc, value); }
+
+        /// <summary>Build the map list (Level 1 navigation).</summary>
+        public List<AddrResult> LoadMapList()
+        {
+            return MapSettingCore.MakeMapIDList();
+        }
+
+        /// <summary>Build the unit group list for a map (Level 2 navigation).</summary>
+        public List<AddrResult> LoadUnitGroups(uint mapId)
+        {
+            _selectedMapId = mapId;
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            return MapEventUnitCore.GetUnitGroupsForMap(rom, mapId);
+        }
+
+        /// <summary>Build the unit list from a base address (Level 3 navigation).</summary>
+        public List<AddrResult> LoadUnitList(uint baseAddr)
+        {
+            _selectedGroupAddr = baseAddr;
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
+        }
+
+        /// <summary>Load unit list from an arbitrary address (manual entry).</summary>
+        public List<AddrResult> LoadUnitListFromAddress(uint baseAddr)
+        {
+            _selectedMapId = uint.MaxValue;
+            _selectedGroupAddr = baseAddr;
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
+        }
+
+        /// <summary>Legacy compatibility: returns placeholder list.</summary>
         public List<AddrResult> LoadList()
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            // EventUnit is pointer-based (not a fixed table).
-            // Return a placeholder list; actual list is built from event script pointers.
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Event Unit Placement (FE8)", 0));
-            return result;
+            return LoadMapList();
         }
 
         public void LoadEntry(uint addr)
@@ -81,6 +133,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AI2Secondary = rom.u8(addr + 17);
             AI3TargetRecovery = rom.u8(addr + 18);
             AI4Retreat = rom.u8(addr + 19);
+
+            // Resolve display names
+            UnitName = NameResolver.GetUnitName(UnitID);
+            ClassName = NameResolver.GetClassName(ClassID);
+            Item1Name = Item1 > 0 ? NameResolver.GetItemName(Item1) : "";
+            Item2Name = Item2 > 0 ? NameResolver.GetItemName(Item2) : "";
+            Item3Name = Item3 > 0 ? NameResolver.GetItemName(Item3) : "";
+            Item4Name = Item4 > 0 ? NameResolver.GetItemName(Item4) : "";
+            AI1Desc = MapEventUnitCore.GetAI1Description((byte)AI1Primary);
+            AI2Desc = MapEventUnitCore.GetAI2Description((byte)AI2Secondary);
+            AI3Desc = MapEventUnitCore.GetAI3Description((byte)AI3TargetRecovery);
+            AI4Desc = MapEventUnitCore.GetAI4Description((byte)AI4Retreat);
 
             IsLoaded = true;
         }
