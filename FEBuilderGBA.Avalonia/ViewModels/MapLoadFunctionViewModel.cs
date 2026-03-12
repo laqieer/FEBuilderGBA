@@ -92,7 +92,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                ["u32@0x00_P0"] = $"0x{rom.u32(a + 0):X08}",
+                ["u8@0x00_SwitchCount"] = $"0x{rom.u8(a):X02}",
             };
         }
     }

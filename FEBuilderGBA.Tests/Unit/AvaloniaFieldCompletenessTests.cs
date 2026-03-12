@@ -213,6 +213,8 @@ namespace FEBuilderGBA.Tests.Unit
             ("MapTileAnimation2View", "MapTileAnimation2Form", "MapTileAnimation2ViewModel"),
             ("MapLoadFunctionView", "MapLoadFunctionForm", "MapLoadFunctionViewModel"),
             ("MapTerrainNameEngView", "MapTerrainNameEngForm", "MapTerrainNameEngViewModel"),
+            ("MapTerrainNameView", "MapTerrainNameForm", "MapTerrainNameViewModel"),
+            ("MapStyleEditorView", "MapStyleEditorForm", "MapStyleEditorViewModel"),
             ("MapMiniMapTerrainImageView", "MapMiniMapTerrainImageForm", "MapMiniMapTerrainImageViewModel"),
 
             // === WU10: ItemStatBonus + Text + Menu + misc ===
