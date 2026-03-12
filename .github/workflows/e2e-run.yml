@@ -41,7 +41,7 @@ jobs:
 
       # ---------------------------------------------------------------- MSBuild
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
+        uses: microsoft/setup-msbuild@v2
 
       # ---------------------------------------------------------------- Build main app + E2E tests
       - name: Restore & Build (Release x86)
