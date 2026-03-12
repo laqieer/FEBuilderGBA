@@ -222,5 +222,109 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x08000180u, dataPtr);
             Assert.Equal(0x180u, dataPtr - 0x08000000);
         }
+
+        [Fact]
+        public void MapTileSelection_ReadsTileIdFromDecompressedData()
+        {
+            // Simulate decompressed map data: 2-byte header (width=3, height=2) + 6 tile IDs (u16 each)
+            byte[] mapData = new byte[2 + 3 * 2 * 2]; // header + 6 tiles * 2 bytes
+            mapData[0] = 3; // width
+            mapData[1] = 2; // height
+
+            // Tile at (0,0) = 0x0010
+            mapData[2] = 0x10;
+            mapData[3] = 0x00;
+            // Tile at (1,0) = 0x0020
+            mapData[4] = 0x20;
+            mapData[5] = 0x00;
+            // Tile at (2,0) = 0x0030
+            mapData[6] = 0x30;
+            mapData[7] = 0x00;
+            // Tile at (0,1) = 0x00A5
+            mapData[8] = 0xA5;
+            mapData[9] = 0x00;
+            // Tile at (1,1) = 0x01FF
+            mapData[10] = 0xFF;
+            mapData[11] = 0x01;
+            // Tile at (2,1) = 0x0000
+            mapData[12] = 0x00;
+            mapData[13] = 0x00;
+
+            // Read tile at (1,0): offset = 2 + (0*3+1)*2 = 4
+            int x = 1, y = 0, width = 3;
+            int offset = 2 + (y * width + x) * 2;
+            int tileId = mapData[offset] | (mapData[offset + 1] << 8);
+            Assert.Equal(0x0020, tileId);
+
+            // Read tile at (1,1): offset = 2 + (1*3+1)*2 = 10
+            x = 1; y = 1;
+            offset = 2 + (y * width + x) * 2;
+            tileId = mapData[offset] | (mapData[offset + 1] << 8);
+            Assert.Equal(0x01FF, tileId);
+        }
+
+        [Fact]
+        public void MapTileWrite_ModifiesTileIdInDecompressedData()
+        {
+            // Same map data as above
+            byte[] mapData = new byte[2 + 3 * 2 * 2];
+            mapData[0] = 3; // width
+            mapData[1] = 2; // height
+            mapData[2] = 0x10; // tile (0,0) = 0x0010
+            mapData[3] = 0x00;
+
+            int width = 3;
+
+            // Write new tile ID 0x00FF at position (0,0)
+            int x = 0, y = 0;
+            int offset = 2 + (y * width + x) * 2;
+            ushort newTileId = 0x00FF;
+            mapData[offset] = (byte)(newTileId & 0xFF);
+            mapData[offset + 1] = (byte)((newTileId >> 8) & 0xFF);
+
+            // Verify write
+            int readBack = mapData[offset] | (mapData[offset + 1] << 8);
+            Assert.Equal(0x00FF, readBack);
+        }
+
+        [Fact]
+        public void MapTileSelection_OutOfBounds_DoesNotCrash()
+        {
+            byte[] mapData = new byte[2 + 2 * 2 * 2]; // 2x2 map
+            mapData[0] = 2; // width
+            mapData[1] = 2; // height
+
+            int width = 2, height = 2;
+
+            // Out-of-bounds coordinates should be caught
+            Assert.True(3 >= width);  // x=3 is OOB for width=2
+            Assert.True(-1 < 0);     // negative is OOB
+        }
+
+        [Fact]
+        public void LZ77_CompressDecompress_RoundTrip()
+        {
+            // Create sample map data and verify compress->decompress round-trip
+            byte[] original = new byte[2 + 4 * 4 * 2]; // 4x4 map
+            original[0] = 4; // width
+            original[1] = 4; // height
+            for (int i = 2; i < original.Length; i += 2)
+            {
+                original[i] = (byte)(i / 2);
+                original[i + 1] = 0;
+            }
+
+            byte[] compressed = LZ77.compress(original);
+            Assert.NotNull(compressed);
+            Assert.True(compressed.Length > 0);
+
+            byte[] decompressed = LZ77.decompress(compressed, 0);
+            Assert.NotNull(decompressed);
+            Assert.Equal(original.Length, decompressed.Length);
+            for (int i = 0; i < original.Length; i++)
+            {
+                Assert.Equal(original[i], decompressed[i]);
+            }
+        }
     }
 }

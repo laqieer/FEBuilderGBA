@@ -12,12 +12,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _mapInfo = "";
         uint _mapId;
 
+        // Tile selection state
+        int _selectedTileX = -1;
+        int _selectedTileY = -1;
+        int _selectedTileId;
+        string _tileInfo = "";
+        bool _hasTileSelected;
+
+        // Cached decompressed map data for the current map
+        byte[] _cachedMapData;
+        uint _cachedMapPointerEntryAddr; // address of the pointer table entry for this map's data
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public int MapWidth { get => _mapWidth; set => SetField(ref _mapWidth, value); }
         public int MapHeight { get => _mapHeight; set => SetField(ref _mapHeight, value); }
         public string MapInfo { get => _mapInfo; set => SetField(ref _mapInfo, value); }
         public uint MapId { get => _mapId; set => SetField(ref _mapId, value); }
+
+        public int SelectedTileX { get => _selectedTileX; set => SetField(ref _selectedTileX, value); }
+        public int SelectedTileY { get => _selectedTileY; set => SetField(ref _selectedTileY, value); }
+        public int SelectedTileId { get => _selectedTileId; set => SetField(ref _selectedTileId, value); }
+        public string TileInfo { get => _tileInfo; set => SetField(ref _tileInfo, value); }
+        public bool HasTileSelected { get => _hasTileSelected; set => SetField(ref _hasTileSelected, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -63,6 +80,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             MapId = mapId;
+
+            // Clear previous tile selection
+            SelectedTileX = -1;
+            SelectedTileY = -1;
+            SelectedTileId = 0;
+            TileInfo = "";
+            HasTileSelected = false;
+            _cachedMapData = null;
 
             // Read PLIST values from map setting data
             // Map setting layout: offset +4 = obj_plist (u16), +6 = palette_plist (u8),
@@ -150,6 +175,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return null;
             }
 
+            // Compute the pointer table entry address for write-back
+            uint mapTableBase = rom.p32(rom.RomInfo.map_map_pointer_pointer);
+            _cachedMapPointerEntryAddr = (uint)(mapTableBase + mappointer_plist * 4);
+
             // Decompress map arrangement data
             byte[] mapData = LZ77.decompress(rom.Data, map_offset);
             if (mapData == null || mapData.Length < 2)
@@ -157,8 +186,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 info.AppendLine("ERROR: Failed to decompress map data.");
                 MapInfo = info.ToString();
                 IsLoaded = true;
+                _cachedMapData = null;
                 return null;
             }
+
+            // Cache the decompressed map data for tile selection/editing
+            _cachedMapData = (byte[])mapData.Clone();
 
             // Map data format: first 2 bytes = width, height (in 16x16 tiles)
             int mapW = mapData[0];
@@ -249,6 +282,87 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             MapInfo = info.ToString();
             IsLoaded = true;
             return pixels;
+        }
+
+        /// <summary>
+        /// Select a tile at the given map coordinates (in 16x16 tile units).
+        /// Reads the tile ID from the cached decompressed map data.
+        /// </summary>
+        public bool SelectTile(int tileX, int tileY)
+        {
+            if (_cachedMapData == null || tileX < 0 || tileY < 0 ||
+                tileX >= MapWidth || tileY >= MapHeight)
+            {
+                HasTileSelected = false;
+                TileInfo = "";
+                return false;
+            }
+
+            SelectedTileX = tileX;
+            SelectedTileY = tileY;
+
+            // Map data: 2-byte header (width, height), then u16 tile IDs row-major
+            int offset = 2 + (tileY * MapWidth + tileX) * 2;
+            if (offset + 1 >= _cachedMapData.Length)
+            {
+                HasTileSelected = false;
+                TileInfo = "Tile offset out of range";
+                return false;
+            }
+
+            int tileId = _cachedMapData[offset] | (_cachedMapData[offset + 1] << 8);
+            SelectedTileId = tileId;
+            HasTileSelected = true;
+            TileInfo = $"Tile at ({tileX}, {tileY}): 0x{tileId:X04}  [map data offset: 0x{offset:X04}]";
+            return true;
+        }
+
+        /// <summary>
+        /// Write the current SelectedTileId back to ROM at the selected tile position.
+        /// Modifies the cached decompressed map data, recompresses with LZ77,
+        /// writes to ROM free space, and updates the pointer.
+        /// Returns true on success.
+        /// </summary>
+        public bool WriteTile()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || _cachedMapData == null || !HasTileSelected)
+                return false;
+
+            if (SelectedTileX < 0 || SelectedTileY < 0 ||
+                SelectedTileX >= MapWidth || SelectedTileY >= MapHeight)
+                return false;
+
+            // Update the tile in the cached map data
+            int offset = 2 + (SelectedTileY * MapWidth + SelectedTileX) * 2;
+            if (offset + 1 >= _cachedMapData.Length)
+                return false;
+
+            ushort newTileId = (ushort)(SelectedTileId & 0xFFFF);
+            _cachedMapData[offset] = (byte)(newTileId & 0xFF);
+            _cachedMapData[offset + 1] = (byte)((newTileId >> 8) & 0xFF);
+
+            // Recompress the map data
+            byte[] compressed = LZ77.compress(_cachedMapData);
+            if (compressed == null || compressed.Length == 0)
+            {
+                TileInfo = "ERROR: LZ77 compression failed";
+                return false;
+            }
+
+            // Write compressed data to ROM free space and update the pointer
+            uint writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            if (writeAddr == U.NOT_FOUND)
+            {
+                TileInfo = "ERROR: No free space in ROM for map data";
+                return false;
+            }
+
+            // Update the pointer table entry to point to the new compressed data
+            rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
+
+            TileInfo = $"Tile at ({SelectedTileX}, {SelectedTileY}) set to 0x{newTileId:X04} — written to ROM at 0x{writeAddr:X08}";
+            return true;
         }
 
         /// <summary>
