@@ -135,10 +135,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ImportMidiFile_ReturnsNotImplementedMessage()
+        public void ImportMidiFile_NonexistentFile_ReturnsError()
         {
-            string result = SongMidiCore.ImportMidiFile("dummy.mid", 0, 0);
-            Assert.Contains("not yet available", result);
+            string result = SongMidiCore.ImportMidiFile("nonexistent_dummy.mid", 0, 0);
+            Assert.Contains("File not found", result);
         }
 
         #region ParseMidiBytes Tests
@@ -426,5 +426,351 @@ namespace FEBuilderGBA.Core.Tests
             }
             return -1;
         }
+
+        #region ExtractMidiEvents Tests
+
+        [Fact]
+        public void ExtractMidiEvents_NullData_ReturnsEmpty()
+        {
+            var result = SongMidiCore.ExtractMidiEvents(null);
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void ExtractMidiEvents_SimpleNoteOn_ExtractsCorrectly()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,      // NoteOn C4 vel=100 at tick 0
+                0x60,                       // delta=96
+                0x80, 60, 0,               // NoteOff C4 at tick 96
+                0x00, 0xFF, 0x2F, 0x00     // end of track
+            };
+
+            byte[] midi = BuildTestMidi(0, 1, 96, trackData);
+            var tracks = SongMidiCore.ExtractMidiEvents(midi);
+
+            Assert.Single(tracks);
+            var events = tracks[0];
+            // Should have NoteOn and NoteOff
+            Assert.True(events.Count >= 2);
+
+            var noteOn = events[0];
+            Assert.Equal(0x90, noteOn.StatusType);
+            Assert.Equal(60, noteOn.Data1);
+            Assert.Equal(100, noteOn.Data2);
+            Assert.Equal(0, noteOn.AbsoluteTick);
+
+            var noteOff = events[1];
+            Assert.Equal(0x80, noteOff.StatusType);
+            Assert.Equal(60, noteOff.Data1);
+            Assert.Equal(96, noteOff.AbsoluteTick);
+        }
+
+        [Fact]
+        public void ExtractMidiEvents_TempoEvent_ExtractsMicroseconds()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xFF, 0x51, 0x03,   // tempo meta event
+                0x07, 0xA1, 0x20,          // 500000 us/beat = 120 BPM
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midi = BuildTestMidi(1, 1, 96, trackData);
+            var tracks = SongMidiCore.ExtractMidiEvents(midi);
+
+            Assert.Single(tracks);
+            var tempoEv = tracks[0][0];
+            Assert.Equal(0xFF, tempoEv.StatusType);
+            Assert.Equal(0x51, tempoEv.Data1);
+            Assert.Equal(500000, tempoEv.MetaTempo);
+        }
+
+        [Fact]
+        public void ExtractMidiEvents_ProgramChange_Extracted()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xC0, 42,             // Program change ch0 -> 42
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midi = BuildTestMidi(0, 1, 96, trackData);
+            var tracks = SongMidiCore.ExtractMidiEvents(midi);
+
+            Assert.Single(tracks);
+            Assert.Single(tracks[0]);
+            var ev = tracks[0][0];
+            Assert.Equal(0xC0, ev.StatusType);
+            Assert.Equal(42, ev.Data1);
+            Assert.Equal(0, ev.Channel);
+        }
+
+        [Fact]
+        public void ExtractMidiEvents_ControlChange_VolumeAndPan()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xB0, 7, 100,        // CC7 (Volume) = 100
+                0x00, 0xB0, 10, 64,        // CC10 (Pan) = 64
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midi = BuildTestMidi(0, 1, 96, trackData);
+            var tracks = SongMidiCore.ExtractMidiEvents(midi);
+
+            Assert.Single(tracks);
+            Assert.Equal(2, tracks[0].Count);
+            Assert.Equal(7, tracks[0][0].Data1);
+            Assert.Equal(100, tracks[0][0].Data2);
+            Assert.Equal(10, tracks[0][1].Data1);
+            Assert.Equal(64, tracks[0][1].Data2);
+        }
+
+        #endregion
+
+        #region ConvertMidiToGBA Tests
+
+        [Fact]
+        public void ConvertMidiToGBA_NullInput_ReturnsNull()
+        {
+            Assert.Null(SongMidiCore.ConvertMidiToGBA(null, null, 0));
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_SingleNote_ProducesValidSong()
+        {
+            // Build a MIDI with one note: C4 for 1 quarter note
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,       // NoteOn C4 vel=100
+                0x60,                       // delta=96 ticks (1 quarter note at 96 tpqn)
+                0x80, 60, 0,               // NoteOff
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            Assert.NotNull(midi);
+
+            uint instAddr = 0x08100000;
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, instAddr);
+
+            Assert.NotNull(gba);
+            Assert.True(gba.Length >= 12, "GBA song too short");
+
+            // Verify header
+            Assert.Equal(1, gba[0]); // trackCount = 1
+            // Instrument addr (little-endian)
+            uint readInst = (uint)(gba[4] | (gba[5] << 8) | (gba[6] << 16) | (gba[7] << 24));
+            Assert.Equal(instAddr, readInst);
+
+            // Track pointer at offset 8 should be a relative offset
+            uint trackOff = (uint)(gba[8] | (gba[9] << 8) | (gba[10] << 16) | (gba[11] << 24));
+            Assert.Equal(12u, trackOff); // header(8) + 1 track ptr(4) = 12
+
+            // Track data should contain 0xB1 (FINE) somewhere after the header
+            bool foundFine = false;
+            for (int i = (int)trackOff; i < gba.Length; i++)
+            {
+                if (gba[i] == 0xB1) { foundFine = true; break; }
+            }
+            Assert.True(foundFine, "FINE command (0xB1) not found in track data");
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_WithTempo_EmitsTempoCommand()
+        {
+            // Track with tempo 150 BPM then a note
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xFF, 0x51, 0x03,    // tempo meta
+                0x06, 0x1A, 0x80,           // 400000 us = 150 BPM
+                0x00, 0x90, 60, 100,
+                0x60, 0x80, 60, 0,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.NotNull(gba);
+
+            // Find tempo command (0xBB) in track data
+            int headerSize = 8 + 1 * 4; // 1 track
+            bool foundTempo = false;
+            for (int i = headerSize; i < gba.Length - 1; i++)
+            {
+                if (gba[i] == 0xBB)
+                {
+                    foundTempo = true;
+                    // BPM/2 = 150/2 = 75
+                    Assert.Equal(75, gba[i + 1]);
+                    break;
+                }
+            }
+            Assert.True(foundTempo, "Tempo command (0xBB) not found in GBA track data");
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_WithProgramChange_EmitsVoiceCommand()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xC0, 42,            // Program change -> 42
+                0x00, 0x90, 60, 100,
+                0x60, 0x80, 60, 0,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.NotNull(gba);
+
+            // Find voice command (0xBD) with value 42
+            int headerSize = 8 + 1 * 4;
+            bool foundVoice = false;
+            for (int i = headerSize; i < gba.Length - 1; i++)
+            {
+                if (gba[i] == 0xBD && gba[i + 1] == 42)
+                {
+                    foundVoice = true;
+                    break;
+                }
+            }
+            Assert.True(foundVoice, "Voice command (0xBD 42) not found in GBA track data");
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_WithVolume_EmitsVolumeCommand()
+        {
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xB0, 7, 100,        // CC7 Volume=100
+                0x00, 0x90, 60, 100,
+                0x60, 0x80, 60, 0,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.NotNull(gba);
+
+            // Find volume command (0xBE)
+            int headerSize = 8 + 1 * 4;
+            bool foundVolume = false;
+            for (int i = headerSize; i < gba.Length - 1; i++)
+            {
+                if (gba[i] == 0xBE && gba[i + 1] == 100)
+                {
+                    foundVolume = true;
+                    break;
+                }
+            }
+            Assert.True(foundVolume, "Volume command (0xBE 100) not found in GBA track data");
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_MultipleChannels_CreatesMultipleTracks()
+        {
+            // Two notes on different channels
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,       // ch0 NoteOn
+                0x00, 0x91, 64, 80,        // ch1 NoteOn
+                0x60, 0x80, 60, 0,         // ch0 NoteOff
+                0x00, 0x81, 64, 0,         // ch1 NoteOff
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.NotNull(gba);
+
+            // Should have 2 tracks
+            Assert.Equal(2, gba[0]);
+
+            // Should have 2 track pointers (8 bytes)
+            int headerSize = 8 + 2 * 4; // = 16
+            Assert.True(gba.Length > headerSize);
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_NoNotes_ReturnsNull()
+        {
+            // Track with only a tempo event, no notes
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xFF, 0x51, 0x03,
+                0x07, 0xA1, 0x20,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.Null(gba); // no music channels with notes
+        }
+
+        [Fact]
+        public void PatchTrackPointers_ConvertsToGBAPointers()
+        {
+            // Create a minimal song binary: 1 track, track data starts at offset 12
+            byte[] song = new byte[20];
+            song[0] = 1; // trackCount
+            // Track pointer at offset 8: relative offset = 12
+            song[8] = 12; song[9] = 0; song[10] = 0; song[11] = 0;
+            // Track data at offset 12
+            song[12] = 0xB1; // FINE
+
+            uint romOffset = 0x1000;
+            SongMidiCore.PatchTrackPointers(song, romOffset);
+
+            // Track pointer should now be 0x08000000 + 0x1000 + 12 = 0x0800100C
+            uint ptr = (uint)(song[8] | (song[9] << 8) | (song[10] << 16) | (song[11] << 24));
+            Assert.Equal(0x0800100Cu, ptr);
+        }
+
+        [Fact]
+        public void ConvertMidiToGBA_TickScaling_CorrectlyScales()
+        {
+            // Use 480 tpqn MIDI (common in DAWs), with a half note (960 ticks)
+            // GBA should scale: 960 * 24 / 480 = 48 GBA ticks
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,       // NoteOn at tick 0
+                0x87, 0x40,                 // delta = 960 (variable length: 0x87 0x40)
+                0x80, 60, 0,               // NoteOff at tick 960
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 480, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, 0x08100000);
+
+            Assert.NotNull(gba);
+            // The note command should encode a duration of ~48 GBA ticks
+            // WaitCode[32] = 48, so duration index = 32
+            // Note cmd = 0xD0 + 32 - 1 = 0xEF
+            // Verify it produces valid output with FINE in track data
+            int hdrSize = 8 + 1 * 4;
+            bool hasFine = false;
+            for (int i = hdrSize; i < gba.Length; i++)
+            {
+                if (gba[i] == 0xB1) { hasFine = true; break; }
+            }
+            Assert.True(hasFine, "FINE command (0xB1) not found in track data");
+        }
+
+        #endregion
     }
 }

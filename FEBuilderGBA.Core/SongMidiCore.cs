@@ -76,6 +76,23 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>A raw MIDI event extracted during parsing.</summary>
+        public class MidiEvent
+        {
+            /// <summary>Absolute time in MIDI ticks from start of track.</summary>
+            public int AbsoluteTick;
+            /// <summary>MIDI status type (0x80=NoteOff, 0x90=NoteOn, 0xB0=CC, 0xC0=ProgramChange, 0xFF=Meta).</summary>
+            public int StatusType;
+            /// <summary>MIDI channel (0-15).</summary>
+            public int Channel;
+            /// <summary>First data byte (key, controller number, program, meta type).</summary>
+            public int Data1;
+            /// <summary>Second data byte (velocity, controller value).</summary>
+            public int Data2;
+            /// <summary>For tempo meta events: microseconds per beat.</summary>
+            public int MetaTempo;
+        }
+
         #endregion
 
         #region Byte Helpers (inlined from WinForms U.cs)
@@ -1037,20 +1054,672 @@ namespace FEBuilderGBA
 
         #endregion
 
+        #region MIDI Raw Event Extraction
+
+        /// <summary>
+        /// Extract raw MIDI events from a parsed MIDI file's byte data.
+        /// Returns a list of lists — one list of events per MIDI track.
+        /// </summary>
+        public static List<List<MidiEvent>> ExtractMidiEvents(byte[] data)
+        {
+            var result = new List<List<MidiEvent>>();
+            if (data == null || data.Length < 14) return result;
+
+            // Verify MThd
+            if (data[0] != 'M' || data[1] != 'T' || data[2] != 'h' || data[3] != 'd')
+                return result;
+
+            uint headerLen = ReadBig32(data, 4);
+            int trackCount = (int)ReadBig16(data, 10);
+
+            uint pos = 8 + headerLen;
+            for (int t = 0; t < trackCount; t++)
+            {
+                if (pos + 8 > data.Length) break;
+
+                if (data[pos] != 'M' || data[pos + 1] != 'T'
+                    || data[pos + 2] != 'r' || data[pos + 3] != 'k')
+                {
+                    if (pos + 4 < data.Length)
+                    {
+                        uint skipLen = ReadBig32(data, pos + 4);
+                        pos += 8 + skipLen;
+                    }
+                    else break;
+                    t--;
+                    continue;
+                }
+
+                uint trackLen = ReadBig32(data, pos + 4);
+                uint trackStart = pos + 8;
+                uint trackEnd = trackStart + trackLen;
+                if (trackEnd > data.Length) trackEnd = (uint)data.Length;
+
+                result.Add(ExtractTrackEvents(data, trackStart, trackEnd));
+                pos = trackEnd;
+            }
+
+            return result;
+        }
+
+        static List<MidiEvent> ExtractTrackEvents(byte[] data, uint start, uint end)
+        {
+            var events = new List<MidiEvent>();
+            uint pos = start;
+            byte runningStatus = 0;
+            int absoluteTick = 0;
+
+            while (pos < end)
+            {
+                uint deltaTime = ReadVLengthCode(data, pos, out uint nextPos);
+                if (nextPos > end) break;
+                pos = nextPos;
+                absoluteTick += (int)deltaTime;
+
+                if (pos >= end) break;
+                byte statusByte = data[pos];
+
+                // Meta events
+                if (statusByte == 0xFF)
+                {
+                    pos++;
+                    if (pos >= end) break;
+                    byte metaType = data[pos++];
+                    if (pos >= end) break;
+                    uint metaLen = ReadVLengthCode(data, pos, out nextPos);
+                    if (nextPos > end) break;
+                    pos = nextPos;
+
+                    if (metaType == 0x51 && metaLen == 3 && pos + 3 <= end)
+                    {
+                        int usPerBeat = (data[pos] << 16) | (data[pos + 1] << 8) | data[pos + 2];
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = 0xFF,
+                            Data1 = metaType,
+                            MetaTempo = usPerBeat
+                        });
+                    }
+                    else if (metaType == 0x2F)
+                    {
+                        // End of track — don't add as event, just stop
+                    }
+
+                    pos += metaLen;
+                    continue;
+                }
+
+                // SysEx
+                if (statusByte == 0xF0 || statusByte == 0xF7)
+                {
+                    pos++;
+                    uint sysLen = ReadVLengthCode(data, pos, out nextPos);
+                    if (nextPos > end) break;
+                    pos = nextPos + sysLen;
+                    continue;
+                }
+
+                // Channel messages
+                bool isRunning = false;
+                if (statusByte >= 0x80)
+                {
+                    runningStatus = statusByte;
+                    pos++;
+                }
+                else
+                {
+                    isRunning = true;
+                }
+
+                byte status = runningStatus;
+                int channel = status & 0x0F;
+                int msgType = status & 0xF0;
+
+                byte ReadData()
+                {
+                    if (isRunning)
+                    {
+                        isRunning = false;
+                        pos++;
+                        return statusByte;
+                    }
+                    return (pos < end) ? data[pos++] : (byte)0;
+                }
+
+                switch (msgType)
+                {
+                    case 0x80: // Note Off
+                    {
+                        byte key = ReadData();
+                        byte vel = (pos < end) ? data[pos++] : (byte)0;
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = 0x80,
+                            Channel = channel,
+                            Data1 = key,
+                            Data2 = vel
+                        });
+                        break;
+                    }
+                    case 0x90: // Note On
+                    {
+                        byte key = ReadData();
+                        byte vel = (pos < end) ? data[pos++] : (byte)0;
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = vel > 0 ? 0x90 : 0x80, // vel=0 -> note off
+                            Channel = channel,
+                            Data1 = key,
+                            Data2 = vel
+                        });
+                        break;
+                    }
+                    case 0xA0: // Poly aftertouch
+                        ReadData();
+                        if (pos < end) pos++;
+                        break;
+                    case 0xB0: // Control Change
+                    {
+                        byte cc = ReadData();
+                        byte val = (pos < end) ? data[pos++] : (byte)0;
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = 0xB0,
+                            Channel = channel,
+                            Data1 = cc,
+                            Data2 = val
+                        });
+                        break;
+                    }
+                    case 0xC0: // Program Change
+                    {
+                        byte prog = ReadData();
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = 0xC0,
+                            Channel = channel,
+                            Data1 = prog
+                        });
+                        break;
+                    }
+                    case 0xD0: // Channel Pressure
+                        ReadData();
+                        break;
+                    case 0xE0: // Pitch Bend
+                    {
+                        byte lsb = ReadData();
+                        byte msb = (pos < end) ? data[pos++] : (byte)0;
+                        events.Add(new MidiEvent
+                        {
+                            AbsoluteTick = absoluteTick,
+                            StatusType = 0xE0,
+                            Channel = channel,
+                            Data1 = lsb,
+                            Data2 = msb
+                        });
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+
+            return events;
+        }
+
+        #endregion
+
+        #region MIDI to GBA Conversion
+
+        /// <summary>GBA ticks per quarter note (standard).</summary>
+        const int GBA_TPQN = 24;
+
+        /// <summary>
+        /// Convert a parsed MIDI file to GBA song binary data.
+        /// </summary>
+        /// <param name="midi">Parsed MIDI file info.</param>
+        /// <param name="midiBytes">Raw MIDI file bytes (needed for event extraction).</param>
+        /// <param name="instrumentAddr">GBA pointer to the instrument set.</param>
+        /// <returns>Complete GBA song binary, or null on error.</returns>
+        public static byte[] ConvertMidiToGBA(MidiFileInfo midi, byte[] midiBytes, uint instrumentAddr)
+        {
+            if (midi == null || midiBytes == null) return null;
+
+            var allEvents = ExtractMidiEvents(midiBytes);
+            if (allEvents.Count == 0) return null;
+
+            int tpqn = midi.TicksPerQuarterNote;
+            if (tpqn <= 0) tpqn = 96;
+
+            // For Format 1 MIDI: track 0 is conductor (tempo/meta only), tracks 1+ are music.
+            // For Format 0: single track contains everything — split by channel.
+            // We handle both by merging all events into per-channel lists.
+            var channelEvents = SplitByChannel(allEvents, midi.Format);
+
+            // Filter out channels with no notes
+            var musicChannels = new List<List<MidiEvent>>();
+            var tempoEvents = ExtractTempoEvents(allEvents);
+            foreach (var ch in channelEvents)
+            {
+                bool hasNotes = false;
+                foreach (var ev in ch)
+                {
+                    if (ev.StatusType == 0x90) { hasNotes = true; break; }
+                }
+                if (hasNotes) musicChannels.Add(ch);
+            }
+
+            if (musicChannels.Count == 0) return null;
+
+            // Cap at 16 tracks (GBA limit)
+            int trackCount = musicChannels.Count;
+            if (trackCount > 16) trackCount = 16;
+
+            // Build track data for each channel
+            var trackDatas = new List<byte[]>();
+            for (int i = 0; i < trackCount; i++)
+            {
+                byte[] td = BuildGBATrackData(musicChannels[i], tempoEvents, tpqn, i == 0);
+                trackDatas.Add(td);
+            }
+
+            // Assemble final binary: header + track pointers + track data
+            return AssembleGBASong(trackDatas, instrumentAddr);
+        }
+
+        /// <summary>Split all MIDI events into per-channel lists. Tempo events go to all channels.</summary>
+        static List<List<MidiEvent>> SplitByChannel(List<List<MidiEvent>> allTrackEvents, int format)
+        {
+            // Collect all channel events, grouped by channel (0-15)
+            var channels = new Dictionary<int, List<MidiEvent>>();
+
+            foreach (var trackEvents in allTrackEvents)
+            {
+                foreach (var ev in trackEvents)
+                {
+                    if (ev.StatusType == 0xFF) continue; // handled separately
+                    int ch = ev.Channel;
+                    if (!channels.ContainsKey(ch))
+                        channels[ch] = new List<MidiEvent>();
+                    channels[ch].Add(ev);
+                }
+            }
+
+            // Sort each channel's events by absolute tick
+            var result = new List<List<MidiEvent>>();
+            var sortedKeys = new List<int>(channels.Keys);
+            sortedKeys.Sort();
+            foreach (int ch in sortedKeys)
+            {
+                channels[ch].Sort((a, b) => a.AbsoluteTick.CompareTo(b.AbsoluteTick));
+                result.Add(channels[ch]);
+            }
+
+            return result;
+        }
+
+        /// <summary>Extract all tempo meta events from all tracks.</summary>
+        static List<MidiEvent> ExtractTempoEvents(List<List<MidiEvent>> allTrackEvents)
+        {
+            var tempoEvents = new List<MidiEvent>();
+            foreach (var trackEvents in allTrackEvents)
+            {
+                foreach (var ev in trackEvents)
+                {
+                    if (ev.StatusType == 0xFF && ev.Data1 == 0x51)
+                        tempoEvents.Add(ev);
+                }
+            }
+            tempoEvents.Sort((a, b) => a.AbsoluteTick.CompareTo(b.AbsoluteTick));
+            return tempoEvents;
+        }
+
+        /// <summary>Scale a MIDI tick value to GBA ticks.</summary>
+        static int ScaleTick(int midiTick, int midiTpqn)
+        {
+            if (midiTpqn <= 0) return midiTick;
+            return (int)((long)midiTick * GBA_TPQN / midiTpqn);
+        }
+
+        /// <summary>
+        /// Encode a GBA wait duration using the wait table.
+        /// Emits one or more wait commands (0x80+index) into the output list.
+        /// </summary>
+        static void EncodeWait(List<byte> output, int gbaTicks)
+        {
+            while (gbaTicks > 0)
+            {
+                // Find largest wait table entry <= remaining ticks
+                int bestIdx = 0;
+                for (int i = WaitCode.Length - 1; i >= 0; i--)
+                {
+                    if (WaitCode[i] <= gbaTicks && WaitCode[i] > 0)
+                    {
+                        bestIdx = i;
+                        break;
+                    }
+                }
+
+                if (WaitCode[bestIdx] == 0)
+                {
+                    // Smallest nonzero wait is index 1 (= 1 tick)
+                    bestIdx = 1;
+                }
+
+                output.Add((byte)(0x80 + bestIdx));
+                gbaTicks -= WaitCode[bestIdx];
+            }
+        }
+
+        /// <summary>
+        /// Find the wait table index closest to the given GBA tick duration.
+        /// Returns the index (0-48).
+        /// </summary>
+        static int FindDurationIndex(int gbaTicks)
+        {
+            if (gbaTicks <= 0) return 0;
+            int bestIdx = 0;
+            int bestDiff = int.MaxValue;
+            for (int i = 0; i < WaitCode.Length; i++)
+            {
+                int diff = Math.Abs(WaitCode[i] - gbaTicks);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    bestIdx = i;
+                }
+            }
+            return bestIdx;
+        }
+
+        /// <summary>
+        /// Build GBA track data bytes for a single channel's events.
+        /// </summary>
+        /// <param name="events">Events for this channel, sorted by AbsoluteTick.</param>
+        /// <param name="tempoEvents">Global tempo events.</param>
+        /// <param name="midiTpqn">MIDI ticks per quarter note.</param>
+        /// <param name="isFirstTrack">If true, emit tempo commands.</param>
+        static byte[] BuildGBATrackData(List<MidiEvent> events, List<MidiEvent> tempoEvents,
+                                         int midiTpqn, bool isFirstTrack)
+        {
+            var output = new List<byte>();
+
+            // Merge tempo events into this track's timeline if first track
+            var merged = new List<MidiEvent>(events);
+            if (isFirstTrack)
+            {
+                foreach (var te in tempoEvents)
+                    merged.Add(te);
+                merged.Sort((a, b) => a.AbsoluteTick.CompareTo(b.AbsoluteTick));
+            }
+
+            // Build a map of NoteOn -> NoteOff for duration calculation
+            // Key: (channel, key, noteOnTick) -> noteOffTick
+            var noteOffMap = BuildNoteOffMap(merged);
+
+            int currentGbaTick = 0;
+
+            for (int i = 0; i < merged.Count; i++)
+            {
+                var ev = merged[i];
+                int evGbaTick = ScaleTick(ev.AbsoluteTick, midiTpqn);
+
+                // Emit wait if needed
+                int delta = evGbaTick - currentGbaTick;
+                if (delta > 0)
+                {
+                    EncodeWait(output, delta);
+                    currentGbaTick = evGbaTick;
+                }
+
+                switch (ev.StatusType)
+                {
+                    case 0xFF: // Meta (tempo)
+                        if (ev.Data1 == 0x51 && ev.MetaTempo > 0)
+                        {
+                            int bpm = (int)(60000000.0 / ev.MetaTempo);
+                            if (bpm < 2) bpm = 2;
+                            if (bpm > 510) bpm = 510;
+                            output.Add(0xBB); // TEMPO command
+                            output.Add((byte)(bpm / 2));
+                        }
+                        break;
+
+                    case 0x90: // Note On
+                    {
+                        int key = ev.Data1;
+                        int velocity = ev.Data2;
+                        if (key < 0) key = 0;
+                        if (key > 127) key = 127;
+                        if (velocity < 0) velocity = 0;
+                        if (velocity > 127) velocity = 127;
+
+                        // Find duration from note-off map (keyed by index in merged list)
+                        int durationMidiTicks = FindNoteDurationByIndex(noteOffMap, i);
+                        int durationGbaTicks = ScaleTick(durationMidiTicks, midiTpqn);
+                        if (durationGbaTicks < 1) durationGbaTicks = 1;
+
+                        // Map duration to note command byte (0xD0-0xFF range)
+                        // Note commands: 0xCF = tie, 0xD0..0xFF encode duration via wait table
+                        // The note byte D0+idx corresponds to WaitCode[idx+1]
+                        int durIdx = FindDurationIndex(durationGbaTicks);
+
+                        int noteCmd = (int)NOTE_START + durIdx - 1;
+                        if (noteCmd < (int)TIE) noteCmd = (int)TIE;
+                        if (noteCmd > (int)NOTE_END) noteCmd = (int)NOTE_END;
+
+                        output.Add((byte)noteCmd);
+                        output.Add((byte)key);
+                        output.Add((byte)velocity);
+                        break;
+                    }
+
+                    case 0x80: // Note Off — handled by duration encoding, skip
+                        break;
+
+                    case 0xC0: // Program Change
+                        output.Add(0xBD); // VOICE command
+                        output.Add((byte)(ev.Data1 & 0x7F));
+                        break;
+
+                    case 0xB0: // Control Change
+                        if (ev.Data1 == 7) // Volume
+                        {
+                            output.Add(0xBE);
+                            output.Add((byte)(ev.Data2 & 0x7F));
+                        }
+                        else if (ev.Data1 == 10) // Pan
+                        {
+                            output.Add(0xBF);
+                            output.Add((byte)(ev.Data2 & 0x7F));
+                        }
+                        // Other CCs are ignored in simplified conversion
+                        break;
+
+                    case 0xE0: // Pitch Bend
+                    {
+                        byte bend = (byte)(CalcPitchBendMidiToGBA((uint)ev.Data1, (uint)ev.Data2) & 0x7F);
+                        output.Add(0xC0);
+                        output.Add(bend);
+                        break;
+                    }
+                }
+            }
+
+            // End track
+            output.Add(0xB1); // FINE
+
+            return output.ToArray();
+        }
+
+        /// <summary>
+        /// Build a mapping from NoteOn events to their duration in MIDI ticks.
+        /// </summary>
+        static Dictionary<int, int> BuildNoteOffMap(List<MidiEvent> events)
+        {
+            // Map: event index of NoteOn -> duration in MIDI ticks
+            var result = new Dictionary<int, int>();
+
+            // For each note-on, find the matching note-off
+            // Use a stack per (channel, key)
+            var pending = new Dictionary<int, List<int>>(); // key = channel*128+key, value = list of noteOn indices
+
+            for (int i = 0; i < events.Count; i++)
+            {
+                var ev = events[i];
+                if (ev.StatusType == 0x90)
+                {
+                    int k = ev.Channel * 128 + ev.Data1;
+                    if (!pending.ContainsKey(k))
+                        pending[k] = new List<int>();
+                    pending[k].Add(i);
+                }
+                else if (ev.StatusType == 0x80)
+                {
+                    int k = ev.Channel * 128 + ev.Data1;
+                    if (pending.ContainsKey(k) && pending[k].Count > 0)
+                    {
+                        int noteOnIdx = pending[k][0];
+                        pending[k].RemoveAt(0);
+                        int duration = ev.AbsoluteTick - events[noteOnIdx].AbsoluteTick;
+                        if (duration < 0) duration = 0;
+                        result[noteOnIdx] = duration;
+                    }
+                }
+            }
+
+            // Any remaining notes without note-off get a default duration of 1 quarter note
+            foreach (var kvp in pending)
+            {
+                foreach (int idx in kvp.Value)
+                {
+                    if (!result.ContainsKey(idx))
+                        result[idx] = 96; // default: 1 quarter note in MIDI ticks
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>Find note duration by event index from the note-off map.</summary>
+        static int FindNoteDurationByIndex(Dictionary<int, int> noteOffMap, int eventIndex)
+        {
+            if (noteOffMap.TryGetValue(eventIndex, out int dur))
+                return dur;
+            return 96; // default quarter note
+        }
+
+        /// <summary>
+        /// Assemble the complete GBA song binary from track data arrays.
+        /// Track pointers use placeholder offsets that will be patched as actual GBA addresses
+        /// when written to ROM. The returned binary uses offset 0 as the song header base.
+        /// </summary>
+        /// <param name="trackDatas">Array of GBA track data byte arrays.</param>
+        /// <param name="instrumentAddr">GBA pointer to instrument set.</param>
+        /// <returns>Complete song binary.</returns>
+        static byte[] AssembleGBASong(List<byte[]> trackDatas, uint instrumentAddr)
+        {
+            int trackCount = trackDatas.Count;
+            // Header: 8 bytes (trackCount, numBlks, priority, reverb, instrumentAddr)
+            // Track pointers: trackCount * 4 bytes
+            int headerSize = 8 + trackCount * 4;
+
+            // Calculate total size
+            int totalSize = headerSize;
+            foreach (var td in trackDatas)
+                totalSize += td.Length;
+
+            // Pad to 4-byte alignment
+            totalSize = (totalSize + 3) & ~3;
+
+            byte[] result = new byte[totalSize];
+
+            // Song header
+            result[0] = (byte)trackCount;
+            result[1] = 0; // numBlks (default)
+            result[2] = 0; // priority (default)
+            result[3] = 0; // reverb (default)
+            // Instrument pointer (little-endian)
+            result[4] = (byte)(instrumentAddr & 0xFF);
+            result[5] = (byte)((instrumentAddr >> 8) & 0xFF);
+            result[6] = (byte)((instrumentAddr >> 16) & 0xFF);
+            result[7] = (byte)((instrumentAddr >> 24) & 0xFF);
+
+            // Track pointers and data — pointers are relative offsets from start,
+            // they'll be converted to GBA pointers when written to ROM
+            int dataOffset = headerSize;
+            for (int i = 0; i < trackCount; i++)
+            {
+                // Store the offset within the binary (will be patched to GBA pointer later)
+                uint offset = (uint)dataOffset;
+                int ptrPos = 8 + i * 4;
+                result[ptrPos] = (byte)(offset & 0xFF);
+                result[ptrPos + 1] = (byte)((offset >> 8) & 0xFF);
+                result[ptrPos + 2] = (byte)((offset >> 16) & 0xFF);
+                result[ptrPos + 3] = (byte)((offset >> 24) & 0xFF);
+
+                Array.Copy(trackDatas[i], 0, result, dataOffset, trackDatas[i].Length);
+                dataOffset += trackDatas[i].Length;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Patch the track pointers in a GBA song binary to use actual ROM addresses.
+        /// Call this after deciding where in ROM the song will be written.
+        /// </summary>
+        /// <param name="songData">The song binary from ConvertMidiToGBA.</param>
+        /// <param name="romOffset">The ROM offset where songData will be written.</param>
+        public static void PatchTrackPointers(byte[] songData, uint romOffset)
+        {
+            if (songData == null || songData.Length < 8) return;
+
+            int trackCount = songData[0];
+            if (trackCount > 16) trackCount = 16;
+
+            for (int i = 0; i < trackCount; i++)
+            {
+                int ptrPos = 8 + i * 4;
+                if (ptrPos + 4 > songData.Length) break;
+
+                // Read the relative offset
+                uint relOffset = (uint)(songData[ptrPos]
+                    | (songData[ptrPos + 1] << 8)
+                    | (songData[ptrPos + 2] << 16)
+                    | (songData[ptrPos + 3] << 24));
+
+                // Convert to GBA pointer
+                uint gbaPtr = relOffset + romOffset + 0x08000000;
+                songData[ptrPos] = (byte)(gbaPtr & 0xFF);
+                songData[ptrPos + 1] = (byte)((gbaPtr >> 8) & 0xFF);
+                songData[ptrPos + 2] = (byte)((gbaPtr >> 16) & 0xFF);
+                songData[ptrPos + 3] = (byte)((gbaPtr >> 24) & 0xFF);
+            }
+        }
+
+        #endregion
+
         #region MIDI Import
 
         /// <summary>
         /// Import a MIDI file and write the song data to ROM.
+        /// Uses simplified direct conversion (no S-file assembly pipeline).
         /// Returns an error message on failure, or empty string on success.
         /// </summary>
         /// <param name="filename">Path to the .mid/.midi file.</param>
         /// <param name="songHeaderAddr">Address of the song header in ROM.</param>
         /// <param name="instrumentAddr">Instrument set pointer.</param>
-        /// <param name="ignoreMOD">Strip MOD/MODT events.</param>
-        /// <param name="ignoreBEND">Strip BEND/BENDR events.</param>
-        /// <param name="ignoreLFOS">Strip LFOS/LFODL events.</param>
-        /// <param name="ignoreHEAD">Strip leading silence.</param>
-        /// <param name="ignoreBACK">Strip trailing silence.</param>
+        /// <param name="ignoreMOD">Strip MOD/MODT events (unused in simplified conversion).</param>
+        /// <param name="ignoreBEND">Strip BEND/BENDR events (unused in simplified conversion).</param>
+        /// <param name="ignoreLFOS">Strip LFOS/LFODL events (unused in simplified conversion).</param>
+        /// <param name="ignoreHEAD">Strip leading silence (unused in simplified conversion).</param>
+        /// <param name="ignoreBACK">Strip trailing silence (unused in simplified conversion).</param>
         public static string ImportMidiFile(string filename, uint songHeaderAddr,
                                              uint instrumentAddr,
                                              bool ignoreMOD = false,
@@ -1059,11 +1728,39 @@ namespace FEBuilderGBA
                                              bool ignoreHEAD = false,
                                              bool ignoreBACK = false)
         {
-            // MIDI import requires the full assembly pipeline (ParseMidi -> filter ->
-            // merge -> optimize -> ExportSFile -> ImportS) which depends on WinForms
-            // SongUtil internals. This is not yet ported to Core.
-            return "MIDI import is not yet available in the cross-platform version. "
-                 + "Please use the WinForms version for MIDI import.";
+            if (!File.Exists(filename))
+                return $"File not found: {filename}";
+
+            byte[] midiBytes = File.ReadAllBytes(filename);
+            var midi = ParseMidiBytes(midiBytes);
+            if (midi == null)
+                return "Failed to parse MIDI file — invalid format.";
+
+            byte[] songData = ConvertMidiToGBA(midi, midiBytes, instrumentAddr);
+            if (songData == null)
+                return "MIDI conversion failed — no valid music tracks found.";
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                return "No ROM loaded.";
+
+            // Find free space for the song data
+            uint freeAddr = rom.FindFreeSpace(0x100, (uint)songData.Length);
+            if (freeAddr == U.NOT_FOUND)
+                return $"Cannot find {songData.Length} bytes of free space in ROM.";
+
+            // Patch track pointers to real GBA addresses
+            PatchTrackPointers(songData, freeAddr);
+
+            // Write the song data to ROM
+            rom.write_range(freeAddr, songData);
+
+            // Update the song table pointer to point to our new song header
+            // The songHeaderAddr is the pointer in the song table that points to the song header
+            uint gbaPtr = freeAddr + 0x08000000;
+            rom.write_u32(songHeaderAddr, gbaPtr);
+
+            return string.Empty; // success
         }
 
         #endregion
