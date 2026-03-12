@@ -14,6 +14,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _mouthX, _mouthY, _eyeX, _eyeY;
         uint _status, _unused25, _unused26, _unused27;
 
+        int _showFrame;
+        IImage _faceImage;
+        IImage _miniPortraitImage;
+        IImage _mouthStripImage;
+        IImage _eyeStripImage;
+        IImage _classCardImage;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
@@ -43,6 +50,111 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unused26 { get => _unused26; set => SetField(ref _unused26, value); }
         // B27: Unused / reserved
         public uint Unused27 { get => _unused27; set => SetField(ref _unused27, value); }
+
+        /// <summary>Show frame index (0=normal, 1=half-eye, 2=closed-eye, 3-8=mouth1-6, 9=mouth7).</summary>
+        public int ShowFrame
+        {
+            get => _showFrame;
+            set
+            {
+                if (SetField(ref _showFrame, Math.Clamp(value, 0, PortraitRendererCore.MaxShowFrame)))
+                    RefreshFaceImage();
+            }
+        }
+
+        /// <summary>Main assembled face image (96x80) with current frame overlay.</summary>
+        public IImage FaceImage { get => _faceImage; private set => SetField(ref _faceImage, value); }
+
+        /// <summary>Mini portrait / map face image (32x32).</summary>
+        public IImage MiniPortraitImage { get => _miniPortraitImage; private set => SetField(ref _miniPortraitImage, value); }
+
+        /// <summary>Mouth frame strip image (32x96, 6 frames of 32x16).</summary>
+        public IImage MouthStripImage { get => _mouthStripImage; private set => SetField(ref _mouthStripImage, value); }
+
+        /// <summary>Eye frame strip image (32x32, 2 frames of 32x16: half-closed, closed).</summary>
+        public IImage EyeStripImage { get => _eyeStripImage; private set => SetField(ref _eyeStripImage, value); }
+
+        /// <summary>Class card image.</summary>
+        public IImage ClassCardImage { get => _classCardImage; private set => SetField(ref _classCardImage, value); }
+
+        /// <summary>Refresh all rendered images from current ROM data.</summary>
+        public void RefreshAllImages()
+        {
+            RefreshFaceImage();
+            RefreshMiniPortrait();
+            RefreshMouthStrip();
+            RefreshEyeStrip();
+            RefreshClassCard();
+        }
+
+        /// <summary>Refresh the main face image with current show frame.</summary>
+        public void RefreshFaceImage()
+        {
+            try
+            {
+                FaceImage = PortraitRendererCore.DrawPortraitUnitWithFrame(
+                    PortraitImagePtr, PalettePtr, MouthFramesPtr,
+                    (byte)MouthX, (byte)MouthY,
+                    (byte)EyeX, (byte)EyeY, (byte)Status, _showFrame);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RefreshFaceImage failed: {0}", ex.Message);
+                FaceImage = null;
+            }
+        }
+
+        void RefreshMiniPortrait()
+        {
+            try
+            {
+                MiniPortraitImage = PortraitRendererCore.DrawPortraitMap(MiniPortraitPtr, PalettePtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RefreshMiniPortrait failed: {0}", ex.Message);
+                MiniPortraitImage = null;
+            }
+        }
+
+        void RefreshMouthStrip()
+        {
+            try
+            {
+                MouthStripImage = PortraitRendererCore.DrawMouthFrameStrip(MouthFramesPtr, PalettePtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RefreshMouthStrip failed: {0}", ex.Message);
+                MouthStripImage = null;
+            }
+        }
+
+        void RefreshEyeStrip()
+        {
+            try
+            {
+                EyeStripImage = PortraitRendererCore.DrawEyeFrameStrip(PortraitImagePtr, PalettePtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RefreshEyeStrip failed: {0}", ex.Message);
+                EyeStripImage = null;
+            }
+        }
+
+        void RefreshClassCard()
+        {
+            try
+            {
+                ClassCardImage = PortraitRendererCore.DrawPortraitClass(ClassCardPtr, PalettePtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RefreshClassCard failed: {0}", ex.Message);
+                ClassCardImage = null;
+            }
+        }
 
         public List<AddrResult> LoadList()
         {

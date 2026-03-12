@@ -13,6 +13,20 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImagePortraitViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        static readonly string[] ShowFrameNames = new[]
+        {
+            "Normal",
+            "Half-closed Eyes",
+            "Closed Eyes",
+            "Mouth 1",
+            "Mouth 2",
+            "Mouth 3",
+            "Mouth 4",
+            "Mouth 5",
+            "Mouth 6",
+            "Mouth 7 (sheet)",
+        };
+
         public string ViewTitle => "Portrait Image Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -44,8 +58,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
+                _vm.ShowFrame = 0;
+                ShowFrameSelector.Value = 0;
                 UpdateUI();
-                TryShowPortraitImage();
+                _vm.RefreshAllImages();
+                UpdateImages();
             }
             catch (Exception ex)
             {
@@ -70,23 +87,32 @@ namespace FEBuilderGBA.Avalonia.Views
             Unused25Label.Text = $"0x{_vm.Unused25:X02}";
             Unused26Label.Text = $"0x{_vm.Unused26:X02}";
             Unused27Label.Text = $"0x{_vm.Unused27:X02}";
+            UpdateShowFrameLabel();
         }
 
-        void TryShowPortraitImage()
+        void UpdateImages()
         {
-            try
-            {
-                // Try to render portrait using PortraitRendererCore
-                var img = PortraitRendererCore.DrawPortraitUnit(
-                    _vm.PortraitImagePtr, _vm.PalettePtr,
-                    (byte)_vm.EyeX, (byte)_vm.EyeY, (byte)_vm.Status);
-                PortraitImage.SetImage(img);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("ImagePortraitView.TryShowPortraitImage failed: {0}", ex.Message);
-                PortraitImage.SetImage(null);
-            }
+            PortraitImage.SetImage(_vm.FaceImage);
+            MiniPortraitImage.SetImage(_vm.MiniPortraitImage);
+            MouthStripImage.SetImage(_vm.MouthStripImage);
+            EyeStripImage.SetImage(_vm.EyeStripImage);
+            ClassCardImage.SetImage(_vm.ClassCardImage);
+        }
+
+        void UpdateShowFrameLabel()
+        {
+            int idx = _vm.ShowFrame;
+            ShowFrameLabel.Text = idx >= 0 && idx < ShowFrameNames.Length
+                ? ShowFrameNames[idx] : $"Frame {idx}";
+        }
+
+        void ShowFrame_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            int newFrame = (int)(e.NewValue ?? 0);
+            _vm.ShowFrame = newFrame;
+            PortraitImage.SetImage(_vm.FaceImage);
+            UpdateShowFrameLabel();
         }
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
@@ -118,7 +144,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.LoadEntry(addr);
                 UpdateUI();
-                TryShowPortraitImage();
+                _vm.RefreshAllImages();
+                UpdateImages();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }
@@ -171,7 +198,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.LoadEntry(addr);
                 UpdateUI();
-                TryShowPortraitImage();
+                _vm.RefreshAllImages();
+                UpdateImages();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }

@@ -154,5 +154,114 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0, dst[6]);
             Assert.Equal(255, dst[7]);
         }
+
+        [Fact]
+        public void DrawPortraitUnitWithFrame_NullROM_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawPortraitUnitWithFrame(
+                    0x08000000, 0x08000100, 0x08000200, 2, 3, 4, 5, 0, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawPortraitUnitWithFrame_ZeroPointer_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawPortraitUnitWithFrame(0, 0, 0, 0, 0, 0, 0, 0, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawMouthFrameStrip_NullROM_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawMouthFrameStrip(0x08000200, 0x08000100);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawEyeFrameStrip_NullROM_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawEyeFrameStrip(0x08000000, 0x08000100);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawMouthFrameStrip_ZeroPointer_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawMouthFrameStrip(0, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawEyeFrameStrip_ZeroPointer_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawEyeFrameStrip(0, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void FrameConstants_HaveExpectedValues()
+        {
+            Assert.Equal(0, PortraitRendererCore.FrameNormal);
+            Assert.Equal(1, PortraitRendererCore.FrameEyeHalf);
+            Assert.Equal(2, PortraitRendererCore.FrameEyeClosed);
+            Assert.Equal(3, PortraitRendererCore.FrameMouth1);
+            Assert.Equal(8, PortraitRendererCore.FrameMouth6);
+            Assert.Equal(9, PortraitRendererCore.FrameMouth7);
+            Assert.Equal(9, PortraitRendererCore.MaxShowFrame);
+        }
     }
 }

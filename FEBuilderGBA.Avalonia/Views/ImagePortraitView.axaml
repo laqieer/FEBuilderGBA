@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImagePortraitView"
-        Title="Portrait Image Editor" Width="789" Height="547">
+        Title="Portrait Image Editor" Width="900" Height="700">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -17,7 +17,41 @@
           <Button Content="Import PAL" Click="ImportPal_Click" />
         </StackPanel>
 
-        <controls:GbaImageControl Name="PortraitImage" Margin="0,0,0,8" />
+        <!-- Main face + mini portrait side by side -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Unit Face (96x80)" FontWeight="SemiBold" />
+            <controls:GbaImageControl Name="PortraitImage" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Face (32x32)" FontWeight="SemiBold" />
+            <controls:GbaImageControl Name="MiniPortraitImage" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Class Card" FontWeight="SemiBold" />
+            <controls:GbaImageControl Name="ClassCardImage" />
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Frame selector -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+          <TextBlock Text="Show Frame:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <NumericUpDown Name="ShowFrameSelector" Minimum="0" Maximum="9" Value="0"
+                         Increment="1" Width="80" ValueChanged="ShowFrame_ValueChanged" />
+          <TextBlock Name="ShowFrameLabel" VerticalAlignment="Center" Foreground="Gray" />
+        </StackPanel>
+
+        <!-- Mouth and eye frame strips -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Mouth Frames (32x16 x6)" FontWeight="SemiBold" />
+            <controls:GbaImageControl Name="MouthStripImage" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Eye Frames (32x16 x2)" FontWeight="SemiBold" />
+            <controls:GbaImageControl Name="EyeStripImage" />
+          </StackPanel>
+        </StackPanel>
 
         <Grid ColumnDefinitions="160,200,Auto,60,Auto,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <!-- Row 0: Address -->
