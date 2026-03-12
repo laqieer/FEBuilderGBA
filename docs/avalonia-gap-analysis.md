@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~58% average across all domains (updated 2026-03-12 after round 19 gap fixes)
+**Overall Avalonia Completeness:** ~59% average across all domains (updated 2026-03-12 after round 22 gap fixes)
 
 ---
 
@@ -486,4 +486,6 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 
 **Updated 2026-03-12 (rounds 13-16):** Systematic name resolution improvements across 15+ forms: SupportTalk/FE6/FE7 (unit names in list), SupportUnitEditor/FE6 (unit names), WorldMapPoint (point names from text ID), WorldMapPath (start/end IDs), WorldMapBGM (song names), ArenaClass/ArenaEnemyWeapon (class/item names), ItemStatBonuses (item names), SoundBossBGM/SoundFootSteps (unit/class names), MonsterItem (item names), SummonUnit/SummonsDemonKing (unit/class names), LinkArenaDenyUnit (unit names).
 
-**Updated 2026-03-12 (rounds 17-19):** Stub list loading fixes: AITargetVM (from ai3_pointer), MenuExtendSplitMenu (from menu_definiton_split_pointer). Filter combos added: StatusParam (4-way param table switch), MapPointer (5-way PLIST type filter), ArenaClass (3-way weapon type filter). Overall completeness ~58%.
+**Updated 2026-03-12 (rounds 17-19):** Stub list loading fixes: AITargetVM (from ai3_pointer), MenuExtendSplitMenu (from menu_definiton_split_pointer). Filter combos added: StatusParam (4-way param table switch), MapPointer (5-way PLIST type filter), ArenaClass (3-way weapon type filter).
+
+**Updated 2026-03-12 (rounds 20-22):** Name resolution in 6 more forms: SongTable, SoundRoom, ItemWeaponEffect, ItemEffectiveness, ItemShop, ItemPromotion. Class growth simulator added to ClassEditor (55%) and ClassFE6 (48% VM-only). Overall completeness ~59%.
