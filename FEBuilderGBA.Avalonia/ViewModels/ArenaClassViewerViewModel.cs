@@ -14,12 +14,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
 
-        public List<AddrResult> LoadArenaClassList()
+        public List<string> GetWeaponTypeNames()
+        {
+            return new List<string> { "Near Weapon", "Far Weapon", "Magic" };
+        }
+
+        uint GetArenaPointer(int typeIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return typeIndex switch
+            {
+                1 => rom.RomInfo.arena_class_far_weapon_pointer,
+                2 => rom.RomInfo.arena_class_magic_weapon_pointer,
+                _ => rom.RomInfo.arena_class_near_weapon_pointer,
+            };
+        }
+
+        public List<AddrResult> LoadArenaClassList(int typeIndex = 0)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.arena_class_near_weapon_pointer;
+            uint ptr = GetArenaPointer(typeIndex);
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);

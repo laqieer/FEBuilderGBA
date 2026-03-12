@@ -18,15 +18,31 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            WeaponTypeCombo.SelectionChanged += WeaponType_Changed;
+            Opened += (_, _) => InitFilter();
         }
 
-        void LoadList()
+        void InitFilter()
+        {
+            var names = _vm.GetWeaponTypeNames();
+            WeaponTypeCombo.ItemsSource = names;
+            if (names.Count > 0)
+                WeaponTypeCombo.SelectedIndex = 0;
+            else
+                LoadList(0);
+        }
+
+        void WeaponType_Changed(object? sender, SelectionChangedEventArgs e)
+        {
+            LoadList(WeaponTypeCombo.SelectedIndex);
+        }
+
+        void LoadList(int typeIndex = 0)
         {
             _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadArenaClassList();
+                var items = _vm.LoadArenaClassList(typeIndex);
                 EntryList.SetItems(items);
             }
             catch (Exception ex)

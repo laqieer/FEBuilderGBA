@@ -371,7 +371,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | OPClassFont (2 VMs) | 50% | Image export/import |
 | OPPrologue | 55% | Image export/import |
 | OPClassAlphaName (2 VMs) | 55% | ASCII validation |
-| ArenaClass | **45%** | ~~Class ID display~~ **FIXED** — class names in list. Missing: filter combo (3 weapon types) |
+| ArenaClass | **55%** | ~~Filter combo~~ **FIXED** — 3-way weapon type filter (Near/Far/Magic) + class names |
 | ArenaEnemyWeapon | **45%** | ~~Weapon names~~ **FIXED** — item names in list. Missing: two sub-lists (basic + rank-up) |
 | StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
 | StatusOptionOrder | 55% | Named option display |
