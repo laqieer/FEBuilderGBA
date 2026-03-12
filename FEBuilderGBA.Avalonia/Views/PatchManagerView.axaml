@@ -75,6 +75,17 @@
                        Foreground="Gray" />
           </Grid>
 
+          <!-- Dependencies Warning -->
+          <Border Name="DependencyWarningBorder" IsVisible="False"
+                  Background="#FFFDE8" BorderBrush="#F0C000" BorderThickness="1"
+                  CornerRadius="4" Padding="8" Margin="0,0,0,4">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Unmet Dependencies" FontWeight="SemiBold" Foreground="#B8860B" />
+              <TextBlock Name="DependencyWarningText" TextWrapping="Wrap" FontSize="12"
+                         Foreground="#8B6914" />
+            </StackPanel>
+          </Border>
+
           <!-- Separator -->
           <Separator Margin="0,4" />
 
@@ -82,6 +93,8 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
             <Button Name="InstallButton" Content="Install Patch" IsEnabled="False"
                     Padding="12,6" FontWeight="SemiBold" />
+            <Button Name="ForceInstallButton" Content="Install Anyway" IsEnabled="False"
+                    IsVisible="False" Padding="12,6" />
             <Button Name="UninstallButton" Content="Uninstall Patch" IsEnabled="False"
                     Padding="12,6" />
           </StackPanel>

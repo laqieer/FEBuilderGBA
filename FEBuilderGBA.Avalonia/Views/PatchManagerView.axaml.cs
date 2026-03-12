@@ -20,6 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
             PatchListBox.SelectionChanged += OnPatchSelected;
             SearchBox.TextChanged += OnSearchTextChanged;
             InstallButton.Click += OnInstallClick;
+            ForceInstallButton.Click += OnForceInstallClick;
             UninstallButton.Click += OnUninstallClick;
         }
 
@@ -70,19 +71,49 @@ namespace FEBuilderGBA.Avalonia.Views
                 ? "(no description available)"
                 : patch.Description;
 
+            // Show dependency warnings
+            if (patch.HasUnmetDependencies)
+            {
+                DependencyWarningBorder.IsVisible = true;
+                DependencyWarningText.Text = patch.DependencyWarning;
+                ForceInstallButton.IsVisible = true;
+            }
+            else
+            {
+                DependencyWarningBorder.IsVisible = false;
+                DependencyWarningText.Text = "";
+                ForceInstallButton.IsVisible = false;
+            }
+
             UpdateActionButtons();
             StatusMessageLabel.Text = "";
         }
 
         void UpdateActionButtons()
         {
-            InstallButton.IsEnabled = _vm.CanInstall;
+            bool canInstall = _vm.CanInstall;
+            bool hasUnmetDeps = _vm.SelectedPatch?.HasUnmetDependencies == true;
+
+            // Disable normal Install if deps are unmet, but allow ForceInstall
+            InstallButton.IsEnabled = canInstall && !hasUnmetDeps;
+            ForceInstallButton.IsEnabled = canInstall && hasUnmetDeps;
+            ForceInstallButton.IsVisible = hasUnmetDeps;
             UninstallButton.IsEnabled = _vm.CanUninstall;
         }
 
         void OnInstallClick(object? sender, RoutedEventArgs e)
         {
-            string msg = _vm.InstallPatch();
+            DoInstall(forceIgnoreDependencies: false);
+        }
+
+        void OnForceInstallClick(object? sender, RoutedEventArgs e)
+        {
+            DoInstall(forceIgnoreDependencies: true);
+        }
+
+        void DoInstall(bool forceIgnoreDependencies)
+        {
+            string msg = _vm.InstallPatch(forceIgnoreDependencies);
             StatusMessageLabel.Text = msg;
 
             // Refresh the detail display

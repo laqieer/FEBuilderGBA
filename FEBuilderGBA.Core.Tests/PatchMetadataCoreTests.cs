@@ -744,5 +744,272 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(fail.Success);
             Assert.Equal("Error", fail.Message);
         }
+
+        // ===== Dependency checking tests =====
+
+        [Fact]
+        public void GetPatchDependencies_NoDeps_ReturnsEmpty()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchDepTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=NoDeps",
+                    "TYPE=BIN",
+                    "PATCHED_IF:0x100=0xAB",
+                });
+
+                var deps = PatchMetadataCore.GetPatchDependencies(patchFile);
+                Assert.Empty(deps);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void GetPatchDependencies_WithIfLines_ExtractsConditions()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchDepTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=WithDeps",
+                    "IF:0x02BA4=0x00 0xB5 0xC2 0x0F //need Anti-Huffman",
+                    "IF:0x100=0xAB 0xCD",
+                    "TYPE=BIN",
+                    "PATCHED_IF:0x200=0xFF",
+                });
+
+                var deps = PatchMetadataCore.GetPatchDependencies(patchFile);
+                Assert.Equal(2, deps.Count);
+                Assert.Equal("0x02BA4=0x00 0xB5 0xC2 0x0F", deps[0].Condition);
+                Assert.Equal("need Anti-Huffman", deps[0].Comment); // from inline comment
+                Assert.Equal("0x100=0xAB 0xCD", deps[1].Condition);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void GetPatchDependencies_WithIfComment_UsesComment()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchDepTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=WithComment",
+                    "IF:0x100=0xAB 0xCD",
+                    "IF_COMMENT=Please install Patch X first.",
+                    "IF_COMMENT.en=Please install Patch X first (English).",
+                    "TYPE=BIN",
+                });
+
+                // With English lang
+                var deps = PatchMetadataCore.GetPatchDependencies(patchFile, "en");
+                Assert.Single(deps);
+                Assert.Equal("Please install Patch X first (English).", deps[0].Comment);
+
+                // With empty lang (Japanese)
+                var depsJp = PatchMetadataCore.GetPatchDependencies(patchFile, "");
+                Assert.Single(depsJp);
+                Assert.Equal("Please install Patch X first.", depsJp[0].Comment);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void GetPatchDependencies_NonexistentFile_ReturnsEmpty()
+        {
+            var deps = PatchMetadataCore.GetPatchDependencies("/nonexistent/PATCH_test.txt");
+            Assert.Empty(deps);
+        }
+
+        [Fact]
+        public void EvaluateIfCondition_Satisfied_ReturnsTrue()
+        {
+            byte[] data = new byte[0x1000];
+            data[0x100] = 0xAB;
+            data[0x101] = 0xCD;
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.True(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB 0xCD", rom));
+        }
+
+        [Fact]
+        public void EvaluateIfCondition_NotSatisfied_ReturnsFalse()
+        {
+            byte[] data = new byte[0x1000];
+            data[0x100] = 0x00;
+            data[0x101] = 0x00;
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB 0xCD", rom));
+        }
+
+        [Fact]
+        public void EvaluateIfCondition_GrepCondition_ReturnsTrue()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x100]);
+
+            // GREP conditions are treated as satisfied (can't check simply)
+            Assert.True(PatchMetadataCore.EvaluateIfCondition("$GREP4 0xAB=0xAB", rom));
+            Assert.True(PatchMetadataCore.EvaluateIfCondition("$FGREP4 test.dmp=0xAB", rom));
+        }
+
+        [Fact]
+        public void EvaluateIfCondition_NullRom_ReturnsFalse()
+        {
+            Assert.False(PatchMetadataCore.EvaluateIfCondition("0x100=0xAB", null));
+        }
+
+        [Fact]
+        public void EvaluateIfCondition_AddrBeyondRom_ReturnsFalse()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10]);
+
+            Assert.False(PatchMetadataCore.EvaluateIfCondition("0xFF=0xAB", rom));
+        }
+
+        [Fact]
+        public void CheckDependencies_AllMet_ReturnsEmpty()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchCheckDeps_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "IF:0x100=0xAB 0xCD",
+                    "TYPE=BIN",
+                });
+
+                byte[] data = new byte[0x1000];
+                data[0x100] = 0xAB;
+                data[0x101] = 0xCD;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var missing = PatchMetadataCore.CheckDependencies(rom, patchFile);
+                Assert.Empty(missing);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void CheckDependencies_SomeUnmet_ReturnsMissing()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchCheckDeps_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "IF:0x100=0xAB 0xCD",
+                    "IF:0x200=0xEE 0xFF",
+                    "TYPE=BIN",
+                });
+
+                byte[] data = new byte[0x1000];
+                data[0x100] = 0xAB;
+                data[0x101] = 0xCD;
+                // 0x200 is zeroed = second dep not met
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var missing = PatchMetadataCore.CheckDependencies(rom, patchFile);
+                Assert.Single(missing);
+                Assert.Equal("0x200=0xEE 0xFF", missing[0].Condition);
+                Assert.False(missing[0].IsSatisfied);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ParsePatchFile_PopulatesDependencyFields()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchDepFields_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=DepPatch",
+                    "IF:0x100=0xAB 0xCD",
+                    "TYPE=BIN",
+                    "PATCHED_IF:0x200=0xFF",
+                });
+
+                byte[] data = new byte[0x1000];
+                // IF condition NOT met (0x100 is zeroed)
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(data);
+
+                var info = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
+                Assert.Equal(1, info.DependencyCount);
+                Assert.Equal(1, info.UnsatisfiedDependencyCount);
+                Assert.Single(info.UnsatisfiedDependencies);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ParsePatchFile_NoDeps_ZeroCounts()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchNoDepFields_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "NAME=NoDeps",
+                    "TYPE=BIN",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                var info = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
+                Assert.Equal(0, info.DependencyCount);
+                Assert.Equal(0, info.UnsatisfiedDependencyCount);
+                Assert.Empty(info.UnsatisfiedDependencies);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
     }
 }

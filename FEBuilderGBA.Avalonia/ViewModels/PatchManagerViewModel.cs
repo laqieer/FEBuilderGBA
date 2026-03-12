@@ -17,6 +17,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string Type { get; set; } = "";
         public PatchMetadataCore.PatchStatus Status { get; set; } = PatchMetadataCore.PatchStatus.Unknown;
         public string PatchFilePath { get; set; } = "";
+        public int DependencyCount { get; set; }
+        public int UnsatisfiedDependencyCount { get; set; }
+        public List<PatchMetadataCore.PatchDependency> UnsatisfiedDependencies { get; set; } = new();
 
         public string StatusText => Status switch
         {
@@ -24,6 +27,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             PatchMetadataCore.PatchStatus.NotInstalled => "Available",
             _ => "Unknown"
         };
+
+        /// <summary>True when this patch has unmet dependencies.</summary>
+        public bool HasUnmetDependencies => UnsatisfiedDependencyCount > 0;
+
+        /// <summary>Human-readable summary of unmet dependencies.</summary>
+        public string DependencyWarning
+        {
+            get
+            {
+                if (UnsatisfiedDependencyCount == 0) return "";
+                var parts = new List<string>();
+                foreach (var dep in UnsatisfiedDependencies)
+                {
+                    if (!string.IsNullOrEmpty(dep.Comment))
+                        parts.Add(dep.Comment);
+                    else
+                        parts.Add($"Condition: {dep.Condition}");
+                }
+                return string.Join("\n", parts);
+            }
+        }
 
         /// <summary>Create from core PatchInfo.</summary>
         public static PatchEntry FromPatchInfo(PatchMetadataCore.PatchInfo info)
@@ -38,6 +62,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Type = info.Type,
                 Status = info.Status,
                 PatchFilePath = info.PatchFilePath,
+                DependencyCount = info.DependencyCount,
+                UnsatisfiedDependencyCount = info.UnsatisfiedDependencyCount,
+                UnsatisfiedDependencies = info.UnsatisfiedDependencies,
             };
         }
     }
@@ -130,9 +157,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Install the currently selected patch. Returns the result message.
+        /// Check dependencies for the currently selected patch.
+        /// Returns a non-empty warning string if dependencies are unmet, or empty if all OK.
         /// </summary>
-        public string InstallPatch()
+        public string CheckSelectedPatchDependencies()
+        {
+            if (_selectedPatch == null) return "";
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "";
+
+            string lang = PatchMetadataCore.GetLanguageSuffix();
+            var missing = PatchMetadataCore.CheckDependencies(rom, _selectedPatch.PatchFilePath, lang);
+            if (missing.Count == 0) return "";
+
+            var parts = new List<string>();
+            parts.Add($"This patch has {missing.Count} unmet dependency condition(s):");
+            foreach (var dep in missing)
+            {
+                if (!string.IsNullOrEmpty(dep.Comment))
+                    parts.Add("  - " + dep.Comment);
+                else
+                    parts.Add("  - Condition not met: " + dep.Condition);
+            }
+            parts.Add("");
+            parts.Add("Install the required patches first, or proceed at your own risk.");
+            return string.Join("\n", parts);
+        }
+
+        /// <summary>
+        /// Install the currently selected patch. Returns the result message.
+        /// Set forceIgnoreDependencies to true to skip dependency checks.
+        /// </summary>
+        public string InstallPatch(bool forceIgnoreDependencies = false)
         {
             if (_selectedPatch == null)
                 return "No patch selected.";
@@ -140,6 +197,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null)
                 return "No ROM loaded.";
+
+            // Check dependencies unless forced
+            if (!forceIgnoreDependencies)
+            {
+                string depWarning = CheckSelectedPatchDependencies();
+                if (!string.IsNullOrEmpty(depWarning))
+                {
+                    StatusMessage = depWarning;
+                    return depWarning;
+                }
+            }
 
             Undo? undo = CoreState.Undo;
             Undo.UndoData? undoData = null;

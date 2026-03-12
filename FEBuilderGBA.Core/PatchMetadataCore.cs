@@ -32,6 +32,12 @@ namespace FEBuilderGBA
             public string Type { get; set; } = "";
             public PatchStatus Status { get; set; } = PatchStatus.Unknown;
             public string PatchFilePath { get; set; } = "";
+            /// <summary>Number of IF: dependency conditions in the patch file.</summary>
+            public int DependencyCount { get; set; }
+            /// <summary>Number of unsatisfied IF: dependencies. 0 = all met.</summary>
+            public int UnsatisfiedDependencyCount { get; set; }
+            /// <summary>Unsatisfied dependency details (only populated when > 0).</summary>
+            public List<PatchDependency> UnsatisfiedDependencies { get; set; } = new();
         }
 
         /// <summary>
@@ -111,6 +117,22 @@ namespace FEBuilderGBA
 
                 if (!string.IsNullOrEmpty(patchedIf))
                     info.Status = CheckPatchInstalled(patchedIf, rom);
+
+                // Check dependencies (IF: lines)
+                var allDeps = GetPatchDependencies(patchFilePath, lang);
+                info.DependencyCount = allDeps.Count;
+                if (allDeps.Count > 0)
+                {
+                    var missing = new List<PatchDependency>();
+                    foreach (var dep in allDeps)
+                    {
+                        dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
+                        if (!dep.IsSatisfied)
+                            missing.Add(dep);
+                    }
+                    info.UnsatisfiedDependencyCount = missing.Count;
+                    info.UnsatisfiedDependencies = missing;
+                }
             }
             catch (Exception ex)
             {
@@ -199,6 +221,162 @@ namespace FEBuilderGBA
             if (lang.StartsWith("zh", StringComparison.OrdinalIgnoreCase)) return "zh";
             if (lang.StartsWith("ja", StringComparison.OrdinalIgnoreCase)) return "";
             return "en";
+        }
+
+        /// <summary>A single dependency condition from a patch file (IF: line).</summary>
+        public class PatchDependency
+        {
+            /// <summary>The raw condition string (e.g. "0x02BA4=0x00 0xB5 0xC2 0x0F").</summary>
+            public string Condition { get; set; } = "";
+            /// <summary>Human-readable comment from IF_COMMENT (localized), or empty.</summary>
+            public string Comment { get; set; } = "";
+            /// <summary>Whether this dependency is satisfied in the current ROM.</summary>
+            public bool IsSatisfied { get; set; }
+        }
+
+        /// <summary>
+        /// Extract IF: dependency conditions from a PATCH_*.txt file.
+        /// These are preconditions that must be met (other patches installed) before this patch can be applied.
+        /// </summary>
+        /// <param name="patchFilePath">Path to the PATCH_*.txt file.</param>
+        /// <param name="lang">Language suffix for localized IF_COMMENT.</param>
+        /// <returns>List of dependency conditions.</returns>
+        public static List<PatchDependency> GetPatchDependencies(string patchFilePath, string lang = "")
+        {
+            var result = new List<PatchDependency>();
+            if (!File.Exists(patchFilePath)) return result;
+
+            try
+            {
+                string[] lines = File.ReadAllLines(patchFilePath);
+                string ifComment = "";
+                string ifCommentLocalized = "";
+
+                // First pass: collect IF_COMMENT values
+                foreach (string rawLine in lines)
+                {
+                    string line = rawLine.Trim();
+                    if (line.StartsWith("//")) continue;
+
+                    int sep = line.IndexOf('=');
+                    if (sep < 0) continue;
+
+                    string key = line.Substring(0, sep).Trim();
+                    string value = line.Substring(sep + 1).Trim();
+
+                    if (!string.IsNullOrEmpty(lang) &&
+                        key.Equals($"IF_COMMENT.{lang}", StringComparison.OrdinalIgnoreCase))
+                        ifCommentLocalized = value;
+                    else if (key.Equals("IF_COMMENT", StringComparison.OrdinalIgnoreCase) &&
+                             string.IsNullOrEmpty(ifCommentLocalized))
+                        ifComment = value;
+                }
+
+                string resolvedComment = !string.IsNullOrEmpty(ifCommentLocalized) ? ifCommentLocalized : ifComment;
+
+                // Second pass: collect IF: conditions
+                foreach (string rawLine in lines)
+                {
+                    string line = rawLine.Trim();
+                    if (line.StartsWith("//")) continue;
+
+                    // IF: lines use colon-separated key format: IF:address=bytes
+                    if (!line.StartsWith("IF:", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    // Extract the condition part after "IF:"
+                    string condition = line.Substring(3).Trim();
+
+                    // Strip trailing inline comments (e.g. "//need Anti-Huffman")
+                    int commentIdx = condition.IndexOf("//");
+                    string inlineComment = "";
+                    if (commentIdx >= 0)
+                    {
+                        inlineComment = condition.Substring(commentIdx + 2).Trim();
+                        condition = condition.Substring(0, commentIdx).Trim();
+                    }
+
+                    // Use inline comment if IF_COMMENT is not present
+                    string depComment = !string.IsNullOrEmpty(resolvedComment) ? resolvedComment
+                        : !string.IsNullOrEmpty(inlineComment) ? inlineComment : "";
+
+                    result.Add(new PatchDependency
+                    {
+                        Condition = condition,
+                        Comment = depComment,
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PatchMetadataCore.GetPatchDependencies: {0}: {1}", patchFilePath, ex.Message);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Check all IF: dependencies for a patch and return those that are NOT satisfied.
+        /// </summary>
+        /// <param name="rom">The ROM to check against.</param>
+        /// <param name="patchFilePath">Path to the PATCH_*.txt file.</param>
+        /// <param name="lang">Language suffix for localized IF_COMMENT.</param>
+        /// <returns>List of unsatisfied dependencies. Empty means all dependencies are met.</returns>
+        public static List<PatchDependency> CheckDependencies(ROM rom, string patchFilePath, string lang = "")
+        {
+            var deps = GetPatchDependencies(patchFilePath, lang);
+            var missing = new List<PatchDependency>();
+
+            foreach (var dep in deps)
+            {
+                dep.IsSatisfied = EvaluateIfCondition(dep.Condition, rom);
+                if (!dep.IsSatisfied)
+                    missing.Add(dep);
+            }
+
+            return missing;
+        }
+
+        /// <summary>
+        /// Evaluate a single IF: condition against a ROM.
+        /// Supports fixed-address checks (0xADDR=0xBB 0xBB ...).
+        /// Returns true if the condition is satisfied, false otherwise.
+        /// $GREP/$FGREP conditions are treated as satisfied (we can't check them simply).
+        /// </summary>
+        public static bool EvaluateIfCondition(string condition, ROM rom)
+        {
+            if (rom == null) return false;
+
+            try
+            {
+                // $GREP/$FGREP conditions require searching the entire ROM — skip (assume met)
+                if (condition.Contains("$GREP", StringComparison.OrdinalIgnoreCase) ||
+                    condition.Contains("$FGREP", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                int eqIdx = condition.IndexOf('=');
+                if (eqIdx < 0) return true; // Malformed, assume OK
+
+                string addrStr = condition.Substring(0, eqIdx).Trim();
+                string dataStr = condition.Substring(eqIdx + 1).Trim();
+
+                if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    addrStr = addrStr.Substring(2);
+                if (!uint.TryParse(addrStr, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint addr))
+                    return true; // Can't parse, assume OK
+
+                byte[] expected = ParseByteArray(dataStr);
+                if (expected.Length == 0) return true;
+
+                if (addr + expected.Length > rom.Data.Length)
+                    return false;
+
+                byte[] actual = rom.getBinaryData(addr, expected.Length);
+                return U.memcmp(expected, actual) == 0;
+            }
+            catch
+            {
+                return true; // On error, don't block
+            }
         }
 
         /// <summary>Result of a patch apply/uninstall operation.</summary>
