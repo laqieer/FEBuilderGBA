@@ -115,6 +115,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int BonusCon { get => _bonusCon; private set => SetField(ref _bonusCon, value); }
         public bool HasBonusPreview { get => _hasBonusPreview; private set => SetField(ref _hasBonusPreview, value); }
 
+        // --- Computed: Effective class list ---
+        List<string> _effectiveClassList = new();
+        bool _hasEffectiveClasses;
+        public List<string> EffectiveClassList { get => _effectiveClassList; private set => SetField(ref _effectiveClassList, value); }
+        public bool HasEffectiveClasses { get => _hasEffectiveClasses; private set => SetField(ref _hasEffectiveClasses, value); }
+
         // --- Computed: Null pointer warnings ---
         bool _showAllocStatBonuses, _showAllocEffectiveness;
         uint _currentItemIndex;
@@ -140,6 +146,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Stat bonus preview
             RecalcStatBonuses();
+
+            // Effective class list
+            UpdateEffectiveClassList();
         }
 
         void RecalcStatBonuses()
@@ -170,6 +179,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BonusLck  = (sbyte)rom.u8(addr + 6);
             BonusMove = (sbyte)rom.u8(addr + 7);
             BonusCon  = (sbyte)rom.u8(addr + 8);
+        }
+
+        void UpdateEffectiveClassList()
+        {
+            ROM rom = CoreState.ROM;
+            var list = new List<string>();
+            if (rom != null && U.isPointer(EffectivenessPtr))
+            {
+                uint addr = U.toOffset(EffectivenessPtr);
+                if (U.isSafetyOffset(addr))
+                {
+                    for (int i = 0; i < 64; i++)
+                    {
+                        if (addr + (uint)i >= (uint)rom.Data.Length) break;
+                        uint classId = rom.u8((uint)(addr + i));
+                        if (classId == 0) break;
+                        string name = NameResolver.GetClassName(classId);
+                        list.Add($"0x{classId:X02} {name}");
+                    }
+                }
+            }
+            EffectiveClassList = list;
+            HasEffectiveClasses = list.Count > 0;
         }
 
         // Keep old property names as aliases for backward compatibility with Views

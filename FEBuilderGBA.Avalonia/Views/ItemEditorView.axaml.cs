@@ -134,6 +134,11 @@ namespace FEBuilderGBA.Avalonia.Views
             AllocStatBonusesWarning.IsVisible = _vm.ShowAllocStatBonuses;
             AllocEffectivenessWarning.IsVisible = _vm.ShowAllocEffectiveness;
 
+            // Effective class list
+            EffectiveClassBorder.IsVisible = _vm.HasEffectiveClasses;
+            if (_vm.HasEffectiveClasses)
+                EffectiveClassListBox.ItemsSource = _vm.EffectiveClassList;
+
             // Stat bonus preview
             BonusPreviewBorder.IsVisible = _vm.HasBonusPreview;
             if (_vm.HasBonusPreview)
@@ -273,6 +278,24 @@ namespace FEBuilderGBA.Avalonia.Views
             text = text.Trim();
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
+
+        async void ExportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ExportTableAsync(this, "items");
+        }
+
+        async void ImportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ImportTableAsync(this, "items", _undoService, () =>
+            {
+                // Reload the current entry after import
+                if (_vm.CurrentAddr != 0)
+                {
+                    _vm.LoadItem(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+            });
         }
 
         public void EnablePickMode() => ItemList.EnablePickMode();
