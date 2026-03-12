@@ -511,3 +511,12 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **Map (40→50%):** MapChange two-level record editing, MapEditor tile selection and write-back
 - Test count: 406 → 552 (+146 new tests)
 - Overall completeness estimate: ~60% → ~75%
+
+**Updated 2026-03-12 (remaining gaps round — 8 more tasks):**
+- **Drag-and-drop:** MainWindow (.gba/.ups), ImagePortrait/BattleBG/CG (.png/.bmp)
+- **Progress dialog:** Reusable ProgressDialogService with modal progress bar, cancel, wired into DataExport
+- **Patch install:** ApplyPatch parses BIN/JUMP/FREEAREA directives, writes to ROM with undo, Install button in UI
+- **Battle animation:** Metadata display (name, pointers, LZ77 sizes, weapon/item type resolution)
+- **MIDI export:** Full GBA→MIDI conversion ported from WinForms SongUtil (import stub)
+- Test count: 552 → 578 (+26 new tests)
+- Overall completeness estimate: ~75% → ~82%
