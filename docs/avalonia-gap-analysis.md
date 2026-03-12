@@ -16,7 +16,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 3. ~~**No Context Menus**~~ **FIXED** -- `AddressListControl` now has Copy Address / Copy Name / Copy Hex Data context menu
 4. **No Image Import/Export** -- Partially addressed: export buttons added to portrait/CG/battle BG forms, undo-wrapped import handlers
 5. ~~**No CSV Export/Import**~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import via Tools menu
-6. **No Visual Previews** -- No map rendering, animation playback, or portrait thumbnails in lists
+6. **Limited Visual Previews** -- Map rendering works (MapEditor), portrait detail display works (UnitEditor/PortraitViewer). Missing: animation playback, portrait thumbnails in lists
 7. ~~**No Cross-Form Navigation**~~ **FIXED** -- `WindowManager.Navigate<T>(address)` wired in Unit Editor (Jump to Class/Portrait) and other editors
 8. ~~**No Data Validation**~~ **FIXED** -- `WriteValidator` provides range/type/pointer/address validation. `NameResolver` provides cached entity name resolution.
 9. ~~**No Dirty Tracking**~~ **FIXED** -- `ViewModelBase.IsDirty` / `IsLoading` / `MarkClean()` with automatic tracking. All 148+ editors now use `IsLoading` guards.
@@ -488,4 +488,6 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 
 **Updated 2026-03-12 (rounds 17-19):** Stub list loading fixes: AITargetVM (from ai3_pointer), MenuExtendSplitMenu (from menu_definiton_split_pointer). Filter combos added: StatusParam (4-way param table switch), MapPointer (5-way PLIST type filter), ArenaClass (3-way weapon type filter).
 
-**Updated 2026-03-12 (rounds 20-22):** Name resolution in 6 more forms: SongTable, SoundRoom, ItemWeaponEffect, ItemEffectiveness, ItemShop, ItemPromotion. Class growth simulator added to ClassEditor (55%) and ClassFE6 (48% VM-only). Overall completeness ~59%.
+**Updated 2026-03-12 (rounds 20-22):** Name resolution in 6 more forms: SongTable, SoundRoom, ItemWeaponEffect, ItemEffectiveness, ItemShop, ItemPromotion. Class growth simulator added to ClassEditor (55%) and ClassFE6 (48% VM-only).
+
+**Updated 2026-03-12 (rounds 23-27):** Accuracy corrections across all domains. Text content search (TextForm 30→45%). Jump to Song buttons in SoundBossBGM, WorldMapBGM, SoundRoom. UndoService wrapping for 10 remaining unprotected Write handlers (100% undo coverage). Overall completeness ~60%.
