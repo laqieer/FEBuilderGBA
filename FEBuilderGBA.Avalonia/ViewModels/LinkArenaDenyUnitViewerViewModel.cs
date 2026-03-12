@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class LinkArenaDenyUnitViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _unitId;
@@ -48,7 +51,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u8(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitId = values["B0"];
             CanWrite = true;
         }
 
@@ -57,7 +61,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u8(addr, UnitId);
+            var values = new Dictionary<string, uint> { ["B0"] = UnitId };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadLinkArenaDenyUnitList().Count;

@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MonsterProbabilityViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _classId1, _classId2, _classId3, _classId4, _classId5;
@@ -59,18 +62,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 12 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ClassId1 = rom.u8(addr + 0);
-            ClassId2 = rom.u8(addr + 1);
-            ClassId3 = rom.u8(addr + 2);
-            ClassId4 = rom.u8(addr + 3);
-            ClassId5 = rom.u8(addr + 4);
-            Prob1 = rom.u8(addr + 5);
-            Prob2 = rom.u8(addr + 6);
-            Prob3 = rom.u8(addr + 7);
-            Prob4 = rom.u8(addr + 8);
-            Prob5 = rom.u8(addr + 9);
-            Unknown1 = rom.u8(addr + 10);
-            Unknown2 = rom.u8(addr + 11);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ClassId1 = values["B0"];
+            ClassId2 = values["B1"];
+            ClassId3 = values["B2"];
+            ClassId4 = values["B3"];
+            ClassId5 = values["B4"];
+            Prob1 = values["B5"];
+            Prob2 = values["B6"];
+            Prob3 = values["B7"];
+            Prob4 = values["B8"];
+            Prob5 = values["B9"];
+            Unknown1 = values["B10"];
+            Unknown2 = values["B11"];
             CanWrite = true;
         }
 
@@ -80,18 +84,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 12 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)ClassId1);
-            rom.write_u8(CurrentAddr + 1, (byte)ClassId2);
-            rom.write_u8(CurrentAddr + 2, (byte)ClassId3);
-            rom.write_u8(CurrentAddr + 3, (byte)ClassId4);
-            rom.write_u8(CurrentAddr + 4, (byte)ClassId5);
-            rom.write_u8(CurrentAddr + 5, (byte)Prob1);
-            rom.write_u8(CurrentAddr + 6, (byte)Prob2);
-            rom.write_u8(CurrentAddr + 7, (byte)Prob3);
-            rom.write_u8(CurrentAddr + 8, (byte)Prob4);
-            rom.write_u8(CurrentAddr + 9, (byte)Prob5);
-            rom.write_u8(CurrentAddr + 10, (byte)Unknown1);
-            rom.write_u8(CurrentAddr + 11, (byte)Unknown2);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = ClassId1, ["B1"] = ClassId2, ["B2"] = ClassId3,
+                ["B3"] = ClassId4, ["B4"] = ClassId5,
+                ["B5"] = Prob1, ["B6"] = Prob2, ["B7"] = Prob3,
+                ["B8"] = Prob4, ["B9"] = Prob5,
+                ["B10"] = Unknown1, ["B11"] = Unknown2,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadMonsterProbabilityList().Count;

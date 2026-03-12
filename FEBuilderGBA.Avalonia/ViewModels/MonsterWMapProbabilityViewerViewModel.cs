@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MonsterWMapProbabilityViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _basePointId;
@@ -45,7 +48,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            BasePointId = rom.u8(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            BasePointId = values["B0"];
             CanWrite = true;
         }
 
@@ -55,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr >= (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr, (byte)BasePointId);
+            var values = new Dictionary<string, uint> { ["B0"] = BasePointId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadMonsterWMapProbabilityList().Count;

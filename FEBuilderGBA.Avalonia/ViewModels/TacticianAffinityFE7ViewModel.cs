@@ -14,6 +14,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class TacticianAffinityFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "B4" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _affinityId;
@@ -72,10 +75,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            AffinityId = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            AffinityId = values["D0"];
             // B4 is at addr+4 but may be outside this record for some layouts
             if (addr + 5 <= (uint)rom.Data.Length)
-                IndexPlus1 = (byte)rom.u8(addr + 4);
+                IndexPlus1 = (byte)values["B4"];
             IsLoaded = true;
         }
 
@@ -85,7 +89,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr + 0, AffinityId);
+            var values = new Dictionary<string, uint> { ["D0"] = AffinityId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

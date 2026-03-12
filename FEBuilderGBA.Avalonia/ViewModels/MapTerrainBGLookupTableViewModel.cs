@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MapTerrainBGLookupTableViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _battleBG;
@@ -20,7 +23,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 1 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            BattleBG = rom.u8(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            BattleBG = values["B0"];
             IsLoaded = true;
         }
 
@@ -28,7 +32,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u8(CurrentAddr + 0, (byte)BattleBG);
+            var values = new Dictionary<string, uint> { ["B0"] = BattleBG };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => 0;
