@@ -1,6 +1,6 @@
 === Field Completeness Report ===
 Total WinForms fields: 1562
-Total Avalonia fields: 1720
+Total Avalonia fields: 1740
 Total missing: 0
-Forms with gaps: 0 / 172
+Forms with gaps: 0 / 173
 
