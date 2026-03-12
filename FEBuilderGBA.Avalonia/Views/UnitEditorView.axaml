@@ -244,6 +244,10 @@
                   ToolTip.Tip="Export all units to a TSV file" />
           <Button Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Import units from a TSV file" />
+          <Border Width="1" Background="Gray" Margin="4,2" />
+          <Button Content="Edit Skills" Click="EditSkills_Click" Name="EditSkillsButton"
+                  IsVisible="False" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Open skill assignment editor for this unit" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

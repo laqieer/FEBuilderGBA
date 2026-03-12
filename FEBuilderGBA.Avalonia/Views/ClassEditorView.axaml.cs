@@ -51,6 +51,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadClassList();
                 ClassList.SetItems(items);
+
+                // Show "Edit Skills" button if a skill system with class assignment is installed
+                var skillType = PatchDetectionService.Instance.SkillSystem;
+                EditSkillsButton.IsVisible =
+                    skillType == PatchDetectionService.SkillSystemType.SkillSystem ||
+                    skillType == PatchDetectionService.SkillSystemType.CSkillSys09x ||
+                    skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
             }
             catch (Exception ex)
             {
@@ -330,6 +337,30 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.GrowRes = (uint)(GrowResBox.Value ?? 0);
             _vm.GrowLck = (uint)(GrowLckBox.Value ?? 0);
             _vm.IsLoading = false;
+        }
+
+        void EditSkills_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var skillType = PatchDetectionService.Instance.SkillSystem;
+                switch (skillType)
+                {
+                    case PatchDetectionService.SkillSystemType.SkillSystem:
+                        WindowManager.Instance.Open<SkillAssignmentClassSkillSystemView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.CSkillSys09x:
+                    case PatchDetectionService.SkillSystemType.CSkillSys300:
+                        WindowManager.Instance.Open<SkillAssignmentClassCSkillSysView>();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EditSkills_Click failed: {0}", ex.Message);
+            }
         }
 
         async void ExportTSV_Click(object? sender, RoutedEventArgs e)

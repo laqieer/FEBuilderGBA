@@ -42,6 +42,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Populate weapon type combo
                 _weaponTypeList = ComboResourceHelper.MakeWeaponTypeList();
                 WeaponTypeCombo.ItemsSource = _weaponTypeList.Select(x => x.name).ToList();
+
+                // Show "Edit Skill Config" button if a skill system is installed
+                EditSkillConfigButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
             }
             catch (Exception ex)
             {
@@ -287,6 +290,39 @@ namespace FEBuilderGBA.Avalonia.Views
             text = text.Trim();
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
+
+        void EditSkillConfig_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var skillType = PatchDetectionService.Instance.SkillSystem;
+                switch (skillType)
+                {
+                    case PatchDetectionService.SkillSystemType.SkillSystem:
+                        WindowManager.Instance.Open<SkillConfigSkillSystemView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.CSkillSys09x:
+                    case PatchDetectionService.SkillSystemType.CSkillSys300:
+                        WindowManager.Instance.Open<SkillConfigFE8UCSkillSys09xView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.FE8N:
+                        WindowManager.Instance.Open<SkillConfigFE8NSkillView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.FE8N_Ver2:
+                        WindowManager.Instance.Open<SkillConfigFE8NVer2SkillView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.FE8N_Ver3:
+                        WindowManager.Instance.Open<SkillConfigFE8NVer3SkillView>();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EditSkillConfig_Click failed: {0}", ex.Message);
+            }
         }
 
         async void ExportTSV_Click(object? sender, RoutedEventArgs e)

@@ -192,6 +192,10 @@
                   ToolTip.Tip="Export all items to a TSV file" />
           <Button Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Import items from a TSV file" />
+          <Border Width="1" Background="Gray" Margin="4,2" />
+          <Button Content="Edit Skill Config" Click="EditSkillConfig_Click" Name="EditSkillConfigButton"
+                  IsVisible="False" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Open skill configuration editor" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

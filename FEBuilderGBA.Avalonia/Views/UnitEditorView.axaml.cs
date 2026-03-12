@@ -97,6 +97,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _affinityList = ComboResourceHelper.MakeAffinityList();
                 AffinityCombo.ItemsSource = _affinityList.Select(x => x.name).ToList();
+
+                // Show "Edit Skills" button if a skill system is installed
+                EditSkillsButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
             }
             catch (Exception ex)
             {
@@ -470,6 +473,37 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+
+        void EditSkills_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var skillType = PatchDetectionService.Instance.SkillSystem;
+                switch (skillType)
+                {
+                    case PatchDetectionService.SkillSystemType.SkillSystem:
+                        WindowManager.Instance.Open<SkillAssignmentUnitSkillSystemView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.CSkillSys09x:
+                    case PatchDetectionService.SkillSystemType.CSkillSys300:
+                        WindowManager.Instance.Open<SkillAssignmentUnitCSkillSysView>();
+                        break;
+                    case PatchDetectionService.SkillSystemType.FE8N:
+                    case PatchDetectionService.SkillSystemType.FE8N_Ver2:
+                    case PatchDetectionService.SkillSystemType.FE8N_Ver3:
+                    case PatchDetectionService.SkillSystemType.Yugudora:
+                    case PatchDetectionService.SkillSystemType.Midori:
+                        WindowManager.Instance.Open<SkillAssignmentUnitFE8NView>();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EditSkills_Click failed: {0}", ex.Message);
+            }
+        }
 
         async void ExportTSV_Click(object? sender, RoutedEventArgs e)
         {
