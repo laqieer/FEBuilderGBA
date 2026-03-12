@@ -543,3 +543,9 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **PLIST types:** Added ANIMATION1, ANIMATION2, WORLDMAP (8 types, up from 5)
 - **Lint validation:** Data validation warnings in Unit/Item/Class editors (class/portrait/level/stats checks)
 - Overall completeness estimate: ~90% → ~92%
+
+**Updated 2026-03-12 (round 6 — 2 more tasks):**
+- **MoveCost multi-type:** 6 cost types via combo selector (Normal/Rain/Snow/Avoid/Def/Res), FE6 variant with 4 types
+- **Skill navigation:** Edit Skills buttons in Unit/Class/Item editors, routes to SkillAssignment views based on detected patch type
+- Test count: 617 → 636 (+19 new tests)
+- Overall completeness estimate: ~92% → ~93%
