@@ -549,3 +549,10 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **Skill navigation:** Edit Skills buttons in Unit/Class/Item editors, routes to SkillAssignment views based on detected patch type
 - Test count: 617 → 636 (+19 new tests)
 - Overall completeness estimate: ~92% → ~93%
+
+**Updated 2026-03-12 (round 7 — final push):**
+- **EditorFormRef:** Simplified auto-binding framework (B/W/P/D naming, bulk read/write, control detection, list building) — covers ~80% of InputFormRef use cases in ~250 lines
+- **Animation frame advance:** Section command parsing, manual frame stepping (Prev/Next), frame info display
+- **MIDI file parser:** Full .mid file parser (format, tracks, tempo, notes, instruments) — import preview instead of generic error
+- Test count: 636 → 696 (+60 new tests)
+- Overall completeness estimate: ~93% → ~95%
