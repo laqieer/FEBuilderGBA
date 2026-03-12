@@ -40,6 +40,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Terrain name text ID (W0 / J_0_TEXT).</summary>
         public uint TerrainNameTextID { get => _terrainNameTextID; set => SetField(ref _terrainNameTextID, value); }
 
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0" });
+
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
@@ -47,7 +50,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 2 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            TerrainNameTextID = rom.u16(addr + 0);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            TerrainNameTextID = v["W0"];
             IsLoaded = true;
         }
 
@@ -55,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u16(CurrentAddr + 0, (ushort)TerrainNameTextID);
+            var values = new Dictionary<string, uint> { ["W0"] = TerrainNameTextID };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

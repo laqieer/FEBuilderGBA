@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventFunctionPointerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _eventCommandFunctionPointer;
@@ -47,7 +50,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            EventCommandFunctionPointer = rom.u32(addr + 0);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            EventCommandFunctionPointer = v["D0"];
             IsLoaded = true;
         }
 
@@ -58,7 +62,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(a + 0, EventCommandFunctionPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = EventCommandFunctionPointer };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

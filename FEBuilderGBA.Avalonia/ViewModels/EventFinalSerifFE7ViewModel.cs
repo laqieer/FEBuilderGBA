@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventFinalSerifFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unit;
@@ -47,8 +50,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Unit = rom.u32(addr + 0);
-            TextID = rom.u32(addr + 4);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Unit = v["D0"];
+            TextID = v["D4"];
             IsLoaded = true;
         }
 
@@ -57,8 +61,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u32(a + 0, Unit);
-            rom.write_u32(a + 4, TextID);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = Unit, ["D4"] = TextID,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventForceSortieViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unit;
@@ -53,9 +56,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Unit = rom.u16(addr + 0);
-            Squad = rom.u8(addr + 2);
-            ChapterId = rom.u8(addr + 3);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Unit = v["W0"];
+            Squad = v["B2"];
+            ChapterId = v["B3"];
             IsLoaded = true;
         }
 
@@ -66,9 +70,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u16(a + 0, Unit);
-            rom.write_u8(a + 2, Squad);
-            rom.write_u8(a + 3, ChapterId);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = Unit, ["B2"] = Squad, ["B3"] = ChapterId,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

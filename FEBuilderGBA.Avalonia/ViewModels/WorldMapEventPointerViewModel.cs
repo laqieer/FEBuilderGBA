@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class WorldMapEventPointerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _eventPointer;
@@ -48,7 +51,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            EventPointer = rom.u32(addr);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            EventPointer = v["D0"];
             CanWrite = true;
         }
 
@@ -58,7 +62,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr, EventPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = EventPointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadWorldMapEventList().Count;

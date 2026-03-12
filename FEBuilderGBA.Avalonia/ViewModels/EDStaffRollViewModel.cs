@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EDStaffRollViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _imagePointer;
@@ -49,8 +52,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ImagePointer = rom.u32(addr);
-            TSAPointer = rom.u32(addr + 4);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            ImagePointer = v["D0"];
+            TSAPointer = v["D4"];
             CanWrite = true;
         }
 
@@ -60,8 +64,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 8 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr, ImagePointer);
-            rom.write_u32(CurrentAddr + 4, TSAPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = ImagePointer, ["D4"] = TSAPointer,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadEDStaffRollList().Count;

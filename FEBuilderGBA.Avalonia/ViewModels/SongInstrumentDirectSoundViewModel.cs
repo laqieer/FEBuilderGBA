@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SongInstrumentDirectSoundViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12" });
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
@@ -39,10 +42,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Header = rom.u32(addr + 0);
-            FrequencyHz1024 = rom.u32(addr + 4);
-            LoopStartByte = rom.u32(addr + 8);
-            LengthByte = rom.u32(addr + 12);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Header = v["D0"];
+            FrequencyHz1024 = v["D4"];
+            LoopStartByte = v["D8"];
+            LengthByte = v["D12"];
             IsLoaded = true;
         }
 
@@ -52,11 +56,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (!U.isSafetyOffset(CurrentAddr + 16)) return;
 
-            uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, Header);
-            rom.write_u32(addr + 4, FrequencyHz1024);
-            rom.write_u32(addr + 8, LoopStartByte);
-            rom.write_u32(addr + 12, LengthByte);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = Header, ["D4"] = FrequencyHz1024,
+                ["D8"] = LoopStartByte, ["D12"] = LengthByte,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => 0;

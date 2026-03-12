@@ -8,6 +8,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Terminated when ElapsedTime == 0 (all zeros). Opened via JumpTo with a base address.</summary>
     public class WorldMapPathMoveEditorViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "W4", "W6" });
+
         uint _baseAddr;
         uint _currentAddr;
         bool _isLoaded;
@@ -70,9 +73,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            ElapsedTime = rom.u32(addr + 0);
-            CoordinateX = rom.u16(addr + 4);
-            CoordinateY = rom.u16(addr + 6);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            ElapsedTime = v["D0"];
+            CoordinateX = v["W4"];
+            CoordinateY = v["W6"];
             IsLoaded = true;
             IsLoading = false;
             MarkClean();
@@ -85,9 +89,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 8 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, ElapsedTime);
-            rom.write_u16(addr + 4, (ushort)CoordinateX);
-            rom.write_u16(addr + 6, (ushort)CoordinateY);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = ElapsedTime, ["W4"] = CoordinateX, ["W6"] = CoordinateY,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

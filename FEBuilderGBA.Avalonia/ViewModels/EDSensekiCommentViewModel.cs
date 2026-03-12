@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EDSensekiCommentViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12" });
+
         uint _currentAddr;
         bool _isLoaded;
         bool _canWrite;
@@ -52,10 +55,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 15 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u32(addr + 0);
-            ConversationText1 = rom.u32(addr + 4);
-            ConversationText2 = rom.u32(addr + 8);
-            ConversationText3 = rom.u32(addr + 12);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitId = v["D0"];
+            ConversationText1 = v["D4"];
+            ConversationText2 = v["D8"];
+            ConversationText3 = v["D12"];
 
             IsLoaded = true;
             CanWrite = true;
@@ -67,10 +71,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(CurrentAddr + 0, UnitId);
-            rom.write_u32(CurrentAddr + 4, ConversationText1);
-            rom.write_u32(CurrentAddr + 8, ConversationText2);
-            rom.write_u32(CurrentAddr + 12, ConversationText3);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = UnitId, ["D4"] = ConversationText1,
+                ["D8"] = ConversationText2, ["D12"] = ConversationText3,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

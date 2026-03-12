@@ -5,6 +5,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventForceSortieFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+        static readonly List<EditorFormRef.FieldDef> _subFields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unitListPointer;
@@ -62,7 +67,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitListPointer = rom.u32(addr + 0);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitListPointer = v["D0"];
             IsLoaded = true;
         }
 
@@ -73,10 +79,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             SubAddr = addr;
-            UnitId = rom.u8(addr + 0);
-            Unknown1 = rom.u8(addr + 1);
-            Unknown2 = rom.u8(addr + 2);
-            Unknown3 = rom.u8(addr + 3);
+            var sv = EditorFormRef.ReadFields(rom, addr, _subFields);
+            UnitId = sv["B0"];
+            Unknown1 = sv["B1"];
+            Unknown2 = sv["B2"];
+            Unknown3 = sv["B3"];
         }
 
         public void Write()
@@ -86,7 +93,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(a + 0, UnitListPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = UnitListPointer };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public void WriteSubEntry()
@@ -96,10 +104,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = SubAddr;
             if (a + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0, UnitId);
-            rom.write_u8(a + 1, Unknown1);
-            rom.write_u8(a + 2, Unknown2);
-            rom.write_u8(a + 3, Unknown3);
+            var subValues = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitId, ["B1"] = Unknown1, ["B2"] = Unknown2, ["B3"] = Unknown3,
+            };
+            EditorFormRef.WriteFields(rom, a, subValues, _subFields);
         }
 
         public int GetListCount() => LoadList().Count;

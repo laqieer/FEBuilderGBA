@@ -93,19 +93,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u8(a + 0, (byte)Unit);
-            rom.write_u8(a + 1, (byte)ChapterID);
-            rom.write_u8(a + 2, (byte)Unknown02);
-            rom.write_u8(a + 3, (byte)Unknown03);
-            rom.write_u16(a + 4, (ushort)DeathText);
-            rom.write_u8(a + 6, (byte)Unknown06);
-            rom.write_u8(a + 7, (byte)Unknown07);
-            rom.write_u16(a + 8, (ushort)AchievementFlag);
-            rom.write_u8(a + 10, (byte)Unknown0A);
-            rom.write_u8(a + 11, (byte)Unknown0B);
-            rom.write_u16(a + 12, (ushort)FinalChapterText);
-            rom.write_u8(a + 14, (byte)Unknown0E);
-            rom.write_u8(a + 15, (byte)Unknown0F);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Unit, ["B1"] = ChapterID,
+                ["B2"] = Unknown02, ["B3"] = Unknown03,
+                ["W4"] = DeathText, ["B6"] = Unknown06, ["B7"] = Unknown07,
+                ["W8"] = AchievementFlag, ["B10"] = Unknown0A, ["B11"] = Unknown0B,
+                ["W12"] = FinalChapterText, ["B14"] = Unknown0E, ["B15"] = Unknown0F,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

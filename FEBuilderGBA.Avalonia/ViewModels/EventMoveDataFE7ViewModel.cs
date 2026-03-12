@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventMoveDataFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _moveDirection;
@@ -32,7 +35,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            MoveDirection = rom.u8(addr + 0);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            MoveDirection = v["B0"];
             IsLoaded = true;
         }
 
@@ -40,10 +44,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint a = CurrentAddr;
-            if (a + 1 > (uint)rom.Data.Length) return;
-
-            rom.write_u8(a + 0, MoveDirection);
+            var values = new Dictionary<string, uint> { ["B0"] = MoveDirection };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => 0;

@@ -7,6 +7,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class CCBranchEditorViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1" });
+
         uint _currentAddr;
         string _className = "";
         uint _promotionClass1, _promotionClass2;
@@ -91,8 +94,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            PromotionClass1 = rom.u8(addr + 0);
-            PromotionClass2 = rom.u8(addr + 1);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            PromotionClass1 = v["B0"];
+            PromotionClass2 = v["B1"];
             PromoName1 = NameResolver.GetClassName(PromotionClass1);
             PromoName2 = NameResolver.GetClassName(PromotionClass2);
 
@@ -139,8 +143,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
 
-            rom.write_u8(CurrentAddr + 0, PromotionClass1);
-            rom.write_u8(CurrentAddr + 1, PromotionClass2);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = PromotionClass1, ["B1"] = PromotionClass2,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadCCBranchList().Count;

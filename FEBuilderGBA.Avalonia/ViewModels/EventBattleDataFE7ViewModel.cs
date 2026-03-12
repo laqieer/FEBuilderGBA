@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventBattleDataFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "B2", "B3" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _attackType;
@@ -34,9 +37,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            AttackType = rom.u16(addr + 0);
-            Attacker = rom.u8(addr + 2);
-            Damage = rom.u8(addr + 3);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            AttackType = v["W0"];
+            Attacker = v["B2"];
+            Damage = v["B3"];
             IsLoaded = true;
         }
 
@@ -45,9 +49,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u16(a + 0, (ushort)AttackType);
-            rom.write_u8(a + 2, (byte)Attacker);
-            rom.write_u8(a + 3, (byte)Damage);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = AttackType, ["B2"] = Attacker, ["B3"] = Damage,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => 0;
