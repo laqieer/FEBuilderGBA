@@ -3,6 +3,24 @@ using System;
 namespace FEBuilderGBA
 {
     /// <summary>
+    /// Result of splitting a 128x112 composite portrait sheet into its component parts.
+    /// </summary>
+    public class PortraitSheetParts
+    {
+        /// <summary>Sprite sheet RGBA pixels (256x32) ready for tile encoding.</summary>
+        public byte[] SpriteSheetPixels;
+        public int SpriteSheetW, SpriteSheetH;
+
+        /// <summary>Map/mini face RGBA pixels (32x32).</summary>
+        public byte[] MiniPixels;
+        public int MiniW, MiniH;
+
+        /// <summary>Mouth frame RGBA pixels (32x96, 6 frames of 32x16).</summary>
+        public byte[] MouthPixels;
+        public int MouthW, MouthH;
+    }
+
+    /// <summary>
     /// Cross-platform portrait rendering for GBA Fire Emblem ROMs.
     /// Ports the assembly logic from WinForms ImagePortraitForm to use IImage/IImageService.
     /// </summary>
@@ -456,6 +474,96 @@ namespace FEBuilderGBA
                     dst[dstIdx + 3] = src[srcIdx + 3];
                 }
             }
+        }
+
+        /// <summary>
+        /// Split a 128x112 composite portrait sheet into sprite sheet, mini face, and mouth frames.
+        /// The 128x112 sheet layout matches the WinForms export format:
+        ///   Face (96x80) at (16, 0) — assembled portrait
+        ///   Mini face (32x32) at (96, 16)
+        ///   Half-closed eyes (32x16) at (96, 48)
+        ///   Closed eyes (32x16) at (96, 64)
+        ///   Mouth frames: (0,80)(32,80)(64,80)(0,96)(32,96)(64,96) — 6 frames of 32x16
+        ///   Mouth7 (32x16) at (96, 80) — stored in sprite sheet
+        ///   Unused (32x16) at (96, 96)
+        /// Returns null if the image is not 128x112.
+        /// </summary>
+        public static PortraitSheetParts SplitPortraitSheet(byte[] rgba, int w, int h)
+        {
+            if (w != 128 || h != 112) return null;
+            if (rgba == null || rgba.Length < w * h * 4) return null;
+
+            // Sprite sheet: 256x32 (32 tiles wide x 4 tiles high)
+            int sheetW = 256, sheetH = 32;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+
+            // Reverse-assemble face parts from the composed 96x80 face into sprite sheet layout
+            // Upper face: seet(16, 0) 64x32 -> sheet(0, 0)
+            BlitPixels(rgba, w, PartsWidth / 2, 0, PartsWidth * 2, PartsHeight * 2,
+                sheet, sheetW, 0, 0);
+            // Lower face: seet(16, 32) 64x32 -> sheet(64, 0)
+            BlitPixels(rgba, w, PartsWidth / 2, PartsHeight * 2, PartsWidth * 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 2, 0);
+            // Right shoulder: seet(16, 64) 32x16 -> sheet(128, 0)
+            BlitPixels(rgba, w, PartsWidth / 2, PartsHeight * 4, PartsWidth, PartsHeight,
+                sheet, sheetW, PartsWidth * 4, 0);
+            // Right edge: seet(0, 48) 16x32 -> sheet(160, 0)
+            BlitPixels(rgba, w, 0, PartsHeight * 3, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 5, 0);
+            // Left shoulder: seet(48, 64) 32x16 -> sheet(128, 16)
+            BlitPixels(rgba, w, PartsWidth + PartsWidth / 2, PartsHeight * 4, PartsWidth, PartsHeight,
+                sheet, sheetW, PartsWidth * 4, PartsHeight);
+            // Left edge: seet(80, 48) 16x32 -> sheet(176, 0)
+            BlitPixels(rgba, w, PartsWidth * 2 + PartsWidth / 2, PartsHeight * 3, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 5 + PartsWidth / 2, 0);
+
+            // Half-closed eyes: seet(96, 48) 32x16 -> sheet(192, 0)
+            BlitPixels(rgba, w, FaceWidth, 32 + PartsHeight, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth * 2, 0);
+            // Closed eyes: seet(96, 64) 32x16 -> sheet(192, 16)
+            BlitPixels(rgba, w, FaceWidth, 32 + PartsHeight * 2, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth * 2, PartsHeight);
+
+            // Mouth7: seet(96, 80) 32x16 -> sheet(224, 0)
+            BlitPixels(rgba, w, FaceWidth, FaceHeight, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, 0);
+            // Unused slot: seet(96, 96) 32x16 -> sheet(224, 16)
+            BlitPixels(rgba, w, FaceWidth, FaceHeight + PartsHeight, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, PartsHeight);
+
+            // Mini/map face: seet(96, 16) 32x32
+            int miniW = 32, miniH = 32;
+            byte[] mini = new byte[miniW * miniH * 4];
+            BlitPixels(rgba, w, FaceWidth, PartsHeight, miniW, miniH, mini, miniW, 0, 0);
+
+            // Mouth frames: 6 frames of 32x16 each = 32x96 total
+            int mouthW = 32, mouthH = 96;
+            byte[] mouth = new byte[mouthW * mouthH * 4];
+            // Frame 0: seet(0, 80)
+            BlitPixels(rgba, w, 0, FaceHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, 0);
+            // Frame 1: seet(32, 80)
+            BlitPixels(rgba, w, PartsWidth, FaceHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight);
+            // Frame 2: seet(64, 80)
+            BlitPixels(rgba, w, PartsWidth * 2, FaceHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 2);
+            // Frame 3: seet(0, 96)
+            BlitPixels(rgba, w, 0, FaceHeight + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 3);
+            // Frame 4: seet(32, 96)
+            BlitPixels(rgba, w, PartsWidth, FaceHeight + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 4);
+            // Frame 5: seet(64, 96)
+            BlitPixels(rgba, w, PartsWidth * 2, FaceHeight + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 5);
+
+            return new PortraitSheetParts
+            {
+                SpriteSheetPixels = sheet,
+                SpriteSheetW = sheetW,
+                SpriteSheetH = sheetH,
+                MiniPixels = mini,
+                MiniW = miniW,
+                MiniH = miniH,
+                MouthPixels = mouth,
+                MouthW = mouthW,
+                MouthH = mouthH,
+            };
         }
 
         /// <summary>

@@ -91,6 +91,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
 
+                // Check if this is a 128x112 composite portrait sheet
+                if (loadResult.Width == 128 && loadResult.Height == 112)
+                {
+                    ImportPortraitSheet(rom, addr, loadResult);
+                    return;
+                }
+
                 _undoService.Begin("Import Portrait Image (Drop)");
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode tiles"); return; }
@@ -205,6 +212,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
 
+                // Check if this is a 128x112 composite portrait sheet
+                if (loadResult.Width == 128 && loadResult.Height == 112)
+                {
+                    ImportPortraitSheet(rom, addr, loadResult);
+                    return;
+                }
+
                 _undoService.Begin("Import Portrait Image");
                 // Encode tiles and write compressed to ROM
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
@@ -225,6 +239,112 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Import a 128x112 composite portrait sheet. Splits into sprite sheet (D0),
+        /// mini/map face (D4), palette (D8), and mouth frames (D12).
+        /// </summary>
+        void ImportPortraitSheet(ROM rom, uint addr, ImageImportService.LoadResult loadResult)
+        {
+            // Reconstruct RGBA from indexed for the splitter
+            byte[] rgbaPixels = new byte[loadResult.Width * loadResult.Height * 4];
+            IImageService svc = CoreState.ImageService;
+            for (int i = 0; i < loadResult.IndexedPixels.Length; i++)
+            {
+                int palIdx = loadResult.IndexedPixels[i];
+                int palOff = palIdx * 2;
+                if (palOff + 2 <= loadResult.GBAPalette.Length)
+                {
+                    ushort gbaColor = (ushort)(loadResult.GBAPalette[palOff] | (loadResult.GBAPalette[palOff + 1] << 8));
+                    svc.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+                    rgbaPixels[i * 4 + 0] = r;
+                    rgbaPixels[i * 4 + 1] = g;
+                    rgbaPixels[i * 4 + 2] = b;
+                    rgbaPixels[i * 4 + 3] = (byte)(palIdx == 0 ? 0 : 255);
+                }
+            }
+
+            var parts = PortraitRendererCore.SplitPortraitSheet(rgbaPixels, loadResult.Width, loadResult.Height);
+            if (parts == null)
+            {
+                CoreState.Services.ShowError("Failed to split portrait sheet.");
+                return;
+            }
+
+            // Quantize each part using the same palette from the original quantization
+            // Since all parts come from the same 16-color image, we remap to the existing palette
+            byte[] sheetIndexed = ImageImportCore.RemapToExistingPalette(
+                parts.SpriteSheetPixels, parts.SpriteSheetW, parts.SpriteSheetH,
+                loadResult.GBAPalette, 16);
+            byte[] miniIndexed = ImageImportCore.RemapToExistingPalette(
+                parts.MiniPixels, parts.MiniW, parts.MiniH,
+                loadResult.GBAPalette, 16);
+            byte[] mouthIndexed = ImageImportCore.RemapToExistingPalette(
+                parts.MouthPixels, parts.MouthW, parts.MouthH,
+                loadResult.GBAPalette, 16);
+
+            if (sheetIndexed == null || miniIndexed == null || mouthIndexed == null)
+            {
+                CoreState.Services.ShowError("Failed to remap sheet parts to palette.");
+                return;
+            }
+
+            _undoService.Begin("Import Portrait Sheet (128x112)");
+            try
+            {
+                // D0: Sprite sheet (compressed or with 4-byte header)
+                byte[] sheetTiles = ImageImportCore.EncodeDirectTiles4bpp(sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH);
+                if (sheetTiles == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode sprite sheet tiles"); return; }
+
+                // Check if the current portrait data is compressed
+                uint currentD0 = rom.p32(addr + 0);
+                bool isCompressed = U.isSafetyOffset(U.toOffset(currentD0)) && LZ77.iscompress(rom.Data, U.toOffset(currentD0));
+
+                uint sheetAddr;
+                if (isCompressed)
+                {
+                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, addr + 0);
+                }
+                else
+                {
+                    // Uncompressed: prepend 4-byte header (0x00, 0x04, 0x10, 0x00)
+                    byte[] withHeader = new byte[4 + sheetTiles.Length];
+                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
+                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, addr + 0);
+                }
+                if (sheetAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for sprite sheet"); return; }
+
+                // D4: Mini/map face (always compressed)
+                byte[] miniTiles = ImageImportCore.EncodeDirectTiles4bpp(miniIndexed, parts.MiniW, parts.MiniH);
+                if (miniTiles == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode mini face tiles"); return; }
+                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, addr + 4);
+                if (miniAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for mini face"); return; }
+
+                // D8: Palette (raw)
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
+
+                // D12: Mouth frames (raw, uncompressed)
+                byte[] mouthTiles = ImageImportCore.EncodeDirectTiles4bpp(mouthIndexed, parts.MouthW, parts.MouthH);
+                if (mouthTiles == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode mouth tiles"); return; }
+                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, addr + 12);
+                if (mouthAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for mouth data"); return; }
+
+                _undoService.Commit();
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                _vm.RefreshAllImages();
+                UpdateImages();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Portrait sheet (128x112) imported: face, mini, mouth, and palette.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Sheet import failed: {ex.Message}");
+            }
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)

@@ -263,5 +263,103 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(9, PortraitRendererCore.FrameMouth7);
             Assert.Equal(9, PortraitRendererCore.MaxShowFrame);
         }
+
+        [Fact]
+        public void SplitPortraitSheet_WrongSize_ReturnsNull()
+        {
+            // Non-128x112 should return null
+            byte[] rgba = new byte[100 * 100 * 4];
+            Assert.Null(PortraitRendererCore.SplitPortraitSheet(rgba, 100, 100));
+        }
+
+        [Fact]
+        public void SplitPortraitSheet_NullInput_ReturnsNull()
+        {
+            Assert.Null(PortraitRendererCore.SplitPortraitSheet(null, 128, 112));
+        }
+
+        [Fact]
+        public void SplitPortraitSheet_TooSmallBuffer_ReturnsNull()
+        {
+            byte[] rgba = new byte[10]; // way too small
+            Assert.Null(PortraitRendererCore.SplitPortraitSheet(rgba, 128, 112));
+        }
+
+        [Fact]
+        public void SplitPortraitSheet_ValidSize_ReturnsParts()
+        {
+            byte[] rgba = new byte[128 * 112 * 4];
+            // Paint a distinctive pixel at the mini face location (96, 16)
+            int miniPixelIdx = (16 * 128 + 96) * 4;
+            rgba[miniPixelIdx + 0] = 255; // R
+            rgba[miniPixelIdx + 1] = 128; // G
+            rgba[miniPixelIdx + 2] = 64;  // B
+            rgba[miniPixelIdx + 3] = 255; // A
+
+            var parts = PortraitRendererCore.SplitPortraitSheet(rgba, 128, 112);
+            Assert.NotNull(parts);
+
+            // Verify dimensions
+            Assert.Equal(256, parts.SpriteSheetW);
+            Assert.Equal(32, parts.SpriteSheetH);
+            Assert.Equal(256 * 32 * 4, parts.SpriteSheetPixels.Length);
+
+            Assert.Equal(32, parts.MiniW);
+            Assert.Equal(32, parts.MiniH);
+            Assert.Equal(32 * 32 * 4, parts.MiniPixels.Length);
+
+            Assert.Equal(32, parts.MouthW);
+            Assert.Equal(96, parts.MouthH);
+            Assert.Equal(32 * 96 * 4, parts.MouthPixels.Length);
+
+            // The pixel at sheet (96, 16) = mini face (0, 0)
+            Assert.Equal(255, parts.MiniPixels[0]); // R
+            Assert.Equal(128, parts.MiniPixels[1]); // G
+            Assert.Equal(64, parts.MiniPixels[2]);   // B
+            Assert.Equal(255, parts.MiniPixels[3]); // A
+        }
+
+        [Fact]
+        public void SplitPortraitSheet_FaceRegion_MapsToSpriteSheet()
+        {
+            byte[] rgba = new byte[128 * 112 * 4];
+            // Paint a pixel in the upper face region at sheet (16, 0) = face upper-left
+            // This should map to sprite sheet (0, 0)
+            int facePixelIdx = (0 * 128 + 16) * 4;
+            rgba[facePixelIdx + 0] = 100;
+            rgba[facePixelIdx + 1] = 200;
+            rgba[facePixelIdx + 2] = 50;
+            rgba[facePixelIdx + 3] = 255;
+
+            var parts = PortraitRendererCore.SplitPortraitSheet(rgba, 128, 112);
+            Assert.NotNull(parts);
+
+            // Sheet face (16, 0) -> sprite sheet (0, 0)
+            Assert.Equal(100, parts.SpriteSheetPixels[0]);
+            Assert.Equal(200, parts.SpriteSheetPixels[1]);
+            Assert.Equal(50, parts.SpriteSheetPixels[2]);
+            Assert.Equal(255, parts.SpriteSheetPixels[3]);
+        }
+
+        [Fact]
+        public void SplitPortraitSheet_MouthFrames_MappedCorrectly()
+        {
+            byte[] rgba = new byte[128 * 112 * 4];
+            // Paint a pixel at mouth frame 0 location: sheet (0, 80)
+            int mouthPixelIdx = (80 * 128 + 0) * 4;
+            rgba[mouthPixelIdx + 0] = 10;
+            rgba[mouthPixelIdx + 1] = 20;
+            rgba[mouthPixelIdx + 2] = 30;
+            rgba[mouthPixelIdx + 3] = 255;
+
+            var parts = PortraitRendererCore.SplitPortraitSheet(rgba, 128, 112);
+            Assert.NotNull(parts);
+
+            // Mouth frame 0 at (0, 0) in mouth pixels
+            Assert.Equal(10, parts.MouthPixels[0]);
+            Assert.Equal(20, parts.MouthPixels[1]);
+            Assert.Equal(30, parts.MouthPixels[2]);
+            Assert.Equal(255, parts.MouthPixels[3]);
+        }
     }
 }
