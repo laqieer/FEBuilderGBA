@@ -520,3 +520,12 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **MIDI export:** Full GBA→MIDI conversion ported from WinForms SongUtil (import stub)
 - Test count: 552 → 578 (+26 new tests)
 - Overall completeness estimate: ~75% → ~82%
+
+**Updated 2026-03-12 (round 3 — 5 more tasks):**
+- **Icon previews:** Sidebar portrait/item/class icon previews in Unit/Item/Class editors
+- **Portrait calibration:** Mouth/eye X/Y position controls for import calibration
+- **Patch uninstall:** Backup-based restore with text format backup files
+- **Battle animation sprites:** Tile sheet rendering from LZ77-compressed frame data + palette
+- **Easy mode:** Toggle between normal grid and categorized card layout in MainWindow
+- Test count: 578 → 596 (+18 new tests)
+- Overall completeness estimate: ~82% → ~87%
