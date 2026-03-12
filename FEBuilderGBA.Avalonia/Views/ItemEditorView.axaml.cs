@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class ItemEditorView : Window, IPickableEditor, IDataVerifiableView
     {
         readonly ItemEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -18,10 +18,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Item Editor";
         public bool IsLoaded => _vm.CanWrite;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public ItemEditorView()
         {
             InitializeComponent();
             ItemList.SelectedAddressChanged += OnItemSelected;
+            ItemList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
 
             // Set trait flag names
@@ -213,6 +216,8 @@ namespace FEBuilderGBA.Avalonia.Views
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
         }
+
+        public void EnablePickMode() => ItemList.EnablePickMode();
 
         /// <summary>Select the first item in the list (for smoke testing).</summary>
         public void SelectFirstItem()

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTableView : Window, IEditorView, IDataVerifiableView
+    public partial class SongTableView : Window, IPickableEditor, IDataVerifiableView
     {
         readonly SongTableViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -14,10 +14,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Song Table";
         public bool IsLoaded => _vm.CanWrite;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public SongTableView()
         {
             InitializeComponent();
             SongList.SelectedAddressChanged += OnSongSelected;
+            SongList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
         }
 
@@ -94,6 +97,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("SongTableView.Write_Click failed: {0}", ex.Message);
             }
         }
+
+        public void EnablePickMode() => SongList.EnablePickMode();
 
         public void SelectFirstItem()
         {

@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PortraitViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class PortraitViewerView : Window, IPickableEditor, IDataVerifiableView
     {
         readonly PortraitViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -17,10 +17,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public bool IsLoaded => _vm.CanWrite;
         public ViewModelBase? DataViewModel => _vm;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public PortraitViewerView()
         {
             InitializeComponent();
             PortraitList.SelectedAddressChanged += OnPortraitSelected;
+            PortraitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
         }
 
@@ -230,6 +233,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
         }
+
+        public void EnablePickMode() => PortraitList.EnablePickMode();
 
         public void SelectFirstItem()
         {

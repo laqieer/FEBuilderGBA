@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorView"
-        Title="Map Style Editor" Width="1773" Height="1038">
+        Title="Map Style Editor" Width="900" Height="550">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -10,10 +10,20 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Map Style Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="OBJ Tile Pointer:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ObjPtrBox" Width="160" HorizontalAlignment="Left" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Config Pointer:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="ConfigPtrLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

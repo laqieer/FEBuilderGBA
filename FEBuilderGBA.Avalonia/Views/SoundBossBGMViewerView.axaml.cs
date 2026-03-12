@@ -118,6 +118,29 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void PickUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint unitId = (uint)(UnitIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                if (rom.RomInfo.version == 6) baseAddr += dataSize;
+                uint navAddr = baseAddr + unitId * dataSize;
+
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr, this);
+                if (result != null)
+                    UnitIdBox.Value = result.Index;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PickUnit failed: {0}", ex.Message);
+            }
+        }
+
         public ViewModelBase? DataViewModel => _vm;
     }
 }

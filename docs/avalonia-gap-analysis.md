@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~55% average across all domains (updated 2026-03-12 after round 11 gap fixes)
+**Overall Avalonia Completeness:** ~56% average across all domains (updated 2026-03-12 after round 12 gap fixes)
 
 ---
 
@@ -41,10 +41,10 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | # | Domain | Avg Completeness | Forms | Critical Gaps |
 |---|--------|:---:|:---:|---|
 | 1 | [Shared Infrastructure](#15-shared-infrastructure) | **70%** | 12 | No auto-wiring, no convention binding |
-| 2 | [Unit Editors](#1-unit-editors) | **~45%** | 10 | No growth simulator, no skills |
+| 2 | [Unit Editors](#1-unit-editors) | **~48%** | 10 | ~~Growth sim~~ FIXED, no skills |
 | 3 | [Item Editors](#2-item-editors) | **~55%** | 14 | No patch-aware UI |
 | 4 | [Class Editors](#3-class-editors) | **~45%** | 7 | No growth simulator, no skills, no magic split |
-| 5 | [Map Editors](#4-map-editors) | **~35%** | 22+ | Map editor 0% (planned round 2), style editor 0%, no rendering |
+| 5 | [Map Editors](#4-map-editors) | **~38%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
 | 8 | [Sound & Music](#7-sound--music) | **~40%** | 10 | No MIDI import, no playback |
@@ -53,20 +53,20 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 11 | [World Map](#10-world-map) | **~45%** | 5 | No map preview, no dual event lists |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
 | 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Patch manager missing |
-| 14 | [Main Window & Navigation](#13-main-window--navigation) | **~65%** | 7 | No easy mode |
+| 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | No easy mode |
 | 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~50%** | 28 | No filter combos, no OwnerDraw |
 
 ---
 
 ## 1. Unit Editors
 
-**Domain Average: ~45%**
+**Domain Average: ~48%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| UnitForm / UnitEditorVM | 45% | Growth Sim, Skills, Magic Split, Checkboxes |
-| UnitFE7Form / UnitFE7VM | 45% | Growth Sim, Magic Split, Checkboxes |
-| UnitFE6Form / (via UnitEditorVM) | 45% | Growth Sim, Checkboxes |
+| UnitForm / UnitEditorVM | **55%** | ~~Growth Sim~~ **FIXED**, Skills, Magic Split, ~~Checkboxes~~ **FIXED** (BitFlagPanel), Pick-and-return for Class/Portrait |
+| UnitFE7Form / UnitFE7VM | 50% | Magic Split, ~~Checkboxes~~ **FIXED** |
+| UnitFE6Form / (via UnitEditorVM) | 50% | ~~Checkboxes~~ **FIXED** |
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
 | ExtraUnitFE8UForm / ExtraUnitFE8UVM | 35% | Proper List, Address Tracking |
 | UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, Rework Patch, Action Names |
@@ -77,7 +77,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 ### Cross-Cutting Gaps
 - ~~**No undo**~~ **FIXED** -- All write handlers wrapped with `UndoService.Begin/Commit/Rollback`
-- **No growth simulator** -- Cannot preview stat level-ups
+- ~~**No growth simulator**~~ **FIXED** -- `CalculateGrowth_Click` in UnitEditorView with `GrowSimulator` output
 - ~~**No CSV export/import**~~ **FIXED** -- Use `DataExportView` for TSV export/import of unit data
 - **No skill system integration** -- No skill buttons, no patch detection
 - ~~**No jump-to-related links**~~ **FIXED** -- Jump to Class/Portrait buttons in Unit Editor
@@ -112,7 +112,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 - ~~**No combo box resources**~~ **FIXED** -- `ComboResourceHelper` provides named selections
 - ~~**No undo**~~ **FIXED** -- All write handlers wrapped with `UndoService`
 - ~~**No IsLoading guards**~~ **FIXED** -- All data loading wrapped with `IsLoading`
-- **No checkbox-based trait flags** -- Raw numeric ability fields (BitFlagPanel available but not yet wired)
+- ~~**No checkbox-based trait flags**~~ **FIXED** -- `BitFlagPanel` wired in ItemEditorView with `AbilityFlagNames.ItemTrait1/2`
 
 ---
 
@@ -134,7 +134,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 ## 4. Map Editors
 
-**Domain Average: ~35%**
+**Domain Average: ~38%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
@@ -143,17 +143,17 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | MapPointerForm | 30% | PLIST type filter (7 types), split detection |
 | MapChangeForm | 25% | Two-level list, map preview with change overlay |
 | MapExitPointForm | 30% | Two-level list, enemy/NPC filter |
-| **MapEditorForm** | **0%** | **Empty stub -- entire visual map editor missing (planned for round 2)** |
-| **MapStyleEditorForm** | **0%** | **Empty stub -- tileset/palette editor missing** |
-| **MapTerrainNameForm** | **0%** | **Empty stub -- terrain name list missing** |
+| MapEditorForm | **25%** | ~~Empty stub~~ **FIXED** — map list from MapSettingCore, visual tile rendering with zoom (1-4x). Missing: tile editing, map save |
+| MapStyleEditorForm | **20%** | ~~Empty stub~~ **FIXED** — tileset list from map_obj_pointer, OBJ/config pointer display, write support. Missing: tile preview, palette editing |
+| MapTerrainNameForm | **30%** | ~~Empty stub~~ **FIXED** — terrain list from map_terrain_name_pointer (4-byte pointer entries), pointer display, write support. Missing: string decode |
 | MapTerrainNameEngForm | **55%** | ~~Proper list~~ **FIXED** — list from map_terrain_name_pointer with text decode |
 | MapTileAnimation1Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime1_pointer with pointer validation. Missing: filter combo, animation frame display |
 | MapTileAnimation2Form | **50%** | ~~List stub~~ **FIXED** — proper list from map_tileanime2_pointer with palette pointer validation. Missing: three-level navigation |
 | MapLoadFunctionForm | **50%** | ~~List stub~~ **FIXED** — proper list from switch1 count + pointer validation, write support, pointer info display |
 | Dialog VMs (9 total) | ~30% avg | View layer only, no logic |
 
-### Critical: Map Editor (0%) and Map Style Editor (0%)
-These are the two most complex forms in the map domain (~2700 and ~1300 lines respectively) and are completely empty stubs. Without them, users cannot visually edit maps or tilesets. **Map Editor is planned for round 2.**
+### Map Editor (25%) and Map Style Editor (20%)
+Map Editor now has read-only visualization with zoom controls but no tile editing or save. Map Style Editor now loads tileset entries from map_obj_pointer with write support but lacks tile preview and palette editing. Both need significant work for editing parity.
 
 ---
 
@@ -410,7 +410,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | CSV export/import | **80%** | ~~0%~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import |
 | Context menus | **70%** | ~~0%~~ **FIXED** -- `AddressListControl` context menu (Copy Address / Name / Hex Data) |
 | Pre/Post write hooks | **10%** | No standardized hooks |
-| Form navigation / Jump | 45% | WindowManager basics; no injection callbacks |
+| Form navigation / Jump | **70%** | ~~45%~~ **FIXED** -- `WindowManager.Navigate<T>()` + `PickFromEditor<T>()` pick-and-return flow |
 | Write validation | **60%** | ~~5%~~ **FIXED** -- `WriteValidator` provides range/type/pointer/address validation |
 | Name resolution helpers | **80%** | ~~0%~~ **FIXED** -- `NameResolver` + `ComboResourceHelper` for cached entity name resolution |
 | Image export | **70%** | ~~60%~~ **FIXED** -- PNG export in portrait/CG/BG forms |
@@ -425,7 +425,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 1. **EditorFormRef** -- Convention-based auto-wiring equivalent for Avalonia
 
 **P1 -- High (blocks quality parity):**
-2. **Injection callback / select-and-return** for cross-editor navigation
+2. ~~**Injection callback / select-and-return**~~ **FIXED** -- `PickFromEditor<T>()` in `WindowManager`
 3. **Image write-back** -- LZ77 compression, TSA generation, pointer updates
 4. **Data expand/shrink** -- Cannot add new ROM entries
 
@@ -481,3 +481,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 10):** Six more forms fixed: EventBattleTalk/FE6/FE7 (40→55%, list from event_ballte_talk_pointer with attacker vs defender unit names), EventFinalSerifFE7 (list from event_final_serif_pointer + unit names), ImageUnitPalette (25→35%, list from image_unit_palette_pointer with identifier strings). Also fixed leftover stub in EventForceSortieFE7.
 
 **Updated 2026-03-12 (round 11 — final):** Three more forms: Command85Pointer (list from command_85_pointer_table_pointer), ImageSystemArea (30→45%, filter combo with GBA color list from systemarea gradation pointers). Also fixed leftover stub in EventBattleTalkFE7. Total: 41+ forms improved across 9 commits, overall completeness ~55%.
+
+**Updated 2026-03-12 (round 12):** Cross-editor pick-and-return infrastructure (`PickResult`, `IPickableEditor`, `WindowManager.PickFromEditor<T>()`). Six editors implement `IPickableEditor`: ClassEditor, PortraitViewer, ItemEditor, UnitEditor, SongTable, ItemFE6. Pick buttons added to UnitEditor (Class/Portrait) and SoundBossBGM (Unit). Three map stubs fixed: MapEditor (0→25%, visual tile rendering with zoom), MapStyleEditor (0→20%, tileset list from map_obj_pointer), MapTerrainName (0→30%, terrain list from map_terrain_name_pointer). Gap analysis accuracy fixes: Unit growth simulator was already implemented (45→55%), item trait BitFlagPanels already wired.

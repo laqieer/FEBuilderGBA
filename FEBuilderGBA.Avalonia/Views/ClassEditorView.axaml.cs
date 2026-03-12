@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class ClassEditorView : Window, IPickableEditor, IDataVerifiableView
     {
         readonly ClassEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -14,10 +14,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Class Editor";
         public bool IsLoaded => _vm.CanWrite;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public ClassEditorView()
         {
             InitializeComponent();
             ClassList.SelectedAddressChanged += OnClassSelected;
+            ClassList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
 
             // Set bit flag names for class abilities
@@ -235,6 +238,8 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+
+        public void EnablePickMode() => ClassList.EnablePickMode();
 
         public void SelectFirstItem()
         {

@@ -6,9 +6,10 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapStyleEditorView : Window, IEditorView
+    public partial class MapStyleEditorView : Window, IEditorView, IDataVerifiableView
     {
         readonly MapStyleEditorViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Map Style Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -37,21 +38,55 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _vm.IsLoading = false;
                 Log.Error("MapStyleEditorView.OnSelected failed: {0}", ex.Message);
             }
         }
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            ObjPtrBox.Text = $"0x{_vm.ObjPointer:X08}";
+            ConfigPtrLabel.Text = $"0x{_vm.ConfigPointer:X08}";
+        }
+
+        void Write_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ObjPointer = ParseHexText(ObjPtrBox.Text);
+
+            _undoService.Begin("Edit Map Style");
+            try
+            {
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Map style data written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapStyleEditorView.Write_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
     }
 }

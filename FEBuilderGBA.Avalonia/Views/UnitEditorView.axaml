@@ -37,12 +37,14 @@
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <ComboBox Name="ClassIdCombo" Width="200" Margin="0,2" />
                 <Button Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+                <Button Content="Pick..." Click="PickClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick class from editor" />
               </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
               <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="80" />
                 <TextBlock Name="PortraitNameLabel" VerticalAlignment="Center" Foreground="Gray" />
                 <Button Content="Jump" Click="JumpToPortrait_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+                <Button Content="Pick..." Click="PickPortrait_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick portrait from editor" />
               </StackPanel>
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />

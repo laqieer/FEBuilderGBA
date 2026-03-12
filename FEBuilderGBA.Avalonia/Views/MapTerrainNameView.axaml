@@ -10,10 +10,20 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Terrain Name Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name Pointer:" VerticalAlignment="Center" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="PointerBox" Width="160" HorizontalAlignment="Left" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Click="Write_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

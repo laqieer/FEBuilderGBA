@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class UnitEditorView : Window, IPickableEditor, IDataVerifiableView
     {
         readonly UnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -19,10 +19,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Unit Editor";
         public bool IsLoaded => _vm.CanWrite;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public UnitEditorView()
         {
             InitializeComponent();
             UnitList.SelectedAddressChanged += OnUnitSelected;
+            UnitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
 
             // Set bit flag names
@@ -311,6 +314,61 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void PickClass_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+
+                // Calculate current class address for navigation
+                int classIdx = ClassIdCombo.SelectedIndex;
+                uint classId = classIdx >= 0 && classIdx < _classList.Count ? _classList[classIdx].id : 0;
+                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
+                uint navAddr = U.isSafetyOffset(baseAddr) ? baseAddr + classId * rom.RomInfo.class_datasize : 0;
+
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(navAddr, this);
+                if (result != null)
+                {
+                    // result.Index is the class list index — set the combo
+                    int comboIdx = _classList.FindIndex(x => x.id == (uint)result.Index);
+                    if (comboIdx >= 0)
+                        ClassIdCombo.SelectedIndex = comboIdx;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PickClass failed: {0}", ex.Message);
+            }
+        }
+
+        async void PickPortrait_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+
+                uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+                uint navAddr = U.isSafetyOffset(baseAddr) ? baseAddr + portraitId * dataSize : 0;
+
+                var result = await WindowManager.Instance.PickFromEditor<PortraitViewerView>(navAddr, this);
+                if (result != null)
+                {
+                    PortraitIdBox.Value = result.Index;
+                    PortraitNameLabel.Text = NameResolver.GetUnitName((uint)result.Index);
+                    TryShowPortrait();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PickPortrait failed: {0}", ex.Message);
+            }
+        }
+
         void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
         {
             ReadFromUI();
@@ -329,6 +387,8 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
+
+        public void EnablePickMode() => UnitList.EnablePickMode();
 
         /// <summary>Select the first item in the list (for smoke testing).</summary>
         public void SelectFirstItem()

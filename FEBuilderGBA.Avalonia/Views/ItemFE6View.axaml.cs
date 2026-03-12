@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemFE6View : Window, IEditorView, IDataVerifiableView
+    public partial class ItemFE6View : Window, IPickableEditor, IDataVerifiableView
     {
         readonly ItemFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -14,10 +14,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Items (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
 
+        public event Action<PickResult>? SelectionConfirmed;
+
         public ItemFE6View()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            EntryList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
         }
 
@@ -121,6 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void EnablePickMode() => EntryList.EnablePickMode();
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
 

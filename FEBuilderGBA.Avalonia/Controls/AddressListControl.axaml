@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FEBuilderGBA.Avalonia.Controls.AddressListControl">
-  <Grid RowDefinitions="Auto,*,Auto">
+  <Grid RowDefinitions="Auto,*,Auto,Auto">
     <!-- Search bar -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
       <TextBox Name="SearchBox" Watermark="Search..." />
@@ -19,8 +19,14 @@
       </ListBox.ContextMenu>
     </ListBox>
 
+    <!-- Pick-mode hint (hidden by default) -->
+    <TextBlock Grid.Row="2" Name="PickHint" IsVisible="False"
+               Text="Double-click or press Enter to select"
+               Foreground="DodgerBlue" FontStyle="Italic" FontSize="11"
+               HorizontalAlignment="Center" Margin="0,2,0,2" />
+
     <!-- Navigation -->
-    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
       <Button Content="&lt;" Click="Previous_Click" ToolTip.Tip="Previous" />
       <Button Content="&gt;" Click="Next_Click" ToolTip.Tip="Next" />
       <TextBlock Name="CountLabel" VerticalAlignment="Center" Margin="8,0,0,0" />

@@ -7,7 +7,7 @@ namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
     /// Form navigation system replacing WinForms InputFormRef.JumpForm.
-    /// Caches Window instances by type, provides Open/Navigate/Modal methods.
+    /// Caches Window instances by type, provides Open/Navigate/Modal/Pick methods.
     /// </summary>
     public class WindowManager
     {
@@ -62,18 +62,46 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Open a window, navigate to an address, and invoke a callback when an item is selected.
-        /// Useful for pick-and-return patterns (e.g., "select a unit").
+        /// Open an editor as a modal pick dialog. The user selects an item via
+        /// double-click or Enter, and the result is returned. Returns null if the
+        /// user closes the window without selecting.
         /// </summary>
-        public T NavigateAndSelect<T>(uint address, Action<uint>? onSelected = null) where T : Window, IEditorView, new()
+        public async Task<PickResult?> PickFromEditor<T>(uint navigateAddress = 0, Window? owner = null)
+            where T : Window, IPickableEditor, new()
         {
-            var window = Navigate<T>(address);
-            if (onSelected != null && window is IEditorView editor)
+            var tcs = new TaskCompletionSource<PickResult?>();
+
+            // Create a fresh (non-cached) instance for modal pick
+            var window = new T();
+            window.EnablePickMode();
+
+            window.SelectionConfirmed += result =>
             {
-                // The editor view can call back when a selection is confirmed
-                // This is wired through the IEditorView pattern
+                tcs.TrySetResult(result);
+                window.Close();
+            };
+
+            window.Closed += (_, _) =>
+            {
+                tcs.TrySetResult(null);
+            };
+
+            var parent = owner ?? MainWindow;
+            if (parent != null)
+            {
+                // Show as modal dialog; navigate after it's opened
+                _ = window.ShowDialog(parent).ContinueWith(_ => tcs.TrySetResult(null), TaskScheduler.Default);
             }
-            return window;
+            else
+            {
+                window.Show();
+            }
+
+            // Navigate to the requested address once the window is showing
+            if (navigateAddress != 0)
+                window.NavigateTo(navigateAddress);
+
+            return await tcs.Task;
         }
 
         /// <summary>Close all managed windows.</summary>

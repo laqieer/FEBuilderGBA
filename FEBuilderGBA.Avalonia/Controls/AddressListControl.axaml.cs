@@ -6,6 +6,7 @@ using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Controls
 {
@@ -24,10 +25,15 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// <summary>Fired when user requests a hex editor for the selected address.</summary>
         public event Action<uint>? HexEditorRequested;
 
+        /// <summary>Fired when user confirms a selection (double-click or Enter in pick mode).</summary>
+        public event Action<PickResult>? SelectionConfirmed;
+
         public AddressListControl()
         {
             InitializeComponent();
             AddressList.ItemsSource = _displayItems;
+            AddressList.DoubleTapped += AddressList_DoubleTapped;
+            AddressList.KeyDown += AddressList_KeyDown;
         }
 
         /// <summary>Load address list from AddrResult items.</summary>
@@ -48,6 +54,18 @@ namespace FEBuilderGBA.Avalonia.Controls
                     return null;
                 int itemIdx = _filteredIndices[displayIdx];
                 return itemIdx >= 0 && itemIdx < _items.Count ? _items[itemIdx] : null;
+            }
+        }
+
+        /// <summary>Get the original (unfiltered) index of the currently selected item.</summary>
+        public int SelectedOriginalIndex
+        {
+            get
+            {
+                int displayIdx = AddressList.SelectedIndex;
+                if (displayIdx < 0 || displayIdx >= _filteredIndices.Count)
+                    return -1;
+                return _filteredIndices[displayIdx];
             }
         }
 
@@ -72,6 +90,12 @@ namespace FEBuilderGBA.Avalonia.Controls
                     return;
                 }
             }
+        }
+
+        /// <summary>Enable pick mode — shows hint and makes double-click/Enter fire SelectionConfirmed.</summary>
+        public void EnablePickMode()
+        {
+            PickHint.IsVisible = true;
         }
 
         void RefreshDisplay(string? filter = null)
@@ -104,6 +128,28 @@ namespace FEBuilderGBA.Avalonia.Controls
             var item = SelectedItem;
             if (item != null)
                 SelectedAddressChanged?.Invoke(item.addr);
+        }
+
+        void AddressList_DoubleTapped(object? sender, TappedEventArgs e)
+        {
+            FireSelectionConfirmed();
+        }
+
+        void AddressList_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                FireSelectionConfirmed();
+                e.Handled = true;
+            }
+        }
+
+        void FireSelectionConfirmed()
+        {
+            var item = SelectedItem;
+            if (item == null) return;
+            int originalIdx = SelectedOriginalIndex;
+            SelectionConfirmed?.Invoke(new PickResult(originalIdx, item.addr, item.name ?? $"#{originalIdx}"));
         }
 
         void Previous_Click(object? sender, RoutedEventArgs e)
