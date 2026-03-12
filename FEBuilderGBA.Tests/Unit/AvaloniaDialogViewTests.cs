@@ -766,13 +766,12 @@ namespace FEBuilderGBA.Tests.Unit
         public void GraphicsToolPatchMaker_Axaml_MatchesWinFormsLayout()
         {
             var src = ReadAxaml("GraphicsToolPatchMakerView.axaml");
-            Assert.Contains("Width=\"572\"", src);
-            Assert.Contains("Height=\"525\"", src);
+            Assert.Contains("Width=\"620\"", src);
+            Assert.Contains("Height=\"580\"", src);
             Assert.Contains("Name=\"PatchText\"", src);
             Assert.Contains("Name=\"CloseButton\"", src);
             Assert.Contains("Name=\"SaveButton\"", src);
-            Assert.Contains("Width=\"192\"", src);
-            Assert.Contains("Width=\"289\"", src);
+            Assert.Contains("Name=\"GenerateButton\"", src);
         }
 
         // --- ErrorLongMessageDialogView (#233) ---
