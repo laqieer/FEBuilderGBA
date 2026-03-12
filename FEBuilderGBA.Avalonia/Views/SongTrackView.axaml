@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SongTrackView"
-        Title="Song Track Editor" Width="1093" Height="595">
+        Title="Song Track Editor" Width="1093" Height="650">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -10,6 +10,7 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Song Track Editor" FontSize="18" FontWeight="Bold" />
 
+        <!-- Header fields -->
         <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
@@ -33,6 +34,24 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Write" Click="Write_Click" />
         </StackPanel>
+
+        <!-- Track list -->
+        <Separator Margin="0,8" />
+        <TextBlock Text="Tracks" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
+
+        <ListBox Name="TrackListBox" MinHeight="60" MaxHeight="400">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="60,100,Auto,Auto" Margin="2">
+                <TextBlock Grid.Column="0" Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBlock Grid.Column="2" Text="Ptr@" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
+                <TextBlock Grid.Column="3" Text="{Binding PointerOffset, StringFormat=0x{0:X06}}" VerticalAlignment="Center" Foreground="Gray" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </StackPanel>
     </ScrollViewer>
   </Grid>

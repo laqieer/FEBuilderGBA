@@ -67,6 +67,10 @@ namespace FEBuilderGBA.Avalonia.Views
             PriorityBox.Value = _vm.Priority;
             ReverbBox.Value = _vm.Reverb;
             InstrumentAddrBox.Value = _vm.InstrumentAddr;
+
+            // Populate track list
+            TrackListBox.ItemsSource = _vm.Tracks;
+            TrackSummaryLabel.Text = $"{_vm.Tracks.Count} track(s) found";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

@@ -1,8 +1,33 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>Information about a single track within a song.</summary>
+    public class TrackInfo
+    {
+        /// <summary>Zero-based track index.</summary>
+        public int Index { get; set; }
+        /// <summary>Display label (1-based).</summary>
+        public string Label => $"Track {Index + 1}";
+        /// <summary>ROM offset where the 4-byte track pointer is stored.</summary>
+        public uint PointerOffset { get; set; }
+        /// <summary>Raw 32-bit value read from the pointer slot.</summary>
+        public uint RawPointer { get; set; }
+        /// <summary>Resolved ROM offset of the track data (0 if invalid).</summary>
+        public uint DataOffset { get; set; }
+        /// <summary>Whether the pointer is a valid GBA ROM pointer.</summary>
+        public bool IsValid { get; set; }
+        /// <summary>Human-readable status string.</summary>
+        public string Status => IsValid
+            ? $"0x{DataOffset:X08}"
+            : $"Invalid (0x{RawPointer:X08})";
+        /// <summary>Combined display text for list UI.</summary>
+        public string DisplayText => $"{Label}:  Ptr@0x{PointerOffset:X06}  ->  {Status}";
+    }
+
     public class SongTrackViewModel : ViewModelBase, IDataVerifiable
     {
         public List<AddrResult> LoadList()
@@ -21,6 +46,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _priority;
         uint _reverb;
         uint _instrumentAddr;
+        string _trackInfoText = string.Empty;
+        ObservableCollection<TrackInfo> _tracks = new();
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -34,6 +61,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Reverb { get => _reverb; set => SetField(ref _reverb, value); }
         /// <summary>Pointer to the instrument set (P4).</summary>
         public uint InstrumentAddr { get => _instrumentAddr; set => SetField(ref _instrumentAddr, value); }
+        /// <summary>Parsed tracks for this song.</summary>
+        public ObservableCollection<TrackInfo> Tracks { get => _tracks; set => SetField(ref _tracks, value); }
+        /// <summary>Summary text describing all tracks.</summary>
+        public string TrackInfoText { get => _trackInfoText; set => SetField(ref _trackInfoText, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -48,6 +79,57 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Reverb = rom.u8(addr + 3);
             InstrumentAddr = rom.u32(addr + 4);
             IsLoaded = true;
+
+            ParseTracks(addr, TrackCount);
+        }
+
+        /// <summary>Parse individual track pointers from the song header.</summary>
+        void ParseTracks(uint songAddr, uint trackCount)
+        {
+            ROM rom = CoreState.ROM;
+            var tracks = new ObservableCollection<TrackInfo>();
+
+            // Cap at 16 tracks (GBA hardware limit)
+            uint count = trackCount > 16 ? 16 : trackCount;
+
+            uint romLen = (uint)rom.Data.Length;
+            var sb = new StringBuilder();
+            sb.AppendLine($"{count} track(s):");
+
+            for (int i = 0; i < count; i++)
+            {
+                uint ptrOffset = songAddr + 8 + (uint)(i * 4);
+                var info = new TrackInfo { Index = i, PointerOffset = ptrOffset };
+
+                if (ptrOffset + 4 > romLen)
+                {
+                    info.RawPointer = 0;
+                    info.DataOffset = 0;
+                    info.IsValid = false;
+                }
+                else
+                {
+                    uint raw = rom.u32(ptrOffset);
+                    info.RawPointer = raw;
+
+                    if (U.isPointer(raw) && U.isSafetyPointer(raw, rom))
+                    {
+                        info.DataOffset = U.toOffset(raw);
+                        info.IsValid = true;
+                    }
+                    else
+                    {
+                        info.DataOffset = 0;
+                        info.IsValid = false;
+                    }
+                }
+
+                tracks.Add(info);
+                sb.AppendLine($"  {info.DisplayText}");
+            }
+
+            Tracks = tracks;
+            TrackInfoText = sb.ToString().TrimEnd();
         }
 
         public void Write()
@@ -64,11 +146,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 4, InstrumentAddr);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => (int)Tracks.Count;
 
         public Dictionary<string, string> GetDataReport()
         {
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["TrackCount"] = $"0x{TrackCount:X02}",
@@ -77,6 +159,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Reverb"] = $"0x{Reverb:X02}",
                 ["InstrumentAddr"] = $"0x{InstrumentAddr:X08}",
             };
+            for (int i = 0; i < Tracks.Count; i++)
+            {
+                var t = Tracks[i];
+                report[$"Track{i}_Pointer"] = $"0x{t.RawPointer:X08}";
+                report[$"Track{i}_Valid"] = t.IsValid.ToString();
+            }
+            return report;
         }
 
         public Dictionary<string, string> GetRawRomReport()
@@ -84,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["TrackCount@0x00"] = $"0x{rom.u8(a + 0):X02}",
@@ -93,6 +182,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Reverb@0x03"] = $"0x{rom.u8(a + 3):X02}",
                 ["InstrumentAddr@0x04"] = $"0x{rom.u32(a + 4):X08}",
             };
+            uint count = TrackCount > 16 ? 16 : TrackCount;
+            for (uint i = 0; i < count; i++)
+            {
+                uint off = a + 8 + i * 4;
+                if (off + 4 <= (uint)rom.Data.Length)
+                    report[$"TrackPtr{i}@0x{8 + i * 4:X02}"] = $"0x{rom.u32(off):X08}";
+            }
+            return report;
         }
     }
 }
