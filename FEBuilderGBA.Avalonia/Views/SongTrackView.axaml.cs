@@ -147,9 +147,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                string? error = _vm.ImportMidi(path);
-                if (error != null)
-                    CoreState.Services.ShowError(error);
+                string? result = _vm.ImportMidi(path);
+                if (result != null)
+                {
+                    // If it contains parsed MIDI info, show as info; otherwise as error
+                    if (result.Contains("MIDI file parsed"))
+                        CoreState.Services.ShowInfo(result);
+                    else
+                        CoreState.Services.ShowError(result);
+                }
                 else
                 {
                     CoreState.Services.ShowInfo("MIDI imported successfully.");

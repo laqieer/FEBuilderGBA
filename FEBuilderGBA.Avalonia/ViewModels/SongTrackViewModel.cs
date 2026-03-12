@@ -175,7 +175,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Import a MIDI file into the current song.
-        /// Returns null on success, or an error message on failure.
+        /// Parses the file and returns an informational summary since full import
+        /// requires the S-file assembly pipeline (not yet ported from WinForms).
+        /// Returns null on success, or a message string (info or error).
         /// </summary>
         public string? ImportMidi(string filename)
         {
@@ -186,11 +188,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!File.Exists(filename))
                 return $"File not found: {filename}";
 
+            // Parse MIDI and show info
+            var midiInfo = SongMidiCore.ParseMidiFile(filename);
+            if (midiInfo != null)
+            {
+                return FormatMidiInfo(midiInfo, filename);
+            }
+
+            // Fall back to import attempt (will return not-implemented message)
             string result = SongMidiCore.ImportMidiFile(filename, CurrentAddr,
                 InstrumentAddr);
             if (string.IsNullOrEmpty(result))
                 return null; // success
             return result;
+        }
+
+        /// <summary>Build a human-readable summary of parsed MIDI file info.</summary>
+        static string FormatMidiInfo(SongMidiCore.MidiFileInfo info, string filename)
+        {
+            int totalNotes = 0;
+            foreach (var t in info.Tracks)
+                totalNotes += t.NoteCount;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"MIDI file parsed: {Path.GetFileName(filename)}");
+            sb.AppendLine($"  Format: {info.Format}");
+            sb.AppendLine($"  Tracks: {info.TrackCount}");
+            sb.AppendLine($"  Tempo: {info.TempoBPM:F1} BPM");
+            sb.AppendLine($"  Ticks/Quarter: {info.TicksPerQuarterNote}");
+            sb.AppendLine($"  Total notes: {totalNotes}");
+            sb.AppendLine();
+
+            foreach (var t in info.Tracks)
+            {
+                sb.Append($"  Track {t.Index}: {t.NoteCount} notes, {t.EventCount} events");
+                if (t.Channels.Count > 0)
+                {
+                    var chList = new List<int>(t.Channels);
+                    chList.Sort();
+                    sb.Append($", ch={string.Join(",", chList)}");
+                }
+                if (t.InstrumentChanges.Count > 0)
+                    sb.Append($", prog={string.Join(",", t.InstrumentChanges)}");
+                sb.AppendLine();
+            }
+
+            sb.AppendLine();
+            sb.Append("Full MIDI import requires the S-file assembly pipeline (not yet ported from WinForms).");
+            return sb.ToString();
         }
 
         public int GetListCount() => (int)Tracks.Count;

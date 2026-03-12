@@ -759,6 +759,284 @@ namespace FEBuilderGBA
 
         #endregion
 
+        #region MIDI File Parser
+
+        /// <summary>Parsed information about a MIDI file.</summary>
+        public class MidiFileInfo
+        {
+            /// <summary>MIDI format: 0, 1, or 2.</summary>
+            public int Format;
+            /// <summary>Number of tracks in the file.</summary>
+            public int TrackCount;
+            /// <summary>Ticks per quarter note (from header division field).</summary>
+            public int TicksPerQuarterNote;
+            /// <summary>Tempo in BPM from the first tempo meta-event (default 120).</summary>
+            public double TempoBPM = 120.0;
+            /// <summary>Per-track information.</summary>
+            public List<MidiTrackInfo> Tracks = new List<MidiTrackInfo>();
+        }
+
+        /// <summary>Parsed information about a single MIDI track.</summary>
+        public class MidiTrackInfo
+        {
+            /// <summary>Zero-based track index.</summary>
+            public int Index;
+            /// <summary>Number of Note-On events (velocity > 0).</summary>
+            public int NoteCount;
+            /// <summary>Total number of MIDI events parsed.</summary>
+            public int EventCount;
+            /// <summary>Set of MIDI channels used (0-15).</summary>
+            public HashSet<int> Channels = new HashSet<int>();
+            /// <summary>Program Change values encountered.</summary>
+            public List<int> InstrumentChanges = new List<int>();
+            /// <summary>Total delta-time ticks in this track.</summary>
+            public int TotalTicks;
+            /// <summary>Internal: first tempo BPM found in this track (0 if none).</summary>
+            internal double _tempoBPM;
+        }
+
+        /// <summary>
+        /// Parse a MIDI file and extract header + per-track information.
+        /// Does not convert to GBA format — just reads and reports the contents.
+        /// </summary>
+        /// <param name="filename">Path to the .mid/.midi file.</param>
+        /// <returns>Parsed MIDI info, or null if the file is not a valid MIDI.</returns>
+        public static MidiFileInfo ParseMidiFile(string filename)
+        {
+            if (!File.Exists(filename))
+                return null;
+
+            byte[] data = File.ReadAllBytes(filename);
+            return ParseMidiBytes(data);
+        }
+
+        /// <summary>
+        /// Parse MIDI data from a byte array.
+        /// </summary>
+        public static MidiFileInfo ParseMidiBytes(byte[] data)
+        {
+            if (data == null || data.Length < 14)
+                return null;
+
+            // Verify MThd header
+            if (data[0] != 'M' || data[1] != 'T' || data[2] != 'h' || data[3] != 'd')
+                return null;
+
+            uint headerLen = ReadBig32(data, 4);
+            if (headerLen < 6)
+                return null;
+
+            var info = new MidiFileInfo();
+            info.Format = (int)ReadBig16(data, 8);
+            info.TrackCount = (int)ReadBig16(data, 10);
+
+            uint division = ReadBig16(data, 12);
+            if ((division & 0x8000) == 0)
+            {
+                // Ticks per quarter note
+                info.TicksPerQuarterNote = (int)division;
+            }
+            else
+            {
+                // SMPTE-based — store raw value, set a reasonable default
+                info.TicksPerQuarterNote = (int)(division & 0x7FFF);
+            }
+
+            // Parse each track chunk
+            uint pos = 8 + headerLen;
+            for (int t = 0; t < info.TrackCount; t++)
+            {
+                if (pos + 8 > data.Length)
+                    break;
+
+                // Verify MTrk header
+                if (data[pos] != 'M' || data[pos + 1] != 'T'
+                    || data[pos + 2] != 'r' || data[pos + 3] != 'k')
+                {
+                    // Skip unknown chunk
+                    if (pos + 4 < data.Length)
+                    {
+                        uint skipLen = ReadBig32(data, pos + 4);
+                        pos += 8 + skipLen;
+                    }
+                    else break;
+                    t--; // Don't count non-MTrk chunks
+                    continue;
+                }
+
+                uint trackLen = ReadBig32(data, pos + 4);
+                uint trackStart = pos + 8;
+                uint trackEnd = trackStart + trackLen;
+                if (trackEnd > data.Length)
+                    trackEnd = (uint)data.Length;
+
+                var trackInfo = ParseMidiTrackChunk(data, trackStart, trackEnd, t);
+                info.Tracks.Add(trackInfo);
+
+                // Extract tempo from first tempo event found in any track
+                if (info.TempoBPM == 120.0 && trackInfo._tempoBPM > 0)
+                    info.TempoBPM = trackInfo._tempoBPM;
+
+                pos = trackEnd;
+            }
+
+            return info;
+        }
+
+        /// <summary>
+        /// Parse a single MIDI track chunk and extract stats.
+        /// </summary>
+        static MidiTrackInfo ParseMidiTrackChunk(byte[] data, uint start, uint end, int index)
+        {
+            var track = new MidiTrackInfo { Index = index };
+            uint pos = start;
+            byte runningStatus = 0;
+            double tempoBPM = 0;
+            int totalTicks = 0;
+
+            while (pos < end)
+            {
+                // Read delta time (variable-length)
+                uint deltaTime = ReadVLengthCode(data, pos, out uint nextPos);
+                if (nextPos > end) break;
+                pos = nextPos;
+                totalTicks += (int)deltaTime;
+                track.EventCount++;
+
+                if (pos >= end) break;
+                byte statusByte = data[pos];
+
+                // Handle meta events (0xFF)
+                if (statusByte == 0xFF)
+                {
+                    pos++;
+                    if (pos >= end) break;
+                    byte metaType = data[pos++];
+                    if (pos >= end) break;
+
+                    uint metaLen = ReadVLengthCode(data, pos, out nextPos);
+                    if (nextPos > end) break;
+                    pos = nextPos;
+
+                    if (metaType == 0x51 && metaLen == 3 && pos + 3 <= end)
+                    {
+                        // Tempo: microseconds per quarter note
+                        uint usPerBeat = ((uint)data[pos] << 16)
+                                       | ((uint)data[pos + 1] << 8)
+                                       | data[pos + 2];
+                        if (usPerBeat > 0 && tempoBPM == 0)
+                            tempoBPM = 60000000.0 / usPerBeat;
+                    }
+
+                    pos += metaLen;
+                    continue;
+                }
+
+                // Handle SysEx events (0xF0, 0xF7)
+                if (statusByte == 0xF0 || statusByte == 0xF7)
+                {
+                    pos++;
+                    uint sysLen = ReadVLengthCode(data, pos, out nextPos);
+                    if (nextPos > end) break;
+                    pos = nextPos + sysLen;
+                    continue;
+                }
+
+                // Handle channel messages
+                bool isRunning = false;
+                if (statusByte >= 0x80)
+                {
+                    runningStatus = statusByte;
+                    pos++;
+                }
+                else
+                {
+                    // Running status — statusByte is the first data byte
+                    isRunning = true;
+                }
+
+                byte status = runningStatus;
+                int channel = status & 0x0F;
+                int msgType = status & 0xF0;
+
+                // Read first data byte: for running status it's statusByte (already read, advance pos);
+                // for new status it's the next byte after the status byte.
+                byte ReadDataByte()
+                {
+                    if (isRunning)
+                    {
+                        isRunning = false;  // only use statusByte once
+                        pos++;              // advance past the data byte we read as statusByte
+                        return statusByte;
+                    }
+                    return (pos < end) ? data[pos++] : (byte)0;
+                }
+
+                switch (msgType)
+                {
+                    case 0x80: // Note Off (2 data bytes)
+                    {
+                        ReadDataByte(); // key
+                        if (pos < end) pos++; // velocity
+                        track.Channels.Add(channel);
+                        break;
+                    }
+                    case 0x90: // Note On (2 data bytes)
+                    {
+                        ReadDataByte(); // key
+                        byte velocity = (pos < end) ? data[pos++] : (byte)0;
+                        track.Channels.Add(channel);
+                        if (velocity > 0)
+                            track.NoteCount++;
+                        break;
+                    }
+                    case 0xA0: // Polyphonic Key Pressure (2 data bytes)
+                    {
+                        ReadDataByte();
+                        if (pos < end) pos++;
+                        track.Channels.Add(channel);
+                        break;
+                    }
+                    case 0xB0: // Control Change (2 data bytes)
+                    {
+                        ReadDataByte();
+                        if (pos < end) pos++;
+                        track.Channels.Add(channel);
+                        break;
+                    }
+                    case 0xC0: // Program Change (1 data byte)
+                    {
+                        byte program = ReadDataByte();
+                        track.Channels.Add(channel);
+                        track.InstrumentChanges.Add(program);
+                        break;
+                    }
+                    case 0xD0: // Channel Pressure (1 data byte)
+                    {
+                        ReadDataByte();
+                        track.Channels.Add(channel);
+                        break;
+                    }
+                    case 0xE0: // Pitch Bend (2 data bytes)
+                    {
+                        ReadDataByte();
+                        if (pos < end) pos++;
+                        track.Channels.Add(channel);
+                        break;
+                    }
+                    default:
+                        // Unknown status — skip
+                        break;
+                }
+            }
+
+            track.TotalTicks = totalTicks;
+            track._tempoBPM = tempoBPM;
+            return track;
+        }
+
+        #endregion
+
         #region MIDI Import
 
         /// <summary>
