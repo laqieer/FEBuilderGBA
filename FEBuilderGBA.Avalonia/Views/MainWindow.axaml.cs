@@ -1371,6 +1371,33 @@ namespace FEBuilderGBA.Avalonia.Views
             Close();
         }
 
+        // ===== Easy Mode Toggle =====
+
+        private bool _isEasyMode;
+
+        private void ToggleEasyMode_Click(object? sender, RoutedEventArgs e)
+        {
+            _isEasyMode = !_isEasyMode;
+            NormalModeContent.IsVisible = !_isEasyMode;
+            EasyModePanelControl.IsVisible = _isEasyMode;
+
+            // Update the toggle button state
+            if (EasyModeToggle != null)
+                EasyModeToggle.IsChecked = _isEasyMode;
+
+            // Update menu item text
+            if (EasyModeMenuItem != null)
+                EasyModeMenuItem.Header = _isEasyMode ? "Switch to _Normal Mode" : "Toggle _Easy Mode";
+        }
+
+        /// <summary>
+        /// Called from EasyModePanel to run lint without exposing the full handler.
+        /// </summary>
+        internal void RunLintFromEasyMode()
+        {
+            Lint_Click(this, new RoutedEventArgs());
+        }
+
         // ===== Search / Filter =====
 
         private void FilterTextBox_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)

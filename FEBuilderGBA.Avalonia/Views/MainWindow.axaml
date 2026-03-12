@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
         x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
         Title="FEBuilderGBA (Avalonia Preview)"
         Width="900" Height="700">
@@ -18,6 +19,9 @@
       <MenuItem Header="_Edit">
         <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" />
         <MenuItem Header="_Redo" Name="RedoMenuItem" IsEnabled="False" IsVisible="False" />
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
@@ -46,8 +50,22 @@
       </Grid>
     </Border>
 
+    <!-- Toolbar with Easy Mode toggle -->
+    <Border DockPanel.Dock="Top" Background="#F0F0F0" Padding="8,4" BorderBrush="#DDDDDD" BorderThickness="0,0,0,1">
+      <DockPanel>
+        <ToggleButton Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
+                      DockPanel.Dock="Right" Padding="12,4" Margin="4,0" FontSize="12" />
+        <TextBlock Text="" /> <!-- spacer -->
+      </DockPanel>
+    </Border>
+
     <!-- Main Content -->
-    <ScrollViewer>
+    <Grid>
+      <!-- Easy Mode Panel (hidden by default) -->
+      <views:EasyModePanel Name="EasyModePanelControl" IsVisible="False" />
+
+      <!-- Normal Mode Content -->
+      <ScrollViewer Name="NormalModeContent">
       <StackPanel Margin="16" Spacing="16">
         <!-- Title -->
         <TextBlock Text="FEBuilderGBA" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
@@ -449,5 +467,6 @@
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
+    </Grid>
   </DockPanel>
 </Window>
