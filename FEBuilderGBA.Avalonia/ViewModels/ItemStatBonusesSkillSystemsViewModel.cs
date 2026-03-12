@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -13,6 +14,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _growHP, _growStr, _growSkill, _growSpeed, _growDef, _growRes, _growLuck, _growUnknown;
         // Padding fields (row 3)
         int _padding1, _padding2;
+
+        // EditorFormRef field definitions (S = signed byte)
+        static readonly string[] FieldNames = new[]
+        {
+            "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9",
+            "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17",
+            "S18", "S19"
+        };
+        static readonly List<EditorFormRef.FieldDef> Fields = EditorFormRef.DetectFields(FieldNames);
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -60,31 +70,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 19 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            var values = EditorFormRef.ReadFields(rom, addr, Fields);
+
             // Stat bonuses (signed bytes)
-            HP = (int)(sbyte)rom.u8(addr + 0);
-            Str = (int)(sbyte)rom.u8(addr + 1);
-            Skill = (int)(sbyte)rom.u8(addr + 2);
-            Speed = (int)(sbyte)rom.u8(addr + 3);
-            Def = (int)(sbyte)rom.u8(addr + 4);
-            Res = (int)(sbyte)rom.u8(addr + 5);
-            Luck = (int)(sbyte)rom.u8(addr + 6);
-            Move = (int)(sbyte)rom.u8(addr + 7);
-            Con = (int)(sbyte)rom.u8(addr + 8);
-            MagicOrUnknown = (int)(sbyte)rom.u8(addr + 9);
+            HP = (int)values["S0"];
+            Str = (int)values["S1"];
+            Skill = (int)values["S2"];
+            Speed = (int)values["S3"];
+            Def = (int)values["S4"];
+            Res = (int)values["S5"];
+            Luck = (int)values["S6"];
+            Move = (int)values["S7"];
+            Con = (int)values["S8"];
+            MagicOrUnknown = (int)values["S9"];
 
             // Growth rate bonuses (signed bytes)
-            GrowHP = (int)(sbyte)rom.u8(addr + 10);
-            GrowStr = (int)(sbyte)rom.u8(addr + 11);
-            GrowSkill = (int)(sbyte)rom.u8(addr + 12);
-            GrowSpeed = (int)(sbyte)rom.u8(addr + 13);
-            GrowDef = (int)(sbyte)rom.u8(addr + 14);
-            GrowRes = (int)(sbyte)rom.u8(addr + 15);
-            GrowLuck = (int)(sbyte)rom.u8(addr + 16);
-            GrowUnknown = (int)(sbyte)rom.u8(addr + 17);
+            GrowHP = (int)values["S10"];
+            GrowStr = (int)values["S11"];
+            GrowSkill = (int)values["S12"];
+            GrowSpeed = (int)values["S13"];
+            GrowDef = (int)values["S14"];
+            GrowRes = (int)values["S15"];
+            GrowLuck = (int)values["S16"];
+            GrowUnknown = (int)values["S17"];
 
             // Padding
-            Padding1 = (int)(sbyte)rom.u8(addr + 18);
-            Padding2 = (int)(sbyte)rom.u8(addr + 19);
+            Padding1 = (int)values["S18"];
+            Padding2 = (int)values["S19"];
 
             IsLoaded = true;
         }
@@ -93,30 +105,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, (byte)(sbyte)HP);
-            rom.write_u8(addr + 1, (byte)(sbyte)Str);
-            rom.write_u8(addr + 2, (byte)(sbyte)Skill);
-            rom.write_u8(addr + 3, (byte)(sbyte)Speed);
-            rom.write_u8(addr + 4, (byte)(sbyte)Def);
-            rom.write_u8(addr + 5, (byte)(sbyte)Res);
-            rom.write_u8(addr + 6, (byte)(sbyte)Luck);
-            rom.write_u8(addr + 7, (byte)(sbyte)Move);
-            rom.write_u8(addr + 8, (byte)(sbyte)Con);
-            rom.write_u8(addr + 9, (byte)(sbyte)MagicOrUnknown);
-
-            rom.write_u8(addr + 10, (byte)(sbyte)GrowHP);
-            rom.write_u8(addr + 11, (byte)(sbyte)GrowStr);
-            rom.write_u8(addr + 12, (byte)(sbyte)GrowSkill);
-            rom.write_u8(addr + 13, (byte)(sbyte)GrowSpeed);
-            rom.write_u8(addr + 14, (byte)(sbyte)GrowDef);
-            rom.write_u8(addr + 15, (byte)(sbyte)GrowRes);
-            rom.write_u8(addr + 16, (byte)(sbyte)GrowLuck);
-            rom.write_u8(addr + 17, (byte)(sbyte)GrowUnknown);
-
-            rom.write_u8(addr + 18, (byte)(sbyte)Padding1);
-            rom.write_u8(addr + 19, (byte)(sbyte)Padding2);
+            var values = new Dictionary<string, uint>
+            {
+                ["S0"] = (uint)HP,
+                ["S1"] = (uint)Str,
+                ["S2"] = (uint)Skill,
+                ["S3"] = (uint)Speed,
+                ["S4"] = (uint)Def,
+                ["S5"] = (uint)Res,
+                ["S6"] = (uint)Luck,
+                ["S7"] = (uint)Move,
+                ["S8"] = (uint)Con,
+                ["S9"] = (uint)MagicOrUnknown,
+                ["S10"] = (uint)GrowHP,
+                ["S11"] = (uint)GrowStr,
+                ["S12"] = (uint)GrowSkill,
+                ["S13"] = (uint)GrowSpeed,
+                ["S14"] = (uint)GrowDef,
+                ["S15"] = (uint)GrowRes,
+                ["S16"] = (uint)GrowLuck,
+                ["S17"] = (uint)GrowUnknown,
+                ["S18"] = (uint)Padding1,
+                ["S19"] = (uint)Padding2,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, Fields);
         }
 
         public int GetListCount() => LoadList().Count;

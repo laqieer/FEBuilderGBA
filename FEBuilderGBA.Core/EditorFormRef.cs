@@ -12,6 +12,7 @@ namespace FEBuilderGBA
     ///
     /// Naming convention:
     ///   B{offset} = byte   (1 byte)   e.g. B5  -> offset 5
+    ///   S{offset} = sbyte  (1 byte, signed -128..127) e.g. S3 -> offset 3
     ///   W{offset} = word   (2 bytes)  e.g. W8  -> offset 8
     ///   D{offset} = dword  (4 bytes)  e.g. D12 -> offset 12
     ///   P{offset} = pointer(4 bytes, GBA pointer with 0x08000000 base)
@@ -24,7 +25,8 @@ namespace FEBuilderGBA
             Byte,     // 1 byte  – rom.u8 / rom.write_u8
             Word,     // 2 bytes – rom.u16 / rom.write_u16
             DWord,    // 4 bytes – rom.u32 / rom.write_u32
-            Pointer   // 4 bytes – rom.p32 / rom.write_p32
+            Pointer,  // 4 bytes – rom.p32 / rom.write_p32
+            SByte     // 1 byte  – rom.u8 / rom.write_u8, interpreted as signed (-128..127)
         }
 
         /// <summary>Describes one field in a ROM struct.</summary>
@@ -46,6 +48,7 @@ namespace FEBuilderGBA
             public int ByteSize => Type switch
             {
                 FieldType.Byte => 1,
+                FieldType.SByte => 1,
                 FieldType.Word => 2,
                 FieldType.DWord => 4,
                 FieldType.Pointer => 4,
@@ -53,9 +56,9 @@ namespace FEBuilderGBA
             };
         }
 
-        // Regex: leading letter (B/W/D/P) followed by decimal offset
+        // Regex: leading letter (B/W/D/P/S) followed by decimal offset
         private static readonly Regex FieldNamePattern =
-            new Regex(@"^([BWDP])(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            new Regex(@"^([BWDPS])(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Parse a control name into a FieldDef.
@@ -79,6 +82,7 @@ namespace FEBuilderGBA
                 'W' => FieldType.Word,
                 'D' => FieldType.DWord,
                 'P' => FieldType.Pointer,
+                'S' => FieldType.SByte,
                 _ => FieldType.Byte
             };
 
@@ -106,6 +110,7 @@ namespace FEBuilderGBA
                 uint value = f.Type switch
                 {
                     FieldType.Byte => rom.u8(fieldAddr),
+                    FieldType.SByte => (uint)(int)(sbyte)rom.u8(fieldAddr),
                     FieldType.Word => rom.u16(fieldAddr),
                     FieldType.DWord => rom.u32(fieldAddr),
                     FieldType.Pointer => rom.p32(fieldAddr),
@@ -137,6 +142,9 @@ namespace FEBuilderGBA
                 {
                     case FieldType.Byte:
                         rom.write_u8(fieldAddr, value);
+                        break;
+                    case FieldType.SByte:
+                        rom.write_u8(fieldAddr, (byte)(value & 0xFF));
                         break;
                     case FieldType.Word:
                         rom.write_u16(fieldAddr, value);

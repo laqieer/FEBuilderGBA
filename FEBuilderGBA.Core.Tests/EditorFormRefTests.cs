@@ -18,6 +18,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("W8", EditorFormRef.FieldType.Word, 8u)]
         [InlineData("D12", EditorFormRef.FieldType.DWord, 12u)]
         [InlineData("P16", EditorFormRef.FieldType.Pointer, 16u)]
+        [InlineData("S0", EditorFormRef.FieldType.SByte, 0u)]
+        [InlineData("S3", EditorFormRef.FieldType.SByte, 3u)]
+        [InlineData("S14", EditorFormRef.FieldType.SByte, 14u)]
         public void ParseFieldName_ValidPatterns(string name, EditorFormRef.FieldType expectedType, uint expectedOffset)
         {
             var field = EditorFormRef.ParseFieldName(name);
@@ -32,6 +35,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("w8")]
         [InlineData("d12")]
         [InlineData("p16")]
+        [InlineData("s3")]
         public void ParseFieldName_CaseInsensitive(string name)
         {
             var field = EditorFormRef.ParseFieldName(name);
@@ -58,6 +62,7 @@ namespace FEBuilderGBA.Core.Tests
         public void ParseFieldName_ByteSize_Correct()
         {
             Assert.Equal(1, EditorFormRef.ParseFieldName("B0")!.ByteSize);
+            Assert.Equal(1, EditorFormRef.ParseFieldName("S0")!.ByteSize);
             Assert.Equal(2, EditorFormRef.ParseFieldName("W0")!.ByteSize);
             Assert.Equal(4, EditorFormRef.ParseFieldName("D0")!.ByteSize);
             Assert.Equal(4, EditorFormRef.ParseFieldName("P0")!.ByteSize);
@@ -212,6 +217,138 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x42u, rom.u8(0));
             // Undo data should have recorded the write
             Assert.NotEmpty(undo.list);
+        }
+
+        #endregion
+
+        #region SByte field
+
+        [Fact]
+        public void ReadFields_SByte_PositiveValue()
+        {
+            var rom = CreateTestRom();
+            rom.Data[3] = 5; // +5
+
+            var fields = new[]
+            {
+                new EditorFormRef.FieldDef { Name = "S3", Offset = 3, Type = EditorFormRef.FieldType.SByte },
+            };
+
+            var values = EditorFormRef.ReadFields(rom, 0, fields);
+            // Positive value: 5 stored as uint via sign-extension (still 5)
+            Assert.Equal((uint)5, values["S3"]);
+        }
+
+        [Fact]
+        public void ReadFields_SByte_NegativeValue()
+        {
+            var rom = CreateTestRom();
+            rom.Data[0] = 0xFE; // -2 as sbyte
+
+            var fields = new[]
+            {
+                new EditorFormRef.FieldDef { Name = "S0", Offset = 0, Type = EditorFormRef.FieldType.SByte },
+            };
+
+            var values = EditorFormRef.ReadFields(rom, 0, fields);
+            // -2 sign-extended to int then cast to uint = 0xFFFFFFFE
+            Assert.Equal(unchecked((uint)-2), values["S0"]);
+            // Cast back to int to verify sign
+            Assert.Equal(-2, (int)values["S0"]);
+        }
+
+        [Fact]
+        public void WriteFields_SByte_RoundTrip_Negative()
+        {
+            var rom = CreateTestRom();
+            var fields = new[]
+            {
+                new EditorFormRef.FieldDef { Name = "S0", Offset = 0, Type = EditorFormRef.FieldType.SByte },
+            };
+
+            // Write -5 (as uint, sign-extended)
+            var writeValues = new Dictionary<string, uint>
+            {
+                ["S0"] = unchecked((uint)-5),
+            };
+
+            EditorFormRef.WriteFields(rom, 0x10, writeValues, fields);
+
+            // The byte in ROM should be 0xFB (-5 as byte)
+            Assert.Equal(0xFB, rom.Data[0x10]);
+
+            // Read back should give -5
+            var readValues = EditorFormRef.ReadFields(rom, 0x10, fields);
+            Assert.Equal(-5, (int)readValues["S0"]);
+        }
+
+        [Fact]
+        public void WriteFields_SByte_RoundTrip_Positive()
+        {
+            var rom = CreateTestRom();
+            var fields = new[]
+            {
+                new EditorFormRef.FieldDef { Name = "S0", Offset = 0, Type = EditorFormRef.FieldType.SByte },
+            };
+
+            var writeValues = new Dictionary<string, uint>
+            {
+                ["S0"] = 42,
+            };
+
+            EditorFormRef.WriteFields(rom, 0x20, writeValues, fields);
+            Assert.Equal(42, rom.Data[0x20]);
+
+            var readValues = EditorFormRef.ReadFields(rom, 0x20, fields);
+            Assert.Equal(42, (int)readValues["S0"]);
+        }
+
+        [Fact]
+        public void DetectFields_IncludesSByteFields()
+        {
+            var names = new[] { "S0", "B1", "S5", "W8", "Label" };
+            var fields = EditorFormRef.DetectFields(names);
+
+            Assert.Equal(4, fields.Count);
+            Assert.Equal("S0", fields[0].Name);
+            Assert.Equal(EditorFormRef.FieldType.SByte, fields[0].Type);
+            Assert.Equal("B1", fields[1].Name);
+            Assert.Equal(EditorFormRef.FieldType.Byte, fields[1].Type);
+            Assert.Equal("S5", fields[2].Name);
+            Assert.Equal(EditorFormRef.FieldType.SByte, fields[2].Type);
+            Assert.Equal("W8", fields[3].Name);
+            Assert.Equal(EditorFormRef.FieldType.Word, fields[3].Type);
+        }
+
+        [Fact]
+        public void SByte_BoundaryValues()
+        {
+            var rom = CreateTestRom();
+            var fields = new[]
+            {
+                new EditorFormRef.FieldDef { Name = "S0", Offset = 0, Type = EditorFormRef.FieldType.SByte },
+                new EditorFormRef.FieldDef { Name = "S1", Offset = 1, Type = EditorFormRef.FieldType.SByte },
+                new EditorFormRef.FieldDef { Name = "S2", Offset = 2, Type = EditorFormRef.FieldType.SByte },
+            };
+
+            // Write boundary values: -128, 127, 0
+            var writeValues = new Dictionary<string, uint>
+            {
+                ["S0"] = unchecked((uint)-128),
+                ["S1"] = 127,
+                ["S2"] = 0,
+            };
+
+            EditorFormRef.WriteFields(rom, 0, writeValues, fields);
+
+            Assert.Equal(0x80, rom.Data[0]); // -128
+            Assert.Equal(0x7F, rom.Data[1]); // 127
+            Assert.Equal(0x00, rom.Data[2]); // 0
+
+            var readValues = EditorFormRef.ReadFields(rom, 0, fields);
+            Assert.Equal(-128, (int)readValues["S0"]);
+            Assert.Equal(127, (int)readValues["S1"]);
+            Assert.Equal(0, (int)readValues["S2"]);
         }
 
         #endregion
