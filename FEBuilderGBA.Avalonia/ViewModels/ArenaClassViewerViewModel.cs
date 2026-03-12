@@ -34,7 +34,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint classId = rom.u8(addr);
                 if (classId == 0x00) break;
 
-                string name = U.ToHexString(i) + " Arena Class 0x" + classId.ToString("X02");
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

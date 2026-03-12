@@ -39,7 +39,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 if (rom.u8(addr) == 0xFF) break;
 
-                string name = U.ToHexString(i) + " Monster Item";
+                uint itemId = rom.u8(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

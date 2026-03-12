@@ -55,7 +55,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint boosterAddr = U.toOffset(statBoosterPtr);
                 if (!U.isSafetyOffset(boosterAddr)) continue;
 
-                string name = U.ToHexString(i) + " Item 0x" + i.ToString("X02");
+                string itemName = NameResolver.GetItemName(i);
+                string name = $"{U.ToHexString(i)} {itemName}";
                 result.Add(new AddrResult(boosterAddr, name, i));
             }
             return result;

@@ -97,7 +97,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | ItemWeaponEffect / ItemWeaponEffectVM | 50% | Effect name cache, magic system detection, JumpTo |
 | ItemWeaponTriangle / ItemWeaponTriangleVM | 60% | Weapon type icons |
 | ItemEffectiveness / ItemEffectivenessVM | 40% | Dual-list architecture, independence button, class names |
-| ItemStatBonuses / ItemStatBonusesVM | 55% | Cross-reference list, magic split label |
+| ItemStatBonuses / ItemStatBonusesVM | **58%** | ~~Generic item list~~ **FIXED** — item names in list. Missing: cross-reference, magic split label |
 | ItemStatBonusesSkillSystems / VM | 55% | Proper list building, cross-reference |
 | ItemStatBonusesVenno / VM | 55% | Proper list building, cross-reference |
 | ItemEffectPointer / VM | 50% | Effect name lookup, FELint |
@@ -232,7 +232,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | SoundRoom | 45% | Song names, position display, patch detection |
 | SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
 | SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
-| SoundBossBGM | 45% | Unit/song names, portraits |
+| SoundBossBGM | **50%** | ~~Unit names~~ **FIXED** — unit names in list + pick button. Missing: portraits, song names |
 | SoundFootSteps | 35% | Class names, switch enable check |
 | WorldMapBGM | 50% | World map point names |
 
@@ -371,7 +371,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | OPClassFont (2 VMs) | 50% | Image export/import |
 | OPPrologue | 55% | Image export/import |
 | OPClassAlphaName (2 VMs) | 55% | ASCII validation |
-| ArenaClass | 40% | Filter combo (3 weapon types) |
+| ArenaClass | **45%** | ~~Class ID display~~ **FIXED** — class names in list. Missing: filter combo (3 weapon types) |
 | ArenaEnemyWeapon | 40% | Two sub-lists (basic + rank-up) |
 | StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
 | StatusOptionOrder | 55% | Named option display |
@@ -382,7 +382,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | MenuDefinition | 45% | Menu preview, multi-pointer |
 | MenuExtendSplitMenu | 50% | No list enumeration |
 | **AOERANGE** | **30%** | **Visual grid editor (core feature) missing** |
-| MonsterItem | 35% | Three sub-lists (N1, N2) |
+| MonsterItem | **40%** | ~~Generic list~~ **FIXED** — item names in list. Missing: three sub-lists (N1, N2) |
 | MonsterProbability | 50% | Probability sum display |
 | MonsterWMapProbability | 55% | Minimal |
 | SummonUnit | 45% | OwnerDraw, expand event |

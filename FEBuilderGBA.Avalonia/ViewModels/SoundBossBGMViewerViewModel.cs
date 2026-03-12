@@ -42,7 +42,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint unitId = rom.u8(addr);
                 uint songId = rom.u32(addr + 4);
-                string name = U.ToHexString(unitId) + " Boss BGM Song:0x" + songId.ToString("X08");
+                string unitName = NameResolver.GetUnitName(unitId);
+                string name = $"{U.ToHexString(unitId)} {unitName} Song:0x{songId:X08}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
