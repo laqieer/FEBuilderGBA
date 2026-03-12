@@ -262,13 +262,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
 
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u8@0"] = $"0x{rom.u8(a + 0):X02}",
                 ["u8@1"] = $"0x{rom.u8(a + 1):X02}",
                 ["u16@2"] = $"0x{rom.u16(a + 2):X04}",
             };
+
+            // Include anime detail record if available
+            if (HasAnimeDetails && AnimeDataAddr > 0
+                && AnimeDataAddr + ANIME_RECORD_SIZE <= (uint)rom.Data.Length)
+            {
+                uint d = AnimeDataAddr;
+                report["u32@12_Section"] = $"0x{rom.u32(d + 12):X08}";
+                report["u32@16_Frame"] = $"0x{rom.u32(d + 16):X08}";
+                report["u32@20_OamRtL"] = $"0x{rom.u32(d + 20):X08}";
+                report["u32@24_OamLtR"] = $"0x{rom.u32(d + 24):X08}";
+                report["u32@28_Palette"] = $"0x{rom.u32(d + 28):X08}";
+            }
+
+            return report;
         }
     }
 }

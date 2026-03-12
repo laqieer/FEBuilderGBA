@@ -175,11 +175,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
             };
+
+            // Include selected inner record fields if available
+            if (SelectedRecordAddr > 0 && SelectedRecordAddr + 12 <= (uint)rom.Data.Length)
+            {
+                uint r = SelectedRecordAddr;
+                report["u8@0_ChangeID"] = $"0x{rom.u8(r + 0):X02}";
+                report["u8@1_X"] = $"0x{rom.u8(r + 1):X02}";
+                report["u8@2_Y"] = $"0x{rom.u8(r + 2):X02}";
+                report["u8@3_Width"] = $"0x{rom.u8(r + 3):X02}";
+                report["u8@4_Height"] = $"0x{rom.u8(r + 4):X02}";
+                report["u32@8_TileData"] = $"0x{rom.u32(r + 8):X08}";
+            }
+
+            return report;
         }
     }
 }

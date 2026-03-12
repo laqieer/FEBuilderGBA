@@ -566,10 +566,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["Address"] = $"0x{a:X08}",
             };
-            for (uint i = 0; i < size; i++)
+
+            if (IsPointerSlot)
             {
-                report[$"u8@0x{i:X02}"] = $"0x{rom.u8(a + i):X02}";
+                report["u32@0"] = $"0x{rom.u32(a):X08}";
             }
+            else if (CondRecordSize <= 6)
+            {
+                report["u8@0"] = $"0x{rom.u8(a + 0):X02}";
+                report["u8@1"] = $"0x{rom.u8(a + 1):X02}";
+                report["u8@2"] = $"0x{rom.u8(a + 2):X02}";
+                report["u8@3"] = $"0x{rom.u8(a + 3):X02}";
+                report["u8@4"] = $"0x{rom.u8(a + 4):X02}";
+                report["u8@5"] = $"0x{rom.u8(a + 5):X02}";
+            }
+            else
+            {
+                report["u8@0"] = $"0x{rom.u8(a + 0):X02}";
+                report["u8@1"] = $"0x{rom.u8(a + 1):X02}";
+                report["u16@2"] = $"0x{rom.u16(a + 2):X04}";
+                report["u32@4"] = $"0x{rom.u32(a + 4):X08}";
+                if (CondRecordSize >= 12)
+                {
+                    report["u8@8"] = $"0x{rom.u8(a + 8):X02}";
+                    report["u8@9"] = $"0x{rom.u8(a + 9):X02}";
+                    report["u8@10"] = $"0x{rom.u8(a + 10):X02}";
+                    report["u8@11"] = $"0x{rom.u8(a + 11):X02}";
+                }
+                if (CondRecordSize >= 16)
+                {
+                    report["u8@12"] = $"0x{rom.u8(a + 12):X02}";
+                    report["u8@13"] = $"0x{rom.u8(a + 13):X02}";
+                    report["u8@14"] = $"0x{rom.u8(a + 14):X02}";
+                    report["u8@15"] = $"0x{rom.u8(a + 15):X02}";
+                }
+            }
+
             return report;
         }
     }

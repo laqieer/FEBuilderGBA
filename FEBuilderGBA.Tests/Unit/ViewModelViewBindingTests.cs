@@ -281,9 +281,9 @@ namespace FEBuilderGBA.Tests.Unit
         public void EventCondView_UpdateUIBindsCorrectProperties()
         {
             var src = ReadView("EventCondView.axaml.cs");
-            Assert.Contains("_vm.CurrentAddr", src);
-            Assert.Contains("_vm.MapDataSize", src);
-            Assert.Contains("_vm.RawBytes", src);
+            Assert.Contains("_vm.CondRecordAddr", src);
+            Assert.Contains("_vm.CondRecordSize", src);
+            Assert.Contains("_vm.CondTypeName", src);
         }
 
         // ---------------------------------------------------------------
@@ -374,7 +374,6 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("MapSettingView.axaml.cs")]
         [InlineData("SongTableView.axaml.cs")]
         [InlineData("PortraitViewerView.axaml.cs")]
-        [InlineData("EventCondView.axaml.cs")]
         [InlineData("ArenaClassViewerView.axaml.cs")]
         [InlineData("WorldMapPointView.axaml.cs")]
         [InlineData("SoundRoomViewerView.axaml.cs")]
@@ -383,6 +382,17 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = ReadView(viewFile);
             Assert.Contains("void UpdateUI()", src);
+        }
+
+        /// <summary>
+        /// EventCondView was rewritten with a specialized UpdateEditorUI method
+        /// instead of the generic UpdateUI pattern.
+        /// </summary>
+        [Fact]
+        public void EventCondView_HasUpdateEditorUIMethod()
+        {
+            var src = ReadView("EventCondView.axaml.cs");
+            Assert.Contains("void UpdateEditorUI()", src);
         }
 
         [Theory]

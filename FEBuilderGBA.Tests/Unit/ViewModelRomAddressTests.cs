@@ -365,10 +365,10 @@ namespace FEBuilderGBA.Tests.Unit
         // ---------------------------------------------------------------
 
         [Fact]
-        public void EventCondViewModel_ReadsMapSettingDatasize()
+        public void EventCondViewModel_ReadsMapSettingEventPlistPos()
         {
             var src = ReadViewModel("EventCondViewModel.cs");
-            Assert.Contains("rom.RomInfo.map_setting_datasize", src);
+            Assert.Contains("rom.RomInfo.map_setting_event_plist_pos", src);
         }
 
         [Fact]
@@ -382,8 +382,11 @@ namespace FEBuilderGBA.Tests.Unit
         public void EventCondViewModel_ReadsRawBytesFromRom()
         {
             var src = ReadViewModel("EventCondViewModel.cs");
-            // Reads individual bytes for hex display
-            Assert.Contains("rom.u8(addr + i)", src);
+            // Reads individual bytes for raw ROM report
+            Assert.Contains("rom.u8(a + 0)", src);
+            Assert.Contains("rom.u8(a + 1)", src);
+            Assert.Contains("rom.u16(a + 2)", src);
+            Assert.Contains("rom.u32(a + 4)", src);
         }
 
         // ---------------------------------------------------------------

@@ -204,6 +204,7 @@ namespace FEBuilderGBA.Tests.Unit
 
             // === WU9: Sound + WorldMap + Map misc ===
             ("SongTrackView", "SongTrackForm", "SongTrackViewModel"),
+            ("SongInstrumentView", "SongInstrumentForm", "SongInstrumentViewModel"),
             ("SongInstrumentDirectSoundView", "SongInstrumentDirectSoundForm", "SongInstrumentDirectSoundViewModel"),
             ("SoundRoomFE6View", "SoundRoomFE6Form", "SoundRoomFE6ViewModel"),
             ("SoundRoomCGView", "SoundRoomCGForm", "SoundRoomCGViewModel"),

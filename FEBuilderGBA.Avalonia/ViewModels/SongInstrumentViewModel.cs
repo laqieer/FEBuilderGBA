@@ -441,15 +441,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["B0_Header"] = $"0x{rom.u8(a):X02}",
-                ["B1"] = $"0x{rom.u8(a + 1):X02}",
-                ["B2"] = $"0x{rom.u8(a + 2):X02}",
-                ["B3"] = $"0x{rom.u8(a + 3):X02}",
-                ["P4_u32@0x04"] = $"0x{rom.u32(a + 4):X08}",
-                ["B8@0x08"] = $"0x{rom.u8(a + 8):X02}",
-                ["B9@0x09"] = $"0x{rom.u8(a + 9):X02}",
-                ["B10@0x0A"] = $"0x{rom.u8(a + 10):X02}",
-                ["B11@0x0B"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x00_Header"] = $"0x{rom.u8(a):X02}",
+                ["u8@0x01_Sweep"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_DutyLen"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_EnvStep"] = $"0x{rom.u8(a + 3):X02}",
+                ["u32@0x04_Ptr"] = $"0x{rom.u32(a + 4):X08}",
+                ["u8@0x08_Attack"] = $"0x{rom.u8(a + 8):X02}",
+                ["u8@0x09_Decay"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_Sustain"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_Release"] = $"0x{rom.u8(a + 11):X02}",
             };
         }
     }
