@@ -17,6 +17,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         const uint BLOCK_SIZE = 32;
 
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] {
+                "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9",
+                "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19",
+                "B20", "B21", "B22", "B23", "B24", "B25", "B26", "B27", "B28", "B29",
+                "B30", "B31"
+            });
+
         uint _currentAddr;
         bool _isLoaded;
 
@@ -125,42 +133,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
 
-            Partner1  = rom.u8(addr + 0);
-            Partner2  = rom.u8(addr + 1);
-            Partner3  = rom.u8(addr + 2);
-            Partner4  = rom.u8(addr + 3);
-            Partner5  = rom.u8(addr + 4);
-            Partner6  = rom.u8(addr + 5);
-            Partner7  = rom.u8(addr + 6);
-            Partner8  = rom.u8(addr + 7);
-            Partner9  = rom.u8(addr + 8);
-            Partner10 = rom.u8(addr + 9);
+            Partner1 = v["B0"]; Partner2 = v["B1"]; Partner3 = v["B2"];
+            Partner4 = v["B3"]; Partner5 = v["B4"]; Partner6 = v["B5"];
+            Partner7 = v["B6"]; Partner8 = v["B7"]; Partner9 = v["B8"];
+            Partner10 = v["B9"];
 
-            InitialValue1  = rom.u8(addr + 10);
-            InitialValue2  = rom.u8(addr + 11);
-            InitialValue3  = rom.u8(addr + 12);
-            InitialValue4  = rom.u8(addr + 13);
-            InitialValue5  = rom.u8(addr + 14);
-            InitialValue6  = rom.u8(addr + 15);
-            InitialValue7  = rom.u8(addr + 16);
-            InitialValue8  = rom.u8(addr + 17);
-            InitialValue9  = rom.u8(addr + 18);
-            InitialValue10 = rom.u8(addr + 19);
+            InitialValue1 = v["B10"]; InitialValue2 = v["B11"]; InitialValue3 = v["B12"];
+            InitialValue4 = v["B13"]; InitialValue5 = v["B14"]; InitialValue6 = v["B15"];
+            InitialValue7 = v["B16"]; InitialValue8 = v["B17"]; InitialValue9 = v["B18"];
+            InitialValue10 = v["B19"];
 
-            GrowthRate1  = rom.u8(addr + 20);
-            GrowthRate2  = rom.u8(addr + 21);
-            GrowthRate3  = rom.u8(addr + 22);
-            GrowthRate4  = rom.u8(addr + 23);
-            GrowthRate5  = rom.u8(addr + 24);
-            GrowthRate6  = rom.u8(addr + 25);
-            GrowthRate7  = rom.u8(addr + 26);
-            GrowthRate8  = rom.u8(addr + 27);
-            GrowthRate9  = rom.u8(addr + 28);
-            GrowthRate10 = rom.u8(addr + 29);
+            GrowthRate1 = v["B20"]; GrowthRate2 = v["B21"]; GrowthRate3 = v["B22"];
+            GrowthRate4 = v["B23"]; GrowthRate5 = v["B24"]; GrowthRate6 = v["B25"];
+            GrowthRate7 = v["B26"]; GrowthRate8 = v["B27"]; GrowthRate9 = v["B28"];
+            GrowthRate10 = v["B29"];
 
-            PartnerCount = rom.u8(addr + 30);
-            Separator = rom.u8(addr + 31);
+            PartnerCount = v["B30"];
+            Separator = v["B31"];
 
             IsLoaded = true;
         }
@@ -172,41 +163,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  Partner1);
-            rom.write_u8(a + 1,  Partner2);
-            rom.write_u8(a + 2,  Partner3);
-            rom.write_u8(a + 3,  Partner4);
-            rom.write_u8(a + 4,  Partner5);
-            rom.write_u8(a + 5,  Partner6);
-            rom.write_u8(a + 6,  Partner7);
-            rom.write_u8(a + 7,  Partner8);
-            rom.write_u8(a + 8,  Partner9);
-            rom.write_u8(a + 9,  Partner10);
-
-            rom.write_u8(a + 10, InitialValue1);
-            rom.write_u8(a + 11, InitialValue2);
-            rom.write_u8(a + 12, InitialValue3);
-            rom.write_u8(a + 13, InitialValue4);
-            rom.write_u8(a + 14, InitialValue5);
-            rom.write_u8(a + 15, InitialValue6);
-            rom.write_u8(a + 16, InitialValue7);
-            rom.write_u8(a + 17, InitialValue8);
-            rom.write_u8(a + 18, InitialValue9);
-            rom.write_u8(a + 19, InitialValue10);
-
-            rom.write_u8(a + 20, GrowthRate1);
-            rom.write_u8(a + 21, GrowthRate2);
-            rom.write_u8(a + 22, GrowthRate3);
-            rom.write_u8(a + 23, GrowthRate4);
-            rom.write_u8(a + 24, GrowthRate5);
-            rom.write_u8(a + 25, GrowthRate6);
-            rom.write_u8(a + 26, GrowthRate7);
-            rom.write_u8(a + 27, GrowthRate8);
-            rom.write_u8(a + 28, GrowthRate9);
-            rom.write_u8(a + 29, GrowthRate10);
-
-            rom.write_u8(a + 30, PartnerCount);
-            rom.write_u8(a + 31, Separator);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Partner1, ["B1"] = Partner2, ["B2"] = Partner3,
+                ["B3"] = Partner4, ["B4"] = Partner5, ["B5"] = Partner6,
+                ["B6"] = Partner7, ["B7"] = Partner8, ["B8"] = Partner9,
+                ["B9"] = Partner10,
+                ["B10"] = InitialValue1, ["B11"] = InitialValue2, ["B12"] = InitialValue3,
+                ["B13"] = InitialValue4, ["B14"] = InitialValue5, ["B15"] = InitialValue6,
+                ["B16"] = InitialValue7, ["B17"] = InitialValue8, ["B18"] = InitialValue9,
+                ["B19"] = InitialValue10,
+                ["B20"] = GrowthRate1, ["B21"] = GrowthRate2, ["B22"] = GrowthRate3,
+                ["B23"] = GrowthRate4, ["B24"] = GrowthRate5, ["B25"] = GrowthRate6,
+                ["B26"] = GrowthRate7, ["B27"] = GrowthRate8, ["B28"] = GrowthRate9,
+                ["B29"] = GrowthRate10,
+                ["B30"] = PartnerCount, ["B31"] = Separator,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadSupportUnitList().Count;

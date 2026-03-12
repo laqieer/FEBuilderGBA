@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventBattleTalkFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "B6", "B7", "D8", "W12", "B14", "B15" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _attackerUnit;
@@ -65,17 +68,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            AttackerUnit = rom.u8(addr + 0);
-            DefenderUnit = rom.u8(addr + 1);
-            Unknown02 = rom.u8(addr + 2);
-            Unknown03 = rom.u8(addr + 3);
-            Text = rom.u16(addr + 4);
-            Unknown06 = rom.u8(addr + 6);
-            Unknown07 = rom.u8(addr + 7);
-            EventPointer = rom.u32(addr + 8);
-            AchievementFlag = rom.u16(addr + 12);
-            Unknown0E = rom.u8(addr + 14);
-            Unknown0F = rom.u8(addr + 15);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            AttackerUnit = v["B0"];
+            DefenderUnit = v["B1"];
+            Unknown02 = v["B2"];
+            Unknown03 = v["B3"];
+            Text = v["W4"];
+            Unknown06 = v["B6"];
+            Unknown07 = v["B7"];
+            EventPointer = v["D8"];
+            AchievementFlag = v["W12"];
+            Unknown0E = v["B14"];
+            Unknown0F = v["B15"];
             IsLoaded = true;
         }
 
@@ -84,17 +88,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u8(a + 0, (byte)AttackerUnit);
-            rom.write_u8(a + 1, (byte)DefenderUnit);
-            rom.write_u8(a + 2, (byte)Unknown02);
-            rom.write_u8(a + 3, (byte)Unknown03);
-            rom.write_u16(a + 4, (ushort)Text);
-            rom.write_u8(a + 6, (byte)Unknown06);
-            rom.write_u8(a + 7, (byte)Unknown07);
-            rom.write_u32(a + 8, EventPointer);
-            rom.write_u16(a + 12, (ushort)AchievementFlag);
-            rom.write_u8(a + 14, (byte)Unknown0E);
-            rom.write_u8(a + 15, (byte)Unknown0F);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = AttackerUnit, ["B1"] = DefenderUnit,
+                ["B2"] = Unknown02, ["B3"] = Unknown03,
+                ["W4"] = Text, ["B6"] = Unknown06, ["B7"] = Unknown07,
+                ["D8"] = EventPointer, ["W12"] = AchievementFlag,
+                ["B14"] = Unknown0E, ["B15"] = Unknown0F,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

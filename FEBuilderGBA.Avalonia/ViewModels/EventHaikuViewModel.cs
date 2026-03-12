@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventHaikuViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "W6", "D8" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unit;
@@ -57,13 +60,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 12 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            Unit = rom.u8(addr + 0);
-            KillerUnit = rom.u8(addr + 1);
-            Route = rom.u8(addr + 2);
-            ChapterID = rom.u8(addr + 3);
-            AchievementFlag = rom.u16(addr + 4);
-            Text = rom.u16(addr + 6);
-            EventPointer = rom.u32(addr + 8);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Unit = v["B0"];
+            KillerUnit = v["B1"];
+            Route = v["B2"];
+            ChapterID = v["B3"];
+            AchievementFlag = v["W4"];
+            Text = v["W6"];
+            EventPointer = v["D8"];
             IsLoaded = true;
         }
 
@@ -72,13 +76,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u8(a + 0, (byte)Unit);
-            rom.write_u8(a + 1, (byte)KillerUnit);
-            rom.write_u8(a + 2, (byte)Route);
-            rom.write_u8(a + 3, (byte)ChapterID);
-            rom.write_u16(a + 4, (ushort)AchievementFlag);
-            rom.write_u16(a + 6, (ushort)Text);
-            rom.write_u32(a + 8, EventPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Unit, ["B1"] = KillerUnit,
+                ["B2"] = Route, ["B3"] = ChapterID,
+                ["W4"] = AchievementFlag, ["W6"] = Text,
+                ["D8"] = EventPointer,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

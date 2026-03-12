@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventHaikuFE6ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "B6", "B7", "W8", "B10", "B11", "W12", "B14", "B15" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unit;
@@ -68,19 +71,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            Unit = rom.u8(addr + 0);
-            ChapterID = rom.u8(addr + 1);
-            Unknown02 = rom.u8(addr + 2);
-            Unknown03 = rom.u8(addr + 3);
-            DeathText = rom.u16(addr + 4);
-            Unknown06 = rom.u8(addr + 6);
-            Unknown07 = rom.u8(addr + 7);
-            AchievementFlag = rom.u16(addr + 8);
-            Unknown0A = rom.u8(addr + 10);
-            Unknown0B = rom.u8(addr + 11);
-            FinalChapterText = rom.u16(addr + 12);
-            Unknown0E = rom.u8(addr + 14);
-            Unknown0F = rom.u8(addr + 15);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            Unit = v["B0"];
+            ChapterID = v["B1"];
+            Unknown02 = v["B2"];
+            Unknown03 = v["B3"];
+            DeathText = v["W4"];
+            Unknown06 = v["B6"];
+            Unknown07 = v["B7"];
+            AchievementFlag = v["W8"];
+            Unknown0A = v["B10"];
+            Unknown0B = v["B11"];
+            FinalChapterText = v["W12"];
+            Unknown0E = v["B14"];
+            Unknown0F = v["B15"];
             IsLoaded = true;
         }
 

@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SupportTalkFE6ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "W4", "W8", "W12", "B14", "B15" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _supportPartner1, _supportPartner2;      // B0, B1
@@ -68,13 +71,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 16 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SupportPartner1 = rom.u8(addr + 0);
-            SupportPartner2 = rom.u8(addr + 1);
-            TextC = rom.u16(addr + 4);
-            TextB = rom.u16(addr + 8);
-            TextA = rom.u16(addr + 12);
-            Padding1 = rom.u8(addr + 14);
-            Padding2 = rom.u8(addr + 15);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            SupportPartner1 = v["B0"];
+            SupportPartner2 = v["B1"];
+            TextC = v["W4"];
+            TextB = v["W8"];
+            TextA = v["W12"];
+            Padding1 = v["B14"];
+            Padding2 = v["B15"];
 
             IsLoaded = true;
         }
@@ -86,13 +90,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  SupportPartner1);
-            rom.write_u8(a + 1,  SupportPartner2);
-            rom.write_u16(a + 4, (uint)TextC);
-            rom.write_u16(a + 8, (uint)TextB);
-            rom.write_u16(a + 12, (uint)TextA);
-            rom.write_u8(a + 14, Padding1);
-            rom.write_u8(a + 15, Padding2);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = SupportPartner1, ["B1"] = SupportPartner2,
+                ["W4"] = TextC, ["W8"] = TextB, ["W12"] = TextA,
+                ["B14"] = Padding1, ["B15"] = Padding2,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;

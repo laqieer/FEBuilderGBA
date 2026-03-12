@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventBattleTalkViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2", "B4", "B5", "W6", "W8", "B10", "B11", "D12" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _attackerUnit;
@@ -62,15 +65,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            AttackerUnit = rom.u16(addr + 0);
-            DefenderUnit = rom.u16(addr + 2);
-            Map = rom.u8(addr + 4);
-            Unknown05 = rom.u8(addr + 5);
-            AchievementFlag = rom.u16(addr + 6);
-            Text = rom.u16(addr + 8);
-            Unknown0A = rom.u8(addr + 10);
-            Unknown0B = rom.u8(addr + 11);
-            EventPointer = rom.u32(addr + 12);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            AttackerUnit = v["W0"];
+            DefenderUnit = v["W2"];
+            Map = v["B4"];
+            Unknown05 = v["B5"];
+            AchievementFlag = v["W6"];
+            Text = v["W8"];
+            Unknown0A = v["B10"];
+            Unknown0B = v["B11"];
+            EventPointer = v["D12"];
             IsLoaded = true;
         }
 
@@ -79,15 +83,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            rom.write_u16(a + 0, (ushort)AttackerUnit);
-            rom.write_u16(a + 2, (ushort)DefenderUnit);
-            rom.write_u8(a + 4, (byte)Map);
-            rom.write_u8(a + 5, (byte)Unknown05);
-            rom.write_u16(a + 6, (ushort)AchievementFlag);
-            rom.write_u16(a + 8, (ushort)Text);
-            rom.write_u8(a + 10, (byte)Unknown0A);
-            rom.write_u8(a + 11, (byte)Unknown0B);
-            rom.write_u32(a + 12, EventPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = AttackerUnit, ["W2"] = DefenderUnit,
+                ["B4"] = Map, ["B5"] = Unknown05,
+                ["W6"] = AchievementFlag, ["W8"] = Text,
+                ["B10"] = Unknown0A, ["B11"] = Unknown0B,
+                ["D12"] = EventPointer,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

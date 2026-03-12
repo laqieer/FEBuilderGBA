@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SupportTalkViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B2", "W4", "W6", "W8", "W10", "W12", "W14" });
+
         uint _currentAddr;
         uint _supportPartner1;  // B0 - Support Partner 1
         uint _supportPartner2;  // B2 - Support Partner 2
@@ -68,15 +71,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 15 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
 
-            SupportPartner1 = rom.u8(addr + 0);
-            SupportPartner2 = rom.u8(addr + 2);
-            TextIdC = rom.u16(addr + 4);
-            TextIdB = rom.u16(addr + 6);
-            TextIdA = rom.u16(addr + 8);
-            SongC = rom.u16(addr + 10);
-            SongB = rom.u16(addr + 12);
-            SongA = rom.u16(addr + 14);
+            SupportPartner1 = v["B0"];
+            SupportPartner2 = v["B2"];
+            TextIdC = v["W4"];
+            TextIdB = v["W6"];
+            TextIdA = v["W8"];
+            SongC = v["W10"];
+            SongB = v["W12"];
+            SongA = v["W14"];
 
             IsLoaded = true;
         }
@@ -88,14 +92,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 16 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  SupportPartner1);
-            rom.write_u8(a + 2,  SupportPartner2);
-            rom.write_u16(a + 4, (uint)TextIdC);
-            rom.write_u16(a + 6, (uint)TextIdB);
-            rom.write_u16(a + 8, (uint)TextIdA);
-            rom.write_u16(a + 10, (uint)SongC);
-            rom.write_u16(a + 12, (uint)SongB);
-            rom.write_u16(a + 14, (uint)SongA);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = SupportPartner1, ["B2"] = SupportPartner2,
+                ["W4"] = TextIdC, ["W6"] = TextIdB, ["W8"] = TextIdA,
+                ["W10"] = SongC, ["W12"] = SongB, ["W14"] = SongA,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;

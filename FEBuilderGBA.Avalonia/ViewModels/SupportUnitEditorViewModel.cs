@@ -17,6 +17,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         const uint BLOCK_SIZE = 24;
 
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] {
+                "B0", "B1", "B2", "B3", "B4", "B5", "B6",
+                "B7", "B8", "B9", "B10", "B11", "B12", "B13",
+                "B14", "B15", "B16", "B17", "B18", "B19", "B20",
+                "B21", "B22", "B23"
+            });
+
         uint _currentAddr;
         bool _canWrite;
 
@@ -116,34 +124,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
 
-            Partner1 = rom.u8(addr + 0);
-            Partner2 = rom.u8(addr + 1);
-            Partner3 = rom.u8(addr + 2);
-            Partner4 = rom.u8(addr + 3);
-            Partner5 = rom.u8(addr + 4);
-            Partner6 = rom.u8(addr + 5);
-            Partner7 = rom.u8(addr + 6);
+            Partner1 = v["B0"]; Partner2 = v["B1"]; Partner3 = v["B2"];
+            Partner4 = v["B3"]; Partner5 = v["B4"]; Partner6 = v["B5"];
+            Partner7 = v["B6"];
 
-            InitialValue1 = rom.u8(addr + 7);
-            InitialValue2 = rom.u8(addr + 8);
-            InitialValue3 = rom.u8(addr + 9);
-            InitialValue4 = rom.u8(addr + 10);
-            InitialValue5 = rom.u8(addr + 11);
-            InitialValue6 = rom.u8(addr + 12);
-            InitialValue7 = rom.u8(addr + 13);
+            InitialValue1 = v["B7"]; InitialValue2 = v["B8"]; InitialValue3 = v["B9"];
+            InitialValue4 = v["B10"]; InitialValue5 = v["B11"]; InitialValue6 = v["B12"];
+            InitialValue7 = v["B13"];
 
-            GrowthRate1 = rom.u8(addr + 14);
-            GrowthRate2 = rom.u8(addr + 15);
-            GrowthRate3 = rom.u8(addr + 16);
-            GrowthRate4 = rom.u8(addr + 17);
-            GrowthRate5 = rom.u8(addr + 18);
-            GrowthRate6 = rom.u8(addr + 19);
-            GrowthRate7 = rom.u8(addr + 20);
+            GrowthRate1 = v["B14"]; GrowthRate2 = v["B15"]; GrowthRate3 = v["B16"];
+            GrowthRate4 = v["B17"]; GrowthRate5 = v["B18"]; GrowthRate6 = v["B19"];
+            GrowthRate7 = v["B20"];
 
-            PartnerCount = rom.u8(addr + 21);
-            Separator1 = rom.u8(addr + 22);
-            Separator2 = rom.u8(addr + 23);
+            PartnerCount = v["B21"];
+            Separator1 = v["B22"];
+            Separator2 = v["B23"];
 
             CanWrite = true;
         }
@@ -155,33 +152,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  Partner1);
-            rom.write_u8(a + 1,  Partner2);
-            rom.write_u8(a + 2,  Partner3);
-            rom.write_u8(a + 3,  Partner4);
-            rom.write_u8(a + 4,  Partner5);
-            rom.write_u8(a + 5,  Partner6);
-            rom.write_u8(a + 6,  Partner7);
-
-            rom.write_u8(a + 7,  InitialValue1);
-            rom.write_u8(a + 8,  InitialValue2);
-            rom.write_u8(a + 9,  InitialValue3);
-            rom.write_u8(a + 10, InitialValue4);
-            rom.write_u8(a + 11, InitialValue5);
-            rom.write_u8(a + 12, InitialValue6);
-            rom.write_u8(a + 13, InitialValue7);
-
-            rom.write_u8(a + 14, GrowthRate1);
-            rom.write_u8(a + 15, GrowthRate2);
-            rom.write_u8(a + 16, GrowthRate3);
-            rom.write_u8(a + 17, GrowthRate4);
-            rom.write_u8(a + 18, GrowthRate5);
-            rom.write_u8(a + 19, GrowthRate6);
-            rom.write_u8(a + 20, GrowthRate7);
-
-            rom.write_u8(a + 21, PartnerCount);
-            rom.write_u8(a + 22, Separator1);
-            rom.write_u8(a + 23, Separator2);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Partner1, ["B1"] = Partner2, ["B2"] = Partner3,
+                ["B3"] = Partner4, ["B4"] = Partner5, ["B5"] = Partner6,
+                ["B6"] = Partner7,
+                ["B7"] = InitialValue1, ["B8"] = InitialValue2, ["B9"] = InitialValue3,
+                ["B10"] = InitialValue4, ["B11"] = InitialValue5, ["B12"] = InitialValue6,
+                ["B13"] = InitialValue7,
+                ["B14"] = GrowthRate1, ["B15"] = GrowthRate2, ["B16"] = GrowthRate3,
+                ["B17"] = GrowthRate4, ["B18"] = GrowthRate5, ["B19"] = GrowthRate6,
+                ["B20"] = GrowthRate7,
+                ["B21"] = PartnerCount, ["B22"] = Separator1, ["B23"] = Separator2,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadSupportUnitList().Count;

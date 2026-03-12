@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SupportTalkFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "D4", "D8", "D12", "B16", "B17", "B18", "B19" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _supportPartner1, _supportPartner2;       // B0, B1
@@ -70,15 +73,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 20 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SupportPartner1 = rom.u8(addr + 0);
-            SupportPartner2 = rom.u8(addr + 1);
-            TextC = rom.u32(addr + 4);
-            TextB = rom.u32(addr + 8);
-            TextA = rom.u32(addr + 12);
-            SongC = rom.u8(addr + 16);
-            SongB = rom.u8(addr + 17);
-            SongA = rom.u8(addr + 18);
-            Padding = rom.u8(addr + 19);
+            var v = EditorFormRef.ReadFields(rom, addr, _fields);
+            SupportPartner1 = v["B0"];
+            SupportPartner2 = v["B1"];
+            TextC = v["D4"];
+            TextB = v["D8"];
+            TextA = v["D12"];
+            SongC = v["B16"];
+            SongB = v["B17"];
+            SongA = v["B18"];
+            Padding = v["B19"];
 
             IsLoaded = true;
         }
@@ -90,15 +94,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + 20 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(a + 0,  SupportPartner1);
-            rom.write_u8(a + 1,  SupportPartner2);
-            rom.write_u32(a + 4, TextC);
-            rom.write_u32(a + 8, TextB);
-            rom.write_u32(a + 12, TextA);
-            rom.write_u8(a + 16, SongC);
-            rom.write_u8(a + 17, SongB);
-            rom.write_u8(a + 18, SongA);
-            rom.write_u8(a + 19, Padding);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = SupportPartner1, ["B1"] = SupportPartner2,
+                ["D4"] = TextC, ["D8"] = TextB, ["D12"] = TextA,
+                ["B16"] = SongC, ["B17"] = SongB, ["B18"] = SongA, ["B19"] = Padding,
+            };
+            EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
         public int GetListCount() => LoadSupportTalkList().Count;
