@@ -6,6 +6,27 @@
 
 ---
 
+> **POST-AUDIT UPDATE (2026-03-12):** This report was generated at ~60% completeness.
+> After 6 rounds of implementation (42 tasks, 230+ new tests), completeness is now **~93%**.
+> Many items marked "MISSING" below have since been implemented. See `docs/avalonia-gap-analysis.md`
+> for the current status. Key items fixed since this report:
+> - Growth simulator: now real-time with configurable SimLevel (was REGRESSION)
+> - Magic extension: read/write via MagicSplitUtil (was MISSING)
+> - Skill navigation: Edit Skills buttons in Unit/Class/Item (was MISSING)
+> - Shop price/stat bonus/effectiveness: computed fields added (was MISSING)
+> - CSV export/import: per-editor TSV buttons (was MISSING)
+> - Drag-and-drop: ROM + image file support (was MISSING)
+> - EventScript: interactive command editor (was 2%)
+> - EventCond: 13-type structured editor (was 5%)
+> - EventUnit: 3-level navigation with AI descriptions (was 25%)
+> - Portrait: full rendering + export + calibration (was 30%)
+> - Sound: track parsing + 6 instrument types + MIDI export (was 25%)
+> - Three-way merge: full algorithm + UI (was 0%)
+> - Patch manager: listing + install + uninstall (was 10%)
+> - Progress dialog, validation warnings, icon previews, MoveCost 6-type
+
+---
+
 ## Executive Summary
 
 | Metric | Value |
