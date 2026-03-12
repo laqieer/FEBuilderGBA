@@ -6,6 +6,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class WorldMapPointViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] {
+                "B0", "B1", "B2", "B3", "B4", "B5", "W6",
+                "B8", "B9", "B10", "B11",
+                "D12", "D16", "D20",
+                "W24", "W26", "W28", "B30", "B31"
+            });
+
         uint _currentAddr;
         bool _canWrite;
         uint _alwaysAccessible;
@@ -107,25 +115,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 32 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            AlwaysAccessible = rom.u8(addr + 0);
-            FreeMapType = rom.u8(addr + 1);
-            PreClearIcon = rom.u8(addr + 2);
-            PostClearIcon = rom.u8(addr + 3);
-            ChapterId1 = rom.u8(addr + 4);
-            ChapterId2 = rom.u8(addr + 5);
-            EventBranchFlag = rom.u16(addr + 6);
-            NextNodeEirika = rom.u8(addr + 8);
-            NextNodeEphraim = rom.u8(addr + 9);
-            NextNodeEirika2nd = rom.u8(addr + 10);
-            NextNodeEphraim2nd = rom.u8(addr + 11);
-            ArmoryPointer = rom.u32(addr + 12);
-            VendorPointer = rom.u32(addr + 16);
-            SecretShopPointer = rom.u32(addr + 20);
-            CoordinateX = rom.u16(addr + 24);
-            CoordinateY = rom.u16(addr + 26);
-            NameTextId = rom.u16(addr + 28);
-            ShipSetting = rom.u8(addr + 30);
-            Unknown31 = rom.u8(addr + 31);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            AlwaysAccessible = values["B0"];
+            FreeMapType = values["B1"];
+            PreClearIcon = values["B2"];
+            PostClearIcon = values["B3"];
+            ChapterId1 = values["B4"];
+            ChapterId2 = values["B5"];
+            EventBranchFlag = values["W6"];
+            NextNodeEirika = values["B8"];
+            NextNodeEphraim = values["B9"];
+            NextNodeEirika2nd = values["B10"];
+            NextNodeEphraim2nd = values["B11"];
+            ArmoryPointer = values["D12"];
+            VendorPointer = values["D16"];
+            SecretShopPointer = values["D20"];
+            CoordinateX = values["W24"];
+            CoordinateY = values["W26"];
+            NameTextId = values["W28"];
+            ShipSetting = values["B30"];
+            Unknown31 = values["B31"];
             CanWrite = true;
         }
 
@@ -136,25 +145,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 32 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)AlwaysAccessible);
-            rom.write_u8(addr + 1, (byte)FreeMapType);
-            rom.write_u8(addr + 2, (byte)PreClearIcon);
-            rom.write_u8(addr + 3, (byte)PostClearIcon);
-            rom.write_u8(addr + 4, (byte)ChapterId1);
-            rom.write_u8(addr + 5, (byte)ChapterId2);
-            rom.write_u16(addr + 6, (ushort)EventBranchFlag);
-            rom.write_u8(addr + 8, (byte)NextNodeEirika);
-            rom.write_u8(addr + 9, (byte)NextNodeEphraim);
-            rom.write_u8(addr + 10, (byte)NextNodeEirika2nd);
-            rom.write_u8(addr + 11, (byte)NextNodeEphraim2nd);
-            rom.write_u32(addr + 12, ArmoryPointer);
-            rom.write_u32(addr + 16, VendorPointer);
-            rom.write_u32(addr + 20, SecretShopPointer);
-            rom.write_u16(addr + 24, (ushort)CoordinateX);
-            rom.write_u16(addr + 26, (ushort)CoordinateY);
-            rom.write_u16(addr + 28, (ushort)NameTextId);
-            rom.write_u8(addr + 30, (byte)ShipSetting);
-            rom.write_u8(addr + 31, (byte)Unknown31);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = AlwaysAccessible, ["B1"] = FreeMapType,
+                ["B2"] = PreClearIcon, ["B3"] = PostClearIcon,
+                ["B4"] = ChapterId1, ["B5"] = ChapterId2,
+                ["W6"] = EventBranchFlag,
+                ["B8"] = NextNodeEirika, ["B9"] = NextNodeEphraim,
+                ["B10"] = NextNodeEirika2nd, ["B11"] = NextNodeEphraim2nd,
+                ["D12"] = ArmoryPointer, ["D16"] = VendorPointer,
+                ["D20"] = SecretShopPointer,
+                ["W24"] = CoordinateX, ["W26"] = CoordinateY,
+                ["W28"] = NameTextId, ["B30"] = ShipSetting,
+                ["B31"] = Unknown31,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadWorldMapPointList().Count;

@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class WorldMapPathViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "B4", "B5", "B6", "B7", "D8" });
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
@@ -65,12 +68,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 12 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            PathDataPointer = rom.u32(addr + 0);
-            StartBasePointId = rom.u8(addr + 4);
-            EndBasePointId = rom.u8(addr + 5);
-            Padding6 = rom.u8(addr + 6);
-            Padding7 = rom.u8(addr + 7);
-            PathMovePointer = rom.u32(addr + 8);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PathDataPointer = values["D0"];
+            StartBasePointId = values["B4"];
+            EndBasePointId = values["B5"];
+            Padding6 = values["B6"];
+            Padding7 = values["B7"];
+            PathMovePointer = values["D8"];
             IsLoaded = true;
         }
 
@@ -80,12 +84,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u32(addr + 0, PathDataPointer);
-            rom.write_u8(addr + 4, (byte)StartBasePointId);
-            rom.write_u8(addr + 5, (byte)EndBasePointId);
-            rom.write_u8(addr + 6, (byte)Padding6);
-            rom.write_u8(addr + 7, (byte)Padding7);
-            rom.write_u32(addr + 8, PathMovePointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = PathDataPointer,
+                ["B4"] = StartBasePointId, ["B5"] = EndBasePointId,
+                ["B6"] = Padding6, ["B7"] = Padding7,
+                ["D8"] = PathMovePointer,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

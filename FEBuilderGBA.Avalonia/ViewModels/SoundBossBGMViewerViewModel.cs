@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SoundBossBGMViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "D4" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _unitId;
@@ -56,11 +59,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u8(addr + 0);
-            Unknown1 = rom.u8(addr + 1);
-            Unknown2 = rom.u8(addr + 2);
-            Unknown3 = rom.u8(addr + 3);
-            SongId = rom.u32(addr + 4);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitId = values["B0"];
+            Unknown1 = values["B1"];
+            Unknown2 = values["B2"];
+            Unknown3 = values["B3"];
+            SongId = values["D4"];
             CanWrite = true;
         }
 
@@ -70,11 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 8 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
-            rom.write_u8(CurrentAddr + 1, (byte)Unknown1);
-            rom.write_u8(CurrentAddr + 2, (byte)Unknown2);
-            rom.write_u8(CurrentAddr + 3, (byte)Unknown3);
-            rom.write_u32(CurrentAddr + 4, SongId);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitId, ["B1"] = Unknown1,
+                ["B2"] = Unknown2, ["B3"] = Unknown3,
+                ["D4"] = SongId,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadSoundBossBGMList().Count;

@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ArenaEnemyWeaponViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _weaponId;
@@ -46,7 +49,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            WeaponId = rom.u8(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            WeaponId = values["B0"];
             CanWrite = true;
         }
 
@@ -55,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u8(addr, WeaponId);
+            var values = new Dictionary<string, uint> { ["B0"] = WeaponId };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadArenaEnemyWeaponList().Count;

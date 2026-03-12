@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class WorldMapBGMViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _songId1;
@@ -53,8 +56,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SongId1 = rom.u16(addr + 0);
-            SongId2 = rom.u16(addr + 2);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            SongId1 = values["W0"];
+            SongId2 = values["W2"];
             CanWrite = true;
         }
 
@@ -64,8 +68,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u16(CurrentAddr + 0, (ushort)SongId1);
-            rom.write_u16(CurrentAddr + 2, (ushort)SongId2);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = SongId1, ["W2"] = SongId2,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadWorldMapBGMList().Count;

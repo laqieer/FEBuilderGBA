@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SummonUnitViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _unitId;
@@ -50,8 +53,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 2 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u8(addr + 0);
-            Unknown = rom.u8(addr + 1);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitId = values["B0"];
+            Unknown = values["B1"];
             CanWrite = true;
         }
 
@@ -61,8 +65,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 2 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
-            rom.write_u8(CurrentAddr + 1, (byte)Unknown);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitId, ["B1"] = Unknown,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadSummonUnitList().Count;

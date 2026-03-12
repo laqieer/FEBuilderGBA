@@ -6,6 +6,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SummonsDemonKingViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] {
+                "B0", "B1", "B2", "B3", "W4", "B6", "B7",
+                "D8", "B12", "B13", "B14", "B15",
+                "B16", "B17", "B18", "B19"
+            });
+
         uint _currentAddr;
         bool _canWrite;
         uint _unitId;
@@ -91,22 +98,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 20 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            UnitId = rom.u8(addr + 0);
-            ClassId = rom.u8(addr + 1);
-            Commander = rom.u8(addr + 2);
-            LevelGrowth = rom.u8(addr + 3);
-            Coordinates = rom.u16(addr + 4);
-            Special = rom.u8(addr + 6);
-            Padding7 = rom.u8(addr + 7);
-            AIPointer = rom.u32(addr + 8);
-            Item1 = rom.u8(addr + 12);
-            Item2 = rom.u8(addr + 13);
-            Item3 = rom.u8(addr + 14);
-            Item4 = rom.u8(addr + 15);
-            PrimaryAI = rom.u8(addr + 16);
-            SecondaryAI = rom.u8(addr + 17);
-            TargetRecoveryAI = rom.u8(addr + 18);
-            RetreatAI = rom.u8(addr + 19);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitId = values["B0"];
+            ClassId = values["B1"];
+            Commander = values["B2"];
+            LevelGrowth = values["B3"];
+            Coordinates = values["W4"];
+            Special = values["B6"];
+            Padding7 = values["B7"];
+            AIPointer = values["D8"];
+            Item1 = values["B12"];
+            Item2 = values["B13"];
+            Item3 = values["B14"];
+            Item4 = values["B15"];
+            PrimaryAI = values["B16"];
+            SecondaryAI = values["B17"];
+            TargetRecoveryAI = values["B18"];
+            RetreatAI = values["B19"];
+            // Overlapping read: UnitGrow spans B3+B4 as u16
             UnitGrow = rom.u16(addr + 3);
             Level = U.ParseUnitGrowLV(UnitGrow);
             CanWrite = true;
@@ -118,22 +127,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 20 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)UnitId);
-            rom.write_u8(CurrentAddr + 1, (byte)ClassId);
-            rom.write_u8(CurrentAddr + 2, (byte)Commander);
-            rom.write_u8(CurrentAddr + 3, (byte)LevelGrowth);
-            rom.write_u16(CurrentAddr + 4, (ushort)Coordinates);
-            rom.write_u8(CurrentAddr + 6, (byte)Special);
-            rom.write_u8(CurrentAddr + 7, (byte)Padding7);
-            rom.write_u32(CurrentAddr + 8, AIPointer);
-            rom.write_u8(CurrentAddr + 12, (byte)Item1);
-            rom.write_u8(CurrentAddr + 13, (byte)Item2);
-            rom.write_u8(CurrentAddr + 14, (byte)Item3);
-            rom.write_u8(CurrentAddr + 15, (byte)Item4);
-            rom.write_u8(CurrentAddr + 16, (byte)PrimaryAI);
-            rom.write_u8(CurrentAddr + 17, (byte)SecondaryAI);
-            rom.write_u8(CurrentAddr + 18, (byte)TargetRecoveryAI);
-            rom.write_u8(CurrentAddr + 19, (byte)RetreatAI);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitId, ["B1"] = ClassId,
+                ["B2"] = Commander, ["B3"] = LevelGrowth,
+                ["W4"] = Coordinates, ["B6"] = Special, ["B7"] = Padding7,
+                ["D8"] = AIPointer,
+                ["B12"] = Item1, ["B13"] = Item2,
+                ["B14"] = Item3, ["B15"] = Item4,
+                ["B16"] = PrimaryAI, ["B17"] = SecondaryAI,
+                ["B18"] = TargetRecoveryAI, ["B19"] = RetreatAI,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadSummonsDemonKingList().Count;
