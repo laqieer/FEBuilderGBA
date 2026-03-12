@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~56% average across all domains (updated 2026-03-12 after round 12 gap fixes)
+**Overall Avalonia Completeness:** ~57% average across all domains (updated 2026-03-12 after round 16 gap fixes)
 
 ---
 
@@ -47,14 +47,14 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 5 | [Map Editors](#4-map-editors) | **~38%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
-| 8 | [Sound & Music](#7-sound--music) | **~40%** | 10 | No MIDI import, no playback |
+| 8 | [Sound & Music](#7-sound--music) | **~42%** | 10 | No MIDI import, no playback |
 | 9 | [Text & Dialogue](#8-text--dialogue) | **~35%** | 10 | No dialogue preview, no search |
 | 10 | [Support & Relationships](#9-support--relationships) | **~53%** | 7 | Unit names FIXED, no auto-collect |
 | 11 | [World Map](#10-world-map) | **~48%** | 5 | Point names FIXED, no map preview |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
 | 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Patch manager missing |
 | 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | No easy mode |
-| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~50%** | 28 | No filter combos, no OwnerDraw |
+| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~52%** | 28 | No filter combos, no OwnerDraw |
 
 ---
 
@@ -483,3 +483,5 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 11 — final):** Three more forms: Command85Pointer (list from command_85_pointer_table_pointer), ImageSystemArea (30→45%, filter combo with GBA color list from systemarea gradation pointers). Also fixed leftover stub in EventBattleTalkFE7. Total: 41+ forms improved across 9 commits, overall completeness ~55%.
 
 **Updated 2026-03-12 (round 12):** Cross-editor pick-and-return infrastructure (`PickResult`, `IPickableEditor`, `WindowManager.PickFromEditor<T>()`). Six editors implement `IPickableEditor`: ClassEditor, PortraitViewer, ItemEditor, UnitEditor, SongTable, ItemFE6. Pick buttons added to UnitEditor (Class/Portrait) and SoundBossBGM (Unit). Three map stubs fixed: MapEditor (0→25%, visual tile rendering with zoom), MapStyleEditor (0→20%, tileset list from map_obj_pointer), MapTerrainName (0→30%, terrain list from map_terrain_name_pointer). Gap analysis accuracy fixes: Unit growth simulator was already implemented (45→55%), item trait BitFlagPanels already wired.
+
+**Updated 2026-03-12 (rounds 13-16):** Systematic name resolution improvements across 15+ forms: SupportTalk/FE6/FE7 (unit names in list), SupportUnitEditor/FE6 (unit names), WorldMapPoint (point names from text ID), WorldMapPath (start/end IDs), WorldMapBGM (song names), ArenaClass/ArenaEnemyWeapon (class/item names), ItemStatBonuses (item names), SoundBossBGM/SoundFootSteps (unit/class names), MonsterItem (item names), SummonUnit/SummonsDemonKing (unit/class names), LinkArenaDenyUnit (unit names). Overall completeness ~57%.
