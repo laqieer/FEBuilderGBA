@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -20,6 +21,68 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Enable drag-and-drop for image files
+            DragDrop.SetAllowDrop(this, true);
+            AddHandler(DragDrop.DragOverEvent, OnDragOver);
+            AddHandler(DragDrop.DropEvent, OnDrop);
+        }
+
+        void OnDragOver(object? sender, DragEventArgs e)
+        {
+            if (!e.Data.Contains(DataFormats.Files)) { e.DragEffects = DragDropEffects.None; return; }
+            var files = e.Data.GetFiles();
+            if (files != null)
+            {
+                foreach (var f in files)
+                {
+                    string ext = Path.GetExtension(f.Path.LocalPath).ToLowerInvariant();
+                    if (ext == ".png" || ext == ".bmp") { e.DragEffects = DragDropEffects.Copy; return; }
+                }
+            }
+            e.DragEffects = DragDropEffects.None;
+        }
+
+        void OnDrop(object? sender, DragEventArgs e)
+        {
+            var files = e.Data.GetFiles();
+            if (files == null) return;
+
+            foreach (var file in files)
+            {
+                string path = file.Path.LocalPath;
+                string ext = Path.GetExtension(path).ToLowerInvariant();
+                if (ext == ".png" || ext == ".bmp")
+                {
+                    ImportImageFromFile(path);
+                    return;
+                }
+            }
+        }
+
+        void ImportImageFromFile(string filePath)
+        {
+            try
+            {
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 240, 160, 16);
+                if (loadResult == null) return;
+                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                uint addr = _vm.CurrentAddr;
+                var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+
+                if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
+
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                LoadImage();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         void LoadList()

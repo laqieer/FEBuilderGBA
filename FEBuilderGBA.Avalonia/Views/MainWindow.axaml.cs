@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
@@ -27,6 +28,63 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += MainWindow_Opened;
             Closing += MainWindow_Closing;
             FilterTextBox.TextChanged += FilterTextBox_TextChanged;
+
+            // Enable drag-and-drop for ROM files
+            DragDrop.SetAllowDrop(this, true);
+            AddHandler(DragDrop.DragOverEvent, OnDragOver);
+            AddHandler(DragDrop.DropEvent, OnDrop);
+        }
+
+        void OnDragOver(object? sender, DragEventArgs e)
+        {
+            e.DragEffects = e.Data.Contains(DataFormats.Files)
+                ? DragDropEffects.Copy : DragDropEffects.None;
+        }
+
+        void OnDrop(object? sender, DragEventArgs e)
+        {
+            var files = e.Data.GetFiles();
+            if (files == null) return;
+
+            foreach (var file in files)
+            {
+                string path = file.Path.LocalPath;
+                string ext = Path.GetExtension(path).ToLowerInvariant();
+                if (ext == ".gba")
+                {
+                    bool ok = LoadRomFile(path);
+                    if (!ok)
+                        CoreState.Services.ShowError($"Failed to load ROM: {path}");
+                    return;
+                }
+                if (ext == ".ups")
+                {
+                    // Apply UPS patch if a ROM is already loaded
+                    if (CoreState.ROM == null)
+                    {
+                        CoreState.Services.ShowError("Load a ROM first before applying a UPS patch.");
+                        return;
+                    }
+                    try
+                    {
+                        byte[] patchData = File.ReadAllBytes(path);
+                        byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
+                        if (result == null || !string.IsNullOrEmpty(errorMessage))
+                        {
+                            CoreState.Services.ShowError($"UPS patch failed: {errorMessage}");
+                            return;
+                        }
+                        // Replace ROM data with patched data
+                        Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
+                        CoreState.Services.ShowInfo($"UPS patch applied: {Path.GetFileName(path)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        CoreState.Services.ShowError($"Failed to apply UPS patch: {ex.Message}");
+                    }
+                    return;
+                }
+            }
         }
 
         private async void MainWindow_Opened(object? sender, EventArgs e)
