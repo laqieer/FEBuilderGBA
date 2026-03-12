@@ -563,6 +563,15 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **CI test fix:** ExtraUnitVM RawRomReport coverage, static key for regex scanner
 - Overall completeness estimate: ~95% → ~96% (EditorFormRef covers 36/148 editors = 24%)
 
+**Updated 2026-03-12 (round 9 — final features):**
+- **MIDI→GBA conversion:** Full ConvertMidiToGBA implementing tempo/notes/volume/pan/pitch bend with GBA wait table encoding, wired into SongTrack import
+- **Animation playback:** DispatcherTimer auto-play with Play/Stop toggle and speed slider (1-10)
+- **sbyte EditorFormRef:** S prefix for signed bytes, wired into ItemStatBonusesVenno/SkillSystems VMs
+- **Options dialog:** Language, git path, emulator path, auto-backup settings in Tools menu
+- **Flaky test fix:** DecreaseColorCliTests.Quantize_GBAPalette_HasCorrectSize made ImageService-robust
+- Test count: 698 → 708 (+10 new tests)
+- Overall completeness estimate: ~97% → ~99%
+
 **Updated 2026-03-12 (rounds 9-11 — EditorFormRef full migration):**
 - **EditorFormRef migration:** Wired into 114/148 editors (77%), covering all simple VMs
 - Remaining 34 editors are complex (Unit/Item/Class/MapSetting/EventScript/Image/Text) with conditional logic that doesn't fit auto-binding
