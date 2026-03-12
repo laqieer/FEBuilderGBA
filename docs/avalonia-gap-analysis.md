@@ -562,3 +562,9 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - **Flaky test fix:** Quantize_GBAPaletteFormat now robust without ImageService
 - **CI test fix:** ExtraUnitVM RawRomReport coverage, static key for regex scanner
 - Overall completeness estimate: ~95% → ~96% (EditorFormRef covers 36/148 editors = 24%)
+
+**Updated 2026-03-12 (rounds 9-11 — EditorFormRef full migration):**
+- **EditorFormRef migration:** Wired into 114/148 editors (77%), covering all simple VMs
+- Remaining 34 editors are complex (Unit/Item/Class/MapSetting/EventScript/Image/Text) with conditional logic that doesn't fit auto-binding
+- Test count: 698 (unchanged — refactoring only)
+- Overall completeness estimate: ~96% → ~97%
