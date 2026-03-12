@@ -1,57 +1,52 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyPleaseWaitView : Window, IEditorView
+    public partial class NotifyPleaseWaitView : Window
     {
-        readonly NotifyPleaseWaitViewModel _vm = new();
+        bool _forceClosing;
 
-        public string ViewTitle => "Please Wait";
-        public bool IsLoaded => _vm.IsLoaded;
+        /// <summary>Raised when the user clicks Cancel.</summary>
+        public event Action? CancelRequested;
 
-        public NotifyPleaseWaitView()
+        public NotifyPleaseWaitView() : this(new NotifyPleaseWaitViewModel()) { }
+
+        public NotifyPleaseWaitView(NotifyPleaseWaitViewModel vm)
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            DataContext = vm;
         }
 
-        void LoadList()
+        void Cancel_Click(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("NotifyPleaseWaitView.LoadList failed: {0}", ex.Message);
-            }
+            CancelRequested?.Invoke();
         }
 
-        void OnSelected(uint addr)
+        /// <summary>
+        /// Close the dialog programmatically (from the background task completion).
+        /// </summary>
+        public void ForceClose()
         {
-            try
-            {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("NotifyPleaseWaitView.OnSelected failed: {0}", ex.Message);
-            }
+            _forceClosing = true;
+            Close();
         }
 
-        void UpdateUI()
+        /// <summary>
+        /// Prevent the user from closing the dialog via the window chrome close button
+        /// while work is in progress. Only <see cref="ForceClose"/> can close it.
+        /// </summary>
+        protected override void OnClosing(WindowClosingEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            if (!_forceClosing)
+            {
+                // Don't let the user dismiss the dialog by clicking X — they should use Cancel.
+                e.Cancel = true;
+                return;
+            }
+            base.OnClosing(e);
         }
-
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

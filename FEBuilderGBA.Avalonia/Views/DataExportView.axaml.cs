@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
@@ -53,38 +54,97 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (file == null) return;
 
+            var tableName = _vm.SelectedTable;
+            var path = file.Path.LocalPath;
+
             try
             {
-                var table = StructExportCore.GetTable(_vm.SelectedTable);
-                if (table == null)
+                await ProgressDialogService.RunWithProgress(this, "Exporting Data...",
+                    async (progress, ct) =>
                 {
-                    _vm.StatusMessage = $"Table '{_vm.SelectedTable}' not found.";
-                    return;
-                }
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = $"Loading table definition for '{tableName}'...",
+                        PercentComplete = -1
+                    });
 
-                var structDef = StructExportCore.LoadStructDef(rom, table);
-                if (structDef == null)
-                {
-                    _vm.StatusMessage = $"No struct definition for '{_vm.SelectedTable}'. Ensure config/data/ has the definition file.";
-                    return;
-                }
+                    var table = StructExportCore.GetTable(tableName);
+                    if (table == null)
+                        throw new InvalidOperationException($"Table '{tableName}' not found.");
 
-                var rows = StructExportCore.ExportTable(rom, table, structDef);
-                if (rows.Count == 0)
-                {
-                    _vm.StatusMessage = "No data to export.";
-                    return;
-                }
+                    ct.ThrowIfCancellationRequested();
 
-                var sb = new StringBuilder();
-                var headers = rows[0].Keys.ToList();
-                sb.AppendLine(string.Join("\t", headers));
-                foreach (var row in rows)
-                    sb.AppendLine(string.Join("\t", headers.Select(h => row.TryGetValue(h, out var v) ? v : "")));
+                    var structDef = StructExportCore.LoadStructDef(rom, table);
+                    if (structDef == null)
+                        throw new InvalidOperationException(
+                            $"No struct definition for '{tableName}'. Ensure config/data/ has the definition file.");
 
-                var path = file.Path.LocalPath;
-                File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
-                _vm.StatusMessage = $"Exported {rows.Count} rows to {Path.GetFileName(path)}";
+                    ct.ThrowIfCancellationRequested();
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = "Reading ROM data...",
+                        PercentComplete = 10
+                    });
+
+                    var rows = StructExportCore.ExportTable(rom, table, structDef);
+                    if (rows.Count == 0)
+                        throw new InvalidOperationException("No data to export.");
+
+                    ct.ThrowIfCancellationRequested();
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = $"Writing {rows.Count} rows...",
+                        PercentComplete = 50
+                    });
+
+                    var sb = new StringBuilder();
+                    var headers = rows[0].Keys.ToList();
+                    sb.AppendLine(string.Join("\t", headers));
+
+                    for (int i = 0; i < rows.Count; i++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var row = rows[i];
+                        sb.AppendLine(string.Join("\t",
+                            headers.Select(h => row.TryGetValue(h, out var v) ? v : "")));
+
+                        if (rows.Count > 50 && i % 50 == 0)
+                        {
+                            int pct = 50 + (int)(50.0 * i / rows.Count);
+                            progress.Report(new ProgressInfo
+                            {
+                                Message = $"Writing row {i + 1} of {rows.Count}...",
+                                PercentComplete = pct
+                            });
+                        }
+                    }
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = "Saving file...",
+                        PercentComplete = 95
+                    });
+
+                    await File.WriteAllTextAsync(path, sb.ToString(), Encoding.UTF8, ct);
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = "Done.",
+                        PercentComplete = 100
+                    });
+                });
+
+                _vm.StatusMessage = $"Exported to {Path.GetFileName(path)}";
+            }
+            catch (InvalidOperationException ex) when (ex.InnerException != null)
+            {
+                _vm.StatusMessage = $"Export failed: {ex.InnerException.Message}";
+            }
+            catch (InvalidOperationException ex)
+            {
+                _vm.StatusMessage = $"Export failed: {ex.Message}";
             }
             catch (Exception ex)
             {
@@ -123,49 +183,82 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (files.Count == 0) return;
 
+            var tableName = _vm.SelectedTable;
+            var importPath = files[0].Path.LocalPath;
+
             _undoService.Begin("Import Data");
             try
             {
-                var path = files[0].Path.LocalPath;
-                var lines = File.ReadAllLines(path, Encoding.UTF8);
-                if (lines.Length < 2)
+                await ProgressDialogService.RunWithProgress(this, "Importing Data...",
+                    async (progress, ct) =>
                 {
-                    _undoService.Rollback();
-                    _vm.StatusMessage = "TSV file has no data rows.";
-                    return;
-                }
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = "Reading TSV file...",
+                        PercentComplete = -1
+                    });
 
-                var table = StructExportCore.GetTable(_vm.SelectedTable);
-                if (table == null)
-                {
-                    _undoService.Rollback();
-                    _vm.StatusMessage = $"Table '{_vm.SelectedTable}' not found.";
-                    return;
-                }
+                    var lines = await File.ReadAllLinesAsync(importPath, Encoding.UTF8, ct);
+                    if (lines.Length < 2)
+                        throw new InvalidOperationException("TSV file has no data rows.");
 
-                var structDef = StructExportCore.LoadStructDef(rom, table);
-                if (structDef == null)
-                {
-                    _undoService.Rollback();
-                    _vm.StatusMessage = $"No struct definition for '{_vm.SelectedTable}'. Ensure config/data/ has the definition file.";
-                    return;
-                }
+                    ct.ThrowIfCancellationRequested();
 
-                var headers = lines[0].Split('\t');
-                var entries = new List<(int index, Dictionary<string, string> fields)>();
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    if (string.IsNullOrWhiteSpace(lines[i])) continue;
-                    var cols = lines[i].Split('\t');
-                    var fields = new Dictionary<string, string>();
-                    for (int c = 0; c < headers.Length && c < cols.Length; c++)
-                        fields[headers[c]] = cols[c];
-                    entries.Add((i - 1, fields));
-                }
+                    var table = StructExportCore.GetTable(tableName);
+                    if (table == null)
+                        throw new InvalidOperationException($"Table '{tableName}' not found.");
 
-                int written = StructExportCore.WriteTable(rom, table, structDef, entries);
+                    var structDef = StructExportCore.LoadStructDef(rom, table);
+                    if (structDef == null)
+                        throw new InvalidOperationException(
+                            $"No struct definition for '{tableName}'. Ensure config/data/ has the definition file.");
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = "Parsing data...",
+                        PercentComplete = 30
+                    });
+
+                    var headers = lines[0].Split('\t');
+                    var entries = new List<(int index, Dictionary<string, string> fields)>();
+                    for (int i = 1; i < lines.Length; i++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                        var cols = lines[i].Split('\t');
+                        var fields = new Dictionary<string, string>();
+                        for (int c = 0; c < headers.Length && c < cols.Length; c++)
+                            fields[headers[c]] = cols[c];
+                        entries.Add((i - 1, fields));
+                    }
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = $"Writing {entries.Count} entries to ROM...",
+                        PercentComplete = 60
+                    });
+
+                    int written = StructExportCore.WriteTable(rom, table, structDef, entries);
+
+                    progress.Report(new ProgressInfo
+                    {
+                        Message = $"Imported {written} entries.",
+                        PercentComplete = 100
+                    });
+                });
+
                 _undoService.Commit();
-                _vm.StatusMessage = $"Imported {written} entries from {Path.GetFileName(path)}";
+                _vm.StatusMessage = $"Imported from {Path.GetFileName(importPath)}";
+            }
+            catch (InvalidOperationException ex) when (ex.InnerException != null)
+            {
+                _undoService.Rollback();
+                _vm.StatusMessage = $"Import failed: {ex.InnerException.Message}";
+            }
+            catch (InvalidOperationException ex)
+            {
+                _undoService.Rollback();
+                _vm.StatusMessage = $"Import failed: {ex.Message}";
             }
             catch (Exception ex)
             {

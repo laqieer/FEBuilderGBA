@@ -1,33 +1,50 @@
-using System;
-using System.Collections.Generic;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// ViewModel for the progress dialog (NotifyPleaseWaitView).
+    /// Supports determinate (0-100%) and indeterminate (spinning) progress.
+    /// </summary>
     public class NotifyPleaseWaitViewModel : ViewModelBase
     {
-        uint _currentAddr;
-        bool _isLoaded;
+        string _title = "Please Wait";
+        string _statusMessage = "";
+        int _percentComplete;
+        bool _isIndeterminate = true;
+        bool _isCancelVisible;
 
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-
-        public List<AddrResult> LoadList()
+        /// <summary>Dialog title.</summary>
+        public string Title
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Please Wait", 0));
-            return result;
+            get => _title;
+            set => SetField(ref _title, value);
         }
 
-        public void LoadEntry(uint addr)
+        /// <summary>Current status message shown below the progress bar.</summary>
+        public string StatusMessage
         {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
+            get => _statusMessage;
+            set => SetField(ref _statusMessage, value);
+        }
 
-            CurrentAddr = addr;
-            IsLoaded = true;
+        /// <summary>Percentage (0-100) when in determinate mode.</summary>
+        public int PercentComplete
+        {
+            get => _percentComplete;
+            set => SetField(ref _percentComplete, value);
+        }
+
+        /// <summary>True for a spinning/indeterminate progress bar, false for percentage-based.</summary>
+        public bool IsIndeterminate
+        {
+            get => _isIndeterminate;
+            set => SetField(ref _isIndeterminate, value);
+        }
+
+        /// <summary>Whether the Cancel button is shown.</summary>
+        public bool IsCancelVisible
+        {
+            get => _isCancelVisible;
+            set => SetField(ref _isCancelVisible, value);
         }
     }
 }
