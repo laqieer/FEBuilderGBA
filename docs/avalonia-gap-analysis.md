@@ -229,7 +229,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | **SongTrack** | **25%** | **MIDI/WAV import-export, track visualization, playback** |
 | **SongInstrument** | **20%** | **128 instruments, type-specific panels, wave import** |
 | SongInstrumentDirectSound | 50% | DPCM detection, Hz combo, validation |
-| SoundRoom | **50%** | ~~Song names~~ **FIXED** — song names in list. Missing: position display, patch detection |
+| SoundRoom | **55%** | ~~Song names~~ **FIXED**, ~~Jump to Song~~ **FIXED**. Missing: position display, patch detection |
 | SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
 | SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
 | SoundBossBGM | **55%** | ~~Unit names~~ **FIXED**, ~~Song jump~~ **FIXED** — unit names + pick + Jump to Song. Missing: portraits |

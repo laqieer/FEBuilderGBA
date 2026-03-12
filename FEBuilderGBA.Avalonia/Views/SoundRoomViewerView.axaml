@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
+            <Button Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song Length:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
