@@ -1750,5 +1750,198 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("tsaPointerAddr", parameters[6].Name);
             Assert.Equal("palPointerAddr", parameters[7].Name);
         }
+
+        // ---- LZ77 round-trip tests: encode → Import → decompress → verify ----
+
+        [Fact]
+        public void Import3Pointer_RoundTrip_TileDataSurvivesLZ77()
+        {
+            // Full round-trip: pixels → EncodeTSA → LZ77 compress → write to ROM
+            //   → read back via LZ77.decompress → verify tile data matches
+            // Uses 16x16 (4 tiles) because LZ77.decompress requires >= 3 bytes uncompressed,
+            // and a single 8x8 tile produces only 2-byte TSA which is below the minimum.
+            var rom = CreateTestRom();
+            int w = 16, h = 16;
+
+            // Create a pattern: each quadrant has a different gradient
+            byte[] pixels = new byte[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    pixels[y * w + x] = (byte)((x + y * 3) % 16);
+
+            byte[] palette = new byte[32]; // 16 colors * 2 bytes
+
+            uint imgPtrAddr = 0x100;
+            uint tsaPtrAddr = 0x104;
+            uint palPtrAddr = 0x108;
+
+            // Encode TSA to get expected tile data before import
+            var tsaResult = ImageImportCore.EncodeTSA(pixels, w, h);
+            Assert.NotNull(tsaResult);
+            byte[] expectedTileData = tsaResult.TileData;
+            byte[] expectedTSAData = tsaResult.TSAData;
+            // 4 tiles * 2 bytes = 8 byte TSA, above LZ77 minimum
+            Assert.True(expectedTSAData.Length >= 3, "TSA data must be >= 3 bytes for LZ77");
+
+            // Import (writes LZ77-compressed data to ROM)
+            var result = ImageImportCore.Import3Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, tsaPtrAddr, palPtrAddr);
+
+            Assert.True(result.Success, result.Error ?? "Import failed");
+
+            // Read back tile data: pointer → offset → LZ77 decompress
+            uint tileOffset = result.TileDataOffset;
+            Assert.Equal(0x10, rom.Data[tileOffset]); // LZ77 header
+            byte[] decompressedTiles = LZ77.decompress(rom.Data, tileOffset);
+            Assert.Equal(expectedTileData.Length, decompressedTiles.Length);
+            Assert.Equal(expectedTileData, decompressedTiles);
+
+            // Read back TSA data: pointer → offset → LZ77 decompress
+            uint tsaOffset = result.TSADataOffset;
+            Assert.Equal(0x10, rom.Data[tsaOffset]); // LZ77 header
+            byte[] decompressedTSA = LZ77.decompress(rom.Data, tsaOffset);
+            Assert.Equal(expectedTSAData.Length, decompressedTSA.Length);
+            Assert.Equal(expectedTSAData, decompressedTSA);
+        }
+
+        [Fact]
+        public void Import3Pointer_RoundTrip_LargerImage_16x16()
+        {
+            // 16x16 image = 4 tiles (2x2), tests deduplication + LZ77 round-trip
+            var rom = CreateTestRom();
+            int w = 16, h = 16;
+
+            // Create a checkerboard pattern across tiles
+            byte[] pixels = new byte[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    pixels[y * w + x] = (byte)(((x / 8) + (y / 8)) % 2 == 0 ? 1 : 2);
+
+            byte[] palette = new byte[32];
+
+            uint imgPtrAddr = 0x100;
+            uint tsaPtrAddr = 0x104;
+            uint palPtrAddr = 0x108;
+
+            var tsaResult = ImageImportCore.EncodeTSA(pixels, w, h);
+            Assert.NotNull(tsaResult);
+            // 2x2 checkerboard with 2 unique tiles (dedup should find 2)
+            Assert.Equal(2, tsaResult.UniqueTileCount);
+
+            var result = ImageImportCore.Import3Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, tsaPtrAddr, palPtrAddr);
+
+            Assert.True(result.Success, result.Error ?? "Import failed");
+
+            // Verify tile data round-trip through LZ77
+            byte[] decompressedTiles = LZ77.decompress(rom.Data, result.TileDataOffset);
+            Assert.Equal(tsaResult.TileData, decompressedTiles);
+
+            // Verify TSA data round-trip through LZ77
+            byte[] decompressedTSA = LZ77.decompress(rom.Data, result.TSADataOffset);
+            Assert.Equal(tsaResult.TSAData, decompressedTSA);
+        }
+
+        [Fact]
+        public void Import2Pointer_RoundTrip_TileDataSurvivesLZ77()
+        {
+            // Import2Pointer: no TSA, just tiles + palette
+            var rom = CreateTestRom();
+            int w = 8, h = 8;
+
+            byte[] pixels = new byte[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    pixels[y * w + x] = (byte)((x + y) % 16);
+
+            byte[] palette = new byte[32];
+
+            uint imgPtrAddr = 0x200;
+            uint palPtrAddr = 0x204;
+
+            // Get expected tile data (direct encoding, no TSA dedup)
+            byte[] expectedTileData = ImageImportCore.EncodeDirectTiles4bpp(pixels, w, h);
+            Assert.NotNull(expectedTileData);
+
+            var result = ImageImportCore.Import2Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, palPtrAddr);
+
+            Assert.True(result.Success, result.Error ?? "Import failed");
+
+            // Verify tile data survives LZ77 round-trip
+            byte[] decompressedTiles = LZ77.decompress(rom.Data, result.TileDataOffset);
+            Assert.Equal(expectedTileData.Length, decompressedTiles.Length);
+            Assert.Equal(expectedTileData, decompressedTiles);
+
+            // Verify palette written raw (not compressed)
+            for (int i = 0; i < palette.Length; i++)
+                Assert.Equal(palette[i], rom.Data[result.PaletteOffset + i]);
+        }
+
+        [Fact]
+        public void WriteCompressedToROM_RoundTrip_DataPreserved()
+        {
+            // Direct test of WriteCompressedToROM: write → decompress → compare
+            var rom = CreateTestRom();
+
+            // Simulate 4-tile data (128 bytes) with patterns
+            byte[] tileData = new byte[128];
+            for (int i = 0; i < tileData.Length; i++)
+                tileData[i] = (byte)(i % 32);
+
+            uint ptrAddr = 0x50;
+            uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, ptrAddr);
+
+            Assert.NotEqual(U.NOT_FOUND, writeAddr);
+
+            // Verify LZ77 header
+            Assert.Equal(0x10, rom.Data[writeAddr]);
+
+            // Verify uncompressed size in header
+            uint uncompSize = LZ77.getUncompressSize(rom.Data, writeAddr);
+            Assert.Equal((uint)tileData.Length, uncompSize);
+
+            // Full round-trip
+            byte[] decompressed = LZ77.decompress(rom.Data, writeAddr);
+            Assert.Equal(tileData.Length, decompressed.Length);
+            Assert.Equal(tileData, decompressed);
+
+            // Verify pointer updated correctly
+            uint ptr = (uint)(rom.Data[ptrAddr] | (rom.Data[ptrAddr + 1] << 8)
+                | (rom.Data[ptrAddr + 2] << 16) | (rom.Data[ptrAddr + 3] << 24));
+            Assert.Equal(writeAddr + 0x08000000, ptr);
+        }
+
+        [Fact]
+        public void Import3Pointer_RoundTrip_CompressedPalette_Survives()
+        {
+            // Verify palette LZ77 round-trip when compressPalette=true
+            var rom = CreateTestRom();
+            int w = 8, h = 8;
+            byte[] pixels = MakeSolidTile(3, w, h);
+
+            // Create a non-trivial palette with distinct colors
+            byte[] palette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)(i | (i << 5) | (i << 10)); // grayscale ramp
+                palette[i * 2] = (byte)(color & 0xFF);
+                palette[i * 2 + 1] = (byte)((color >> 8) & 0xFF);
+            }
+
+            uint imgPtrAddr = 0x100;
+            uint tsaPtrAddr = 0x104;
+            uint palPtrAddr = 0x108;
+
+            var result = ImageImportCore.Import3Pointer(rom, pixels, palette, w, h,
+                imgPtrAddr, tsaPtrAddr, palPtrAddr, compressPalette: true);
+
+            Assert.True(result.Success, result.Error ?? "Import failed");
+
+            // Decompress palette and verify it matches original
+            byte[] decompressedPal = LZ77.decompress(rom.Data, result.PaletteOffset);
+            Assert.Equal(palette.Length, decompressedPal.Length);
+            Assert.Equal(palette, decompressedPal);
+        }
     }
 }
