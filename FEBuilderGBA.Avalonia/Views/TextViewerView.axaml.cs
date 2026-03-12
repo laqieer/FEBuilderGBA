@@ -195,6 +195,33 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void OnSearchContentClick(object? sender, RoutedEventArgs e)
+        {
+            string query = ContentSearchBox.Text ?? "";
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                SearchResultLabel.Text = "Enter a search term.";
+                return;
+            }
+            try
+            {
+                var results = _vm.SearchTexts(query);
+                TextList.SetItems(results);
+                SearchResultLabel.Text = $"{results.Count} results";
+            }
+            catch (Exception ex)
+            {
+                SearchResultLabel.Text = $"Error: {ex.Message}";
+                Log.Error("SearchContent failed: {0}", ex.Message);
+            }
+        }
+
+        void OnShowAllClick(object? sender, RoutedEventArgs e)
+        {
+            SearchResultLabel.Text = "";
+            LoadList();
+        }
+
         public void SelectFirstItem()
         {
             TextList.SelectFirst();

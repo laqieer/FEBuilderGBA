@@ -3,7 +3,7 @@
 **Generated:** 2026-03-11
 **Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~59% average across all domains (updated 2026-03-12 after round 22 gap fixes)
+**Overall Avalonia Completeness:** ~60% average across all domains (updated 2026-03-12 after round 24 gap fixes)
 
 ---
 
@@ -48,7 +48,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
 | 8 | [Sound & Music](#7-sound--music) | **~43%** | 10 | No MIDI import, no playback |
-| 9 | [Text & Dialogue](#8-text--dialogue) | **~35%** | 10 | No dialogue preview, no search |
+| 9 | [Text & Dialogue](#8-text--dialogue) | **~38%** | 10 | ~~Dialogue preview~~ FIXED, ~~Search~~ FIXED |
 | 10 | [Support & Relationships](#9-support--relationships) | **~53%** | 7 | Unit names FIXED, no auto-collect |
 | 11 | [World Map](#10-world-map) | **~48%** | 5 | Point names FIXED, no map preview |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
@@ -243,11 +243,11 @@ These are the core music editing tools. Without MIDI import/export and instrumen
 
 ## 8. Text & Dialogue
 
-**Domain Average: ~35%**
+**Domain Average: ~38%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| **TextForm / TextViewerVM** | **30%** | **No dialogue preview, no search, no validation** (has TSV export/import) |
+| **TextForm / TextViewerVM** | **45%** | ~~Dialogue preview~~ **FIXED** (bracket highlighting), ~~Search~~ **FIXED** (content search across all texts). Has TSV export/import + individual write. Missing: validation |
 | TextCharCodeForm / TextCharCodeVM | 35% | No font preview, no frequency analysis |
 | TextDicForm / TextDicVM | **50%** | ~~list not populated~~ **FIXED** — AddressListControl from dic_main_pointer, text decode preview, unit/class name resolution. Missing: chapter/title sub-lists |
 | TextRefAddDialog | 30% | No UseTextIDCache integration |
@@ -258,8 +258,8 @@ These are the core music editing tools. Without MIDI import/export and instrumen
 | TextBadCharPopup | 25% | Minimal shell |
 | TextScriptCategorySelect | 25% | Hardcoded stub |
 
-### Critical: TextForm (30%)
-The text editor (3,941 lines in WinForms) has basic read/write and TSV export/import but lacks dialogue preview, search, and validation. Individual text write-back with Huffman encoding is partially functional.
+### TextForm (45%)
+The text editor has read/write, TSV export/import, dialogue preview with control code highlighting, content search across all texts, and individual Huffman write-back. Missing: validation warnings, cross-reference display.
 
 ---
 
@@ -443,7 +443,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | ~~1~~ | ~~**Undo system wiring**~~ | ~~All edits are irreversible~~ | **FIXED** |
 | 2 | **InputFormRef equivalent** (EditorFormRef) | 80% of boilerplate | Open |
 | 3 | **EventScriptForm** implementation | Core editing blocked | **Planned round 2** |
-| 4 | **TextForm** individual text editing | All text editing blocked | Open |
+| ~~4~~ | ~~**TextForm** individual text editing~~ | ~~All text editing blocked~~ | **FIXED** (45%) |
 | 5 | **MapEditorForm** visual map editor | Map editing blocked | **Planned round 2** |
 | 6 | **Image import pipeline** (LZ77 + TSA + pointer) | No image editing | Open |
 | ~~7~~ | ~~**HexEditorForm** hex viewer/editor~~ | ~~Fundamental tool missing~~ | **FIXED** |

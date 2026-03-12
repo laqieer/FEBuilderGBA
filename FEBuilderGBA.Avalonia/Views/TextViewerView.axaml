@@ -15,6 +15,14 @@
           <Button Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
         </StackPanel>
 
+        <!-- Content search -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBox Name="ContentSearchBox" Watermark="Search in text content..." Width="300" />
+          <Button Content="Search Content" Click="OnSearchContentClick" />
+          <Button Content="Show All" Click="OnShowAllClick" />
+          <TextBlock Name="SearchResultLabel" VerticalAlignment="Center" Foreground="Gray" Margin="8,0,0,0" />
+        </StackPanel>
+
         <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
 
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">

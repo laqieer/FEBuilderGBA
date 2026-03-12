@@ -262,6 +262,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
+        /// <summary>
+        /// Search all text entries for content containing the given query.
+        /// Returns a filtered list of matching entries.
+        /// </summary>
+        public List<AddrResult> SearchTexts(string query)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || string.IsNullOrWhiteSpace(query))
+                return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.text_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x2000; i++)
+            {
+                uint entryAddr = (uint)(baseAddr + i * 4);
+                if (entryAddr + 3 >= (uint)rom.Data.Length) break;
+
+                uint textPtr = rom.u32(entryAddr);
+                if (!U.isPointerOrNULL(textPtr)) break;
+
+                try
+                {
+                    string decoded = FETextDecode.Direct(i);
+                    if (decoded == null) continue;
+                    decoded = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
+
+                    if (decoded.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    {
+                        string preview = StripControlChars(decoded);
+                        if (preview != null && preview.Length > 40)
+                            preview = preview.Substring(0, 40) + "...";
+                        result.Add(new AddrResult(entryAddr, $"{U.ToHexString(i)} {preview}", i));
+                    }
+                }
+                catch { }
+            }
+            return result;
+        }
+
         public int GetListCount() => LoadTextList().Count;
 
         /// <summary>
