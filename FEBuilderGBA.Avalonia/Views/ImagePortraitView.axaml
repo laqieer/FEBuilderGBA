@@ -80,23 +80,31 @@
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Class Card:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="5" Grid.Column="1" Name="ClassCardPtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
-          <!-- Row 6: Mouth Coord -->
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth Coord:" VerticalAlignment="Center" Margin="0,2" />
-          <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <TextBlock Text="X:" VerticalAlignment="Center" />
-            <TextBlock Name="MouthXLabel" VerticalAlignment="Center" />
-            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
-            <TextBlock Name="MouthYLabel" VerticalAlignment="Center" />
-          </StackPanel>
+          <!-- Row 6: Mouth Coord (editable) -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth X:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Position_ValueChanged" />
 
-          <!-- Row 7: Eye Coord -->
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Eye Coord:" VerticalAlignment="Center" Margin="0,2" />
-          <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <TextBlock Text="X:" VerticalAlignment="Center" />
-            <TextBlock Name="EyeXLabel" VerticalAlignment="Center" />
-            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
-            <TextBlock Name="EyeYLabel" VerticalAlignment="Center" />
-          </StackPanel>
+          <TextBlock Grid.Row="6" Grid.Column="2" Text="Mouth Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <NumericUpDown Grid.Row="6" Grid.Column="3" Name="MouthYInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Position_ValueChanged" />
+
+          <!-- Row 7: Eye Coord (editable) -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Eye X:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="EyeXInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Position_ValueChanged" />
+
+          <TextBlock Grid.Row="7" Grid.Column="2" Text="Eye Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <NumericUpDown Grid.Row="7" Grid.Column="3" Name="EyeYInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Position_ValueChanged" />
+
+          <!-- Write Positions button -->
+          <Button Grid.Row="7" Grid.Column="4" Grid.ColumnSpan="2" Content="Write Positions"
+                  Click="WritePositions_Click" Margin="8,2,0,2" VerticalAlignment="Center" />
 
           <!-- Row 8: Status (B24) -->
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Status:" VerticalAlignment="Center" Margin="0,2" />

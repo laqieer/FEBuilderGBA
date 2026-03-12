@@ -154,10 +154,10 @@ namespace FEBuilderGBA.Avalonia.Views
             PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
             MouthFramesPtrLabel.Text = $"0x{_vm.MouthFramesPtr:X08}";
             ClassCardPtrLabel.Text = $"0x{_vm.ClassCardPtr:X08}";
-            MouthXLabel.Text = _vm.MouthX.ToString();
-            MouthYLabel.Text = _vm.MouthY.ToString();
-            EyeXLabel.Text = _vm.EyeX.ToString();
-            EyeYLabel.Text = _vm.EyeY.ToString();
+            MouthXInput.Value = _vm.MouthX;
+            MouthYInput.Value = _vm.MouthY;
+            EyeXInput.Value = _vm.EyeX;
+            EyeYInput.Value = _vm.EyeY;
             StatusLabel.Text = $"0x{_vm.Status:X02}";
             Unused25Label.Text = $"0x{_vm.Unused25:X02}";
             Unused26Label.Text = $"0x{_vm.Unused26:X02}";
@@ -420,6 +420,49 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+        }
+
+        void Position_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            // Update VM from controls and live-refresh the face preview
+            _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
+            _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
+            _vm.EyeX = (uint)(EyeXInput.Value ?? 0);
+            _vm.EyeY = (uint)(EyeYInput.Value ?? 0);
+            _vm.RefreshFaceImage();
+            PortraitImage.SetImage(_vm.FaceImage);
+        }
+
+        void WritePositions_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            uint addr = _vm.CurrentAddr;
+            if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+
+            // Read current values from controls
+            _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
+            _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
+            _vm.EyeX = (uint)(EyeXInput.Value ?? 0);
+            _vm.EyeY = (uint)(EyeYInput.Value ?? 0);
+
+            _undoService.Begin("Write Portrait Positions");
+            try
+            {
+                rom.write_u8(addr + 20, _vm.MouthX);
+                rom.write_u8(addr + 21, _vm.MouthY);
+                rom.write_u8(addr + 22, _vm.EyeX);
+                rom.write_u8(addr + 23, _vm.EyeY);
+                _undoService.Commit();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Mouth/eye positions written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Write positions failed: {ex.Message}");
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
