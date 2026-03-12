@@ -33,6 +33,54 @@ namespace FEBuilderGBA.Avalonia.Views
             Ability2Flags.SetBitNames(AbilityFlagNames.UnitAbility2);
             Ability3Flags.SetBitNames(AbilityFlagNames.UnitAbility3);
             Ability4Flags.SetBitNames(AbilityFlagNames.UnitAbility4);
+
+            // Wire auto-recalculation on stat/growth/level/class changes
+            WireGrowthAutoRecalc();
+        }
+
+        /// <summary>
+        /// Subscribe to ValueChanged on all NumericUpDown controls that affect growth simulation,
+        /// plus the ClassIdCombo. When any value changes (and we're not loading), read UI and recalculate.
+        /// </summary>
+        void WireGrowthAutoRecalc()
+        {
+            // All NUDs that affect growth simulation
+            NumericUpDown[] growthNuds = {
+                LevelBox, HPBox, StrBox, SklBox, SpdBox, DefBox, ResBox, LckBox, ConBox,
+                GrowHPBox, GrowStrBox, GrowSklBox, GrowSpdBox, GrowDefBox, GrowResBox, GrowLckBox,
+                SimLevelBox,
+            };
+
+            foreach (var nud in growthNuds)
+            {
+                nud.ValueChanged += OnGrowthInputChanged;
+            }
+
+            // ClassIdCombo change also triggers recalc
+            ClassIdCombo.SelectionChanged += (_, _) =>
+            {
+                if (!_vm.IsLoading && _vm.CanWrite)
+                {
+                    ReadFromUI();
+                    RecalcGrowth();
+                }
+            };
+        }
+
+        void OnGrowthInputChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (!_vm.IsLoading && _vm.CanWrite)
+            {
+                ReadFromUI();
+                RecalcGrowth();
+            }
+        }
+
+        void RecalcGrowth()
+        {
+            _vm.SimLevel = (uint)(SimLevelBox.Value ?? 20);
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
         }
 
         void LoadList()
@@ -372,8 +420,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
         {
             ReadFromUI();
-            _vm.CalculateGrowth();
-            GrowthSimLabel.Text = _vm.GrowthSimText;
+            RecalcGrowth();
         }
 
         void Undo_Click(object? sender, RoutedEventArgs e)

@@ -115,7 +115,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Growth simulator
         string _growthSimText = "";
+        uint _simLevel = 20;
         public string GrowthSimText { get => _growthSimText; set => SetField(ref _growthSimText, value); }
+        public uint SimLevel { get => _simLevel; set => SetField(ref _simLevel, value); }
+
+        // Property names that trigger auto-recalculation of growth sim
+        static readonly HashSet<string> _growthTriggerProps = new()
+        {
+            nameof(Level), nameof(HP), nameof(Str), nameof(Skl), nameof(Spd),
+            nameof(Def), nameof(Res), nameof(Lck), nameof(Con),
+            nameof(GrowHP), nameof(GrowStr), nameof(GrowSkl), nameof(GrowSpd),
+            nameof(GrowDef), nameof(GrowRes), nameof(GrowLck),
+            nameof(ClassId), nameof(SimLevel),
+        };
+
+        /// <summary>
+        /// Returns true if the given property name should trigger growth recalculation.
+        /// </summary>
+        public static bool IsGrowthTrigger(string propertyName) => _growthTriggerProps.Contains(propertyName);
 
         public List<AddrResult> LoadUnitList()
         {
@@ -548,6 +565,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 sim.Grow(20, GrowSimulator.GrowOptionEnum.UnitGrow);
                 sb.AppendLine($"20  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+
+                // Custom level (skip if same as 10 or 20)
+                uint customLv = SimLevel;
+                if (customLv != 10 && customLv != 20 && customLv > 0)
+                {
+                    sim.Grow((int)customLv, GrowSimulator.GrowOptionEnum.UnitGrow);
+                    sb.AppendLine($"{customLv,-2}  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+                }
 
                 GrowthSimText = sb.ToString();
             }
