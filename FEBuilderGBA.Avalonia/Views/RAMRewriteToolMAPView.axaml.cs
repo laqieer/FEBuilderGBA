@@ -25,19 +25,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.IsLoading) return;
-            _undoService.Begin("RAM Rewrite MAP");
-            try
-            {
-                // Placeholder: write MAP data
-                _undoService.Commit();
-                _vm.MarkClean();
-            }
-            catch (Exception ex)
-            {
-                _undoService.Rollback();
-                Log.Error("RAMRewriteToolMAPView.Write", ex.ToString());
-            }
+            // RAM rewrite requires P/Invoke to read/write emulator process memory,
+            // which is only available on Windows with a running GBA emulator.
+            CoreState.Services?.ShowInfo(
+                "RAM rewrite requires a running GBA emulator (Windows only).\n" +
+                "This feature uses Windows P/Invoke to access emulator process memory\n" +
+                "and is not available in the cross-platform Avalonia build.");
         }
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
 

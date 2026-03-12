@@ -18,6 +18,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _otherRomLdrAddress = string.Empty;
         string _otherRomLdrRefPointer = string.Empty;
         string _otherRomName = string.Empty;
+        string _writeTargetInput = string.Empty;
         string _searchResults = string.Empty;
         bool _useAsmMap = true;
         int _testMatchDataSize;
@@ -50,6 +51,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string OtherRomLdrRefPointer { get => _otherRomLdrRefPointer; set => SetField(ref _otherRomLdrRefPointer, value); }
         /// <summary>Filename of the other loaded ROM.</summary>
         public string OtherRomName { get => _otherRomName; set => SetField(ref _otherRomName, value); }
+        /// <summary>Target ROM offset (without 0x08000000) to write as a pointer at AddressInput.</summary>
+        public string WriteTargetInput { get => _writeTargetInput; set => SetField(ref _writeTargetInput, value); }
         public string SearchResults { get => _searchResults; set => SetField(ref _searchResults, value); }
         /// <summary>Use ASM MAP file for enhanced search.</summary>
         public bool UseAsmMap { get => _useAsmMap; set => SetField(ref _useAsmMap, value); }
@@ -159,11 +162,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return results;
         }
 
-        /// <summary>Write a pointer value at the current address (placeholder for future ROM write logic).</summary>
+        /// <summary>
+        /// Parse the WriteTargetInput as a ROM offset, convert to a GBA pointer
+        /// (+ 0x08000000), and write the 4-byte value at the address specified by AddressInput.
+        /// </summary>
         public void WritePointerValue()
         {
-            // Placeholder: actual write logic would parse a target value and write it
-            // using rom.write_u32(addr, val) within an undo scope.
+            if (!TryParseAddress(out uint addr))
+            {
+                SearchResults = "Write failed: invalid address.";
+                return;
+            }
+
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                SearchResults = "Write failed: no ROM loaded.";
+                return;
+            }
+
+            if (addr + 3 >= (uint)rom.Data.Length)
+            {
+                SearchResults = "Write failed: address out of ROM range.";
+                return;
+            }
+
+            // Parse the target value
+            string targetText = (WriteTargetInput ?? "").Trim();
+            if (targetText.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                targetText = targetText.Substring(2);
+            if (!uint.TryParse(targetText, NumberStyles.HexNumber, null, out uint targetOffset))
+            {
+                SearchResults = "Write failed: invalid target address.";
+                return;
+            }
+
+            // Convert ROM offset to GBA pointer format if it looks like a ROM offset
+            uint writeVal;
+            if (targetOffset >= 0x08000000)
+            {
+                // Already in GBA pointer format
+                writeVal = targetOffset;
+            }
+            else
+            {
+                // ROM offset — add GBA base
+                writeVal = targetOffset + 0x08000000;
+            }
+
+            // Validate the pointer references a valid ROM location
+            uint romOffset = writeVal >= 0x08000000 ? writeVal - 0x08000000 : writeVal;
+            if (romOffset >= (uint)rom.Data.Length)
+            {
+                SearchResults = $"Write failed: target 0x{romOffset:X08} is beyond ROM size.";
+                return;
+            }
+
+            rom.write_u32(addr, writeVal);
+            SearchResults = $"Wrote 0x{writeVal:X08} at 0x{addr:X08}.";
+
+            // Refresh the display to show the updated value
+            RunSearch();
         }
     }
 }

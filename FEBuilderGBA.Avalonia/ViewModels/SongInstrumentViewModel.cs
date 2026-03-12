@@ -208,11 +208,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
+        /// <summary>
+        /// IDataVerifiable fallback: returns a single sentinel entry because the real
+        /// instrument list requires a base address supplied by the parent SongTrack view
+        /// via <see cref="LoadInstrumentList(uint)"/>.
+        /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
-            // Return a placeholder; the real list comes from LoadInstrumentList
+            if (BaseAddr != 0) return LoadInstrumentList(BaseAddr);
             var result = new List<AddrResult>();
             result.Add(new AddrResult(0, "Instrument Editor", 0));
             return result;

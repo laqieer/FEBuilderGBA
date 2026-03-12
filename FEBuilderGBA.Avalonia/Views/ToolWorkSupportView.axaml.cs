@@ -1,6 +1,10 @@
 using System;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -22,9 +26,58 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
-        void Update_Click(object? sender, RoutedEventArgs e)
+        async void Update_Click(object? sender, RoutedEventArgs e)
         {
-            // Update check placeholder - full implementation requires network access
+            _vm.AutoFeedbackStatus = "Checking for updates...";
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "FEBuilderGBA");
+                client.Timeout = TimeSpan.FromSeconds(15);
+
+                var response = await client.GetStringAsync(
+                    "https://api.github.com/repos/laqieer/FEBuilderGBA/releases/latest");
+
+                using var doc = JsonDocument.Parse(response);
+                var root = doc.RootElement;
+                string tagName = root.TryGetProperty("tag_name", out var tag) ? tag.GetString() ?? "" : "";
+                string htmlUrl = root.TryGetProperty("html_url", out var url) ? url.GetString() ?? "" : "";
+
+                string localVersion = U.getVersion();
+
+                if (string.IsNullOrEmpty(tagName))
+                {
+                    _vm.AutoFeedbackStatus = "Could not determine remote version.";
+                    return;
+                }
+
+                // Compare: tag_name is typically like "20260301.00" or "v20260301.00"
+                string remoteVer = tagName.TrimStart('v', 'V');
+                var info = new UpdateInfo();
+                var updateType = info.DetermineUpdateType(remoteVer);
+
+                if (updateType == UpdateInfo.PackageType.None)
+                {
+                    _vm.AutoFeedbackStatus = $"You are up to date. (Local: {localVersion}, Remote: {remoteVer})";
+                }
+                else
+                {
+                    _vm.AutoFeedbackStatus = $"Update available! Local: {localVersion}, Remote: {remoteVer}\n{htmlUrl}";
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                _vm.AutoFeedbackStatus = "Update check timed out. Please try again.";
+            }
+            catch (HttpRequestException ex)
+            {
+                _vm.AutoFeedbackStatus = $"Network error: {ex.Message}";
+            }
+            catch (Exception ex)
+            {
+                _vm.AutoFeedbackStatus = $"Update check failed: {ex.Message}";
+                Log.Error("ToolWorkSupportView.Update", ex.ToString());
+            }
         }
 
         void Community_Click(object? sender, RoutedEventArgs e)

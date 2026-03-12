@@ -40,12 +40,59 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Recover_Click(object? sender, RoutedEventArgs e)
         {
+            var currentRom = CoreState.ROM;
+            if (currentRom == null)
+            {
+                _vm.RecoveryStatus = "No ROM loaded.";
+                return;
+            }
+
+            string origPath = _vm.OriginalFilename;
+            if (string.IsNullOrEmpty(origPath) || !System.IO.File.Exists(origPath))
+            {
+                _vm.RecoveryStatus = "Please select a valid unmodified (vanilla) ROM file first.";
+                return;
+            }
+
             _undoService.Begin("Recover ROM Header");
             try
             {
-                // Placeholder: ROM header recovery logic
+                // Load the original ROM to get the clean header
+                ROM origRom = new ROM();
+                string version;
+                bool loaded = origRom.Load(origPath, out version);
+                if (!loaded)
+                {
+                    _undoService.Rollback();
+                    _vm.RecoveryStatus = $"Could not load original ROM. Unsupported version: {version}";
+                    return;
+                }
+
+                // Compare headers (first 0x100 bytes)
+                byte[] origHeader = origRom.getBinaryData(0, 0x100);
+                byte[] currentHeader = currentRom.getBinaryData(0, 0x100);
+
+                // Check if headers already match
+                if (U.memcmp(origHeader, currentHeader) == 0)
+                {
+                    _undoService.Rollback();
+                    _vm.RecoveryStatus = "ROM header is already correct. No recovery needed.";
+                    return;
+                }
+
+                // Count differing bytes for the status message
+                int diffCount = 0;
+                for (int i = 0; i < 0x100; i++)
+                {
+                    if (origHeader[i] != currentHeader[i])
+                        diffCount++;
+                }
+
+                // Write the original header over the current ROM's header
+                currentRom.write_range(0, origHeader);
                 _undoService.Commit();
-                _vm.RecoveryStatus = "Recovery complete.";
+
+                _vm.RecoveryStatus = $"Recovery complete. Restored {diffCount} byte(s) in ROM header (0x0 - 0xFF).";
             }
             catch (Exception ex)
             {

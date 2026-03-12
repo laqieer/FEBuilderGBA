@@ -26,9 +26,26 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Placeholder list; real list populated by parent context
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+
+                // Load terrain BG lookup table from the first pointer (default terrain set)
+                uint pointer = rom.RomInfo.lookup_table_battle_bg_00_pointer;
+                if (pointer == 0) return;
+                uint baseAddr = rom.p32(pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+
+                uint count = rom.RomInfo.map_terrain_type_count;
                 var items = new System.Collections.Generic.List<AddrResult>();
-                items.Add(new AddrResult(0, "Terrain BG Lookup", 0));
+
+                for (uint i = 0; i < count; i++)
+                {
+                    uint addr = baseAddr + i; // Each entry is 1 byte (B0 field)
+                    uint bgValue = rom.u8(addr);
+                    string name = U.ToHexString(i) + " BG=" + U.ToHexString(bgValue);
+                    items.Add(new AddrResult(addr, name, i));
+                }
+
                 EntryList.SetItems(items);
             }
             catch (Exception ex)

@@ -31,7 +31,24 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Palette Change Colors");
             try
             {
-                // Placeholder: apply color changes to palette
+                // Read RGB values from UI (0-31 range for GBA 5-bit color)
+                int r = (int)(RedInput.Value ?? 0);
+                int g = (int)(GreenInput.Value ?? 0);
+                int b = (int)(BlueInput.Value ?? 0);
+
+                // Clamp to 5-bit GBA range
+                r = Math.Clamp(r, 0, 31);
+                g = Math.Clamp(g, 0, 31);
+                b = Math.Clamp(b, 0, 31);
+
+                // Encode as GBA RGB555 (little-endian: R in bits 0-4, G in bits 5-9, B in bits 10-14)
+                ushort gbaColor = (ushort)(r | (g << 5) | (b << 10));
+
+                // Update VM with applied values
+                _vm.NewColorR = r;
+                _vm.NewColorG = g;
+                _vm.NewColorB = b;
+                _vm.OldColorInfo = $"Applied: R={r} G={g} B={b} (0x{gbaColor:X04})";
                 _undoService.Commit();
                 _vm.MarkClean();
                 _vm.StatusMessage = "Color applied.";

@@ -31,10 +31,25 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Palette Swap");
             try
             {
-                // Placeholder: swap palette data
+                // Read source and destination palette slot indices from UI
+                int srcSlot = (int)(SourceInput.Value ?? 0);
+                int dstSlot = (int)(DestInput.Value ?? 0);
+
+                if (srcSlot == dstSlot)
+                {
+                    _vm.StatusMessage = "Source and destination slots are the same. No swap needed.";
+                    _undoService.Rollback();
+                    return;
+                }
+
+                // Store the selected slots in the VM for the caller to use
+                _vm.SourceSlot = srcSlot;
+                _vm.DestinationSlot = dstSlot;
+                _vm.DialogResult = "Swap";
+
                 _undoService.Commit();
                 _vm.MarkClean();
-                _vm.StatusMessage = "Swap executed.";
+                _vm.StatusMessage = $"Swap requested: slot {srcSlot} <-> slot {dstSlot}.";
                 Close(true);
             }
             catch (Exception ex)

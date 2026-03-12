@@ -41,18 +41,65 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Compare_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.GetSelectedBackupPath() == null)
+            string? backupPath = _vm.GetSelectedBackupPath();
+            if (backupPath == null)
                 return;
             _vm.DialogResult = "compare";
-            // Placeholder: would open ToolThreeMargeView with selected backup
+
+            try
+            {
+                // Open the three-way merge view with:
+                //   Original = vanilla ROM, Mine = current ROM, Theirs = selected backup
+                var mergeView = WindowManager.Instance.Open<ToolThreeMargeView>();
+                if (mergeView.DataContext is ToolThreeMargeViewViewModel mergeVm)
+                {
+                    mergeVm.OriginalPath = _vm.OriginalFilename;
+                    mergeVm.MyPath = CoreState.ROM?.Filename ?? "";
+                    mergeVm.TheirsPath = backupPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolDiffDebugSelectView.Compare", ex.ToString());
+            }
         }
 
         void TestPlay_Click(object? sender, RoutedEventArgs e)
         {
-            if (_vm.GetSelectedBackupPath() == null)
+            string? backupPath = _vm.GetSelectedBackupPath();
+            if (backupPath == null)
                 return;
             _vm.DialogResult = "testplay";
-            // Placeholder: would launch emulator with selected backup ROM
+
+            try
+            {
+                // Read emulator path from config
+                string emulatorPath = "";
+                var cfg = CoreState.Config;
+                if (cfg != null)
+                    emulatorPath = cfg.at("Emulator_Path", "");
+
+                if (string.IsNullOrEmpty(emulatorPath) || !System.IO.File.Exists(emulatorPath))
+                {
+                    _ = MessageBoxWindow.Show(this,
+                        "Emulator not configured.\n\nPlease set the emulator path in Options first.",
+                        "Emulator Not Found", MessageBoxMode.Ok);
+                    return;
+                }
+
+                var psi = new System.Diagnostics.ProcessStartInfo(emulatorPath, $"\"{backupPath}\"")
+                {
+                    UseShellExecute = false
+                };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolDiffDebugSelectView.TestPlay", ex.ToString());
+                _ = MessageBoxWindow.Show(this,
+                    $"Failed to launch emulator: {ex.Message}",
+                    "Error", MessageBoxMode.Ok);
+            }
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)

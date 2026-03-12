@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
         }
 
-        /// <summary>Legacy compatibility: returns placeholder list.</summary>
+        /// <summary>IDataVerifiable fallback: returns the map list (Level 1) when no specific group is selected.</summary>
         public List<AddrResult> LoadList()
         {
             return LoadMapList();
