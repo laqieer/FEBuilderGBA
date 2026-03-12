@@ -94,18 +94,18 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 |-----------|:---:|---|
 | ItemEditor / ItemEditorVM | 55% | Checkboxes, stat preview, patch-aware UI |
 | ItemFE6 / ItemFE6VM | 55% | Checkboxes, price calc, hard-coding warning |
-| ItemWeaponEffect / ItemWeaponEffectVM | 50% | Effect name cache, magic system detection, JumpTo |
+| ItemWeaponEffect / ItemWeaponEffectVM | **55%** | ~~Item names~~ **FIXED** — item names in list. Missing: effect name cache, magic system detection |
 | ItemWeaponTriangle / ItemWeaponTriangleVM | 60% | Weapon type icons |
-| ItemEffectiveness / ItemEffectivenessVM | 40% | Dual-list architecture, independence button, class names |
+| ItemEffectiveness / ItemEffectivenessVM | **45%** | ~~Class names~~ **FIXED** — class names in list. Missing: dual-list architecture, independence button |
 | ItemStatBonuses / ItemStatBonusesVM | **58%** | ~~Generic item list~~ **FIXED** — item names in list. Missing: cross-reference, magic split label |
 | ItemStatBonusesSkillSystems / VM | 55% | Proper list building, cross-reference |
 | ItemStatBonusesVenno / VM | 55% | Proper list building, cross-reference |
 | ItemEffectPointer / VM | 50% | Effect name lookup, FELint |
 | ItemUsagePointer / VM | 35% | 10-category filter, switch expand |
-| ItemShop / VM | 40% | Multi-shop support (world map + event shops) |
+| ItemShop / VM | **45%** | ~~Item names~~ **FIXED** — item names in list. Missing: multi-shop support |
 | ItemRandomChest / VM | 55% | JumpTo with dynamic re-init |
 | ItemIcon / VM | 65% | Cross-reference, expansion, palette validation |
-| ItemPromotion / VM | 45% | Multi-pointer support (10 CC items) |
+| ItemPromotion / VM | **50%** | ~~Class names~~ **FIXED** — class names in list. Missing: multi-pointer support (10 CC items) |
 
 ### Cross-Cutting Gaps
 - **No patch-aware UI** -- IER, SkillSystems, Vennou variants not detected
@@ -225,11 +225,11 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| SongTable | 40% | Playback, song names, cross-references |
+| SongTable | **45%** | ~~Song names~~ **FIXED** — song names in list. Missing: playback, cross-references |
 | **SongTrack** | **25%** | **MIDI/WAV import-export, track visualization, playback** |
 | **SongInstrument** | **20%** | **128 instruments, type-specific panels, wave import** |
 | SongInstrumentDirectSound | 50% | DPCM detection, Hz combo, validation |
-| SoundRoom | 45% | Song names, position display, patch detection |
+| SoundRoom | **50%** | ~~Song names~~ **FIXED** — song names in list. Missing: position display, patch detection |
 | SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
 | SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
 | SoundBossBGM | **50%** | ~~Unit names~~ **FIXED** — unit names in list + pick button. Missing: portraits, song names |

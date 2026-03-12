@@ -43,7 +43,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (i > 10 && rom.IsEmpty(addr, dataSize * 10)) break;
 
                 uint songId = rom.u16(addr);
-                string name = (i + 1).ToString("D3") + " Song:0x" + songId.ToString("X04");
+                string songName = NameResolver.GetSongName(songId);
+                string name = $"{(i + 1):D3} {songName} (0x{songId:X04})";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

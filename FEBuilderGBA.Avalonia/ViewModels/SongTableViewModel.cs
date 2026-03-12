@@ -48,7 +48,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint headerPtr = rom.u32(addr);
                 if (!U.isPointer(headerPtr)) break;
 
-                string name = U.ToHexString(i) + " Song 0x" + headerPtr.ToString("X08");
+                string songName = NameResolver.GetSongName(i);
+                string name = $"{U.ToHexString(i)} {songName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

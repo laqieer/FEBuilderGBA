@@ -36,7 +36,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint itemId = rom.u8(addr);
                 if (itemId == 0x00) break;
 
-                string name = U.ToHexString(i) + " ItemID=0x" + itemId.ToString("X02");
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
