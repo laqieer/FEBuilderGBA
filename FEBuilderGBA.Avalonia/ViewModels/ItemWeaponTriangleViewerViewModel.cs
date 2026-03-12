@@ -41,7 +41,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint w1 = rom.u8(addr);
                 uint w2 = rom.u8(addr + 1);
-                string name = U.ToHexString(i) + " Type 0x" + w1.ToString("X02") + " -> 0x" + w2.ToString("X02");
+                string[] wepNames = { "Sword", "Lance", "Axe", "Bow", "Staff", "Anima", "Light", "Dark", "Item" };
+                string n1 = w1 < wepNames.Length ? wepNames[w1] : $"0x{w1:X02}";
+                string n2 = w2 < wepNames.Length ? wepNames[w2] : $"0x{w2:X02}";
+                string name = $"{U.ToHexString(i)} {n1} > {n2}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

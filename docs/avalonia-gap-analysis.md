@@ -95,7 +95,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | ItemEditor / ItemEditorVM | **60%** | ~~Checkboxes~~ **FIXED** (BitFlagPanel for Trait1/2), Pick-and-return. Missing: stat preview, patch-aware UI |
 | ItemFE6 / ItemFE6VM | **58%** | ~~Checkboxes~~ **FIXED** (Pick-and-return). Missing: price calc, hard-coding warning |
 | ItemWeaponEffect / ItemWeaponEffectVM | **55%** | ~~Item names~~ **FIXED** — item names in list. Missing: effect name cache, magic system detection |
-| ItemWeaponTriangle / ItemWeaponTriangleVM | 60% | Weapon type icons |
+| ItemWeaponTriangle / ItemWeaponTriangleVM | **63%** | ~~Weapon type names~~ **FIXED** — "Sword > Lance" display. Missing: icons |
 | ItemEffectiveness / ItemEffectivenessVM | **45%** | ~~Class names~~ **FIXED** — class names in list. Missing: dual-list architecture, independence button |
 | ItemStatBonuses / ItemStatBonusesVM | **58%** | ~~Generic item list~~ **FIXED** — item names in list. Missing: cross-reference, magic split label |
 | ItemStatBonusesSkillSystems / VM | 55% | Proper list building, cross-reference |
