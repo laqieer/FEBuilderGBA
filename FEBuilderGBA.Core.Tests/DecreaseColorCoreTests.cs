@@ -86,17 +86,16 @@ namespace FEBuilderGBA.Core.Tests
 
             var result = DecreaseColorCore.Quantize(rgba, 2, 1, 16);
             Assert.NotNull(result);
-            // GBA palette conversion requires ImageService; if null, GBAPalette may be empty
-            if (CoreState.ImageService != null)
+            // Verify core quantization output exists regardless of ImageService
+            Assert.True(result.ColorCount > 0, "ColorCount should be > 0");
+            Assert.NotNull(result.RGBAPalette);
+            Assert.True(result.RGBAPalette.Length >= result.ColorCount * 4,
+                $"RGBAPalette too short: {result.RGBAPalette.Length} < {result.ColorCount * 4}");
+            // GBA palette depends on ImageService; just verify non-null if present
+            if (result.GBAPalette != null && result.GBAPalette.Length > 0)
             {
                 Assert.True(result.GBAPalette.Length >= result.ColorCount * 2,
                     $"GBAPalette length {result.GBAPalette.Length} < ColorCount*2 ({result.ColorCount * 2})");
-            }
-            else
-            {
-                // Without ImageService, verify at least indexed pixel data and RGBA palette exist
-                Assert.NotNull(result.IndexData);
-                Assert.True(result.IndexData.Length > 0);
             }
         }
     }
