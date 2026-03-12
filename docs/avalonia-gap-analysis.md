@@ -491,3 +491,11 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (rounds 20-22):** Name resolution in 6 more forms: SongTable, SoundRoom, ItemWeaponEffect, ItemEffectiveness, ItemShop, ItemPromotion. Class growth simulator added to ClassEditor (55%) and ClassFE6 (48% VM-only).
 
 **Updated 2026-03-12 (rounds 23-27):** Accuracy corrections across all domains. Text content search (TextForm 30→45%). Jump to Song buttons in SoundBossBGM, WorldMapBGM, SoundRoom. UndoService wrapping for 10 remaining unprotected Write handlers (100% undo coverage). Overall completeness ~60%.
+
+**Updated 2026-03-12 (full audit — critical bug fixes + P2 features):**
+- **BUG FIX:** CG/BG/TSAAnime Import3Pointer P4↔P8 parameter swap corrected (6 call sites across 4 files)
+- **BUG FIX:** FE6 ClassFE6ViewModel move cost pointer field names corrected (+56=TerrainAvoid, +60=TerrainDef, +64=TerrainRes)
+- **Item Editor** (56→62%): Shop price calculation (Buy/Sell/Forge), stat bonus preview (9 stats from P12), null pointer warnings (P12/P16)
+- **Unit Editor** (50→55%): Real-time growth simulation (auto-recalc on value change), configurable SimLevel (1-99), SimLevel NumericUpDown in view
+- **Class Editor** (48→53%): Flexible growth sim (SimLevel 1-99, auto-recalc), growth simulator added to ClassFE6View
+- Full audit report: `docs/avalonia-full-audit-report.md` — 8-domain deep comparison with 300-435 WU implementation plan
