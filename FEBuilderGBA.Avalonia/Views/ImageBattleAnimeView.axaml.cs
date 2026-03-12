@@ -78,10 +78,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 PalettePointerLabel.Text = _vm.PalettePointer;
                 FrameLZ77Label.Text = _vm.FrameLZ77Info;
                 OamLZ77Label.Text = _vm.OamLZ77Info;
+
+                // Tile sheet image
+                if (_vm.TileSheetImage != null)
+                {
+                    TileSheetPanel.IsVisible = true;
+                    TileSheetInfoLabel.Text = _vm.TileSheetInfo;
+                    TileSheetImage.SetImage(_vm.TileSheetImage);
+                }
+                else
+                {
+                    TileSheetPanel.IsVisible = false;
+                    TileSheetImage.SetImage(null);
+                }
             }
             else
             {
                 AnimeDetailsPanel.IsVisible = false;
+                TileSheetPanel.IsVisible = false;
+                TileSheetImage.SetImage(null);
                 NoAnimeDetailsLabel.IsVisible = _vm.AnimationNumber == 0
                     ? false  // ID 0 means "none", no need to show error
                     : true;
@@ -112,6 +127,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
+        }
+
+        async void ExportTileSheet_Click(object? sender, RoutedEventArgs e)
+        {
+            if (TileSheetImage.HasImage)
+            {
+                string name = _vm.AnimeName.Replace("\0", "").Trim();
+                if (string.IsNullOrEmpty(name)) name = "tilesheet";
+                await TileSheetImage.ExportPng(this, $"{name}_tilesheet");
             }
         }
 

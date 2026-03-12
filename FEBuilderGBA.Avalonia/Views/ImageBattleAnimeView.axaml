@@ -78,6 +78,21 @@
           </StackPanel>
         </Border>
 
+        <!-- Tile Sheet Preview -->
+        <Border Name="TileSheetPanel" IsVisible="False"
+                BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Sprite Tile Sheet" FontSize="14" FontWeight="SemiBold" />
+            <TextBlock Name="TileSheetInfoLabel" Foreground="DarkGreen" />
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                          MaxHeight="400">
+              <controls:GbaImageControl Name="TileSheetImage" />
+            </ScrollViewer>
+            <Button Name="ExportTileSheetButton" Content="Export Tile Sheet PNG..."
+                    Click="ExportTileSheet_Click" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+
         <!-- No details message -->
         <TextBlock Name="NoAnimeDetailsLabel" IsVisible="False"
                    Text="No animation data found for this ID (ID=0 or invalid pointer chain)."

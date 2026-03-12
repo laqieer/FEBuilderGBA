@@ -27,6 +27,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _frameLZ77Info = "";
         string _oamLZ77Info = "";
         int _animationCount;
+        IImage _tileSheetImage;
+        string _tileSheetInfo = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -52,6 +54,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string FrameLZ77Info { get => _frameLZ77Info; set => SetField(ref _frameLZ77Info, value); }
         public string OamLZ77Info { get => _oamLZ77Info; set => SetField(ref _oamLZ77Info, value); }
         public int AnimationCount { get => _animationCount; set => SetField(ref _animationCount, value); }
+
+        /// <summary>Rendered tile sheet image for the current animation.</summary>
+        public IImage TileSheetImage { get => _tileSheetImage; set => SetField(ref _tileSheetImage, value); }
+        /// <summary>Description of tile sheet (size, tile count).</summary>
+        public string TileSheetInfo { get => _tileSheetInfo; set => SetField(ref _tileSheetInfo, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -150,6 +157,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             PalettePointer = "";
             FrameLZ77Info = "";
             OamLZ77Info = "";
+            TileSheetImage = null;
+            TileSheetInfo = "";
 
             if (rom?.RomInfo == null || animeId == 0) return;
 
@@ -201,6 +210,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 OamLZ77Info = oamSize > 0
                     ? $"LZ77 decompressed: {oamSize} bytes"
                     : "Not LZ77 compressed";
+            }
+
+            // Render tile sheet from frame data + palette
+            try
+            {
+                IImage sheet = BattleAnimeRendererCore.RenderAnimationTileSheet(addr, 16);
+                TileSheetImage = sheet;
+                if (sheet != null)
+                {
+                    int tileCount = 0;
+                    uint fOff = U.toOffset(frameRaw);
+                    if (U.isSafetyOffset(fOff, rom))
+                    {
+                        byte[] fd = LZ77.decompress(rom.Data, fOff);
+                        if (fd != null) tileCount = fd.Length / 32;
+                    }
+                    TileSheetInfo = $"{sheet.Width}x{sheet.Height} px, {tileCount} tiles (4bpp)";
+                }
+                else
+                {
+                    TileSheetInfo = "Could not render tile sheet";
+                }
+            }
+            catch
+            {
+                TileSheetImage = null;
+                TileSheetInfo = "Rendering error";
             }
         }
 

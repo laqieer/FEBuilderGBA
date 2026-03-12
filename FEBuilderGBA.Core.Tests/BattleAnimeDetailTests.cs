@@ -1,7 +1,60 @@
+using System;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    /// <summary>
+    /// Minimal IImage stub for testing rendering output dimensions.
+    /// </summary>
+    internal class StubImage : IImage
+    {
+        public int Width { get; }
+        public int Height { get; }
+        public bool IsIndexed => false;
+        byte[] _pixels;
+
+        public StubImage(int w, int h)
+        {
+            Width = w;
+            Height = h;
+            _pixels = new byte[w * h * 4];
+        }
+
+        public byte[] GetPixelData() => _pixels;
+        public void SetPixelData(byte[] data) { _pixels = data; }
+        public byte[] GetPaletteGBA() => Array.Empty<byte>();
+        public void SetPaletteGBA(byte[] p) { }
+        public byte[] GetPaletteRGBA() => Array.Empty<byte>();
+        public void Save(string f) { }
+        public byte[] EncodePng() => Array.Empty<byte>();
+        public void Dispose() { }
+    }
+
+    /// <summary>
+    /// IImageService stub that creates StubImage and implements GBAColorToRGBA.
+    /// </summary>
+    internal class StubImageService : IImageService
+    {
+        public IImage CreateImage(int w, int h) => new StubImage(w, h);
+        public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => new StubImage(w, h);
+        public IImage LoadImage(string f) => null;
+        public IImage LoadImageFromBytes(byte[] d) => null;
+        public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
+        {
+            r = (byte)((gbaColor & 0x1F) << 3);
+            g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
+            b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
+        }
+        public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+        public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => new StubImage(w, h);
+        public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => new StubImage(w, h);
+        public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => new StubImage(w, h);
+        public byte[] Encode4bppTiles(IImage i) => null;
+        public byte[] Encode8bppTiles(IImage i) => null;
+        public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
+        public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+    }
+
     /// <summary>
     /// Tests for battle animation data structure parsing logic used by
     /// ImageBattleAnimeViewModel. Validates pointer chain traversal,
@@ -132,6 +185,156 @@ namespace FEBuilderGBA.Core.Tests
                 return b0 < (uint)weaponTypes.Length ? weaponTypes[b0] : $"Type 0x{b0:X02}";
             }
             return $"Special=0x{b1:X02}";
+        }
+    }
+
+    /// <summary>
+    /// Tests for BattleAnimeRendererCore tile sheet rendering.
+    /// </summary>
+    [Collection("SharedState")]
+    public class BattleAnimeRendererCoreTests : IDisposable
+    {
+        readonly IImageService _prevService;
+
+        public BattleAnimeRendererCoreTests()
+        {
+            _prevService = CoreState.ImageService;
+            CoreState.ImageService = new StubImageService();
+        }
+
+        public void Dispose()
+        {
+            CoreState.ImageService = _prevService;
+        }
+
+        [Fact]
+        public void RenderTileSheet_NullTileData_ReturnsNull()
+        {
+            var result = BattleAnimeRendererCore.RenderTileSheet(null, new byte[32], 16);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void RenderTileSheet_EmptyTileData_ReturnsNull()
+        {
+            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[0], new byte[32], 16);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void RenderTileSheet_NullPalette_ReturnsNull()
+        {
+            var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], null, 16);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void RenderTileSheet_SingleTile_Returns8x8Image()
+        {
+            // 1 tile = 32 bytes of 4bpp data
+            byte[] tileData = new byte[32];
+            byte[] palette = new byte[32]; // 16 colors
+
+            var result = BattleAnimeRendererCore.RenderTileSheet(tileData, palette, 16);
+            Assert.NotNull(result);
+            Assert.Equal(128, result.Width);  // 16 tiles per row * 8px
+            Assert.Equal(8, result.Height);   // 1 row * 8px
+        }
+
+        [Fact]
+        public void RenderTileSheet_32Tiles_Returns2Rows()
+        {
+            // 32 tiles = 32 * 32 = 1024 bytes
+            byte[] tileData = new byte[32 * 32];
+            byte[] palette = new byte[32];
+
+            var result = BattleAnimeRendererCore.RenderTileSheet(tileData, palette, 16);
+            Assert.NotNull(result);
+            Assert.Equal(128, result.Width);  // 16 * 8
+            Assert.Equal(16, result.Height);  // 2 rows * 8
+        }
+
+        [Fact]
+        public void RenderTileSheet_CustomTilesPerRow_AdjustsDimensions()
+        {
+            byte[] tileData = new byte[32 * 8]; // 8 tiles
+            byte[] palette = new byte[32];
+
+            var result = BattleAnimeRendererCore.RenderTileSheet(tileData, palette, 4);
+            Assert.NotNull(result);
+            Assert.Equal(32, result.Width);   // 4 * 8
+            Assert.Equal(16, result.Height);  // 2 rows * 8
+        }
+
+        [Fact]
+        public void RenderTileSheet_PixelDataContainsColor()
+        {
+            // Create a single tile where every pixel is color index 1
+            byte[] tileData = new byte[32];
+            for (int i = 0; i < 32; i++)
+                tileData[i] = 0x11; // Each nibble = 1
+
+            // Palette: color 0 = black, color 1 = red (GBA: R=31, G=0, B=0 = 0x001F)
+            byte[] palette = new byte[32];
+            palette[2] = 0x1F; palette[3] = 0x00; // color 1 = (31,0,0)
+
+            var result = BattleAnimeRendererCore.RenderTileSheet(tileData, palette, 16);
+            Assert.NotNull(result);
+
+            byte[] pixels = result.GetPixelData();
+            // Check first non-transparent pixel (index 1 = opaque)
+            // Pixel at (0,0): should be color index 1 = red
+            Assert.Equal(248, pixels[0]); // R: 31 << 3
+            Assert.Equal(0, pixels[1]);   // G
+            Assert.Equal(0, pixels[2]);   // B
+            Assert.Equal(255, pixels[3]); // A (not index 0, so opaque)
+        }
+
+        [Fact]
+        public void RenderTileSheet_TransparentForIndex0()
+        {
+            // Single tile, all zeros = color index 0
+            byte[] tileData = new byte[32];
+            byte[] palette = new byte[32];
+
+            var result = BattleAnimeRendererCore.RenderTileSheet(tileData, palette, 16);
+            Assert.NotNull(result);
+
+            byte[] pixels = result.GetPixelData();
+            // Color index 0 should have alpha = 0 (transparent)
+            Assert.Equal(0, pixels[3]); // A channel
+        }
+
+        [Fact]
+        public void RenderTileSheet_NoImageService_ReturnsNull()
+        {
+            var saved = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = null;
+                var result = BattleAnimeRendererCore.RenderTileSheet(new byte[32], new byte[32], 16);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ImageService = saved;
+            }
+        }
+
+        [Fact]
+        public void RenderAnimationTileSheet_NullRom_ReturnsNull()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var result = BattleAnimeRendererCore.RenderAnimationTileSheet(0, 16);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
     }
 }
