@@ -43,7 +43,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 1 | [Shared Infrastructure](#15-shared-infrastructure) | **70%** | 12 | No auto-wiring, no convention binding |
 | 2 | [Unit Editors](#1-unit-editors) | **~48%** | 10 | ~~Growth sim~~ FIXED, no skills |
 | 3 | [Item Editors](#2-item-editors) | **~55%** | 14 | No patch-aware UI |
-| 4 | [Class Editors](#3-class-editors) | **~45%** | 7 | No growth simulator, no skills, no magic split |
+| 4 | [Class Editors](#3-class-editors) | **~48%** | 7 | ~~Growth sim~~ FIXED, no skills, no magic split |
 | 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
@@ -118,11 +118,11 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 ## 3. Class Editors
 
-**Domain Average: ~45%**
+**Domain Average: ~48%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| ClassForm / ClassEditorVM | 45% | Growth sim, skills, magic split, ability checkboxes |
+| ClassForm / ClassEditorVM | **55%** | ~~Growth sim~~ **FIXED**, ~~ability checkboxes~~ **FIXED** (BitFlagPanel). Missing: skills, magic split |
 | ClassFE6Form / ClassFE6VM | 45% | Growth sim, ability checkboxes, class extends |
 | CCBranchForm / CCBranchEditorVM | **45%** | ~~upstream chain display~~ **FIXED** — shows classes that promote to selected class. Missing: CC3 patch, class-sharing |
 | SMEPromoListForm / SMEPromoListVM | **55%** | ~~List loading is stub~~ **FIXED** — proper 2-byte entry enumeration with class names, NavigateTo support |

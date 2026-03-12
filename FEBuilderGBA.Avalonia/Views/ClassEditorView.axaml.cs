@@ -239,6 +239,26 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public ViewModelBase? DataViewModel => _vm;
 
+        void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
+        {
+            // Read current UI values into VM before calculating
+            _vm.BaseHp = (uint)(BaseHpBox.Value ?? 0);
+            _vm.BaseStr = (uint)(BaseStrBox.Value ?? 0);
+            _vm.BaseSkl = (uint)(BaseSklBox.Value ?? 0);
+            _vm.BaseSpd = (uint)(BaseSpdBox.Value ?? 0);
+            _vm.BaseDef = (uint)(BaseDefBox.Value ?? 0);
+            _vm.BaseRes = (uint)(BaseResBox.Value ?? 0);
+            _vm.GrowHp = (uint)(GrowHpBox.Value ?? 0);
+            _vm.GrowStr = (uint)(GrowStrBox.Value ?? 0);
+            _vm.GrowSkl = (uint)(GrowSklBox.Value ?? 0);
+            _vm.GrowSpd = (uint)(GrowSpdBox.Value ?? 0);
+            _vm.GrowDef = (uint)(GrowDefBox.Value ?? 0);
+            _vm.GrowRes = (uint)(GrowResBox.Value ?? 0);
+            _vm.GrowLck = (uint)(GrowLckBox.Value ?? 0);
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
         public void EnablePickMode() => ClassList.EnablePickMode();
 
         public void SelectFirstItem()
