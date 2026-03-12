@@ -1,27 +1,104 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolThreeMargeView"
-        Title="Three-Way Merge" Width="1580" Height="946"
+        Title="Three-Way Merge" Width="900" Height="700"
         WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Three-Way Merge" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Merge" Click="Merge_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-    <Grid RowDefinitions="Auto,4,*,12,Auto,4,*" ColumnDefinitions="*,8,*">
-      <TextBlock Grid.Row="0" Grid.Column="0" Text="Base" FontWeight="SemiBold" />
-      <TextBox Grid.Row="2" Grid.Column="0" Name="BaseTextBox" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" IsReadOnly="True" />
-      <TextBlock Grid.Row="0" Grid.Column="2" Text="Mine" FontWeight="SemiBold" />
-      <TextBox Grid.Row="2" Grid.Column="2" Name="MineTextBox" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" IsReadOnly="True" />
-      <TextBlock Grid.Row="4" Grid.Column="0" Text="Theirs" FontWeight="SemiBold" />
-      <TextBox Grid.Row="6" Grid.Column="0" Name="TheirsTextBox" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" IsReadOnly="True" />
-      <TextBlock Grid.Row="4" Grid.Column="2" Text="Result" FontWeight="SemiBold" />
-      <TextBox Grid.Row="6" Grid.Column="2" Name="ResultTextBox" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" />
+    <TextBlock DockPanel.Dock="Top" Text="Three-Way ROM Merge" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <!-- File Pickers -->
+    <Grid DockPanel.Dock="Top" RowDefinitions="Auto,8,Auto,8,Auto" ColumnDefinitions="100,8,*,8,Auto">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Original ROM:" VerticalAlignment="Center" />
+      <TextBox Grid.Row="0" Grid.Column="2" Text="{Binding OriginalPath}" IsReadOnly="True" />
+      <Button Grid.Row="0" Grid.Column="4" Content="Browse..." Click="BrowseOriginal_Click" Width="90" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="My ROM:" VerticalAlignment="Center" />
+      <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding MyPath}" IsReadOnly="True" />
+      <Button Grid.Row="2" Grid.Column="4" Content="Browse..." Click="BrowseMine_Click" Width="90" />
+
+      <TextBlock Grid.Row="4" Grid.Column="0" Text="Their ROM:" VerticalAlignment="Center" />
+      <TextBox Grid.Row="4" Grid.Column="2" Text="{Binding TheirsPath}" IsReadOnly="True" />
+      <Button Grid.Row="4" Grid.Column="4" Content="Browse..." Click="BrowseTheirs_Click" Width="90" />
     </Grid>
+
+    <!-- Action Buttons -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Merge" Click="Merge_Click" Width="100" />
+      <Button Content="Save Merged ROM" Click="Save_Click" Width="140"
+              IsEnabled="{Binding HasMergeResult}" />
+      <Button Content="Close" Click="Close_Click" Width="80" />
+    </StackPanel>
+
+    <!-- Status -->
+    <TextBlock DockPanel.Dock="Top" Text="{Binding StatusText}" Margin="0,12,0,0"
+               FontWeight="SemiBold" TextWrapping="Wrap" />
+
+    <!-- Results Panel -->
+    <Border DockPanel.Dock="Top" Margin="0,12,0,0" IsVisible="{Binding HasMergeResult}"
+            BorderBrush="Gray" BorderThickness="1" Padding="12" CornerRadius="4">
+      <StackPanel Spacing="4">
+        <TextBlock FontWeight="SemiBold" Text="Merge Statistics" />
+        <StackPanel Orientation="Horizontal" Spacing="24">
+          <TextBlock>
+            <Run Text="My changes: " /><Run Text="{Binding ChangesMine}" FontWeight="Bold" />
+          </TextBlock>
+          <TextBlock>
+            <Run Text="Their changes: " /><Run Text="{Binding ChangesTheirs}" FontWeight="Bold" />
+          </TextBlock>
+          <TextBlock>
+            <Run Text="Both (same): " /><Run Text="{Binding ChangesBoth}" FontWeight="Bold" />
+          </TextBlock>
+          <TextBlock>
+            <Run Text="Conflict bytes: " /><Run Text="{Binding ConflictBytes}" FontWeight="Bold" Foreground="Red" />
+          </TextBlock>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Conflict List -->
+    <Border Margin="0,12,0,0" IsVisible="{Binding HasMergeResult}"
+            BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="4">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Conflicts (resolve each: Mine or Theirs)"
+                   FontWeight="SemiBold" Margin="8,4,0,8" />
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding ConflictItems}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ConflictItemViewModel">
+                <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,2">
+                  <Grid RowDefinitions="Auto,4,Auto" ColumnDefinitions="120,8,*,16,Auto">
+                    <!-- Offset and Length -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding OffsetHex}" FontFamily="Consolas, Courier New, monospace" FontWeight="Bold" />
+                      <TextBlock Text="{Binding LengthText}" FontSize="11" Foreground="Gray" />
+                    </StackPanel>
+
+                    <!-- Byte preview -->
+                    <StackPanel Grid.Row="0" Grid.Column="2" Spacing="2">
+                      <TextBlock FontSize="11">
+                        <Run Text="Orig: " Foreground="Gray" /><Run Text="{Binding OriginalHex}" FontFamily="Consolas, Courier New, monospace" />
+                      </TextBlock>
+                      <TextBlock FontSize="11">
+                        <Run Text="Mine: " Foreground="Blue" /><Run Text="{Binding MyHex}" FontFamily="Consolas, Courier New, monospace" />
+                      </TextBlock>
+                      <TextBlock FontSize="11">
+                        <Run Text="Theirs: " Foreground="Green" /><Run Text="{Binding TheirHex}" FontFamily="Consolas, Courier New, monospace" />
+                      </TextBlock>
+                    </StackPanel>
+
+                    <!-- Resolution radio buttons -->
+                    <StackPanel Grid.Row="0" Grid.Column="4" Grid.RowSpan="3" VerticalAlignment="Center" Spacing="4">
+                      <RadioButton Content="Mine" IsChecked="{Binding UseMine}" GroupName="{Binding OffsetHex}" />
+                      <RadioButton Content="Theirs" IsChecked="{Binding UseTheirs}" GroupName="{Binding OffsetHex}" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
   </DockPanel>
 </Window>
