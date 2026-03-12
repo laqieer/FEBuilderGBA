@@ -17,7 +17,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Get the list of PLIST type names for the filter combo.</summary>
         public List<string> GetPlistTypeNames()
         {
-            return new List<string> { "MAP", "CONFIG", "OBJ/PAL", "CHANGE", "EVENT" };
+            var names = new List<string> { "MAP", "CONFIG", "OBJ/PAL", "CHANGE", "EVENT", "ANIMATION1", "ANIMATION2" };
+
+            // WORLDMAP type is only available for FE6
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo != null && rom.RomInfo.version == 6)
+                names.Add("WORLDMAP");
+
+            return names;
         }
 
         /// <summary>Get ROM pointer for the given PLIST type index.</summary>
@@ -31,6 +38,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 2 => rom.RomInfo.map_obj_pointer,
                 3 => rom.RomInfo.map_mapchange_pointer,
                 4 => rom.RomInfo.map_event_pointer,
+                5 => rom.RomInfo.map_tileanime1_pointer,
+                6 => rom.RomInfo.map_tileanime2_pointer,
+                7 => rom.RomInfo.worldmap_point_pointer,
                 _ => rom.RomInfo.map_map_pointer_pointer,
             };
         }

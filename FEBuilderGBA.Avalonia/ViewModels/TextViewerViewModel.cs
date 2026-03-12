@@ -23,6 +23,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string LengthWarning { get => _lengthWarning; set => SetField(ref _lengthWarning, value); }
         public List<string> CrossReferences { get => _crossReferences; set => SetField(ref _crossReferences, value); }
 
+        /// <summary>
+        /// Check whether a text pointer value is valid: standard ROM pointer,
+        /// UnHuffman-patched pointer, or RAM pointer (IW-RAM / EW-RAM).
+        /// Mirrors WinForms TextForm logic.
+        /// </summary>
+        static bool IsValidTextPointer(uint p)
+        {
+            if (U.isPointerOrNULL(p)) return true;
+            if (FETextEncode.IsUnHuffmanPatchPointer(p)) return true;
+            // RAM pointer areas used by some patches
+            if (U.is_03RAMPointer(p) || FETextEncode.IsUnHuffmanPatch_IW_RAMPointer(p)) return true;
+            if (U.is_02RAMPointer(p) || FETextEncode.IsUnHuffmanPatch_EW_RAMPointer(p)) return true;
+            return false;
+        }
+
         public List<AddrResult> LoadTextList()
         {
             ROM rom = CoreState.ROM;
@@ -41,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (entryAddr + 3 >= (uint)rom.Data.Length) break;
 
                 uint textPtr = rom.u32(entryAddr);
-                if (!U.isPointerOrNULL(textPtr)) break;
+                if (!IsValidTextPointer(textPtr)) break;
 
                 string preview;
                 try
@@ -428,7 +443,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (entryAddr + 3 >= (uint)rom.Data.Length) break;
 
                 uint textPtr = rom.u32(entryAddr);
-                if (!U.isPointerOrNULL(textPtr)) break;
+                if (!IsValidTextPointer(textPtr)) break;
 
                 try
                 {
