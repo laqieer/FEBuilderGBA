@@ -39,7 +39,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (songId1 == 1 && songId2 == 0) break;
                 if (songId1 == 0 && songId2 == 0) break;
 
-                string name = U.ToHexString(i) + " World Map BGM";
+                string songName1 = NameResolver.GetSongName(songId1);
+                string name = $"{U.ToHexString(i)} {songName1}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

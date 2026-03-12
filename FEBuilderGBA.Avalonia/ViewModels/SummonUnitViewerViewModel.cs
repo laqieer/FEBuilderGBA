@@ -36,7 +36,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint unitId = rom.u8(addr);
                 if (unitId == 0x00) break;
 
-                string name = U.ToHexString(unitId) + " Summon Unit";
+                string unitName = NameResolver.GetUnitName(unitId);
+                string name = $"{U.ToHexString(unitId)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

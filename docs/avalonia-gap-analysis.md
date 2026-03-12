@@ -289,7 +289,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | WorldMapPath | **45%** | ~~Generic list~~ **FIXED** — start/end point IDs in list. Missing: map preview, path rendering |
 | WorldMapPathMoveEditor | **50%** | ~~Non-functional (no path selector)~~ **FIXED** — BuildList from base address, node display with T/X/Y, null-terminator detection |
 | WorldMapEventPointer | 35% | Missing dual list (before/after), no opening/ending events |
-| WorldMapBGM | 55% | Name resolution |
+| WorldMapBGM | **58%** | ~~Song names~~ **FIXED** — song names in list. Minimal remaining gap |
 
 ---
 
@@ -385,7 +385,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | MonsterItem | **40%** | ~~Generic list~~ **FIXED** — item names in list. Missing: three sub-lists (N1, N2) |
 | MonsterProbability | 50% | Probability sum display |
 | MonsterWMapProbability | 55% | Minimal |
-| SummonUnit | 45% | OwnerDraw, expand event |
+| SummonUnit | **50%** | ~~Unit names~~ **FIXED** — unit names in list. Missing: OwnerDraw, expand event |
 | SummonsDemonKing | 50% | AI combos, expand event |
 | LinkArenaDenyUnit | 50% | Unit name display |
 | TerrainName | 55% | Closest to parity |
