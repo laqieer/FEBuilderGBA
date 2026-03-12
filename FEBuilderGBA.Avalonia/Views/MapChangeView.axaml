@@ -3,22 +3,62 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapChangeView"
         Title="Map Change Editor" Width="1609" Height="636">
-  <Grid ColumnDefinitions="250,*">
+  <Grid ColumnDefinitions="250,250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Inner record list -->
+    <Border Grid.Column="1" Margin="4" BorderBrush="Gray" BorderThickness="1" CornerRadius="3">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="Change Records" FontWeight="Bold" Margin="4" />
+        <ListBox Name="RecordList" Margin="4" />
+      </DockPanel>
+    </Border>
+
+    <ScrollViewer Grid.Column="2" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Map Change Editor" FontSize="18" FontWeight="Bold" />
 
+        <!-- Outer pointer fields -->
+        <TextBlock Text="Map Pointer" FontWeight="Bold" Margin="0,8,0,4" />
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Change Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="ChangePointerBox" Width="120" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Change Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="ChangePointerBox" Width="120" Margin="0,4" />
         </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Button Content="Write Pointer" Click="Write_Click" />
+        </StackPanel>
+
+        <Separator Margin="0,12" />
+
+        <!-- Inner record fields -->
+        <TextBlock Text="Selected Record" FontWeight="Bold" Margin="0,4,0,4" />
+        <Grid ColumnDefinitions="140,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Record Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="RecAddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Change ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="1" Grid.Column="1" Name="RecChangeIDBox" Width="80" Margin="0,2" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="X:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="2" Grid.Column="1" Name="RecXBox" Width="80" Margin="0,2" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Y:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="3" Grid.Column="1" Name="RecYBox" Width="80" Margin="0,2" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Width:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="4" Grid.Column="1" Name="RecWidthBox" Width="80" Margin="0,2" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Height:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="5" Grid.Column="1" Name="RecHeightBox" Width="80" Margin="0,2" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Tile Data Ptr:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox Grid.Row="6" Grid.Column="1" Name="RecTileDataPtrBox" Width="120" Margin="0,2" />
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Write Record" Click="WriteRecord_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

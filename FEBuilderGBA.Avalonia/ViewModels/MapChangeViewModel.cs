@@ -4,15 +4,47 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    public class ChangeRecord
+    {
+        public uint Address { get; set; }
+        public byte ChangeID { get; set; }
+        public byte X { get; set; }
+        public byte Y { get; set; }
+        public byte Width { get; set; }
+        public byte Height { get; set; }
+        public uint TileDataPtr { get; set; }
+
+        public string DisplayName => $"#{ChangeID:X02} ({X},{Y}) {Width}x{Height}";
+    }
+
     public class MapChangeViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _changePointer;
         bool _canWrite;
 
+        // Inner record fields
+        byte _recChangeID;
+        byte _recX;
+        byte _recY;
+        byte _recWidth;
+        byte _recHeight;
+        uint _recTileDataPtr;
+        uint _selectedRecordAddr;
+        bool _canWriteRecord;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ChangePointer { get => _changePointer; set => SetField(ref _changePointer, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        public byte RecChangeID { get => _recChangeID; set => SetField(ref _recChangeID, value); }
+        public byte RecX { get => _recX; set => SetField(ref _recX, value); }
+        public byte RecY { get => _recY; set => SetField(ref _recY, value); }
+        public byte RecWidth { get => _recWidth; set => SetField(ref _recWidth, value); }
+        public byte RecHeight { get => _recHeight; set => SetField(ref _recHeight, value); }
+        public uint RecTileDataPtr { get => _recTileDataPtr; set => SetField(ref _recTileDataPtr, value); }
+        public uint SelectedRecordAddr { get => _selectedRecordAddr; set => SetField(ref _selectedRecordAddr, value); }
+        public bool CanWriteRecord { get => _canWriteRecord; set => SetField(ref _canWriteRecord, value); }
 
         public List<AddrResult> LoadMapChangeList()
         {
@@ -62,6 +94,69 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             rom.write_u32(CurrentAddr, ChangePointer);
+        }
+
+        /// <summary>Load change records from the pointer stored at the current outer address.</summary>
+        public List<ChangeRecord> LoadChangeRecords()
+        {
+            ROM rom = CoreState.ROM;
+            var records = new List<ChangeRecord>();
+            if (rom == null) return records;
+
+            uint pointer = ChangePointer;
+            if (!U.isPointer(pointer)) return records;
+
+            uint baseAddr = U.toOffset(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return records;
+
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = (uint)(baseAddr + i * 12);
+                if (addr + 11 >= (uint)rom.Data.Length) break;
+
+                uint changeId = rom.u8(addr);
+                if (changeId == 0xFF) break;
+
+                records.Add(new ChangeRecord
+                {
+                    Address = addr,
+                    ChangeID = (byte)changeId,
+                    X = (byte)rom.u8(addr + 1),
+                    Y = (byte)rom.u8(addr + 2),
+                    Width = (byte)rom.u8(addr + 3),
+                    Height = (byte)rom.u8(addr + 4),
+                    TileDataPtr = rom.u32(addr + 8),
+                });
+            }
+            return records;
+        }
+
+        /// <summary>Load a single change record into the editing fields.</summary>
+        public void LoadRecord(ChangeRecord record)
+        {
+            SelectedRecordAddr = record.Address;
+            RecChangeID = record.ChangeID;
+            RecX = record.X;
+            RecY = record.Y;
+            RecWidth = record.Width;
+            RecHeight = record.Height;
+            RecTileDataPtr = record.TileDataPtr;
+            CanWriteRecord = true;
+        }
+
+        /// <summary>Write the current record fields back to ROM.</summary>
+        public void WriteChangeRecord()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || SelectedRecordAddr == 0) return;
+
+            uint a = SelectedRecordAddr;
+            rom.write_u8(a + 0, RecChangeID);
+            rom.write_u8(a + 1, RecX);
+            rom.write_u8(a + 2, RecY);
+            rom.write_u8(a + 3, RecWidth);
+            rom.write_u8(a + 4, RecHeight);
+            rom.write_u32(a + 8, RecTileDataPtr);
         }
 
         public int GetListCount() => LoadMapChangeList().Count;
