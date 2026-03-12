@@ -57,6 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadItem(addr);
                 UpdateUI();
                 TryShowListPreview();
+                UpdateWarnings();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -229,6 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteItem();
                 _undoService.Commit();
                 _vm.MarkClean();
+                UpdateWarnings();
                 CoreState.Services.ShowInfo("Item data written.");
             }
             catch (Exception ex)
@@ -268,6 +270,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("JumpToEffectiveness failed: {0}", ex.Message);
             }
+        }
+
+        void UpdateWarnings()
+        {
+            var warnings = _vm.ValidateItem();
+            WarningsBorder.IsVisible = warnings.Count > 0;
+            WarningsList.ItemsSource = warnings;
         }
 
         public ViewModelBase? DataViewModel => _vm;

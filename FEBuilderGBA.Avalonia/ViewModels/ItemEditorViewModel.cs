@@ -390,6 +390,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
+        // --- Validation ---
+        List<string> _validationWarnings = new();
+        public List<string> ValidationWarnings { get => _validationWarnings; set => SetField(ref _validationWarnings, value); }
+        public bool HasWarnings => _validationWarnings?.Count > 0;
+
+        /// <summary>
+        /// Validate item data and return a list of warnings.
+        /// These are advisory only and do not block writes.
+        /// </summary>
+        public List<string> ValidateItem()
+        {
+            var warnings = new List<string>();
+
+            // Only validate non-zero item indices (index 0 is null/unused)
+            if (_currentItemIndex > 0)
+            {
+                if (NameId == 0)
+                    warnings.Add("No name assigned (NameId is 0)");
+            }
+
+            // Check unbreakable flag: bit 3 of Trait1
+            bool isUnbreakable = (Trait1 & 0x08) != 0;
+
+            if (Uses == 0 && !isUnbreakable && _currentItemIndex > 0)
+                warnings.Add("Uses is 0 (item is not unbreakable)");
+
+            if (Price > 0 && Uses == 0 && !isUnbreakable)
+                warnings.Add("Has price but no uses");
+
+            // Weapon type set (0-7 are weapon types; 9+ are typically non-weapon items)
+            // Check if item has a weapon type but no weapon stats (might, hit both 0)
+            if (WeaponType <= 7 && _currentItemIndex > 0 && Might == 0 && Hit == 0 && Range == 0)
+                warnings.Add("Weapon type set but no weapon stats (might, hit, range all 0)");
+
+            ValidationWarnings = warnings;
+            OnPropertyChanged(nameof(HasWarnings));
+            return warnings;
+        }
+
         public void WriteItem()
         {
             ROM rom = CoreState.ROM;

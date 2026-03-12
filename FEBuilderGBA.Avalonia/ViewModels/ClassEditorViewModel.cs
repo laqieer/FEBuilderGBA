@@ -446,6 +446,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
+        // --- Validation ---
+        List<string> _validationWarnings = new();
+        public List<string> ValidationWarnings { get => _validationWarnings; set => SetField(ref _validationWarnings, value); }
+        public bool HasWarnings => _validationWarnings?.Count > 0;
+
+        /// <summary>
+        /// Validate class data and return a list of warnings.
+        /// These are advisory only and do not block writes.
+        /// </summary>
+        public List<string> ValidateClass()
+        {
+            var warnings = new List<string>();
+
+            // Only validate non-zero class indices (index 0 is null/unused)
+            if (_currentClassIndex > 0)
+            {
+                if (NameId == 0)
+                    warnings.Add("No name assigned (NameId is 0)");
+            }
+
+            if (Mov == 0)
+                warnings.Add("Movement is 0");
+
+            // Check if all base stats are zero
+            if (BaseHp == 0 && BaseStr == 0 && BaseSkl == 0 && BaseSpd == 0 && BaseDef == 0 && BaseRes == 0)
+                warnings.Add("All base stats are zero");
+
+            ValidationWarnings = warnings;
+            OnPropertyChanged(nameof(HasWarnings));
+            return warnings;
+        }
+
         public void WriteClass()
         {
             ROM rom = CoreState.ROM;

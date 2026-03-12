@@ -116,6 +116,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 TryShowListPreview();
                 _vm.CalculateGrowth();
                 GrowthSimLabel.Text = _vm.GrowthSimText;
+                UpdateWarnings();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -341,6 +342,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteUnit();
                 _undoService.Commit();
                 _vm.MarkClean();
+                UpdateWarnings();
                 CoreState.Services.ShowInfo("Unit data written.");
             }
             catch (Exception ex)
@@ -458,6 +460,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadUnit(_vm.CurrentAddr);
                 UpdateUI();
             }
+        }
+
+        void UpdateWarnings()
+        {
+            var warnings = _vm.ValidateUnit();
+            WarningsBorder.IsVisible = warnings.Count > 0;
+            WarningsList.ItemsSource = warnings;
         }
 
         public ViewModelBase? DataViewModel => _vm;

@@ -431,6 +431,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
+        // --- Validation ---
+        List<string> _validationWarnings = new();
+        public List<string> ValidationWarnings { get => _validationWarnings; set => SetField(ref _validationWarnings, value); }
+        public bool HasWarnings => _validationWarnings?.Count > 0;
+
+        /// <summary>
+        /// Validate unit data and return a list of warnings.
+        /// These are advisory only and do not block writes.
+        /// </summary>
+        public List<string> ValidateUnit()
+        {
+            var warnings = new List<string>();
+
+            // Only validate non-zero unit indices (index 0 is typically null/unused)
+            if (_selectedId > 0 || _currentUnitIndex > 0)
+            {
+                if (ClassId == 0)
+                    warnings.Add("No class assigned (ClassId is 0)");
+
+                if (PortraitId == 0)
+                    warnings.Add("No portrait assigned (PortraitId is 0)");
+            }
+
+            if (Level == 0)
+                warnings.Add("Level is 0");
+
+            // Check if all base stats are zero
+            if (HP == 0 && Str == 0 && Skl == 0 && Spd == 0 && Def == 0 && Res == 0 && Lck == 0 && Con == 0)
+                warnings.Add("All base stats are zero");
+
+            // Check if all growth rates are zero
+            if (GrowHP == 0 && GrowStr == 0 && GrowSkl == 0 && GrowSpd == 0 && GrowDef == 0 && GrowRes == 0 && GrowLck == 0)
+                warnings.Add("No growth rates set (all zero)");
+
+            ValidationWarnings = warnings;
+            OnPropertyChanged(nameof(HasWarnings));
+            return warnings;
+        }
+
         public void WriteUnit()
         {
             ROM rom = CoreState.ROM;

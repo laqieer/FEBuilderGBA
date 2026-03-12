@@ -65,6 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadClass(addr);
                 UpdateUI();
                 TryShowListPreview();
+                UpdateWarnings();
             }
             catch (Exception ex)
             {
@@ -261,6 +262,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteClass();
                 _undoService.Commit();
                 _vm.MarkClean();
+                UpdateWarnings();
                 CoreState.Services.ShowInfo("Class data written.");
             }
             catch (Exception ex)
@@ -284,6 +286,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("JumpToMoveCost failed: {0}", ex.Message);
             }
+        }
+
+        void UpdateWarnings()
+        {
+            var warnings = _vm.ValidateClass();
+            WarningsBorder.IsVisible = warnings.Count > 0;
+            WarningsList.ItemsSource = warnings;
         }
 
         public ViewModelBase? DataViewModel => _vm;
