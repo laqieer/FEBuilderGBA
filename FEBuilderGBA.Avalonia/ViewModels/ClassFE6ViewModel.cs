@@ -35,8 +35,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _wepSword, _wepLance, _wepAxe, _wepBow, _wepStaff, _wepAnima, _wepLight, _wepDark;
         // P48: Battle animation pointer
         uint _battleAnimePtr;
-        // P52-P64: Move cost / terrain pointers
-        uint _moveCostPtr, _moveCostRainPtr, _moveCostSnowPtr, _terrainDefPtr;
+        // P52: Move cost (normal) — FE6 has no rain/snow move cost
+        uint _moveCostPtr;
+        // P56: Terrain avoid, P60: Terrain defense, P64: Terrain resistance
+        uint _terrainAvoidPtr, _terrainDefPtr, _terrainResPtr;
         // D68: unknown u32
         uint _unknownD68;
 
@@ -115,14 +117,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // P48: Battle animation pointer
         public uint BattleAnimePtr { get => _battleAnimePtr; set => SetField(ref _battleAnimePtr, value); }
-        // P52: Move cost (normal)
+        // P52: Move cost (normal) — FE6 has no rain/snow move cost
         public uint MoveCostPtr { get => _moveCostPtr; set => SetField(ref _moveCostPtr, value); }
-        // P56: Move cost (rain)
-        public uint MoveCostRainPtr { get => _moveCostRainPtr; set => SetField(ref _moveCostRainPtr, value); }
+        // P56: Terrain avoid
+        public uint TerrainAvoidPtr { get => _terrainAvoidPtr; set => SetField(ref _terrainAvoidPtr, value); }
         // P60: Terrain defense
-        public uint MoveCostSnowPtr { get => _moveCostSnowPtr; set => SetField(ref _moveCostSnowPtr, value); }
-        // P64: Terrain resistance
         public uint TerrainDefPtr { get => _terrainDefPtr; set => SetField(ref _terrainDefPtr, value); }
+        // P64: Terrain resistance
+        public uint TerrainResPtr { get => _terrainResPtr; set => SetField(ref _terrainResPtr, value); }
 
         // D68: Unknown u32
         public uint UnknownD68 { get => _unknownD68; set => SetField(ref _unknownD68, value); }
@@ -233,12 +235,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             WepLight = rom.u8(addr + 46);
             WepDark = rom.u8(addr + 47);
 
-            // Pointers
+            // Pointers — FE6 has no rain/snow move cost
             BattleAnimePtr = rom.u32(addr + 48);
-            MoveCostPtr = rom.u32(addr + 52);
-            MoveCostRainPtr = rom.u32(addr + 56);
-            MoveCostSnowPtr = rom.u32(addr + 60);
-            TerrainDefPtr = rom.u32(addr + 64);
+            MoveCostPtr = rom.u32(addr + 52);      // P52: Move cost (normal)
+            TerrainAvoidPtr = rom.u32(addr + 56);   // P56: Terrain avoid
+            TerrainDefPtr = rom.u32(addr + 60);     // P60: Terrain defense
+            TerrainResPtr = rom.u32(addr + 64);     // P64: Terrain resistance
 
             // D68
             UnknownD68 = rom.u32(addr + 68);
@@ -303,9 +305,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B47_WepDark"] = $"0x{WepDark:X02}",
                 ["P48_BattleAnimePtr"] = $"0x{BattleAnimePtr:X08}",
                 ["P52_MoveCostPtr"] = $"0x{MoveCostPtr:X08}",
-                ["P56_MoveCostRainPtr"] = $"0x{MoveCostRainPtr:X08}",
-                ["P60_MoveCostSnowPtr"] = $"0x{MoveCostSnowPtr:X08}",
-                ["P64_TerrainDefPtr"] = $"0x{TerrainDefPtr:X08}",
+                ["P56_TerrainAvoidPtr"] = $"0x{TerrainAvoidPtr:X08}",
+                ["P60_TerrainDefPtr"] = $"0x{TerrainDefPtr:X08}",
+                ["P64_TerrainResPtr"] = $"0x{TerrainResPtr:X08}",
                 ["D68_Unknown"] = $"0x{UnknownD68:X08}",
             };
             return d;
@@ -443,12 +445,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 46, WepLight);
             rom.write_u8(addr + 47, WepDark);
 
-            // Pointers
+            // Pointers — FE6 has no rain/snow move cost
             rom.write_u32(addr + 48, BattleAnimePtr);
-            rom.write_u32(addr + 52, MoveCostPtr);
-            rom.write_u32(addr + 56, MoveCostRainPtr);
-            rom.write_u32(addr + 60, MoveCostSnowPtr);
-            rom.write_u32(addr + 64, TerrainDefPtr);
+            rom.write_u32(addr + 52, MoveCostPtr);       // P52: Move cost (normal)
+            rom.write_u32(addr + 56, TerrainAvoidPtr);    // P56: Terrain avoid
+            rom.write_u32(addr + 60, TerrainDefPtr);      // P60: Terrain defense
+            rom.write_u32(addr + 64, TerrainResPtr);      // P64: Terrain resistance
 
             // D68
             rom.write_u32(addr + 68, UnknownD68);
