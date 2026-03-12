@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ImageBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppressFrameEvents;
 
         public string ViewTitle => "Battle Animation Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -19,6 +20,11 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Populate section combo with mode names
+            for (int i = 0; i < BattleAnimeRendererCore.SectionNames.Length; i++)
+                SectionCombo.Items.Add(BattleAnimeRendererCore.SectionNames[i]);
+            SectionCombo.SelectedIndex = 0;
         }
 
         void LoadList()
@@ -91,12 +97,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     TileSheetPanel.IsVisible = false;
                     TileSheetImage.SetImage(null);
                 }
+
+                // Frame navigation
+                _vm.InitFrameNavigation();
+                UpdateFrameUI();
             }
             else
             {
                 AnimeDetailsPanel.IsVisible = false;
                 TileSheetPanel.IsVisible = false;
+                FrameNavPanel.IsVisible = false;
                 TileSheetImage.SetImage(null);
+                FrameImageControl.SetImage(null);
                 NoAnimeDetailsLabel.IsVisible = _vm.AnimationNumber == 0
                     ? false  // ID 0 means "none", no need to show error
                     : true;
@@ -104,6 +116,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.AnimationNumber == 0)
                     NoAnimeDetailsLabel.IsVisible = false;
             }
+        }
+
+        void UpdateFrameUI()
+        {
+            FrameNavPanel.IsVisible = _vm.HasFrameData;
+            if (!_vm.HasFrameData)
+            {
+                FrameImageControl.SetImage(null);
+                return;
+            }
+
+            _suppressFrameEvents = true;
+            try
+            {
+                FrameUpDown.Maximum = Math.Max(0, _vm.FrameCount - 1);
+                FrameUpDown.Value = _vm.CurrentFrame;
+            }
+            finally { _suppressFrameEvents = false; }
+
+            FrameInfoLabel.Text = _vm.FrameInfoText;
+            FrameImageControl.SetImage(_vm.FrameImage);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -138,6 +171,57 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (string.IsNullOrEmpty(name)) name = "tilesheet";
                 await TileSheetImage.ExportPng(this, $"{name}_tilesheet");
             }
+        }
+
+        void SectionCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressFrameEvents || !_vm.HasFrameData) return;
+            int idx = SectionCombo.SelectedIndex;
+            if (idx < 0) return;
+
+            try
+            {
+                _vm.LoadSectionFrames(idx);
+                UpdateFrameUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SectionCombo_SelectionChanged: {0}", ex.Message);
+            }
+        }
+
+        void FrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressFrameEvents || !_vm.HasFrameData) return;
+            int frame = (int)(FrameUpDown.Value ?? 0);
+
+            try
+            {
+                _vm.GoToFrame(frame);
+                _suppressFrameEvents = true;
+                FrameUpDown.Value = _vm.CurrentFrame;
+                _suppressFrameEvents = false;
+                FrameInfoLabel.Text = _vm.FrameInfoText;
+                FrameImageControl.SetImage(_vm.FrameImage);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("FrameUpDown_ValueChanged: {0}", ex.Message);
+            }
+        }
+
+        void PrevFrame_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.HasFrameData || _vm.FrameCount == 0) return;
+            _vm.GoToFrame(_vm.CurrentFrame - 1);
+            UpdateFrameUI();
+        }
+
+        void NextFrame_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.HasFrameData || _vm.FrameCount == 0) return;
+            _vm.GoToFrame(_vm.CurrentFrame + 1);
+            UpdateFrameUI();
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

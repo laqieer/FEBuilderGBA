@@ -336,5 +336,79 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = savedRom;
             }
         }
+
+        [Fact]
+        public void CountFramesInRange_NullData_ReturnsZero()
+        {
+            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(null, 0, 100));
+        }
+
+        [Fact]
+        public void CountFramesInRange_NoFrames_ReturnsZero()
+        {
+            // Data with no 0x86 commands
+            byte[] data = new byte[16];
+            Assert.Equal(0, BattleAnimeRendererCore.CountFramesInRange(data, 0, 16));
+        }
+
+        [Fact]
+        public void CountFramesInRange_SingleFrame_ReturnsOne()
+        {
+            // A 0x86 command at byte[3] followed by 8 bytes of gfx+oam data
+            byte[] data = new byte[16];
+            data[3] = 0x86; // frame command marker
+            // bytes 4-7 = graphics pointer, bytes 8-11 = OAM offset
+            Assert.Equal(1, BattleAnimeRendererCore.CountFramesInRange(data, 0, 16));
+        }
+
+        [Fact]
+        public void CountFramesInRange_TwoFrames_ReturnsTwo()
+        {
+            // Each frame: 4-byte command (byte[3]=0x86) + 8 bytes data = 12 bytes
+            byte[] data = new byte[28];
+            data[3] = 0x86;   // first frame
+            data[15] = 0x86;  // second frame (offset 12 + 3)
+            Assert.Equal(2, BattleAnimeRendererCore.CountFramesInRange(data, 0, 28));
+        }
+
+        [Fact]
+        public void CountFramesInRange_RespectsRange()
+        {
+            byte[] data = new byte[28];
+            data[3] = 0x86;   // frame at offset 0
+            data[15] = 0x86;  // frame at offset 12
+            // Only count frames in range [12, 28) -- should find 1
+            Assert.Equal(1, BattleAnimeRendererCore.CountFramesInRange(data, 12, 28));
+        }
+
+        [Fact]
+        public void ParseFramesInRange_NullData_ReturnsEmpty()
+        {
+            var frames = BattleAnimeRendererCore.ParseFramesInRange(null, 0, 100);
+            Assert.Empty(frames);
+        }
+
+        [Fact]
+        public void ParseFramesInRange_SingleFrame_ParsesCorrectly()
+        {
+            byte[] data = new byte[16];
+            data[3] = 0x86;
+            // Graphics pointer at offset 4: 0x08100000
+            data[4] = 0x00; data[5] = 0x00; data[6] = 0x10; data[7] = 0x08;
+            // OAM offset at offset 8: 0x00000040
+            data[8] = 0x40; data[9] = 0x00; data[10] = 0x00; data[11] = 0x00;
+
+            var frames = BattleAnimeRendererCore.ParseFramesInRange(data, 0, 16);
+            Assert.Single(frames);
+            Assert.Equal(0u, frames[0].FrameDataOffset);
+            Assert.Equal(0x08100000u, frames[0].GraphicsPointer);
+            Assert.Equal(0x00000040u, frames[0].OamOffset);
+        }
+
+        [Fact]
+        public void SectionNames_Has12Entries()
+        {
+            Assert.Equal(12, BattleAnimeRendererCore.SectionNames.Length);
+        }
     }
 }

@@ -30,6 +30,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         IImage _tileSheetImage;
         string _tileSheetInfo = "";
 
+        // Frame navigation fields
+        int _currentSection;
+        int _currentFrame;
+        int _frameCount;
+        string _frameInfoText = "";
+        bool _hasFrameData;
+        IImage _frameImage;
+        byte[] _cachedFrameData;
+        byte[] _cachedOamData;
+        byte[] _cachedPaletteData;
+        uint _cachedSectionOffset;
+        List<BattleAnimeRendererCore.FrameInfo> _cachedFrames;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
@@ -59,6 +72,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public IImage TileSheetImage { get => _tileSheetImage; set => SetField(ref _tileSheetImage, value); }
         /// <summary>Description of tile sheet (size, tile count).</summary>
         public string TileSheetInfo { get => _tileSheetInfo; set => SetField(ref _tileSheetInfo, value); }
+
+        // Frame navigation properties
+        /// <summary>Current section mode index (0..11).</summary>
+        public int CurrentSection { get => _currentSection; set => SetField(ref _currentSection, value); }
+        /// <summary>Current frame index within the section (0-based).</summary>
+        public int CurrentFrame { get => _currentFrame; set => SetField(ref _currentFrame, value); }
+        /// <summary>Total number of frames in the current section.</summary>
+        public int FrameCount { get => _frameCount; set => SetField(ref _frameCount, value); }
+        /// <summary>Descriptive text about the current frame.</summary>
+        public string FrameInfoText { get => _frameInfoText; set => SetField(ref _frameInfoText, value); }
+        /// <summary>Whether frame data is available for navigation.</summary>
+        public bool HasFrameData { get => _hasFrameData; set => SetField(ref _hasFrameData, value); }
+        /// <summary>Rendered image for the current animation frame.</summary>
+        public IImage FrameImage { get => _frameImage; set => SetField(ref _frameImage, value); }
 
         public List<AddrResult> LoadList()
         {
@@ -238,6 +265,137 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 TileSheetImage = null;
                 TileSheetInfo = "Rendering error";
             }
+        }
+
+        /// <summary>
+        /// Initialize frame navigation data for the current animation record.
+        /// Must be called after LoadAnimationDetails sets AnimeDataAddr.
+        /// </summary>
+        public void InitFrameNavigation()
+        {
+            HasFrameData = false;
+            FrameCount = 0;
+            CurrentFrame = 0;
+            CurrentSection = 0;
+            FrameInfoText = "";
+            FrameImage = null;
+            _cachedFrameData = null;
+            _cachedOamData = null;
+            _cachedPaletteData = null;
+            _cachedFrames = null;
+            _cachedSectionOffset = 0;
+
+            if (!HasAnimeDetails || AnimeDataAddr == 0) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            uint sectionRaw = rom.u32(AnimeDataAddr + 12);
+            uint frameRaw = rom.u32(AnimeDataAddr + 16);
+            uint oamRtLRaw = rom.u32(AnimeDataAddr + 20);
+            uint paletteRaw = rom.u32(AnimeDataAddr + 28);
+
+            // Section data is raw (not compressed) at the pointer address
+            if (!U.isPointer(sectionRaw)) return;
+            _cachedSectionOffset = U.toOffset(sectionRaw);
+            if (!U.isSafetyOffset(_cachedSectionOffset, rom)) return;
+
+            // Decompress frame data
+            _cachedFrameData = BattleAnimeRendererCore.DecompressFrameData(rom, frameRaw);
+            if (_cachedFrameData == null || _cachedFrameData.Length == 0) return;
+
+            // Decompress OAM data
+            if (U.isPointer(oamRtLRaw))
+            {
+                uint oamOff = U.toOffset(oamRtLRaw);
+                if (U.isSafetyOffset(oamOff, rom))
+                    _cachedOamData = LZ77.decompress(rom.Data, oamOff);
+            }
+
+            // Decompress palette data
+            if (U.isPointer(paletteRaw))
+            {
+                uint palOff = U.toOffset(paletteRaw);
+                if (U.isSafetyOffset(palOff, rom))
+                    _cachedPaletteData = LZ77.decompress(rom.Data, palOff);
+            }
+
+            if (_cachedOamData == null || _cachedPaletteData == null) return;
+
+            HasFrameData = true;
+            LoadSectionFrames(0);
+        }
+
+        /// <summary>
+        /// Load frames for the given section index and reset frame position to 0.
+        /// </summary>
+        public void LoadSectionFrames(int sectionIndex)
+        {
+            if (!HasFrameData || _cachedFrameData == null) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            CurrentSection = sectionIndex;
+            CurrentFrame = 0;
+
+            BattleAnimeRendererCore.GetSectionRange(sectionIndex, _cachedSectionOffset,
+                (uint)_cachedFrameData.Length, rom, out uint start, out uint end);
+
+            _cachedFrames = BattleAnimeRendererCore.ParseFramesInRange(_cachedFrameData, start, end);
+            FrameCount = _cachedFrames.Count;
+
+            if (FrameCount > 0)
+            {
+                RenderCurrentFrame();
+            }
+            else
+            {
+                FrameImage = null;
+                FrameInfoText = $"Section {sectionIndex}: no frames found";
+            }
+        }
+
+        /// <summary>
+        /// Navigate to a specific frame index within the current section.
+        /// </summary>
+        public void GoToFrame(int frameIndex)
+        {
+            if (_cachedFrames == null || _cachedFrames.Count == 0) return;
+            if (frameIndex < 0) frameIndex = 0;
+            if (frameIndex >= _cachedFrames.Count) frameIndex = _cachedFrames.Count - 1;
+
+            CurrentFrame = frameIndex;
+            RenderCurrentFrame();
+        }
+
+        /// <summary>
+        /// Render the current frame and update FrameImage + FrameInfoText.
+        /// </summary>
+        void RenderCurrentFrame()
+        {
+            if (_cachedFrames == null || CurrentFrame < 0 || CurrentFrame >= _cachedFrames.Count)
+            {
+                FrameImage = null;
+                FrameInfoText = "";
+                return;
+            }
+
+            var fi = _cachedFrames[CurrentFrame];
+            try
+            {
+                FrameImage = BattleAnimeRendererCore.RenderSingleFrame(fi, _cachedOamData, _cachedPaletteData);
+            }
+            catch
+            {
+                FrameImage = null;
+            }
+
+            string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
+                ? BattleAnimeRendererCore.SectionNames[CurrentSection]
+                : $"Section {CurrentSection}";
+            FrameInfoText = $"Frame {CurrentFrame + 1}/{FrameCount} | {sectionName} | " +
+                            $"Gfx: 0x{fi.GraphicsPointer:X08}, OAM: 0x{fi.OamOffset:X}";
         }
 
         /// <summary>

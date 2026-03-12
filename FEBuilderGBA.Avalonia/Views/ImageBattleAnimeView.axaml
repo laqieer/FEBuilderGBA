@@ -93,6 +93,39 @@
           </StackPanel>
         </Border>
 
+        <!-- Frame Navigation Panel -->
+        <Border Name="FrameNavPanel" IsVisible="False"
+                BorderBrush="SteelBlue" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Animation Frame Viewer" FontSize="14" FontWeight="SemiBold" />
+
+            <Grid ColumnDefinitions="100,200,20,80,80" RowDefinitions="Auto,Auto">
+              <!-- Row 0: Section selector -->
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Section:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="0" Grid.Column="1" Name="SectionCombo"
+                        SelectionChanged="SectionCombo_SelectionChanged" />
+
+              <!-- Row 1: Frame navigation -->
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Frame:" VerticalAlignment="Center" Margin="0,4,0,0" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="FrameUpDown"
+                             Minimum="0" Maximum="0" Value="0"
+                             ValueChanged="FrameUpDown_ValueChanged" Margin="0,4,0,0" />
+              <Button Grid.Row="1" Grid.Column="3" Content="Prev" Name="PrevFrameBtn"
+                      Click="PrevFrame_Click" Margin="0,4,0,0" />
+              <Button Grid.Row="1" Grid.Column="4" Content="Next" Name="NextFrameBtn"
+                      Click="NextFrame_Click" Margin="4,4,0,0" />
+            </Grid>
+
+            <TextBlock Name="FrameInfoLabel" Foreground="DarkSlateBlue" FontFamily="Consolas"
+                       TextWrapping="Wrap" />
+
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                          MaxHeight="400">
+              <controls:GbaImageControl Name="FrameImageControl" />
+            </ScrollViewer>
+          </StackPanel>
+        </Border>
+
         <!-- No details message -->
         <TextBlock Name="NoAnimeDetailsLabel" IsVisible="False"
                    Text="No animation data found for this ID (ID=0 or invalid pointer chain)."
