@@ -116,6 +116,13 @@
                       Click="NextFrame_Click" Margin="4,4,0,0" />
             </Grid>
 
+            <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+              <Button Name="PlayStopBtn" Content="Play" Click="PlayStop_Click" MinWidth="60" />
+              <TextBlock Text="Speed:" VerticalAlignment="Center" Margin="8,0,0,0" />
+              <Slider Name="SpeedSlider" Minimum="1" Maximum="10" Value="5" Width="100"
+                      VerticalAlignment="Center" />
+            </StackPanel>
+
             <TextBlock Name="FrameInfoLabel" Foreground="DarkSlateBlue" FontFamily="Consolas"
                        TextWrapping="Wrap" />
 

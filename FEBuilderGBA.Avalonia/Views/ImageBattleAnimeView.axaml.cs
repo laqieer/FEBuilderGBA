@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -11,6 +12,8 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImageBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressFrameEvents;
+        DispatcherTimer? _animTimer;
+        bool _isPlaying;
 
         public string ViewTitle => "Battle Animation Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -20,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+            Closed += (_, _) => StopAnimation();
 
             // Populate section combo with mode names
             for (int i = 0; i < BattleAnimeRendererCore.SectionNames.Length; i++)
@@ -48,6 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnSelected(uint addr)
         {
+            StopAnimation();
             _vm.IsLoading = true;
             try
             {
@@ -175,6 +180,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SectionCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
+            StopAnimation();
             if (_suppressFrameEvents || !_vm.HasFrameData) return;
             int idx = SectionCombo.SelectedIndex;
             if (idx < 0) return;
@@ -222,6 +228,59 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.HasFrameData || _vm.FrameCount == 0) return;
             _vm.GoToFrame(_vm.CurrentFrame + 1);
             UpdateFrameUI();
+        }
+
+        void PlayStop_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_isPlaying)
+                StopAnimation();
+            else
+                StartAnimation();
+        }
+
+        void StartAnimation()
+        {
+            if (!_vm.HasFrameData || _vm.FrameCount == 0) return;
+
+            _isPlaying = true;
+            PlayStopBtn.Content = "Stop";
+            _animTimer = new DispatcherTimer { Interval = GetFrameInterval() };
+            _animTimer.Tick += OnAnimTick;
+            _animTimer.Start();
+        }
+
+        void StopAnimation()
+        {
+            _isPlaying = false;
+            if (PlayStopBtn != null)
+                PlayStopBtn.Content = "Play";
+            _animTimer?.Stop();
+            _animTimer = null;
+        }
+
+        void OnAnimTick(object? sender, EventArgs e)
+        {
+            if (!_vm.HasFrameData || _vm.FrameCount == 0)
+            {
+                StopAnimation();
+                return;
+            }
+
+            int next = _vm.CurrentFrame + 1;
+            if (next >= _vm.FrameCount) next = 0; // loop
+            _vm.GoToFrame(next);
+            UpdateFrameUI();
+
+            // Update interval in case user changed speed slider
+            if (_animTimer != null)
+                _animTimer.Interval = GetFrameInterval();
+        }
+
+        TimeSpan GetFrameInterval()
+        {
+            double speed = SpeedSlider?.Value ?? 5;
+            int ms = (int)(200 / speed); // 5 → 40ms (25fps), 1 → 200ms, 10 → 20ms
+            return TimeSpan.FromMilliseconds(Math.Max(16, ms));
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
