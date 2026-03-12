@@ -1729,5 +1729,26 @@ namespace FEBuilderGBA.Core.Tests
             uint result = ImageImportCore.WritePaletteToROM(rom, null, 0x100);
             Assert.Equal(U.NOT_FOUND, result);
         }
+
+        // ---- Import3Pointer parameter order regression test ----
+
+        [Fact]
+        public void Import3Pointer_ParameterOrder_ImgTsaPal()
+        {
+            // Regression test: Import3Pointer signature is (rom, pixels, palette,
+            //   width, height, imgPointerAddr, tsaPointerAddr, palPointerAddr).
+            // WinForms ROM layout for CG/BG/TSAAnime:
+            //   addr+0 = image pointer, addr+4 = TSA pointer, addr+8 = palette pointer
+            // Callers must pass (addr+0, addr+4, addr+8) NOT (addr+0, addr+8, addr+4).
+            var method = typeof(ImageImportCore).GetMethod("Import3Pointer",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Assert.NotNull(method);
+
+            var parameters = method.GetParameters();
+            // Verify parameter names match expected order
+            Assert.Equal("imgPointerAddr", parameters[5].Name);
+            Assert.Equal("tsaPointerAddr", parameters[6].Name);
+            Assert.Equal("palPointerAddr", parameters[7].Name);
+        }
     }
 }

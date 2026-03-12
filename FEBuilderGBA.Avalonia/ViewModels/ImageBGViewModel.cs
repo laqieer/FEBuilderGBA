@@ -15,11 +15,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        // P0: Image data pointer
+        // P0: Image data pointer (LZ77-compressed tiles)
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-        // P4: Palette pointer
+        // P4: TSA pointer (raw tile selection array with header, or 0/1 flag for 256-color mode)
         public uint P4 { get => _p4; set => SetField(ref _p4, value); }
-        // P8: TSA pointer
+        // P8: Palette pointer (raw palette data)
         public uint P8 { get => _p8; set => SetField(ref _p8, value); }
 
         public List<AddrResult> LoadList()

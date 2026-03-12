@@ -75,9 +75,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
-                // P0=image, P4=palette, P8=TSA
+                // P0=image, P4=TSA, P8=palette (matching WinForms ImageBGForm)
                 var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
-                    loadResult.Width, loadResult.Height, addr + 0, addr + 8, addr + 4);
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
 
                 if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
 

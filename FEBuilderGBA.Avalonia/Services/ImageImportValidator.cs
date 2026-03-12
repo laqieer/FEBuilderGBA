@@ -300,7 +300,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 MaxDiffPercent = 10.0,
             });
 
-            // ImageCG: P0=image, P4=palette, P8=TSA → Import3Pointer(addr+0, addr+8, addr+4)
+            // ImageCG: P0=image, P4=TSA, P8=palette → Import3Pointer(addr+0, addr+4, addr+8)
             var imageCG = new ImageCGViewModel();
             editors.Add(new EditorDescriptor
             {
@@ -308,7 +308,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 LoadList = () => imageCG.LoadList(),
                 LoadItem = addr => imageCG.LoadEntry(addr),
                 GetImage = () => imageCG.TryLoadImage(),
-                Import = (file, pal) => Import3Ptr(file, pal, imageCG.CurrentAddr, 0, 8, 4, 240, 160),
+                Import = (file, pal) => Import3Ptr(file, pal, imageCG.CurrentAddr, 0, 4, 8, 240, 160),
             });
 
             // ImageCGFE7U: P4=image, P8=TSA, P12=palette
@@ -322,7 +322,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 Import = (file, pal) => Import3Ptr(file, pal, imageCGFE7U.CurrentAddr, 4, 8, 12, 240, 160),
             });
 
-            // ImageBG: P0=image, P4=palette, P8=TSA → Import3Pointer(addr+0, addr+8, addr+4)
+            // ImageBG: P0=image, P4=TSA, P8=palette → Import3Pointer(addr+0, addr+4, addr+8)
             var imageBG = new ImageBGViewModel();
             editors.Add(new EditorDescriptor
             {
@@ -330,10 +330,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 LoadList = () => imageBG.LoadList(),
                 LoadItem = addr => imageBG.LoadEntry(addr),
                 GetImage = () => imageBG.TryLoadImage(),
-                Import = (file, pal) => Import3Ptr(file, pal, imageBG.CurrentAddr, 0, 8, 4, 240, 160),
+                Import = (file, pal) => Import3Ptr(file, pal, imageBG.CurrentAddr, 0, 4, 8, 240, 160),
             });
 
-            // ImageTSAAnime: P0=image, P4=palette, P8=TSA → Import3Pointer(addr+0, addr+8, addr+4)
+            // ImageTSAAnime: P0=image, P4=TSA, P8=palette → Import3Pointer(addr+0, addr+4, addr+8)
             var tsaAnime = new ImageTSAAnimeViewModel();
             editors.Add(new EditorDescriptor
             {
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 LoadList = () => tsaAnime.LoadList(),
                 LoadItem = addr => tsaAnime.LoadEntry(addr),
                 GetImage = () => tsaAnime.TryLoadImage(),
-                Import = (file, pal) => Import3Ptr(file, pal, tsaAnime.CurrentAddr, 0, 8, 4, 240, 160),
+                Import = (file, pal) => Import3Ptr(file, pal, tsaAnime.CurrentAddr, 0, 4, 8, 240, 160),
             });
 
             // OPPrologue: offsets 0,4,8 (img, TSA, pal)
