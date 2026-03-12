@@ -18,6 +18,9 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Auto-recalculate growth sim when SimLevel changes
+            SimLevelBox.ValueChanged += OnSimLevelChanged;
         }
 
         void LoadList()
@@ -49,6 +52,26 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+
+            // Auto-calculate growth on entry load
+            SimLevelBox.Value = _vm.SimLevel;
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SimLevel = (uint)(SimLevelBox.Value ?? 20);
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void OnSimLevelChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading || !_vm.CanWrite) return;
+            _vm.SimLevel = (uint)(SimLevelBox.Value ?? 20);
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

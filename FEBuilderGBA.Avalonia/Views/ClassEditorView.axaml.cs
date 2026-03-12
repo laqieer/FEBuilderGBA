@@ -26,6 +26,23 @@ namespace FEBuilderGBA.Avalonia.Views
             // Set bit flag names for class abilities
             Ability1Flags.SetBitNames(AbilityFlagNames.ClassAbility1);
             Ability2Flags.SetBitNames(AbilityFlagNames.ClassAbility2);
+
+            // Auto-recalculate growth sim when SimLevel or growth/base stat boxes change
+            SimLevelBox.ValueChanged += OnGrowthInputChanged;
+            // Wire growth rate and base stat boxes for auto-recalc
+            GrowHpBox.ValueChanged += OnGrowthInputChanged;
+            GrowStrBox.ValueChanged += OnGrowthInputChanged;
+            GrowSklBox.ValueChanged += OnGrowthInputChanged;
+            GrowSpdBox.ValueChanged += OnGrowthInputChanged;
+            GrowDefBox.ValueChanged += OnGrowthInputChanged;
+            GrowResBox.ValueChanged += OnGrowthInputChanged;
+            GrowLckBox.ValueChanged += OnGrowthInputChanged;
+            BaseHpBox.ValueChanged += OnGrowthInputChanged;
+            BaseStrBox.ValueChanged += OnGrowthInputChanged;
+            BaseSklBox.ValueChanged += OnGrowthInputChanged;
+            BaseSpdBox.ValueChanged += OnGrowthInputChanged;
+            BaseDefBox.ValueChanged += OnGrowthInputChanged;
+            BaseResBox.ValueChanged += OnGrowthInputChanged;
         }
 
         void LoadList()
@@ -136,6 +153,11 @@ namespace FEBuilderGBA.Avalonia.Views
             Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
             Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
             D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+
+            // Auto-calculate growth on entry load
+            SimLevelBox.Value = _vm.SimLevel;
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -241,7 +263,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
         {
-            // Read current UI values into VM before calculating
+            SyncGrowthInputsToVm();
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void OnGrowthInputChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading || !_vm.CanWrite) return;
+            SyncGrowthInputsToVm();
+            _vm.CalculateGrowth();
+            GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void SyncGrowthInputsToVm()
+        {
+            _vm.IsLoading = true; // prevent cascading dirty marks during sync
+            _vm.SimLevel = (uint)(SimLevelBox.Value ?? 20);
             _vm.BaseHp = (uint)(BaseHpBox.Value ?? 0);
             _vm.BaseStr = (uint)(BaseStrBox.Value ?? 0);
             _vm.BaseSkl = (uint)(BaseSklBox.Value ?? 0);
@@ -255,8 +293,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.GrowDef = (uint)(GrowDefBox.Value ?? 0);
             _vm.GrowRes = (uint)(GrowResBox.Value ?? 0);
             _vm.GrowLck = (uint)(GrowLckBox.Value ?? 0);
-            _vm.CalculateGrowth();
-            GrowthSimLabel.Text = _vm.GrowthSimText;
+            _vm.IsLoading = false;
         }
 
         public void EnablePickMode() => ClassList.EnablePickMode();

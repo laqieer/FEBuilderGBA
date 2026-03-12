@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         string _name = "";
         string _growthSimText = "";
+        uint _simLevel = 20;
 
         // W0, W2: text IDs
         uint _nameId, _descId;
@@ -480,7 +481,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string GrowthSimText { get => _growthSimText; set => SetField(ref _growthSimText, value); }
 
         /// <summary>
-        /// Calculate projected stats for a generic unit of this class at levels 10 and 20.
+        /// Target level for growth simulation. Default 20. Clamped to 1-99.
+        /// Changing this auto-recalculates when not loading.
+        /// </summary>
+        public uint SimLevel
+        {
+            get => _simLevel;
+            set
+            {
+                uint clamped = Math.Clamp(value, 1, 99);
+                if (SetField(ref _simLevel, clamped))
+                    AutoRecalcGrowth();
+            }
+        }
+
+        /// <summary>
+        /// Calculate projected stats for a generic unit of this class at LV10, LV20, and SimLevel.
         /// </summary>
         public void CalculateGrowth()
         {
@@ -503,12 +519,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 sim.Grow(20, GrowSimulator.GrowOptionEnum.ClassGrow);
                 sb.AppendLine($"20  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
 
+                // Custom level (skip if it duplicates 10 or 20)
+                if (SimLevel != 10 && SimLevel != 20)
+                {
+                    sim.Grow((int)SimLevel, GrowSimulator.GrowOptionEnum.ClassGrow);
+                    sb.AppendLine($"{SimLevel,-2}  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+                }
+
                 GrowthSimText = sb.ToString();
             }
             catch (Exception ex)
             {
                 GrowthSimText = $"Growth sim error: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Trigger auto-recalculation if not in a loading state and data is loaded.
+        /// </summary>
+        void AutoRecalcGrowth()
+        {
+            if (!IsLoading && CanWrite)
+                CalculateGrowth();
         }
     }
 }
