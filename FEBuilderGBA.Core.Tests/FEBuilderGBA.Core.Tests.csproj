@@ -22,6 +22,7 @@
   <ItemGroup>
     <!-- Include ComboResourceHelper source directly to avoid pulling in Avalonia UI dependencies -->
     <Compile Include="..\FEBuilderGBA.Avalonia\Services\ComboResourceHelper.cs" Link="ComboResourceHelper.cs" />
+    <Compile Include="..\FEBuilderGBA.Avalonia\Services\PatchDetectionService.cs" Link="PatchDetectionService.cs" />
   </ItemGroup>
   <!-- Copy config/ to output for tests that need config files (conditional) -->
   <Target Name="CopyConfig" AfterTargets="Build" Condition="Exists('..\config\config.xml')">

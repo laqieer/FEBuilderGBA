@@ -135,6 +135,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("Failed to init EventScripts: {0}", ex.Message);
             }
 
+            // Detect installed patches (SkillSystem, MagicSplit, etc.)
+            PatchDetectionService.Instance.Refresh();
+
             // Update UI
             _vm.UpdateFromRom();
             StatusText.Text = _vm.StatusText;
