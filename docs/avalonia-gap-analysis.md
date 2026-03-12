@@ -252,7 +252,7 @@ These are the core music editing tools. Without MIDI import/export and instrumen
 | TextDicForm / TextDicVM | **50%** | ~~list not populated~~ **FIXED** — AddressListControl from dic_main_pointer, text decode preview, unit/class name resolution. Missing: chapter/title sub-lists |
 | TextRefAddDialog | 30% | No UseTextIDCache integration |
 | TextToSpeech | 15% | No speech engine (Windows-only) |
-| EDForm / EDVM | 35% | Only 1 of 3 sub-editors |
+| EDForm / EDVM | **40%** | ~~Unit names~~ **FIXED** — unit names in list. Missing: 3 sub-editors |
 | EDStaffRoll | 30% | No image rendering/import/export |
 | EDSensekiComment | 40% | No unit names, no text preview |
 | TextBadCharPopup | 25% | Minimal shell |
@@ -374,9 +374,9 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | ArenaClass | **55%** | ~~Filter combo~~ **FIXED** — 3-way weapon type filter (Near/Far/Magic) + class names |
 | ArenaEnemyWeapon | **45%** | ~~Weapon names~~ **FIXED** — item names in list. Missing: two sub-lists (basic + rank-up) |
 | StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
-| StatusOptionOrder | 55% | Named option display |
+| StatusOptionOrder | **58%** | ~~Named display~~ **FIXED** — clean option ID display |
 | StatusParam | **58%** | ~~Filter combo~~ **FIXED** — 4-way combo (Status Param/Owned Items/Weapon Level/Magic Level) |
-| StatusRMenu | 45% | Linked-list traversal, filter combo |
+| StatusRMenu | **50%** | ~~Text names~~ **FIXED** — text names in list. Linked-list traversal works. Missing: filter combo |
 | StatusUnitsMenu | 50% | OwnerDraw, text decode |
 | MenuCommand | 45% | Filter combo, color combo |
 | MenuDefinition | 45% | Menu preview, multi-pointer |

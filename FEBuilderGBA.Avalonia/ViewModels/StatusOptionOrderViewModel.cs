@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr >= (uint)rom.Data.Length) break;
 
                 uint optionId = rom.u8(addr);
-                string name = U.ToHexString(i) + " Option ID: 0x" + optionId.ToString("X02");
+                string name = $"{U.ToHexString(i)} Option {optionId}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

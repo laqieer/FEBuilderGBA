@@ -57,7 +57,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!anyValid) break;
 
                 uint textId = rom.u16(addr + 18);
-                string name = U.ToHexString(i) + " RMenu Text:0x" + textId.ToString("X04");
+                string textName = NameResolver.GetTextById(textId);
+                string name = $"{U.ToHexString(i)} {textName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

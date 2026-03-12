@@ -40,7 +40,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (rom.u32(addr) == 0x00) break;
 
                 uint uid = rom.u8(addr);
-                string name = U.ToHexString(i) + " Unit 0x" + uid.ToString("X02");
+                string unitName = NameResolver.GetUnitName(uid);
+                string name = $"{U.ToHexString(i)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
