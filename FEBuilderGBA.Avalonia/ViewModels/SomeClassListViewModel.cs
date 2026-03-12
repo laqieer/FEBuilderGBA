@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SomeClassListViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         uint _baseAddr;
         bool _canWrite;
@@ -42,7 +45,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            ClassId = rom.u8(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ClassId = values["B0"];
             ClassDisplayName = NameResolver.GetClassName(ClassId);
             CanWrite = true;
             IsLoading = false;
@@ -55,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 1 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)ClassId);
+            var values = new Dictionary<string, uint> { ["B0"] = ClassId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount()

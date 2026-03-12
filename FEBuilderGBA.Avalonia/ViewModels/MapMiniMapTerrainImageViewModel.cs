@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MapMiniMapTerrainImageViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
@@ -29,7 +32,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            P0 = values["D0"];
             IsLoaded = true;
         }
 

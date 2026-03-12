@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AIPerformItemViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2", "D4" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _item;
@@ -53,9 +56,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 8 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Item = rom.u16(addr + 0);
-            Unused2 = rom.u16(addr + 2);
-            AsmPointer = rom.u32(addr + 4);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Item = values["W0"];
+            Unused2 = values["W2"];
+            AsmPointer = values["D4"];
             IsLoaded = true;
         }
 
@@ -65,9 +69,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u16(addr + 0, Item);
-            rom.write_u16(addr + 2, Unused2);
-            rom.write_u32(addr + 4, AsmPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = Item, ["W2"] = Unused2, ["D4"] = AsmPointer,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

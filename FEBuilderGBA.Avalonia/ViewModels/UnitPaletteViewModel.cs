@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class UnitPaletteViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _traineeClass;
@@ -59,13 +62,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 7 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            TraineeClass = rom.u8(addr + 0);
-            BaseClass1 = rom.u8(addr + 1);
-            BaseClass2 = rom.u8(addr + 2);
-            AdvancedClass1 = rom.u8(addr + 3);
-            AdvancedClass2 = rom.u8(addr + 4);
-            AdvancedClass3 = rom.u8(addr + 5);
-            AdvancedClass4 = rom.u8(addr + 6);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            TraineeClass = values["B0"];
+            BaseClass1 = values["B1"];
+            BaseClass2 = values["B2"];
+            AdvancedClass1 = values["B3"];
+            AdvancedClass2 = values["B4"];
+            AdvancedClass3 = values["B5"];
+            AdvancedClass4 = values["B6"];
             IsLoaded = true;
         }
 
@@ -76,13 +80,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 7 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)TraineeClass);
-            rom.write_u8(addr + 1, (byte)BaseClass1);
-            rom.write_u8(addr + 2, (byte)BaseClass2);
-            rom.write_u8(addr + 3, (byte)AdvancedClass1);
-            rom.write_u8(addr + 4, (byte)AdvancedClass2);
-            rom.write_u8(addr + 5, (byte)AdvancedClass3);
-            rom.write_u8(addr + 6, (byte)AdvancedClass4);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = TraineeClass,
+                ["B1"] = BaseClass1,
+                ["B2"] = BaseClass2,
+                ["B3"] = AdvancedClass1,
+                ["B4"] = AdvancedClass2,
+                ["B5"] = AdvancedClass3,
+                ["B6"] = AdvancedClass4,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

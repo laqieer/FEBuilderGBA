@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SkillConfigFE8NVer3SkillViewViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2", "D4", "D8", "D12", "D16", "D20" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _textDetail, _palette;
@@ -29,13 +32,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 24 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            TextDetail = rom.u16(addr + 0);
-            Palette = rom.u16(addr + 2);
-            UnitClassPointer = rom.u32(addr + 4);
-            ClassSkillPointer = rom.u32(addr + 8);
-            WeaponItemSkillPointer = rom.u32(addr + 12);
-            HeldItemSkillPointer = rom.u32(addr + 16);
-            CompositeSkillPointer = rom.u32(addr + 20);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            TextDetail = values["W0"];
+            Palette = values["W2"];
+            UnitClassPointer = values["D4"];
+            ClassSkillPointer = values["D8"];
+            WeaponItemSkillPointer = values["D12"];
+            HeldItemSkillPointer = values["D16"];
+            CompositeSkillPointer = values["D20"];
             IsLoaded = true;
         }
 
@@ -45,13 +49,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u16(addr + 0, TextDetail);
-            rom.write_u16(addr + 2, Palette);
-            rom.write_u32(addr + 4, UnitClassPointer);
-            rom.write_u32(addr + 8, ClassSkillPointer);
-            rom.write_u32(addr + 12, WeaponItemSkillPointer);
-            rom.write_u32(addr + 16, HeldItemSkillPointer);
-            rom.write_u32(addr + 20, CompositeSkillPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = TextDetail,
+                ["W2"] = Palette,
+                ["D4"] = UnitClassPointer,
+                ["D8"] = ClassSkillPointer,
+                ["D12"] = WeaponItemSkillPointer,
+                ["D16"] = HeldItemSkillPointer,
+                ["D20"] = CompositeSkillPointer,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public void Initialize() { IsLoaded = true; }

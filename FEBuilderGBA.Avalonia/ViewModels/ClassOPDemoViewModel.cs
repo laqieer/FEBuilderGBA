@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ClassOPDemoViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "D24" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _p0;
@@ -73,19 +76,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 28 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
-            D4 = rom.u32(addr + 4);
-            P8 = rom.u32(addr + 8);
-            B12 = rom.u8(addr + 12);
-            B13 = rom.u8(addr + 13);
-            B14 = rom.u8(addr + 14);
-            B15 = rom.u8(addr + 15);
-            B16 = rom.u8(addr + 16);
-            B17 = rom.u8(addr + 17);
-            D18 = rom.u32(addr + 18);
-            B22 = rom.u8(addr + 22);
-            B23 = rom.u8(addr + 23);
-            P24 = rom.u32(addr + 24);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            P0 = values["D0"];
+            D4 = values["D4"];
+            P8 = values["D8"];
+            B12 = values["B12"];
+            B13 = values["B13"];
+            B14 = values["B14"];
+            B15 = values["B15"];
+            B16 = values["B16"];
+            B17 = values["B17"];
+            D18 = values["D18"];
+            B22 = values["B22"];
+            B23 = values["B23"];
+            P24 = values["D24"];
 
             // N1 sub-structure: pointed to by P8, 1 byte per entry
             if (U.isPointer(P8))

@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class UnitCustomBattleAnimeViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "W2" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _weaponType;
@@ -65,9 +68,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            WeaponType = rom.u8(addr + 0);
-            Special = rom.u8(addr + 1);
-            AnimeNumber = rom.u16(addr + 2);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            WeaponType = values["B0"];
+            Special = values["B1"];
+            AnimeNumber = values["W2"];
             IsLoaded = true;
         }
 
@@ -78,9 +82,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 4 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)WeaponType);
-            rom.write_u8(addr + 1, (byte)Special);
-            rom.write_u16(addr + 2, (ushort)AnimeNumber);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = WeaponType,
+                ["B1"] = Special,
+                ["W2"] = AnimeNumber,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

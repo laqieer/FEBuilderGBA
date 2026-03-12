@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SkillAssignmentUnitCSkillSysViewViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _unitSkill;
@@ -22,7 +25,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 2 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            UnitSkill = rom.u16(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            UnitSkill = values["W0"];
             IsLoaded = true;
         }
 
@@ -32,7 +36,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u16(addr + 0, UnitSkill);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = UnitSkill,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public void Initialize() { IsLoaded = true; }

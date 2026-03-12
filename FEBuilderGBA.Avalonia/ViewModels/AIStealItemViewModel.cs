@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AIStealItemViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _item;
@@ -50,8 +53,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 2 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Item = rom.u8(addr + 0);
-            Unused1 = rom.u8(addr + 1);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Item = values["B0"];
+            Unused1 = values["B1"];
             IsLoaded = true;
         }
 
@@ -61,8 +65,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, Item);
-            rom.write_u8(addr + 1, Unused1);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Item,
+                ["B1"] = Unused1,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

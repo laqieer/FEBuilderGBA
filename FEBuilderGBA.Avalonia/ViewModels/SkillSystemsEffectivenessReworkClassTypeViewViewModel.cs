@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SkillSystemsEffectivenessReworkClassTypeViewViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W50" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _classType;
@@ -22,7 +25,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 52 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            ClassType = rom.u16(addr + 50);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ClassType = values["W50"];
             IsLoaded = true;
         }
 
@@ -32,7 +36,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u16(addr + 50, ClassType);
+            var values = new Dictionary<string, uint>
+            {
+                ["W50"] = ClassType,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public void Initialize() { IsLoaded = true; }

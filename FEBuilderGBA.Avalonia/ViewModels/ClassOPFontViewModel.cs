@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ClassOPFontViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _p0;
@@ -47,7 +50,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            P0 = values["D0"];
             IsLoaded = true;
         }
 

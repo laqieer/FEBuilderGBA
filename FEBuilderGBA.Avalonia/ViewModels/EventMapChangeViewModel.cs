@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventMapChangeViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "D8" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _b0;
@@ -51,15 +54,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 12 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            B0 = rom.u8(addr + 0);
-            B1 = rom.u8(addr + 1);
-            B2 = rom.u8(addr + 2);
-            B3 = rom.u8(addr + 3);
-            B4 = rom.u8(addr + 4);
-            B5 = rom.u8(addr + 5);
-            B6 = rom.u8(addr + 6);
-            B7 = rom.u8(addr + 7);
-            P8 = rom.u32(addr + 8);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            B0 = values["B0"];
+            B1 = values["B1"];
+            B2 = values["B2"];
+            B3 = values["B3"];
+            B4 = values["B4"];
+            B5 = values["B5"];
+            B6 = values["B6"];
+            B7 = values["B7"];
+            P8 = values["D8"];
             IsLoaded = true;
         }
 

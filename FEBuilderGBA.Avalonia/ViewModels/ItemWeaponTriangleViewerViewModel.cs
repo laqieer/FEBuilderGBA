@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemWeaponTriangleViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+
         uint _currentAddr;
         uint _weaponType1;
         uint _weaponType2;
@@ -58,10 +61,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            WeaponType1 = rom.u8(addr + 0);
-            WeaponType2 = rom.u8(addr + 1);
-            Bonus = rom.u8(addr + 2);
-            Penalty = rom.u8(addr + 3);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            WeaponType1 = values["B0"];
+            WeaponType2 = values["B1"];
+            Bonus = values["B2"];
+            Penalty = values["B3"];
 
             CanWrite = true;
         }
@@ -71,10 +75,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)WeaponType1);
-            rom.write_u8(addr + 1, (byte)WeaponType2);
-            rom.write_u8(addr + 2, (byte)Bonus);
-            rom.write_u8(addr + 3, (byte)Penalty);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = WeaponType1,
+                ["B1"] = WeaponType2,
+                ["B2"] = Bonus,
+                ["B3"] = Penalty,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadItemWeaponTriangleList().Count;

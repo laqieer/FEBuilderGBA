@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SkillConfigFE8NSkillViewViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "W0", "W2", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _icon, _description;
@@ -38,20 +41,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 16 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            Icon = rom.u16(addr + 0);
-            Description = rom.u16(addr + 2);
-            ConditionUnit1 = rom.u8(addr + 4);
-            ConditionUnit2 = rom.u8(addr + 5);
-            ConditionUnit3 = rom.u8(addr + 6);
-            ConditionUnit4 = rom.u8(addr + 7);
-            ConditionClass1 = rom.u8(addr + 8);
-            ConditionClass2 = rom.u8(addr + 9);
-            ConditionClass3 = rom.u8(addr + 10);
-            ConditionClass4 = rom.u8(addr + 11);
-            ConditionItem1 = rom.u8(addr + 12);
-            ConditionItem2 = rom.u8(addr + 13);
-            ConditionItem3 = rom.u8(addr + 14);
-            ConditionItem4 = rom.u8(addr + 15);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Icon = values["W0"];
+            Description = values["W2"];
+            ConditionUnit1 = values["B4"];
+            ConditionUnit2 = values["B5"];
+            ConditionUnit3 = values["B6"];
+            ConditionUnit4 = values["B7"];
+            ConditionClass1 = values["B8"];
+            ConditionClass2 = values["B9"];
+            ConditionClass3 = values["B10"];
+            ConditionClass4 = values["B11"];
+            ConditionItem1 = values["B12"];
+            ConditionItem2 = values["B13"];
+            ConditionItem3 = values["B14"];
+            ConditionItem4 = values["B15"];
             IsLoaded = true;
         }
 
@@ -61,20 +65,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u16(addr + 0, Icon);
-            rom.write_u16(addr + 2, Description);
-            rom.write_u8(addr + 4, ConditionUnit1);
-            rom.write_u8(addr + 5, ConditionUnit2);
-            rom.write_u8(addr + 6, ConditionUnit3);
-            rom.write_u8(addr + 7, ConditionUnit4);
-            rom.write_u8(addr + 8, ConditionClass1);
-            rom.write_u8(addr + 9, ConditionClass2);
-            rom.write_u8(addr + 10, ConditionClass3);
-            rom.write_u8(addr + 11, ConditionClass4);
-            rom.write_u8(addr + 12, ConditionItem1);
-            rom.write_u8(addr + 13, ConditionItem2);
-            rom.write_u8(addr + 14, ConditionItem3);
-            rom.write_u8(addr + 15, ConditionItem4);
+            var values = new Dictionary<string, uint>
+            {
+                ["W0"] = Icon,
+                ["W2"] = Description,
+                ["B4"] = ConditionUnit1,
+                ["B5"] = ConditionUnit2,
+                ["B6"] = ConditionUnit3,
+                ["B7"] = ConditionUnit4,
+                ["B8"] = ConditionClass1,
+                ["B9"] = ConditionClass2,
+                ["B10"] = ConditionClass3,
+                ["B11"] = ConditionClass4,
+                ["B12"] = ConditionItem1,
+                ["B13"] = ConditionItem2,
+                ["B14"] = ConditionItem3,
+                ["B15"] = ConditionItem4,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public void Initialize() { IsLoaded = true; }

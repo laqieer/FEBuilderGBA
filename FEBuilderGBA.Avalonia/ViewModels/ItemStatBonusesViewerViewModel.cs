@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemStatBonusesViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11" });
+
         uint _currentAddr;
         uint _hp, _str, _skill, _speed, _def, _res, _luck, _move, _con, _unknown9, _unknown10, _unknown11;
         bool _canWrite;
@@ -70,18 +73,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 11 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            HP = rom.u8(addr + 0);
-            Str = rom.u8(addr + 1);
-            Skill = rom.u8(addr + 2);
-            Speed = rom.u8(addr + 3);
-            Def = rom.u8(addr + 4);
-            Res = rom.u8(addr + 5);
-            Luck = rom.u8(addr + 6);
-            Move = rom.u8(addr + 7);
-            Con = rom.u8(addr + 8);
-            Unknown9 = rom.u8(addr + 9);
-            Unknown10 = rom.u8(addr + 10);
-            Unknown11 = rom.u8(addr + 11);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            HP = values["B0"];
+            Str = values["B1"];
+            Skill = values["B2"];
+            Speed = values["B3"];
+            Def = values["B4"];
+            Res = values["B5"];
+            Luck = values["B6"];
+            Move = values["B7"];
+            Con = values["B8"];
+            Unknown9 = values["B9"];
+            Unknown10 = values["B10"];
+            Unknown11 = values["B11"];
 
             CanWrite = true;
         }
@@ -91,18 +95,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)HP);
-            rom.write_u8(addr + 1, (byte)Str);
-            rom.write_u8(addr + 2, (byte)Skill);
-            rom.write_u8(addr + 3, (byte)Speed);
-            rom.write_u8(addr + 4, (byte)Def);
-            rom.write_u8(addr + 5, (byte)Res);
-            rom.write_u8(addr + 6, (byte)Luck);
-            rom.write_u8(addr + 7, (byte)Move);
-            rom.write_u8(addr + 8, (byte)Con);
-            rom.write_u8(addr + 9, (byte)Unknown9);
-            rom.write_u8(addr + 10, (byte)Unknown10);
-            rom.write_u8(addr + 11, (byte)Unknown11);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = HP,
+                ["B1"] = Str,
+                ["B2"] = Skill,
+                ["B3"] = Speed,
+                ["B4"] = Def,
+                ["B5"] = Res,
+                ["B6"] = Luck,
+                ["B7"] = Move,
+                ["B8"] = Con,
+                ["B9"] = Unknown9,
+                ["B10"] = Unknown10,
+                ["B11"] = Unknown11,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadItemStatBonusesList().Count;

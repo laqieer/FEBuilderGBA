@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SkillAssignmentUnitFE8NViewViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B39", "B40", "B41" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _personalSkill, _skillSet1, _skillSet2;
@@ -24,9 +27,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 42 > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            PersonalSkill = rom.u8(addr + 39);
-            SkillSet1 = rom.u8(addr + 40);
-            SkillSet2 = rom.u8(addr + 41);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PersonalSkill = values["B39"];
+            SkillSet1 = values["B40"];
+            SkillSet2 = values["B41"];
             IsLoaded = true;
         }
 
@@ -36,9 +40,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 39, PersonalSkill);
-            rom.write_u8(addr + 40, SkillSet1);
-            rom.write_u8(addr + 41, SkillSet2);
+            var values = new Dictionary<string, uint>
+            {
+                ["B39"] = PersonalSkill,
+                ["B40"] = SkillSet1,
+                ["B41"] = SkillSet2,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public void Initialize() { IsLoaded = true; }

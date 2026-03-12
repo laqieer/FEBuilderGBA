@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AITilesViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _tile;
@@ -31,7 +34,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            Tile = rom.u8(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            Tile = values["B0"];
             IsLoaded = true;
         }
 
@@ -41,7 +45,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             uint addr = CurrentAddr;
 
-            rom.write_u8(addr + 0, Tile);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = Tile,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => 0;

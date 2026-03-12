@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class StatusOptionViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "W4", "W6", "W8", "W10", "W12", "W14", "W16", "W18", "W20", "W22", "W24", "W26", "W28", "W30", "W32", "W34", "D36", "D40" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _idTextId;
@@ -84,25 +87,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 44 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            IdTextId = rom.u32(addr + 0);
-            NameTextId = rom.u16(addr + 4);
-            HelpTextId = rom.u16(addr + 6);
-            PosX = rom.u16(addr + 8);
-            PosY = rom.u16(addr + 10);
-            SelectionText1 = rom.u16(addr + 12);
-            SelectionText2 = rom.u16(addr + 14);
-            Columns = rom.u16(addr + 16);
-            Rows = rom.u16(addr + 18);
-            DefaultTextId = rom.u16(addr + 20);
-            YesTextId = rom.u16(addr + 22);
-            MinValue = rom.u16(addr + 24);
-            MaxValue = rom.u16(addr + 26);
-            OnOffText1 = rom.u16(addr + 28);
-            OnOffText2 = rom.u16(addr + 30);
-            DefaultValue = rom.u16(addr + 32);
-            OptionType = rom.u16(addr + 34);
-            IconId = rom.u32(addr + 36);
-            AsmPointer = rom.u32(addr + 40);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            IdTextId = values["D0"];
+            NameTextId = values["W4"];
+            HelpTextId = values["W6"];
+            PosX = values["W8"];
+            PosY = values["W10"];
+            SelectionText1 = values["W12"];
+            SelectionText2 = values["W14"];
+            Columns = values["W16"];
+            Rows = values["W18"];
+            DefaultTextId = values["W20"];
+            YesTextId = values["W22"];
+            MinValue = values["W24"];
+            MaxValue = values["W26"];
+            OnOffText1 = values["W28"];
+            OnOffText2 = values["W30"];
+            DefaultValue = values["W32"];
+            OptionType = values["W34"];
+            IconId = values["D36"];
+            AsmPointer = values["D40"];
             IsLoaded = true;
         }
 
@@ -113,25 +117,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 44 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, IdTextId);
-            rom.write_u16(addr + 4, (ushort)NameTextId);
-            rom.write_u16(addr + 6, (ushort)HelpTextId);
-            rom.write_u16(addr + 8, (ushort)PosX);
-            rom.write_u16(addr + 10, (ushort)PosY);
-            rom.write_u16(addr + 12, (ushort)SelectionText1);
-            rom.write_u16(addr + 14, (ushort)SelectionText2);
-            rom.write_u16(addr + 16, (ushort)Columns);
-            rom.write_u16(addr + 18, (ushort)Rows);
-            rom.write_u16(addr + 20, (ushort)DefaultTextId);
-            rom.write_u16(addr + 22, (ushort)YesTextId);
-            rom.write_u16(addr + 24, (ushort)MinValue);
-            rom.write_u16(addr + 26, (ushort)MaxValue);
-            rom.write_u16(addr + 28, (ushort)OnOffText1);
-            rom.write_u16(addr + 30, (ushort)OnOffText2);
-            rom.write_u16(addr + 32, (ushort)DefaultValue);
-            rom.write_u16(addr + 34, (ushort)OptionType);
-            rom.write_u32(addr + 36, IconId);
-            rom.write_u32(addr + 40, AsmPointer);
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = IdTextId,
+                ["W4"] = NameTextId,
+                ["W6"] = HelpTextId,
+                ["W8"] = PosX,
+                ["W10"] = PosY,
+                ["W12"] = SelectionText1,
+                ["W14"] = SelectionText2,
+                ["W16"] = Columns,
+                ["W18"] = Rows,
+                ["W20"] = DefaultTextId,
+                ["W22"] = YesTextId,
+                ["W24"] = MinValue,
+                ["W26"] = MaxValue,
+                ["W28"] = OnOffText1,
+                ["W30"] = OnOffText2,
+                ["W32"] = DefaultValue,
+                ["W34"] = OptionType,
+                ["D36"] = IconId,
+                ["D40"] = AsmPointer,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;
