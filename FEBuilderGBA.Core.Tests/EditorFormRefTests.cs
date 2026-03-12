@@ -366,5 +366,63 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         #endregion
+
+        #region ExtraUnit integration patterns
+
+        /// <summary>
+        /// Validates that the field naming convention used by ExtraUnitFE8UViewModel
+        /// (D0 + P4) correctly reads and writes an 8-byte struct via EditorFormRef.
+        /// </summary>
+        [Fact]
+        public void ExtraUnitFE8U_FieldPattern_RoundTrip()
+        {
+            var rom = CreateTestRom(256);
+            var fields = EditorFormRef.DetectFields(new[] { "D0", "P4" });
+
+            Assert.Equal(2, fields.Count);
+            Assert.Equal("D0", fields[0].Name);
+            Assert.Equal(EditorFormRef.FieldType.DWord, fields[0].Type);
+            Assert.Equal(0u, fields[0].Offset);
+            Assert.Equal("P4", fields[1].Name);
+            Assert.Equal(EditorFormRef.FieldType.Pointer, fields[1].Type);
+            Assert.Equal(4u, fields[1].Offset);
+
+            // Write a flag ID and a GBA pointer
+            var writeValues = new Dictionary<string, uint>
+            {
+                ["D0"] = 0x0003,       // flag ID
+                ["P4"] = 0x100,        // pointer (ROM offset, write_p32 adds 0x08000000)
+            };
+            EditorFormRef.WriteFields(rom, 0x20, writeValues, fields);
+
+            // Read back
+            var readValues = EditorFormRef.ReadFields(rom, 0x20, fields);
+            Assert.Equal(0x0003u, readValues["D0"]);
+            Assert.Equal(0x100u, readValues["P4"]);
+        }
+
+        /// <summary>
+        /// Validates that the field naming convention used by ExtraUnitViewModel
+        /// (P0) correctly reads and writes a 4-byte pointer-only struct.
+        /// </summary>
+        [Fact]
+        public void ExtraUnit_FieldPattern_RoundTrip()
+        {
+            var rom = CreateTestRom(256);
+            var fields = EditorFormRef.DetectFields(new[] { "P0" });
+
+            Assert.Single(fields);
+            Assert.Equal("P0", fields[0].Name);
+            Assert.Equal(EditorFormRef.FieldType.Pointer, fields[0].Type);
+            Assert.Equal(0u, fields[0].Offset);
+
+            var writeValues = new Dictionary<string, uint> { ["P0"] = 0x200 };
+            EditorFormRef.WriteFields(rom, 0x10, writeValues, fields);
+
+            var readValues = EditorFormRef.ReadFields(rom, 0x10, fields);
+            Assert.Equal(0x200u, readValues["P0"]);
+        }
+
+        #endregion
     }
 }

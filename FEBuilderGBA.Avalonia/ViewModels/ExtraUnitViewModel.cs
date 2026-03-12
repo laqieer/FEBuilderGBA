@@ -1,35 +1,67 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// ExtraUnit (FE8J) editor — uses EditorFormRef auto-binding.
+    /// Struct layout: P0=UnitDataPointer (GBA pointer, 4 bytes) = 4 bytes total.
+    /// Flag data lives at a separate address (i * 0x14 + 0x37E10).
+    /// </summary>
     public class ExtraUnitViewModel : ViewModelBase, IDataVerifiable
     {
+        // Field definitions detected from naming convention
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "P0" });
+
+        const uint BaseAddress = 0x37EE4;
+        const uint EntrySize = 4;
+
         uint _currentAddr;
         bool _isLoaded;
         uint _p0;
+        int _selectedIndex;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
 
+        static uint GetFlagAddr(int i) => (uint)(i * 0x14 + 0x37E10);
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Extra Unit Editor", 0));
-            return result;
+
+            return EditorFormRef.BuildListWithCount(rom, BaseAddress, EntrySize,
+                (i, addr) => U.isSafetyPointer(rom.u32(addr)),
+                (i, addr) =>
+                {
+                    uint flagAddr = GetFlagAddr(i);
+                    uint flagId = rom.u8(flagAddr);
+                    uint unitsAddr = rom.p32(addr);
+                    uint unitId = rom.u8(unitsAddr);
+                    string unitName = NameResolver.GetUnitName(unitId);
+                    return $"{U.ToHexString(unitId)} {unitName} (Flag:0x{flagId:X})";
+                });
         }
 
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 4 > (uint)rom.Data.Length) return;
+            if (addr + EntrySize > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+
+            // Compute selected index for flag lookup
+            _selectedIndex = (int)((addr - BaseAddress) / EntrySize);
+
+            // Auto-read fields from ROM using EditorFormRef
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            P0 = values["P0"];
+
             IsLoaded = true;
         }
 
@@ -38,10 +70,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
 
-            rom.write_u32(CurrentAddr + 0, P0);
+            // Auto-write fields to ROM using EditorFormRef
+            var values = new Dictionary<string, uint>
+            {
+                ["P0"] = P0,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return EditorFormRef.CountEntries(rom, BaseAddress, EntrySize,
+                (i, addr) => U.isSafetyPointer(rom.u32(addr)));
+        }
 
         public Dictionary<string, string> GetDataReport()
         {
