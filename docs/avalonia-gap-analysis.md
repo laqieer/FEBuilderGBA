@@ -232,7 +232,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | SoundRoom | **50%** | ~~Song names~~ **FIXED** — song names in list. Missing: position display, patch detection |
 | SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
 | SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
-| SoundBossBGM | **50%** | ~~Unit names~~ **FIXED** — unit names in list + pick button. Missing: portraits, song names |
+| SoundBossBGM | **55%** | ~~Unit names~~ **FIXED**, ~~Song jump~~ **FIXED** — unit names + pick + Jump to Song. Missing: portraits |
 | SoundFootSteps | **40%** | ~~Class names~~ **FIXED** — class names in list. Missing: switch enable check |
 | WorldMapBGM | 50% | World map point names |
 
@@ -289,7 +289,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | WorldMapPath | **45%** | ~~Generic list~~ **FIXED** — start/end point IDs in list. Missing: map preview, path rendering |
 | WorldMapPathMoveEditor | **50%** | ~~Non-functional (no path selector)~~ **FIXED** — BuildList from base address, node display with T/X/Y, null-terminator detection |
 | WorldMapEventPointer | 35% | Missing dual list (before/after), no opening/ending events |
-| WorldMapBGM | **58%** | ~~Song names~~ **FIXED** — song names in list. Minimal remaining gap |
+| WorldMapBGM | **62%** | ~~Song names~~ **FIXED**, ~~Jump to Song~~ **FIXED** — song names + Jump buttons. Near parity |
 
 ---
 

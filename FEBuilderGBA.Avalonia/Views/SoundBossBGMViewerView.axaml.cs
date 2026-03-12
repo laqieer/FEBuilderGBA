@@ -96,6 +96,26 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
+        void JumpToSong_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint songId = (uint)(SongIdBox.Value ?? 0);
+                uint ptr = rom.RomInfo.sound_table_pointer;
+                if (ptr == 0) return;
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + songId * 8;
+                WindowManager.Instance.Navigate<SongTableView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToSong failed: {0}", ex.Message);
+            }
+        }
+
         void JumpToUnit_Click(object? sender, RoutedEventArgs e)
         {
             try
