@@ -41,30 +41,30 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | # | Domain | Avg Completeness | Forms | Critical Gaps |
 |---|--------|:---:|:---:|---|
 | 1 | [Shared Infrastructure](#15-shared-infrastructure) | **70%** | 12 | No auto-wiring, no convention binding |
-| 2 | [Unit Editors](#1-unit-editors) | **~48%** | 10 | ~~Growth sim~~ FIXED, no skills |
-| 3 | [Item Editors](#2-item-editors) | **~55%** | 14 | No patch-aware UI |
+| 2 | [Unit Editors](#1-unit-editors) | **~50%** | 10 | ~~Growth sim~~ FIXED, no skills |
+| 3 | [Item Editors](#2-item-editors) | **~56%** | 14 | No patch-aware UI |
 | 4 | [Class Editors](#3-class-editors) | **~48%** | 7 | ~~Growth sim~~ FIXED, no skills, no magic split |
 | 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
-| 8 | [Sound & Music](#7-sound--music) | **~42%** | 10 | No MIDI import, no playback |
+| 8 | [Sound & Music](#7-sound--music) | **~43%** | 10 | No MIDI import, no playback |
 | 9 | [Text & Dialogue](#8-text--dialogue) | **~35%** | 10 | No dialogue preview, no search |
 | 10 | [Support & Relationships](#9-support--relationships) | **~53%** | 7 | Unit names FIXED, no auto-collect |
 | 11 | [World Map](#10-world-map) | **~48%** | 5 | Point names FIXED, no map preview |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
 | 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Patch manager missing |
 | 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | No easy mode |
-| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~52%** | 28 | No filter combos, no OwnerDraw |
+| 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~53%** | 28 | Filter combos FIXED (StatusParam/ArenaClass), no OwnerDraw |
 
 ---
 
 ## 1. Unit Editors
 
-**Domain Average: ~48%**
+**Domain Average: ~50%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| UnitForm / UnitEditorVM | **55%** | ~~Growth Sim~~ **FIXED**, Skills, Magic Split, ~~Checkboxes~~ **FIXED** (BitFlagPanel), Pick-and-return for Class/Portrait |
+| UnitForm / UnitEditorVM | **60%** | ~~Growth Sim~~ **FIXED**, ~~Checkboxes~~ **FIXED** (BitFlagPanel), Pick-and-return for Class/Portrait. Missing: Skills, Magic Split |
 | UnitFE7Form / UnitFE7VM | 50% | Magic Split, ~~Checkboxes~~ **FIXED** |
 | UnitFE6Form / (via UnitEditorVM) | 50% | ~~Checkboxes~~ **FIXED** |
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
@@ -88,12 +88,12 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 ## 2. Item Editors
 
-**Domain Average: ~55%**
+**Domain Average: ~56%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| ItemEditor / ItemEditorVM | 55% | Checkboxes, stat preview, patch-aware UI |
-| ItemFE6 / ItemFE6VM | 55% | Checkboxes, price calc, hard-coding warning |
+| ItemEditor / ItemEditorVM | **60%** | ~~Checkboxes~~ **FIXED** (BitFlagPanel for Trait1/2), Pick-and-return. Missing: stat preview, patch-aware UI |
+| ItemFE6 / ItemFE6VM | **58%** | ~~Checkboxes~~ **FIXED** (Pick-and-return). Missing: price calc, hard-coding warning |
 | ItemWeaponEffect / ItemWeaponEffectVM | **55%** | ~~Item names~~ **FIXED** — item names in list. Missing: effect name cache, magic system detection |
 | ItemWeaponTriangle / ItemWeaponTriangleVM | 60% | Weapon type icons |
 | ItemEffectiveness / ItemEffectivenessVM | **45%** | ~~Class names~~ **FIXED** — class names in list. Missing: dual-list architecture, independence button |
@@ -363,7 +363,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 
 ## 14. Opening/Ending/Status/Miscellaneous
 
-**Domain Average: ~50%**
+**Domain Average: ~53%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
