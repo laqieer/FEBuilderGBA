@@ -3,24 +3,101 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventCondView"
         Title="Event Condition Editor" Width="1834" Height="999">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="250,250,*">
+    <!-- Column 0: Map list -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Maps" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl Name="EntryList" />
+    </DockPanel>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Column 1: Condition type selector + record list -->
+    <DockPanel Grid.Column="1" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Condition Slot" FontWeight="Bold" Margin="0,0,0,4" />
+      <ComboBox DockPanel.Dock="Top" Name="SlotCombo" Margin="0,0,0,4" />
+      <TextBlock DockPanel.Dock="Top" Text="Records" FontWeight="Bold" Margin="0,4,0,4" />
+      <ListBox Name="RecordList" />
+    </DockPanel>
+
+    <!-- Column 2: Record editor -->
+    <ScrollViewer Grid.Column="2" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Event Condition Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <TextBlock Name="SlotInfoLabel" Foreground="Gray" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Size:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="DataSizeLabel" VerticalAlignment="Center" />
-
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Raw Bytes:" VerticalAlignment="Top" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="RawBytesLabel" VerticalAlignment="Top"
+        <Grid ColumnDefinitions="120,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Record Address:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center"
                      FontFamily="Consolas,Courier New,monospace" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Record Size:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Name="RecordSizeLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Type Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Name="CondTypeNameLabel" VerticalAlignment="Center"
+                     FontWeight="SemiBold" />
+
+          <!-- Editable fields -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Name="LblB0" Text="Type:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="CondTypeBox"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Name="LblB1" Text="Sub-type:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="SubTypeBox"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Name="LblB2B3" Text="Flag ID:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="FlagIdBox"
+                         Minimum="0" Maximum="65535" FormatString="X4" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Name="LblB4B7" Text="Event Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="EventPtrBox"
+                         Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Name="LblB8" Text="B8:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="ExtraB8Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Name="LblB9" Text="B9:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="ExtraB9Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Name="LblB10" Text="B10:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="ExtraB10Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="10" Grid.Column="0" Name="LblB11" Text="B11:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="ExtraB11Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <!-- FE7 extended fields (rows 12-15) -->
+          <TextBlock Grid.Row="11" Grid.Column="0" Name="LblB12" Text="B12:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="ExtraB12Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="12" Grid.Column="0" Name="LblB13" Text="B13:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="ExtraB13Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="13" Grid.Column="0" Name="LblB14" Text="B14:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="ExtraB14Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="14" Grid.Column="0" Name="LblB15" Text="B15:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="ExtraB15Box"
+                         Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
         </Grid>
+
+        <!-- Name resolution hints -->
+        <TextBlock Name="NameHintLabel" Foreground="DarkGreen" TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+          <Button Content="Write" Name="WriteButton" Click="Write_Click" />
+        </StackPanel>
+
+        <!-- Raw hex dump for reference -->
+        <TextBlock Text="Raw Hex:" FontWeight="Bold" Margin="0,16,0,4" />
+        <TextBlock Name="RawHexLabel" FontFamily="Consolas,Courier New,monospace" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
