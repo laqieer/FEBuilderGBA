@@ -21,13 +21,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         BallistaMoveCost = 9,
     }
 
+    /// <summary>
+    /// Represents a cost type combo item for display in the UI.
+    /// </summary>
     public class CostTypeItem
     {
-        public CostType Type { get; set; }
-        public string Name { get; set; } = "";
-        public CostTypeItem() { }
-        public CostTypeItem(CostType type, string name) { Type = type; Name = name; }
-        public override string ToString() => Name;
+        public CostType CostType { get; }
+        public string DisplayName { get; }
+
+        public CostTypeItem(CostType costType, string displayName)
+        {
+            CostType = costType;
+            DisplayName = displayName;
+        }
+
+        public override string ToString() => DisplayName;
     }
 
     public class MoveCostEditorViewModel : ViewModelBase, IDataVerifiable
@@ -135,7 +143,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => new byte[]
             {
-                B0,  B1,  B2,  B3,  B4,  B5,  B6,  B7,  B8,  B9,
+                B0, B1, B2, B3, B4, B5, B6, B7, B8, B9,
                 B10, B11, B12, B13, B14, B15, B16, B17, B18, B19,
                 B20, B21, B22, B23, B24, B25, B26, B27, B28, B29,
                 B30, B31, B32, B33, B34, B35, B36, B37, B38, B39,
@@ -147,6 +155,81 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>Total terrain count: 65 (indices 0 through 64).</summary>
         public const int TerrainCount = 65;
+
+        /// <summary>
+        /// Build the list of available cost types based on the ROM version.
+        /// FE6 lacks Rain and Snow cost types.
+        /// </summary>
+        public void BuildCostTypeItems()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            var items = new List<CostTypeItem>();
+            items.Add(new CostTypeItem(CostType.MoveCostNormal, "Move Cost (Normal)"));
+            if (rom.RomInfo.version != 6)
+            {
+                items.Add(new CostTypeItem(CostType.MoveCostRain, "Move Cost (Rain)"));
+                items.Add(new CostTypeItem(CostType.MoveCostSnow, "Move Cost (Snow)"));
+            }
+            items.Add(new CostTypeItem(CostType.TerrainAvoid, "Terrain Avoid"));
+            items.Add(new CostTypeItem(CostType.TerrainDefense, "Terrain Defense"));
+            items.Add(new CostTypeItem(CostType.TerrainResistance, "Terrain Resistance"));
+            items.Add(new CostTypeItem(CostType.TerrainRecovery, "Terrain Recovery"));
+            if (rom.RomInfo.version != 6)
+            {
+                items.Add(new CostTypeItem(CostType.BallistaMoveCost, "Ballista Move Cost"));
+            }
+            CostTypeItems = items;
+            if (items.Count > 0)
+            {
+                SelectedCostTypeIndex = 0;
+                SelectedCostType = items[0].CostType;
+            }
+        }
+
+        /// <summary>
+        /// Get the ROM address that contains the pointer to the cost table
+        /// for a given class address and cost type.
+        /// Returns 0 if the cost type is not available for this ROM version.
+        /// </summary>
+        public static uint GetMoveCostPointerAddr(uint classAddr, CostType costType)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !U.isSafetyOffset(classAddr)) return 0;
+
+            if (rom.RomInfo.version == 6)
+            {
+                // FE6: class_datasize = 72
+                switch (costType)
+                {
+                    case CostType.MoveCostNormal: return classAddr + 52;
+                    case CostType.MoveCostRain: return 0; // FE6 has no rain
+                    case CostType.MoveCostSnow: return 0; // FE6 has no snow
+                    case CostType.TerrainAvoid: return classAddr + 56;
+                    case CostType.TerrainDefense: return classAddr + 60;
+                    case CostType.TerrainResistance: return classAddr + 64;
+                    case CostType.TerrainRecovery: return rom.RomInfo.terrain_recovery_pointer;
+                    default: return 0;
+                }
+            }
+            else
+            {
+                // FE7/FE8: class_datasize = 84
+                switch (costType)
+                {
+                    case CostType.MoveCostNormal: return classAddr + 56;
+                    case CostType.MoveCostRain: return classAddr + 60;
+                    case CostType.MoveCostSnow: return classAddr + 64;
+                    case CostType.TerrainAvoid: return classAddr + 68;
+                    case CostType.TerrainDefense: return classAddr + 72;
+                    case CostType.TerrainResistance: return classAddr + 76;
+                    case CostType.TerrainRecovery: return rom.RomInfo.terrain_recovery_pointer;
+                    case CostType.BallistaMoveCost: return rom.RomInfo.ballista_movcost_pointer;
+                    default: return 0;
+                }
+            }
+        }
 
         /// <summary>
         /// Load class list (same as ClassEditor but we read the move cost table pointer).
@@ -202,7 +285,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     try
                     {
-                        // Each terrain name entry is a 4-byte pointer to a string
                         uint entryAddr = (uint)(terrainNameBase + i * 4);
                         if (U.isSafetyOffset(entryAddr + 3))
                         {
@@ -223,79 +305,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Build the list of available cost types based on the ROM version.
-        /// FE6 lacks Rain and Snow cost types.
-        /// </summary>
-        public void BuildCostTypeItems()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-
-            var items = new List<CostTypeItem>();
-            items.Add(new CostTypeItem(CostType.MoveCostNormal, "Move Cost (Normal)"));
-            if (rom.RomInfo.version != 6)
-            {
-                items.Add(new CostTypeItem(CostType.MoveCostRain, "Move Cost (Rain)"));
-                items.Add(new CostTypeItem(CostType.MoveCostSnow, "Move Cost (Snow)"));
-            }
-            items.Add(new CostTypeItem(CostType.TerrainAvoid, "Terrain Avoid"));
-            items.Add(new CostTypeItem(CostType.TerrainDefense, "Terrain Defense"));
-            items.Add(new CostTypeItem(CostType.TerrainResistance, "Terrain Resistance"));
-            items.Add(new CostTypeItem(CostType.TerrainRecovery, "Terrain Recovery"));
-            if (rom.RomInfo.version != 6)
-            {
-                items.Add(new CostTypeItem(CostType.BallistaMoveCost, "Ballista Move Cost"));
-            }
-            CostTypeItems = items;
-            if (items.Count > 0)
-                SelectedCostTypeIndex = 0;
-        }
-
-        /// <summary>
-        /// Get the ROM address that contains the pointer to the cost table
-        /// for a given class address and cost type.
-        /// Returns 0 if the cost type is not available for this ROM version.
-        /// </summary>
-        public static uint GetMoveCostPointerAddr(uint classAddr, CostType costType)
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null || !U.isSafetyOffset(classAddr)) return 0;
-
-            if (rom.RomInfo.version == 6)
-            {
-                // FE6: class_datasize = 72
-                switch (costType)
-                {
-                    case CostType.MoveCostNormal: return classAddr + 52;
-                    case CostType.MoveCostRain: return 0; // FE6 has no rain
-                    case CostType.MoveCostSnow: return 0; // FE6 has no snow
-                    case CostType.TerrainAvoid: return classAddr + 56;
-                    case CostType.TerrainDefense: return classAddr + 60;
-                    case CostType.TerrainResistance: return classAddr + 64;
-                    case CostType.TerrainRecovery: return rom.RomInfo.terrain_recovery_pointer;
-                    default: return 0;
-                }
-            }
-            else
-            {
-                // FE7/FE8: class_datasize = 84
-                switch (costType)
-                {
-                    case CostType.MoveCostNormal: return classAddr + 56;
-                    case CostType.MoveCostRain: return classAddr + 60;
-                    case CostType.MoveCostSnow: return classAddr + 64;
-                    case CostType.TerrainAvoid: return classAddr + 68;
-                    case CostType.TerrainDefense: return classAddr + 72;
-                    case CostType.TerrainResistance: return classAddr + 76;
-                    case CostType.TerrainRecovery: return rom.RomInfo.terrain_recovery_pointer;
-                    case CostType.BallistaMoveCost: return rom.RomInfo.ballista_movcost_pointer;
-                    default: return 0;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Load move cost table for a class and the currently selected cost type.
+        /// Load move cost table for a class using the currently selected cost type.
         /// </summary>
         public void LoadMoveCost(uint classAddr)
         {
@@ -304,7 +314,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Load move cost table for a class with a specific cost type.
-        /// The cost type determines which pointer offset to read from the class struct.
         /// </summary>
         public void LoadMoveCost(uint classAddr, CostType costType)
         {
@@ -322,7 +331,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try { ClassName = FETextDecode.Direct(nameId); }
             catch { ClassName = "???"; }
 
-            // Get the address that holds the pointer to the cost table
             uint pointerAddr = GetMoveCostPointerAddr(classAddr, costType);
             if (pointerAddr == 0 || !U.isSafetyOffset(pointerAddr))
             {
@@ -360,7 +368,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             MoveCostAddr = moveCostAddr;
 
-            // Read all 65 terrain move costs (B0 through B64)
             if (moveCostAddr + TerrainCount > (uint)rom.Data.Length)
             {
                 ClearAllFields();
@@ -388,76 +395,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = MoveCostAddr;
             if (!U.isSafetyOffset(addr) || addr + TerrainCount > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, B0);
-            rom.write_u8(addr + 1, B1);
-            rom.write_u8(addr + 2, B2);
-            rom.write_u8(addr + 3, B3);
-            rom.write_u8(addr + 4, B4);
-            rom.write_u8(addr + 5, B5);
-            rom.write_u8(addr + 6, B6);
-            rom.write_u8(addr + 7, B7);
-            rom.write_u8(addr + 8, B8);
-            rom.write_u8(addr + 9, B9);
-            rom.write_u8(addr + 10, B10);
-            rom.write_u8(addr + 11, B11);
-            rom.write_u8(addr + 12, B12);
-            rom.write_u8(addr + 13, B13);
-            rom.write_u8(addr + 14, B14);
-            rom.write_u8(addr + 15, B15);
-            rom.write_u8(addr + 16, B16);
-            rom.write_u8(addr + 17, B17);
-            rom.write_u8(addr + 18, B18);
-            rom.write_u8(addr + 19, B19);
-            rom.write_u8(addr + 20, B20);
-            rom.write_u8(addr + 21, B21);
-            rom.write_u8(addr + 22, B22);
-            rom.write_u8(addr + 23, B23);
-            rom.write_u8(addr + 24, B24);
-            rom.write_u8(addr + 25, B25);
-            rom.write_u8(addr + 26, B26);
-            rom.write_u8(addr + 27, B27);
-            rom.write_u8(addr + 28, B28);
-            rom.write_u8(addr + 29, B29);
-            rom.write_u8(addr + 30, B30);
-            rom.write_u8(addr + 31, B31);
-            rom.write_u8(addr + 32, B32);
-            rom.write_u8(addr + 33, B33);
-            rom.write_u8(addr + 34, B34);
-            rom.write_u8(addr + 35, B35);
-            rom.write_u8(addr + 36, B36);
-            rom.write_u8(addr + 37, B37);
-            rom.write_u8(addr + 38, B38);
-            rom.write_u8(addr + 39, B39);
-            rom.write_u8(addr + 40, B40);
-            rom.write_u8(addr + 41, B41);
-            rom.write_u8(addr + 42, B42);
-            rom.write_u8(addr + 43, B43);
-            rom.write_u8(addr + 44, B44);
-            rom.write_u8(addr + 45, B45);
-            rom.write_u8(addr + 46, B46);
-            rom.write_u8(addr + 47, B47);
-            rom.write_u8(addr + 48, B48);
-            rom.write_u8(addr + 49, B49);
-            rom.write_u8(addr + 50, B50);
-            rom.write_u8(addr + 51, B51);
-            rom.write_u8(addr + 52, B52);
-            rom.write_u8(addr + 53, B53);
-            rom.write_u8(addr + 54, B54);
-            rom.write_u8(addr + 55, B55);
-            rom.write_u8(addr + 56, B56);
-            rom.write_u8(addr + 57, B57);
-            rom.write_u8(addr + 58, B58);
-            rom.write_u8(addr + 59, B59);
-            rom.write_u8(addr + 60, B60);
-            rom.write_u8(addr + 61, B61);
-            rom.write_u8(addr + 62, B62);
-            rom.write_u8(addr + 63, B63);
-            rom.write_u8(addr + 64, B64);
+            for (int i = 0; i < TerrainCount; i++)
+                rom.write_u8((uint)(addr + i), GetCost(i));
         }
 
-        /// <summary>
-        /// Get the byte value at a given terrain index (0-64).
-        /// </summary>
         public byte GetCost(int index)
         {
             return index switch
@@ -479,9 +420,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
-        /// <summary>
-        /// Set the byte value at a given terrain index (0-64).
-        /// </summary>
         public void SetCost(int index, byte value)
         {
             switch (index)
@@ -554,84 +492,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
+                ["costType"] = SelectedCostType.ToString(),
             };
 
-            // Read the move cost pointer from class struct
-            uint moveCostPtrOffset = (rom.RomInfo.version == 6) ? 52u : 56u;
-            if (a + moveCostPtrOffset + 3 < (uint)rom.Data.Length)
+            uint pointerAddr = GetMoveCostPointerAddr(a, SelectedCostType);
+            if (pointerAddr != 0 && U.isSafetyOffset(pointerAddr) && pointerAddr + 3 < (uint)rom.Data.Length)
             {
-                report[$"u32@0x{moveCostPtrOffset:X02}"] = $"0x{rom.u32(a + moveCostPtrOffset):X08}";
+                if (pointerAddr >= a && pointerAddr < a + rom.RomInfo.class_datasize)
+                {
+                    uint offset = pointerAddr - a;
+                    report[$"u32@0x{offset:X02}"] = $"0x{rom.u32(pointerAddr):X08}";
+                }
+                else
+                {
+                    report[$"u32@0x{pointerAddr:X08}"] = $"0x{rom.u32(pointerAddr):X08}";
+                }
             }
 
-            // Also report the raw move cost bytes at MoveCostAddr
             if (MoveCostAddr == 0 || !U.isSafetyOffset(MoveCostAddr)) return report;
             uint m = MoveCostAddr;
             if (m + TerrainCount > (uint)rom.Data.Length) return report;
-            report["u8@0x00"] = $"0x{rom.u8(m + 0):X02}";
-            report["u8@0x01"] = $"0x{rom.u8(m + 1):X02}";
-            report["u8@0x02"] = $"0x{rom.u8(m + 2):X02}";
-            report["u8@0x03"] = $"0x{rom.u8(m + 3):X02}";
-            report["u8@0x04"] = $"0x{rom.u8(m + 4):X02}";
-            report["u8@0x05"] = $"0x{rom.u8(m + 5):X02}";
-            report["u8@0x06"] = $"0x{rom.u8(m + 6):X02}";
-            report["u8@0x07"] = $"0x{rom.u8(m + 7):X02}";
-            report["u8@0x08"] = $"0x{rom.u8(m + 8):X02}";
-            report["u8@0x09"] = $"0x{rom.u8(m + 9):X02}";
-            report["u8@0x0A"] = $"0x{rom.u8(m + 10):X02}";
-            report["u8@0x0B"] = $"0x{rom.u8(m + 11):X02}";
-            report["u8@0x0C"] = $"0x{rom.u8(m + 12):X02}";
-            report["u8@0x0D"] = $"0x{rom.u8(m + 13):X02}";
-            report["u8@0x0E"] = $"0x{rom.u8(m + 14):X02}";
-            report["u8@0x0F"] = $"0x{rom.u8(m + 15):X02}";
-            report["u8@0x10"] = $"0x{rom.u8(m + 16):X02}";
-            report["u8@0x11"] = $"0x{rom.u8(m + 17):X02}";
-            report["u8@0x12"] = $"0x{rom.u8(m + 18):X02}";
-            report["u8@0x13"] = $"0x{rom.u8(m + 19):X02}";
-            report["u8@0x14"] = $"0x{rom.u8(m + 20):X02}";
-            report["u8@0x15"] = $"0x{rom.u8(m + 21):X02}";
-            report["u8@0x16"] = $"0x{rom.u8(m + 22):X02}";
-            report["u8@0x17"] = $"0x{rom.u8(m + 23):X02}";
-            report["u8@0x18"] = $"0x{rom.u8(m + 24):X02}";
-            report["u8@0x19"] = $"0x{rom.u8(m + 25):X02}";
-            report["u8@0x1A"] = $"0x{rom.u8(m + 26):X02}";
-            report["u8@0x1B"] = $"0x{rom.u8(m + 27):X02}";
-            report["u8@0x1C"] = $"0x{rom.u8(m + 28):X02}";
-            report["u8@0x1D"] = $"0x{rom.u8(m + 29):X02}";
-            report["u8@0x1E"] = $"0x{rom.u8(m + 30):X02}";
-            report["u8@0x1F"] = $"0x{rom.u8(m + 31):X02}";
-            report["u8@0x20"] = $"0x{rom.u8(m + 32):X02}";
-            report["u8@0x21"] = $"0x{rom.u8(m + 33):X02}";
-            report["u8@0x22"] = $"0x{rom.u8(m + 34):X02}";
-            report["u8@0x23"] = $"0x{rom.u8(m + 35):X02}";
-            report["u8@0x24"] = $"0x{rom.u8(m + 36):X02}";
-            report["u8@0x25"] = $"0x{rom.u8(m + 37):X02}";
-            report["u8@0x26"] = $"0x{rom.u8(m + 38):X02}";
-            report["u8@0x27"] = $"0x{rom.u8(m + 39):X02}";
-            report["u8@0x28"] = $"0x{rom.u8(m + 40):X02}";
-            report["u8@0x29"] = $"0x{rom.u8(m + 41):X02}";
-            report["u8@0x2A"] = $"0x{rom.u8(m + 42):X02}";
-            report["u8@0x2B"] = $"0x{rom.u8(m + 43):X02}";
-            report["u8@0x2C"] = $"0x{rom.u8(m + 44):X02}";
-            report["u8@0x2D"] = $"0x{rom.u8(m + 45):X02}";
-            report["u8@0x2E"] = $"0x{rom.u8(m + 46):X02}";
-            report["u8@0x2F"] = $"0x{rom.u8(m + 47):X02}";
-            report["u8@0x30"] = $"0x{rom.u8(m + 48):X02}";
-            report["u8@0x31"] = $"0x{rom.u8(m + 49):X02}";
-            report["u8@0x32"] = $"0x{rom.u8(m + 50):X02}";
-            report["u8@0x33"] = $"0x{rom.u8(m + 51):X02}";
-            report["u8@0x34"] = $"0x{rom.u8(m + 52):X02}";
-            report["u8@0x35"] = $"0x{rom.u8(m + 53):X02}";
-            report["u8@0x36"] = $"0x{rom.u8(m + 54):X02}";
-            report["u8@0x37"] = $"0x{rom.u8(m + 55):X02}";
-            report["u8@0x38"] = $"0x{rom.u8(m + 56):X02}";
-            report["u8@0x39"] = $"0x{rom.u8(m + 57):X02}";
-            report["u8@0x3A"] = $"0x{rom.u8(m + 58):X02}";
-            report["u8@0x3B"] = $"0x{rom.u8(m + 59):X02}";
-            report["u8@0x3C"] = $"0x{rom.u8(m + 60):X02}";
-            report["u8@0x3D"] = $"0x{rom.u8(m + 61):X02}";
-            report["u8@0x3E"] = $"0x{rom.u8(m + 62):X02}";
-            report["u8@0x3F"] = $"0x{rom.u8(m + 63):X02}";
-            report["u8@0x40"] = $"0x{rom.u8(m + 64):X02}";
+            for (int i = 0; i < TerrainCount; i++)
+            {
+                report[$"u8@0x{i:X02}"] = $"0x{rom.u8((uint)(m + i)):X02}";
+            }
             return report;
         }
     }

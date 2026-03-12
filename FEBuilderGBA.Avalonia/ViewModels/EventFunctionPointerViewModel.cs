@@ -67,6 +67,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
+                ["addr"] = $"0x{CurrentAddr:X08}",
                 ["EventCommandFunctionPointer"] = EventCommandFunctionPointer.ToString("X08"),
             };
         }

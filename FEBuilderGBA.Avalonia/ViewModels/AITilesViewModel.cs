@@ -50,7 +50,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                { "Tile", Tile.ToString("X02") },
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Tile"] = Tile.ToString("X02"),
             };
         }
 

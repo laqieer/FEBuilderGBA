@@ -27,6 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             BuildTerrainGrid();
             ClassList.SelectedAddressChanged += OnClassSelected;
             WriteButton.Click += OnWriteClick;
+            CostTypeCombo.SelectionChanged += OnCostTypeChanged;
             Opened += (_, _) => LoadList();
         }
 
@@ -84,13 +85,46 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.BuildCostTypeItems();
                 _vm.LoadTerrainNames();
+
+                // Populate cost type combo
+                _suppressEvents = true;
+                CostTypeCombo.ItemsSource = _vm.CostTypeItems;
+                if (_vm.CostTypeItems.Count > 0)
+                    CostTypeCombo.SelectedIndex = 0;
+                _suppressEvents = false;
+
                 var items = _vm.LoadClassList();
                 ClassList.SetItems(items);
             }
             catch (Exception ex)
             {
                 Log.Error("MoveCostEditorView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void OnCostTypeChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressEvents) return;
+            if (CostTypeCombo.SelectedItem is CostTypeItem item)
+            {
+                _vm.SelectedCostType = item.CostType;
+                _vm.SelectedCostTypeIndex = CostTypeCombo.SelectedIndex;
+
+                // Reload the current class with the new cost type
+                if (_vm.CurrentAddr != 0)
+                {
+                    try
+                    {
+                        _vm.LoadMoveCost(_vm.CurrentAddr, item.CostType);
+                        UpdateUI();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("MoveCostEditorView.OnCostTypeChanged failed: {0}", ex.Message);
+                    }
+                }
             }
         }
 
@@ -119,7 +153,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ClassNameLabel.Text = _vm.ClassName;
                 AddrLabel.Text = $"Class: 0x{_vm.CurrentAddr:X08}";
-                MoveCostAddrLabel.Text = $"MoveCost: 0x{_vm.MoveCostAddr:X08}";
+                MoveCostAddrLabel.Text = $"Table: 0x{_vm.MoveCostAddr:X08}";
+                CostTypeLabel.Text = $"{_vm.SelectedCostType} (65 terrains: 0x00 - 0x40):";
 
                 // Update terrain labels with names
                 for (int i = 0; i < MoveCostEditorViewModel.TerrainCount; i++)

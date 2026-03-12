@@ -16,9 +16,14 @@
           <TextBlock Name="MoveCostAddrLabel" FontSize="12" Foreground="Gray" VerticalAlignment="Center" />
         </StackPanel>
 
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
+          <TextBlock Text="Cost Type:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <ComboBox Name="CostTypeCombo" Width="250" />
+        </StackPanel>
+
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,4,0,4" />
 
-        <TextBlock Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
+        <TextBlock Name="CostTypeLabel" Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
 
         <!-- 5 columns of terrain costs, 13 rows each -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">

@@ -10,10 +10,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _canWrite;
         string _className = "";
         byte[] _moveCosts = Array.Empty<byte>();
+        CostType _selectedCostType = CostType.MoveCostNormal;
+        List<CostTypeItem> _costTypeItems = new();
+        int _selectedCostTypeIndex;
 
         // W0: u16 name text ID at class struct offset 0
         ushort _nameTextId;
-        // D52: u32 move cost pointer at class struct offset 52
+        // Move cost pointer (varies by cost type)
         uint _moveCostPointer;
 
         // 51 terrain cost bytes (B0-B50), one per terrain type
@@ -28,10 +31,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string ClassName { get => _className; set => SetField(ref _className, value); }
         public byte[] MoveCosts { get => _moveCosts; set => SetField(ref _moveCosts, value); }
+        public CostType SelectedCostType { get => _selectedCostType; set => SetField(ref _selectedCostType, value); }
+        public List<CostTypeItem> CostTypeItems { get => _costTypeItems; set => SetField(ref _costTypeItems, value); }
+        public int SelectedCostTypeIndex { get => _selectedCostTypeIndex; set => SetField(ref _selectedCostTypeIndex, value); }
 
         // W0: u16 at offset 0 (name text ID)
         public ushort NameTextId { get => _nameTextId; set => SetField(ref _nameTextId, value); }
-        // D52: u32 at offset 52 (move cost pointer)
+        // Move cost pointer (varies by cost type)
         public uint MoveCostPointer { get => _moveCostPointer; set => SetField(ref _moveCostPointer, value); }
 
         // 51 individual byte properties (B0 through B50)
@@ -117,7 +123,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>
+        /// Build the list of available cost types for FE6.
+        /// </summary>
+        public void BuildCostTypeItems()
+        {
+            var items = new List<CostTypeItem>();
+            items.Add(new CostTypeItem(CostType.MoveCostNormal, "Move Cost (Normal)"));
+            items.Add(new CostTypeItem(CostType.TerrainAvoid, "Terrain Avoid"));
+            items.Add(new CostTypeItem(CostType.TerrainDefense, "Terrain Defense"));
+            items.Add(new CostTypeItem(CostType.TerrainResistance, "Terrain Resistance"));
+            items.Add(new CostTypeItem(CostType.TerrainRecovery, "Terrain Recovery"));
+            CostTypeItems = items;
+            if (items.Count > 0)
+            {
+                SelectedCostTypeIndex = 0;
+                SelectedCostType = items[0].CostType;
+            }
+        }
+
         public void LoadMoveCost(uint classAddr)
+        {
+            LoadMoveCost(classAddr, SelectedCostType);
+        }
+
+        public void LoadMoveCost(uint classAddr, CostType costType)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
@@ -127,30 +157,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = classAddr;
+            SelectedCostType = costType;
 
             // W0: u16 name text ID at offset 0
             NameTextId = (ushort)rom.u16(classAddr + 0);
             try { ClassName = FETextDecode.Direct(NameTextId); }
             catch { ClassName = "???"; }
 
-            // D52: u32 move cost pointer at offset 52
-            uint moveCostPtrOffset = 52;
+            // Get the pointer address for the selected cost type
+            uint pointerAddr = MoveCostEditorViewModel.GetMoveCostPointerAddr(classAddr, costType);
 
-            if (classAddr + moveCostPtrOffset + 3 >= (uint)rom.Data.Length)
+            if (pointerAddr == 0 || !U.isSafetyOffset(pointerAddr) || pointerAddr + 3 >= (uint)rom.Data.Length)
             {
                 MoveCostPointer = 0;
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                CanWrite = true;
+                CanWrite = false;
+                IsLoading = false;
                 return;
             }
 
-            MoveCostPointer = rom.u32(classAddr + moveCostPtrOffset);
+            MoveCostPointer = rom.u32(pointerAddr);
             if (!U.isPointer(MoveCostPointer))
             {
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                CanWrite = true;
+                CanWrite = false;
+                IsLoading = false;
                 return;
             }
 
@@ -159,7 +192,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ClearAllB();
                 MoveCosts = Array.Empty<byte>();
-                CanWrite = true;
+                CanWrite = false;
+                IsLoading = false;
                 return;
             }
 

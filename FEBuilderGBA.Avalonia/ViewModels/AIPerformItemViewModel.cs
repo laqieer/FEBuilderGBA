@@ -76,9 +76,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                { "Item", Item.ToString("X04") },
-                { "Unused2", Unused2.ToString("X04") },
-                { "AsmPointer", AsmPointer.ToString("X08") },
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Item"] = Item.ToString("X04"),
+                ["Unused2"] = Unused2.ToString("X04"),
+                ["AsmPointer"] = AsmPointer.ToString("X08"),
             };
         }
 
