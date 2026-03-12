@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -8,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         string _name = "";
+        string _growthSimText = "";
 
         // W0, W2: text IDs
         uint _nameId, _descId;
@@ -450,6 +452,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // D68
             rom.write_u32(addr + 68, UnknownD68);
+        }
+
+        public string GrowthSimText { get => _growthSimText; set => SetField(ref _growthSimText, value); }
+
+        public void CalculateGrowth()
+        {
+            try
+            {
+                var sim = new GrowSimulator();
+                sim.SetUnitBase(1, 0, 0, 0, 0, 0, 0, 0, 0);
+                sim.SetClassBase((int)BaseHp, (int)BaseStr, (int)BaseSkl, (int)BaseSpd, (int)BaseDef, (int)BaseRes, 0);
+                sim.SetUnitGrow(0, 0, 0, 0, 0, 0, 0, 0);
+                sim.SetClassGrow((int)GrowHp, (int)GrowStr, (int)GrowSkl, (int)GrowSpd, (int)GrowDef, (int)GrowRes, (int)GrowLck, 0);
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Class Growth Simulator:");
+                sb.AppendLine("LV   HP  Str  Skl  Spd  Def  Res  Lck");
+                sim.Grow(10, GrowSimulator.GrowOptionEnum.ClassGrow);
+                sb.AppendLine($"10  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+                sim.Grow(20, GrowSimulator.GrowOptionEnum.ClassGrow);
+                sb.AppendLine($"20  {sim.sim_hp,3}  {sim.sim_str,3}  {sim.sim_skill,3}  {sim.sim_spd,3}  {sim.sim_def,3}  {sim.sim_res,3}  {sim.sim_luck,3}");
+                GrowthSimText = sb.ToString();
+            }
+            catch (Exception ex) { GrowthSimText = $"Error: {ex.Message}"; }
         }
     }
 }

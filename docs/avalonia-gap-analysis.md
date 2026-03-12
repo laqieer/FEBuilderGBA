@@ -123,7 +123,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
 | ClassForm / ClassEditorVM | **55%** | ~~Growth sim~~ **FIXED**, ~~ability checkboxes~~ **FIXED** (BitFlagPanel). Missing: skills, magic split |
-| ClassFE6Form / ClassFE6VM | 45% | Growth sim, ability checkboxes, class extends |
+| ClassFE6Form / ClassFE6VM | **48%** | ~~Growth sim~~ **FIXED** (VM). Missing: data display fields in view, ability checkboxes |
 | CCBranchForm / CCBranchEditorVM | **45%** | ~~upstream chain display~~ **FIXED** — shows classes that promote to selected class. Missing: CC3 patch, class-sharing |
 | SMEPromoListForm / SMEPromoListVM | **55%** | ~~List loading is stub~~ **FIXED** — proper 2-byte entry enumeration with class names, NavigateTo support |
 | SomeClassListForm / SomeClassListVM | **55%** | ~~No list management~~ **FIXED** — AddressListControl with null-terminated class list, name resolution |
