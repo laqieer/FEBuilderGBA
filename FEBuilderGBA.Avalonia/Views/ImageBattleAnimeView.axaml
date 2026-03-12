@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleAnimeView"
-        Title="Battle Animation Editor" Width="852" Height="473">
+        Title="Battle Animation Editor" Width="900" Height="600">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -24,10 +24,73 @@
           <!-- Row 2: W2 Animation Number -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation # (W2):" VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="2" Grid.Column="1" Name="AnimationNumberBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Resolved:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="4" Name="WeaponTypeNameLabel" VerticalAlignment="Center"
+                     FontStyle="Italic" Foreground="Gray" />
 
           <!-- Row 3: Write button -->
           <Button Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
+
+        <!-- Animation Details Panel -->
+        <Border Name="AnimeDetailsPanel" IsVisible="False"
+                BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Animation Data Details" FontSize="14" FontWeight="SemiBold" />
+
+            <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <!-- Row 0: Animation name -->
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Name="AnimeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" />
+
+              <!-- Row 1: Data address -->
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Address:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Name="AnimeDataAddrLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 2: Section pointer -->
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Section Ptr:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Name="SectionPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 3: Frame pointer -->
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Frame Ptr:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Name="FramePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 4: OAM R-to-L pointer -->
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="OAM (R→L) Ptr:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Name="OamRtLPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 5: OAM L-to-R pointer -->
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="OAM (L→R) Ptr:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Name="OamLtRPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 6: Palette pointer -->
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="Palette Ptr:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="6" Grid.Column="1" Name="PalettePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+
+              <!-- Row 7: Frame LZ77 info -->
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="Frame Data:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="7" Grid.Column="1" Name="FrameLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
+
+              <!-- Row 8: OAM LZ77 info -->
+              <TextBlock Grid.Row="8" Grid.Column="0" Text="OAM Data:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="8" Grid.Column="1" Name="OamLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- No details message -->
+        <TextBlock Name="NoAnimeDetailsLabel" IsVisible="False"
+                   Text="No animation data found for this ID (ID=0 or invalid pointer chain)."
+                   FontStyle="Italic" Foreground="Gray" Margin="0,8,0,0" />
+
+        <!-- Animation table summary -->
+        <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Animation Table Summary" FontSize="13" FontWeight="SemiBold" />
+            <TextBlock Name="AnimeCountLabel" Text="Total animations: --" />
+          </StackPanel>
+        </Border>
+
       </StackPanel>
     </ScrollViewer>
   </Grid>
