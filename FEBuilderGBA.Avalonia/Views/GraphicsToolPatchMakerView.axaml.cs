@@ -1,6 +1,8 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -25,21 +27,61 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
-        void Close_Click(object? sender, RoutedEventArgs e) => Close();
-
-        void Save_Click(object? sender, RoutedEventArgs e)
+        async void BrowseOriginal_Click(object? sender, RoutedEventArgs e)
         {
-            _undoService.Begin("Graphics Patch Save");
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (!string.IsNullOrEmpty(path))
+                _vm.OriginalRomPath = path;
+        }
+
+        async void BrowseModified_Click(object? sender, RoutedEventArgs e)
+        {
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (!string.IsNullOrEmpty(path))
+                _vm.ModifiedRomPath = path;
+        }
+
+        void Generate_Click(object? sender, RoutedEventArgs e)
+        {
             try
             {
-                // Placeholder: save graphics patch data
-                _undoService.Commit();
-                _vm.MarkClean();
+                _vm.GeneratePatch();
             }
             catch (Exception ex)
             {
-                _undoService.Rollback();
+                Log.Error("GraphicsToolPatchMaker.Generate", ex.ToString());
+                _vm.StatusMessage = "Error: " + ex.Message;
+            }
+        }
+
+        void Close_Click(object? sender, RoutedEventArgs e) => Close();
+
+        async void Save_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save Graphics Patch",
+                    SuggestedFileName = "graphics_patch.txt",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("Text Patch File") { Patterns = new[] { "*.txt" } },
+                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                    },
+                });
+
+                var outputPath = file?.TryGetLocalPath();
+                if (!string.IsNullOrEmpty(outputPath))
+                {
+                    _vm.SavePatch(outputPath);
+                    _vm.MarkClean();
+                }
+            }
+            catch (Exception ex)
+            {
                 Log.Error("GraphicsToolPatchMakerView.Save", ex.ToString());
+                _vm.StatusMessage = "Error saving: " + ex.Message;
             }
         }
 
