@@ -61,7 +61,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointer(p0)) break;
 
                 uint cid = rom.u8(addr + 14);
-                string name = U.ToHexString(i) + " Class Demo";
+                string className = NameResolver.GetClassName(cid);
+                string name = $"{U.ToHexString(i)} {className}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

@@ -75,7 +75,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (animCheck > 6) break;
 
                 uint cid = rom.u8(addr + 5);
-                string name = U.ToHexString(cid) + " Class Demo (FE8U)";
+                string className = NameResolver.GetClassName(cid);
+                string name = $"{U.ToHexString(cid)} {className}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

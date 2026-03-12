@@ -90,7 +90,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr + 32 > (uint)rom.Data.Length) break;
 
                 uint cid = rom.u8(addr + 15);
-                string name = U.ToHexString(cid) + " Class Demo (FE7)";
+                string className = NameResolver.GetClassName(cid);
+                string name = $"{U.ToHexString(cid)} {className}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

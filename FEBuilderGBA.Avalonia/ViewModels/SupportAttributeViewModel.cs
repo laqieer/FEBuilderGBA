@@ -50,7 +50,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint v = rom.u8(addr);
                 if (v == 0 && i > 0) break;
 
-                string name = U.ToHexString(i + 1) + " Affinity 0x" + v.ToString("X02");
+                string[] affinityNames = { "None", "Fire", "Thunder", "Wind", "Ice", "Dark", "Light", "Anima" };
+                string affName = v < affinityNames.Length ? affinityNames[v] : $"0x{v:X02}";
+                string name = $"{U.ToHexString(i + 1)} {affName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

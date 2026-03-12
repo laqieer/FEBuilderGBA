@@ -274,7 +274,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | SupportTalk (FE8) | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list display. Missing: JumpTo pair search |
 | SupportTalkFE6 | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: text preview |
 | SupportTalkFE7 | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: text preview |
-| SupportAttribute | 50% | Affinity name/icon resolution |
+| SupportAttribute | **55%** | ~~Affinity names~~ **FIXED** — affinity names in list. Missing: icon display |
 | TacticianAffinityFE7 | 30% | View now exists; missing combo resources |
 
 ---
@@ -367,7 +367,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| OPClassDemo (4 VMs) | 45% | Patch detection, N1/N2 sub-lists |
+| OPClassDemo (4 VMs) | **50%** | ~~Class names~~ **FIXED** — class names in list. Missing: patch detection, N1/N2 sub-lists |
 | OPClassFont (2 VMs) | 50% | Image export/import |
 | OPPrologue | 55% | Image export/import |
 | OPClassAlphaName (2 VMs) | 55% | ASCII validation |
