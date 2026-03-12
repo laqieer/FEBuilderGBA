@@ -92,7 +92,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointerOrNULL(rom.u32(addr + 16))) break;
                 if (!U.isPointerOrNULL(rom.u32(addr + 20))) break;
 
-                string name = U.ToHexString(i) + " World Map Point";
+                uint nameTextId = rom.u16(addr + 28);
+                string pointName = nameTextId != 0 ? NameResolver.GetTextById(nameTextId) : "???";
+                string name = $"{U.ToHexString(i)} {pointName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

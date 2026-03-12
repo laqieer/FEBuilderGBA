@@ -25,7 +25,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Termination: first u32 must be a pointer
                 if (!U.isPointer(rom.u32(addr))) break;
 
-                string name = U.ToHexString(i) + " Path";
+                uint startId = rom.u8(addr + 4);
+                uint endId = rom.u8(addr + 5);
+                string name = $"{U.ToHexString(i)} Point {startId:X02} -> Point {endId:X02}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

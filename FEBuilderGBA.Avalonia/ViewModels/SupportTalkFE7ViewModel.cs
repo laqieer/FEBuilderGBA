@@ -54,7 +54,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint uid1 = rom.u8(addr + 0);
                 uint uid2 = rom.u8(addr + 1);
-                string name = U.ToHexString(i) + " Unit 0x" + uid1.ToString("X02") + " & Unit 0x" + uid2.ToString("X02");
+                string n1 = NameResolver.GetUnitName(uid1);
+                string n2 = NameResolver.GetUnitName(uid2);
+                string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

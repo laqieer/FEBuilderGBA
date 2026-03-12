@@ -111,7 +111,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (!hasMore) break;
                 }
 
-                string name = U.ToHexString(i) + " Support Unit Entry";
+                string unitName = NameResolver.GetUnitName(i);
+                string name = $"{U.ToHexString(i)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

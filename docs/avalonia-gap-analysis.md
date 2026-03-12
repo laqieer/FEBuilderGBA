@@ -49,8 +49,8 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
 | 8 | [Sound & Music](#7-sound--music) | **~40%** | 10 | No MIDI import, no playback |
 | 9 | [Text & Dialogue](#8-text--dialogue) | **~35%** | 10 | No dialogue preview, no search |
-| 10 | [Support & Relationships](#9-support--relationships) | **~50%** | 7 | No auto-collect, no reciprocal validation |
-| 11 | [World Map](#10-world-map) | **~45%** | 5 | No map preview, no dual event lists |
+| 10 | [Support & Relationships](#9-support--relationships) | **~53%** | 7 | Unit names FIXED, no auto-collect |
+| 11 | [World Map](#10-world-map) | **~48%** | 5 | Point names FIXED, no map preview |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
 | 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Patch manager missing |
 | 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | No easy mode |
@@ -265,15 +265,15 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 
 ## 9. Support & Relationships
 
-**Domain Average: ~50%**
+**Domain Average: ~53%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| SupportUnitEditor (FE7/8) | 40% | Auto-collect, reciprocal validation, talk jumps |
-| SupportUnitFE6 | 45% | Support talk jumps, unit name resolution |
-| SupportTalk (FE8) | 45% | Unit name resolution, JumpTo pair search |
-| SupportTalkFE6 | 45% | Unit name resolution, text preview |
-| SupportTalkFE7 | 45% | Unit name resolution, text preview |
+| SupportUnitEditor (FE7/8) | **50%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: auto-collect, reciprocal validation, talk jumps |
+| SupportUnitFE6 | **50%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: talk jumps |
+| SupportTalk (FE8) | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list display. Missing: JumpTo pair search |
+| SupportTalkFE6 | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: text preview |
+| SupportTalkFE7 | **55%** | ~~Unit name resolution~~ **FIXED** — unit names in list. Missing: text preview |
 | SupportAttribute | 50% | Affinity name/icon resolution |
 | TacticianAffinityFE7 | 30% | View now exists; missing combo resources |
 
@@ -281,12 +281,12 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 
 ## 10. World Map
 
-**Domain Average: ~45%**
+**Domain Average: ~48%**
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| WorldMapPoint | 45% | Map preview, coordinate validation, tooltips |
-| WorldMapPath | 40% | Map preview, path rendering |
+| WorldMapPoint | **50%** | ~~Name text missing~~ **FIXED** — point names in list via text ID. Missing: map preview, coordinate validation |
+| WorldMapPath | **45%** | ~~Generic list~~ **FIXED** — start/end point IDs in list. Missing: map preview, path rendering |
 | WorldMapPathMoveEditor | **50%** | ~~Non-functional (no path selector)~~ **FIXED** — BuildList from base address, node display with T/X/Y, null-terminator detection |
 | WorldMapEventPointer | 35% | Missing dual list (before/after), no opening/ending events |
 | WorldMapBGM | 55% | Name resolution |
