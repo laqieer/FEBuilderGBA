@@ -392,13 +392,42 @@ namespace FEBuilderGBA
             return image;
         }
 
+        // FE battle animation OAM centering offsets (matches WinForms ImageUtilOAM)
+        const int BITMAP_ADDX = 0x94;         // 148 — X offset to center sprites on 240px screen
+        const int BITMAP_ADDY = 0x58;         // 88  — Y offset to center sprites on 160px screen
+        const int BITMAP_SPELL_ADDX = 0xAC;   // 172 — X offset for magic spell OAM
+
+        // Shape constants for the align byte (bits 6-7)
+        const byte SHAPE_SQUARE     = 0x00;       // 0 << 6
+        const byte SHAPE_HORIZONTAL = 0x40;       // 1 << 6
+        const byte SHAPE_VERTICAL   = 0x80;       // 2 << 6
+
+        // Size constants for the area byte (bits 6-7)
+        const byte SIZE_TIMES1 = 0x00;            // 0 << 6
+        const byte SIZE_TIMES2 = 0x40;            // 1 << 6
+        const byte SIZE_TIMES4 = 0x80;            // 2 << 6
+        const byte SIZE_TIMES8 = 0xC0;            // 3 << 6
+
         /// <summary>
-        /// Parse OAM entries and blit sprites from the source sheet onto the destination.
-        /// OAM format: 12 bytes per entry, terminates when first byte is 1.
+        /// Parse FE battle animation OAM entries and blit sprites from the source sheet
+        /// onto the destination.
+        ///
+        /// FE custom OAM format (12 bytes per entry):
+        ///   [0]    = terminator flag: 0x00=normal entry, 0x01=end of list
+        ///   [1]    = align: bits 6-7=shape (square/horizontal/vertical), bits 0-1=rotation flags
+        ///   [2..3] = if 0xFFFF → affine matrix entry (skip for rendering)
+        ///   [3]    = area: bits 6-7=size, bit 4=v_flip, bit 5=h_flip, bits 0-4=affine num
+        ///   [4]    = sheet tile ref: bits 0-4=tile X, bits 5-7=tile Y
+        ///   [5]    = bits 4-7=palette bank (0-3)
+        ///   [6..7] = vram_x (signed 16-bit, screen-space X relative to center)
+        ///   [8..9] = vram_y (signed 16-bit, screen-space Y relative to center)
+        ///   [10..11] = unused
         /// </summary>
-        static void DrawOAMSprites(byte[] oamData, uint oamStart,
+        /// <param name="isMagicOAM">True to use the magic spell X offset instead of normal.</param>
+        internal static void DrawOAMSprites(byte[] oamData, uint oamStart,
             byte[] srcPixels, int srcWidth, int srcHeight,
-            byte[] dstPixels, int dstWidth, int dstHeight)
+            byte[] dstPixels, int dstWidth, int dstHeight,
+            bool isMagicOAM = false)
         {
             if (oamData == null || oamStart >= (uint)oamData.Length) return;
 
@@ -406,55 +435,61 @@ namespace FEBuilderGBA
             var entries = new List<(int imgX, int imgY, int sheetX, int sheetY,
                                     int w, int h, bool hFlip, bool vFlip)>();
 
-            for (uint pos = oamStart; pos + 5 < (uint)oamData.Length; )
+            for (uint pos = oamStart; ; pos += 12)
             {
-                byte terminator = oamData[pos];
-                if (terminator == 0x01) break; // end of OAM list
-
-                // GBA OAM attr0, attr1, attr2 in 12 bytes (parsed as 3 uint32 or 6 uint16)
                 if (pos + 12 > (uint)oamData.Length) break;
 
-                ushort attr0 = (ushort)(oamData[pos] | (oamData[pos + 1] << 8));
-                ushort attr1 = (ushort)(oamData[pos + 2] | (oamData[pos + 3] << 8));
-                ushort attr2 = (ushort)(oamData[pos + 4] | (oamData[pos + 5] << 8));
+                byte firstByte = oamData[pos];
 
-                // Y coordinate (signed 8-bit from attr0 bits 0-7)
-                int imgY = (int)(sbyte)(attr0 & 0xFF);
-                // Shape from attr0 bits 14-15
-                int shape = (attr0 >> 14) & 3;
+                // FEditor serialized alternate terminator
+                if (firstByte == 0 && oamData[pos + 1] == 0xFF
+                    && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                    break;
 
-                // X coordinate (signed 9-bit from attr1 bits 0-8)
-                int imgX = (int)(attr1 & 0x1FF);
-                if (imgX >= 256) imgX -= 512;
-                // Size from attr1 bits 14-15
-                int sizeCode = (attr1 >> 14) & 3;
-                bool hFlip = ((attr1 >> 12) & 1) == 1;
-                bool vFlip = ((attr1 >> 13) & 1) == 1;
+                // Affine matrix entry: bytes [2..3] == 0xFFFF → skip (not a sprite)
+                if (oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                    continue;
 
-                // Tile number from attr2 bits 0-9
-                int tileNum = attr2 & 0x3FF;
+                // Normal terminator
+                if (firstByte == 0x01) break;
 
-                // Determine width/height from shape + size
-                GetOAMSize(shape, sizeCode, out int sprW, out int sprH);
+                // First byte must be 0x00 for a normal OAM entry
+                if (firstByte != 0x00) break;
 
-                // Calculate sheet position from tile number
-                // In 1D mapping mode, tiles are contiguous
-                int tilesPerRow = srcWidth / TILE_SIZE; // 32 for 256-wide
-                int sheetTileX = tileNum % tilesPerRow;
-                int sheetTileY = tileNum / tilesPerRow;
+                byte align = oamData[pos + 1];
+                byte area  = oamData[pos + 3];
+
+                bool vFlip = (area & 0x10) != 0;
+                bool hFlip = (area & 0x20) != 0;
+
+                int paletteShift = (oamData[pos + 5] >> 4) & 0xF;
+                if (paletteShift >= 4) continue; // bug frame, skip
+
+                // Width/height in tiles from shape+size, then multiply by 8 for pixels
+                GetOAMSize(align, area, out int widthTiles, out int heightTiles);
+                int sprW = widthTiles * TILE_SIZE;
+                int sprH = heightTiles * TILE_SIZE;
+
+                // Sheet source position (tile coordinates → pixel coordinates)
+                int sheetTileX = oamData[pos + 4] & 0x1F;
+                int sheetTileY = (oamData[pos + 4] >> 5) & 0x07;
                 int sheetX = sheetTileX * TILE_SIZE;
                 int sheetY = sheetTileY * TILE_SIZE;
 
-                // Offset to center on the 240x160 screen
-                int drawX = imgX + 120;
-                int drawY = imgY + 80;
+                // Screen destination position (signed 16-bit vram coords + centering offset)
+                int vramX = (short)(oamData[pos + 6] | (oamData[pos + 7] << 8));
+                int vramY = (short)(oamData[pos + 8] | (oamData[pos + 9] << 8));
 
-                entries.Add((drawX, drawY, sheetX, sheetY, sprW, sprH, hFlip, vFlip));
+                int addX = isMagicOAM ? BITMAP_SPELL_ADDX : BITMAP_ADDX;
+                int imgX = vramX + addX;
+                int imgY = vramY + BITMAP_ADDY;
 
-                pos += 12;
+                if (imgX >= 256) imgX &= 0xFF;
+
+                entries.Add((imgX, imgY, sheetX, sheetY, sprW, sprH, hFlip, vFlip));
             }
 
-            // Draw in reverse order (first entries are drawn on top)
+            // Draw in reverse order (first entries are drawn on top in GBA)
             for (int i = entries.Count - 1; i >= 0; i--)
             {
                 var e = entries[i];
@@ -466,40 +501,41 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Get OAM sprite dimensions from shape and size codes.
+        /// Get OAM sprite dimensions (in tiles, not pixels) from align and area bytes.
+        /// align bits 6-7 = shape (square/horizontal/vertical)
+        /// area bits 6-7 = size multiplier (times1/times2/times4/times8)
         /// </summary>
-        static void GetOAMSize(int shape, int size, out int width, out int height)
+        internal static void GetOAMSize(int align, int area, out int widthTiles, out int heightTiles)
         {
-            // GBA OAM size table
-            // shape 0 = square, 1 = wide, 2 = tall
-            switch (shape)
+            int shapeBits = align & 0xC0;
+            int sizeBits  = area  & 0xC0;
+
+            widthTiles = 0;
+            heightTiles = 0;
+
+            if (sizeBits == SIZE_TIMES8)
             {
-                case 0: // Square
-                    switch (size)
-                    {
-                        case 0: width = 8; height = 8; return;
-                        case 1: width = 16; height = 16; return;
-                        case 2: width = 32; height = 32; return;
-                        default: width = 64; height = 64; return;
-                    }
-                case 1: // Wide
-                    switch (size)
-                    {
-                        case 0: width = 16; height = 8; return;
-                        case 1: width = 32; height = 8; return;
-                        case 2: width = 32; height = 16; return;
-                        default: width = 64; height = 32; return;
-                    }
-                case 2: // Tall
-                    switch (size)
-                    {
-                        case 0: width = 8; height = 16; return;
-                        case 1: width = 8; height = 32; return;
-                        case 2: width = 16; height = 32; return;
-                        default: width = 32; height = 64; return;
-                    }
-                default:
-                    width = 8; height = 8; return;
+                if (shapeBits == SHAPE_VERTICAL)        { widthTiles = 4; heightTiles = 8; }
+                else if (shapeBits == SHAPE_HORIZONTAL)  { widthTiles = 8; heightTiles = 4; }
+                else /* SHAPE_SQUARE */                  { widthTiles = 8; heightTiles = 8; }
+            }
+            else if (sizeBits == SIZE_TIMES4)
+            {
+                if (shapeBits == SHAPE_VERTICAL)        { widthTiles = 2; heightTiles = 4; }
+                else if (shapeBits == SHAPE_HORIZONTAL)  { widthTiles = 4; heightTiles = 2; }
+                else /* SHAPE_SQUARE */                  { widthTiles = 4; heightTiles = 4; }
+            }
+            else if (sizeBits == SIZE_TIMES2)
+            {
+                if (shapeBits == SHAPE_VERTICAL)        { widthTiles = 1; heightTiles = 4; }
+                else if (shapeBits == SHAPE_HORIZONTAL)  { widthTiles = 4; heightTiles = 1; }
+                else /* SHAPE_SQUARE */                  { widthTiles = 2; heightTiles = 2; }
+            }
+            else /* SIZE_TIMES1 */
+            {
+                if (shapeBits == SHAPE_VERTICAL)        { widthTiles = 1; heightTiles = 2; }
+                else if (shapeBits == SHAPE_HORIZONTAL)  { widthTiles = 2; heightTiles = 1; }
+                else /* SHAPE_SQUARE */                  { widthTiles = 1; heightTiles = 1; }
             }
         }
 

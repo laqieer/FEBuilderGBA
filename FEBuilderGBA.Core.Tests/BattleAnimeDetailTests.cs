@@ -410,5 +410,324 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Equal(12, BattleAnimeRendererCore.SectionNames.Length);
         }
+
+        // ---- OAM size table tests ----
+
+        [Theory]
+        // Square shape (0x00) with different sizes
+        [InlineData(0x00, 0x00, 1, 1)]  // square, times1 → 1x1 tiles = 8x8 px
+        [InlineData(0x00, 0x40, 2, 2)]  // square, times2 → 2x2 tiles = 16x16 px
+        [InlineData(0x00, 0x80, 4, 4)]  // square, times4 → 4x4 tiles = 32x32 px
+        [InlineData(0x00, 0xC0, 8, 8)]  // square, times8 → 8x8 tiles = 64x64 px
+        // Horizontal shape (0x40)
+        [InlineData(0x40, 0x00, 2, 1)]  // horizontal, times1 → 2x1 tiles = 16x8 px
+        [InlineData(0x40, 0x40, 4, 1)]  // horizontal, times2 → 4x1 tiles = 32x8 px
+        [InlineData(0x40, 0x80, 4, 2)]  // horizontal, times4 → 4x2 tiles = 32x16 px
+        [InlineData(0x40, 0xC0, 8, 4)]  // horizontal, times8 → 8x4 tiles = 64x32 px
+        // Vertical shape (0x80)
+        [InlineData(0x80, 0x00, 1, 2)]  // vertical, times1 → 1x2 tiles = 8x16 px
+        [InlineData(0x80, 0x40, 1, 4)]  // vertical, times2 → 1x4 tiles = 8x32 px
+        [InlineData(0x80, 0x80, 2, 4)]  // vertical, times4 → 2x4 tiles = 16x32 px
+        [InlineData(0x80, 0xC0, 4, 8)]  // vertical, times8 → 4x8 tiles = 32x64 px
+        public void GetOAMSize_ReturnsCorrectTileDimensions(int align, int area, int expectedW, int expectedH)
+        {
+            BattleAnimeRendererCore.GetOAMSize(align, area, out int w, out int h);
+            Assert.Equal(expectedW, w);
+            Assert.Equal(expectedH, h);
+        }
+
+        [Theory]
+        // Shape bits are in align bits 6-7; lower bits (rotation flags) should be ignored
+        [InlineData(0x03, 0x80, 4, 4)]  // square + rotation bits set → still square times4
+        [InlineData(0x43, 0x80, 4, 2)]  // horizontal + rotation bits → horizontal times4
+        public void GetOAMSize_IgnoresLowerAlignBits(int align, int area, int expectedW, int expectedH)
+        {
+            BattleAnimeRendererCore.GetOAMSize(align, area, out int w, out int h);
+            Assert.Equal(expectedW, w);
+            Assert.Equal(expectedH, h);
+        }
+
+        [Theory]
+        // Area lower bits (flip/affine) should be ignored for size
+        [InlineData(0x00, 0x50, 2, 2)]  // times2 + vFlip bit → still times2 square
+        [InlineData(0x00, 0x60, 2, 2)]  // times2 + hFlip bit → still times2 square
+        [InlineData(0x00, 0x7F, 2, 2)]  // times2 + all lower bits → still times2 square
+        public void GetOAMSize_IgnoresLowerAreaBits(int align, int area, int expectedW, int expectedH)
+        {
+            BattleAnimeRendererCore.GetOAMSize(align, area, out int w, out int h);
+            Assert.Equal(expectedW, w);
+            Assert.Equal(expectedH, h);
+        }
+
+        // ---- OAM drawing tests ----
+
+        [Fact]
+        public void DrawOAMSprites_NullOamData_DoesNotCrash()
+        {
+            byte[] dst = new byte[240 * 160 * 4];
+            BattleAnimeRendererCore.DrawOAMSprites(null, 0,
+                new byte[256 * 64 * 4], 256, 64,
+                dst, 240, 160);
+            // Should not throw; dst should remain unchanged
+            Assert.All(dst, b => Assert.Equal(0, b));
+        }
+
+        [Fact]
+        public void DrawOAMSprites_Terminator_StopsImmediately()
+        {
+            // OAM data with immediate terminator (byte[0] = 1)
+            byte[] oam = new byte[12];
+            oam[0] = 0x01; // terminator
+            byte[] dst = new byte[240 * 160 * 4];
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0,
+                new byte[256 * 64 * 4], 256, 64,
+                dst, 240, 160);
+            Assert.All(dst, b => Assert.Equal(0, b));
+        }
+
+        [Fact]
+        public void DrawOAMSprites_FEditorTerminator_StopsImmediately()
+        {
+            // FEditor alternate terminator: 0x00, 0xFF, 0xFF, 0xFF
+            byte[] oam = new byte[12];
+            oam[0] = 0x00;
+            oam[1] = 0xFF;
+            oam[2] = 0xFF;
+            oam[3] = 0xFF;
+            byte[] dst = new byte[240 * 160 * 4];
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0,
+                new byte[256 * 64 * 4], 256, 64,
+                dst, 240, 160);
+            Assert.All(dst, b => Assert.Equal(0, b));
+        }
+
+        [Fact]
+        public void DrawOAMSprites_AffineEntry_Skipped()
+        {
+            // Affine entry (bytes[2..3] == 0xFFFF) followed by terminator
+            byte[] oam = new byte[24];
+            // Entry 0: affine marker
+            oam[0] = 0x00;
+            oam[2] = 0xFF; oam[3] = 0xFF; // affine marker
+            // Entry 1: terminator
+            oam[12] = 0x01;
+            byte[] dst = new byte[240 * 160 * 4];
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0,
+                new byte[256 * 64 * 4], 256, 64,
+                dst, 240, 160);
+            Assert.All(dst, b => Assert.Equal(0, b));
+        }
+
+        [Fact]
+        public void DrawOAMSprites_SingleSprite_DrawsAtCorrectPosition()
+        {
+            // Build a 256x64 source sheet with a known pixel at tile (0,0)
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            // Put a red pixel at (0,0) in the source sheet
+            src[0] = 255; src[1] = 0; src[2] = 0; src[3] = 255;
+
+            // Build an OAM entry for: square 1x1 tile, sheet pos (0,0), vram (0,0)
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;  // normal entry
+            oam[1] = 0x00;  // align = square (bits 6-7 = 0)
+            oam[2] = 0x00;  // not affine
+            oam[3] = 0x00;  // area = times1, no flip, no affine
+            oam[4] = 0x00;  // sheet tile: x=0, y=0
+            oam[5] = 0x00;  // palette bank = 0
+            // vram_x = 0 (signed 16-bit LE)
+            oam[6] = 0x00; oam[7] = 0x00;
+            // vram_y = 0 (signed 16-bit LE)
+            oam[8] = 0x00; oam[9] = 0x00;
+            // terminator at entry 1
+            oam[12] = 0x01;
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // vram(0,0) + offset(0x94, 0x58) = pixel(148, 88) on the 240x160 screen
+            int expectedX = 0x94; // 148
+            int expectedY = 0x58; // 88
+            int idx = (expectedY * dstW + expectedX) * 4;
+            Assert.Equal(255, dst[idx + 0]); // R
+            Assert.Equal(0, dst[idx + 1]);   // G
+            Assert.Equal(0, dst[idx + 2]);   // B
+            Assert.Equal(255, dst[idx + 3]); // A
+        }
+
+        [Fact]
+        public void DrawOAMSprites_NegativeVramCoords_DrawsCorrectly()
+        {
+            // Build source sheet with a known pixel
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            src[0] = 0; src[1] = 255; src[2] = 0; src[3] = 255; // green at (0,0)
+
+            // OAM entry with vram_x = -10 (0xFFF6), vram_y = -20 (0xFFEC)
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;
+            oam[1] = 0x00;  // square
+            oam[3] = 0x00;  // times1
+            oam[4] = 0x00;  // sheet (0,0)
+            oam[5] = 0x00;
+            // vram_x = -10 → 0xFFF6 LE
+            oam[6] = 0xF6; oam[7] = 0xFF;
+            // vram_y = -20 → 0xFFEC LE
+            oam[8] = 0xEC; oam[9] = 0xFF;
+            oam[12] = 0x01; // terminator
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // Expected: (0x94 + (-10), 0x58 + (-20)) = (138, 68)
+            int expectedX = 138;
+            int expectedY = 68;
+            int idx = (expectedY * dstW + expectedX) * 4;
+            Assert.Equal(0, dst[idx + 0]);   // R
+            Assert.Equal(255, dst[idx + 1]); // G
+            Assert.Equal(0, dst[idx + 2]);   // B
+            Assert.Equal(255, dst[idx + 3]); // A
+        }
+
+        [Fact]
+        public void DrawOAMSprites_SheetTilePosition_IsCorrect()
+        {
+            // Source sheet: put a blue pixel at tile (2, 1) → pixel (16, 8)
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            int srcIdx = (8 * srcW + 16) * 4;
+            src[srcIdx + 0] = 0; src[srcIdx + 1] = 0; src[srcIdx + 2] = 255; src[srcIdx + 3] = 255;
+
+            // OAM: sheet tile x=2, y=1 → byte[4] = (1 << 5) | 2 = 0x22
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;
+            oam[1] = 0x00;  // square
+            oam[3] = 0x00;  // times1
+            oam[4] = 0x22;  // sheet: x=2, y=1
+            oam[5] = 0x00;
+            oam[6] = 0x00; oam[7] = 0x00; // vram_x = 0
+            oam[8] = 0x00; oam[9] = 0x00; // vram_y = 0
+            oam[12] = 0x01;
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // First pixel of the 8x8 tile at sheet (2,1) → drawn at screen (0x94, 0x58)
+            int idx = (0x58 * dstW + 0x94) * 4;
+            Assert.Equal(0, dst[idx + 0]);
+            Assert.Equal(0, dst[idx + 1]);
+            Assert.Equal(255, dst[idx + 2]); // Blue
+            Assert.Equal(255, dst[idx + 3]);
+        }
+
+        [Fact]
+        public void DrawOAMSprites_HFlip_MirrorsHorizontally()
+        {
+            // Source: 1x1 tile (8x8), red pixel at (0,0), green at (7,0)
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            // Red at (0,0)
+            src[0] = 255; src[1] = 0; src[2] = 0; src[3] = 255;
+            // Green at (7,0)
+            int gi = (0 * srcW + 7) * 4;
+            src[gi] = 0; src[gi + 1] = 255; src[gi + 2] = 0; src[gi + 3] = 255;
+
+            // OAM: h_flip set (area bit 5 = 0x20)
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;
+            oam[1] = 0x00;
+            oam[3] = 0x20;  // times1 + h_flip
+            oam[4] = 0x00;
+            oam[5] = 0x00;
+            oam[6] = 0; oam[7] = 0;
+            oam[8] = 0; oam[9] = 0;
+            oam[12] = 0x01;
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // With h_flip, src(0,0) red → dst column 7, src(7,0) green → dst column 0
+            // At screen (0x94, 0x58): should now be green (was red before flip)
+            int dstIdx = (0x58 * dstW + 0x94) * 4;
+            Assert.Equal(0, dst[dstIdx + 0]);     // was red, now green
+            Assert.Equal(255, dst[dstIdx + 1]);
+            Assert.Equal(0, dst[dstIdx + 2]);
+
+            // At screen (0x94+7, 0x58): should now be red
+            int dstIdx2 = (0x58 * dstW + 0x94 + 7) * 4;
+            Assert.Equal(255, dst[dstIdx2 + 0]);
+            Assert.Equal(0, dst[dstIdx2 + 1]);
+        }
+
+        [Fact]
+        public void DrawOAMSprites_VFlip_MirrorsVertically()
+        {
+            // Source: 1x1 tile (8x8), red at (0,0), blue at (0,7)
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            src[0] = 255; src[1] = 0; src[2] = 0; src[3] = 255;
+            int bi = (7 * srcW + 0) * 4;
+            src[bi] = 0; src[bi + 1] = 0; src[bi + 2] = 255; src[bi + 3] = 255;
+
+            // OAM: v_flip set (area bit 4 = 0x10)
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;
+            oam[1] = 0x00;
+            oam[3] = 0x10;  // times1 + v_flip
+            oam[4] = 0x00;
+            oam[5] = 0x00;
+            oam[6] = 0; oam[7] = 0;
+            oam[8] = 0; oam[9] = 0;
+            oam[12] = 0x01;
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // With v_flip, src(0,0) red → dst row 7, src(0,7) blue → dst row 0
+            int dstIdx = (0x58 * dstW + 0x94) * 4;
+            Assert.Equal(0, dst[dstIdx + 0]);
+            Assert.Equal(0, dst[dstIdx + 1]);
+            Assert.Equal(255, dst[dstIdx + 2]); // blue (was at bottom, now at top)
+
+            int dstIdx2 = ((0x58 + 7) * dstW + 0x94) * 4;
+            Assert.Equal(255, dst[dstIdx2 + 0]); // red (was at top, now at bottom)
+        }
+
+        [Fact]
+        public void DrawOAMSprites_BugPaletteShift_SkipsEntry()
+        {
+            // palette bank >= 4 is a bug frame, should be skipped
+            byte[] oam = new byte[24];
+            oam[0] = 0x00;
+            oam[1] = 0x00;
+            oam[3] = 0x00;
+            oam[4] = 0x00;
+            oam[5] = 0x40;  // palette bank = 4 (bits 4-7 = 4) → bug
+            oam[6] = 0; oam[7] = 0;
+            oam[8] = 0; oam[9] = 0;
+            oam[12] = 0x01;
+
+            int srcW = 256, srcH = 64;
+            byte[] src = new byte[srcW * srcH * 4];
+            src[0] = 255; src[1] = 0; src[2] = 0; src[3] = 255; // visible pixel
+
+            int dstW = 240, dstH = 160;
+            byte[] dst = new byte[dstW * dstH * 4];
+
+            BattleAnimeRendererCore.DrawOAMSprites(oam, 0, src, srcW, srcH, dst, dstW, dstH);
+
+            // Nothing should be drawn
+            Assert.All(dst, b => Assert.Equal(0, b));
+        }
     }
 }
