@@ -172,6 +172,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         readonly List<uint> _commandOffsets = new();
         uint _scriptBaseAddress;
 
+        /// <summary>The script type this editor operates on (Event, Procs, or AI).</summary>
+        public EventScript.EventScriptType ScriptType { get; set; } = EventScript.EventScriptType.Event;
+
         public string InfoText { get => _infoText; set => SetField(ref _infoText, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public string AddressText { get => _addressText; set => SetField(ref _addressText, value); }
@@ -215,23 +218,63 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void Load()
         {
-            InfoText =
-                "Event Script Command Reference\n" +
-                "==============================\n\n" +
-                "Event scripts control story progression, map events, and gameplay triggers.\n\n" +
-                "Common commands:\n" +
-                "  LOAD1/LOAD2  - Load unit groups onto the map\n" +
-                "  MOVE         - Move a unit on the map\n" +
-                "  FIGHT        - Trigger a battle between units\n" +
-                "  TEXT/TEXTSHOW - Display text dialogue\n" +
-                "  GOTO/CALL    - Jump to another script\n" +
-                "  IFEF/IFAT    - Conditional branching\n" +
-                "  MUSC/MUSI    - Play/change music\n" +
-                "  CAMERA       - Move camera view\n" +
-                "  FADU/FADI    - Fade screen in/out\n" +
-                "  ENDA         - End event script\n\n" +
-                "Enter a ROM address above and click Disassemble to parse event script commands.\n" +
-                "Select a command to view and edit its parameters.";
+            switch (ScriptType)
+            {
+                case EventScript.EventScriptType.Procs:
+                    InfoText =
+                        "Procs Script Command Reference\n" +
+                        "==============================\n\n" +
+                        "Procs scripts manage process/coroutine execution for animations, menus,\n" +
+                        "battle sequences, and UI flows.\n\n" +
+                        "Common commands:\n" +
+                        "  PROC_CALL      - Call a subroutine\n" +
+                        "  PROC_GOTO      - Jump to another proc\n" +
+                        "  PROC_YIELD     - Yield execution for one frame\n" +
+                        "  PROC_SLEEP     - Sleep for N frames\n" +
+                        "  PROC_MARK      - Set a label/mark\n" +
+                        "  PROC_BLOCK     - Block until condition met\n" +
+                        "  PROC_END       - End proc execution\n" +
+                        "  PROC_START     - Start a child proc\n\n" +
+                        "Enter a ROM address above and click Disassemble to parse Procs script commands.\n" +
+                        "Select a command to view and edit its parameters.";
+                    break;
+                case EventScript.EventScriptType.AI:
+                    InfoText =
+                        "AI Script Command Reference\n" +
+                        "===========================\n\n" +
+                        "AI scripts control enemy unit behavior: movement, targeting, item usage,\n" +
+                        "staff usage, stealing, and special actions.\n\n" +
+                        "Common commands:\n" +
+                        "  AI_MOVE        - Movement decision\n" +
+                        "  AI_ATTACK      - Attack target selection\n" +
+                        "  AI_HEAL        - Healing/staff usage\n" +
+                        "  AI_ITEM        - Item usage decision\n" +
+                        "  AI_STEAL       - Steal item logic\n" +
+                        "  AI_ESCAPE      - Escape/retreat behavior\n" +
+                        "  AI_END         - End AI script\n\n" +
+                        "Enter a ROM address above and click Disassemble to parse AI script commands.\n" +
+                        "Select a command to view and edit its parameters.";
+                    break;
+                default:
+                    InfoText =
+                        "Event Script Command Reference\n" +
+                        "==============================\n\n" +
+                        "Event scripts control story progression, map events, and gameplay triggers.\n\n" +
+                        "Common commands:\n" +
+                        "  LOAD1/LOAD2  - Load unit groups onto the map\n" +
+                        "  MOVE         - Move a unit on the map\n" +
+                        "  FIGHT        - Trigger a battle between units\n" +
+                        "  TEXT/TEXTSHOW - Display text dialogue\n" +
+                        "  GOTO/CALL    - Jump to another script\n" +
+                        "  IFEF/IFAT    - Conditional branching\n" +
+                        "  MUSC/MUSI    - Play/change music\n" +
+                        "  CAMERA       - Move camera view\n" +
+                        "  FADU/FADI    - Fade screen in/out\n" +
+                        "  ENDA         - End event script\n\n" +
+                        "Enter a ROM address above and click Disassemble to parse event script commands.\n" +
+                        "Select a command to view and edit its parameters.";
+                    break;
+            }
             IsLoaded = true;
         }
 
@@ -255,18 +298,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // Get or create EventScript instance
-            EventScript es = CoreState.EventScript;
+            // Get or create the appropriate EventScript instance for the script type
+            EventScript es;
+            switch (ScriptType)
+            {
+                case EventScript.EventScriptType.Procs:
+                    es = CoreState.ProcsScript;
+                    break;
+                case EventScript.EventScriptType.AI:
+                    es = CoreState.AIScript;
+                    break;
+                default:
+                    es = CoreState.EventScript;
+                    break;
+            }
+
             if (es == null || es.Scripts == null || es.Scripts.Length == 0)
             {
                 try
                 {
                     es = new EventScript();
-                    es.Load(EventScript.EventScriptType.Event);
+                    es.Load(ScriptType);
+                    // Cache for future use
+                    switch (ScriptType)
+                    {
+                        case EventScript.EventScriptType.Procs:
+                            CoreState.ProcsScript = es;
+                            break;
+                        case EventScript.EventScriptType.AI:
+                            CoreState.AIScript = es;
+                            break;
+                        default:
+                            CoreState.EventScript = es;
+                            break;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    StatusText = $"Error loading event script definitions: {ex.Message}";
+                    StatusText = $"Error loading {ScriptType} script definitions: {ex.Message}";
                     return;
                 }
             }
