@@ -119,6 +119,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["addr"] = $"0x{a:X08}",
                 ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
                 ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
+                ["u8@0x05_fontWidth"] = "N/A (font data at dynamic addr)",
             };
         }
 
