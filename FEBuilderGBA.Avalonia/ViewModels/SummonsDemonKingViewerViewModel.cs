@@ -75,7 +75,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 else
                 {
                     uint classId = rom.u8(addr + 1);
-                    name = U.ToHexString(i) + " Demon King Summon Unit:0x" + unitId.ToString("X02") + " Class:0x" + classId.ToString("X02");
+                    string unitName = NameResolver.GetUnitName(unitId);
+                    string className = NameResolver.GetClassName(classId);
+                    name = $"{U.ToHexString(i)} {unitName} ({className})";
                 }
                 result.Add(new AddrResult(addr, name, i));
             }

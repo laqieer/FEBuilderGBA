@@ -233,7 +233,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | SoundRoomFE6 | **55%** | ~~Proper list, song names~~ **FIXED** — list from sound_room_pointer, song name + description text decode/preview |
 | SoundRoomCG | **45%** | ~~Proper list~~ **FIXED** — list from sound_room_cg_pointer with CG IDs. Missing: CG image preview |
 | SoundBossBGM | **50%** | ~~Unit names~~ **FIXED** — unit names in list + pick button. Missing: portraits, song names |
-| SoundFootSteps | 35% | Class names, switch enable check |
+| SoundFootSteps | **40%** | ~~Class names~~ **FIXED** — class names in list. Missing: switch enable check |
 | WorldMapBGM | 50% | World map point names |
 
 ### Critical: Song Track (25%) and Song Instrument (20%)
@@ -372,7 +372,7 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | OPPrologue | 55% | Image export/import |
 | OPClassAlphaName (2 VMs) | 55% | ASCII validation |
 | ArenaClass | **45%** | ~~Class ID display~~ **FIXED** — class names in list. Missing: filter combo (3 weapon types) |
-| ArenaEnemyWeapon | 40% | Two sub-lists (basic + rank-up) |
+| ArenaEnemyWeapon | **45%** | ~~Weapon names~~ **FIXED** — item names in list. Missing: two sub-lists (basic + rank-up) |
 | StatusOption | **55%** | ~~Address list not populated~~ **FIXED** — list from status_game_option_pointer with option name resolution |
 | StatusOptionOrder | 55% | Named option display |
 | StatusParam | 50% | Filter combo (4 parameter tables) |
@@ -386,8 +386,8 @@ The text editor (3,941 lines in WinForms) has basic read/write and TSV export/im
 | MonsterProbability | 50% | Probability sum display |
 | MonsterWMapProbability | 55% | Minimal |
 | SummonUnit | **50%** | ~~Unit names~~ **FIXED** — unit names in list. Missing: OwnerDraw, expand event |
-| SummonsDemonKing | 50% | AI combos, expand event |
-| LinkArenaDenyUnit | 50% | Unit name display |
+| SummonsDemonKing | **55%** | ~~Unit/class names~~ **FIXED** — names in list. Missing: AI combos, expand event |
+| LinkArenaDenyUnit | **55%** | ~~Unit name display~~ **FIXED** — unit names in list |
 | TerrainName | 55% | Closest to parity |
 | VennouWeaponLock | **60%** | ~~No list loading, no type resolution~~ **FIXED** — AddressListControl, TypeIDToString, conditional unit/class name resolution |
 | BitFlag editors (3 VMs) | **80%** | Closest to complete |

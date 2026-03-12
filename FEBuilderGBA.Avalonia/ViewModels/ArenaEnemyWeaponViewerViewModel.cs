@@ -32,7 +32,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr >= (uint)rom.Data.Length) break;
 
                 uint weaponId = rom.u8(addr);
-                string name = U.ToHexString(i) + " Arena Enemy Weapon 0x" + weaponId.ToString("X02");
+                string itemName = NameResolver.GetItemName(weaponId);
+                string name = $"{U.ToHexString(i)} {itemName} (0x{weaponId:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

@@ -42,7 +42,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointer(value)) break;
 
                 uint classId = startClassId + i;
-                string name = U.ToHexString(classId) + " Footstep 0x" + value.ToString("X08");
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(classId)} {className}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
