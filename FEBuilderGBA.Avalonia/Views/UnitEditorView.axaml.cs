@@ -113,6 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 UpdateFE78Visibility();
                 TryShowPortrait();
+                TryShowListPreview();
                 _vm.CalculateGrowth();
                 GrowthSimLabel.Text = _vm.GrowthSimText;
                 _vm.IsLoading = false;
@@ -302,6 +303,32 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("UnitEditorView.TryShowPortrait failed: {0}", ex.Message);
                 PortraitImage.SetImage(null);
+            }
+        }
+
+        void TryShowListPreview()
+        {
+            try
+            {
+                var img = PreviewIconHelper.LoadPortraitMini(_vm.PortraitId);
+                if (img != null)
+                {
+                    ListPreviewImage.Zoom = 1;
+                    ListPreviewImage.SetImage(img);
+                    ListPreviewName.Text = _vm.Name;
+                    ListPreviewBorder.IsVisible = true;
+                    img.Dispose();
+                }
+                else
+                {
+                    ListPreviewImage.SetImage(null);
+                    ListPreviewBorder.IsVisible = false;
+                }
+            }
+            catch
+            {
+                ListPreviewImage.SetImage(null);
+                ListPreviewBorder.IsVisible = false;
             }
         }
 

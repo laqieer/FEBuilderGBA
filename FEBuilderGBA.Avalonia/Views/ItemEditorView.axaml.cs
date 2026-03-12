@@ -56,6 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 _vm.LoadItem(addr);
                 UpdateUI();
+                TryShowListPreview();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -183,6 +184,32 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Unk33 = (uint)(Unk33Box.Value ?? 0);
             _vm.Unk34 = (uint)(Unk34Box.Value ?? 0);
             _vm.Unk35 = (uint)(Unk35Box.Value ?? 0);
+        }
+
+        void TryShowListPreview()
+        {
+            try
+            {
+                var img = PreviewIconHelper.LoadItemIcon(_vm.Icon);
+                if (img != null)
+                {
+                    ListPreviewImage.Zoom = 2;
+                    ListPreviewImage.SetImage(img);
+                    ListPreviewName.Text = _vm.Name;
+                    ListPreviewBorder.IsVisible = true;
+                    img.Dispose();
+                }
+                else
+                {
+                    ListPreviewImage.SetImage(null);
+                    ListPreviewBorder.IsVisible = false;
+                }
+            }
+            catch
+            {
+                ListPreviewImage.SetImage(null);
+                ListPreviewBorder.IsVisible = false;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

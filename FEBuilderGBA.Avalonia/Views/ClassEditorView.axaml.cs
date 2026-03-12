@@ -64,6 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadClass(addr);
                 UpdateUI();
+                TryShowListPreview();
             }
             catch (Exception ex)
             {
@@ -158,6 +159,32 @@ namespace FEBuilderGBA.Avalonia.Views
             SimLevelBox.Value = _vm.SimLevel;
             _vm.CalculateGrowth();
             GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void TryShowListPreview()
+        {
+            try
+            {
+                var img = PreviewIconHelper.LoadClassWaitIcon(_vm.WaitIcon);
+                if (img != null)
+                {
+                    ListPreviewImage.Zoom = 2;
+                    ListPreviewImage.SetImage(img);
+                    ListPreviewName.Text = _vm.Name;
+                    ListPreviewBorder.IsVisible = true;
+                    img.Dispose();
+                }
+                else
+                {
+                    ListPreviewImage.SetImage(null);
+                    ListPreviewBorder.IsVisible = false;
+                }
+            }
+            catch
+            {
+                ListPreviewImage.SetImage(null);
+                ListPreviewBorder.IsVisible = false;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

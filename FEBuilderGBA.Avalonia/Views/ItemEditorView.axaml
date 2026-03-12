@@ -4,7 +4,21 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ItemEditorView"
         Title="Item Editor" Width="1408" Height="856">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="ItemList" Margin="4" />
+    <!-- Address List with icon preview -->
+    <Grid Grid.Column="0" RowDefinitions="*,Auto">
+      <controls:AddressListControl Grid.Row="0" Name="ItemList" Margin="4" />
+      <!-- Selected item icon preview -->
+      <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+              HorizontalAlignment="Center" Margin="4,2,4,4" Padding="4"
+              CornerRadius="4" BorderBrush="Gray" BorderThickness="1"
+              Name="ListPreviewBorder" IsVisible="False">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <controls:GbaImageControl Name="ListPreviewImage" />
+          <TextBlock Name="ListPreviewName" VerticalAlignment="Center"
+                     FontWeight="SemiBold" FontSize="12" />
+        </StackPanel>
+      </Border>
+    </Grid>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
