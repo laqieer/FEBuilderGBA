@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SupportAttributeViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7" });
+
         uint _currentAddr;
         uint _affinityType;
         uint _attackBonus;
@@ -66,15 +69,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 7 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
 
-            AffinityType = rom.u8(addr + 0);
-            AttackBonus = rom.u8(addr + 1);
-            DefenseBonus = rom.u8(addr + 2);
-            HitBonus = rom.u8(addr + 3);
-            AvoidBonus = rom.u8(addr + 4);
-            CritBonus = rom.u8(addr + 5);
-            CritAvoidBonus = rom.u8(addr + 6);
-            Unknown7 = rom.u8(addr + 7);         // B7
+            AffinityType = values["B0"];
+            AttackBonus = values["B1"];
+            DefenseBonus = values["B2"];
+            HitBonus = values["B3"];
+            AvoidBonus = values["B4"];
+            CritBonus = values["B5"];
+            CritAvoidBonus = values["B6"];
+            Unknown7 = values["B7"];
 
             CanWrite = true;
         }
@@ -85,14 +89,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 7 >= (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)AffinityType);
-            rom.write_u8(CurrentAddr + 1, (byte)AttackBonus);
-            rom.write_u8(CurrentAddr + 2, (byte)DefenseBonus);
-            rom.write_u8(CurrentAddr + 3, (byte)HitBonus);
-            rom.write_u8(CurrentAddr + 4, (byte)AvoidBonus);
-            rom.write_u8(CurrentAddr + 5, (byte)CritBonus);
-            rom.write_u8(CurrentAddr + 6, (byte)CritAvoidBonus);
-            rom.write_u8(CurrentAddr + 7, (byte)Unknown7);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = AffinityType, ["B1"] = AttackBonus, ["B2"] = DefenseBonus,
+                ["B3"] = HitBonus, ["B4"] = AvoidBonus, ["B5"] = CritBonus,
+                ["B6"] = CritAvoidBonus, ["B7"] = Unknown7,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadSupportAttributeList().Count;

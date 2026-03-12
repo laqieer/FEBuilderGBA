@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MenuExtendSplitMenuViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "D4", "D8", "D12", "D16", "D20", "D24", "D28", "D32", "D36" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _posX, _posY, _width, _style;
@@ -59,19 +62,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 40 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            PosX = rom.u8(addr + 0);
-            PosY = rom.u8(addr + 1);
-            Width = rom.u8(addr + 2);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PosX = values["B0"];
+            PosY = values["B1"];
+            Width = values["B2"];
             // byte 3 is padding
-            Style = rom.u32(addr + 4);
-            String0 = rom.u32(addr + 8);
-            String1 = rom.u32(addr + 12);
-            String2 = rom.u32(addr + 16);
-            String3 = rom.u32(addr + 20);
-            String4 = rom.u32(addr + 24);
-            String5 = rom.u32(addr + 28);
-            String6 = rom.u32(addr + 32);
-            String7 = rom.u32(addr + 36);
+            Style = values["D4"];
+            String0 = values["D8"];
+            String1 = values["D12"];
+            String2 = values["D16"];
+            String3 = values["D20"];
+            String4 = values["D24"];
+            String5 = values["D28"];
+            String6 = values["D32"];
+            String7 = values["D36"];
 
             IsLoaded = true;
         }
@@ -83,18 +87,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 40 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)PosX);
-            rom.write_u8(addr + 1, (byte)PosY);
-            rom.write_u8(addr + 2, (byte)Width);
-            rom.write_u32(addr + 4, Style);
-            rom.write_u32(addr + 8, String0);
-            rom.write_u32(addr + 12, String1);
-            rom.write_u32(addr + 16, String2);
-            rom.write_u32(addr + 20, String3);
-            rom.write_u32(addr + 24, String4);
-            rom.write_u32(addr + 28, String5);
-            rom.write_u32(addr + 32, String6);
-            rom.write_u32(addr + 36, String7);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = PosX, ["B1"] = PosY, ["B2"] = Width,
+                ["D4"] = Style,
+                ["D8"] = String0, ["D12"] = String1, ["D16"] = String2, ["D20"] = String3,
+                ["D24"] = String4, ["D28"] = String5, ["D32"] = String6, ["D36"] = String7,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

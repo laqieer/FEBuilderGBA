@@ -8,6 +8,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Each entry maps a chapter/map to a function pointer called on map load.</summary>
     public class MapLoadFunctionViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _p0;
@@ -59,7 +62,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            P0 = rom.u32(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            P0 = values["D0"];
             PointerInfo = U.isPointer(P0) ? $"Function at 0x{(P0 & 0x1FFFFFF):X08}" : (P0 == 0 ? "NULL (no function)" : $"Invalid: 0x{P0:X08}");
             IsLoaded = true;
             IsLoading = false;
@@ -70,7 +74,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr, P0);
+            var values = new Dictionary<string, uint> { ["D0"] = P0 };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

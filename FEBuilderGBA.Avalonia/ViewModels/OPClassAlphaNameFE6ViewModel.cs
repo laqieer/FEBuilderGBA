@@ -10,6 +10,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class OPClassAlphaNameFE6ViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _namePointer;
@@ -79,7 +82,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 4 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            NamePointer = rom.u32(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            NamePointer = values["D0"];
             AlphaName = "";
 
             if (U.isPointer(NamePointer))
@@ -99,7 +103,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr, NamePointer);
+            var values = new Dictionary<string, uint> { ["D0"] = NamePointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

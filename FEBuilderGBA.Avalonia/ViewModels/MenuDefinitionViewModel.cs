@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MenuDefinitionViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "D4", "D8", "D12", "D16", "D20", "D24", "D28", "D32" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _posX, _posY, _width, _height;
@@ -62,18 +65,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 36 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            PosX = rom.u8(addr + 0);
-            PosY = rom.u8(addr + 1);
-            Width = rom.u8(addr + 2);
-            Height = rom.u8(addr + 3);
-            StyleData = rom.u32(addr + 4);
-            MenuCommandPtr = rom.u32(addr + 8);
-            OnInitRoutine = rom.u32(addr + 12);
-            OnEndRoutine = rom.u32(addr + 16);
-            UnknownRoutine = rom.u32(addr + 20);
-            OnBPressRoutine = rom.u32(addr + 24);
-            OnRPressRoutine = rom.u32(addr + 28);
-            OnHelpBoxRoutine = rom.u32(addr + 32);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            PosX = values["B0"];
+            PosY = values["B1"];
+            Width = values["B2"];
+            Height = values["B3"];
+            StyleData = values["D4"];
+            MenuCommandPtr = values["D8"];
+            OnInitRoutine = values["D12"];
+            OnEndRoutine = values["D16"];
+            UnknownRoutine = values["D20"];
+            OnBPressRoutine = values["D24"];
+            OnRPressRoutine = values["D28"];
+            OnHelpBoxRoutine = values["D32"];
             CanWrite = true;
         }
 
@@ -84,18 +88,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 36 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(addr + 0, (byte)PosX);
-            rom.write_u8(addr + 1, (byte)PosY);
-            rom.write_u8(addr + 2, (byte)Width);
-            rom.write_u8(addr + 3, (byte)Height);
-            rom.write_u32(addr + 4, StyleData);
-            rom.write_u32(addr + 8, MenuCommandPtr);
-            rom.write_u32(addr + 12, OnInitRoutine);
-            rom.write_u32(addr + 16, OnEndRoutine);
-            rom.write_u32(addr + 20, UnknownRoutine);
-            rom.write_u32(addr + 24, OnBPressRoutine);
-            rom.write_u32(addr + 28, OnRPressRoutine);
-            rom.write_u32(addr + 32, OnHelpBoxRoutine);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = PosX, ["B1"] = PosY, ["B2"] = Width, ["B3"] = Height,
+                ["D4"] = StyleData, ["D8"] = MenuCommandPtr,
+                ["D12"] = OnInitRoutine, ["D16"] = OnEndRoutine, ["D20"] = UnknownRoutine,
+                ["D24"] = OnBPressRoutine, ["D28"] = OnRPressRoutine, ["D32"] = OnHelpBoxRoutine,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadMenuDefinitionList().Count;

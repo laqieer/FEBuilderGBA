@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MapExitPointViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0" });
+
         uint _currentAddr;
         uint _exitPointer;
         bool _canWrite;
@@ -54,7 +57,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 3 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ExitPointer = rom.u32(addr);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ExitPointer = values["D0"];
 
             CanWrite = true;
         }
@@ -63,7 +67,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
-            rom.write_u32(CurrentAddr, ExitPointer);
+            var values = new Dictionary<string, uint> { ["D0"] = ExitPointer };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount() => LoadMapExitPointList().Count;

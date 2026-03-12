@@ -6,6 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class MenuCommandViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "D0", "W4", "W6", "B8", "B9", "B10", "B11", "D8", "D12", "D16", "D20", "D24", "D28", "D32" });
+
         uint _currentAddr;
         bool _canWrite;
         uint _jpNamePointer;
@@ -91,20 +94,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 36 > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            JpNamePointer = rom.u32(addr + 0);
-            NameTextId = rom.u16(addr + 4);
-            HelpTextId = rom.u16(addr + 6);
-            ColorType = rom.u8(addr + 8);
-            MenuCommandId = rom.u8(addr + 9);
-            B10 = rom.u8(addr + 10);
-            B11 = rom.u8(addr + 11);
-            ColorAndIdDword = rom.u32(addr + 8);
-            UsabilityRoutine = rom.u32(addr + 12);
-            DrawRoutine = rom.u32(addr + 16);
-            EffectRoutine = rom.u32(addr + 20);
-            PerTurnCallback = rom.u32(addr + 24);
-            CursorSelectAction = rom.u32(addr + 28);
-            CancelAction = rom.u32(addr + 32);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            JpNamePointer = values["D0"];
+            NameTextId = values["W4"];
+            HelpTextId = values["W6"];
+            ColorType = values["B8"];
+            MenuCommandId = values["B9"];
+            B10 = values["B10"];
+            B11 = values["B11"];
+            ColorAndIdDword = values["D8"];
+            UsabilityRoutine = values["D12"];
+            DrawRoutine = values["D16"];
+            EffectRoutine = values["D20"];
+            PerTurnCallback = values["D24"];
+            CursorSelectAction = values["D28"];
+            CancelAction = values["D32"];
             CanWrite = true;
         }
 
@@ -115,16 +119,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint addr = CurrentAddr;
             if (addr + 36 > (uint)rom.Data.Length) return;
 
-            rom.write_u32(addr + 0, JpNamePointer);
-            rom.write_u16(addr + 4, (ushort)NameTextId);
-            rom.write_u16(addr + 6, (ushort)HelpTextId);
-            rom.write_u32(addr + 8, ColorAndIdDword);
-            rom.write_u32(addr + 12, UsabilityRoutine);
-            rom.write_u32(addr + 16, DrawRoutine);
-            rom.write_u32(addr + 20, EffectRoutine);
-            rom.write_u32(addr + 24, PerTurnCallback);
-            rom.write_u32(addr + 28, CursorSelectAction);
-            rom.write_u32(addr + 32, CancelAction);
+            // Write uses D8 (ColorAndIdDword) for offset 8-11, not individual B8/B9/B10/B11
+            var values = new Dictionary<string, uint>
+            {
+                ["D0"] = JpNamePointer, ["W4"] = NameTextId, ["W6"] = HelpTextId,
+                ["D8"] = ColorAndIdDword,
+                ["D12"] = UsabilityRoutine, ["D16"] = DrawRoutine, ["D20"] = EffectRoutine,
+                ["D24"] = PerTurnCallback, ["D28"] = CursorSelectAction, ["D32"] = CancelAction,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadMenuCommandList().Count;

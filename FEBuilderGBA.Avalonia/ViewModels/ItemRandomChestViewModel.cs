@@ -5,6 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemRandomChestViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0", "B1" });
+
         uint _currentAddr;
         bool _isLoaded;
         uint _itemId, _probability;
@@ -32,8 +35,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 1 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            ItemId = rom.u8(addr + 0);
-            Probability = rom.u8(addr + 1);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            ItemId = values["B0"];
+            Probability = values["B1"];
 
             IsLoaded = true;
         }
@@ -50,8 +54,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Probability = 0;
             }
 
-            rom.write_u8(addr + 0, (byte)ItemId);
-            rom.write_u8(addr + 1, (byte)Probability);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = ItemId, ["B1"] = Probability,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
         public int GetListCount() => LoadList().Count;

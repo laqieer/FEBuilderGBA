@@ -11,6 +11,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class VennouWeaponLockViewModel : ViewModelBase, IDataVerifiable
     {
+        static readonly List<EditorFormRef.FieldDef> _fields =
+            EditorFormRef.DetectFields(new[] { "B0" });
+
         uint _currentAddr;
         uint _baseAddr;
         bool _canWrite;
@@ -92,7 +95,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
-            LockTypeOrId = rom.u8(addr + 0);
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            LockTypeOrId = values["B0"];
 
             // Determine if this is the type entry (first in list) or a value entry
             bool isTypeEntry = (addr == _baseAddr);
@@ -137,7 +141,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             if (CurrentAddr + 1 > (uint)rom.Data.Length) return;
 
-            rom.write_u8(CurrentAddr + 0, (byte)LockTypeOrId);
+            var values = new Dictionary<string, uint> { ["B0"] = LockTypeOrId };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
         public int GetListCount()
