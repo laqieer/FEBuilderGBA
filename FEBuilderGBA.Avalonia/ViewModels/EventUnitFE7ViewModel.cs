@@ -15,6 +15,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class EventUnitFE7ViewModel : ViewModelBase, IDataVerifiable
     {
+        // EditorFormRef field definitions
+        static readonly string[] FieldNames = new[]
+        {
+            "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7",
+            "B8", "B9", "B10", "B11", "B12", "B13", "B14", "B15"
+        };
+        static readonly List<EditorFormRef.FieldDef> Fields = EditorFormRef.DetectFields(FieldNames);
+
         uint _currentAddr;
         bool _isLoaded;
 
@@ -99,22 +107,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            UnitID = rom.u8(addr + 0);
-            ClassID = rom.u8(addr + 1);
-            LeaderUnitID = rom.u8(addr + 2);
-            UnitInfo = rom.u8(addr + 3);
-            StartX = rom.u8(addr + 4);
-            StartY = rom.u8(addr + 5);
-            EndX = rom.u8(addr + 6);
-            EndY = rom.u8(addr + 7);
-            Item1 = rom.u8(addr + 8);
-            Item2 = rom.u8(addr + 9);
-            Item3 = rom.u8(addr + 10);
-            Item4 = rom.u8(addr + 11);
-            AI1Primary = rom.u8(addr + 12);
-            AI2Secondary = rom.u8(addr + 13);
-            AI3TargetRecovery = rom.u8(addr + 14);
-            AI4Retreat = rom.u8(addr + 15);
+            var values = EditorFormRef.ReadFields(rom, addr, Fields);
+            UnitID = values["B0"];
+            ClassID = values["B1"];
+            LeaderUnitID = values["B2"];
+            UnitInfo = values["B3"];
+            StartX = values["B4"];
+            StartY = values["B5"];
+            EndX = values["B6"];
+            EndY = values["B7"];
+            Item1 = values["B8"];
+            Item2 = values["B9"];
+            Item3 = values["B10"];
+            Item4 = values["B11"];
+            AI1Primary = values["B12"];
+            AI2Secondary = values["B13"];
+            AI3TargetRecovery = values["B14"];
+            AI4Retreat = values["B15"];
 
             // Resolve display names
             UnitName = NameResolver.GetUnitName(UnitID);
@@ -137,22 +146,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)UnitID);
-            rom.write_u8(addr + 1, (byte)ClassID);
-            rom.write_u8(addr + 2, (byte)LeaderUnitID);
-            rom.write_u8(addr + 3, (byte)UnitInfo);
-            rom.write_u8(addr + 4, (byte)StartX);
-            rom.write_u8(addr + 5, (byte)StartY);
-            rom.write_u8(addr + 6, (byte)EndX);
-            rom.write_u8(addr + 7, (byte)EndY);
-            rom.write_u8(addr + 8, (byte)Item1);
-            rom.write_u8(addr + 9, (byte)Item2);
-            rom.write_u8(addr + 10, (byte)Item3);
-            rom.write_u8(addr + 11, (byte)Item4);
-            rom.write_u8(addr + 12, (byte)AI1Primary);
-            rom.write_u8(addr + 13, (byte)AI2Secondary);
-            rom.write_u8(addr + 14, (byte)AI3TargetRecovery);
-            rom.write_u8(addr + 15, (byte)AI4Retreat);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitID, ["B1"] = ClassID, ["B2"] = LeaderUnitID, ["B3"] = UnitInfo,
+                ["B4"] = StartX, ["B5"] = StartY, ["B6"] = EndX, ["B7"] = EndY,
+                ["B8"] = Item1, ["B9"] = Item2, ["B10"] = Item3, ["B11"] = Item4,
+                ["B12"] = AI1Primary, ["B13"] = AI2Secondary, ["B14"] = AI3TargetRecovery, ["B15"] = AI4Retreat,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, Fields);
         }
 
         public int GetListCount() => LoadList().Count;

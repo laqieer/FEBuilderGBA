@@ -9,12 +9,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Provides 3-level navigation: Map -> Unit Group -> Unit.
     ///
     /// Layout: UnitID(B0), ClassID(B1), LeaderUnitID(B2), UnitInfo(B3),
-    ///         UnitGrowth(W4), Reserved6(B6), CoordCount(B7), CoordPointer(P8),
+    ///         UnitGrowth(W4), Reserved6(B6), CoordCount(B7), CoordPointer(D8),
     ///         Item1(B12), Item2(B13), Item3(B14), Item4(B15),
     ///         AI1Primary(B16), AI2Secondary(B17), AI3TargetRecovery(B18), AI4Retreat(B19).
     /// </summary>
     public class EventUnitViewModel : ViewModelBase, IDataVerifiable
     {
+        // EditorFormRef field definitions
+        static readonly string[] FieldNames = new[]
+        {
+            "B0", "B1", "B2", "B3", "W4", "B6", "B7", "D8",
+            "B12", "B13", "B14", "B15", "B16", "B17", "B18", "B19"
+        };
+        static readonly List<EditorFormRef.FieldDef> Fields = EditorFormRef.DetectFields(FieldNames);
+
         uint _currentAddr;
         bool _isLoaded;
 
@@ -117,22 +125,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            UnitID = rom.u8(addr + 0);
-            ClassID = rom.u8(addr + 1);
-            LeaderUnitID = rom.u8(addr + 2);
-            UnitInfo = rom.u8(addr + 3);
-            UnitGrowth = rom.u16(addr + 4);
-            Reserved6 = rom.u8(addr + 6);
-            CoordCount = rom.u8(addr + 7);
-            CoordPointer = rom.u32(addr + 8);
-            Item1 = rom.u8(addr + 12);
-            Item2 = rom.u8(addr + 13);
-            Item3 = rom.u8(addr + 14);
-            Item4 = rom.u8(addr + 15);
-            AI1Primary = rom.u8(addr + 16);
-            AI2Secondary = rom.u8(addr + 17);
-            AI3TargetRecovery = rom.u8(addr + 18);
-            AI4Retreat = rom.u8(addr + 19);
+            var values = EditorFormRef.ReadFields(rom, addr, Fields);
+            UnitID = values["B0"];
+            ClassID = values["B1"];
+            LeaderUnitID = values["B2"];
+            UnitInfo = values["B3"];
+            UnitGrowth = values["W4"];
+            Reserved6 = values["B6"];
+            CoordCount = values["B7"];
+            CoordPointer = values["D8"];
+            Item1 = values["B12"];
+            Item2 = values["B13"];
+            Item3 = values["B14"];
+            Item4 = values["B15"];
+            AI1Primary = values["B16"];
+            AI2Secondary = values["B17"];
+            AI3TargetRecovery = values["B18"];
+            AI4Retreat = values["B19"];
 
             // Resolve display names
             UnitName = NameResolver.GetUnitName(UnitID);
@@ -155,22 +164,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
-            rom.write_u8(addr + 0, (byte)UnitID);
-            rom.write_u8(addr + 1, (byte)ClassID);
-            rom.write_u8(addr + 2, (byte)LeaderUnitID);
-            rom.write_u8(addr + 3, (byte)UnitInfo);
-            rom.write_u16(addr + 4, (ushort)UnitGrowth);
-            rom.write_u8(addr + 6, (byte)Reserved6);
-            rom.write_u8(addr + 7, (byte)CoordCount);
-            rom.write_u32(addr + 8, CoordPointer);
-            rom.write_u8(addr + 12, (byte)Item1);
-            rom.write_u8(addr + 13, (byte)Item2);
-            rom.write_u8(addr + 14, (byte)Item3);
-            rom.write_u8(addr + 15, (byte)Item4);
-            rom.write_u8(addr + 16, (byte)AI1Primary);
-            rom.write_u8(addr + 17, (byte)AI2Secondary);
-            rom.write_u8(addr + 18, (byte)AI3TargetRecovery);
-            rom.write_u8(addr + 19, (byte)AI4Retreat);
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = UnitID, ["B1"] = ClassID, ["B2"] = LeaderUnitID, ["B3"] = UnitInfo,
+                ["W4"] = UnitGrowth, ["B6"] = Reserved6, ["B7"] = CoordCount, ["D8"] = CoordPointer,
+                ["B12"] = Item1, ["B13"] = Item2, ["B14"] = Item3, ["B15"] = Item4,
+                ["B16"] = AI1Primary, ["B17"] = AI2Secondary, ["B18"] = AI3TargetRecovery, ["B19"] = AI4Retreat,
+            };
+            EditorFormRef.WriteFields(rom, addr, values, Fields);
         }
 
         public int GetListCount() => LoadList().Count;

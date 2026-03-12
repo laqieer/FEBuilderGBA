@@ -17,6 +17,26 @@
       <TextBlock Grid.Row="2" Grid.Column="1" Name="CharDisplayLabel" VerticalAlignment="Center" Margin="0,2" />
     </Grid>
 
+    <!-- Font glyph preview panels -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="24" Margin="0,0,0,8">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Item Font" FontWeight="SemiBold" />
+        <Border Background="#FF6888A8" Padding="4" CornerRadius="2">
+          <Image Name="ItemFontImage" Width="64" Height="64" Stretch="Uniform"
+                 RenderOptions.BitmapInterpolationMode="None" />
+        </Border>
+        <TextBlock Name="ItemFontWidthLabel" Foreground="Gray" FontSize="11" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="Serif Font" FontWeight="SemiBold" />
+        <Border Background="#FFE0E0E0" Padding="4" CornerRadius="2">
+          <Image Name="SerifFontImage" Width="64" Height="64" Stretch="Uniform"
+                 RenderOptions.BitmapInterpolationMode="None" />
+        </Border>
+        <TextBlock Name="SerifFontWidthLabel" Foreground="Gray" FontSize="11" />
+      </StackPanel>
+    </StackPanel>
+
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
