@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         uint _currentAddr;
         uint _selectedId;
+        uint _currentUnitIndex; // 0-based index into unit table, used for MagicSplitUtil
         string _name = "";
         bool _canWrite;
         bool _isFE6;
@@ -41,6 +42,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Portrait image loaded from portrait table
         IImage? _portraitImage;
+
+        // Magic split extension fields (only used when magic split patch is detected)
+        int _magicExtBase;
+        int _magicExtGrow;
+        bool _showMagicExtension;
 
         // Properties — Identity
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -112,6 +118,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Portrait image
         public IImage? PortraitImage => _portraitImage;
+
+        // Magic split extension properties
+        /// <summary>Magic base stat extension (from magic split patch). Signed byte.</summary>
+        public int MagicExtBase { get => _magicExtBase; set => SetField(ref _magicExtBase, value); }
+        /// <summary>Magic growth rate extension (from magic split patch). Signed byte.</summary>
+        public int MagicExtGrow { get => _magicExtGrow; set => SetField(ref _magicExtGrow, value); }
+        /// <summary>True when the magic split patch is detected and extension fields should be shown.</summary>
+        public bool ShowMagicExtension { get => _showMagicExtension; private set => SetField(ref _showMagicExtension, value); }
 
         // Growth simulator
         string _growthSimText = "";
@@ -258,6 +272,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Unk49 = 0;
                 Unk50 = 0;
                 Unk51 = 0;
+            }
+
+            // Compute unit index from address for MagicSplitUtil
+            uint unitPtr = rom.RomInfo.unit_pointer;
+            uint unitBase = rom.p32(unitPtr);
+            uint unitDataSize = rom.RomInfo.unit_datasize;
+            if (IsFE6) unitBase += unitDataSize; // FE6 skips first entry
+            _currentUnitIndex = (addr >= unitBase && unitDataSize > 0)
+                ? (addr - unitBase) / unitDataSize
+                : 0;
+
+            // Magic split extension (patch-dependent)
+            ShowMagicExtension = PatchDetectionService.Instance.HasMagicSplit;
+            if (ShowMagicExtension)
+            {
+                // For FE8N, uid parameter is ignored; addr offsets 50/51 are read directly
+                // For FE7U/FE8U, uid is the unit's 0-based table index
+                uint uid = _currentUnitIndex;
+                // FE6 uses 1-based IDs in its list; for FE7U/FE8U the index is 0-based
+                if (IsFE6) uid = _currentUnitIndex + 1;
+
+                MagicExtBase = (int)(sbyte)(byte)MagicSplitUtil.GetUnitBaseMagicExtends(uid, addr);
+                MagicExtGrow = (int)(sbyte)(byte)MagicSplitUtil.GetUnitGrowMagicExtends(uid, addr);
+            }
+            else
+            {
+                MagicExtBase = 0;
+                MagicExtGrow = 0;
             }
 
             CanWrite = true;
@@ -459,6 +501,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom.write_u8(addr + 49, Unk49);
                 rom.write_u8(addr + 50, Unk50);
                 rom.write_u8(addr + 51, Unk51);
+            }
+
+            // Magic split extension write-back
+            if (ShowMagicExtension)
+            {
+                uint uid = _currentUnitIndex;
+                if (IsFE6) uid = _currentUnitIndex + 1;
+
+                // Note: For FE8N, base magic is at addr+50 which overlaps Unk50.
+                // The MagicSplitUtil.WriteUnit* methods handle FE7U/FE8U only;
+                // for FE8N the write happens via the normal Unk50/Unk51 fields.
+                var undoData = new Undo.UndoData
+                {
+                    time = DateTime.Now,
+                    name = "UnitEditor.MagicExt",
+                    list = new System.Collections.Generic.List<Undo.UndoPostion>()
+                };
+                MagicSplitUtil.WriteUnitBaseMagicExtends(uid, addr, (uint)(byte)(sbyte)MagicExtBase, undoData);
+                MagicSplitUtil.WriteUnitGrowMagicExtends(uid, addr, (uint)(byte)(sbyte)MagicExtGrow, undoData);
             }
         }
 

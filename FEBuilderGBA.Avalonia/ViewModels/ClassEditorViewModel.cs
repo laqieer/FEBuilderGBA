@@ -44,6 +44,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // D80: unknown u32
         uint _unknownD80;
 
+        // Magic split extension fields (patch-dependent)
+        int _magicExtBase, _magicExtGrow, _magicExtLimit, _magicExtPromoGain;
+        bool _showMagicExtension;
+        uint _currentClassIndex; // 0-based index for MagicSplitUtil
+
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -139,6 +144,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // D80: Unknown u32
         public uint UnknownD80 { get => _unknownD80; set => SetField(ref _unknownD80, value); }
+
+        // Magic split extension properties
+        /// <summary>Magic base stat extension (from magic split patch).</summary>
+        public int MagicExtBase { get => _magicExtBase; set => SetField(ref _magicExtBase, value); }
+        /// <summary>Magic growth rate extension (from magic split patch).</summary>
+        public int MagicExtGrow { get => _magicExtGrow; set => SetField(ref _magicExtGrow, value); }
+        /// <summary>Magic stat cap extension (from magic split patch).</summary>
+        public int MagicExtLimit { get => _magicExtLimit; set => SetField(ref _magicExtLimit, value); }
+        /// <summary>Magic promotion gain extension (from magic split patch).</summary>
+        public int MagicExtPromoGain { get => _magicExtPromoGain; set => SetField(ref _magicExtPromoGain, value); }
+        /// <summary>True when the magic split patch is detected and extension fields should be shown.</summary>
+        public bool ShowMagicExtension { get => _showMagicExtension; private set => SetField(ref _showMagicExtension, value); }
 
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
@@ -261,6 +278,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // D80
             UnknownD80 = rom.u32(addr + 80);      // D80
+
+            // Compute class index from address for MagicSplitUtil
+            uint classPtr2 = rom.RomInfo.class_pointer;
+            uint classBase2 = rom.p32(classPtr2);
+            _currentClassIndex = (addr >= classBase2 && dataSize > 0)
+                ? (addr - classBase2) / dataSize
+                : 0;
+
+            // Magic split extension (patch-dependent)
+            ShowMagicExtension = PatchDetectionService.Instance.HasMagicSplit;
+            if (ShowMagicExtension)
+            {
+                uint cid = _currentClassIndex;
+                MagicExtBase = (int)(sbyte)(byte)MagicSplitUtil.GetClassBaseMagicExtends(cid, addr);
+                MagicExtGrow = (int)(sbyte)(byte)MagicSplitUtil.GetClassGrowMagicExtends(cid, addr);
+                MagicExtLimit = (int)(sbyte)(byte)MagicSplitUtil.GetClassLimitMagicExtends(cid, addr);
+                MagicExtPromoGain = (int)(sbyte)(byte)MagicSplitUtil.GetClassPromotionGainMagicExtends(cid, addr);
+            }
+            else
+            {
+                MagicExtBase = 0;
+                MagicExtGrow = 0;
+                MagicExtLimit = 0;
+                MagicExtPromoGain = 0;
+            }
 
             CanWrite = true;
             IsLoading = false;
@@ -476,6 +518,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 76, TerrainResPtr);
 
             rom.write_u32(addr + 80, UnknownD80);
+
+            // Magic split extension write-back
+            if (ShowMagicExtension)
+            {
+                uint cid = _currentClassIndex;
+                var undoData = new Undo.UndoData
+                {
+                    time = DateTime.Now,
+                    name = "ClassEditor.MagicExt",
+                    list = new System.Collections.Generic.List<Undo.UndoPostion>()
+                };
+                MagicSplitUtil.WriteClassBaseMagicExtends(cid, addr, (uint)(byte)(sbyte)MagicExtBase, undoData);
+                MagicSplitUtil.WriteClassGrowMagicExtends(cid, addr, (uint)(byte)(sbyte)MagicExtGrow, undoData);
+                MagicSplitUtil.WriteClassLimitMagicExtends(cid, addr, (uint)(byte)(sbyte)MagicExtLimit, undoData);
+                MagicSplitUtil.WriteClassPromotionGainMagicExtends(cid, addr, (uint)(byte)(sbyte)MagicExtPromoGain, undoData);
+            }
         }
 
         public string GrowthSimText { get => _growthSimText; set => SetField(ref _growthSimText, value); }

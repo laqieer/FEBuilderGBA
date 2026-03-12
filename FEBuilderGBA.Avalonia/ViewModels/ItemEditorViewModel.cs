@@ -25,6 +25,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _weaponExp, _unk33, _unk34, _unk35;
         bool _canWrite;
 
+        // Skill system extension fields
+        bool _showSkillField;
+        string _skillName = "";
+        string _b35Label = "Unknown";
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
 
@@ -82,6 +87,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unk35 { get => _unk35; set => SetField(ref _unk35, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
+        // Skill system extension properties
+        /// <summary>True when a skill system patch is installed and B35 should be labeled "Skill".</summary>
+        public bool ShowSkillField { get => _showSkillField; private set => SetField(ref _showSkillField, value); }
+        /// <summary>Resolved skill name for B35 value, or empty if no skill system.</summary>
+        public string SkillName { get => _skillName; private set => SetField(ref _skillName, value); }
+        /// <summary>Label for the B35 field: "Skill" when skill system is detected, "Unknown" otherwise.</summary>
+        public string B35Label { get => _b35Label; private set => SetField(ref _b35Label, value); }
+
         // --- Computed: Shop prices ---
         uint _shopBuyPrice, _shopSellPrice, _shopForgePrice;
         public uint ShopBuyPrice { get => _shopBuyPrice; private set => SetField(ref _shopBuyPrice, value); }
@@ -120,6 +133,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Null pointer warnings
             ShowAllocStatBonuses = StatBonusesPtr == 0 && _currentItemIndex > 0;
             ShowAllocEffectiveness = EffectivenessPtr == 0 && _currentItemIndex > 0;
+
+            // Skill name resolution
+            if (ShowSkillField)
+                SkillName = ResolveSkillName(Unk35);
 
             // Stat bonus preview
             RecalcStatBonuses();
@@ -244,6 +261,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CanWrite = true;
 
+            // Skill system detection for B35
+            ShowSkillField = PatchDetectionService.Instance.HasSkillSystem;
+            B35Label = ShowSkillField ? "Skill" : "Unknown";
+            if (ShowSkillField && dataSize >= 36)
+            {
+                SkillName = ResolveSkillName(Unk35);
+            }
+            else
+            {
+                SkillName = "";
+            }
+
             // Determine item index from address
             uint ptr = rom.RomInfo.item_pointer;
             uint baseAddr = rom.p32(ptr);
@@ -367,6 +396,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom.write_u8(addr + 34, Unk34);
                 rom.write_u8(addr + 35, Unk35);
             }
+        }
+
+        /// <summary>
+        /// Resolve a skill ID to a display name.
+        /// Falls back to hex representation since skill name tables
+        /// vary by skill system variant.
+        /// </summary>
+        static string ResolveSkillName(uint skillId)
+        {
+            if (skillId == 0) return "(None)";
+            return $"Skill 0x{skillId:X02}";
         }
     }
 }
