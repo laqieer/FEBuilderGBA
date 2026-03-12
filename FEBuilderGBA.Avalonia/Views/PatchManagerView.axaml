@@ -78,6 +78,21 @@
           <!-- Separator -->
           <Separator Margin="0,4" />
 
+          <!-- Action Buttons -->
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Name="InstallButton" Content="Install Patch" IsEnabled="False"
+                    Padding="12,6" FontWeight="SemiBold" />
+            <Button Name="UninstallButton" Content="Uninstall Patch" IsEnabled="False"
+                    Padding="12,6" />
+          </StackPanel>
+
+          <!-- Status Message -->
+          <TextBlock Name="StatusMessageLabel" TextWrapping="Wrap" FontSize="12"
+                     Foreground="Gray" Margin="0,0,0,8" />
+
+          <!-- Separator -->
+          <Separator Margin="0,4" />
+
           <!-- Description -->
           <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4" />
           <TextBlock Name="DetailDescription" TextWrapping="Wrap" />

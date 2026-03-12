@@ -49,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         PatchEntry? _selectedPatch;
         int _totalCount;
         int _installedCount;
+        string _statusMessage = "";
 
         readonly List<PatchEntry> _allPatches = new();
         readonly ObservableCollection<PatchEntry> _filteredPatches = new();
@@ -68,11 +69,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public PatchEntry? SelectedPatch
         {
             get => _selectedPatch;
-            set => SetField(ref _selectedPatch, value);
+            set
+            {
+                if (SetField(ref _selectedPatch, value))
+                {
+                    OnPropertyChanged(nameof(CanInstall));
+                    OnPropertyChanged(nameof(CanUninstall));
+                }
+            }
         }
 
         public int TotalCount { get => _totalCount; set => SetField(ref _totalCount, value); }
         public int InstalledCount { get => _installedCount; set => SetField(ref _installedCount, value); }
+        public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
+
+        /// <summary>True when a patch is selected and not already installed.</summary>
+        public bool CanInstall =>
+            _selectedPatch != null &&
+            _selectedPatch.Status != PatchMetadataCore.PatchStatus.Installed &&
+            !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
+            (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
+
+        /// <summary>True when a selected patch is installed (uninstall not yet supported).</summary>
+        public bool CanUninstall =>
+            _selectedPatch != null &&
+            _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed;
 
         public ObservableCollection<PatchEntry> FilteredPatches => _filteredPatches;
 
@@ -104,6 +125,84 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             ApplyFilter();
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Install the currently selected patch. Returns the result message.
+        /// </summary>
+        public string InstallPatch()
+        {
+            if (_selectedPatch == null)
+                return "No patch selected.";
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                return "No ROM loaded.";
+
+            Undo? undo = CoreState.Undo;
+            Undo.UndoData? undoData = null;
+            if (undo != null)
+                undoData = undo.NewUndoData("PatchInstall", _selectedPatch.Name);
+
+            var result = PatchMetadataCore.ApplyPatch(rom, _selectedPatch.PatchFilePath, undoData);
+
+            if (result.Success)
+            {
+                if (undo != null && undoData != null)
+                    undo.Push(undoData);
+
+                // Refresh the status of this patch
+                RefreshSelectedPatchStatus();
+                StatusMessage = result.Message;
+            }
+            else
+            {
+                // Rollback on failure
+                if (undo != null && undoData != null)
+                    undo.Rollback(undoData);
+                StatusMessage = "Install failed: " + result.Message;
+            }
+
+            OnPropertyChanged(nameof(CanInstall));
+            OnPropertyChanged(nameof(CanUninstall));
+            return StatusMessage;
+        }
+
+        /// <summary>
+        /// Attempt to uninstall the currently selected patch.
+        /// </summary>
+        public string UninstallPatch()
+        {
+            if (_selectedPatch == null)
+                return "No patch selected.";
+
+            var result = PatchMetadataCore.UninstallPatch(CoreState.ROM, _selectedPatch.PatchFilePath);
+            StatusMessage = result.Message;
+            return StatusMessage;
+        }
+
+        /// <summary>Re-check installation status of the selected patch and update counts.</summary>
+        void RefreshSelectedPatchStatus()
+        {
+            if (_selectedPatch == null) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            string lang = PatchMetadataCore.GetLanguageSuffix();
+            var refreshed = PatchMetadataCore.ParsePatchFile(
+                _selectedPatch.PatchFilePath,
+                Path.GetFileName(_selectedPatch.DirectoryPath),
+                rom, lang);
+
+            _selectedPatch.Status = refreshed.Status;
+
+            // Update the corresponding entry in _allPatches
+            var match = _allPatches.FirstOrDefault(p => p.PatchFilePath == _selectedPatch.PatchFilePath);
+            if (match != null)
+                match.Status = refreshed.Status;
+
+            InstalledCount = _allPatches.Count(p => p.Status == PatchMetadataCore.PatchStatus.Installed);
         }
 
         void ApplyFilter()

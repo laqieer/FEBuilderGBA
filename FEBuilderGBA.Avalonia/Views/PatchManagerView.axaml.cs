@@ -19,6 +19,8 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) => LoadPatches();
             PatchListBox.SelectionChanged += OnPatchSelected;
             SearchBox.TextChanged += OnSearchTextChanged;
+            InstallButton.Click += OnInstallClick;
+            UninstallButton.Click += OnUninstallClick;
         }
 
         void LoadPatches()
@@ -67,6 +69,39 @@ namespace FEBuilderGBA.Avalonia.Views
             DetailDescription.Text = string.IsNullOrEmpty(patch.Description)
                 ? "(no description available)"
                 : patch.Description;
+
+            UpdateActionButtons();
+            StatusMessageLabel.Text = "";
+        }
+
+        void UpdateActionButtons()
+        {
+            InstallButton.IsEnabled = _vm.CanInstall;
+            UninstallButton.IsEnabled = _vm.CanUninstall;
+        }
+
+        void OnInstallClick(object? sender, RoutedEventArgs e)
+        {
+            string msg = _vm.InstallPatch();
+            StatusMessageLabel.Text = msg;
+
+            // Refresh the detail display
+            if (_vm.SelectedPatch != null)
+            {
+                DetailStatus.Text = _vm.SelectedPatch.StatusText;
+                UpdateActionButtons();
+            }
+            UpdateSummary();
+
+            // Refresh the list to show updated status
+            PatchListBox.ItemsSource = null;
+            PatchListBox.ItemsSource = _vm.FilteredPatches;
+        }
+
+        void OnUninstallClick(object? sender, RoutedEventArgs e)
+        {
+            string msg = _vm.UninstallPatch();
+            StatusMessageLabel.Text = msg;
         }
 
         public void NavigateTo(uint address) { }
