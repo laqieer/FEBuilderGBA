@@ -462,6 +462,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public ViewModelBase? DataViewModel => _vm;
 
+        async void ExportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ExportTableAsync(this, "units");
+        }
+
+        async void ImportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ImportTableAsync(this, "units", _undoService, () =>
+            {
+                // Reload the current entry after import
+                if (_vm.CurrentAddr != 0)
+                {
+                    _vm.LoadUnit(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+            });
+        }
+
         public void EnablePickMode() => UnitList.EnablePickMode();
 
         /// <summary>Select the first item in the list (for smoke testing).</summary>

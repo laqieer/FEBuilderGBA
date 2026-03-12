@@ -323,6 +323,24 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = false;
         }
 
+        async void ExportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ExportTableAsync(this, "classes");
+        }
+
+        async void ImportTSV_Click(object? sender, RoutedEventArgs e)
+        {
+            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService, () =>
+            {
+                // Reload the current entry after import
+                if (_vm.CurrentAddr != 0)
+                {
+                    _vm.LoadClass(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+            });
+        }
+
         public void EnablePickMode() => ClassList.EnablePickMode();
 
         public void SelectFirstItem()
