@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -93,42 +92,53 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 cfg["Emulator_Path"] = EmulatorPath ?? "";
                 cfg["git_path"] = GitPath ?? "git";
                 cfg["func_auto_backup"] = AutoBackup ? "2" : "0";
+                cfg["Language"] = Language ?? "auto";
                 cfg.Save();
             }
+
+            // Reload translations with new language
+            ReloadTranslations();
 
             MarkClean();
         }
 
-        /// <summary>Enumerate language codes from config/translate/*.txt files.</summary>
+        static void ReloadTranslations()
+        {
+            string lang = CoreState.Language ?? "auto";
+            if (lang == "auto")
+            {
+                lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+                // Map culture names to our language codes
+                if (lang == "ja") lang = "ja";
+                else if (lang == "zh") lang = "zh";
+                else lang = "en"; // default to English
+            }
+
+            // "ja" is the built-in language (no translation file needed)
+            if (lang == "ja")
+            {
+                // Clear translations to use built-in Japanese strings
+                MyTranslateResource.LoadResource("");
+                return;
+            }
+
+            string baseDir = CoreState.BaseDirectory;
+            if (string.IsNullOrEmpty(baseDir))
+                baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            string translateFile = Path.Combine(baseDir, "config", "translate", lang + ".txt");
+            if (File.Exists(translateFile))
+            {
+                MyTranslateResource.LoadResource(translateFile);
+            }
+        }
+
+        /// <summary>Enumerate language codes matching WinForms behavior.</summary>
         static List<string> EnumerateLanguages()
         {
-            var langs = new List<string> { "en" };
-            try
-            {
-                string baseDir = CoreState.BaseDirectory;
-                if (string.IsNullOrEmpty(baseDir))
-                    baseDir = AppDomain.CurrentDomain.BaseDirectory;
-
-                string translateDir = Path.Combine(baseDir, "config", "translate");
-                if (Directory.Exists(translateDir))
-                {
-                    var files = Directory.GetFiles(translateDir, "*.txt");
-                    foreach (var f in files)
-                    {
-                        string name = Path.GetFileNameWithoutExtension(f);
-                        // Skip dictionary files like dic_ja_en.txt
-                        if (name.StartsWith("dic_", StringComparison.OrdinalIgnoreCase))
-                            continue;
-                        if (!langs.Contains(name))
-                            langs.Add(name);
-                    }
-                }
-            }
-            catch
-            {
-                // Ignore enumeration errors -- at least "en" is available
-            }
-            return langs.OrderBy(l => l).ToList();
+            // Hard-code language options matching WinForms behavior.
+            // "auto" = detect from OS locale, "ja" = built-in Japanese (no ja.txt needed)
+            return new List<string> { "auto", "ja", "en", "zh" };
         }
     }
 }

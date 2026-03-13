@@ -37,7 +37,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="*,Auto">
             <!-- Fields -->
-            <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
+            <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
@@ -49,7 +49,7 @@
               <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
-                <ComboBox Name="ClassIdCombo" Width="200" Margin="0,2" />
+                <ComboBox Name="ClassIdCombo" MinWidth="120" Margin="0,2" />
                 <Button Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
                 <Button Content="Pick..." Click="PickClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick class from editor" />
               </StackPanel>
@@ -64,7 +64,7 @@
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" Margin="0,2" />
-              <ComboBox Grid.Row="2" Grid.Column="4" Name="AffinityCombo" Width="200" Margin="0,2" />
+              <ComboBox Grid.Row="2" Grid.Column="4" Name="AffinityCombo" MinWidth="120" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="6" Text="Sort:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>

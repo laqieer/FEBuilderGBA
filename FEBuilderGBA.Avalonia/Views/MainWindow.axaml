@@ -39,7 +39,7 @@
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem Header="_Online Manual" Click="OnlineManual_Click" />
-        <MenuItem Header="_Discord Community" Click="Discord_Click" />
+        <MenuItem Header="_GitHub Discussions" Click="Discussions_Click" />
         <Separator />
         <MenuItem Header="_About" Click="About_Click" />
       </MenuItem>

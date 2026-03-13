@@ -95,5 +95,16 @@ namespace FEBuilderGBA.Core.Tests
             NameResolver.GetSongName(1);
             NameResolver.ClearCache();
         }
+
+        [Theory]
+        [InlineData("@0501Lord", "Lord")]
+        [InlineData("@0501@0102Knight", "Knight")]
+        [InlineData("NormalText", "NormalText")]
+        [InlineData("", "")]
+        [InlineData(null, null)]
+        public void StripControlCodes_RemovesAtCodes(string? input, string? expected)
+        {
+            Assert.Equal(expected, NameResolver.StripControlCodes(input!));
+        }
     }
 }

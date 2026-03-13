@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA
 {
@@ -14,13 +15,21 @@ namespace FEBuilderGBA
         /// <summary>Clear the name cache (e.g., after undo or ROM reload).</summary>
         public static void ClearCache() => _cache.Clear();
 
+        /// <summary>Strip FE text control codes like @0501 from decoded text.</summary>
+        internal static string StripControlCodes(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return Regex.Replace(text, @"@[0-9A-Fa-f]{4}", "");
+        }
+
         /// <summary>Decode a text ID to a string. Returns "???" on failure.</summary>
         public static string GetTextById(uint textId)
         {
             if (textId == 0) return "";
             try
             {
-                return FETextDecode.Direct(textId) ?? "???";
+                string raw = FETextDecode.Direct(textId) ?? "???";
+                return StripControlCodes(raw);
             }
             catch
             {

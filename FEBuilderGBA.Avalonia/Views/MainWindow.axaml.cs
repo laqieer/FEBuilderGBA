@@ -2049,9 +2049,9 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { }
         }
 
-        private void Discord_Click(object? sender, RoutedEventArgs e)
+        private void Discussions_Click(object? sender, RoutedEventArgs e)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://discord.gg/febuilder") { UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
             catch { }
         }
 
