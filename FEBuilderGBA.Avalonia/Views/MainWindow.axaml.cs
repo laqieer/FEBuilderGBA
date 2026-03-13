@@ -1460,6 +1460,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void MainWindow_Closing(object? sender, global::Avalonia.Controls.WindowClosingEventArgs e)
         {
+            // In headless/screenshot mode, allow close without prompting
+            if (App.SmokeTestMode) return;
+
             // Check if ROM has unsaved changes via undo buffer
             var undo = CoreState.Undo;
             if (undo == null || CoreState.ROM == null) return;
@@ -1501,7 +1504,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void OpenClasses_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<ClassEditorView>();
+            if (CoreState.ROM?.RomInfo?.version == 6)
+                WindowManager.Instance.Open<ClassFE6View>();
+            else
+                WindowManager.Instance.Open<ClassEditorView>();
         }
 
         private void OpenMapSettings_Click(object? sender, RoutedEventArgs e)
@@ -1561,12 +1567,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void OpenItemStatBonuses_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<ItemStatBonusesViewerView>();
+            var pds = PatchDetectionService.Instance;
+            if (pds.HasSkillSystem)
+                WindowManager.Instance.Open<ItemStatBonusesSkillSystemsView>();
+            else if (pds.VennouWeaponLock)
+                WindowManager.Instance.Open<ItemStatBonusesVennoView>();
+            else
+                WindowManager.Instance.Open<ItemStatBonusesViewerView>();
         }
 
         private void OpenItemEffectiveness_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<ItemEffectivenessViewerView>();
+            if (PatchDetectionService.Instance.SkillSystemsClassTypeRework)
+                WindowManager.Instance.Open<ItemEffectivenessSkillSystemsReworkView>();
+            else
+                WindowManager.Instance.Open<ItemEffectivenessViewerView>();
         }
 
         private void OpenItemPromotion_Click(object? sender, RoutedEventArgs e)

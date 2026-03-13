@@ -251,7 +251,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!U.isPointer(ptr)) return;
                 uint addr = ptr - 0x08000000;
                 if (!U.isSafetyOffset(addr)) return;
-                WindowManager.Instance.Navigate<ItemStatBonusesViewerView>(addr);
+                var pds = PatchDetectionService.Instance;
+                if (pds.HasSkillSystem)
+                    WindowManager.Instance.Navigate<ItemStatBonusesSkillSystemsView>(addr);
+                else if (pds.VennouWeaponLock)
+                    WindowManager.Instance.Navigate<ItemStatBonusesVennoView>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemStatBonusesViewerView>(addr);
             }
             catch (Exception ex)
             {
@@ -267,7 +273,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!U.isPointer(ptr)) return;
                 uint addr = ptr - 0x08000000;
                 if (!U.isSafetyOffset(addr)) return;
-                WindowManager.Instance.Navigate<ItemEffectivenessViewerView>(addr);
+                if (PatchDetectionService.Instance.SkillSystemsClassTypeRework)
+                    WindowManager.Instance.Navigate<ItemEffectivenessSkillSystemsReworkView>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemEffectivenessViewerView>(addr);
             }
             catch (Exception ex)
             {
