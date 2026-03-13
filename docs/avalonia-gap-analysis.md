@@ -1,20 +1,20 @@
 # Avalonia vs WinForms Function Completeness Gap Analysis
 
 **Generated:** 2026-03-11
-**Updated:** 2026-03-12 (round 3 fixes: list loading, type resolution, resource info, color viewer)
+**Updated:** 2026-03-13 (manual verification of current code; corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, image import, and MIDI)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
-**Overall Avalonia Completeness:** ~60% average across all domains (updated 2026-03-12 after round 24 gap fixes)
+**Overall Avalonia Completeness:** Historical lower-bound audit ~60% across all domains (2026-03-12). Current code is higher in several domains, but still short of full WinForms parity.
 
 ---
 
 ## Executive Summary
 
-The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for ~356 editor views but is missing the vast majority of interactive features present in the WinForms implementation. The most critical systemic gaps are:
+The Avalonia port of FEBuilderGBA now covers a broad amount of ROM read/write behavior and many editor surfaces, but it is still missing a significant set of interactive and parity features present in the WinForms implementation. The most critical systemic gaps are:
 
 1. ~~**No Undo System**~~ **FIXED** -- Ambient undo tracking in `ROM.BeginUndoScope()`. `UndoService` wraps this for all 148 Avalonia editors with Write handlers.
 2. **No InputFormRef Equivalent** -- The 13,177-line convention-based auto-wiring framework has no Avalonia counterpart
 3. ~~**No Context Menus**~~ **FIXED** -- `AddressListControl` now has Copy Address / Copy Name / Copy Hex Data context menu
-4. **No Image Import/Export** -- Partially addressed: export buttons added to portrait/CG/battle BG forms, undo-wrapped import handlers
+4. **Limited Image Import/Export Coverage** -- Core CG/BG import/export now exists, but portrait calibration, animation workflows, palette editing, and several specialized image tools remain incomplete
 5. ~~**No CSV Export/Import**~~ **FIXED** -- `DataExportView` wraps `StructExportCore` for 40-table TSV export/import via Tools menu
 6. **Limited Visual Previews** -- Map rendering works (MapEditor), portrait detail display works (UnitEditor/PortraitViewer). Missing: animation playback, portrait thumbnails in lists
 7. ~~**No Cross-Form Navigation**~~ **FIXED** -- `WindowManager.Navigate<T>(address)` wired in Unit Editor (Jump to Class/Portrait) and other editors
@@ -25,6 +25,41 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 12. ~~**No Hex Editor**~~ **FIXED** -- `HexEditorView` with hex dump display, jump-to-address, page navigation, byte search
 13. ~~**No Pointer Search**~~ **FIXED** -- `PointerToolViewModel.SearchPointer()` scans ROM for pointer references
 14. ~~**No Free Space Scan**~~ **FIXED** -- `MoveToFreeSpaceViewViewModel.FindFreeSpace()` finds contiguous free regions
+
+### 2026-03-13 Verification Note
+
+Manual spot checks of current code found that several older claims in this document are now stale.
+
+**Verified present in current code:**
+- Patch manager UI with install/uninstall flow (`FEBuilderGBA.Avalonia/Views/PatchManagerView.axaml.cs`, `FEBuilderGBA.Avalonia/ViewModels/PatchManagerViewModel.cs`)
+- Patch detection service refreshed after ROM load (`FEBuilderGBA.Avalonia/Services/PatchDetectionService.cs`, `FEBuilderGBA.Avalonia/Views/MainWindow.axaml.cs`)
+- Easy mode window (`FEBuilderGBA.Avalonia/Views/MainSimpleMenuView.axaml.cs`)
+- CG/BG import and PNG/BMP drag-drop (`FEBuilderGBA.Avalonia/Views/ImageCGView.axaml.cs`, `FEBuilderGBA.Avalonia/Views/ImageBGView.axaml.cs`)
+- Map tile selection and write-back (`FEBuilderGBA.Avalonia/ViewModels/MapEditorViewModel.cs`, `FEBuilderGBA.Avalonia/Views/MapEditorView.axaml.cs`)
+- Song MIDI import/export (`FEBuilderGBA.Avalonia/ViewModels/SongTrackViewModel.cs`, `FEBuilderGBA.Avalonia/Views/SongTrackView.axaml.cs`)
+
+**Still confirmed by current code/tests:**
+- No Avalonia equivalent of WinForms `InputFormRef`
+- No standardized pre/post write hook layer
+- No generic data expand/shrink workflow
+- `FEBuilderGBA.Avalonia/ViewModels/EventScriptViewModel.cs` is still effectively a stub
+- `FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` still has the FE6 class pointer-layout bug documented in the full audit
+- `FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` still enforces a screenshot-all path that is currently failing/timing out in validation
+
+## Spot-Checked File Matrix (2026-03-13)
+
+| File / area | Current status | Remaining gap |
+|-------------|----------------|---------------|
+| `FEBuilderGBA.Avalonia/ViewModels/EventScriptViewModel.cs` | Still a minimal shell with a placeholder list entry and no real script parsing | Full EventScript editor parity is still missing |
+| `FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` | Broad class editing works | FE6 still uses the wrong pointer layout for move-cost-related fields |
+| `FEBuilderGBA.Avalonia/Services/PatchDetectionService.cs` | Patch detection infrastructure exists and is refreshed on ROM load | Coverage is still partial across editor families |
+| `FEBuilderGBA.Avalonia/Views/PatchManagerView.axaml.cs` + `ViewModels/PatchManagerViewModel.cs` | Patch browsing, install, dependency warning, and uninstall flows exist | Not a total gap anymore; remaining work is parity depth/polish |
+| `FEBuilderGBA.Avalonia/Views/MainSimpleMenuView.axaml.cs` | Easy mode window exists | Still reduced compared with WinForms easy mode |
+| `FEBuilderGBA.Avalonia/ViewModels/MapEditorViewModel.cs` + `Views/MapEditorView.axaml.cs` | Map rendering, tile selection, and tile write-back exist | Style editor, map-change workflows, previews, and broader parity still lag |
+| `FEBuilderGBA.Avalonia/Views/ImageCGView.axaml.cs` + `Views/ImageBGView.axaml.cs` | Drag-drop and import/export core flow exist | Advanced portrait/animation/palette workflows remain incomplete |
+| `FEBuilderGBA.Avalonia/ViewModels/SongTrackViewModel.cs` + `Views/SongTrackView.axaml.cs` | MIDI import/export exist | Playback, richer visualization, and fuller music-tool parity still lag |
+| `FEBuilderGBA.Avalonia/Views/MainWindow.axaml.cs` | Refreshes patch detection and opens many editor windows | Does not replace WinForms `InputFormRef` conventions/integration |
+| `FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` | Provides broad screenshot regression coverage | Screenshot-all still fails/times out, so parity is not fully proven end-to-end |
 
 ### Avalonia Strengths (Not in WinForms)
 - **Cross-platform** (Linux, macOS, Windows)
@@ -41,19 +76,19 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | # | Domain | Avg Completeness | Forms | Critical Gaps |
 |---|--------|:---:|:---:|---|
 | 1 | [Shared Infrastructure](#15-shared-infrastructure) | **70%** | 12 | No auto-wiring, no convention binding |
-| 2 | [Unit Editors](#1-unit-editors) | **~50%** | 10 | ~~Growth sim~~ FIXED, no skills |
-| 3 | [Item Editors](#2-item-editors) | **~56%** | 14 | No patch-aware UI |
-| 4 | [Class Editors](#3-class-editors) | **~48%** | 7 | ~~Growth sim~~ FIXED, no skills, no magic split |
-| 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor 25% (view-only), style editor 20%, no tile editing |
-| 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | No drag-drop, no animation |
+| 2 | [Unit Editors](#1-unit-editors) | **~50%** | 10 | ~~Growth sim~~ FIXED, skill/magic-split parity still partial |
+| 3 | [Item Editors](#2-item-editors) | **~56%** | 14 | Patch-aware UI still partial |
+| 4 | [Class Editors](#3-class-editors) | **~48%** | 7 | ~~Growth sim~~ FIXED, skill/magic-split parity still partial |
+| 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor is partially editable; style editor and broader map workflows still incomplete |
+| 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | Core CG/BG import exists; advanced portrait/animation tooling remains incomplete |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
-| 8 | [Sound & Music](#7-sound--music) | **~43%** | 10 | No MIDI import, no playback |
+| 8 | [Sound & Music](#7-sound--music) | **~43%** | 10 | MIDI import/export exists; playback and richer instrument parity remain incomplete |
 | 9 | [Text & Dialogue](#8-text--dialogue) | **~38%** | 10 | ~~Dialogue preview~~ FIXED, ~~Search~~ FIXED |
 | 10 | [Support & Relationships](#9-support--relationships) | **~53%** | 7 | Unit names FIXED, no auto-collect |
 | 11 | [World Map](#10-world-map) | **~48%** | 5 | Point names FIXED, no map preview |
 | 12 | [Skill Systems](#11-skill-systems) | **~35%** | 11 | No icon rendering, no sublists |
-| 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Patch manager missing |
-| 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | No easy mode |
+| 13 | [Tool Windows](#12-tool-windows) | **~30%** | 26 | Three-way merge and several advanced tools still missing |
+| 14 | [Main Window & Navigation](#13-main-window--navigation) | **~70%** | 7 | Easy mode exists but remains reduced |
 | 15 | [OP/ED/Status/Misc](#14-openingendingstatusmiscellaneous) | **~53%** | 28 | Filter combos FIXED (StatusParam/ArenaClass), no OwnerDraw |
 
 ---
@@ -64,8 +99,8 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| UnitForm / UnitEditorVM | **60%** | ~~Growth Sim~~ **FIXED**, ~~Checkboxes~~ **FIXED** (BitFlagPanel), Pick-and-return for Class/Portrait. Missing: Skills, Magic Split |
-| UnitFE7Form / UnitFE7VM | 50% | Magic Split, ~~Checkboxes~~ **FIXED** |
+| UnitForm / UnitEditorVM | **60%** | ~~Growth Sim~~ **FIXED**, ~~Checkboxes~~ **FIXED** (BitFlagPanel), Pick-and-return for Class/Portrait. Missing: fuller skills UI and broader magic-split parity |
+| UnitFE7Form / UnitFE7VM | 50% | Partial magic-split parity, ~~Checkboxes~~ **FIXED** |
 | UnitFE6Form / (via UnitEditorVM) | 50% | ~~Checkboxes~~ **FIXED** |
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
 | ExtraUnitFE8UForm / ExtraUnitFE8UVM | 35% | Proper List, Address Tracking |
@@ -122,7 +157,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| ClassForm / ClassEditorVM | **55%** | ~~Growth sim~~ **FIXED**, ~~ability checkboxes~~ **FIXED** (BitFlagPanel). Missing: skills, magic split |
+| ClassForm / ClassEditorVM | **55%** | ~~Growth sim~~ **FIXED**, ~~ability checkboxes~~ **FIXED** (BitFlagPanel). Missing: fuller skills UI and broader magic-split parity |
 | ClassFE6Form / ClassFE6VM | **48%** | ~~Growth sim~~ **FIXED** (VM). Missing: data display fields in view, ability checkboxes |
 | CCBranchForm / CCBranchEditorVM | **45%** | ~~upstream chain display~~ **FIXED** — shows classes that promote to selected class. Missing: CC3 patch, class-sharing |
 | SMEPromoListForm / SMEPromoListVM | **55%** | ~~List loading is stub~~ **FIXED** — proper 2-byte entry enumeration with class names, NavigateTo support |
@@ -143,7 +178,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | MapPointerForm | **45%** | ~~PLIST type filter~~ **FIXED** — 5-way combo (MAP/CONFIG/OBJ-PAL/CHANGE/EVENT). Missing: split detection |
 | MapChangeForm | 25% | Two-level list, map preview with change overlay |
 | MapExitPointForm | 30% | Two-level list, enemy/NPC filter |
-| MapEditorForm | **25%** | ~~Empty stub~~ **FIXED** — map list from MapSettingCore, visual tile rendering with zoom (1-4x). Missing: tile editing, map save |
+| MapEditorForm | **40%** | ~~Empty stub~~ **FIXED** — map list from MapSettingCore, visual tile rendering with zoom (1-4x), tile selection, and tile write-back. Missing: richer editing UX, overlays, and broader map parity |
 | MapStyleEditorForm | **20%** | ~~Empty stub~~ **FIXED** — tileset list from map_obj_pointer, OBJ/config pointer display, write support. Missing: tile preview, palette editing |
 | MapTerrainNameForm | **30%** | ~~Empty stub~~ **FIXED** — terrain list from map_terrain_name_pointer (4-byte pointer entries), pointer display, write support. Missing: string decode |
 | MapTerrainNameEngForm | **55%** | ~~Proper list~~ **FIXED** — list from map_terrain_name_pointer with text decode |
@@ -153,7 +188,7 @@ The Avalonia port of FEBuilderGBA provides basic data read/write scaffolding for
 | Dialog VMs (9 total) | ~30% avg | View layer only, no logic |
 
 ### Map Editor (25%) and Map Style Editor (20%)
-Map Editor now has read-only visualization with zoom controls but no tile editing or save. Map Style Editor now loads tileset entries from map_obj_pointer with write support but lacks tile preview and palette editing. Both need significant work for editing parity.
+Map Editor is no longer read-only: current code supports map rendering, tile selection, and tile write-back after recompressing map data. However, the overall map editing story still lags WinForms because style editor parity, map-change workflows, richer previews, and broader UX coverage remain incomplete.
 
 ---
 
@@ -167,9 +202,9 @@ Map Editor now has read-only visualization with zoom controls but no tile editin
 | ImagePortraitFE6 | 35% | Import, Advanced import dialog |
 | ImageBattleAnime | **28%** | ~~List stub~~ **FIXED** — list from image_battle_animelist_pointer. Missing: Two-level list, Animation playback, Import/Export |
 | ImageBattleBG | 45% | Import, Drag-drop, DecreaseColor |
-| ImageCG / BigCGViewer | 45% | Import, 10-split LZ77 compress |
-| ImageCGFE7U | 45% | Import, Drag-drop |
-| ImageBG | 40% | Import (2 modes), BG select popup |
+| ImageCG / BigCGViewer | **55%** | ~~Import~~ **FIXED** -- PNG/BMP import + drag-drop + ROM write-back via `ImageImportCore`. Missing: 10-split LZ77 compression, advanced tooling |
+| ImageCGFE7U | **55%** | ~~Import, Drag-drop~~ **FIXED** -- same core flow. Missing: FE7U-specific polish |
+| ImageBG | **50%** | ~~Import~~ **FIXED** -- import/export core flow exists. Missing: alternate BG modes, BG select popup |
 | ImageGenericEnemyPortrait | **40%** | ~~Address list~~ **FIXED** — proper list from generic_enemy_portrait_pointer/count. Missing: Image rendering, Import |
 | ImageMagicFEditor | 18% | Animation playback, Import/Export (TXT/GIF) |
 | ImageMagicCSACreator | 15% | Everything (placeholder) |
@@ -185,9 +220,9 @@ Map Editor now has read-only visualization with zoom controls but no tile editin
 | BattleTerrain | 40% | Import, Drag-drop |
 
 ### Cross-Cutting Gaps
-- ~~**No image export**~~ **PARTIALLY FIXED** -- PNG export added to portrait/CG/battle BG forms
-- **No image import** -- No image load + LZ77 compress + ROM write pipeline (partial: quantize/remap exists)
-- **No drag-and-drop** -- No file drop support
+- ~~**No image export**~~ **PARTIALLY FIXED** -- PNG export exists in portrait/CG/BG forms
+- ~~**No image import**~~ **PARTIALLY FIXED** -- CG/BG import + ROM write-back exist via `ImageImportCore`; portrait/animation/specialized flows still lag
+- ~~**No drag-and-drop**~~ **PARTIALLY FIXED** -- CG/BG forms accept PNG/BMP drag-drop; not yet a general solution
 - **No PaletteFormRef** -- No per-color palette editing
 - **No DecreaseColorTSAToolForm** -- No color reduction tool
 - **No animation playback** -- No frame-by-frame preview
@@ -226,7 +261,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
 | SongTable | **45%** | ~~Song names~~ **FIXED** — song names in list. Missing: playback, cross-references |
-| **SongTrack** | **25%** | **MIDI/WAV import-export, track visualization, playback** |
+| **SongTrack** | **40%** | ~~MIDI import-export~~ **FIXED** -- import/export wired. Missing: playback, richer track visualization |
 | **SongInstrument** | **20%** | **128 instruments, type-specific panels, wave import** |
 | SongInstrumentDirectSound | 50% | DPCM detection, Hz combo, validation |
 | SoundRoom | **55%** | ~~Song names~~ **FIXED**, ~~Jump to Song~~ **FIXED**. Missing: position display, patch detection |
@@ -237,7 +272,7 @@ The main event script editor (1,928 lines in WinForms) is reduced to a static he
 | WorldMapBGM | 50% | World map point names |
 
 ### Critical: Song Track (25%) and Song Instrument (20%)
-These are the core music editing tools. Without MIDI import/export and instrument editing, users cannot modify game music.
+SongTrack is no longer a pure blocker because MIDI import/export exists in current code, but the music toolchain is still incomplete: playback, richer visualization, and fuller instrument editing remain below WinForms parity.
 
 ---
 
@@ -331,13 +366,13 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | **ToolThreeMarge (Main/CloseAlert)** | **15%** | **No three-way merge algorithm** |
 | ToolWorkSupport (Main/UPS/Update) | 20% | No update checking/download |
 | ~~**MoveToFreeSpace**~~ | **30%** | **FIXED** -- Free space search finds contiguous regions |
-| **PatchFormUninstall** | **10%** | **Entire patch manager missing** |
+| **PatchFormUninstall** | **35%** | ~~Entire patch manager missing~~ **FIXED** -- patch manager / uninstall UI exists. Missing: full WinForms parity depth |
 | PackedMemorySlot | 25% | No slot operations |
 | EmulatorMemory | 5% | Platform limitation (P/Invoke) |
 | RAMRewriteTool (Main/MAP) | 8% | Platform limitation (P/Invoke) |
 
-### Critical: Patch Manager, Three-Way Merge
-~~Hex Editor~~, ~~Pointer Search~~, and ~~Free Space Scan~~ have been fixed. Patch manager and three-way merge remain as empty stubs in Avalonia.
+### Critical: Three-Way Merge and Advanced Tooling
+~~Hex Editor~~, ~~Pointer Search~~, ~~Free Space Scan~~, and patch manager flows are now present. The biggest remaining tool-window gaps are three-way merge and several advanced Windows-only tools (ASM/decompile/update/emulator-memory).
 
 ---
 
@@ -347,13 +382,13 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| MainWindow vs MainFE6/7/8Form | 70% | Drag-drop, smart routing, easy mode toggle |
+| MainWindow vs MainFE6/7/8Form | 70% | Drag-drop, smart routing, reduced easy mode toggle parity |
 | WelcomeView | 25% | Update check, language switch, drag-drop |
 | VersionView | 45% | CRC32, original ROM detection |
 | ErrorUnknownROMView | 80% | Minor ROM header detail |
 | EventErrorIgnoreError | 70% | Lint workflow integration |
 | ResourceView | **50%** | ~~Empty placeholder~~ **FIXED** — ROM header info, free space analysis, data table counts, section pointers, patch/config directory info |
-| MainSimpleMenu (Easy Mode) | 15% | Map-centric view, visual unit overlay |
+| MainSimpleMenu (Easy Mode) | 30% | Exists as a reduced easy mode. Missing: map-centric view, visual unit overlay |
 
 ### MainWindow Improvements
 - ~~**No search filter**~~ **FIXED** -- Filter text box filters the button grid
@@ -414,8 +449,8 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | Write validation | **60%** | ~~5%~~ **FIXED** -- `WriteValidator` provides range/type/pointer/address validation |
 | Name resolution helpers | **80%** | ~~0%~~ **FIXED** -- `NameResolver` + `ComboResourceHelper` for cached entity name resolution |
 | Image export | **70%** | ~~60%~~ **FIXED** -- PNG export in portrait/CG/BG forms |
-| Image import + write-back | **40%** | ~~25%~~ Quantize/remap + undo; no LZ77/TSA/pointer write |
-| Drag-and-drop | **0%** | Missing everywhere |
+| Image import + write-back | **55%** | ~~25%~~ CG/BG import + write-back now exist; advanced portrait/animation/TSA flows still incomplete |
+| Drag-and-drop | **15%** | Present in CG/BG image workflows, not a general cross-app solution |
 | Data expand/shrink | **0%** | Cannot add new ROM entries |
 | Progress dialogs | **0%** | No AutoPleaseWait equivalent |
 
@@ -426,7 +461,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 
 **P1 -- High (blocks quality parity):**
 2. ~~**Injection callback / select-and-return**~~ **FIXED** -- `PickFromEditor<T>()` in `WindowManager`
-3. **Image write-back** -- LZ77 compression, TSA generation, pointer updates
+3. **Patch-aware UI coverage** -- detection service exists, but only partial editor coverage
 4. **Data expand/shrink** -- Cannot add new ROM entries
 
 **P2 -- Medium (power user features):**
@@ -444,12 +479,12 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | 2 | **InputFormRef equivalent** (EditorFormRef) | 80% of boilerplate | Open |
 | 3 | **EventScriptForm** implementation | Core editing blocked | **Planned round 2** |
 | ~~4~~ | ~~**TextForm** individual text editing~~ | ~~All text editing blocked~~ | **FIXED** (45%) |
-| 5 | **MapEditorForm** visual map editor | Map editing blocked | **Planned round 2** |
-| 6 | **Image import pipeline** (LZ77 + TSA + pointer) | No image editing | Open |
+| 5 | **Map/style/world editor parity** | Editing workflows still below WinForms depth | Open |
+| 6 | **Advanced image/portrait/animation tooling** | Not yet at WinForms parity | Open |
 | ~~7~~ | ~~**HexEditorForm** hex viewer/editor~~ | ~~Fundamental tool missing~~ | **FIXED** |
-| 8 | **Patch management** system | Core feature missing | Open |
-| ~~9~~ | ~~**Context menus** on address lists~~ | ~~Power user UX~~ | **FIXED** |
-| ~~10~~ | ~~**Dirty tracking** + unsaved changes warning~~ | ~~Data loss prevention~~ | **FIXED** |
+| 8 | **Patch-aware UI coverage** | Wrong or incomplete UI on patched ROMs | Open |
+| 9 | **Data expand/shrink** | Cannot add new ROM entries | Open |
+| 10 | **Screenshot-all reliability** | End-to-end parity is not yet cleanly proven | Open |
 
 ---
 
@@ -467,6 +502,8 @@ This analysis was conducted by 15 parallel research agents, each analyzing one d
 **Updated 2026-03-12 (round 3):** Six forms improved: SMEPromoList (25→55%), SomeClassList (25→55%), VennouWeaponLock (35→60%), ResourceView (10→50%), SystemHoverColor (15→45%), UnitsShortText (30→50%). Key improvements: proper list loading with AddressListControl, type resolution, name lookup, ROM info display, GBA color decode.
 
 **Updated 2026-03-12 (round 4):** Four more forms improved: CCBranchEditor (30→45%, upstream chain display), SoundRoomFE6 (35→55%, list + song name/description preview), SoundRoomCG (30→45%, list from ROM pointer), TextDic (30→50%, AddressListControl + text decode + unit/class name resolution).
+
+**Updated 2026-03-13 (manual verification):** Corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, CG/BG image import, and SongTrack MIDI import/export. Remaining gaps are narrower than the original audit in those areas, but the major parity blockers (InputFormRef replacement, EventScript editor, patch-aware coverage, expand/shrink, screenshot regression, and several advanced tools) remain.
 
 **Updated 2026-03-12 (round 5):** Three map forms improved: MapTileAnimation1 (35→50%, list from tileanime1_pointer), MapTileAnimation2 (35→50%, list from tileanime2_pointer), MapLoadFunction (25→50%, list from switch1 count + write support + pointer info).
 
