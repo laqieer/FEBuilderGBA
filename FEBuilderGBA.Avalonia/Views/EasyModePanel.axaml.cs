@@ -13,7 +13,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // Characters
         private void EasyOpenUnits_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<UnitEditorView>();
-        private void EasyOpenClasses_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ClassEditorView>();
+        private void EasyOpenClasses_Click(object? sender, RoutedEventArgs e)
+        {
+            if (CoreState.ROM?.RomInfo?.version == 6)
+                WindowManager.Instance.Open<ClassFE6View>();
+            else
+                WindowManager.Instance.Open<ClassEditorView>();
+        }
         private void EasyOpenSupportUnits_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SupportUnitEditorView>();
         private void EasyOpenSupportTalk_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SupportTalkView>();
 

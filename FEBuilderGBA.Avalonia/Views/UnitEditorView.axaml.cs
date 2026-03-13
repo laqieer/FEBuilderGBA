@@ -366,7 +366,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
                 if (!U.isSafetyOffset(baseAddr)) return;
                 uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
-                WindowManager.Instance.Navigate<ClassEditorView>(addr);
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    WindowManager.Instance.Navigate<ClassFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
             catch (Exception ex)
             {
@@ -407,7 +410,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
                 uint navAddr = U.isSafetyOffset(baseAddr) ? baseAddr + classId * rom.RomInfo.class_datasize : 0;
 
-                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(navAddr, this);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(navAddr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(navAddr, this);
                 if (result != null)
                 {
                     // result.Index is the class list index — set the combo
