@@ -29,8 +29,8 @@ namespace FEBuilderGBA.Avalonia.Views
             TableFilterCombo.ItemsSource = names;
             if (names.Count > 0)
                 TableFilterCombo.SelectedIndex = 0;
-            else
-                LoadList(0);
+            // Always load — SelectionChanged may not fire if Avalonia auto-selects index 0
+            LoadList(Math.Max(0, TableFilterCombo.SelectedIndex));
         }
 
         void TableFilter_Changed(object? sender, SelectionChangedEventArgs e)

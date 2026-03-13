@@ -28,8 +28,8 @@ namespace FEBuilderGBA.Avalonia.Views
             WeaponTypeCombo.ItemsSource = names;
             if (names.Count > 0)
                 WeaponTypeCombo.SelectedIndex = 0;
-            else
-                LoadList(0);
+            // Always load — SelectionChanged may not fire if Avalonia auto-selects index 0
+            LoadList(Math.Max(0, WeaponTypeCombo.SelectedIndex));
         }
 
         void WeaponType_Changed(object? sender, SelectionChangedEventArgs e)
