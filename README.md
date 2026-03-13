@@ -168,7 +168,7 @@ FEBuilderGBA.sln
 
 ## Testing & Coverage
 
-- ✅ **888 unit/integration tests** passing (775 WinForms + 113 Core cross-platform)
+- ✅ **2315 unit/integration tests** passing (1508 WinForms/Avalonia + 807 Core cross-platform)
 - ✅ **30 E2E tests** passing without ROMs (CLI + GUI automation + output log capture); **140 E2E tests** passing with all 5 ROMs (including 323-editor Avalonia smoke test, screenshot capture for both GUIs, + CLI output log capture for both CLI and WinForms executables)
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)

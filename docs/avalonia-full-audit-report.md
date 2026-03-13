@@ -24,6 +24,10 @@
 > - Three-way merge: full algorithm + UI (was 0%)
 > - Patch manager: listing + install + uninstall (was 10%)
 > - Progress dialog, validation warnings, icon previews, MoveCost 6-type
+> - Screenshot timeout fix: MainWindow_Closing skips dialog in SmokeTestMode (#35)
+> - FE6 class routing: OpenClasses_Click routes to ClassFE6View (#36)
+> - Patch-aware UI: stat bonuses/effectiveness navigation uses PatchDetectionService (#38)
+> - 24 additional tests (ClassFE6LayoutTests, PatchDetectionServiceDefaultTests, ScreenshotModeClosingTests)
 
 ---
 

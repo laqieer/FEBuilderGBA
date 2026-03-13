@@ -1,7 +1,7 @@
 # Avalonia vs WinForms Function Completeness Gap Analysis
 
 **Generated:** 2026-03-11
-**Updated:** 2026-03-13 (manual verification of current code; corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, image import, and MIDI)
+**Updated:** 2026-03-13 (manual verification of current code; corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, image import, and MIDI; updated for fixes #35/#36/#38)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
 **Overall Avalonia Completeness:** Historical lower-bound audit ~60% across all domains (2026-03-12). Current code is higher in several domains, but still short of full WinForms parity.
 
@@ -43,23 +43,23 @@ Manual spot checks of current code found that several older claims in this docum
 - No standardized pre/post write hook layer
 - No generic data expand/shrink workflow
 - `FEBuilderGBA.Avalonia/ViewModels/EventScriptViewModel.cs` is still effectively a stub
-- `FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` still has the FE6 class pointer-layout bug documented in the full audit
-- `FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` still enforces a screenshot-all path that is currently failing/timing out in validation
+- ~~`FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` still has the FE6 class pointer-layout bug~~ **FIXED** (#36) — `OpenClasses_Click` now routes FE6 ROMs to `ClassFE6View` with correct offsets (BattleAnime=+48, MoveCost=+52, no rain/snow)
+- ~~`FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` still enforces a screenshot-all path that is currently failing/timing out in validation~~ **FIXED** (#35) — `MainWindow_Closing` now skips the unsaved-changes dialog when `App.SmokeTestMode` is true
 
 ## Spot-Checked File Matrix (2026-03-13)
 
 | File / area | Current status | Remaining gap |
 |-------------|----------------|---------------|
 | `FEBuilderGBA.Avalonia/ViewModels/EventScriptViewModel.cs` | Still a minimal shell with a placeholder list entry and no real script parsing | Full EventScript editor parity is still missing |
-| `FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` | Broad class editing works | FE6 still uses the wrong pointer layout for move-cost-related fields |
-| `FEBuilderGBA.Avalonia/Services/PatchDetectionService.cs` | Patch detection infrastructure exists and is refreshed on ROM load | Coverage is still partial across editor families |
+| `FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` | Broad class editing works | ~~FE6 still uses the wrong pointer layout~~ **FIXED** (#36) — FE6 routed to ClassFE6View |
+| `FEBuilderGBA.Avalonia/Services/PatchDetectionService.cs` | Patch detection infrastructure exists and is refreshed on ROM load | ~~Coverage partial~~ **IMPROVED** (#38) — stat bonuses, effectiveness, and class editor now use patch-aware routing |
 | `FEBuilderGBA.Avalonia/Views/PatchManagerView.axaml.cs` + `ViewModels/PatchManagerViewModel.cs` | Patch browsing, install, dependency warning, and uninstall flows exist | Not a total gap anymore; remaining work is parity depth/polish |
 | `FEBuilderGBA.Avalonia/Views/MainSimpleMenuView.axaml.cs` | Easy mode window exists | Still reduced compared with WinForms easy mode |
 | `FEBuilderGBA.Avalonia/ViewModels/MapEditorViewModel.cs` + `Views/MapEditorView.axaml.cs` | Map rendering, tile selection, and tile write-back exist | Style editor, map-change workflows, previews, and broader parity still lag |
 | `FEBuilderGBA.Avalonia/Views/ImageCGView.axaml.cs` + `Views/ImageBGView.axaml.cs` | Drag-drop and import/export core flow exist | Advanced portrait/animation/palette workflows remain incomplete |
 | `FEBuilderGBA.Avalonia/ViewModels/SongTrackViewModel.cs` + `Views/SongTrackView.axaml.cs` | MIDI import/export exist | Playback, richer visualization, and fuller music-tool parity still lag |
 | `FEBuilderGBA.Avalonia/Views/MainWindow.axaml.cs` | Refreshes patch detection and opens many editor windows | Does not replace WinForms `InputFormRef` conventions/integration |
-| `FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` | Provides broad screenshot regression coverage | Screenshot-all still fails/times out, so parity is not fully proven end-to-end |
+| `FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` | Provides broad screenshot regression coverage | ~~Screenshot-all still fails/times out~~ **FIXED** (#35) — MainWindow_Closing no longer blocks in headless mode |
 
 ### Avalonia Strengths (Not in WinForms)
 - **Cross-platform** (Linux, macOS, Windows)
@@ -77,8 +77,8 @@ Manual spot checks of current code found that several older claims in this docum
 |---|--------|:---:|:---:|---|
 | 1 | [Shared Infrastructure](#15-shared-infrastructure) | **70%** | 12 | No auto-wiring, no convention binding |
 | 2 | [Unit Editors](#1-unit-editors) | **~50%** | 10 | ~~Growth sim~~ FIXED, skill/magic-split parity still partial |
-| 3 | [Item Editors](#2-item-editors) | **~56%** | 14 | Patch-aware UI still partial |
-| 4 | [Class Editors](#3-class-editors) | **~48%** | 7 | ~~Growth sim~~ FIXED, skill/magic-split parity still partial |
+| 3 | [Item Editors](#2-item-editors) | **~60%** | 14 | ~~Patch-aware UI partial~~ IMPROVED (#38), remaining: advanced stat bonus detail views |
+| 4 | [Class Editors](#3-class-editors) | **~52%** | 7 | ~~Growth sim~~ FIXED, ~~FE6 pointer layout~~ FIXED (#36), skill/magic-split parity still partial |
 | 5 | [Map Editors](#4-map-editors) | **~40%** | 22+ | Map editor is partially editable; style editor and broader map workflows still incomplete |
 | 6 | [Image & Portrait Editors](#5-image--portrait-editors) | **~40%** | 23 | Core CG/BG import exists; advanced portrait/animation tooling remains incomplete |
 | 7 | [Event Editors](#6-event-editors) | **~30%** | 20 | EventScript 2% (planned round 2), no map preview |
