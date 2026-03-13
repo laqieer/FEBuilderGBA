@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// </summary>
     public class TextCharCodeViewModel : ViewModelBase, IDataVerifiable
     {
+        readonly List<uint> _entryAddresses = new();
         uint _currentAddr;
         bool _isLoaded;
         string _selectedCode = "";
@@ -68,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void Initialize()
         {
-            IsLoaded = true;
+            LoadList();
         }
 
         public void LoadEntry(uint addr)
@@ -80,9 +81,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             CharCode = rom.u16(addr + 0);
             TerminatorValue = rom.u16(addr + 2);
+            CharacterDisplay = ResolveCharacterDisplay(rom, addr);
+
+            int index = _entryAddresses.IndexOf(addr);
+            if (index >= 0)
+            {
+                SelectedCode = CharCodes[index];
+            }
 
             IsLoaded = true;
         }
+
+        public void LoadList()
+        {
+            ROM rom = CoreState.ROM;
+            ClearListState();
+            if (rom?.RomInfo == null) return;
+
+            uint baseAddr = rom.RomInfo.mask_pointer;
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            for (int i = 0; i < 0x10000; i++)
+            {
+                uint addr = baseAddr + (uint)(i * 4);
+                if (addr + 3 >= (uint)rom.Data.Length)
+                    break;
+
+                if (rom.u8(addr) == 0xFF)
+                    break;
+
+                _entryAddresses.Add(addr);
+                CharCodes.Add(BuildEntryLabel(rom, addr, i));
+            }
+
+            if (_entryAddresses.Count > 0)
+            {
+                SelectIndex(0);
+            }
+        }
+
+        public void SelectIndex(int index)
+        {
+            if (index < 0 || index >= _entryAddresses.Count)
+                return;
+
+            LoadEntry(_entryAddresses[index]);
+        }
+
+        public int IndexOfAddress(uint addr) => _entryAddresses.IndexOf(addr);
 
         public void Write()
         {
@@ -92,9 +138,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             rom.write_u16(CurrentAddr + 0, (ushort)CharCode);
             rom.write_u16(CurrentAddr + 2, (ushort)TerminatorValue);
+
+            int index = _entryAddresses.IndexOf(CurrentAddr);
+            if (index >= 0)
+            {
+                CharCodes[index] = BuildEntryLabel(rom, CurrentAddr, index);
+                SelectedCode = CharCodes[index];
+            }
+            CharacterDisplay = ResolveCharacterDisplay(rom, CurrentAddr);
         }
 
-        public int GetListCount() => CharCodes.Count;
+        public int GetListCount() => _entryAddresses.Count;
 
         public Dictionary<string, string> GetDataReport()
         {
@@ -121,6 +175,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
                 ["u8@0x05_fontWidth"] = "N/A (font data at dynamic addr)",
             };
+        }
+
+        void ClearListState()
+        {
+            _entryAddresses.Clear();
+            CharCodes.Clear();
+            CurrentAddr = 0;
+            CharCode = 0;
+            TerminatorValue = 0;
+            CharacterDisplay = "";
+            SelectedCode = "";
+            IsLoaded = false;
+        }
+
+        static string BuildEntryLabel(ROM rom, uint addr, int index)
+        {
+            uint code = rom.u16(addr);
+            string display = ResolveCharacterDisplay(rom, addr);
+            return $"{index:X4} {code:X4} {display}";
+        }
+
+        static string ResolveCharacterDisplay(ROM rom, uint addr)
+        {
+            uint code = rom.u16(addr);
+            string text = rom.getString(addr, 2);
+            if (!rom.RomInfo.is_multibyte && code >= 0x81 && code <= 0xFF)
+            {
+                text = "@00" + code.ToString("X02");
+            }
+            return FETextEncode.RevConvertSPMoji(text);
         }
 
         // ---- Font glyph rendering ----

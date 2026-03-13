@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     bool ok = LoadRomFile(path);
                     if (!ok)
-                        CoreState.Services.ShowError($"Failed to load ROM: {path}");
+                        CoreState.Services.ShowError(R._("Failed to load ROM:") + $" {path}");
                     return;
                 }
                 if (ext == ".ups")
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     // Apply UPS patch if a ROM is already loaded
                     if (CoreState.ROM == null)
                     {
-                        CoreState.Services.ShowError("Load a ROM first before applying a UPS patch.");
+                        CoreState.Services.ShowError(R._("Load a ROM first before applying a UPS patch."));
                         return;
                     }
                     try
@@ -71,16 +71,16 @@ namespace FEBuilderGBA.Avalonia.Views
                         byte[] result = UPSUtilCore.ApplyUPS(CoreState.ROM.Data, patchData, out string errorMessage);
                         if (result == null || !string.IsNullOrEmpty(errorMessage))
                         {
-                            CoreState.Services.ShowError($"UPS patch failed: {errorMessage}");
+                            CoreState.Services.ShowError(R._("UPS patch failed:") + $" {errorMessage}");
                             return;
                         }
                         // Replace ROM data with patched data
                         Array.Copy(result, CoreState.ROM.Data, Math.Min(result.Length, CoreState.ROM.Data.Length));
-                        CoreState.Services.ShowInfo($"UPS patch applied: {Path.GetFileName(path)}");
+                        CoreState.Services.ShowInfo(R._("UPS patch applied:") + $" {Path.GetFileName(path)}");
                     }
                     catch (Exception ex)
                     {
-                        CoreState.Services.ShowError($"Failed to apply UPS patch: {ex.Message}");
+                        CoreState.Services.ShowError(R._("Failed to apply UPS patch:") + $" {ex.Message}");
                     }
                     return;
                 }
@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         Close();
                         return;
                     }
-                    await MessageBoxWindow.Show(this, $"Failed to load ROM: {App.StartupRomPath}", "Error", MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {App.StartupRomPath}", R._("Error"), MessageBoxMode.Ok);
                     return;
                 }
 
@@ -215,7 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 string ver = CoreState.ROM.RomInfo?.VersionToFilename ?? "Unknown";
-                VersionDetectionLabel.Text = $"ROM: {ver}";
+                VersionDetectionLabel.Text = R._("ROM:") + $" {ver}";
             }
             catch { VersionDetectionLabel.Text = ""; }
 
@@ -667,6 +667,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// selects the first item, reads the ViewModel data report, cross-checks
         /// against raw ROM bytes, and prints structured results to stdout.
         /// </summary>
+        enum DataVerifyComparisonResult
+        {
+            Match,
+            Mismatch,
+            Skip,
+        }
+
         private void RunDataVerify()
         {
             Dispatcher.UIThread.Post(async () =>
@@ -723,16 +730,20 @@ namespace FEBuilderGBA.Avalonia.Views
                                 Console.WriteLine($"RAWROM: {name}|{string.Join("|", rawParts)}");
 
                                 // Cross-check: compare data fields with raw ROM values
-                                bool match = CrossCheckDataReport(name, dataReport, rawReport);
+                                var comparison = CrossCheckDataReport(name, dataReport, rawReport);
 
                                 // UI check: verify NumericUpDown controls display values
-                                // Only check when data was loaded (listCount > 0) — some editors
-                                // have no data for certain ROM versions (e.g. CCBranch on FE6)
-                                bool uiOk = listCount > 0
+                                // Only check when data is comparable.
+                                bool uiOk = comparison == DataVerifyComparisonResult.Match && listCount > 0
                                     ? CheckNumericUpDownsDisplayValues(name, window)
                                     : true;
 
-                                if (match && uiOk)
+                                if (comparison == DataVerifyComparisonResult.Skip)
+                                {
+                                    skipped++;
+                                    Console.WriteLine($"DATAVERIFY: {name} ... SKIP (no comparable data)");
+                                }
+                                else if (comparison == DataVerifyComparisonResult.Match && uiOk)
                                 {
                                     verified++;
                                     Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
@@ -741,7 +752,8 @@ namespace FEBuilderGBA.Avalonia.Views
                                 {
                                     failed++;
                                     failures.Add(name);
-                                    if (!match) Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
+                                    if (comparison == DataVerifyComparisonResult.Mismatch)
+                                        Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
                                     if (!uiOk) Console.WriteLine($"DATAVERIFY: {name} ... UI_EMPTY");
                                 }
                             }
@@ -787,36 +799,52 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Cross-checks the ViewModel data report against the raw ROM report.
         /// Returns true if all comparable fields match.
         /// </summary>
-        static bool CrossCheckDataReport(string viewName,
+        static DataVerifyComparisonResult CrossCheckDataReport(string viewName,
             Dictionary<string, string> dataReport,
             Dictionary<string, string> rawReport)
         {
-            if (dataReport.Count == 0 || rawReport.Count == 0) return false;
+            if (dataReport.Count == 0 || rawReport.Count == 0)
+                return DataVerifyComparisonResult.Skip;
 
             // The data report has field names; the raw report has "u8@0x04" style keys.
             // The cross-check is: both should report the same "addr" value, and
-            // the data values should be internally consistent (non-empty).
+            // the data values should be internally consistent when there is a
+            // comparable current record selected.
             if (dataReport.TryGetValue("addr", out string? dataAddr) &&
                 rawReport.TryGetValue("addr", out string? rawAddr))
             {
+                if (string.IsNullOrWhiteSpace(dataAddr) ||
+                    string.IsNullOrWhiteSpace(rawAddr) ||
+                    dataAddr == "0x00000000" ||
+                    rawAddr == "0x00000000")
+                {
+                    return DataVerifyComparisonResult.Skip;
+                }
+
                 if (dataAddr != rawAddr)
                 {
                     Console.WriteLine($"DATAVERIFY: {viewName} addr mismatch: data={dataAddr} raw={rawAddr}");
-                    return false;
+                    return DataVerifyComparisonResult.Mismatch;
                 }
             }
+            else
+            {
+                return DataVerifyComparisonResult.Skip;
+            }
 
-            // Verify all data report values are non-empty (they were loaded)
+            // Empty values usually mean the editor has no comparable current record.
             foreach (var kv in dataReport)
             {
-                if (string.IsNullOrEmpty(kv.Value))
+                if (kv.Key == "addr")
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(kv.Value))
                 {
-                    Console.WriteLine($"DATAVERIFY: {viewName} empty field: {kv.Key}");
-                    return false;
+                    return DataVerifyComparisonResult.Skip;
                 }
             }
 
-            return true;
+            return DataVerifyComparisonResult.Match;
         }
 
         /// <summary>
@@ -1322,7 +1350,7 @@ namespace FEBuilderGBA.Avalonia.Views
             bool ok = LoadRomFile(path);
             if (!ok)
             {
-                await MessageBoxWindow.Show(this, "Failed to load ROM.", "Error", MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
             }
         }
 
@@ -1330,7 +1358,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (CoreState.ROM == null) return;
             CoreState.ROM.Save(CoreState.ROM.Filename, false);
-            CoreState.Services.ShowInfo("ROM saved.");
+            CoreState.Services.ShowInfo(R._("ROM saved."));
         }
 
         private async void SaveAsRom_Click(object? sender, RoutedEventArgs e)
@@ -1342,7 +1370,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrEmpty(path)) return;
 
             CoreState.ROM.Save(path, false);
-            CoreState.Services.ShowInfo($"ROM saved as: {Path.GetFileName(path)}");
+            CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(path)}");
         }
 
         private void OpenLastRom_Click(object? sender, RoutedEventArgs e)
@@ -1350,14 +1378,14 @@ namespace FEBuilderGBA.Avalonia.Views
             string lastPath = CoreState.Config?.at("Last_Rom_Filename", "") ?? "";
             if (string.IsNullOrEmpty(lastPath) || !File.Exists(lastPath))
             {
-                _ = MessageBoxWindow.Show(this, "No recent ROM found.", "Open Last ROM", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("No recent ROM found."), R._("Open Last ROM"), MessageBoxMode.Ok);
                 return;
             }
 
             bool ok = LoadRomFile(lastPath);
             if (!ok)
             {
-                _ = MessageBoxWindow.Show(this, $"Failed to load ROM: {lastPath}", "Error", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {lastPath}", R._("Error"), MessageBoxMode.Ok);
             }
         }
 
@@ -1387,7 +1415,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Update menu item text
             if (EasyModeMenuItem != null)
-                EasyModeMenuItem.Header = _isEasyMode ? "Switch to _Normal Mode" : "Toggle _Easy Mode";
+                EasyModeMenuItem.Header = _isEasyMode ? R._("Switch to _Normal Mode") : R._("Toggle _Easy Mode");
         }
 
         /// <summary>
@@ -1453,7 +1481,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             FilterMatchLabel.IsVisible = hasFilter;
             if (hasFilter)
-                FilterMatchLabel.Text = $"{matchCount} editor(s) matching \"{filter}\"";
+                FilterMatchLabel.Text = $"{matchCount} " + R._("editor(s) matching") + $" \"{filter}\"";
         }
 
         // ===== Closing Dirty Check =====
@@ -1473,8 +1501,8 @@ namespace FEBuilderGBA.Avalonia.Views
             // Cancel close, show prompt, then re-close if confirmed
             e.Cancel = true;
             var result = await MessageBoxWindow.Show(this,
-                "You have unsaved changes. Close without saving?",
-                "Unsaved Changes",
+                R._("You have unsaved changes. Close without saving?"),
+                R._("Unsaved Changes"),
                 MessageBoxMode.YesNo);
 
             if (result == MessageBoxResult.Yes)
@@ -1783,18 +1811,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (errors.Count == 0)
             {
-                _ = MessageBoxWindow.Show(this, "Lint: No errors found.", "Lint Results", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("Lint: No errors found."), R._("Lint Results"), MessageBoxMode.Ok);
             }
             else
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"{errors.Count} issue(s) found:");
+                sb.AppendLine($"{errors.Count} " + R._("issue(s) found:"));
                 foreach (var err in errors)
                 {
                     string severity = err.Severity == FELintCore.ErrorType.ERROR ? "ERROR" : "WARNING";
                     sb.AppendLine($"[{severity}] 0x{err.Addr:X08}: {err.ErrorMessage}");
                 }
-                _ = MessageBoxWindow.Show(this, sb.ToString(), "Lint Results", MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, sb.ToString(), R._("Lint Results"), MessageBoxMode.Ok);
             }
         }
 
@@ -1814,8 +1842,8 @@ namespace FEBuilderGBA.Avalonia.Views
         private async void About_Click(object? sender, RoutedEventArgs e)
         {
             await MessageBoxWindow.Show(this,
-                "FEBuilderGBA\nAvalonia Cross-Platform Preview\nCopyright 2017- GPLv3",
-                "About", MessageBoxMode.Ok);
+                R._("FEBuilderGBA") + "\n" + R._("Avalonia Cross-Platform Preview") + "\n" + R._("Copyright 2017- GPLv3"),
+                R._("About"), MessageBoxMode.Ok);
         }
 
         // ===================== Image Editors =====================
@@ -2081,8 +2109,8 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
                 await MessageBoxWindow.Show(this,
-                    $"No {toolName} configured. Set the path in Options first.",
-                    "External Tool", MessageBoxMode.Ok);
+                    R._("No") + $" {toolName} " + R._("configured. Set the path in Options first."),
+                    R._("External Tool"), MessageBoxMode.Ok);
                 return;
             }
             try
@@ -2094,7 +2122,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                await MessageBoxWindow.Show(this, $"Failed to run {toolName}: {ex.Message}", "Error", MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {ex.Message}", R._("Error"), MessageBoxMode.Ok);
             }
         }
         // ==================================================================

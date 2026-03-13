@@ -6,14 +6,13 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UwordBitFlagView : Window, IEditorView, IDataVerifiableView
+    public partial class UwordBitFlagView : Window, IEditorView
     {
         readonly UwordBitFlagViewModel _vm = new();
         readonly CheckBox[] _bitBoxes;
 
         public string ViewTitle => "Word Bit Flags";
         public bool IsLoaded => _vm.IsLoaded;
-        public ViewModelBase? DataViewModel => _vm;
 
         public UwordBitFlagView()
         {

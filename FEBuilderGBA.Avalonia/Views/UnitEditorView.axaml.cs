@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Views
         List<(uint id, string name)> _classList = new();
         List<(uint id, string name)> _affinityList = new();
 
-        public string ViewTitle => "Unit Editor";
+        public string ViewTitle => R._("Unit Editor");
         public bool IsLoaded => _vm.CanWrite;
 
         public event Action<PickResult>? SelectionConfirmed;
@@ -339,14 +339,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             ReadFromUI();
-            _undoService.Begin("Edit Unit");
+            _undoService.Begin(R._("Edit Unit"));
             try
             {
                 _vm.WriteUnit();
                 _undoService.Commit();
                 _vm.MarkClean();
                 UpdateWarnings();
-                CoreState.Services.ShowInfo("Unit data written.");
+                CoreState.Services.ShowInfo(R._("Unit data written."));
             }
             catch (Exception ex)
             {

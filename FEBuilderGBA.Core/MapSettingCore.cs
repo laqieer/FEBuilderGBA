@@ -77,19 +77,19 @@ namespace FEBuilderGBA
         /// <summary>
         /// Check if the map setting at addr is valid (not past the end of map data).
         /// Returns true if the map entry is valid, false if it marks end-of-data.
-        /// Logic extracted from MapSettingForm.IsMapSettingEnd (inverted: that returned true for "keep going").
+        /// Logic extracted from WinForms MapSettingForm.IsMapSettingEnd.
         /// </summary>
         static bool IsMapSettingValid(ROM rom, uint addr)
         {
-            // First u32 being a pointer indicates end-of-data
+            // WinForms treats a pointer in the first dword as a valid map entry.
             uint a = rom.u32(addr + 0);
             if (U.isPointer(a))
-                return false;
+                return true;
 
             // Weather check
             uint weather = rom.u8(addr + 12);
             if (weather >= 0xE)
-                return true; // Original returns false=stop, but this means "valid" in original code
+                return false;
 
             // PLIST validation
             uint plist1 = rom.u32(addr + 4);
@@ -97,7 +97,7 @@ namespace FEBuilderGBA
             {
                 uint plist2 = rom.u32(addr + 8);
                 if (plist2 == 0 || plist2 == 0xFFFFFFFF)
-                    return true; // Invalid PLIST but original code continues
+                    return false;
             }
 
             // For FE8-style ROMs with larger data size, do text ID bounds check
@@ -108,16 +108,16 @@ namespace FEBuilderGBA
                 if (textmax > 0)
                 {
                     uint map1 = rom.u16(addr + 0x70);
-                    if (map1 >= textmax) return true;
+                    if (map1 >= textmax) return false;
 
                     uint map2 = rom.u16(addr + 0x72);
-                    if (map2 >= textmax) return true;
+                    if (map2 >= textmax) return false;
 
                     uint clearcond1 = rom.u16(addr + 0x88);
-                    if (clearcond1 >= textmax) return true;
+                    if (clearcond1 >= textmax) return false;
 
                     uint clearcond2 = rom.u16(addr + 0x8A);
-                    if (clearcond2 >= textmax) return true;
+                    if (clearcond2 >= textmax) return false;
                 }
             }
 

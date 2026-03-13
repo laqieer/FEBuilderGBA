@@ -79,7 +79,12 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void NavigateTo(uint address)
+        {
+            _vm.SetBaseAddress(address);
+            LoadList();
+            EntryList.SelectFirst();
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

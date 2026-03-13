@@ -8,6 +8,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "B0", "B1" });
 
+        uint _baseAddr;
         uint _currentAddr;
         bool _isLoaded;
         uint _itemId, _probability;
@@ -22,10 +23,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+            if (_baseAddr == 0) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Random Chest Items", 0));
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = _baseAddr + (i * 2);
+                if (addr + 1 >= (uint)rom.Data.Length)
+                    break;
+
+                uint itemId = rom.u8(addr);
+                if (itemId == 0)
+                    break;
+
+                uint probability = rom.u8(addr + 1);
+                string name = $"{U.ToHexString(itemId)} {NameResolver.GetItemName(itemId)} ({probability})";
+                result.Add(new AddrResult(addr, name, i));
+            }
             return result;
+        }
+
+        public void SetBaseAddress(uint baseAddr)
+        {
+            _baseAddr = baseAddr;
+            CurrentAddr = 0;
+            ItemId = 0;
+            Probability = 0;
+            IsLoaded = false;
         }
 
         public void LoadEntry(uint addr)

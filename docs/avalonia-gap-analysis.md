@@ -1,7 +1,7 @@
 # Avalonia vs WinForms Function Completeness Gap Analysis
 
 **Generated:** 2026-03-11
-**Updated:** 2026-03-13 (manual verification of current code; corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, image import, and MIDI; updated for fixes #35/#36/#38)
+**Updated:** 2026-03-13 (manual verification of current code; corrected stale claims around patch manager, patch detection, easy mode, map tile write-back, image import, and MIDI; updated for fixes #35/#36/#38/#48/#49/#50/#51)
 **Scope:** All 356 Avalonia views vs their WinForms counterparts
 **Overall Avalonia Completeness:** Historical lower-bound audit ~60% across all domains (2026-03-12). Current code is higher in several domains, but still short of full WinForms parity.
 
@@ -45,6 +45,15 @@ Manual spot checks of current code found that several older claims in this docum
 - `FEBuilderGBA.Avalonia/ViewModels/EventScriptViewModel.cs` is still effectively a stub
 - ~~`FEBuilderGBA.Avalonia/ViewModels/ClassEditorViewModel.cs` still has the FE6 class pointer-layout bug~~ **FIXED** (#36) — `OpenClasses_Click` now routes FE6 ROMs to `ClassFE6View` with correct offsets (BattleAnime=+48, MoveCost=+52, no rain/snow)
 - ~~`FEBuilderGBA.E2ETests/Tests/AvaloniaScreenshotTests.cs` still enforces a screenshot-all path that is currently failing/timing out in validation~~ **FIXED** (#35) — `MainWindow_Closing` now skips the unsaved-changes dialog when `App.SmokeTestMode` is true
+
+### 2026-03-13 DataVerify Follow-up
+
+The follow-up fix pass for issues `#48`-`#51` removed several false-negative validation failures:
+
+- `FEBuilderGBA.Core/MapSettingCore.cs` now matches WinForms map-setting validity semantics again, which restores `MapSettingView` enumeration and downstream `EventCondView` context.
+- `FEBuilderGBA.Avalonia/ViewModels/StatusUnitsMenuViewModel.cs`, `TextCharCodeViewModel.cs`, and `MapStyleEditorViewModel.cs` now load ROM-backed data from the correct pointer sources instead of stopping early or reading the pointer slot itself.
+- `FEBuilderGBA.Avalonia/Views/MainWindow.axaml.cs` now classifies editors with no comparable ROM-backed record as `SKIP` instead of `MISMATCH`, and popup-only bitflag dialogs no longer participate in `IDataVerifiableView`.
+- `FEBuilderGBA.Avalonia/ViewModels/ItemRandomChestViewModel.cs` no longer fabricates a synthetic address-0 row; it now stays context-driven like the WinForms helper flow.
 
 ## Spot-Checked File Matrix (2026-03-13)
 

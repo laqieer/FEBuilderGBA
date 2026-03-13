@@ -36,8 +36,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (entryAddr + 4 > (uint)rom.Data.Length) break;
 
                 uint ptr = rom.u32(entryAddr);
-                if (ptr == 0) break;
-                if (!U.isPointer(ptr)) continue;
+                if (ptr == 0 || !U.isPointer(ptr))
+                    continue;
 
                 string label = $"0x{i:X2} Tileset";
                 result.Add(new AddrResult(entryAddr, label, (uint)i));

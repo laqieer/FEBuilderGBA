@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ClassEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
-        public string ViewTitle => "Class Editor";
+        public string ViewTitle => R._("Class Editor");
         public bool IsLoaded => _vm.CanWrite;
 
         public event Action<PickResult>? SelectionConfirmed;
@@ -263,14 +263,14 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.TerrainResPtr = ParseHexText(Ptr76Box.Text);
             _vm.UnknownD80 = ParseHexText(D80Box.Text);
 
-            _undoService.Begin("Edit Class");
+            _undoService.Begin(R._("Edit Class"));
             try
             {
                 _vm.WriteClass();
                 _undoService.Commit();
                 _vm.MarkClean();
                 UpdateWarnings();
-                CoreState.Services.ShowInfo("Class data written.");
+                CoreState.Services.ShowInfo(R._("Class data written."));
             }
             catch (Exception ex)
             {

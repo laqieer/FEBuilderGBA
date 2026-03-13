@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         List<(uint id, string name)> _weaponTypeList = new();
 
-        public string ViewTitle => "Item Editor";
+        public string ViewTitle => R._("Item Editor");
         public bool IsLoaded => _vm.CanWrite;
 
         public event Action<PickResult>? SelectionConfirmed;
@@ -227,14 +227,14 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.RecalcComputed();
             UpdateComputedUI();
 
-            _undoService.Begin("Edit Item");
+            _undoService.Begin(R._("Edit Item"));
             try
             {
                 _vm.WriteItem();
                 _undoService.Commit();
                 _vm.MarkClean();
                 UpdateWarnings();
-                CoreState.Services.ShowInfo("Item data written.");
+                CoreState.Services.ShowInfo(R._("Item data written."));
             }
             catch (Exception ex)
             {

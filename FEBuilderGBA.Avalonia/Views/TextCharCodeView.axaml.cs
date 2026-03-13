@@ -19,9 +19,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextCharCodeView()
         {
             InitializeComponent();
-            _vm.Initialize();
             CharCodeList.ItemsSource = _vm.CharCodes;
             CharCodeList.SelectionChanged += CharCodeList_SelectionChanged;
+            _vm.Initialize();
+            if (_vm.CharCodes.Count > 0)
+            {
+                CharCodeList.SelectedIndex = 0;
+            }
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
@@ -31,9 +35,17 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _vm.LoadEntry(address);
-                UpdateUI();
-                UpdateFontPreview();
+                int index = _vm.IndexOfAddress(address);
+                if (index >= 0)
+                {
+                    CharCodeList.SelectedIndex = index;
+                }
+                else
+                {
+                    _vm.LoadEntry(address);
+                    UpdateUI();
+                    UpdateFontPreview();
+                }
             }
             finally
             {
@@ -46,6 +58,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void CharCodeList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
+            if (CharCodeList.SelectedIndex >= 0)
+            {
+                _vm.SelectIndex(CharCodeList.SelectedIndex);
+                UpdateUI();
+            }
             UpdateFontPreview();
         }
 

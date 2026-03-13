@@ -5,7 +5,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isRomLoaded;
         string _romVersion = "";
         string _romFilename = "";
-        string _statusText = "No ROM loaded";
+        string _statusText = R._("No ROM loaded");
         string _filterText = "";
         long _romSize;
         long _estimatedFreeSpace;
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RomFilename = System.IO.Path.GetFileName(CoreState.ROM.Filename ?? "");
                 RomSize = CoreState.ROM.Data?.Length ?? 0;
                 EstimatedFreeSpace = EstimateFreeSpace(CoreState.ROM);
-                StatusText = $"{RomFilename} | {RomVersion} | {RomSize:N0} bytes | Free: ~{EstimatedFreeSpace:N0} bytes";
+                StatusText = $"{RomFilename} | {RomVersion} | {RomSize:N0} " + R._("bytes") + $" | " + R._("Free:") + $" ~{EstimatedFreeSpace:N0} " + R._("bytes");
             }
             else
             {
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RomFilename = "";
                 RomSize = 0;
                 EstimatedFreeSpace = 0;
-                StatusText = "No ROM loaded";
+                StatusText = R._("No ROM loaded");
             }
         }
 

@@ -28,10 +28,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.status_units_menu_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint pointer = rom.RomInfo.status_units_menu_pointer;
+            if (pointer == 0 || !U.isSafetyOffset(pointer, rom)) return new List<AddrResult>();
 
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
