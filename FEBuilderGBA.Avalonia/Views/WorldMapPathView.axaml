@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.WorldMapPathView"
-        Title="World Map Paths" Width="1284" Height="787">
+        Title="World Map Paths" Width="1284" Height="787"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 

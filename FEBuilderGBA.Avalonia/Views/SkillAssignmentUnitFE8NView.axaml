@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillAssignmentUnitFE8NView"
-        Title="Skill Assignment - Unit (FE8N)" Width="696" Height="508">
+        Title="Skill Assignment - Unit (FE8N)" Width="696" Height="508"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Assignment - Unit (FE8N)" FontSize="18" FontWeight="Bold" />
     <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
@@ -25,4 +27,5 @@
 
     <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

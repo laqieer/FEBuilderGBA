@@ -4,7 +4,9 @@
         Title="Current version is the latest"
         Width="830" Height="190"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="76,*" RowDefinitions="Auto,Auto" Margin="12,8,12,12">
     <!-- Question icon -->
     <TextBlock Grid.Row="0" Grid.Column="0" Text="❓" FontSize="40"
@@ -24,4 +26,5 @@
               Margin="20,0,0,0" Click="ForceUpdate_Click" />
     </StackPanel>
   </Grid>
+  </ScrollViewer>
 </Window>

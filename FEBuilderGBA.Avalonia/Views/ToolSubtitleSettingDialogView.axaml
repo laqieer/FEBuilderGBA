@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolSubtitleSettingDialogView"
         Title="Subtitle Settings" Width="910" Height="357"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,12,12,12" Spacing="8">
     <!-- Template ROM FROM (WinForms LabelSimpleTranslateFromROMFilename + TextBoxEx + BrowseButton) -->
     <Grid ColumnDefinitions="196,*,41">
@@ -43,4 +45,5 @@
               HorizontalAlignment="Right" Click="Hide_Click" />
     </Grid>
   </StackPanel>
+  </ScrollViewer>
 </Window>

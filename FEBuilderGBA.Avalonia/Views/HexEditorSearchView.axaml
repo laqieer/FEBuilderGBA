@@ -4,7 +4,9 @@
         Title="Hex Editor - Search"
         Width="515" Height="305"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="13,25,13,10">
     <!-- Search label + ComboBox row -->
     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,20">
@@ -30,4 +32,5 @@
     <TextBlock Text="* Wildcards: use '??' for any single byte (e.g. FF ?? 00)"
                TextWrapping="Wrap" Foreground="Gray" FontSize="11" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassDemoFE8UView"
-        Title="OP Class Demo (FE8U) Editor" Width="1579" Height="898">
+        Title="OP Class Demo (FE8U) Editor" Width="1579" Height="898"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 

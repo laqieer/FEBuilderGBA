@@ -4,7 +4,9 @@
         Title="Do you want to close the comparison tool?"
         Width="820" Height="380"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="13">
     <TextBlock TextWrapping="Wrap" Height="140"
                Text="{Binding AlertMessage}" />
@@ -15,4 +17,5 @@
     <Button Content="Force close with current results." Height="42"
             HorizontalAlignment="Stretch" Margin="0,39,0,0" Click="Yes_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

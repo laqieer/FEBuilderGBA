@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MonsterWMapProbabilityViewerView"
-        Title="World Map Monster Editor" Width="1786" Height="847">
+        Title="World Map Monster Editor" Width="1786" Height="847"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 

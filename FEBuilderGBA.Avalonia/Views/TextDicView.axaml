@@ -3,7 +3,8 @@
         xmlns:controls="using:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.TextDicView"
         Title="Text Dictionary" Width="1155" Height="661"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="245,*">
     <!-- Left: Address list -->
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />

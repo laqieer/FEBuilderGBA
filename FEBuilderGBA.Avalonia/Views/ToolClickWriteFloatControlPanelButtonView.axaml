@@ -4,7 +4,9 @@
         Title="Which button would you click?"
         Width="920" Height="220"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="13" Padding="5,11">
     <Grid ColumnDefinitions="128,*" RowDefinitions="Auto,Auto">
       <!-- Question icon placeholder -->
@@ -24,4 +26,5 @@
       </StackPanel>
     </Grid>
   </Border>
+  </ScrollViewer>
 </Window>

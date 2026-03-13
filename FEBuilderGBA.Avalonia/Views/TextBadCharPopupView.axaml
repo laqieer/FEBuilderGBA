@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.TextBadCharPopupView"
         Title="Bad Character Warning" Width="849" Height="469"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,14,12,12">
     <!-- Error message header (WinForms Error_MessageLabel 244x28 14pt bold) -->
     <TextBlock DockPanel.Dock="Top" Name="ErrorMessageLabel"
@@ -23,4 +25,5 @@
               Click="EncodingTable_Click" />
     </StackPanel>
   </DockPanel>
+  </ScrollViewer>
 </Window>

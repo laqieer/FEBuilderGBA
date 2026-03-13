@@ -4,7 +4,9 @@
         Title="Test Run"
         Width="965" Height="480"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="26,28,26,12">
     <!-- Header label -->
     <TextBlock Text="{Binding HeaderText}" FontWeight="Bold" FontSize="14" />
@@ -19,4 +21,5 @@
               Click="OK_Click" />
     </Grid>
   </StackPanel>
+  </ScrollViewer>
 </Window>

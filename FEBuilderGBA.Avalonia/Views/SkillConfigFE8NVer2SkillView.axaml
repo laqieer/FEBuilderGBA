@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer2SkillView"
-        Title="Skill Configuration (FE8N v2)" Width="1189" Height="890">
+        Title="Skill Configuration (FE8N v2)" Width="1189" Height="890"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
     <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1" CornerRadius="4" Padding="12">
@@ -34,4 +36,5 @@
 
     <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

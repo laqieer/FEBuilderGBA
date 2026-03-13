@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ArenaClassViewerView"
-        Title="Arena Class Editor" Width="1201" Height="738">
+        Title="Arena Class Editor" Width="1201" Height="738"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <StackPanel Grid.Column="0" Margin="4">
       <ComboBox Name="WeaponTypeCombo" Margin="0,0,0,4" HorizontalAlignment="Stretch" />

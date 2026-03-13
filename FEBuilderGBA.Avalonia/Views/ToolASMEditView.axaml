@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolASMEditView"
         Title="ASM Edit" Width="1016" Height="510"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="ASM Code Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
@@ -13,4 +15,5 @@
              FontFamily="Consolas, Courier New, monospace"
              Watermark="Enter ARM/Thumb ASM code here..." />
   </DockPanel>
+  </ScrollViewer>
 </Window>

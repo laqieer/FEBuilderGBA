@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolCopyToView"
         Title="Pointer Tool - Copy To" Width="449" Height="404"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="14,14,14,14" Spacing="8">
     <!-- Top row: Value label + TextBox (WinForms label1 + ValueTextBox) -->
     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -22,4 +24,5 @@
     <Button Name="CopyNoDollGBARadBreakPoint" Content="Copy (No $ / GBA / Rad / BreakPoint)" Width="404" Height="44"
             HorizontalAlignment="Left" Click="CopyNoDoll_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

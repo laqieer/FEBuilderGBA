@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ResourceView"
         Title="Resources" Width="793" Height="620"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
   <ScrollViewer>
     <StackPanel Margin="24" Spacing="12">
       <TextBlock Text="Resources" FontSize="24" FontWeight="Bold" />

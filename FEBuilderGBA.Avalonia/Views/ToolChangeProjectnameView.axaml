@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolChangeProjectnameView"
         Title="Change Project Name" Width="791" Height="360"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,29,12,12" Spacing="12">
     <!-- Current name row (WinForms label1 95x18 + CurrentName 599x25) -->
     <Grid ColumnDefinitions="Auto,8,*">
@@ -24,4 +26,5 @@
     <TextBox Height="88" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
              Text="{Binding HelpText}" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

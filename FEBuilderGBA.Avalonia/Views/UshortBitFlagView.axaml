@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.UshortBitFlagView"
         Title="Short Bit Flags (16-bit)" Width="708" Height="420"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="10,9,10,10">
     <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE 676x40 + ApplyButton 181x40) -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
@@ -56,4 +58,5 @@
       </Grid>
     </Border>
   </DockPanel>
+  </ScrollViewer>
 </Window>

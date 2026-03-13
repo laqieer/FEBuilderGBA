@@ -4,7 +4,9 @@
         Title="No SAV file found"
         Width="910" Height="245"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,24,12,12">
     <!-- Info label -->
     <TextBlock TextWrapping="Wrap" Height="54"
@@ -22,4 +24,5 @@
               Click="Browse_Click" />
     </Grid>
   </StackPanel>
+  </ScrollViewer>
 </Window>

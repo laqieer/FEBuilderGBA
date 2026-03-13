@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.MapPointerNewPLISTPopupView"
         Title="Map Pointer - New PLIST" Width="953" Height="423"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,9,12,12">
     <!-- Header label (WinForms label1 285x26) -->
     <TextBlock DockPanel.Dock="Top" Name="HeaderLabel"
@@ -34,4 +36,5 @@
               Click="OK_Click" />
     </StackPanel>
   </DockPanel>
+  </ScrollViewer>
 </Window>

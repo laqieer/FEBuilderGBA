@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.VersionView"
         Title="Version Information" Width="720" Height="420"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12">
     <TextBox Name="VersionTextBox"
              IsReadOnly="True"
@@ -11,4 +13,5 @@
              FontFamily="Consolas, Courier New, monospace"
              FontSize="13" />
   </DockPanel>
+  </ScrollViewer>
 </Window>

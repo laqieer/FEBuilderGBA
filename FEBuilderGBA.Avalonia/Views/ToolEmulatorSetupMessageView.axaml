@@ -4,7 +4,9 @@
         Title="Emulator is not configured"
         Width="700" Height="245"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="22,31,15,15">
     <TextBlock TextWrapping="Wrap" Height="36"
                Text="{Binding MessageText}" />
@@ -13,4 +15,5 @@
     <Button Content="Manually configure from Options screen" Height="37"
             HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="ManualSetup_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

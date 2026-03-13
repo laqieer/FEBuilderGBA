@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventUnitView"
-        Title="Event Unit Placement" Width="1730" Height="1052">
+        Title="Event Unit Placement" Width="1730" Height="1052"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="220,220,220,*">
 
     <!-- Level 1: Map List -->

@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.WelcomeView"
         Title="Welcome" Width="1172" Height="588"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="14,10,14,10">
     <!-- Logo area (WinForms pictureBox1 1123x278) -->
     <Border DockPanel.Dock="Top" Height="278" Background="#E8EAF6"
@@ -28,4 +30,5 @@
               HorizontalContentAlignment="Center" Click="Manual_Click" />
     </StackPanel>
   </DockPanel>
+  </ScrollViewer>
 </Window>

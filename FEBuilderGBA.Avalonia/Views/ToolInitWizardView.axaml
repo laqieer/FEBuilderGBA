@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolInitWizardView"
         Title="Setup Wizard" Width="892" Height="666"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="24" Spacing="12">
     <TextBlock Text="Setup Wizard" FontSize="24" FontWeight="Bold" />
     <TextBlock Text="Initial Configuration" FontSize="14" Foreground="Gray" />
@@ -20,4 +22,5 @@
     <TextBlock TextWrapping="Wrap" Foreground="Gray"
                Text="You can change these settings later from the Options menu." />
   </StackPanel>
+  </ScrollViewer>
 </Window>

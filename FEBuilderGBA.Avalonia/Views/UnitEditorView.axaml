@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.UnitEditorView"
-        Title="Unit Editor" Width="934" Height="661">
+        Title="Unit Editor" Width="934" Height="661"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <!-- Address List with preview -->
     <Grid Grid.Column="0" RowDefinitions="*,Auto">

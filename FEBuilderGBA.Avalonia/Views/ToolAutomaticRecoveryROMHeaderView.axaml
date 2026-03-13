@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolAutomaticRecoveryROMHeaderView"
         Title="Automatic Recovery ROM Header" Width="1193" Height="298"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="12,12,12,12" BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10">
     <StackPanel Spacing="12">
       <!-- File select row (WinForms label2 + OrignalSelectButton + OrignalFilename) -->
@@ -24,4 +26,5 @@
               HorizontalAlignment="Left" Margin="196,0,0,0" Click="Recover_Click" />
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

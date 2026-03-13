@@ -4,7 +4,9 @@
         Title="Add Map Change"
         Width="831" Height="512"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,9,12,15">
     <!-- Bold question label (like WinForms labelEx1 at 82,9 717x58 Bold 11F) -->
     <TextBlock Text="Do you want to create additional map changes?"
@@ -26,4 +28,5 @@
     <Button Content="Cancel" Height="42"
             HorizontalAlignment="Stretch" Click="Cancel_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

@@ -4,7 +4,9 @@
         Title="Map Resize"
         Width="444" Height="385"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,12,12,10">
     <!-- Position row (WinForms label2 "位置" + X/Y inputs) -->
     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,12">
@@ -76,4 +78,5 @@
     <Button Content="Resize" Width="134" Height="35"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

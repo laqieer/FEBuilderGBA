@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoPopupDialogView"
         Title="Undo" Width="771" Height="355"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="Auto,*" Margin="12,22,12,12">
     <!-- Icon (WinForms FormIcon 80x80 at 12,22) -->
     <Border Grid.Column="0" Width="80" Height="80" VerticalAlignment="Top"
@@ -27,4 +29,5 @@
               HorizontalAlignment="Stretch" Click="Cancel_Click" />
     </StackPanel>
   </Grid>
+  </ScrollViewer>
 </Window>

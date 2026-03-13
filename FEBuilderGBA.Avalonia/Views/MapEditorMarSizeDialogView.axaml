@@ -4,7 +4,9 @@
         Title="Map Margin Size"
         Width="372" Height="245"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,12,12,10">
     <!-- Width label with border (WinForms label2 120x32 BorderStyle) -->
     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
@@ -24,4 +26,5 @@
     <Button Content="Apply" Width="99" Height="43"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

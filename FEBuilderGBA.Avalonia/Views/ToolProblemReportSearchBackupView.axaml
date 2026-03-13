@@ -4,7 +4,9 @@
         Title="No past backups found"
         Width="906" Height="220"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,19,12,12">
     <!-- Info label -->
     <TextBlock TextWrapping="Wrap" Height="54"
@@ -22,4 +24,5 @@
               Click="Browse_Click" />
     </Grid>
   </StackPanel>
+  </ScrollViewer>
 </Window>

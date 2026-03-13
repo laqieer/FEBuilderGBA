@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapPointerView"
-        Title="Map Pointer Editor" Width="1305" Height="532">
+        Title="Map Pointer Editor" Width="1305" Height="532"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <StackPanel Grid.Column="0" Margin="4">
       <ComboBox Name="PlistTypeCombo" Margin="0,0,0,4" HorizontalAlignment="Stretch" />

@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageViewerView"
-        Title="{Binding Title}" Width="600" Height="500">
+        Title="{Binding Title}" Width="600" Height="500"
+        SizeToContent="WidthAndHeight">
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8">
       <TextBlock Text="Zoom:" VerticalAlignment="Center" />

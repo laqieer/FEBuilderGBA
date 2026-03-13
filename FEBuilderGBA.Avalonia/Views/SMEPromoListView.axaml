@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.SMEPromoListView"
         Title="SME Promo List"
         Width="1155" Height="655"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel>
     <!-- Top toolbar: Address + Count + Reload -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
@@ -68,4 +70,5 @@
       </DockPanel>
     </Grid>
   </DockPanel>
+  </ScrollViewer>
 </Window>

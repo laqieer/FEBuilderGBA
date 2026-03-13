@@ -5,7 +5,9 @@
         Width="520" Height="340"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid RowDefinitions="*,Auto" Margin="16">
     <!-- Settings -->
     <StackPanel Grid.Row="0" Spacing="12">
@@ -43,4 +45,5 @@
       <Button Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
     </StackPanel>
   </Grid>
+  </ScrollViewer>
 </Window>

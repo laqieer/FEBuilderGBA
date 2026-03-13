@@ -4,7 +4,9 @@
         Title="Patch Uninstallation"
         Width="1193" Height="350"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="12" BorderBrush="Gray" BorderThickness="1" Padding="7,18,7,10">
     <Grid RowDefinitions="Auto,*,Auto">
       <!-- ROM selection row -->
@@ -25,4 +27,5 @@
               Click="Yes_Click" />
     </Grid>
   </Border>
+  </ScrollViewer>
 </Window>

@@ -4,7 +4,9 @@
         Title="Hide this error"
         Width="820" Height="355"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="16,13,12,12">
     <!-- Question label -->
     <TextBlock Text="Do you want to hide this error?" Margin="0,0,0,14" />
@@ -23,4 +25,5 @@
               HorizontalAlignment="Stretch" Click="OK_Click" />
     </Grid>
   </StackPanel>
+  </ScrollViewer>
 </Window>

@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.HexEditorView"
         Title="Hex Editor" Width="820" Height="600"
-        MinWidth="700" MinHeight="400">
+        MinWidth="700" MinHeight="400"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel>
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,4">
       <TextBlock Text="Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
@@ -19,4 +21,5 @@
              AcceptsReturn="True" TextWrapping="NoWrap"
              VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
   </DockPanel>
+  </ScrollViewer>
 </Window>

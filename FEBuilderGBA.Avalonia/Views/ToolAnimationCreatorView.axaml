@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolAnimationCreatorView"
         Title="Animation Creator" Width="1667" Height="972"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Animation Creator" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">

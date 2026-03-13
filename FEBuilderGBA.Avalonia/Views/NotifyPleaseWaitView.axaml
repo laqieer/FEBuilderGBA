@@ -5,7 +5,8 @@
         Width="420" Height="180"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        SystemDecorations="BorderOnly">
+        SystemDecorations="BorderOnly"
+        SizeToContent="WidthAndHeight">
   <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="24,20,24,16">
     <!-- Title -->
     <TextBlock Grid.Row="0" Text="{Binding Title}"

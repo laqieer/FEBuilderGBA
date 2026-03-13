@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolDiffDebugSelectView"
         Title="Comparison Debug Tool"
         Width="1177" Height="875"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="712,*" Margin="8">
     <!-- Left panel: Backup list -->
     <DockPanel Grid.Column="0" Margin="0,0,8,0">
@@ -69,4 +71,5 @@
                Margin="0,8,0,0" Text="{Binding InstructionsText}" />
     </DockPanel>
   </Grid>
+  </ScrollViewer>
 </Window>

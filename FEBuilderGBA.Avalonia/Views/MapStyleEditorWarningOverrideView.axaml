@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorWarningOverrideView"
         Title="Map Style Editor - Override Warning" Width="450" Height="240"
-        WindowStartupLocation="CenterOwner" CanResize="False">
+        WindowStartupLocation="CenterOwner" CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock Text="Warning" FontSize="18" FontWeight="Bold" Foreground="OrangeRed" DockPanel.Dock="Top" Margin="0,0,0,8" />
     <TextBlock x:Name="WarningText" Text="Overriding map style data may cause visual artifacts. Are you sure?" TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,16" />
@@ -11,4 +13,5 @@
       <Button Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
   </DockPanel>
+  </ScrollViewer>
 </Window>

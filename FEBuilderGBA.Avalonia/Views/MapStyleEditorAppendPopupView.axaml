@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorAppendPopupView"
         Title="Map Style Editor - Append" Width="1253" Height="790"
-        WindowStartupLocation="CenterOwner" CanResize="False">
+        WindowStartupLocation="CenterOwner" CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock Text="Append Map Style" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
     <TextBlock Text="Do you want to append a new map style entry? This will add a new tileset configuration at the end of the list." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
@@ -11,4 +13,5 @@
       <Button Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
   </DockPanel>
+  </ScrollViewer>
 </Window>

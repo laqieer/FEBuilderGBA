@@ -4,7 +4,9 @@
         Title="Unknown ROM Version"
         Width="866" Height="820"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="17,32,12,15">
     <!-- Red header label -->
     <TextBlock Text="Unknown ROM Version" FontSize="14" FontWeight="Bold"
@@ -39,4 +41,5 @@
     <Button Content="Load as Other (Unknown)" Height="66"
             HorizontalAlignment="Stretch" Click="Unknown_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

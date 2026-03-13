@@ -4,7 +4,9 @@
         Title="Open UPS"
         Width="1190" Height="255"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Border Margin="10" BorderBrush="Gray" BorderThickness="1" Padding="10">
     <StackPanel>
       <!-- Instruction label -->
@@ -28,4 +30,5 @@
               Click="ApplyUPS_Click" />
     </StackPanel>
   </Border>
+  </ScrollViewer>
 </Window>

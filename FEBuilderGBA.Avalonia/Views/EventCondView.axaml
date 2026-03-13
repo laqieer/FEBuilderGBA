@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventCondView"
-        Title="Event Condition Editor" Width="1834" Height="999">
+        Title="Event Condition Editor" Width="1834" Height="999"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,250,*">
     <!-- Column 0: Map list -->
     <DockPanel Grid.Column="0" Margin="4">

@@ -3,7 +3,8 @@
         xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
         x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
         Title="FEBuilderGBA (Avalonia Preview)"
-        Width="900" Height="700">
+        Width="900" Height="700"
+        SizeToContent="WidthAndHeight">
   <DockPanel>
     <!-- Menu Bar -->
     <Menu DockPanel.Dock="Top">

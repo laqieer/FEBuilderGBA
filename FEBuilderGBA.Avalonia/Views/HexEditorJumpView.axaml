@@ -4,7 +4,9 @@
         Title="Hex Editor - Jump"
         Width="515" Height="210"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="13,25,13,10">
     <!-- Address label + ComboBox row -->
     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,20">
@@ -20,4 +22,5 @@
     <Button Content="Jump" Width="158" Height="39"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

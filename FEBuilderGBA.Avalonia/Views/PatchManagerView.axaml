@@ -3,7 +3,8 @@
         xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.PatchManagerView"
         Title="Patch Manager" Width="1100" Height="650"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="400,*" Margin="8">
     <!-- Left panel: search + patch list -->
     <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*" Margin="0,0,4,0">

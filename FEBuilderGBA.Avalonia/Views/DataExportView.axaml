@@ -3,7 +3,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.DataExportView"
         Title="Data Export/Import"
         Width="500" Height="300"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="16">
     <!-- Table selection -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
@@ -23,4 +25,5 @@
     <TextBlock Grid.Row="2" Name="StatusText" Text="{Binding StatusMessage}"
                Margin="0,12,0,0" TextWrapping="Wrap" />
   </Grid>
+  </ScrollViewer>
 </Window>

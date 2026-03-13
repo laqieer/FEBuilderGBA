@@ -4,7 +4,9 @@
         Title="Difficulty Settings"
         Width="575" Height="445"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,12,12,10">
     <!-- GroupBox: Difficulty adjustment (WinForms customColorGroupBox1 528x161) -->
     <Border BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10"
@@ -56,4 +58,5 @@
     <Button Content="Apply" Width="272" Height="43"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

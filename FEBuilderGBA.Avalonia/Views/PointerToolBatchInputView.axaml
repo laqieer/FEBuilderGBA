@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolBatchInputView"
         Title="Pointer Tool - Batch Input" Width="918" Height="585"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="13,18,13,12">
     <!-- Label (WinForms label1 "値:" at 14,18 size 30x18) -->
     <TextBlock DockPanel.Dock="Top" Text="Value:" Margin="0,0,0,4" />
@@ -15,4 +17,5 @@
              FontFamily="Consolas, Courier New, monospace"
              Watermark="0x08000000&#x0a;0x08000004&#x0a;..." />
   </DockPanel>
+  </ScrollViewer>
 </Window>

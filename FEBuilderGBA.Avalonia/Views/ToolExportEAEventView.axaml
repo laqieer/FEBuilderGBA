@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolExportEAEventView"
         Title="Export EA Event" Width="1096" Height="784"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="284,*" Margin="11">
     <!-- Left panel: Map list (WinForms panel14 with MAP_LISTBOX) -->
     <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="0,0,5,0">
@@ -70,4 +72,5 @@
       </StackPanel>
     </Border>
   </Grid>
+  </ScrollViewer>
 </Window>

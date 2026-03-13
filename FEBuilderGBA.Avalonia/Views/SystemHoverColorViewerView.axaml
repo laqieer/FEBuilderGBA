@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SystemHoverColorViewerView"
-        Title="System Area Color Viewer" Width="1238" Height="604">
+        Title="System Area Color Viewer" Width="1238" Height="604"
+        SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <DockPanel Grid.Column="0" Margin="4">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="4,4,4,8">

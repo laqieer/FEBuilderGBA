@@ -2,7 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.DisASMDumpAllArgGrepView"
         Title="Disassembly Argument Grep" Width="891" Height="757"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock Text="Disassembly Argument Grep" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
     <TextBlock Text="Search disassembly output by argument pattern." TextWrapping="Wrap" DockPanel.Dock="Top" Margin="0,0,0,12" />
@@ -16,4 +18,5 @@
              FontFamily="Consolas, Courier New, monospace" FontSize="12"
              TextWrapping="NoWrap" />
   </DockPanel>
+  </ScrollViewer>
 </Window>

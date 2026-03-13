@@ -4,7 +4,9 @@
         Title="Import Map Chip"
         Width="1092" Height="360"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="12,20,12,15">
     <!-- Section 1: Map chip import (WinForms label1 at 12,36) -->
     <TextBlock Text="Map Chip Import" FontWeight="Bold" Margin="0,0,0,6" />
@@ -21,4 +23,5 @@
     <Button Content="Import as one picture (auto-generate map_config from this image)" Height="55"
             HorizontalAlignment="Stretch" Click="OnePicture_Click" />
   </StackPanel>
+  </ScrollViewer>
 </Window>

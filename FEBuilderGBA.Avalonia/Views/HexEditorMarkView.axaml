@@ -4,7 +4,9 @@
         Title="Marked Addresses"
         Width="409" Height="685"
         WindowStartupLocation="CenterOwner"
-        CanResize="False">
+        CanResize="False"
+        SizeToContent="WidthAndHeight">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,9,12,10">
     <!-- Header label with border -->
     <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1"
@@ -18,4 +20,5 @@
     <!-- Address list -->
     <ListBox x:Name="AddressList" ItemsSource="{Binding Marks}" />
   </DockPanel>
+  </ScrollViewer>
 </Window>
