@@ -714,6 +714,13 @@ namespace FEBuilderGBA.Avalonia.Views
                                 await Task.Delay(100); // Let selection handler run
 
                                 int listCount = verifiable.GetListCount();
+                                if (listCount == 0)
+                                {
+                                    skipped++;
+                                    Console.WriteLine($"DATAVERIFY: {name} ... SKIP (listCount=0)");
+                                    continue;
+                                }
+
                                 var dataReport = verifiable.GetDataReport();
                                 var rawReport = verifiable.GetRawRomReport();
 

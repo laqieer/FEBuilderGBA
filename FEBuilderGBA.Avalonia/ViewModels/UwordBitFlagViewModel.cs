@@ -1,13 +1,11 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Four-byte (32-bit) bit flag editor popup.
     /// WinForms: UwordBitFlagForm — B40/B41/B42/B43 (4 hex bytes),
     /// J_40 "Traits 1" through J_43 "Traits 4" groups with L_4x_BIT_01..80.
+    /// Pure in-memory popup — not ROM-backed, so not data-verifiable.
     /// </summary>
-    public class UwordBitFlagViewModel : ViewModelBase, IDataVerifiable
+    public class UwordBitFlagViewModel : ViewModelBase
     {
         uint _value;
         bool _isLoaded;
@@ -130,19 +128,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OnPropertyChanged(nameof(ValueHex));
         }
 
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["FlagValue"] = $"0x{Value:X08}",
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
-        }
     }
 }

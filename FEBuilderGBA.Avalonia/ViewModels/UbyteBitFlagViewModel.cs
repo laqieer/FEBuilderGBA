@@ -1,12 +1,10 @@
-using System.Collections.Generic;
-using FEBuilderGBA.Avalonia.Services;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Single-byte (8-bit) bit flag editor popup.
     /// WinForms: UbyteBitFlagForm — B40 (hex byte), L_40_BIT_01..80 (8 checkboxes).
+    /// Pure in-memory popup — not ROM-backed, so not data-verifiable.
     /// </summary>
-    public class UbyteBitFlagViewModel : ViewModelBase, IDataVerifiable
+    public class UbyteBitFlagViewModel : ViewModelBase
     {
         uint _value;
         bool _isLoaded;
@@ -73,19 +71,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OnPropertyChanged(nameof(ValueHex));
         }
 
-        public int GetListCount() => 1;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["FlagValue"] = $"0x{Value:X02}",
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            return new Dictionary<string, string>();
-        }
     }
 }
