@@ -99,6 +99,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Reload translations with new language
             ReloadTranslations();
 
+            // Clear name cache so names are re-decoded in the new language
+            NameResolver.ClearCache();
+
+            // Notify all subscribers (ViewModels) to refresh their localized strings
+            CoreState.RaiseLanguageChanged();
+
             MarkClean();
         }
 

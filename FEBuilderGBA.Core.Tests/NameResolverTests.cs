@@ -102,9 +102,21 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("NormalText", "NormalText")]
         [InlineData("", "")]
         [InlineData(null, null)]
+        [InlineData("@000C@0010@0001Name", "Name")]
+        [InlineData("@000C@0010@0080@0004", "")]
         public void StripControlCodes_RemovesAtCodes(string? input, string? expected)
         {
             Assert.Equal(expected, NameResolver.StripControlCodes(input!));
+        }
+
+        [Theory]
+        [InlineData(" Lord ", "Lord")]
+        [InlineData("\r\nKnight\n", "Knight")]
+        [InlineData("\x1FName\x1F", "Name")]
+        [InlineData("\u3000Name\u3000", "Name")]
+        public void StripControlCodes_TrimsWhitespace(string input, string expected)
+        {
+            Assert.Equal(expected, NameResolver.StripControlCodes(input));
         }
     }
 }

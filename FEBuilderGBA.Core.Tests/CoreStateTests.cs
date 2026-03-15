@@ -33,5 +33,31 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Equal("en", CoreState.Language);
         }
+
+        [Fact]
+        public void RaiseLanguageChanged_InvokesSubscribers()
+        {
+            int callCount = 0;
+            void handler() => callCount++;
+            CoreState.LanguageChanged += handler;
+            try
+            {
+                CoreState.RaiseLanguageChanged();
+                Assert.Equal(1, callCount);
+                CoreState.RaiseLanguageChanged();
+                Assert.Equal(2, callCount);
+            }
+            finally
+            {
+                CoreState.LanguageChanged -= handler;
+            }
+        }
+
+        [Fact]
+        public void RaiseLanguageChanged_NoSubscribers_DoesNotThrow()
+        {
+            // Should not throw even with no subscribers
+            CoreState.RaiseLanguageChanged();
+        }
     }
 }

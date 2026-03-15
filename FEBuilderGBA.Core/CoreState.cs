@@ -94,6 +94,15 @@ namespace FEBuilderGBA
         public static Dictionary<string, string> ArgsDic { get; set; }
 
         /// <summary>
+        /// Raised after the UI language is changed and translations reloaded.
+        /// Subscribers (ViewModels, etc.) should refresh their localized strings.
+        /// </summary>
+        public static event Action LanguageChanged;
+
+        /// <summary>Raise the LanguageChanged event.</summary>
+        public static void RaiseLanguageChanged() => LanguageChanged?.Invoke();
+
+        /// <summary>
         /// Current UI language code (e.g. "en", "ja", "zh").
         /// Set by OptionForm at startup. Used by ConfigDataFilename for lang-specific resources.
         /// </summary>

@@ -33,6 +33,29 @@ namespace FEBuilderGBA.Avalonia.Views
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+
+            // Refresh UI strings when language changes
+            CoreState.LanguageChanged += OnLanguageChanged;
+        }
+
+        void OnLanguageChanged()
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                // Refresh status bar
+                _vm.UpdateFromRom();
+                StatusText.Text = _vm.StatusText;
+
+                // Refresh menu headers
+                RefreshMenuHeaders();
+            });
+        }
+
+        void RefreshMenuHeaders()
+        {
+            // Refresh Easy Mode toggle text
+            if (EasyModeMenuItem != null)
+                EasyModeMenuItem.Header = _isEasyMode ? R._("Switch to _Normal Mode") : R._("Toggle _Easy Mode");
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
@@ -1516,6 +1539,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Detach handler to prevent re-entry, then close
                 Closing -= MainWindow_Closing;
+                CoreState.LanguageChanged -= OnLanguageChanged;
                 Close();
             }
         }

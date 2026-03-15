@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA
 {
@@ -15,11 +14,14 @@ namespace FEBuilderGBA
         /// <summary>Clear the name cache (e.g., after undo or ROM reload).</summary>
         public static void ClearCache() => _cache.Clear();
 
+        // Characters to trim from decoded names (matches WinForms TextForm.StripAllCode)
+        static readonly char[] TrimChars = { ' ', (char)0x1F, '\r', '\n', '\u3000' };
+
         /// <summary>Strip FE text control codes like @0501 from decoded text.</summary>
         internal static string StripControlCodes(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-            return Regex.Replace(text, @"@[0-9A-Fa-f]{4}", "");
+            return RegexCache.Replace(text, @"@[0-9A-Fa-f]{4}", "").Trim(TrimChars);
         }
 
         /// <summary>Decode a text ID to a string. Returns "???" on failure.</summary>
@@ -61,13 +63,26 @@ namespace FEBuilderGBA
             return _cache.GetOrAdd(("song", id), _ => ResolveSongName(id));
         }
 
+        /// <summary>
+        /// Dereference a ROMFEINFO pointer field to get the actual data base address.
+        /// ROMFEINFO fields like unit_pointer/class_pointer/item_pointer store the
+        /// ROM offset of a pointer, not the data address itself.
+        /// </summary>
+        static uint DerefPointer(ROM rom, uint pointerAddr)
+        {
+            if (pointerAddr == 0 || pointerAddr == U.NOT_FOUND) return 0;
+            uint offset = U.toOffset(pointerAddr);
+            if (!U.isSafetyOffset(offset, rom)) return 0;
+            return rom.p32(offset);
+        }
+
         static string ResolveUnitName(uint id)
         {
             try
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return "???";
-                uint baseAddr = rom.RomInfo.unit_pointer;
+                uint baseAddr = DerefPointer(rom, rom.RomInfo.unit_pointer);
                 uint dataSize = rom.RomInfo.unit_datasize;
                 if (baseAddr == 0 || dataSize == 0) return "???";
                 uint entryAddr = baseAddr + (id * dataSize);
@@ -84,7 +99,7 @@ namespace FEBuilderGBA
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return "???";
-                uint baseAddr = rom.RomInfo.class_pointer;
+                uint baseAddr = DerefPointer(rom, rom.RomInfo.class_pointer);
                 uint dataSize = rom.RomInfo.class_datasize;
                 if (baseAddr == 0 || dataSize == 0) return "???";
                 uint entryAddr = baseAddr + (id * dataSize);
@@ -101,7 +116,7 @@ namespace FEBuilderGBA
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return "???";
-                uint baseAddr = rom.RomInfo.item_pointer;
+                uint baseAddr = DerefPointer(rom, rom.RomInfo.item_pointer);
                 uint dataSize = rom.RomInfo.item_datasize;
                 if (baseAddr == 0 || dataSize == 0) return "???";
                 uint entryAddr = baseAddr + (id * dataSize);
