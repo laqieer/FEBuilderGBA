@@ -17,9 +17,9 @@
     </StackPanel>
     <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
       <TextBlock Text="Source Palette:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
-      <NumericUpDown Grid.Row="0" Grid.Column="1" Name="SourceInput" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
+      <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="SourceInput" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
       <TextBlock Text="Destination Palette:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="DestInput" Minimum="0" Maximum="255" Value="0" />
+      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DestInput" Minimum="0" Maximum="255" Value="0" />
     </Grid>
   </DockPanel>
   </ScrollViewer>

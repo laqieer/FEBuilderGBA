@@ -16,7 +16,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Move Direction:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
         </Grid>
 

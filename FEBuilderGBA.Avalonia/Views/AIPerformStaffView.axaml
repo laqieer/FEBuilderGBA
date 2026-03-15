@@ -16,13 +16,13 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Item (Staff):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unused:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="65535" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="65535" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="ASM Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="AsmPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="AsmPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Specifies the function that determines whether AI will use a staff." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

@@ -25,7 +25,7 @@
           <StackPanel Spacing="2">
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
               <TextBlock Text="Low byte:" VerticalAlignment="Center" />
-              <NumericUpDown Name="B40" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+              <NumericUpDown FormatString="0" Name="B40" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
             </StackPanel>
             <CheckBox Name="Bit0Box"  Content="Bit 0  (0x01)" />
             <CheckBox Name="Bit1Box"  Content="Bit 1  (0x02)" />
@@ -43,7 +43,7 @@
           <StackPanel Spacing="2">
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
               <TextBlock Text="High byte:" VerticalAlignment="Center" />
-              <NumericUpDown Name="B41" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+              <NumericUpDown FormatString="0" Name="B41" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
             </StackPanel>
             <CheckBox Name="Bit8Box"  Content="Bit 8  (0x01)" />
             <CheckBox Name="Bit9Box"  Content="Bit 9  (0x02)" />

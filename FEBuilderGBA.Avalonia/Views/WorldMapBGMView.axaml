@@ -17,13 +17,13 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID 1 (u16@0):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="SongId1Box" Minimum="0" Maximum="65535" Width="160" Margin="0,2" />
+            <NumericUpDown FormatString="0" Name="SongId1Box" Minimum="0" Maximum="65535" Width="160" Margin="0,2" />
             <Button Content="Jump" Click="JumpToSong1_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song ID 2 (u16@2):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="SongId2Box" Minimum="0" Maximum="65535" Width="160" Margin="0,2" />
+            <NumericUpDown FormatString="0" Name="SongId2Box" Minimum="0" Maximum="65535" Width="160" Margin="0,2" />
             <Button Content="Jump" Click="JumpToSong2_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
         </Grid>

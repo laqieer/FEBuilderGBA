@@ -17,34 +17,34 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Display Weapon:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="AllyEnemyColorBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="AllyEnemyColorBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Battle Anime:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Terrain Left:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="TerrainLeftBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="TerrainLeftBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Terrain Right:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="TerrainRightBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="TerrainRightBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Magic Effect:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="MagicEffectBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="MagicEffectBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Anime Type:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="AnimeTypeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="AnimeTypeBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Anime Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="AnimePtrBox" Minimum="0" Maximum="4294967295" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="AnimePtrBox" Minimum="0" Maximum="4294967295" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button Content="Write" Click="Write_Click" />

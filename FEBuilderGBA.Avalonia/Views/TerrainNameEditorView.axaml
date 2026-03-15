@@ -16,7 +16,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />

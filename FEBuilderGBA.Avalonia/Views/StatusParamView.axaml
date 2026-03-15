@@ -19,22 +19,22 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="StatusMenuTextStruct:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="MenuTextStructBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="MenuTextStructBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Bitmap:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="BitmapBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="BitmapBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Color:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ColorTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ColorTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Indent:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="IndentBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="IndentBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="B10:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="B10Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="B10Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="B11:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="B11Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="B11Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="String Pointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="7" Grid.Column="1" Name="StringPointerBox" Width="200" Margin="0,2" />

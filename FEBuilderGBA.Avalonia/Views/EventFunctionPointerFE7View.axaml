@@ -16,11 +16,11 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Event Command Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="FuncPointerUpDown" Minimum="0" Maximum="4294967295"
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="FuncPointerUpDown" Minimum="0" Maximum="4294967295"
                          Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown (offset 4):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unknown4UpDown" Minimum="0" Maximum="4294967295"
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown4UpDown" Minimum="0" Maximum="4294967295"
                          Margin="0,4" />
         </Grid>
 

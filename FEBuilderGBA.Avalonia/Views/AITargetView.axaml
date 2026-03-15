@@ -16,64 +16,64 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Lethal Damage Priority:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="LethalDamagePriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="LethalDamagePriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Enemy Remaining HP Priority:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="EnemyRemainingHPPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="EnemyRemainingHPPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Enemy Distance Priority:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="EnemyDistancePriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="EnemyDistancePriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Enemy Class Priority:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="EnemyClassPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="EnemyClassPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Current Turn Priority:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="CurrentTurnPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="CurrentTurnPriorityBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Counter Damage Warning:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="CounterDamageWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="CounterDamageWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Surround Warning:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="SurroundWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="SurroundWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Self Remaining HP Warning:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="SelfRemainingHPWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="SelfRemainingHPWarningBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown 8:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="Unknown8Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="Unknown8Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Unknown 9:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="Unknown9Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="Unknown9Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Unknown 10:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="Unknown10Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="Unknown10Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Unknown 11:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="Unknown11Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="Unknown11Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Unknown 12:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="Unknown12Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="Unknown12Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="Unknown 13:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="Unknown13Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="Unknown13Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Unknown 14:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="Unknown14Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="Unknown14Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Unknown 15:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="16" Grid.Column="1" Name="Unknown15Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="16" Grid.Column="1" Name="Unknown15Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="17" Grid.Column="0" Text="Unknown 16:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="Unknown16Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="1" Name="Unknown16Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="18" Grid.Column="0" Text="Unknown 17:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="18" Grid.Column="1" Name="Unknown17Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="1" Name="Unknown17Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="19" Grid.Column="0" Text="Unknown 18:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="19" Grid.Column="1" Name="Unknown18Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="19" Grid.Column="1" Name="Unknown18Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="20" Grid.Column="0" Text="Unknown 19:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="20" Grid.Column="1" Name="Unknown19Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="20" Grid.Column="1" Name="Unknown19Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />

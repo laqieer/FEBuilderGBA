@@ -17,23 +17,23 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
+            <NumericUpDown FormatString="0" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
             <Button Content="Jump" Click="JumpToUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
             <Button Content="Pick..." Click="PickUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick unit from editor" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown 3:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
+            <NumericUpDown FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
             <Button Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
         </Grid>

@@ -19,16 +19,16 @@
           <TextBox Grid.Row="1" Grid.Column="1" Name="PathDataPointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Start Base Point ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="StartBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="StartBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="End Base Point ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="EndBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="EndBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Padding (B6):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Padding6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Padding6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Padding (B7):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Padding7Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="Padding7Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Path Move Pointer:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox Grid.Row="6" Grid.Column="1" Name="PathMovePointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />

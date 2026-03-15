@@ -16,16 +16,16 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Width:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Height:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Center X:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="CenterXBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="CenterXBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Center Y:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="CenterYBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="CenterYBox" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

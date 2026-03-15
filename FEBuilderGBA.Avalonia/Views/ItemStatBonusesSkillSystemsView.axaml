@@ -30,16 +30,16 @@
           <TextBlock Grid.Row="0" Grid.Column="8" Text="Con" Width="70" Margin="2" HorizontalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="9" Text="Magic/??" Width="70" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="5" Name="ResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="6" Name="LuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="7" Name="MoveBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="8" Name="ConBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="9" Name="MagicOrUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="5" Name="ResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="6" Name="LuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="MoveBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="8" Name="ConBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="9" Name="MagicOrUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
         </Grid>
 
         <!-- Growth Rate Bonuses Row -->
@@ -54,14 +54,14 @@
           <TextBlock Grid.Row="0" Grid.Column="6" Text="Luck" Width="70" Margin="2" HorizontalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="7" Text="??" Width="70" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="5" Name="GrowResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="6" Name="GrowLuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="7" Name="GrowUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="5" Name="GrowResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="6" Name="GrowLuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="GrowUnknownBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
         </Grid>
 
         <!-- Padding Row -->
@@ -70,8 +70,8 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="??" Width="70" Margin="2" HorizontalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Text="??" Width="70" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown Grid.Row="1" Grid.Column="0" Name="Padding1Box" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Padding2Box" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="0" Name="Padding1Box" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Padding2Box" Minimum="-128" Maximum="127" Width="70" Margin="2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

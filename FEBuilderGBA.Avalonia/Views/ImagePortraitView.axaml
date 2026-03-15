@@ -39,7 +39,7 @@
         <!-- Frame selector -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
           <TextBlock Text="Show Frame:" VerticalAlignment="Center" FontWeight="SemiBold" />
-          <NumericUpDown Name="ShowFrameSelector" Minimum="0" Maximum="9" Value="0"
+          <NumericUpDown FormatString="0" Name="ShowFrameSelector" Minimum="0" Maximum="9" Value="0"
                          Increment="1" Width="80" ValueChanged="ShowFrame_ValueChanged" />
           <TextBlock Name="ShowFrameLabel" VerticalAlignment="Center" Foreground="Gray" />
         </StackPanel>
@@ -83,23 +83,23 @@
 
           <!-- Row 6: Mouth Coord (editable) -->
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
                          Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <TextBlock Grid.Row="6" Grid.Column="2" Text="Mouth Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="6" Grid.Column="3" Name="MouthYInput" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="3" Name="MouthYInput" Minimum="0" Maximum="255"
                          Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <!-- Row 7: Eye Coord (editable) -->
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Eye X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="EyeXInput" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="EyeXInput" Minimum="0" Maximum="255"
                          Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <TextBlock Grid.Row="7" Grid.Column="2" Text="Eye Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown Grid.Row="7" Grid.Column="3" Name="EyeYInput" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="3" Name="EyeYInput" Minimum="0" Maximum="255"
                          Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 

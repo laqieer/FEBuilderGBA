@@ -16,10 +16,10 @@
       <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Skill Name:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SkillNameBox" Minimum="0" Maximum="65535" Margin="0,4" />
+      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="SkillNameBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
+      <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
     </Grid>
 
     <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />

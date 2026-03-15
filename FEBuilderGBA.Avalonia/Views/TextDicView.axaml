@@ -17,32 +17,32 @@
 
         <Grid ColumnDefinitions="130,120,20,130,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,8,0,0">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Title Index:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="TitleIndexBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="TitleIndexBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Chapter Index:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="0" Grid.Column="4" Name="ChapterIndexBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="ChapterIndexBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TextId1Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextId1Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Preview:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="4" Name="Text1PreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Text ID 2:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="TextId2Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="TextId2Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Preview:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="4" Name="Text2PreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Flag 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Flag1Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Flag1Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Flag 2:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="Flag2Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="Flag2Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="3" Text="Unit:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="4" Name="UnitNameLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="5" Grid.Column="3" Text="Class:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock Grid.Row="5" Grid.Column="4" Name="ClassNameLabel" VerticalAlignment="Center" />
         </Grid>

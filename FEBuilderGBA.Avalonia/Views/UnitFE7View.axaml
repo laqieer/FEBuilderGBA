@@ -16,146 +16,146 @@
 
           <!-- Row 1: Name ID + Decoded -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Decoded:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="4" Name="DecodedNameLabel" VerticalAlignment="Center" />
 
           <!-- Row 2: Description + Unit ID -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Unit ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="UnitIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="UnitIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 3: Class + Portrait -->
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Support Class:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Portrait:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="PortraitIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="PortraitIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
 
           <!-- Row 4: Map Face + Affinity -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="4" Name="AffinityBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="AffinityBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 5: Sort Order + Level -->
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Sort Order:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="SortOrderBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="SortOrderBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="5" Grid.Column="3" Text="Level:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="4" Name="LevelBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="4" Name="LevelBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 6: Base Stats header -->
           <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="5" Text="Base Stats:" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 7: HP + STR -->
           <TextBlock Grid.Row="7" Grid.Column="0" Text="HP:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="HPBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="HPBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="7" Grid.Column="3" Text="STR:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="4" Name="StrBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="4" Name="StrBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
           <!-- Row 8: SKL + SPD -->
           <TextBlock Grid.Row="8" Grid.Column="0" Text="SKL:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="8" Grid.Column="3" Text="SPD:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
           <!-- Row 9: DEF + RES -->
           <TextBlock Grid.Row="9" Grid.Column="0" Text="DEF:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="DefBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="DefBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="9" Grid.Column="3" Text="RES:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="4" Name="ResBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="4" Name="ResBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
           <!-- Row 10: LCK + CON -->
           <TextBlock Grid.Row="10" Grid.Column="0" Text="LCK:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="LckBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="LckBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="10" Grid.Column="3" Text="CON:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="10" Grid.Column="4" Name="ConBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="4" Name="ConBox" Minimum="-128" Maximum="127" Width="180" Margin="0,2" />
 
           <!-- Row 11: Weapon Ranks header -->
           <TextBlock Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="5" Text="Weapon Ranks:" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 12: Sword + Lance -->
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="12" Grid.Column="3" Text="Lance:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="12" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 13: Axe + Bow -->
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Axe:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="WepAxeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="WepAxeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="13" Grid.Column="3" Text="Bow:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="13" Grid.Column="4" Name="WepBowBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="4" Name="WepBowBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 14: Staff + Anima -->
           <TextBlock Grid.Row="14" Grid.Column="0" Text="Staff:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="14" Grid.Column="3" Text="Anima:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="14" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 15: Light + Dark -->
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Light:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="15" Grid.Column="3" Text="Dark:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="15" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 16: Growth Rates header -->
           <TextBlock Grid.Row="16" Grid.Column="0" Grid.ColumnSpan="5" Text="Growth Rates (%):" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 17: GrowHP + GrowSTR -->
           <TextBlock Grid.Row="17" Grid.Column="0" Text="HP Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="17" Grid.Column="3" Text="STR Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="4" Name="GrowSTRBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="4" Name="GrowSTRBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 18: GrowSKL + GrowSPD -->
           <TextBlock Grid.Row="18" Grid.Column="0" Text="SKL Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="18" Grid.Column="1" Name="GrowSKLBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="1" Name="GrowSKLBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="18" Grid.Column="3" Text="SPD Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="18" Grid.Column="4" Name="GrowSPDBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="4" Name="GrowSPDBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 19: GrowDEF + GrowRES -->
           <TextBlock Grid.Row="19" Grid.Column="0" Text="DEF Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="19" Grid.Column="1" Name="GrowDEFBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="19" Grid.Column="1" Name="GrowDEFBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="19" Grid.Column="3" Text="RES Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="19" Grid.Column="4" Name="GrowRESBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="19" Grid.Column="4" Name="GrowRESBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 20: GrowLCK -->
           <TextBlock Grid.Row="20" Grid.Column="0" Text="LCK Growth:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="20" Grid.Column="1" Name="GrowLCKBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="20" Grid.Column="1" Name="GrowLCKBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 21: Palette & Animation header -->
           <TextBlock Grid.Row="21" Grid.Column="0" Grid.ColumnSpan="5" Text="Palette / Custom Animation:" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 22: Lower/Upper Class Palette -->
           <TextBlock Grid.Row="22" Grid.Column="0" Text="Lower Class Palette:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="22" Grid.Column="1" Name="LowerClassPaletteBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="22" Grid.Column="1" Name="LowerClassPaletteBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="22" Grid.Column="3" Text="Upper Class Palette:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="22" Grid.Column="4" Name="UpperClassPaletteBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="22" Grid.Column="4" Name="UpperClassPaletteBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 23: Lower/Upper Class Anime -->
           <TextBlock Grid.Row="23" Grid.Column="0" Text="Lower Class Anime:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="23" Grid.Column="1" Name="LowerClassAnimeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="23" Grid.Column="1" Name="LowerClassAnimeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="23" Grid.Column="3" Text="Upper Class Anime:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="23" Grid.Column="4" Name="UpperClassAnimeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="23" Grid.Column="4" Name="UpperClassAnimeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 24: Unk39 -->
           <TextBlock Grid.Row="24" Grid.Column="0" Text="Unknown 39:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="24" Grid.Column="1" Name="Unk39Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="24" Grid.Column="1" Name="Unk39Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 25: Ability Flags header -->
           <TextBlock Grid.Row="25" Grid.Column="0" Grid.ColumnSpan="5" Text="Ability Flags:" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 26: Ability1 + Ability2 -->
           <TextBlock Grid.Row="26" Grid.Column="0" Text="Ability 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="26" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="26" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="26" Grid.Column="3" Text="Ability 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="26" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="26" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 27: Ability3 + Ability4 -->
           <TextBlock Grid.Row="27" Grid.Column="0" Text="Ability 3:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="27" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="27" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="27" Grid.Column="3" Text="Ability 4:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="27" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="27" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 28: Support & Talk header -->
           <TextBlock Grid.Row="28" Grid.Column="0" Grid.ColumnSpan="5" Text="Support / Talk:" FontWeight="Bold" Margin="0,8,0,4" />
@@ -166,20 +166,20 @@
 
           <!-- Row 30: Talk Group -->
           <TextBlock Grid.Row="30" Grid.Column="0" Text="Talk Group:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="30" Grid.Column="1" Name="TalkGroupBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="30" Grid.Column="1" Name="TalkGroupBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 31: Unknowns 49-51 header -->
           <TextBlock Grid.Row="31" Grid.Column="0" Grid.ColumnSpan="5" Text="Unknown Fields:" FontWeight="Bold" Margin="0,8,0,4" />
 
           <!-- Row 32: Unk49 + Unk50 -->
           <TextBlock Grid.Row="32" Grid.Column="0" Text="Unknown 49:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="32" Grid.Column="1" Name="Unk49Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="32" Grid.Column="1" Name="Unk49Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
           <TextBlock Grid.Row="32" Grid.Column="3" Text="Unknown 50:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="32" Grid.Column="4" Name="Unk50Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="32" Grid.Column="4" Name="Unk50Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <!-- Row 33: Unk51 -->
           <TextBlock Grid.Row="33" Grid.Column="0" Text="Unknown 51:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="33" Grid.Column="1" Name="Unk51Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="33" Grid.Column="1" Name="Unk51Box" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

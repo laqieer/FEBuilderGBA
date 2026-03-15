@@ -22,9 +22,9 @@
 
           <!-- Row 2: W4 Padding, W6 Padding -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Padding 1 (W4):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Padding1Box" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Padding1Box" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Padding 2 (W6):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="Padding2Box" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="Padding2Box" Minimum="0" Maximum="65535" />
 
           <!-- Row 3: Write button -->
           <Button Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />

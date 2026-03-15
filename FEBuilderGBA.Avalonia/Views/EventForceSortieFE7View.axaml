@@ -16,23 +16,23 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit List Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="UnitListPointerUpDown" Minimum="0" Maximum="4294967295"
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitListPointerUpDown" Minimum="0" Maximum="4294967295"
                          Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="UnitIdUpDown" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="UnitIdUpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unknown1UpDown" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown1UpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown 2:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unknown2UpDown" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown2UpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown 3:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="Unknown3UpDown" Minimum="0" Maximum="255"
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown3UpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
         </Grid>
 

@@ -16,16 +16,16 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="From Unit:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="FromUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="FromUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="To Unit:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ToUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ToUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unused 2:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unused 3:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Unused3Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unused3Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Configures enemy AI to trigger a talk event (like FE7 Farina)." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

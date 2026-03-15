@@ -16,37 +16,37 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Always Accessible:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="AlwaysAccessibleBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="AlwaysAccessibleBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Free Map Type:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="FreeMapTypeBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="FreeMapTypeBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Pre-Clear Icon:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="PreClearIconBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="PreClearIconBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Post-Clear Icon:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="PostClearIconBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="PostClearIconBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Chapter ID 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="ChapterId1Box" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="ChapterId1Box" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Chapter ID 2:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="ChapterId2Box" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="ChapterId2Box" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Event Branch Flag:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="EventBranchFlagBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="EventBranchFlagBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Next Node (Eirika):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="NextNodeEirikaBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="NextNodeEirikaBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Next Node (Ephraim):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="NextNodeEphraimBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="NextNodeEphraimBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Next Node (Eirika 2nd):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="NextNodeEirika2ndBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="NextNodeEirika2ndBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Next Node (Ephraim 2nd):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="NextNodeEphraim2ndBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="NextNodeEphraim2ndBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Armory Pointer:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox Grid.Row="12" Grid.Column="1" Name="ArmoryPointerBox" Width="150" Margin="0,2" HorizontalAlignment="Left" />
@@ -58,16 +58,16 @@
           <TextBox Grid.Row="14" Grid.Column="1" Name="SecretShopPointerBox" Width="150" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Coordinate X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Coordinate Y:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="16" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="16" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="17" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
 
           <TextBlock Grid.Row="18" Grid.Column="0" Text="Ship Setting:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="18" Grid.Column="1" Name="ShipSettingBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="1" Name="ShipSettingBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" HorizontalAlignment="Left" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

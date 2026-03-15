@@ -18,7 +18,7 @@
             <TextBlock Text="Hard Boost" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown x:Name="HardBoostInput" Width="76" Height="25"
+          <NumericUpDown FormatString="0" x:Name="HardBoostInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
         <!-- Normal Penalty (WinForms J_NormalPenalty 311x32 + NormalPenalty 76x25) -->
@@ -27,7 +27,7 @@
             <TextBlock Text="Normal Mode Penalty" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown x:Name="NormalPenaltyInput" Width="76" Height="25"
+          <NumericUpDown FormatString="0" x:Name="NormalPenaltyInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
         <!-- Easy Penalty (WinForms J_EasyPenalty 311x32 + EasyPenalty 76x25) -->
@@ -36,7 +36,7 @@
             <TextBlock Text="Easy Mode Penalty" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown x:Name="EasyPenaltyInput" Width="76" Height="25"
+          <NumericUpDown FormatString="0" x:Name="EasyPenaltyInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
       </StackPanel>
@@ -47,7 +47,7 @@
         <TextBlock Text="Difficulty Value" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="DifficultyValueInput" Width="95" Height="25"
+      <NumericUpDown FormatString="0" x:Name="DifficultyValueInput" Width="95" Height="25"
                      Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
     <!-- Help text (WinForms textBox1 527x121 ReadOnly) -->

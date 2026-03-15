@@ -29,25 +29,25 @@
             <TextBlock Text="Map Style / PLIST" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="W4: Object type (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NW4" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW4" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B6: Palette (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB6" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB6" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B7: Chipset config (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB7" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB7" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B8: Map pointer (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB8" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB8" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="B9: Tile animation 1 (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NB9" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB9" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="B10: Tile animation 2 (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="1" Name="NB10" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB10" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="6" Grid.Column="0" Text="B11: Map change (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="1" Name="NB11" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB11" Minimum="0" Maximum="255" />
             </Grid>
           </StackPanel>
         </Border>
@@ -58,28 +58,28 @@
             <TextBlock Text="Map Properties" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B12: Fog level" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB12" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB12" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B13: Battle preparation (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB13" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB13" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B14: Chapter title image" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB14" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB14" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B15: Chapter title image 2 (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB15" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB15" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="B16: Initial X coordinate" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NB16" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB16" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="B17: Initial Y coordinate" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="1" Name="NB17" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB17" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="6" Grid.Column="0" Text="B18: Weather" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="1" Name="NB18" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB18" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="7" Grid.Column="0" Text="B19: Battle BG lookup" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="7" Grid.Column="1" Name="NB19" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB19" Minimum="0" Maximum="255" />
             </Grid>
           </StackPanel>
         </Border>
@@ -90,40 +90,40 @@
             <TextBlock Text="BGM / Music" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="W20: Difficulty adjustment" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NW20" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW20" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="W22: Player phase BGM" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NW22" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW22" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="W24: Enemy phase BGM" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NW24" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW24" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="W26: NPC phase BGM" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NW26" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NW26" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="W28: Player phase BGM 2 (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NW28" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NW28" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="W30: Enemy phase BGM 2 (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="1" Name="NW30" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NW30" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="6" Grid.Column="0" Text="W32: NPC phase BGM 2 (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="1" Name="NW32" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NW32" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="7" Grid.Column="0" Text="W34: Player phase BGM flag 4" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="7" Grid.Column="1" Name="NW34" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NW34" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="8" Grid.Column="0" Text="W36: Enemy phase BGM flag 4" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="8" Grid.Column="1" Name="NW36" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="NW36" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="9" Grid.Column="0" Text="W38: ???" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="9" Grid.Column="1" Name="NW38" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="NW38" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="10" Grid.Column="0" Text="W40: ???" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="10" Grid.Column="1" Name="NW40" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="NW40" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="11" Grid.Column="0" Text="W42: ???" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="11" Grid.Column="1" Name="NW42" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="NW42" Minimum="0" Maximum="65535" />
             </Grid>
           </StackPanel>
         </Border>
@@ -136,7 +136,7 @@
             <!-- Breakable wall HP -->
             <Grid ColumnDefinitions="220,120" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B44: Breakable wall HP" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB44" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB44" Minimum="0" Maximum="255" />
             </Grid>
 
             <!-- Rating headers -->
@@ -146,101 +146,101 @@
             <TextBlock Text="Asset Rating" FontStyle="Italic" Margin="0,4,0,2" />
             <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B45: A Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB45" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB45" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="W62: A Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NW62" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW62" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B46: A Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB46" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB46" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="W64: A Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NW64" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW64" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B47: A Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB47" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB47" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="W66: A Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NW66" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NW66" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B48: A Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB48" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB48" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="W68: A Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NW68" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NW68" Minimum="0" Maximum="65535" />
             </Grid>
 
             <!-- Strategy Rating -->
             <TextBlock Text="Strategy Rating" FontStyle="Italic" Margin="0,4,0,2" />
             <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B49: B Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB49" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB49" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="W70: B Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NW70" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW70" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B50: B Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB50" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB50" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="W72: B Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NW72" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW72" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B51: B Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB51" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB51" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="W74: B Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NW74" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NW74" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B52: B Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB52" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB52" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="W76: B Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NW76" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NW76" Minimum="0" Maximum="65535" />
             </Grid>
 
             <!-- Experience Rating -->
             <TextBlock Text="Experience Rating" FontStyle="Italic" Margin="0,4,0,2" />
             <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B53: C Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB53" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB53" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="W78: C Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NW78" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW78" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B54: C Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB54" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB54" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="W80: C Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NW80" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW80" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B55: C Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB55" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB55" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="W82: C Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NW82" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NW82" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B56: C Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB56" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB56" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="W84: C Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NW84" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NW84" Minimum="0" Maximum="65535" />
             </Grid>
 
             <!-- D Rating -->
             <TextBlock Text="D Rating" FontStyle="Italic" Margin="0,4,0,2" />
             <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B57: D Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB57" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB57" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="W86: D Eliwood Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NW86" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW86" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B58: D Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB58" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB58" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="W88: D Eliwood Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NW88" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW88" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B59: D Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB59" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB59" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="W90: D Hector Normal" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NW90" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NW90" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B60: D Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB60" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB60" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="W92: D Hector Hard" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NW92" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NW92" Minimum="0" Maximum="65535" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="B61: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NB61" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB61" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="4" Grid.Column="3" Text="W94: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="4" Name="NW94" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="NW94" Minimum="0" Maximum="65535" />
             </Grid>
           </StackPanel>
         </Border>
@@ -271,11 +271,11 @@
             <TextBlock Text="Map Name Text IDs" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120,10,*" RowDefinitions="Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="W112: Map name 1" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NW112" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW112" Minimum="0" Maximum="65535" />
               <TextBlock Grid.Row="0" Grid.Column="3" Name="W112TextLabel" VerticalAlignment="Center" Foreground="Blue" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="W114: Map name 2 (X)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NW114" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW114" Minimum="0" Maximum="65535" />
               <TextBlock Grid.Row="1" Grid.Column="3" Name="W114TextLabel" VerticalAlignment="Center" Foreground="Blue" />
             </Grid>
           </StackPanel>
@@ -287,54 +287,54 @@
             <TextBlock Text="Event / World Map (B116-B135)" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B116: Event ID (PLIST)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB116" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB116" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="B117: World map auto event" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NB117" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NB117" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B118: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB118" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB118" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="?? (B119):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NB119" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NB119" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="?? (B120):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB120" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB120" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="?? (B121):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NB121" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NB121" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="?? (B122):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB122" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB122" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="?? (B123):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NB123" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NB123" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="?? (B124):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NB124" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB124" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="4" Grid.Column="3" Text="?? (B125):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="4" Name="NB125" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="NB125" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="?? (B126):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="1" Name="NB126" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB126" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="5" Grid.Column="3" Text="?? (B127):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="4" Name="NB127" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="4" Name="NB127" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="6" Grid.Column="0" Text="Chapter number (B128):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="1" Name="NB128" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB128" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="6" Grid.Column="3" Text="?? (B129):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="4" Name="NB129" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="4" Name="NB129" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="7" Grid.Column="0" Text="?? (B130):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="7" Grid.Column="1" Name="NB130" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB130" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="7" Grid.Column="3" Text="?? (B131):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="7" Grid.Column="4" Name="NB131" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="4" Name="NB131" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="8" Grid.Column="0" Text="?? (B132):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="8" Grid.Column="1" Name="NB132" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="NB132" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="8" Grid.Column="3" Text="?? (B133):" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="8" Grid.Column="4" Name="NB133" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="4" Name="NB133" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="9" Grid.Column="0" Text="B134: Enemies for victory BGM" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="9" Grid.Column="1" Name="NB134" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="NB134" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="9" Grid.Column="3" Text="B135: Blackout before start" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="9" Grid.Column="4" Name="NB135" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="4" Name="NB135" Minimum="0" Maximum="255" />
             </Grid>
           </StackPanel>
         </Border>
@@ -345,11 +345,11 @@
             <TextBlock Text="Clear Condition (display only)" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="260,120,10,*" RowDefinitions="Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="W136: Clear condition (display only)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NW136" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW136" Minimum="0" Maximum="65535" />
               <TextBlock Grid.Row="0" Grid.Column="3" Name="W136TextLabel" VerticalAlignment="Center" Foreground="Blue" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="W138: Detail clear condition (display only)" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NW138" Minimum="0" Maximum="65535" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW138" Minimum="0" Maximum="65535" />
               <TextBlock Grid.Row="1" Grid.Column="3" Name="W138TextLabel" VerticalAlignment="Center" Foreground="Blue" />
             </Grid>
           </StackPanel>
@@ -361,24 +361,24 @@
             <TextBlock Text="Display Flags (B140-B147)" FontWeight="Bold" FontSize="14" />
             <Grid ColumnDefinitions="260,120,20,260,120" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="B140: Special display" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="1" Name="NB140" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB140" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="B141: Turn count display" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="0" Grid.Column="4" Name="NB141" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="NB141" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="B142: Defense unit mark" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NB142" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB142" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="B143: Escape marker X" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" Name="NB143" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="NB143" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="B144: Escape marker Y" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NB144" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB144" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="B145: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" Name="NB145" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="NB145" Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="B146: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NB146" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB146" Minimum="0" Maximum="255" />
               <TextBlock Grid.Row="3" Grid.Column="3" Text="B147: ??" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" Name="NB147" Minimum="0" Maximum="255" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="NB147" Minimum="0" Maximum="255" />
             </Grid>
           </StackPanel>
         </Border>

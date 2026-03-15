@@ -18,13 +18,13 @@
 
           <!-- Row 1: B0 Weapon Type, B1 Special -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon Type (B0):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Special (B1):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="SpecialBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="SpecialBox" Minimum="0" Maximum="255" />
 
           <!-- Row 2: W2 Animation Number -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation # (W2):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="AnimationNumberBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimationNumberBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Resolved:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="4" Name="WeaponTypeNameLabel" VerticalAlignment="Center"
                      FontStyle="Italic" Foreground="Gray" />
@@ -108,7 +108,7 @@
 
               <!-- Row 1: Frame navigation -->
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Frame:" VerticalAlignment="Center" Margin="0,4,0,0" />
-              <NumericUpDown Grid.Row="1" Grid.Column="1" Name="FrameUpDown"
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="FrameUpDown"
                              Minimum="0" Maximum="0" Value="0"
                              ValueChanged="FrameUpDown_ValueChanged" Margin="0,4,0,0" />
               <Button Grid.Row="1" Grid.Column="3" Content="Prev" Name="PrevFrameBtn"

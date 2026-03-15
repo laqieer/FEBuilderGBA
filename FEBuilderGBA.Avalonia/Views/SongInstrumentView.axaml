@@ -33,16 +33,16 @@
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="WavePtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="DS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="3" Grid.Column="1" Name="DS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="DS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="4" Grid.Column="1" Name="DS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="DS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -60,16 +60,16 @@
             <NumericUpDown Grid.Row="2" Grid.Column="1" Name="EnvStepBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="3" Grid.Column="1" Name="SQ_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="SQ_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="4" Grid.Column="1" Name="SQ_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="SQ_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="5" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="5" Grid.Column="1" Name="SQ_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="SQ_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="6" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="6" Grid.Column="1" Name="SQ_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="SQ_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -81,16 +81,16 @@
             <NumericUpDown Grid.Row="0" Grid.Column="1" Name="PeriodBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="3" Grid.Column="1" Name="NS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="4" Grid.Column="1" Name="NS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 

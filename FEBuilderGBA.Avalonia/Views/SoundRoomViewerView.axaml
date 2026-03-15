@@ -17,18 +17,18 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
+            <NumericUpDown FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
             <Button Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song Length:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Display Cond ASM:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="Raw8Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Raw8Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

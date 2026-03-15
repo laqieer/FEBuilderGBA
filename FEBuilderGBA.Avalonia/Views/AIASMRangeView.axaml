@@ -16,16 +16,16 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="X1:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="X1Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="X1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Y1:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Y1Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Y1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="X2:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="X2Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="X2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Y2:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="Y2Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Y2Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Checks if a unit is within the range from (X1,Y1) to (X2,Y2)." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />

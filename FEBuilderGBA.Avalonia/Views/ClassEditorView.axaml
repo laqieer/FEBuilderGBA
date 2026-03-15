@@ -33,110 +33,110 @@
           <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Class # (B4):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ClassNumberBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ClassNumberBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Promo Lv (B5):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="PromotionLevelBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="PromotionLevelBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Wait Icon (B6):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="WaitIconBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="WaitIconBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Walk Spd (B7):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="WalkSpeedBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="WalkSpeedBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Portrait (W8):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="PortraitIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="PortraitIdBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="4" Grid.Column="3" Text="Build (B10):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="4" Name="BuildStatBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="BuildStatBox" Minimum="0" Maximum="255" />
 
           <!-- Base Stats -->
           <TextBlock Grid.Row="5" Grid.Column="0" Text="--- Base Stats ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="HP (B11):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="BaseHpBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="BaseHpBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="6" Grid.Column="3" Text="Str (B12):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="4" Name="BaseStrBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="4" Name="BaseStrBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Skl (B13):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="BaseSklBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="BaseSklBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="7" Grid.Column="3" Text="Spd (B14):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="4" Name="BaseSpdBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="4" Name="BaseSpdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Def (B15):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="BaseDefBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="BaseDefBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="8" Grid.Column="3" Text="Res (B16):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="4" Name="BaseResBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="4" Name="BaseResBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Mov (B17):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="MovBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="MovBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="9" Grid.Column="3" Text="Con (B18):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="4" Name="ConBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="4" Name="ConBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="HP Cap (B19):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="ClassStat19Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="ClassStat19Box" Minimum="0" Maximum="255" />
 
           <!-- Weapon Levels -->
           <TextBlock Grid.Row="11" Grid.Column="0" Text="--- Weapons ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Sword (B20):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="12" Grid.Column="3" Text="Lance (B21):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="12" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Axe (B22):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="WepAxeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="WepAxeBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="13" Grid.Column="3" Text="Bow (B23):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="13" Grid.Column="4" Name="WepBowBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="4" Name="WepBowBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="Staff (B24):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="14" Grid.Column="3" Text="Anima (B25):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="14" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Light (B26):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" />
 
           <!-- Growth Rates -->
           <TextBlock Grid.Row="16" Grid.Column="0" Text="--- Growth Rates ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
           <TextBlock Grid.Row="17" Grid.Column="0" Text="HP (B27):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="GrowHpBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="1" Name="GrowHpBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="17" Grid.Column="3" Text="Str (B28):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="18" Grid.Column="0" Text="Skl (B29):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="18" Grid.Column="1" Name="GrowSklBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="1" Name="GrowSklBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="18" Grid.Column="3" Text="Spd (B30):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="18" Grid.Column="4" Name="GrowSpdBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="4" Name="GrowSpdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="19" Grid.Column="0" Text="Def (B31):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="19" Grid.Column="1" Name="GrowDefBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="19" Grid.Column="1" Name="GrowDefBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="19" Grid.Column="3" Text="Res (B32):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="19" Grid.Column="4" Name="GrowResBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="19" Grid.Column="4" Name="GrowResBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="20" Grid.Column="0" Text="Lck (B33):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="20" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="20" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" />
 
           <!-- Stat Caps / Promotion Bonuses -->
           <TextBlock Grid.Row="21" Grid.Column="0" Text="--- Caps/Promo ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
           <TextBlock Grid.Row="22" Grid.Column="0" Text="HP (b34):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="22" Grid.Column="1" Name="CapHpBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="22" Grid.Column="1" Name="CapHpBox" Minimum="-128" Maximum="127" />
           <TextBlock Grid.Row="22" Grid.Column="3" Text="Str (b35):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="22" Grid.Column="4" Name="CapStrBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="22" Grid.Column="4" Name="CapStrBox" Minimum="-128" Maximum="127" />
 
           <TextBlock Grid.Row="23" Grid.Column="0" Text="Skl (b36):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="23" Grid.Column="1" Name="CapSklBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="23" Grid.Column="1" Name="CapSklBox" Minimum="-128" Maximum="127" />
           <TextBlock Grid.Row="23" Grid.Column="3" Text="Spd (b37):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="23" Grid.Column="4" Name="CapSpdBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="23" Grid.Column="4" Name="CapSpdBox" Minimum="-128" Maximum="127" />
 
           <TextBlock Grid.Row="24" Grid.Column="0" Text="Def (b38):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="24" Grid.Column="1" Name="CapDefBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="24" Grid.Column="1" Name="CapDefBox" Minimum="-128" Maximum="127" />
           <TextBlock Grid.Row="24" Grid.Column="3" Text="Res (b39):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="24" Grid.Column="4" Name="CapResBox" Minimum="-128" Maximum="127" />
+          <NumericUpDown FormatString="0" Grid.Row="24" Grid.Column="4" Name="CapResBox" Minimum="-128" Maximum="127" />
 
           <!-- Ability Flags -->
           <TextBlock Grid.Row="25" Grid.Column="0" Text="--- Abilities ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
@@ -160,24 +160,24 @@
         <TextBlock Text="--- Weapon Rank Levels ---" FontWeight="SemiBold" Margin="0,6,0,2" />
         <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="0" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="0" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
         </Grid>
 
         <!-- Pointers & D80 -->
@@ -214,7 +214,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Content="Calculate Growth" Click="CalculateGrowth_Click" />
               <TextBlock Text="Sim Level:" VerticalAlignment="Center" />
-              <NumericUpDown Name="SimLevelBox" Minimum="1" Maximum="99" Value="20" Width="90" />
+              <NumericUpDown FormatString="0" Name="SimLevelBox" Minimum="1" Maximum="99" Value="20" Width="90" />
             </StackPanel>
             <TextBlock Name="GrowthSimLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
           </StackPanel>

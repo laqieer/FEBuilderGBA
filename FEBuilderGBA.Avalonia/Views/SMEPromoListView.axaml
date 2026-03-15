@@ -11,10 +11,10 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
                 Margin="8,4,8,0" Spacing="8">
       <TextBlock Text="Address:" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding ReadStartAddress}" Minimum="0"
+      <NumericUpDown FormatString="0" Value="{Binding ReadStartAddress}" Minimum="0"
                      Width="130" Height="25" />
       <TextBlock Text="Count:" VerticalAlignment="Center" />
-      <NumericUpDown Value="{Binding ReadCount}" Minimum="1" Maximum="256"
+      <NumericUpDown FormatString="0" Value="{Binding ReadCount}" Minimum="1" Maximum="256"
                      Width="78" Height="25" />
       <Button Content="Reload" Width="112" Height="30" Click="Reload_Click" />
     </StackPanel>
@@ -36,7 +36,7 @@
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
                     Spacing="8" Margin="0,0,0,4">
           <TextBlock Text="Address:" VerticalAlignment="Center" />
-          <NumericUpDown Value="{Binding CurrentAddress}" Minimum="0"
+          <NumericUpDown FormatString="0" Value="{Binding CurrentAddress}" Minimum="0"
                          Width="130" Height="25" />
           <TextBlock Text="Size:" VerticalAlignment="Center" />
           <TextBox Text="{Binding BlockSize}" IsReadOnly="True"
@@ -52,7 +52,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Base Class" Width="146" Height="30"
                        VerticalAlignment="Center" FontWeight="Bold" />
-            <NumericUpDown Value="{Binding B0}" Minimum="0" Maximum="255"
+            <NumericUpDown FormatString="0" Value="{Binding B0}" Minimum="0" Maximum="255"
                            Width="72" Height="25" />
             <TextBox Text="{Binding ClassName0}" IsReadOnly="True"
                      Width="174" Height="25" />
@@ -61,7 +61,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Promo Class" Width="146" Height="30"
                        VerticalAlignment="Center" FontWeight="Bold" />
-            <NumericUpDown Value="{Binding B1}" Minimum="0" Maximum="255"
+            <NumericUpDown FormatString="0" Value="{Binding B1}" Minimum="0" Maximum="255"
                            Width="72" Height="25" />
             <TextBox Text="{Binding ClassName1}" IsReadOnly="True"
                      Width="174" Height="25" />

@@ -18,13 +18,13 @@
         <TextBlock Text="X" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="XInput" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="XInput" Width="73" Height="25"
                      Minimum="0" Maximum="65535" Value="0" />
       <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
         <TextBlock Text="Y" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="YInput" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="YInput" Width="73" Height="25"
                      Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
     <!-- Size row (WinForms label1 "サイズ" + W/H disabled) -->
@@ -37,13 +37,13 @@
         <TextBlock Text="W" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="WInput" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="WInput" Width="73" Height="25"
                      Minimum="1" Maximum="65535" IsEnabled="False" />
       <Border BorderBrush="Gray" BorderThickness="1" Width="32" Height="32">
         <TextBlock Text="H" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="HInput" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="HInput" Width="73" Height="25"
                      Minimum="1" Maximum="65535" IsEnabled="False" />
     </StackPanel>
     <!-- Padding inputs (T, L, R, B) -->
@@ -53,25 +53,25 @@
               Width="50" Height="32" Margin="0,0,6,6">
         <TextBlock Text="Top" HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="TInput" Grid.Row="0" Grid.Column="1" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="TInput" Grid.Row="0" Grid.Column="1" Width="73" Height="25"
                      Minimum="-100" Maximum="65535" Value="0" Margin="0,0,12,6" />
       <Border Grid.Row="0" Grid.Column="2" BorderBrush="Gray" BorderThickness="1"
               Width="50" Height="32" Margin="0,0,6,6">
         <TextBlock Text="Left" HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="LInput" Grid.Row="0" Grid.Column="3" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="LInput" Grid.Row="0" Grid.Column="3" Width="73" Height="25"
                      Minimum="-100" Maximum="65535" Value="0" Margin="0,0,0,6" />
       <Border Grid.Row="1" Grid.Column="0" BorderBrush="Gray" BorderThickness="1"
               Width="50" Height="32" Margin="0,0,6,0">
         <TextBlock Text="Right" HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="RInput" Grid.Row="1" Grid.Column="1" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="RInput" Grid.Row="1" Grid.Column="1" Width="73" Height="25"
                      Minimum="-100" Maximum="65535" Value="0" Margin="0,0,12,0" />
       <Border Grid.Row="1" Grid.Column="2" BorderBrush="Gray" BorderThickness="1"
               Width="50" Height="32" Margin="0,0,6,0">
         <TextBlock Text="Bot" HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown x:Name="BInput" Grid.Row="1" Grid.Column="3" Width="73" Height="25"
+      <NumericUpDown FormatString="0" x:Name="BInput" Grid.Row="1" Grid.Column="3" Width="73" Height="25"
                      Minimum="-100" Maximum="65535" Value="0" />
     </Grid>
     <!-- OK button (WinForms 134x35 right-aligned) -->

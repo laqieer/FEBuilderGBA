@@ -28,13 +28,13 @@
           <TextBox Grid.Row="4" Grid.Column="1" Name="RightPtrBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="X Position:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Y Position:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Text ID (TID):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Loop Routine:" VerticalAlignment="Center" />
           <TextBox Grid.Row="8" Grid.Column="1" Name="LoopBox" Width="200" Margin="0,2" />

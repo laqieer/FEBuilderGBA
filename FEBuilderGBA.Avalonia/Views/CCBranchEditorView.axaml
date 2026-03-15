@@ -16,11 +16,11 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Promotion Class 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="Promo1Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Promo1Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="2" Name="Promo1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Promotion Class 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="Promo2Box" Minimum="0" Maximum="255" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Promo2Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="2" Name="Promo2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
         </Grid>
 

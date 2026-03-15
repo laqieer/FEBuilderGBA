@@ -16,10 +16,10 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Interval:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Data Count:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="65535" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Animation Pointer:" VerticalAlignment="Center" Margin="0,4,0,0" />
           <TextBox Grid.Row="3" Grid.Column="1" Name="AnimPointerBox" Width="160" Margin="0,4,0,0" />

@@ -17,7 +17,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Info:" VerticalAlignment="Center" Margin="0,4" />
           <TextBlock Grid.Row="2" Grid.Column="1" Name="PointerInfoLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />

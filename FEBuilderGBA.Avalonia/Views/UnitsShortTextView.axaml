@@ -20,7 +20,7 @@
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
         <TextBlock Grid.Row="1" Grid.Column="1" Name="UnitNameLabel" VerticalAlignment="Center" />
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,4" />
-        <NumericUpDown Grid.Row="2" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+        <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" Margin="0,4" />
         <TextBlock Grid.Row="3" Grid.Column="1" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Grid.ColumnSpan="2" />
       </Grid>

@@ -16,7 +16,7 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="WeaponIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

@@ -16,13 +16,13 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Elapsed Time:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="ElapsedTimeBox" Minimum="0" Maximum="4294967295" Width="200" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ElapsedTimeBox" Minimum="0" Maximum="4294967295" Width="200" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Coordinate X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Coordinate Y:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
         </Grid>
 
         <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,8,0,0"

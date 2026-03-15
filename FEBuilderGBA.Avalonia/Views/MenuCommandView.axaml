@@ -19,10 +19,10 @@
           <TextBox Grid.Row="1" Grid.Column="1" Name="JpNamePtrBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Color/ID (u32@8):" VerticalAlignment="Center" />
           <TextBox Grid.Row="4" Grid.Column="1" Name="ColorIdBox" Width="200" Margin="0,2" />

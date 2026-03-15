@@ -12,9 +12,9 @@
     <!-- Editor panel with semantic field labels -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,8">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Char Code (ASCII):" VerticalAlignment="Center" Margin="0,2" />
-      <NumericUpDown Grid.Row="0" Grid.Column="1" Name="CharCodeBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="CharCodeBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Terminator (FFFF):" VerticalAlignment="Center" Margin="0,2" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" Name="TerminatorBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TerminatorBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Character Display:" VerticalAlignment="Center" Margin="0,2" />
       <TextBlock Grid.Row="2" Grid.Column="1" Name="CharDisplayLabel" VerticalAlignment="Center" Margin="0,2" />
     </Grid>

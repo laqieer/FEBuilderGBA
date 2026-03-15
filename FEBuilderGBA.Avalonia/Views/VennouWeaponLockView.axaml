@@ -18,7 +18,7 @@
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
         <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         <TextBlock Grid.Row="1" Grid.Column="0" Name="FieldLabelText" Text="Lock Type / ID:" VerticalAlignment="Center" Margin="0,4" />
-        <NumericUpDown Grid.Row="1" Grid.Column="1" Name="LockTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+        <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="LockTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Linked Name:" VerticalAlignment="Center" Margin="0,4" />
         <TextBlock Grid.Row="2" Grid.Column="1" Name="LinkedNameLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />

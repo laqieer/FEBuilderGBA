@@ -16,37 +16,37 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Support Partner 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="SupportPartner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="SupportPartner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Support Partner 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="SupportPartner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="SupportPartner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="C Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="TextIdCNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <NumericUpDown FormatString="0" Name="TextIdCNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
             <Button Content="Jump" Click="JumpToTextC_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="B Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="TextIdBNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <NumericUpDown FormatString="0" Name="TextIdBNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
             <Button Content="Jump" Click="JumpToTextB_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="A Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown Name="TextIdANud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <NumericUpDown FormatString="0" Name="TextIdANud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
             <Button Content="Jump" Click="JumpToTextA_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="C Support Song:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="SongCNud" Minimum="0" Maximum="65535" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="SongCNud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="B Support Song:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="SongBNud" Minimum="0" Maximum="65535" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="SongBNud" Minimum="0" Maximum="65535" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="A Support Song:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="SongANud" Minimum="0" Maximum="65535" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="SongANud" Minimum="0" Maximum="65535" Margin="0,2" />
         </Grid>
 
         <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />

@@ -22,7 +22,7 @@
     <!-- PLIST ID input row -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
       <TextBlock Text="PLIST ID:" VerticalAlignment="Center" />
-      <NumericUpDown Name="PlistIdInput" Width="107" Height="25" Minimum="0" Maximum="65535" Value="0" />
+      <NumericUpDown FormatString="0" Name="PlistIdInput" Width="107" Height="25" Minimum="0" Maximum="65535" Value="0" />
       <!-- Link display (WinForms LINK_PLIST 594x62 multiline read-only) -->
       <TextBox Name="LinkPlistDisplay" Width="594" Height="62" IsReadOnly="True"
                AcceptsReturn="True" FontFamily="Consolas, Courier New, monospace" />

@@ -18,17 +18,17 @@
 
           <!-- Row 1: GBA Color raw value -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="GBA Color (W0):" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="GBAColorBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GBAColorBox" Minimum="0" Maximum="65535" />
 
           <!-- Row 2: R / G -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="R:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="ColorR" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ColorR" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="G:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="ColorG" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="ColorG" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
 
           <!-- Row 3: B -->
           <TextBlock Grid.Row="3" Grid.Column="0" Text="B:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="ColorB" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ColorB" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
 
           <!-- Row 4: Color preview -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" />

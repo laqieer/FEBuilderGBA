@@ -16,58 +16,58 @@
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="ID Text:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="IdTextIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="IdTextIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="X Position:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="4" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Y Position:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="5" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Selection Text 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="6" Grid.Column="1" Name="Sel1Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="Sel1Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Selection Text 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="7" Grid.Column="1" Name="Sel2Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="Sel2Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Columns:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="8" Grid.Column="1" Name="ColumnsBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="ColumnsBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Rows:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="9" Grid.Column="1" Name="RowsBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="RowsBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Default Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="10" Grid.Column="1" Name="DefaultTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="DefaultTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Yes Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="11" Grid.Column="1" Name="YesTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="YesTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Min Value:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="12" Grid.Column="1" Name="MinValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="MinValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Max Value:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="13" Grid.Column="1" Name="MaxValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="MaxValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="On/Off Text 1:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="14" Grid.Column="1" Name="OnOff1Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="OnOff1Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="On/Off Text 2:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="15" Grid.Column="1" Name="OnOff2Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="OnOff2Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Default Value:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="16" Grid.Column="1" Name="DefaultValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="16" Grid.Column="1" Name="DefaultValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="17" Grid.Column="0" Text="Option Type:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="17" Grid.Column="1" Name="OptionTypeBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="17" Grid.Column="1" Name="OptionTypeBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="18" Grid.Column="0" Text="Icon ID:" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Row="18" Grid.Column="1" Name="IconIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown FormatString="0" Grid.Row="18" Grid.Column="1" Name="IconIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="19" Grid.Column="0" Text="ASM Pointer:" VerticalAlignment="Center" />
           <TextBox Grid.Row="19" Grid.Column="1" Name="AsmPointerBox" Width="200" Margin="0,2" />
