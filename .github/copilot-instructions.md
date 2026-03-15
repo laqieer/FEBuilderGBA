@@ -105,3 +105,10 @@ Runtime data is not embedded into the binaries. The WinForms project copies `con
 - Headless paths matter. `FEBuilderGBA\Program.cs` checks `--version` and other CLI flags before WinForms initialization so CI can run the executable in headless mode. Preserve that startup ordering when changing command routing.
 - WinForms and E2E validation assume `x86` builds. If a change touches WinForms startup, command-line behavior in `FEBuilderGBA.exe`, or E2E helpers, prefer validating with the `msbuild` x86 solution build rather than only with project-level `dotnet build`.
 - When creating a git commit message or any GitHub post for this repository (issue, discussion, comment, or reply), append a footer with the current Copilot CLI version and model configuration used for that action. Use the live session values rather than hardcoded text, e.g. `Copilot CLI: 1.0.5-0` and `Model: GPT-5.4 (gpt-5.4)`.
+
+## GitHub targeting rules
+
+- This checkout is a forked working copy. Treat `origin` (`laqieer/FEBuilderGBA`) as the default GitHub repository for issue reads, issue searches, issue lists, and all GitHub write actions.
+- Treat `upstream` (`FEBuilderGBA/FEBuilderGBA`) as off-limits for issue work unless the user explicitly says to inspect or post upstream.
+- Before any GitHub issue read or write action, verify the target repository matches `origin`. Checking or filing issues in upstream instead of the fork is a serious mistake and must be avoided.
+- If there is any ambiguity, inspect the git remotes first and stop to verify the correct target before listing, searching, reading, creating, or editing GitHub issues.
