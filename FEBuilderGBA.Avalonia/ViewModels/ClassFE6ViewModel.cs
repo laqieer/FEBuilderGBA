@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameTextId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameTextId); }
+                try { decoded = NameResolver.GetTextById(nameTextId); }
                 catch { decoded = "???"; }
                 string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
@@ -176,7 +176,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Text IDs
             NameId = rom.u16(addr + 0);
             DescId = rom.u16(addr + 2);
-            try { Name = FETextDecode.Direct(NameId); }
+            try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
 
             // Identity

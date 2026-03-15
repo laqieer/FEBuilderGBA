@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameId); }
+                try { decoded = NameResolver.GetTextById(nameId); }
                 catch { decoded = "???"; }
                 // 1-based IDs to match WinForms UnitForm
                 string name = U.ToHexString(i + 1) + " " + decoded;
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SortOrder = rom.u8(addr + 10);    // B10
             Level = rom.u8(addr + 11);        // B11
 
-            try { Name = FETextDecode.Direct(NameId); }
+            try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
 
             // Base stats (b12-b19, signed bytes matching WinForms)

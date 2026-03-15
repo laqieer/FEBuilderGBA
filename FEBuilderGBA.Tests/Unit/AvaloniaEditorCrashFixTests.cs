@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorViewModel_LoadUnitList_HasFETextDecodeTryCatch()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitEditorViewModel.cs"));
-            Assert.Contains("try { decoded = FETextDecode.Direct(nameId); }", src);
+            Assert.Contains("try { decoded = NameResolver.GetTextById(nameId); }", src);
             Assert.Contains("catch { decoded = \"???\"; }", src);
         }
 
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorViewModel_LoadUnit_HasFETextDecodeTryCatch()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitEditorViewModel.cs"));
-            Assert.Contains("try { Name = FETextDecode.Direct(NameId); }", src);
+            Assert.Contains("try { Name = NameResolver.GetTextById(NameId); }", src);
             Assert.Contains("catch { Name = \"???\"; }", src);
         }
 
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_LoadItemList_HasFETextDecodeTryCatch()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("try { decoded = FETextDecode.Direct(nameId); }", src);
+            Assert.Contains("try { decoded = NameResolver.GetTextById(nameId); }", src);
             Assert.Contains("catch { decoded = \"???\"; }", src);
         }
 
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorViewModel_LoadItem_HasFETextDecodeTryCatch()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEditorViewModel.cs"));
-            Assert.Contains("try { Name = FETextDecode.Direct(NameId); }", src);
+            Assert.Contains("try { Name = NameResolver.GetTextById(NameId); }", src);
             Assert.Contains("catch { Name = \"???\"; }", src);
         }
 

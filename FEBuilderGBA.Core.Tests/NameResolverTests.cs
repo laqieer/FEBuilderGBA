@@ -114,6 +114,8 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("\r\nKnight\n", "Knight")]
         [InlineData("\x1FName\x1F", "Name")]
         [InlineData("\u3000Name\u3000", "Name")]
+        [InlineData("\0Name\0", "Name")]
+        [InlineData("Name\x01\x02", "Name")]
         public void StripControlCodes_TrimsWhitespace(string input, string expected)
         {
             Assert.Equal(expected, NameResolver.StripControlCodes(input));

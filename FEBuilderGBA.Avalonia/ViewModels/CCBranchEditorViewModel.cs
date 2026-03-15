@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         if (classAddr + 2 <= (uint)rom.Data.Length)
                         {
                             uint nameId = rom.u16(classAddr);
-                            className = FETextDecode.Direct(nameId);
+                            className = NameResolver.GetTextById(nameId);
                         }
                         else className = "???";
                     }

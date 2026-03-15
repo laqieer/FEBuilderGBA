@@ -256,7 +256,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameId); }
+                try { decoded = NameResolver.GetTextById(nameId); }
                 catch { decoded = "???"; }
                 string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
@@ -328,7 +328,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SelectedCostType = costType;
 
             uint nameId = rom.u16(classAddr + 0);
-            try { ClassName = FETextDecode.Direct(nameId); }
+            try { ClassName = NameResolver.GetTextById(nameId); }
             catch { ClassName = "???"; }
 
             uint pointerAddr = GetMoveCostPointerAddr(classAddr, costType);

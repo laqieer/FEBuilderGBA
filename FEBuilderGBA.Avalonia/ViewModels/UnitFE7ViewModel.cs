@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameId); }
+                try { decoded = NameResolver.GetTextById(nameId); }
                 catch { decoded = "???"; }
                 string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SortOrder = rom.u8(addr + 10);
             Level = rom.u8(addr + 11);
 
-            try { Name = FETextDecode.Direct(NameId); }
+            try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
 
             // Base stats (signed byte)

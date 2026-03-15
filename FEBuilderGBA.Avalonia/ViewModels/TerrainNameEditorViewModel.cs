@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint textId = rom.u16(addr);
                 string decoded;
-                try { decoded = FETextDecode.Direct(textId); }
+                try { decoded = NameResolver.GetTextById(textId); }
                 catch { decoded = "???"; }
 
                 string name = U.ToHexString(i) + " " + decoded;
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             TextId = rom.u16(addr);
-            try { TerrainName = FETextDecode.Direct(TextId); }
+            try { TerrainName = NameResolver.GetTextById(TextId); }
             catch { TerrainName = "???"; }
             CanWrite = true;
         }

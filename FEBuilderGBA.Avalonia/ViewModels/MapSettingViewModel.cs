@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static string ResolveText(uint id)
         {
             if (id == 0) return "(none)";
-            try { return FETextDecode.Direct(id); }
+            try { return NameResolver.GetTextById(id); }
             catch { return "???"; }
         }
 
@@ -347,7 +347,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (nameTextPos > 0 && dataSize > nameTextPos + 1)
                 {
                     uint nameId = rom.u16(addr + nameTextPos);
-                    Name = FETextDecode.Direct(nameId);
+                    Name = NameResolver.GetTextById(nameId);
                 }
                 else
                 {

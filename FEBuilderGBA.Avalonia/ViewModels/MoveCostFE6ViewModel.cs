@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameId); }
+                try { decoded = NameResolver.GetTextById(nameId); }
                 catch { decoded = "???"; }
                 string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // W0: u16 name text ID at offset 0
             NameTextId = (ushort)rom.u16(classAddr + 0);
-            try { ClassName = FETextDecode.Direct(NameTextId); }
+            try { ClassName = NameResolver.GetTextById(NameTextId); }
             catch { ClassName = "???"; }
 
             // Get the pointer address for the selected cost type

@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;
-                try { decoded = FETextDecode.Direct(nameId); }
+                try { decoded = NameResolver.GetTextById(nameId); }
                 catch { decoded = "???"; }
                 // 1-based IDs to match WinForms UnitFE6Form
                 string name = U.ToHexString(i + 1) + " " + decoded;
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // B11: Level (u8)
             Level = rom.u8(addr + 11);
 
-            try { Name = FETextDecode.Direct(NameId); }
+            try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
 
             // b12-b19: Base stats (signed bytes)

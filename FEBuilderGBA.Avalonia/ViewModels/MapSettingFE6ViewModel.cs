@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 uint nameTextPos = rom.RomInfo.map_setting_name_text_pos;
                 if (nameTextPos > 0 && dataSize > nameTextPos + 1)
-                    Name = FETextDecode.Direct(rom.u16(addr + nameTextPos));
+                    Name = NameResolver.GetTextById(rom.u16(addr + nameTextPos));
                 else
                     Name = $"Map 0x{addr:X}";
             }

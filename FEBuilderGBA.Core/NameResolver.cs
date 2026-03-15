@@ -15,13 +15,17 @@ namespace FEBuilderGBA
         public static void ClearCache() => _cache.Clear();
 
         // Characters to trim from decoded names (matches WinForms TextForm.StripAllCode)
-        static readonly char[] TrimChars = { ' ', (char)0x1F, '\r', '\n', '\u3000' };
+        static readonly char[] TrimChars = { ' ', '\0', (char)0x1F, '\r', '\n', '\u3000' };
 
-        /// <summary>Strip FE text control codes like @0501 from decoded text.</summary>
+        /// <summary>Strip FE text control codes like @0501 and raw control chars from decoded text.</summary>
         internal static string StripControlCodes(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-            return RegexCache.Replace(text, @"@[0-9A-Fa-f]{4}", "").Trim(TrimChars);
+            // Remove @XXXX escape codes
+            string result = RegexCache.Replace(text, @"@[0-9A-Fa-f]{4}", "");
+            // Remove raw control characters (0x00-0x1F) that weren't encoded as @XXXX
+            result = RegexCache.Replace(result, @"[\x00-\x1F]", "");
+            return result.Trim(TrimChars);
         }
 
         /// <summary>Decode a text ID to a string. Returns "???" on failure.</summary>
