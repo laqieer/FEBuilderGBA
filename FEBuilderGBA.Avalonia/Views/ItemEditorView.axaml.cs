@@ -36,15 +36,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadItemList();
-                ItemList.SetItems(items);
-
-                // Populate weapon type combo
+                // Populate combo dropdowns BEFORE SetItems (fixes #52).
                 _weaponTypeList = ComboResourceHelper.MakeWeaponTypeList();
                 WeaponTypeCombo.ItemsSource = _weaponTypeList.Select(x => x.name).ToList();
 
                 // Show "Edit Skill Config" button if a skill system is installed
                 EditSkillConfigButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
+
+                var items = _vm.LoadItemList();
+                ItemList.SetItems(items);
             }
             catch (Exception ex)
             {

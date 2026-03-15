@@ -87,11 +87,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadUnitList();
-                UnitList.SetItems(items);
-                UpdateFE78Visibility();
-
-                // Populate combo dropdowns
+                // Populate combo dropdowns BEFORE SetItems, because SetItems
+                // auto-selects index 0 which triggers OnUnitSelected → UpdateUI
+                // that needs the combos to have ItemsSource already set (fixes #52).
                 _classList = ComboResourceHelper.MakeClassList();
                 ClassIdCombo.ItemsSource = _classList.Select(x => x.name).ToList();
 
@@ -100,6 +98,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Show "Edit Skills" button if a skill system is installed
                 EditSkillsButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
+
+                var items = _vm.LoadUnitList();
+                UnitList.SetItems(items);
+                UpdateFE78Visibility();
             }
             catch (Exception ex)
             {

@@ -119,5 +119,22 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("if (CoreState.ROM?.RomInfo == null)", src);
             Assert.Contains("this.PriorityCode = PatchDetection.PRIORITY_CODE.LAT1;", src);
         }
+
+        // ---- Combo initialization order (fixes #52) ----
+
+        [Theory]
+        [InlineData("UnitEditorView.axaml.cs", "ClassIdCombo.ItemsSource", ".SetItems(items)")]
+        [InlineData("UnitEditorView.axaml.cs", "AffinityCombo.ItemsSource", ".SetItems(items)")]
+        [InlineData("ItemEditorView.axaml.cs", "WeaponTypeCombo.ItemsSource", ".SetItems(items)")]
+        public void ComboItemsSource_SetBeforeSetItems(string fileName, string comboAssign, string setItemsCall)
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", fileName));
+            int comboPos = src.IndexOf(comboAssign);
+            int setItemsPos = src.IndexOf(setItemsCall);
+            Assert.True(comboPos >= 0, $"{comboAssign} not found in {fileName}");
+            Assert.True(setItemsPos >= 0, $"{setItemsCall} not found in {fileName}");
+            Assert.True(comboPos < setItemsPos,
+                $"In {fileName}, {comboAssign} (pos {comboPos}) must appear before {setItemsCall} (pos {setItemsPos}) to fix #52");
+        }
     }
 }
