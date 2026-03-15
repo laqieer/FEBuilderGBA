@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 return;
             }
 
-            var storage = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            var storage = owner.StorageProvider;
             if (storage == null) return;
 
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 return;
             }
 
-            var storage = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            var storage = owner.StorageProvider;
             if (storage == null) return;
 
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
