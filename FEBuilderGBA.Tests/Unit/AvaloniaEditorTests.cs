@@ -1786,5 +1786,24 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public string PreviewMidi(string filename)", src);
             Assert.Contains("FormatMidiMetadata", src);
         }
+
+        // ------------------------------------------------------------------ Instrument Selection
+
+        [Fact]
+        public void SongTrackImportSelectInstrumentView_HasInfoPanels()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackImportSelectInstrumentView.axaml"));
+            Assert.Contains("InstrumentInfoLabel", axaml);
+            Assert.Contains("Not Yet Implemented", axaml);
+            Assert.Contains("About Instrument Selection", axaml);
+        }
+
+        [Fact]
+        public void SongTrackImportSelectInstrumentViewModel_HasBuildInstrumentInfo()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SongTrackImportSelectInstrumentViewModel.cs"));
+            Assert.Contains("BuildInstrumentInfo", src);
+            Assert.Contains("InstrumentInfoText", src);
+        }
     }
 }
