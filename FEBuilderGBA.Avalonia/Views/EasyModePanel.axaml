@@ -79,6 +79,7 @@
             <Button Content="Battle Animations" Click="EasyOpenBattleAnime_Click" Margin="4" MinWidth="120" Padding="12,8" />
             <Button Content="CG Viewer" Click="EasyOpenBigCG_Click" Margin="4" MinWidth="120" Padding="12,8" />
             <Button Content="Image Viewer" Click="EasyOpenImageViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="OAM Sprite Viewer" Click="EasyOpenOAMSpriteViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>

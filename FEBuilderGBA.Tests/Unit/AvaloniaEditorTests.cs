@@ -1331,5 +1331,218 @@ namespace FEBuilderGBA.Tests.Unit
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
             Assert.Contains("ResetAllButtonVisibility(", src);
         }
+
+        // ------------------------------------------------------------------ AddressListItem & Icons
+
+        [Fact]
+        public void AddressListItem_ClassExists_WithTextAndIconProperties()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public class AddressListItem", src);
+            Assert.Contains("public string Text { get; set; }", src);
+            Assert.Contains("public Bitmap? Icon { get; set; }", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasSetItemsWithIconsMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void SetItemsWithIcons(List<AddrResult> items, Func<int, Bitmap?> iconLoader)", src);
+        }
+
+        [Fact]
+        public void AddressListControl_SetItemsStillExists_BackwardCompatible()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void SetItems(List<AddrResult> items)", src);
+            // SetItems should clear icon loader
+            Assert.Contains("_iconLoader = null;", src);
+        }
+
+        [Fact]
+        public void AddressListControl_DisplayItemsUseAddressListItem()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("ObservableCollection<AddressListItem>", src);
+        }
+
+        [Fact]
+        public void AddressListControl_Axaml_HasDataTemplate_WithImageAndTextBlock()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml"));
+            Assert.Contains("<DataTemplate>", axaml);
+            Assert.Contains("Source=\"{Binding Icon}\"", axaml);
+            Assert.Contains("Text=\"{Binding Text}\"", axaml);
+            Assert.Contains("ObjectConverters.IsNotNull", axaml);
+        }
+
+        [Fact]
+        public void ImageConversionHelper_ExistsInPreviewIconHelper()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("public static class ImageConversionHelper", src);
+            Assert.Contains("public static Bitmap? ToAvaloniaBitmap(IImage? image)", src);
+        }
+
+        [Fact]
+        public void ImageConversionHelper_HandlesNullInput()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("if (image == null) return null;", src);
+        }
+
+        [Fact]
+        public void ImageConversionHelper_UsesPngEncoding()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("EncodePng()", src);
+            Assert.Contains("new MemoryStream(pngData)", src);
+            Assert.Contains("new Bitmap(ms)", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_UsesSetItemsWithIcons()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("LoadUnitPortraitThumbnail", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_PortraitThumbnailReadsOffsetSix()
+        {
+            // Portrait ID is at offset 6 in the unit struct (u16)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("rom.u16(addr + 6)", src);
+            Assert.Contains("PreviewIconHelper.LoadPortraitMini(portraitId)", src);
+            Assert.Contains("ImageConversionHelper.ToAvaloniaBitmap(img)", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_PortraitThumbnailDisposesIImage()
+        {
+            // The IImage from PreviewIconHelper should be disposed after conversion
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("using var img = PreviewIconHelper.LoadPortraitMini", src);
+        }
+
+        [Fact]
+        public void AddressListControl_RefreshDisplay_InvokesIconLoader()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("_iconLoader?.Invoke(i)", src);
+        }
+
+        // ------------------------------------------------------------------ Preview Icons
+
+        [Fact]
+        public void ClassEditorView_HasTryShowListPreview()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml.cs"));
+            Assert.Contains("TryShowListPreview()", src);
+            Assert.Contains("PreviewIconHelper.LoadClassWaitIcon", src);
+        }
+
+        [Fact]
+        public void ItemEditorView_HasTryShowListPreview()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml.cs"));
+            Assert.Contains("TryShowListPreview()", src);
+            Assert.Contains("PreviewIconHelper.LoadItemIcon", src);
+        }
+
+        [Fact]
+        public void ItemFE6View_HasListPreviewBorder()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemFE6View.axaml"));
+            Assert.Contains("ListPreviewBorder", axaml);
+            Assert.Contains("ListPreviewImage", axaml);
+            Assert.Contains("ListPreviewName", axaml);
+        }
+
+        [Fact]
+        public void ItemFE6View_HasTryShowListPreview()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemFE6View.axaml.cs"));
+            Assert.Contains("TryShowListPreview()", src);
+            Assert.Contains("PreviewIconHelper.LoadItemIcon", src);
+        }
+
+        [Fact]
+        public void PreviewIconHelper_HandlesNullROM()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("if (rom?.RomInfo == null", src);
+        }
+
+        [Fact]
+        public void PreviewIconHelper_LoadItemIcon_Exists()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("public static IImage LoadItemIcon(uint iconIndex)", src);
+        }
+
+        [Fact]
+        public void PreviewIconHelper_LoadClassWaitIcon_ChecksZeroIndex()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("waitIconIndex == 0", src);
+        }
+
+        [Fact]
+        public void PreviewIconHelper_LoadPortraitMini_ChecksZeroId()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("portraitId == 0", src);
+        }
+
+        // ------------------------------------------------------------------ OAM Sprite Viewer
+
+        [Fact]
+        public void OAMSpriteViewerView_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Views", "OAMSpriteViewerView.axaml")));
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Views", "OAMSpriteViewerView.axaml.cs")));
+        }
+
+        [Fact]
+        public void OAMSpriteViewerViewModel_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "ViewModels", "OAMSpriteViewerViewModel.cs")));
+        }
+
+        [Fact]
+        public void OAMSpriteViewerView_HasSectionCombo()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OAMSpriteViewerView.axaml"));
+            Assert.Contains("SectionCombo", axaml);
+            Assert.Contains("FrameUpDown", axaml);
+            Assert.Contains("FrameImageControl", axaml);
+        }
+
+        [Fact]
+        public void OAMSpriteViewerView_HasFrameNavigation()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OAMSpriteViewerView.axaml.cs"));
+            Assert.Contains("PrevFrame_Click", src);
+            Assert.Contains("NextFrame_Click", src);
+            Assert.Contains("OnSectionChanged", src);
+        }
+
+        [Fact]
+        public void OAMSpriteViewerViewModel_HasLoadEntry()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "OAMSpriteViewerViewModel.cs"));
+            Assert.Contains("public void LoadEntry(uint addr)", src);
+            Assert.Contains("public void LoadSectionFrames(int sectionIndex)", src);
+            Assert.Contains("public void GoToFrame(int frameIndex)", src);
+        }
+
+        [Fact]
+        public void EasyModePanel_HasOAMSpriteViewerButton()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EasyModePanel.axaml"));
+            Assert.Contains("OAM Sprite Viewer", axaml);
+        }
     }
 }

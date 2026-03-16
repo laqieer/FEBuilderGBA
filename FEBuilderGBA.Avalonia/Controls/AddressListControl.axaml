@@ -10,6 +10,16 @@
 
     <!-- List -->
     <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <Image Source="{Binding Icon}" Width="32" Height="32"
+                   IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
+                   Stretch="Uniform" />
+            <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
       <ListBox.ContextMenu>
         <ContextMenu>
           <MenuItem Header="Copy Address" Click="CopyAddress_Click" />

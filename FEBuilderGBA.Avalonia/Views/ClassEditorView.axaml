@@ -82,22 +82,43 @@
           <TextBlock Grid.Row="11" Grid.Column="0" Text="--- Weapons ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Sword (B20):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="12" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepSwordBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepSwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="12" Grid.Column="3" Text="Lance (B21):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="12" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepLanceBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepLanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Axe (B22):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="WepAxeBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="13" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepAxeBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepAxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="13" Grid.Column="3" Text="Bow (B23):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="4" Name="WepBowBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="13" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepBowBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepBowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="Staff (B24):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="WepStaffBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="14" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepStaffBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepStaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="14" Grid.Column="3" Text="Anima (B25):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="4" Name="WepAnimaBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="14" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepAnimaBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepAnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Light (B26):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="15" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="WepLightBox" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="WepLightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <!-- Growth Rates -->
           <TextBlock Grid.Row="16" Grid.Column="0" Text="--- Growth Rates ---" FontWeight="SemiBold" Grid.ColumnSpan="5" Margin="0,6,0,2" />
@@ -160,24 +181,48 @@
         <TextBlock Text="--- Weapon Rank Levels ---" FontWeight="SemiBold" Margin="0,6,0,2" />
         <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="B44Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B44Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B44RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="B45Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B45Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B45RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="B46Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B46Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B46RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="B47Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B47Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B47RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="B48Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B48Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B48RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="B49Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B49Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B49RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="B50Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B50Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B50RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="B51Box" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="3" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown FormatString="0" Name="B51Box" Minimum="0" Maximum="255" Width="120" />
+            <TextBlock Name="B51RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+          </StackPanel>
         </Grid>
 
         <!-- Pointers & D80 -->

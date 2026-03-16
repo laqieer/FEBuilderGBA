@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -43,6 +44,23 @@ namespace FEBuilderGBA.Avalonia.Views
             BaseSpdBox.ValueChanged += OnGrowthInputChanged;
             BaseDefBox.ValueChanged += OnGrowthInputChanged;
             BaseResBox.ValueChanged += OnGrowthInputChanged;
+
+            // Wire weapon rank label updates
+            WepSwordBox.ValueChanged += OnWeaponValueChanged;
+            WepLanceBox.ValueChanged += OnWeaponValueChanged;
+            WepAxeBox.ValueChanged += OnWeaponValueChanged;
+            WepBowBox.ValueChanged += OnWeaponValueChanged;
+            WepStaffBox.ValueChanged += OnWeaponValueChanged;
+            WepAnimaBox.ValueChanged += OnWeaponValueChanged;
+            WepLightBox.ValueChanged += OnWeaponValueChanged;
+            B44Box.ValueChanged += OnWeaponValueChanged;
+            B45Box.ValueChanged += OnWeaponValueChanged;
+            B46Box.ValueChanged += OnWeaponValueChanged;
+            B47Box.ValueChanged += OnWeaponValueChanged;
+            B48Box.ValueChanged += OnWeaponValueChanged;
+            B49Box.ValueChanged += OnWeaponValueChanged;
+            B50Box.ValueChanged += OnWeaponValueChanged;
+            B51Box.ValueChanged += OnWeaponValueChanged;
         }
 
         void LoadList()
@@ -153,6 +171,8 @@ namespace FEBuilderGBA.Avalonia.Views
             B50Box.Value = _vm.WepRankLight;
             B51Box.Value = _vm.WepRankDark;
 
+            UpdateWeaponRankLabels();
+
             // Pointers
             Ptr52Box.Text = $"0x{_vm.BattleAnimePtr:X08}";
             Ptr56Box.Text = $"0x{_vm.MoveCostPtr:X08}";
@@ -167,6 +187,33 @@ namespace FEBuilderGBA.Avalonia.Views
             SimLevelBox.Value = _vm.SimLevel;
             _vm.CalculateGrowth();
             GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void OnWeaponValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            UpdateWeaponRankLabels();
+        }
+
+        void UpdateWeaponRankLabels()
+        {
+            // Base weapon levels (B20-B26)
+            WepSwordRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepSwordBox.Value ?? 0));
+            WepLanceRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLanceBox.Value ?? 0));
+            WepAxeRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAxeBox.Value ?? 0));
+            WepBowRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepBowBox.Value ?? 0));
+            WepStaffRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepStaffBox.Value ?? 0));
+            WepAnimaRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAnimaBox.Value ?? 0));
+            WepLightRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLightBox.Value ?? 0));
+
+            // Weapon rank levels (B44-B51)
+            B44RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B44Box.Value ?? 0));
+            B45RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B45Box.Value ?? 0));
+            B46RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B46Box.Value ?? 0));
+            B47RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B47Box.Value ?? 0));
+            B48RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B48Box.Value ?? 0));
+            B49RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B49Box.Value ?? 0));
+            B50RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B50Box.Value ?? 0));
+            B51RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B51Box.Value ?? 0));
         }
 
         void TryShowListPreview()

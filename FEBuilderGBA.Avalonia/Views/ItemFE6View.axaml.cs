@@ -44,6 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 _vm.LoadItem(addr);
                 UpdateUI();
+                TryShowListPreview();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -51,6 +52,32 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.IsLoading = false;
                 Log.Error("ItemFE6View.OnSelected failed: {0}", ex.Message);
+            }
+        }
+
+        void TryShowListPreview()
+        {
+            try
+            {
+                var img = PreviewIconHelper.LoadItemIcon(_vm.Icon);
+                if (img != null)
+                {
+                    ListPreviewImage.Zoom = 2;
+                    ListPreviewImage.SetImage(img);
+                    ListPreviewName.Text = _vm.Name;
+                    ListPreviewBorder.IsVisible = true;
+                    img.Dispose();
+                }
+                else
+                {
+                    ListPreviewImage.SetImage(null);
+                    ListPreviewBorder.IsVisible = false;
+                }
+            }
+            catch
+            {
+                ListPreviewImage.SetImage(null);
+                ListPreviewBorder.IsVisible = false;
             }
         }
 

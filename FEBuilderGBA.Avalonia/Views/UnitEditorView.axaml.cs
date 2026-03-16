@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -36,6 +39,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire auto-recalculation on stat/growth/level/class changes
             WireGrowthAutoRecalc();
+
+            // Wire weapon rank label updates
+            WireWeaponRankLabels();
         }
 
         /// <summary>
@@ -65,6 +71,35 @@ namespace FEBuilderGBA.Avalonia.Views
                     RecalcGrowth();
                 }
             };
+        }
+
+        void WireWeaponRankLabels()
+        {
+            WepSwordBox.ValueChanged += OnWeaponValueChanged;
+            WepLanceBox.ValueChanged += OnWeaponValueChanged;
+            WepAxeBox.ValueChanged += OnWeaponValueChanged;
+            WepBowBox.ValueChanged += OnWeaponValueChanged;
+            WepStaffBox.ValueChanged += OnWeaponValueChanged;
+            WepAnimaBox.ValueChanged += OnWeaponValueChanged;
+            WepLightBox.ValueChanged += OnWeaponValueChanged;
+            WepDarkBox.ValueChanged += OnWeaponValueChanged;
+        }
+
+        void OnWeaponValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            UpdateWeaponRankLabels();
+        }
+
+        void UpdateWeaponRankLabels()
+        {
+            SwordRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepSwordBox.Value ?? 0));
+            LanceRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLanceBox.Value ?? 0));
+            AxeRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAxeBox.Value ?? 0));
+            BowRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepBowBox.Value ?? 0));
+            StaffRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepStaffBox.Value ?? 0));
+            AnimaRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAnimaBox.Value ?? 0));
+            LightRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLightBox.Value ?? 0));
+            DarkRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepDarkBox.Value ?? 0));
         }
 
         void OnGrowthInputChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -100,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 EditSkillsButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
 
                 var items = _vm.LoadUnitList();
-                UnitList.SetItems(items);
+                UnitList.SetItemsWithIcons(items, index => LoadUnitPortraitThumbnail(items, index));
                 UpdateFE78Visibility();
             }
             catch (Exception ex)
@@ -186,6 +221,8 @@ namespace FEBuilderGBA.Avalonia.Views
             WepAnimaBox.Value = _vm.WepAnima;
             WepLightBox.Value = _vm.WepLight;
             WepDarkBox.Value = _vm.WepDark;
+
+            UpdateWeaponRankLabels();
 
             // Growth rates
             GrowHPBox.Value = _vm.GrowHP;
@@ -530,6 +567,32 @@ namespace FEBuilderGBA.Avalonia.Views
                     UpdateUI();
                 }
             });
+        }
+
+        /// <summary>
+        /// Load a portrait mini thumbnail for the unit at the given list index.
+        /// Returns null if portrait cannot be loaded.
+        /// </summary>
+        Bitmap? LoadUnitPortraitThumbnail(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                uint addr = items[index].addr;
+                // Portrait ID is at offset 6 (u16) in the unit struct
+                uint portraitId = rom.u16(addr + 6);
+                if (portraitId == 0) return null;
+
+                using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public void EnablePickMode() => UnitList.EnablePickMode();

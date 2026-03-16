@@ -123,8 +123,8 @@ namespace FEBuilderGBA.Tests.Unit
         // ---- Combo initialization order (fixes #52) ----
 
         [Theory]
-        [InlineData("UnitEditorView.axaml.cs", "ClassIdCombo.ItemsSource", ".SetItems(items)")]
-        [InlineData("UnitEditorView.axaml.cs", "AffinityCombo.ItemsSource", ".SetItems(items)")]
+        [InlineData("UnitEditorView.axaml.cs", "ClassIdCombo.ItemsSource", ".SetItemsWithIcons(items")]
+        [InlineData("UnitEditorView.axaml.cs", "AffinityCombo.ItemsSource", ".SetItemsWithIcons(items")]
         [InlineData("ItemEditorView.axaml.cs", "WeaponTypeCombo.ItemsSource", ".SetItems(items)")]
         public void ComboItemsSource_SetBeforeSetItems(string fileName, string comboAssign, string setItemsCall)
         {

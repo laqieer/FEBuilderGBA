@@ -45,6 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private void EasyOpenBattleAnime_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImageBattleAnimeView>();
         private void EasyOpenBigCG_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<BigCGViewerView>();
         private void EasyOpenImageViewer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImageViewerView>();
+        private void EasyOpenOAMSpriteViewer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OAMSpriteViewerView>();
 
         // Music
         private void EasyOpenSongTable_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTableView>();

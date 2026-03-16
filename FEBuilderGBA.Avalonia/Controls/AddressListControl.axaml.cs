@@ -6,18 +6,30 @@ using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Controls
 {
+    /// <summary>
+    /// Represents a single item in the address list, with optional icon thumbnail.
+    /// </summary>
+    public class AddressListItem
+    {
+        public string Text { get; set; } = "";
+        public Bitmap? Icon { get; set; }
+    }
+
     public partial class AddressListControl : UserControl
     {
-        readonly ObservableCollection<string> _displayItems = new();
+        readonly ObservableCollection<AddressListItem> _displayItems = new();
         List<AddrResult> _items = new();
         // Maps each display index to its corresponding index in _items.
         // When no filter is active, _filteredIndices[i] == i.
         List<int> _filteredIndices = new();
         bool _isRefreshing;
+        // Optional icon loader function: given an item index, returns a Bitmap or null.
+        Func<int, Bitmap?>? _iconLoader;
 
         /// <summary>Fired when the selected address changes.</summary>
         public event Action<uint>? SelectedAddressChanged;
@@ -40,6 +52,18 @@ namespace FEBuilderGBA.Avalonia.Controls
         public void SetItems(List<AddrResult> items)
         {
             _items = items ?? new List<AddrResult>();
+            _iconLoader = null;
+            RefreshDisplay();
+            SelectFirst();
+        }
+
+        /// <summary>Load address list with icon thumbnails for each item.</summary>
+        /// <param name="items">The address list items.</param>
+        /// <param name="iconLoader">Function that takes an item index and returns a Bitmap thumbnail, or null.</param>
+        public void SetItemsWithIcons(List<AddrResult> items, Func<int, Bitmap?> iconLoader)
+        {
+            _items = items ?? new List<AddrResult>();
+            _iconLoader = iconLoader;
             RefreshDisplay();
             SelectFirst();
         }
@@ -111,7 +135,11 @@ namespace FEBuilderGBA.Avalonia.Controls
                     string display = label;
                     if (filter != null && !display.Contains(filter, StringComparison.OrdinalIgnoreCase))
                         continue;
-                    _displayItems.Add(display);
+
+                    Bitmap? icon = null;
+                    try { icon = _iconLoader?.Invoke(i); } catch { /* ignore icon load failures */ }
+
+                    _displayItems.Add(new AddressListItem { Text = display, Icon = icon });
                     _filteredIndices.Add(i);
                 }
                 CountLabel.Text = $"{_items.Count} items";

@@ -106,25 +106,33 @@
         <!-- Weapon Levels Section -->
         <TextBlock Text="Weapon Levels" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
+          <Grid ColumnDefinitions="Auto,120,Auto,16,Auto,120,Auto,16,Auto,120,Auto" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="6" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="2" Name="SwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="4" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="5" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="6" Name="LanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="8" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="9" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="10" Name="AxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="3" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="6" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="2" Name="BowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="4" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="5" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="6" Name="StaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="8" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="9" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="10" Name="AnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="2" Grid.Column="3" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="2" Name="LightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="4" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="5" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="6" Name="DarkRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
           </Grid>
         </Border>
 

@@ -392,6 +392,214 @@ namespace FEBuilderGBA
             return image;
         }
 
+        /// <summary>
+        /// GBA OAM affine transform matrix (PA/PB/PC/PD).
+        /// Represents the 2x2 fixed-point matrix used for rotation/scaling.
+        /// Values are 8.8 fixed-point (256 = 1.0).
+        /// Transform: srcX = PA * dx + PB * dy, srcY = PC * dx + PD * dy
+        /// where (dx, dy) is relative to the sprite center.
+        /// </summary>
+        public struct OAMAffineData
+        {
+            /// <summary>Matrix element [0,0] — X scale / cos component. 8.8 fixed-point.</summary>
+            public short PA;
+            /// <summary>Matrix element [0,1] — X shear / -sin component. 8.8 fixed-point.</summary>
+            public short PB;
+            /// <summary>Matrix element [1,0] — Y shear / sin component. 8.8 fixed-point.</summary>
+            public short PC;
+            /// <summary>Matrix element [1,1] — Y scale / cos component. 8.8 fixed-point.</summary>
+            public short PD;
+        }
+
+        /// <summary>
+        /// Parse affine parameters from an FE custom OAM affine matrix entry.
+        /// Affine matrix entries are identified by bytes [2..3] == 0xFFFF.
+        /// The PA/PB/PC/PD values are stored at offsets [4..5], [6..7], [8..9], [10..11]
+        /// as signed 16-bit 8.8 fixed-point values.
+        /// </summary>
+        /// <param name="oamData">Raw OAM data bytes.</param>
+        /// <param name="entryOffset">Byte offset of the 12-byte OAM entry.</param>
+        /// <param name="affine">Parsed affine data output.</param>
+        /// <returns>True if this is a valid affine entry and was parsed successfully.</returns>
+        public static bool ParseAffineOAM(byte[] oamData, uint entryOffset, out OAMAffineData affine)
+        {
+            affine = default;
+            if (oamData == null || entryOffset + 12 > (uint)oamData.Length)
+                return false;
+
+            // Check the affine marker: bytes [2..3] must be 0xFFFF
+            if (oamData[entryOffset + 2] != 0xFF || oamData[entryOffset + 3] != 0xFF)
+                return false;
+
+            affine.PA = (short)(oamData[entryOffset + 4] | (oamData[entryOffset + 5] << 8));
+            affine.PB = (short)(oamData[entryOffset + 6] | (oamData[entryOffset + 7] << 8));
+            affine.PC = (short)(oamData[entryOffset + 8] | (oamData[entryOffset + 9] << 8));
+            affine.PD = (short)(oamData[entryOffset + 10] | (oamData[entryOffset + 11] << 8));
+            return true;
+        }
+
+        /// <summary>
+        /// Extract palette bank index from OAM attr2 byte.
+        /// In 4bpp (16-color) mode, bits 12-15 of attr2 select which 16-color
+        /// palette bank to use. In the FE custom format, this is stored in
+        /// byte[5] bits 4-7.
+        /// </summary>
+        /// <param name="oamByte5">The byte at offset [5] of the OAM entry.</param>
+        /// <returns>Palette bank index (0-15).</returns>
+        public static int ExtractPaletteBank(byte oamByte5)
+        {
+            return (oamByte5 >> 4) & 0xF;
+        }
+
+        /// <summary>
+        /// Blit a sprite with affine transformation (rotation/scaling).
+        /// For each destination pixel, computes the source coordinate using the inverse
+        /// affine matrix (PA/PB/PC/PD are treated as the GBA's texture-to-screen mapping).
+        /// </summary>
+        /// <param name="src">Source pixel data (RGBA).</param>
+        /// <param name="srcStride">Source image width in pixels.</param>
+        /// <param name="srcH">Source image height in pixels.</param>
+        /// <param name="srcX">Source region X (top-left, pixels).</param>
+        /// <param name="srcY">Source region Y (top-left, pixels).</param>
+        /// <param name="sprW">Original sprite width in pixels (before doubling).</param>
+        /// <param name="sprH">Original sprite height in pixels (before doubling).</param>
+        /// <param name="dst">Destination pixel data (RGBA).</param>
+        /// <param name="dstStride">Destination image width in pixels.</param>
+        /// <param name="dstH">Destination image height in pixels.</param>
+        /// <param name="dstX">Destination X position.</param>
+        /// <param name="dstY">Destination Y position.</param>
+        /// <param name="affine">Affine transform parameters (PA/PB/PC/PD in 8.8 fixed-point).</param>
+        /// <param name="sizeDoubled">True if the GBA double-size flag is set (doubles rendering area).</param>
+        internal static void BlitSpriteAffine(byte[] src, int srcStride, int srcH,
+                                   int srcX, int srcY, int sprW, int sprH,
+                                   byte[] dst, int dstStride, int dstH,
+                                   int dstX, int dstY,
+                                   OAMAffineData affine, bool sizeDoubled)
+        {
+            // The rendering area: if size-doubled, the output area is 2x the sprite size
+            int renderW = sizeDoubled ? sprW * 2 : sprW;
+            int renderH = sizeDoubled ? sprH * 2 : sprH;
+
+            // Center of the rendering area (in destination-local coords)
+            int halfRenderW = renderW / 2;
+            int halfRenderH = renderH / 2;
+
+            // Center of the source sprite region
+            int halfSprW = sprW / 2;
+            int halfSprH = sprH / 2;
+
+            // GBA affine: for each dest pixel (dx, dy) relative to center,
+            // source pixel = (PA * dx + PB * dy, PC * dx + PD * dy) relative to sprite center.
+            // PA/PB/PC/PD are 8.8 fixed-point, so we work in fixed-point then shift.
+
+            for (int py = 0; py < renderH; py++)
+            {
+                // dy relative to render center
+                int dy = py - halfRenderH;
+
+                for (int px = 0; px < renderW; px++)
+                {
+                    // dx relative to render center
+                    int dx = px - halfRenderW;
+
+                    // Apply affine transform (8.8 fixed-point math)
+                    // Source coords relative to sprite center
+                    int texX = (affine.PA * dx + affine.PB * dy + 128) >> 8;
+                    int texY = (affine.PC * dx + affine.PD * dy + 128) >> 8;
+
+                    // Convert to absolute source coordinates
+                    int sx = srcX + halfSprW + texX;
+                    int sy = srcY + halfSprH + texY;
+
+                    // Bounds check on source
+                    if (sx < srcX || sx >= srcX + sprW || sy < srcY || sy >= srcY + sprH)
+                        continue;
+                    if (sx < 0 || sx >= srcStride || sy < 0 || sy >= srcH)
+                        continue;
+
+                    int si = (sy * srcStride + sx) * 4;
+                    if (si + 3 >= src.Length) continue;
+                    if (src[si + 3] == 0) continue; // transparent
+
+                    int destPx = dstX + px;
+                    int destPy = dstY + py;
+                    if (destPx < 0 || destPx >= dstStride || destPy < 0 || destPy >= dstH)
+                        continue;
+
+                    int di = (destPy * dstStride + destPx) * 4;
+                    if (di + 3 >= dst.Length) continue;
+
+                    dst[di + 0] = src[si + 0];
+                    dst[di + 1] = src[si + 1];
+                    dst[di + 2] = src[si + 2];
+                    dst[di + 3] = src[si + 3];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Decode source sheet pixels from 4bpp tile data with palette bank support.
+        /// Each palette bank shifts the color index lookup by paletteBank * 16 colors
+        /// (paletteBank * 32 bytes) into the palette data.
+        /// </summary>
+        /// <param name="gfxData">4bpp tile graphics data.</param>
+        /// <param name="paletteData">Full palette data (may contain multiple 16-color banks).</param>
+        /// <param name="paletteBank">Palette bank index (0 = first 16 colors, 1 = next 16, etc.).</param>
+        /// <param name="sheetWidth">Sheet width in pixels.</param>
+        /// <param name="sheetHeight">Sheet height in pixels.</param>
+        /// <param name="svc">Image service for color conversion.</param>
+        /// <returns>RGBA pixel buffer, or null on failure.</returns>
+        internal static byte[] DecodeSheetWithPaletteBank(byte[] gfxData, byte[] paletteData,
+            int paletteBank, int sheetWidth, int sheetHeight, IImageService svc)
+        {
+            if (gfxData == null || paletteData == null || svc == null)
+                return null;
+
+            int sheetWidthTiles = sheetWidth / TILE_SIZE;
+            int totalGfxTiles = gfxData.Length / BYTES_PER_TILE_4BPP;
+            byte[] pixels = new byte[sheetWidth * sheetHeight * 4];
+
+            int palByteBase = paletteBank * 32; // 16 colors * 2 bytes each
+
+            for (int t = 0; t < totalGfxTiles && t < (sheetWidth / TILE_SIZE) * (sheetHeight / TILE_SIZE); t++)
+            {
+                int tileOff = t * BYTES_PER_TILE_4BPP;
+                int tileCol = t % sheetWidthTiles;
+                int tileRow = t / sheetWidthTiles;
+
+                for (int py = 0; py < TILE_SIZE; py++)
+                {
+                    for (int px = 0; px < TILE_SIZE; px++)
+                    {
+                        int bytePos = tileOff + py * 4 + px / 2;
+                        if (bytePos >= gfxData.Length) continue;
+
+                        byte b = gfxData[bytePos];
+                        int ci = (px % 2 == 0) ? (b & 0x0F) : ((b >> 4) & 0x0F);
+
+                        int palOff = palByteBase + ci * 2;
+                        if (palOff + 2 > paletteData.Length) continue;
+
+                        ushort gbaColor = (ushort)(paletteData[palOff] | (paletteData[palOff + 1] << 8));
+                        svc.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte bl);
+
+                        int sx = tileCol * TILE_SIZE + px;
+                        int sy = tileRow * TILE_SIZE + py;
+                        int si = (sy * sheetWidth + sx) * 4;
+                        if (si + 3 < pixels.Length)
+                        {
+                            pixels[si + 0] = r;
+                            pixels[si + 1] = g;
+                            pixels[si + 2] = bl;
+                            pixels[si + 3] = (byte)(ci == 0 ? 0 : 255);
+                        }
+                    }
+                }
+            }
+
+            return pixels;
+        }
+
         // FE battle animation OAM centering offsets (matches WinForms ImageUtilOAM)
         const int BITMAP_ADDX = 0x94;         // 148 — X offset to center sprites on 240px screen
         const int BITMAP_ADDY = 0x58;         // 88  — Y offset to center sprites on 160px screen
@@ -433,7 +641,14 @@ namespace FEBuilderGBA
 
             // Collect all OAM entries first, then draw in reverse order (back to front)
             var entries = new List<(int imgX, int imgY, int sheetX, int sheetY,
-                                    int w, int h, bool hFlip, bool vFlip)>();
+                                    int w, int h, bool hFlip, bool vFlip,
+                                    bool isAffine, OAMAffineData affine, bool sizeDoubled)>();
+
+            // First pass: collect affine matrix data from affine entries
+            // In FE custom OAM, affine entries have bytes [2..3] == 0xFFFF
+            // and store the matrix at bytes [4..11].
+            // We store the last parsed affine matrix to apply to subsequent affine sprites.
+            OAMAffineData currentAffine = new OAMAffineData { PA = 256, PB = 0, PC = 0, PD = 256 }; // identity
 
             for (uint pos = oamStart; ; pos += 12)
             {
@@ -446,9 +661,12 @@ namespace FEBuilderGBA
                     && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
                     break;
 
-                // Affine matrix entry: bytes [2..3] == 0xFFFF → skip (not a sprite)
+                // Affine matrix entry: bytes [2..3] == 0xFFFF → parse affine data, not a sprite
                 if (oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                {
+                    ParseAffineOAM(oamData, pos, out currentAffine);
                     continue;
+                }
 
                 // Normal terminator
                 if (firstByte == 0x01) break;
@@ -458,6 +676,11 @@ namespace FEBuilderGBA
 
                 byte align = oamData[pos + 1];
                 byte area  = oamData[pos + 3];
+
+                // Detect affine sprite: align bit 0 set indicates affine mode
+                bool isAffineSprite = (align & 0x01) != 0;
+                // Size-doubled: align bit 1 set when affine is enabled
+                bool sizeDoubled = isAffineSprite && (align & 0x02) != 0;
 
                 bool vFlip = (area & 0x10) != 0;
                 bool hFlip = (area & 0x20) != 0;
@@ -486,17 +709,28 @@ namespace FEBuilderGBA
 
                 if (imgX >= 256) imgX &= 0xFF;
 
-                entries.Add((imgX, imgY, sheetX, sheetY, sprW, sprH, hFlip, vFlip));
+                entries.Add((imgX, imgY, sheetX, sheetY, sprW, sprH, hFlip, vFlip,
+                             isAffineSprite, currentAffine, sizeDoubled));
             }
 
             // Draw in reverse order (first entries are drawn on top in GBA)
             for (int i = entries.Count - 1; i >= 0; i--)
             {
                 var e = entries[i];
-                BlitSprite(srcPixels, srcWidth, srcHeight,
-                           e.sheetX, e.sheetY, e.w, e.h,
-                           dstPixels, dstWidth, dstHeight,
-                           e.imgX, e.imgY, e.hFlip, e.vFlip);
+                if (e.isAffine)
+                {
+                    BlitSpriteAffine(srcPixels, srcWidth, srcHeight,
+                                     e.sheetX, e.sheetY, e.w, e.h,
+                                     dstPixels, dstWidth, dstHeight,
+                                     e.imgX, e.imgY, e.affine, e.sizeDoubled);
+                }
+                else
+                {
+                    BlitSprite(srcPixels, srcWidth, srcHeight,
+                               e.sheetX, e.sheetY, e.w, e.h,
+                               dstPixels, dstWidth, dstHeight,
+                               e.imgX, e.imgY, e.hFlip, e.vFlip);
+                }
             }
         }
 

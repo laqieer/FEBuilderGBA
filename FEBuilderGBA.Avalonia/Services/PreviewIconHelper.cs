@@ -1,7 +1,35 @@
 using System;
+using System.IO;
+using global::Avalonia.Media.Imaging;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
+    /// <summary>
+    /// Helper to convert IImage (SkiaSharp-backed) to Avalonia Bitmap.
+    /// </summary>
+    public static class ImageConversionHelper
+    {
+        /// <summary>
+        /// Convert an IImage to an Avalonia Bitmap via PNG encoding.
+        /// Returns null if the input is null or encoding fails.
+        /// </summary>
+        public static Bitmap? ToAvaloniaBitmap(IImage? image)
+        {
+            if (image == null) return null;
+            try
+            {
+                byte[] pngData = image.EncodePng();
+                if (pngData == null || pngData.Length == 0) return null;
+                using var ms = new MemoryStream(pngData);
+                return new Bitmap(ms);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
     /// <summary>
     /// Helper to render small preview icons for unit portraits, item icons, and class wait icons.
     /// Used by editor views to show a sidebar preview next to the address list.
