@@ -99,6 +99,40 @@ namespace FEBuilderGBA.Tests.Unit
                 "SelectFirst() must be called after RefreshDisplay()");
         }
 
+        [Fact]
+        public void AddressListControl_SearchBoxKeyDownHandlerExists()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("SearchBox.KeyDown += SearchBox_KeyDown", src);
+        }
+
+        [Fact]
+        public void AddressListControl_SearchBoxKeyDownInvokesFilter()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("void SearchBox_KeyDown(object? sender, KeyEventArgs e)", src);
+            Assert.Contains("ApplySearchFilter()", src);
+        }
+
+        [Fact]
+        public void MainWindow_FilterTextBoxKeyDownHandlerExists()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("FilterTextBox.KeyDown += FilterTextBox_KeyDown", src);
+        }
+
+        [Fact]
+        public void MainWindow_FilterTextBoxKeyDownInvokesApplyFilter()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("void FilterTextBox_KeyDown(object? sender, KeyEventArgs e)", src);
+            // The handler must call ApplyFilter
+            var handlerStart = src.IndexOf("void FilterTextBox_KeyDown(");
+            Assert.True(handlerStart >= 0);
+            var handlerBody = src.Substring(handlerStart, src.IndexOf('}', src.IndexOf('}', handlerStart) + 1) - handlerStart + 1);
+            Assert.Contains("ApplyFilter(", handlerBody);
+        }
+
         // ------------------------------------------------------------------ ViewModel bounds checks
 
         [Fact]

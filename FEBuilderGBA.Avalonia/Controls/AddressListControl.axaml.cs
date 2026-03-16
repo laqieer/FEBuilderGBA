@@ -34,6 +34,7 @@ namespace FEBuilderGBA.Avalonia.Controls
             AddressList.ItemsSource = _displayItems;
             AddressList.DoubleTapped += AddressList_DoubleTapped;
             AddressList.KeyDown += AddressList_KeyDown;
+            SearchBox.KeyDown += SearchBox_KeyDown;
         }
 
         /// <summary>Load address list from AddrResult items.</summary>
@@ -164,7 +165,21 @@ namespace FEBuilderGBA.Avalonia.Controls
                 AddressList.SelectedIndex++;
         }
 
+        void SearchBox_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ApplySearchFilter();
+                e.Handled = true;
+            }
+        }
+
         void Search_Click(object? sender, RoutedEventArgs e)
+        {
+            ApplySearchFilter();
+        }
+
+        void ApplySearchFilter()
         {
             string? filter = SearchBox.Text;
             if (string.IsNullOrWhiteSpace(filter))
