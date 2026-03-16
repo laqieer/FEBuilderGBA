@@ -178,6 +178,99 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Image", src);
         }
 
+        [Fact]
+        public void GbaImageControl_HasZoomProperty()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("public int Zoom", src);
+            Assert.Contains("ZoomMin", src);
+            Assert.Contains("ZoomMax", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasZoomHandlers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("OnPointerWheelChanged", src);
+            Assert.Contains("OnZoomInClick", src);
+            Assert.Contains("OnZoomOutClick", src);
+            Assert.Contains("OnZoomResetClick", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasScrollViewer()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml"));
+            Assert.Contains("ScrollViewer", axaml);
+            Assert.Contains("ImageScroller", axaml);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasZoomButtons()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml"));
+            Assert.Contains("ZoomInButton", axaml);
+            Assert.Contains("ZoomOutButton", axaml);
+            Assert.Contains("ZoomResetButton", axaml);
+            Assert.Contains("ZoomLabel", axaml);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasCursorCenteredZoom()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            // Cursor-centered zoom: must read cursor position and adjust scroll offset
+            Assert.Contains("GetPosition", src);
+            Assert.Contains("ImageScroller.Offset", src);
+            Assert.Contains("cursorInScroller", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasDragPanHandlers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("OnScrollerPointerPressed", src);
+            Assert.Contains("OnScrollerPointerMoved", src);
+            Assert.Contains("OnScrollerPointerReleased", src);
+            Assert.Contains("_isPanning", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_DragPanTracksStartPosition()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            // Must track pan start and scroll start for delta calculation
+            Assert.Contains("_panStart", src);
+            Assert.Contains("_scrollStartX", src);
+            Assert.Contains("_scrollStartY", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_MiddleButtonAndLeftZoomedPan()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            // Pan should work on middle button or left button when zoomed
+            Assert.Contains("IsMiddleButtonPressed", src);
+            Assert.Contains("IsLeftButtonPressed", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasIsPanningProperty()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("public bool IsPanning", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_WheelZoomScalesOffset()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            // Must compute scale ratio and apply to content coordinate
+            Assert.Contains("(double)newZoom / oldZoom", src);
+            Assert.Contains("contentX * scale", src);
+            Assert.Contains("contentY * scale", src);
+        }
+
         // ---- FileDialogHelper ----
 
         [Fact]
