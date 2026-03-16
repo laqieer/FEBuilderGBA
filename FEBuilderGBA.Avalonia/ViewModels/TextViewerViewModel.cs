@@ -40,45 +40,57 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public List<AddrResult> LoadTextList()
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            uint ptr = rom.RomInfo.text_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x2000; i++) // reasonable max
+            try
             {
-                uint entryAddr = (uint)(baseAddr + i * 4);
-                if (entryAddr + 3 >= (uint)rom.Data.Length) break;
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null || rom.Data == null) return new List<AddrResult>();
 
-                uint textPtr = rom.u32(entryAddr);
-                if (!IsValidTextPointer(textPtr)) break;
+                uint ptr = rom.RomInfo.text_pointer;
+                if (ptr == 0) return new List<AddrResult>();
 
-                string preview;
-                try
+                // Bounds check before reading text pointer table address
+                if (ptr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+                var result = new List<AddrResult>();
+                for (uint i = 0; i < 0x2000; i++) // reasonable max
                 {
-                    string decoded = FETextDecode.Direct(i);
-                    if (decoded != null)
-                        decoded = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
-                    if (decoded != null)
-                        decoded = StripControlChars(decoded);
-                    if (decoded != null && decoded.Length > 40)
-                        decoded = decoded.Substring(0, 40) + "...";
-                    preview = decoded ?? "";
-                }
-                catch
-                {
-                    preview = "";
-                }
+                    uint entryAddr = (uint)(baseAddr + i * 4);
+                    // Bounds check: need 4 bytes for the pointer read
+                    if (entryAddr + 4 > (uint)rom.Data.Length) break;
 
-                string name = U.ToHexString(i) + " " + preview;
-                result.Add(new AddrResult(entryAddr, name, i));
+                    uint textPtr = rom.u32(entryAddr);
+                    if (!IsValidTextPointer(textPtr)) break;
+
+                    string preview;
+                    try
+                    {
+                        string decoded = FETextDecode.Direct(i);
+                        if (decoded != null)
+                            decoded = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
+                        if (decoded != null)
+                            decoded = StripControlChars(decoded);
+                        if (decoded != null && decoded.Length > 40)
+                            decoded = decoded.Substring(0, 40) + "...";
+                        preview = decoded ?? "";
+                    }
+                    catch
+                    {
+                        preview = "";
+                    }
+
+                    string name = U.ToHexString(i) + " " + preview;
+                    result.Add(new AddrResult(entryAddr, name, i));
+                }
+                return result;
             }
-            return result;
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerViewModel.LoadTextList", ex.ToString());
+                return new List<AddrResult>();
+            }
         }
 
         public void LoadText(uint id)
@@ -86,21 +98,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentId = id;
             try
             {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null || rom.Data == null)
+                {
+                    DecodedText = "(no ROM loaded)";
+                    CanWrite = false;
+                    return;
+                }
+
                 string raw = FETextDecode.Direct(id) ?? "(empty)";
                 DecodedText = ConvertEscapeToFEditor(EscapeRawControlChars(raw));
+                CanWrite = true;
+
+                // Compute original encoded length
+                OriginalLength = ComputeOriginalEncodedLength(id);
+                // Validate current text
+                ValidateText(DecodedText);
+                // Find cross-references
+                CrossReferences = FindCrossReferences(id);
             }
-            catch
+            catch (Exception ex)
             {
                 DecodedText = "(decode error)";
+                CanWrite = false;
+                Log.Error("TextViewerViewModel.LoadText", ex.ToString());
             }
-            CanWrite = true;
-
-            // Compute original encoded length
-            OriginalLength = ComputeOriginalEncodedLength(id);
-            // Validate current text
-            ValidateText(DecodedText);
-            // Find cross-references
-            CrossReferences = FindCrossReferences(id);
         }
 
         /// <summary>
@@ -111,12 +133,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 ROM rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return 0;
+                if (rom?.RomInfo == null || rom.Data == null) return 0;
 
-                uint textBase = rom.p32(rom.RomInfo.text_pointer);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr + 4 > (uint)rom.Data.Length) return 0;
+
+                uint textBase = rom.p32(textPtr);
                 if (!U.isSafetyOffset(textBase, rom)) return 0;
 
                 uint writePointer = textBase + (id * 4);
+                if (writePointer + 4 > (uint)rom.Data.Length) return 0;
                 if (!U.isSafetyOffset(writePointer, rom)) return 0;
 
                 uint currentPointerValue = rom.u32(writePointer);
@@ -196,7 +222,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 ROM rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return refs;
+                if (rom?.RomInfo == null || rom.Data == null) return refs;
 
                 // Scan unit names (first u16 of each unit entry)
                 ScanTable(rom, rom.RomInfo.unit_pointer, rom.RomInfo.unit_datasize,
@@ -218,9 +244,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string kind, Func<uint, string> nameFunc, List<string> refs)
         {
             if (baseAddr == 0 || dataSize == 0) return;
+            if (rom?.Data == null) return;
             for (uint i = 0; i < 0x200; i++)
             {
                 uint entryAddr = baseAddr + (i * dataSize);
+                // Bounds check: need at least 2 bytes for u16 read
+                if (entryAddr + 2 > (uint)rom.Data.Length) break;
                 if (!U.isSafetyOffset(entryAddr + 1, rom)) break;
                 uint nameTextId = rom.u16(entryAddr);
                 if (nameTextId == textId)
@@ -333,23 +362,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 useUnHuffman = true;
             }
 
-            uint textBase = rom.p32(rom.RomInfo.text_pointer);
+            uint textPtrAddr = rom.RomInfo.text_pointer;
+            if (textPtrAddr + 4 > (uint)rom.Data.Length)
+                throw new InvalidOperationException("Text pointer address out of ROM bounds.");
+
+            uint textBase = rom.p32(textPtrAddr);
             if (!U.isSafetyOffset(textBase, rom))
                 throw new InvalidOperationException("Invalid text pointer table.");
 
             uint writePointer = textBase + (id * 4);
-            if (!U.isSafetyOffset(writePointer, rom))
+            if (writePointer + 4 > (uint)rom.Data.Length || !U.isSafetyOffset(writePointer, rom))
                 throw new InvalidOperationException($"Text ID 0x{id:X} out of range.");
 
             if (encoded == null || encoded.Length == 0)
             {
                 // Empty text: point to same as text ID 0
+                if (textBase + 4 > (uint)rom.Data.Length)
+                    throw new InvalidOperationException("Text base pointer out of ROM bounds.");
                 uint text0Pointer = rom.u32(textBase);
                 rom.write_u32(writePointer, text0Pointer);
                 return;
             }
 
             // Get original data size by decoding current text
+            if (writePointer + 4 > (uint)rom.Data.Length)
+                throw new InvalidOperationException($"Text ID 0x{id:X} pointer out of ROM bounds.");
             uint currentPointerValue = rom.u32(writePointer);
             uint originalSize = 0;
             bool currentIsUnHuffman = FETextEncode.IsUnHuffmanPatchPointer(currentPointerValue);
@@ -426,42 +463,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public List<AddrResult> SearchTexts(string query)
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || string.IsNullOrWhiteSpace(query))
-                return new List<AddrResult>();
-
-            uint ptr = rom.RomInfo.text_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x2000; i++)
+            try
             {
-                uint entryAddr = (uint)(baseAddr + i * 4);
-                if (entryAddr + 3 >= (uint)rom.Data.Length) break;
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null || rom.Data == null || string.IsNullOrWhiteSpace(query))
+                    return new List<AddrResult>();
 
-                uint textPtr = rom.u32(entryAddr);
-                if (!IsValidTextPointer(textPtr)) break;
+                uint ptr = rom.RomInfo.text_pointer;
+                if (ptr == 0) return new List<AddrResult>();
 
-                try
+                // Bounds check before reading text pointer table address
+                if (ptr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+                var result = new List<AddrResult>();
+                for (uint i = 0; i < 0x2000; i++)
                 {
-                    string decoded = FETextDecode.Direct(i);
-                    if (decoded == null) continue;
-                    decoded = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
+                    uint entryAddr = (uint)(baseAddr + i * 4);
+                    // Bounds check: need 4 bytes for the pointer read
+                    if (entryAddr + 4 > (uint)rom.Data.Length) break;
 
-                    if (decoded.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    uint textPtr = rom.u32(entryAddr);
+                    if (!IsValidTextPointer(textPtr)) break;
+
+                    try
                     {
-                        string preview = StripControlChars(decoded);
-                        if (preview != null && preview.Length > 40)
-                            preview = preview.Substring(0, 40) + "...";
-                        result.Add(new AddrResult(entryAddr, $"{U.ToHexString(i)} {preview}", i));
+                        string decoded = FETextDecode.Direct(i);
+                        if (decoded == null) continue;
+                        decoded = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
+
+                        if (decoded.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        {
+                            string preview = StripControlChars(decoded);
+                            if (preview != null && preview.Length > 40)
+                                preview = preview.Substring(0, 40) + "...";
+                            result.Add(new AddrResult(entryAddr, $"{U.ToHexString(i)} {preview}", i));
+                        }
                     }
+                    catch (Exception ex) { Log.Error("TextViewerViewModel.SearchTexts text decode: {0}", ex.Message); }
                 }
-                catch (Exception ex) { Log.Error("TextViewerViewModel.LoadTextList text decode: {0}", ex.Message); }
+                return result;
             }
-            return result;
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerViewModel.SearchTexts", ex.ToString());
+                return new List<AddrResult>();
+            }
         }
 
         public int GetListCount() => LoadTextList().Count;
@@ -472,7 +521,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int ExportAllTexts(string path)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
+            if (rom?.RomInfo == null || rom.Data == null) return 0;
 
             var entries = TranslateCore.DumpTexts(rom);
             TranslateCore.ExportToTSV(entries, path);
@@ -485,7 +534,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int ImportAllTexts(string path)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
+            if (rom?.RomInfo == null || rom.Data == null) return 0;
 
             var entries = TranslateCore.ImportFromTSV(path);
             if (entries.Count == 0) return 0;

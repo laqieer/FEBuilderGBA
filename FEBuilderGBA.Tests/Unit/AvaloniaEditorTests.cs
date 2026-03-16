@@ -259,6 +259,41 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public void SelectFirstItem()", src);
         }
 
+        // ------------------------------------------------------------------ Text Viewer Bounds Checks (issue #79)
+
+        [Fact]
+        public void TextViewerViewModel_HasRomDataNullCheck()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "TextViewerViewModel.cs"));
+            // LoadTextList should check rom.Data == null
+            Assert.Contains("rom.Data == null", src);
+        }
+
+        [Fact]
+        public void TextViewerViewModel_HasPointerBoundsCheck()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "TextViewerViewModel.cs"));
+            // Should have bounds checks like ptr + 4 > rom.Data.Length
+            Assert.Contains("ptr + 4 > (uint)rom.Data.Length", src);
+        }
+
+        [Fact]
+        public void TextViewerViewModel_HasTryCatchWithLogError()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "TextViewerViewModel.cs"));
+            Assert.Contains("Log.Error(\"TextViewerViewModel.LoadTextList\"", src);
+            Assert.Contains("Log.Error(\"TextViewerViewModel.SearchTexts\"", src);
+            Assert.Contains("Log.Error(\"TextViewerViewModel.LoadText\"", src);
+        }
+
+        [Fact]
+        public void TextViewerViewModel_HasEntryAddrBoundsCheck()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "TextViewerViewModel.cs"));
+            // Loop should check entryAddr + 4 > rom.Data.Length (not +3 >=)
+            Assert.Contains("entryAddr + 4 > (uint)rom.Data.Length", src);
+        }
+
         // ------------------------------------------------------------------ CC Branch Editor (WU-10)
 
         [Fact]
