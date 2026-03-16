@@ -34,6 +34,16 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (image is Bitmap bmp)
             {
+                if (File.Exists(path))
+                {
+                    var confirm = await MessageBoxWindow.Show(
+                        owner,
+                        $"File \"{Path.GetFileName(path)}\" already exists. Overwrite?",
+                        "Export",
+                        MessageBoxMode.YesNo);
+                    if (confirm != MessageBoxResult.Yes) return;
+                }
+
                 using var stream = File.Create(path);
                 bmp.Save(stream);
                 await MessageBoxWindow.Show(owner, $"Image saved to {Path.GetFileName(path)}", "Export", MessageBoxMode.Ok);

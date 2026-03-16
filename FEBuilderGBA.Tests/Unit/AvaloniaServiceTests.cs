@@ -198,6 +198,39 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("editor.MaxDiffPercent", src);
         }
 
+        // ---- ImageExportService overwrite confirmation (#66) ----
+
+        [Fact]
+        public void ImageExportService_ChecksFileExists_BeforeOverwrite()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageExportService.cs"));
+            Assert.Contains("File.Exists(path)", src);
+        }
+
+        [Fact]
+        public void ImageExportService_ShowsYesNoDialog_ForOverwrite()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageExportService.cs"));
+            Assert.Contains("MessageBoxMode.YesNo", src);
+        }
+
+        [Fact]
+        public void ImageExportService_CancelsExport_WhenUserDeclinesOverwrite()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageExportService.cs"));
+            // Verify the method returns early when user does not confirm
+            Assert.Contains("MessageBoxResult.Yes", src);
+            Assert.Contains("if (confirm != MessageBoxResult.Yes) return", src);
+        }
+
+        [Fact]
+        public void ImageExportService_OverwritePrompt_ContainsFileName()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ImageExportService.cs"));
+            // The overwrite prompt should display the filename
+            Assert.Contains("already exists. Overwrite?", src);
+        }
+
         // ---- All Avalonia editors have their corresponding .axaml view ----
 
         [Theory]
