@@ -335,7 +335,7 @@ Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 
 ### Don't: Stop at "ready to merge" without confirming MERGED
 "All checks pass" and "Copilot signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
-**Do:** Always run `gh pr view <N> --json state --jq '.state'` and confirm the output is `MERGED`. If not, diagnose and fix.
+**Do:** Always run `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` and confirm the output is `MERGED`. If not, diagnose and fix.
 
 ### Don't: Ignore GitHub Copilot bot inline comments
 The Copilot bot (separate from Copilot CLI) posts inline code comments on each push. Unresolved threads block merge when `required_review_thread_resolution` is enabled.
