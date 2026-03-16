@@ -11,6 +11,7 @@
       <MenuItem Header="_File">
         <MenuItem Header="_Open ROM..." Click="OpenRom_Click" />
         <MenuItem Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
+        <MenuItem Header="_Recent Files" Name="RecentFilesMenuItem" />
         <Separator />
         <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" />
         <MenuItem Header="Save _As..." Click="SaveAsRom_Click" Name="SaveAsMenuItem" IsEnabled="False" />

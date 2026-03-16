@@ -36,6 +36,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Refresh UI strings when language changes
             CoreState.LanguageChanged += OnLanguageChanged;
+
+            // Load recent files from config and build submenu
+            _vm.LoadRecentFiles();
+            RebuildRecentFilesMenu();
         }
 
         void OnLanguageChanged()
@@ -49,6 +53,55 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Refresh menu headers
                 RefreshMenuHeaders();
             });
+        }
+
+        /// <summary>
+        /// Rebuild the Recent Files submenu from the ViewModel's collection.
+        /// Grays out entries whose files no longer exist on disk.
+        /// </summary>
+        void RebuildRecentFilesMenu()
+        {
+            if (RecentFilesMenuItem == null) return;
+
+            RecentFilesMenuItem.Items.Clear();
+            _vm.RefreshRecentFileExistence();
+
+            if (_vm.RecentFiles.Count == 0)
+            {
+                var empty = new MenuItem { Header = R._("(No recent files)"), IsEnabled = false };
+                RecentFilesMenuItem.Items.Add(empty);
+                return;
+            }
+
+            foreach (var entry in _vm.RecentFiles)
+            {
+                var item = new MenuItem
+                {
+                    Header = entry.FilePath,
+                    IsEnabled = entry.Exists,
+                };
+                if (!entry.Exists)
+                {
+                    item.Header = entry.FilePath + " " + R._("(missing)");
+                }
+                string capturedPath = entry.FilePath;
+                item.Click += (_, _) => RecentFileItem_Click(capturedPath);
+                RecentFilesMenuItem.Items.Add(item);
+            }
+        }
+
+        void RecentFileItem_Click(string path)
+        {
+            if (!File.Exists(path))
+            {
+                _ = MessageBoxWindow.Show(this, R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                return;
+            }
+            bool ok = LoadRomFile(path);
+            if (!ok)
+            {
+                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+            }
         }
 
         void RefreshMenuHeaders()
@@ -242,11 +295,13 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch { VersionDetectionLabel.Text = ""; }
 
-            // Remember last opened ROM
+            // Remember last opened ROM + update recent files
             if (CoreState.Config != null)
             {
                 CoreState.Config["Last_Rom_Filename"] = path;
-                CoreState.Config.Save();
+                // AddRecentFile persists to config and calls Save
+                _vm.AddRecentFile(path);
+                RebuildRecentFilesMenu();
             }
 
             return true;

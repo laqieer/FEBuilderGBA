@@ -1,7 +1,40 @@
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Represents a single entry in the Recent Files list.
+    /// </summary>
+    public class RecentFileEntry : ViewModelBase
+    {
+        string _filePath = "";
+        bool _exists = true;
+
+        public string FilePath
+        {
+            get => _filePath;
+            set { SetField(ref _filePath, value); OnPropertyChanged(nameof(DisplayName)); }
+        }
+
+        public bool Exists
+        {
+            get => _exists;
+            set => SetField(ref _exists, value);
+        }
+
+        /// <summary>Short display name (filename only).</summary>
+        public string DisplayName => string.IsNullOrEmpty(_filePath)
+            ? "(empty)"
+            : Path.GetFileName(_filePath);
+    }
+
     public class MainWindowViewModel : ViewModelBase
     {
+        public const int MaxRecentFiles = 10;
+        public const string RecentFileKeyPrefix = "Recent_Rom_";
+
         bool _isRomLoaded;
         string _romVersion = "";
         string _romFilename = "";
@@ -9,6 +42,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _filterText = "";
         long _romSize;
         long _estimatedFreeSpace;
+
+        /// <summary>Observable list of recent files for the menu.</summary>
+        public ObservableCollection<RecentFileEntry> RecentFiles { get; } = new();
 
         public bool IsRomLoaded
         {
@@ -94,6 +130,85 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     break;
             }
             return count;
+        }
+
+        // ===== Recent Files Management =====
+
+        /// <summary>
+        /// Load recent files list from config into the observable collection.
+        /// </summary>
+        public void LoadRecentFiles()
+        {
+            RecentFiles.Clear();
+            if (CoreState.Config == null) return;
+
+            for (int i = 0; i < MaxRecentFiles; i++)
+            {
+                string path = CoreState.Config.at(RecentFileKeyPrefix + i, "");
+                if (string.IsNullOrEmpty(path)) continue;
+
+                RecentFiles.Add(new RecentFileEntry
+                {
+                    FilePath = path,
+                    Exists = File.Exists(path)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Add a ROM path to the top of the recent files list, removing duplicates.
+        /// Persists to config and refreshes the collection.
+        /// </summary>
+        public void AddRecentFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+
+            // Build list: new path first, then existing (without duplicates), capped at max
+            var paths = new System.Collections.Generic.List<string> { path };
+            foreach (var entry in RecentFiles)
+            {
+                if (!string.Equals(entry.FilePath, path, System.StringComparison.OrdinalIgnoreCase)
+                    && paths.Count < MaxRecentFiles)
+                {
+                    paths.Add(entry.FilePath);
+                }
+            }
+
+            // Persist to config
+            if (CoreState.Config != null)
+            {
+                for (int i = 0; i < MaxRecentFiles; i++)
+                {
+                    string key = RecentFileKeyPrefix + i;
+                    if (i < paths.Count)
+                        CoreState.Config[key] = paths[i];
+                    else if (CoreState.Config.ContainsKey(key))
+                        CoreState.Config.Remove(key);
+                }
+                CoreState.Config.Save();
+            }
+
+            // Refresh the observable collection
+            RecentFiles.Clear();
+            foreach (string p in paths)
+            {
+                RecentFiles.Add(new RecentFileEntry
+                {
+                    FilePath = p,
+                    Exists = File.Exists(p)
+                });
+            }
+        }
+
+        /// <summary>
+        /// Refresh the Exists flag on all entries (e.g., when menu is opened).
+        /// </summary>
+        public void RefreshRecentFileExistence()
+        {
+            foreach (var entry in RecentFiles)
+            {
+                entry.Exists = File.Exists(entry.FilePath);
+            }
         }
     }
 }
