@@ -25,6 +25,8 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
+        <MenuItem Header="_Collapse All Sections" Click="CollapseAll_Click" Name="CollapseAllMenuItem" />
+        <MenuItem Header="_Expand All Sections" Click="ExpandAll_Click" Name="ExpandAllMenuItem" />
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
@@ -95,383 +97,413 @@
         <TextBlock Name="FilterMatchLabel" IsVisible="False" Foreground="Gray" FontSize="12" Margin="0,0,0,4" />
 
         <!-- Editor Buttons Grid (visible when ROM loaded) -->
-        <StackPanel Name="EditorPanel" IsVisible="False" Spacing="16">
+        <StackPanel Name="EditorPanel" IsVisible="False" Spacing="4">
+
           <!-- Units & Classes -->
-          <TextBlock Text="Characters" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
-            <Button Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
-            <Button Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
-            <Button Content="Support Attribute" Click="OpenSupportAttribute_Click" Margin="4" MinWidth="100" />
-            <Button Content="Support Talk" Click="OpenSupportTalk_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Characters" IsExpanded="True" Name="CharactersExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
+              <Button Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
+              <Button Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
+              <Button Content="Support Attribute" Click="OpenSupportAttribute_Click" Margin="4" MinWidth="100" />
+              <Button Content="Support Talk" Click="OpenSupportTalk_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Items -->
-          <TextBlock Text="Items" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
-            <Button Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
-            <Button Content="Weapon Effect" Click="OpenItemWeaponEffect_Click" Margin="4" MinWidth="100" />
-            <Button Content="Stat Bonuses" Click="OpenItemStatBonuses_Click" Margin="4" MinWidth="100" />
-            <Button Content="Effectiveness" Click="OpenItemEffectiveness_Click" Margin="4" MinWidth="100" />
-            <Button Content="Promotion" Click="OpenItemPromotion_Click" Margin="4" MinWidth="100" />
-            <Button Content="Shop" Click="OpenItemShop_Click" Margin="4" MinWidth="100" />
-            <Button Content="Weapon Triangle" Click="OpenItemWeaponTriangle_Click" Margin="4" MinWidth="100" />
-            <Button Content="Usage Pointer" Click="OpenItemUsagePointer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Effect Pointer" Click="OpenItemEffectPointer_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Items" IsExpanded="True" Name="ItemsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
+              <Button Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
+              <Button Content="Weapon Effect" Click="OpenItemWeaponEffect_Click" Margin="4" MinWidth="100" />
+              <Button Content="Stat Bonuses" Click="OpenItemStatBonuses_Click" Margin="4" MinWidth="100" />
+              <Button Content="Effectiveness" Click="OpenItemEffectiveness_Click" Margin="4" MinWidth="100" />
+              <Button Content="Promotion" Click="OpenItemPromotion_Click" Margin="4" MinWidth="100" />
+              <Button Content="Shop" Click="OpenItemShop_Click" Margin="4" MinWidth="100" />
+              <Button Content="Weapon Triangle" Click="OpenItemWeaponTriangle_Click" Margin="4" MinWidth="100" />
+              <Button Content="Usage Pointer" Click="OpenItemUsagePointer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Effect Pointer" Click="OpenItemEffectPointer_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Maps -->
-          <TextBlock Text="Maps" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
-            <Button Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
-            <Button Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
-            <Button Content="Event Conditions" Click="OpenEventCond_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Changes" Click="OpenMapChange_Click" Margin="4" MinWidth="100" />
-            <Button Content="Exit Points" Click="OpenMapExitPoint_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Pointers" Click="OpenMapPointer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Tile Animation" Click="OpenMapTileAnimation_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Maps" IsExpanded="True" Name="MapsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
+              <Button Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
+              <Button Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
+              <Button Content="Event Conditions" Click="OpenEventCond_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Changes" Click="OpenMapChange_Click" Margin="4" MinWidth="100" />
+              <Button Content="Exit Points" Click="OpenMapExitPoint_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Pointers" Click="OpenMapPointer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Tile Animation" Click="OpenMapTileAnimation_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Text -->
-          <TextBlock Text="Text" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Text Viewer" Click="OpenTextViewer_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Text" IsExpanded="True" Name="TextExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Text Viewer" Click="OpenTextViewer_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Graphics -->
-          <TextBlock Text="Graphics" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
-            <Button Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
-            <Button Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
-            <Button Content="Hover Colors" Click="OpenSystemHoverColor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle BG" Click="OpenBattleBG_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Terrain" Click="OpenBattleTerrain_Click" Margin="4" MinWidth="100" />
-            <Button Content="Chapter Title" Click="OpenChapterTitle_Click" Margin="4" MinWidth="100" />
-            <Button Content="CG Viewer" Click="OpenBigCG_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Class Demo" Click="OpenOPClassDemo_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Class Font" Click="OpenOPClassFont_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Prologue" Click="OpenOPPrologue_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Graphics" IsExpanded="True" Name="GraphicsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
+              <Button Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
+              <Button Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
+              <Button Content="Hover Colors" Click="OpenSystemHoverColor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle BG" Click="OpenBattleBG_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Terrain" Click="OpenBattleTerrain_Click" Margin="4" MinWidth="100" />
+              <Button Content="Chapter Title" Click="OpenChapterTitle_Click" Margin="4" MinWidth="100" />
+              <Button Content="CG Viewer" Click="OpenBigCG_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Class Demo" Click="OpenOPClassDemo_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Class Font" Click="OpenOPClassFont_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Prologue" Click="OpenOPPrologue_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Audio -->
-          <TextBlock Text="Audio" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
-            <Button Content="Boss BGM" Click="OpenSoundBossBGM_Click" Margin="4" MinWidth="100" />
-            <Button Content="Footsteps" Click="OpenSoundFootSteps_Click" Margin="4" MinWidth="100" />
-            <Button Content="Sound Room" Click="OpenSoundRoom_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Audio" IsExpanded="True" Name="AudioExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
+              <Button Content="Boss BGM" Click="OpenSoundBossBGM_Click" Margin="4" MinWidth="100" />
+              <Button Content="Footsteps" Click="OpenSoundFootSteps_Click" Margin="4" MinWidth="100" />
+              <Button Content="Sound Room" Click="OpenSoundRoom_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Arena -->
-          <TextBlock Text="Arena" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Arena Class" Click="OpenArenaClass_Click" Margin="4" MinWidth="100" />
-            <Button Content="Arena Enemy Weapon" Click="OpenArenaEnemyWeapon_Click" Margin="4" MinWidth="100" />
-            <Button Content="Link Arena Deny" Click="OpenLinkArenaDenyUnit_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Arena" IsExpanded="True" Name="ArenaExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Arena Class" Click="OpenArenaClass_Click" Margin="4" MinWidth="100" />
+              <Button Content="Arena Enemy Weapon" Click="OpenArenaEnemyWeapon_Click" Margin="4" MinWidth="100" />
+              <Button Content="Link Arena Deny" Click="OpenLinkArenaDenyUnit_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Monsters -->
-          <TextBlock Name="MonstersHeader" Text="Monsters" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Name="MonstersPanel" Orientation="Horizontal">
-            <Button Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
-            <Button Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
-            <Button Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Monsters" IsExpanded="True" Name="MonstersExpander">
+            <WrapPanel Name="MonstersPanel" Orientation="Horizontal">
+              <Button Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
+              <Button Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
+              <Button Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Summons -->
-          <TextBlock Name="SummonsHeader" Text="Summons" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Name="SummonsPanel" Orientation="Horizontal">
-            <Button Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
-            <Button Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Summons" IsExpanded="True" Name="SummonsExpander">
+            <WrapPanel Name="SummonsPanel" Orientation="Horizontal">
+              <Button Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
+              <Button Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Items (Specialized) -->
-          <TextBlock Text="Items (Specialized)" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Stat Bonuses (Skill)" Click="OpenItemStatBonusesSkillSystems_Click" Margin="4" MinWidth="100" />
-            <Button Content="Stat Bonuses (Venno)" Click="OpenItemStatBonusesVenno_Click" Margin="4" MinWidth="100" />
-            <Button Content="Effectiveness (Rework)" Click="OpenItemEffectivenessSkillSystemsRework_Click" Margin="4" MinWidth="100" />
-            <Button Content="Random Chest" Click="OpenItemRandomChest_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Items (Specialized)" IsExpanded="True" Name="ItemsSpecializedExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Stat Bonuses (Skill)" Click="OpenItemStatBonusesSkillSystems_Click" Margin="4" MinWidth="100" />
+              <Button Content="Stat Bonuses (Venno)" Click="OpenItemStatBonusesVenno_Click" Margin="4" MinWidth="100" />
+              <Button Content="Effectiveness (Rework)" Click="OpenItemEffectivenessSkillSystemsRework_Click" Margin="4" MinWidth="100" />
+              <Button Content="Random Chest" Click="OpenItemRandomChest_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Menus -->
-          <TextBlock Text="Menus" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
-            <Button Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
-            <Button Content="Split Menu Ext" Click="OpenMenuExtendSplitMenu_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Menus" IsExpanded="True" Name="MenusExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
+              <Button Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
+              <Button Content="Split Menu Ext" Click="OpenMenuExtendSplitMenu_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Credits -->
-          <TextBlock Text="Credits" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
-            <Button Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
-            <Button Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
-            <Button Name="SensekiCommentButton" Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Credits" IsExpanded="True" Name="CreditsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
+              <Button Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
+              <Button Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
+              <Button Name="SensekiCommentButton" Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- World Map -->
-          <TextBlock Text="World Map" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Map Points" Click="OpenWorldMapPoint_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map BGM" Click="OpenWorldMapBGM_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="World Map" IsExpanded="True" Name="WorldMapExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Map Points" Click="OpenWorldMapPoint_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map BGM" Click="OpenWorldMapBGM_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Image Editors -->
-          <TextBlock Text="Image Editors" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Portrait Editor" Click="OpenImagePortrait_Click" Margin="4" MinWidth="100" />
-            <Button Content="Portrait (FE6)" Click="OpenImagePortraitFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Portrait Import" Click="OpenImagePortraitImporter_Click" Margin="4" MinWidth="100" />
-            <Button Content="BG Editor" Click="OpenImageBG_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Anim" Click="OpenImageBattleAnime_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Anim Pal" Click="OpenImageBattleAnimePallet_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle BG Edit" Click="OpenImageBattleBG_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Screen" Click="OpenImageBattleScreen_Click" Margin="4" MinWidth="100" />
-            <Button Content="CG Editor" Click="OpenImageCG_Click" Margin="4" MinWidth="100" />
-            <Button Content="CG (FE7U)" Click="OpenImageCGFE7U_Click" Margin="4" MinWidth="100" />
-            <Button Content="Unit Palette" Click="OpenImageUnitPalette_Click" Margin="4" MinWidth="100" />
-            <Button Content="Wait Icon" Click="OpenImageUnitWaitIcon_Click" Margin="4" MinWidth="100" />
-            <Button Content="Move Icon" Click="OpenImageUnitMoveIcon_Click" Margin="4" MinWidth="100" />
-            <Button Content="System Area" Click="OpenImageSystemArea_Click" Margin="4" MinWidth="100" />
-            <Button Content="Generic Enemy" Click="OpenImageGenericEnemyPortrait_Click" Margin="4" MinWidth="100" />
-            <Button Content="ROM Anime" Click="OpenImageRomAnime_Click" Margin="4" MinWidth="100" />
-            <Button Content="TSA Editor" Click="OpenImageTSAEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="TSA Anime" Click="OpenImageTSAAnime_Click" Margin="4" MinWidth="100" />
-            <Button Content="TSA Anime 2" Click="OpenImageTSAAnime2_Click" Margin="4" MinWidth="100" />
-            <Button Content="Palette" Click="OpenImagePallet_Click" Margin="4" MinWidth="100" />
-            <Button Content="Magic FEditor" Click="OpenImageMagicFEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="CSA Creator" Click="OpenImageMagicCSACreator_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Action Anim" Click="OpenImageMapActionAnimation_Click" Margin="4" MinWidth="100" />
-            <Button Content="Color Reduce" Click="OpenDecreaseColorTSATool_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Image Editors" IsExpanded="True" Name="ImageEditorsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Portrait Editor" Click="OpenImagePortrait_Click" Margin="4" MinWidth="100" />
+              <Button Content="Portrait (FE6)" Click="OpenImagePortraitFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Portrait Import" Click="OpenImagePortraitImporter_Click" Margin="4" MinWidth="100" />
+              <Button Content="BG Editor" Click="OpenImageBG_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Anim" Click="OpenImageBattleAnime_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Anim Pal" Click="OpenImageBattleAnimePallet_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle BG Edit" Click="OpenImageBattleBG_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Screen" Click="OpenImageBattleScreen_Click" Margin="4" MinWidth="100" />
+              <Button Content="CG Editor" Click="OpenImageCG_Click" Margin="4" MinWidth="100" />
+              <Button Content="CG (FE7U)" Click="OpenImageCGFE7U_Click" Margin="4" MinWidth="100" />
+              <Button Content="Unit Palette" Click="OpenImageUnitPalette_Click" Margin="4" MinWidth="100" />
+              <Button Content="Wait Icon" Click="OpenImageUnitWaitIcon_Click" Margin="4" MinWidth="100" />
+              <Button Content="Move Icon" Click="OpenImageUnitMoveIcon_Click" Margin="4" MinWidth="100" />
+              <Button Content="System Area" Click="OpenImageSystemArea_Click" Margin="4" MinWidth="100" />
+              <Button Content="Generic Enemy" Click="OpenImageGenericEnemyPortrait_Click" Margin="4" MinWidth="100" />
+              <Button Content="ROM Anime" Click="OpenImageRomAnime_Click" Margin="4" MinWidth="100" />
+              <Button Content="TSA Editor" Click="OpenImageTSAEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="TSA Anime" Click="OpenImageTSAAnime_Click" Margin="4" MinWidth="100" />
+              <Button Content="TSA Anime 2" Click="OpenImageTSAAnime2_Click" Margin="4" MinWidth="100" />
+              <Button Content="Palette" Click="OpenImagePallet_Click" Margin="4" MinWidth="100" />
+              <Button Content="Magic FEditor" Click="OpenImageMagicFEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="CSA Creator" Click="OpenImageMagicCSACreator_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Action Anim" Click="OpenImageMapActionAnimation_Click" Margin="4" MinWidth="100" />
+              <Button Content="Color Reduce" Click="OpenDecreaseColorTSATool_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Event Script Editors -->
-          <TextBlock Text="Event Scripts" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Event Script" Click="OpenEventScript_Click" Margin="4" MinWidth="100" />
-            <Button Content="Event Unit" Click="OpenEventUnit_Click" Margin="4" MinWidth="100" />
-            <Button Content="Event Unit (FE6)" Click="OpenEventUnitFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Event Unit (FE7)" Click="OpenEventUnitFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Unit Color" Click="OpenEventUnitColor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Item Drop" Click="OpenEventUnitItemDrop_Click" Margin="4" MinWidth="100" />
-            <Button Content="New Alloc" Click="OpenEventUnitNewAlloc_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Talk" Click="OpenEventBattleTalk_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Talk (FE6)" Click="OpenEventBattleTalkFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Talk (FE7)" Click="OpenEventBattleTalkFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Battle Data (FE7)" Click="OpenEventBattleDataFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Haiku" Click="OpenEventHaiku_Click" Margin="4" MinWidth="100" />
-            <Button Content="Haiku (FE6)" Click="OpenEventHaikuFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Haiku (FE7)" Click="OpenEventHaikuFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Change Evt" Click="OpenEventMapChange_Click" Margin="4" MinWidth="100" />
-            <Button Content="Force Sortie" Click="OpenEventForceSortie_Click" Margin="4" MinWidth="100" />
-            <Button Content="Force Sortie (FE7)" Click="OpenEventForceSortieFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Func Pointer" Click="OpenEventFunctionPointer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Func Ptr (FE7)" Click="OpenEventFunctionPointerFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
-            <Button Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
-            <Button Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 1" Click="OpenEventTemplate1_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 2" Click="OpenEventTemplate2_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 3" Click="OpenEventTemplate3_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 4" Click="OpenEventTemplate4_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 5" Click="OpenEventTemplate5_Click" Margin="4" MinWidth="100" />
-            <Button Content="Template 6" Click="OpenEventTemplate6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Final Serif (FE7)" Click="OpenEventFinalSerifFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Move Data (FE7)" Click="OpenEventMoveDataFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Talk Group (FE7)" Click="OpenEventTalkGroupFE7_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Event Scripts" IsExpanded="True" Name="EventScriptsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Event Script" Click="OpenEventScript_Click" Margin="4" MinWidth="100" />
+              <Button Content="Event Unit" Click="OpenEventUnit_Click" Margin="4" MinWidth="100" />
+              <Button Content="Event Unit (FE6)" Click="OpenEventUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Event Unit (FE7)" Click="OpenEventUnitFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Unit Color" Click="OpenEventUnitColor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Item Drop" Click="OpenEventUnitItemDrop_Click" Margin="4" MinWidth="100" />
+              <Button Content="New Alloc" Click="OpenEventUnitNewAlloc_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Talk" Click="OpenEventBattleTalk_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Talk (FE6)" Click="OpenEventBattleTalkFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Talk (FE7)" Click="OpenEventBattleTalkFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Battle Data (FE7)" Click="OpenEventBattleDataFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Haiku" Click="OpenEventHaiku_Click" Margin="4" MinWidth="100" />
+              <Button Content="Haiku (FE6)" Click="OpenEventHaikuFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Haiku (FE7)" Click="OpenEventHaikuFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Change Evt" Click="OpenEventMapChange_Click" Margin="4" MinWidth="100" />
+              <Button Content="Force Sortie" Click="OpenEventForceSortie_Click" Margin="4" MinWidth="100" />
+              <Button Content="Force Sortie (FE7)" Click="OpenEventForceSortieFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Func Pointer" Click="OpenEventFunctionPointer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Func Ptr (FE7)" Click="OpenEventFunctionPointerFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
+              <Button Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
+              <Button Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 1" Click="OpenEventTemplate1_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 2" Click="OpenEventTemplate2_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 3" Click="OpenEventTemplate3_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 4" Click="OpenEventTemplate4_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 5" Click="OpenEventTemplate5_Click" Margin="4" MinWidth="100" />
+              <Button Content="Template 6" Click="OpenEventTemplate6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Final Serif (FE7)" Click="OpenEventFinalSerifFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Move Data (FE7)" Click="OpenEventMoveDataFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Talk Group (FE7)" Click="OpenEventTalkGroupFE7_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- AI Script Editors -->
-          <TextBlock Text="AI Scripts" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
-            <Button Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
-            <Button Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="AI Scripts" IsExpanded="True" Name="AIScriptsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
+              <Button Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
+              <Button Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Map Editors (Advanced) -->
-          <TextBlock Text="Map Editors" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
-            <Button Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
-            <Button Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
-            <Button Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
-            <Button Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
-            <Button Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
-            <Button Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
-            <Button Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
-            <Button Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Map Editors" IsExpanded="True" Name="MapEditorsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
+              <Button Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
+              <Button Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
+              <Button Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
+              <Button Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
+              <Button Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
+              <Button Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
+              <Button Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
+              <Button Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Audio (Advanced) -->
-          <TextBlock Text="Audio (Advanced)" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Song Track" Click="OpenSongTrack_Click" Margin="4" MinWidth="100" />
-            <Button Content="Instrument" Click="OpenSongInstrument_Click" Margin="4" MinWidth="100" />
-            <Button Content="Direct Sound" Click="OpenSongInstrumentDirectSound_Click" Margin="4" MinWidth="100" />
-            <Button Content="Wave Import" Click="OpenSongInstrumentImportWave_Click" Margin="4" MinWidth="100" />
-            <Button Content="MIDI Import" Click="OpenSongTrackImportMidi_Click" Margin="4" MinWidth="100" />
-            <Button Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
-            <Button Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
-            <Button Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
-            <Button Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
-            <Button Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
-            <Button Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Audio (Advanced)" IsExpanded="True" Name="AudioAdvancedExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Song Track" Click="OpenSongTrack_Click" Margin="4" MinWidth="100" />
+              <Button Content="Instrument" Click="OpenSongInstrument_Click" Margin="4" MinWidth="100" />
+              <Button Content="Direct Sound" Click="OpenSongInstrumentDirectSound_Click" Margin="4" MinWidth="100" />
+              <Button Content="Wave Import" Click="OpenSongInstrumentImportWave_Click" Margin="4" MinWidth="100" />
+              <Button Content="MIDI Import" Click="OpenSongTrackImportMidi_Click" Margin="4" MinWidth="100" />
+              <Button Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
+              <Button Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
+              <Button Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
+              <Button Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
+              <Button Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
+              <Button Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Unit/Class Specialized -->
-          <TextBlock Text="Unit/Class Specialized" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Unit (FE6)" Click="OpenUnitFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Action Pointer" Click="OpenUnitActionPointer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Custom Anim" Click="OpenUnitCustomBattleAnime_Click" Margin="4" MinWidth="100" />
-            <Button Content="Height" Click="OpenUnitIncreaseHeight_Click" Margin="4" MinWidth="100" />
-            <Button Content="Unit Palette" Click="OpenUnitPalette_Click" Margin="4" MinWidth="100" />
-            <Button Content="Class (FE6)" Click="OpenClassFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Class OP Demo" Click="OpenClassOPDemo_Click" Margin="4" MinWidth="100" />
-            <Button Content="Class OP Font" Click="OpenClassOPFont_Click" Margin="4" MinWidth="100" />
-            <Button Content="Extra Unit" Click="OpenExtraUnit_Click" Margin="4" MinWidth="100" />
-            <Button Content="Extra (FE8U)" Click="OpenExtraUnitFE8U_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Unit/Class Specialized" IsExpanded="True" Name="UnitClassSpecializedExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Unit (FE6)" Click="OpenUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Action Pointer" Click="OpenUnitActionPointer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Custom Anim" Click="OpenUnitCustomBattleAnime_Click" Margin="4" MinWidth="100" />
+              <Button Content="Height" Click="OpenUnitIncreaseHeight_Click" Margin="4" MinWidth="100" />
+              <Button Content="Unit Palette" Click="OpenUnitPalette_Click" Margin="4" MinWidth="100" />
+              <Button Content="Class (FE6)" Click="OpenClassFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Class OP Demo" Click="OpenClassOPDemo_Click" Margin="4" MinWidth="100" />
+              <Button Content="Class OP Font" Click="OpenClassOPFont_Click" Margin="4" MinWidth="100" />
+              <Button Content="Extra Unit" Click="OpenExtraUnit_Click" Margin="4" MinWidth="100" />
+              <Button Content="Extra (FE8U)" Click="OpenExtraUnitFE8U_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Text/Translation -->
-          <TextBlock Text="Text/Translation" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Text Editor" Click="OpenTextMain_Click" Margin="4" MinWidth="100" />
-            <Button Content="Other Text" Click="OpenOtherText_Click" Margin="4" MinWidth="100" />
-            <Button Content="C-String" Click="OpenCString_Click" Margin="4" MinWidth="100" />
-            <Button Content="Font Editor" Click="OpenFontEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Font ZH" Click="OpenFontZH_Click" Margin="4" MinWidth="100" />
-            <Button Content="Dev Translate" Click="OpenDevTranslate_Click" Margin="4" MinWidth="100" />
-            <Button Content="ROM Translate" Click="OpenToolTranslateROM_Click" Margin="4" MinWidth="100" />
-            <Button Content="Text Escape" Click="OpenTextEscapeEditor_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Text/Translation" IsExpanded="True" Name="TextTranslationExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Text Editor" Click="OpenTextMain_Click" Margin="4" MinWidth="100" />
+              <Button Content="Other Text" Click="OpenOtherText_Click" Margin="4" MinWidth="100" />
+              <Button Content="C-String" Click="OpenCString_Click" Margin="4" MinWidth="100" />
+              <Button Content="Font Editor" Click="OpenFontEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Font ZH" Click="OpenFontZH_Click" Margin="4" MinWidth="100" />
+              <Button Content="Dev Translate" Click="OpenDevTranslate_Click" Margin="4" MinWidth="100" />
+              <Button Content="ROM Translate" Click="OpenToolTranslateROM_Click" Margin="4" MinWidth="100" />
+              <Button Content="Text Escape" Click="OpenTextEscapeEditor_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Patch/Mod Management -->
-          <TextBlock Text="Patches" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Patch Manager" Click="OpenPatchManager_Click" Margin="4" MinWidth="100" />
-            <Button Content="Custom Build" Click="OpenToolCustomBuild_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Patches" IsExpanded="True" Name="PatchesExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Patch Manager" Click="OpenPatchManager_Click" Margin="4" MinWidth="100" />
+              <Button Content="Custom Build" Click="OpenToolCustomBuild_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Skill Systems -->
-          <TextBlock Name="SkillsHeader" Text="Skill Systems" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Name="SkillsPanel" Orientation="Horizontal">
-            <Button Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
-            <Button Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
-            <Button Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Skill Systems" IsExpanded="True" Name="SkillsExpander">
+            <WrapPanel Name="SkillsPanel" Orientation="Horizontal">
+              <Button Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
+              <Button Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
+              <Button Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- World Map (Advanced) -->
-          <TextBlock Text="World Map (Advanced)" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Map Paths" Click="OpenWorldMapPath_Click" Margin="4" MinWidth="100" />
-            <Button Content="Path Editor" Click="OpenWorldMapPathEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Image" Click="OpenWorldMapImage_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Image (FE6)" Click="OpenWorldMapImageFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Map Image (FE7)" Click="OpenWorldMapImageFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Events (FE6)" Click="OpenWorldMapEventPointerFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Events (FE7)" Click="OpenWorldMapEventPointerFE7_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="World Map (Advanced)" IsExpanded="True" Name="WorldMapAdvancedExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Map Paths" Click="OpenWorldMapPath_Click" Margin="4" MinWidth="100" />
+              <Button Content="Path Editor" Click="OpenWorldMapPathEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Image" Click="OpenWorldMapImage_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Image (FE6)" Click="OpenWorldMapImageFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Map Image (FE7)" Click="OpenWorldMapImageFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Events (FE6)" Click="OpenWorldMapEventPointerFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Events (FE7)" Click="OpenWorldMapEventPointerFE7_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Structural Data -->
-          <TextBlock Text="Structural Data" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Cmd85 Pointer" Click="OpenCommand85Pointer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Spell Menu Ext" Click="OpenFE8SpellMenuExtends_Click" Margin="4" MinWidth="100" />
-            <Button Content="Status Option" Click="OpenStatusOption_Click" Margin="4" MinWidth="100" />
-            <Button Content="OAM Sprite" Click="OpenOAMSP_Click" Margin="4" MinWidth="100" />
-            <Button Content="Struct Dump" Click="OpenDumpStructSelectDialog_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Structural Data" IsExpanded="True" Name="StructuralDataExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Cmd85 Pointer" Click="OpenCommand85Pointer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Spell Menu Ext" Click="OpenFE8SpellMenuExtends_Click" Margin="4" MinWidth="100" />
+              <Button Content="Status Option" Click="OpenStatusOption_Click" Margin="4" MinWidth="100" />
+              <Button Content="OAM Sprite" Click="OpenOAMSP_Click" Margin="4" MinWidth="100" />
+              <Button Content="Struct Dump" Click="OpenDumpStructSelectDialog_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Tools -->
-          <TextBlock Text="Tools" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
-            <Button Content="Undo History" Click="OpenToolUndo_Click" Margin="4" MinWidth="100" />
-            <Button Content="FELint GUI" Click="OpenToolFELint_Click" Margin="4" MinWidth="100" />
-            <Button Content="ROM Rebuild" Click="OpenToolROMRebuild_Click" Margin="4" MinWidth="100" />
-            <Button Content="LZ77 Tool" Click="OpenToolLZ77_Click" Margin="4" MinWidth="100" />
-            <Button Content="ROM Diff" Click="OpenToolDiff_Click" Margin="4" MinWidth="100" />
-            <Button Content="UPS Create" Click="OpenToolUPSPatchSimple_Click" Margin="4" MinWidth="100" />
-            <Button Content="UPS Apply" Click="OpenToolUPSOpenSimple_Click" Margin="4" MinWidth="100" />
-            <Button Content="Flag Names" Click="OpenToolFlagName_Click" Margin="4" MinWidth="100" />
-            <Button Content="Flag Usage" Click="OpenToolUseFlag_Click" Margin="4" MinWidth="100" />
-            <Button Content="Talk Groups" Click="OpenToolUnitTalkGroup_Click" Margin="4" MinWidth="100" />
-            <Button Content="ASM Insert" Click="OpenToolASMInsert_Click" Margin="4" MinWidth="100" />
-            <Button Content="Hex Editor" Click="OpenHexEditor_Click" Margin="4" MinWidth="100" />
-            <Button Content="Disassembler" Click="OpenDisASM_Click" Margin="4" MinWidth="100" />
-            <Button Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
-            <Button Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
-            <Button Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
-            <Button Content="Pointer Tool" Click="OpenPointerTool_Click" Margin="4" MinWidth="100" />
-            <Button Content="Free Space" Click="OpenMoveToFreeSpace_Click" Margin="4" MinWidth="100" />
-            <Button Content="Graphics Tool" Click="OpenGraphicsTool_Click" Margin="4" MinWidth="100" />
-            <Button Content="BGM Mute" Click="OpenToolBGMMuteDialog_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Tools" IsExpanded="True" Name="ToolsExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
+              <Button Content="Undo History" Click="OpenToolUndo_Click" Margin="4" MinWidth="100" />
+              <Button Content="FELint GUI" Click="OpenToolFELint_Click" Margin="4" MinWidth="100" />
+              <Button Content="ROM Rebuild" Click="OpenToolROMRebuild_Click" Margin="4" MinWidth="100" />
+              <Button Content="LZ77 Tool" Click="OpenToolLZ77_Click" Margin="4" MinWidth="100" />
+              <Button Content="ROM Diff" Click="OpenToolDiff_Click" Margin="4" MinWidth="100" />
+              <Button Content="UPS Create" Click="OpenToolUPSPatchSimple_Click" Margin="4" MinWidth="100" />
+              <Button Content="UPS Apply" Click="OpenToolUPSOpenSimple_Click" Margin="4" MinWidth="100" />
+              <Button Content="Flag Names" Click="OpenToolFlagName_Click" Margin="4" MinWidth="100" />
+              <Button Content="Flag Usage" Click="OpenToolUseFlag_Click" Margin="4" MinWidth="100" />
+              <Button Content="Talk Groups" Click="OpenToolUnitTalkGroup_Click" Margin="4" MinWidth="100" />
+              <Button Content="ASM Insert" Click="OpenToolASMInsert_Click" Margin="4" MinWidth="100" />
+              <Button Content="Hex Editor" Click="OpenHexEditor_Click" Margin="4" MinWidth="100" />
+              <Button Content="Disassembler" Click="OpenDisASM_Click" Margin="4" MinWidth="100" />
+              <Button Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
+              <Button Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
+              <Button Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
+              <Button Content="Pointer Tool" Click="OpenPointerTool_Click" Margin="4" MinWidth="100" />
+              <Button Content="Free Space" Click="OpenMoveToFreeSpace_Click" Margin="4" MinWidth="100" />
+              <Button Content="Graphics Tool" Click="OpenGraphicsTool_Click" Margin="4" MinWidth="100" />
+              <Button Content="BGM Mute" Click="OpenToolBGMMuteDialog_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Status Screen -->
-          <TextBlock Text="Status Screen" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Status Param" Click="OpenStatusParam_Click" Margin="4" MinWidth="100" />
-            <Button Content="Status R-Menu" Click="OpenStatusRMenu_Click" Margin="4" MinWidth="100" />
-            <Button Content="Status Units" Click="OpenStatusUnitsMenu_Click" Margin="4" MinWidth="100" />
-            <Button Content="Status Options" Click="OpenStatusOptionOrder_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Status Screen" IsExpanded="True" Name="StatusScreenExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Status Param" Click="OpenStatusParam_Click" Margin="4" MinWidth="100" />
+              <Button Content="Status R-Menu" Click="OpenStatusRMenu_Click" Margin="4" MinWidth="100" />
+              <Button Content="Status Units" Click="OpenStatusUnitsMenu_Click" Margin="4" MinWidth="100" />
+              <Button Content="Status Options" Click="OpenStatusOptionOrder_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Skill Systems (Extended) -->
-          <TextBlock Name="SkillsExtHeader" Text="Skill Systems (Extended)" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Name="SkillsExtPanel" Orientation="Horizontal">
-            <Button Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
-            <Button Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
-            <Button Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />
-            <Button Content="Config FE8N" Click="OpenSkillConfigFE8N_Click" Margin="4" MinWidth="100" />
-            <Button Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
-            <Button Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
-            <Button Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
-            <Button Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Skill Systems (Extended)" IsExpanded="True" Name="SkillsExtExpander">
+            <WrapPanel Name="SkillsExtPanel" Orientation="Horizontal">
+              <Button Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
+              <Button Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
+              <Button Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />
+              <Button Content="Config FE8N" Click="OpenSkillConfigFE8N_Click" Margin="4" MinWidth="100" />
+              <Button Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
+              <Button Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
+              <Button Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
+              <Button Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
 
           <!-- Version-Specific Editors -->
-          <TextBlock Text="Version-Specific" FontSize="16" FontWeight="SemiBold" />
-          <WrapPanel Orientation="Horizontal">
-            <Button Content="Items (FE6)" Click="OpenItemFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Move Cost (FE6)" Click="OpenMoveCostFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Support (FE6)" Click="OpenSupportUnitFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Sup Talk (FE6)" Click="OpenSupportTalkFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Sup Talk (FE7)" Click="OpenSupportTalkFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="Units (FE7)" Click="OpenUnitFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Demo (FE7)" Click="OpenOPClassDemoFE7_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Demo (FE7U)" Click="OpenOPClassDemoFE7U_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Demo (FE8U)" Click="OpenOPClassDemoFE8U_Click" Margin="4" MinWidth="100" />
-            <Button Content="OP Font (FE8U)" Click="OpenOPClassFontFE8U_Click" Margin="4" MinWidth="100" />
-            <Button Content="Alpha Name" Click="OpenOPClassAlphaName_Click" Margin="4" MinWidth="100" />
-            <Button Content="Alpha (FE6)" Click="OpenOPClassAlphaNameFE6_Click" Margin="4" MinWidth="100" />
-            <Button Content="Class List" Click="OpenSomeClassList_Click" Margin="4" MinWidth="100" />
-            <Button Content="Weapon Lock" Click="OpenVennouWeaponLock_Click" Margin="4" MinWidth="100" />
-            <Button Content="Short Text" Click="OpenUnitsShortText_Click" Margin="4" MinWidth="100" />
-          </WrapPanel>
+          <Expander Header="Version-Specific" IsExpanded="True" Name="VersionSpecificExpander">
+            <WrapPanel Orientation="Horizontal">
+              <Button Content="Items (FE6)" Click="OpenItemFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Move Cost (FE6)" Click="OpenMoveCostFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Support (FE6)" Click="OpenSupportUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Sup Talk (FE6)" Click="OpenSupportTalkFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Sup Talk (FE7)" Click="OpenSupportTalkFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="Units (FE7)" Click="OpenUnitFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Demo (FE7)" Click="OpenOPClassDemoFE7_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Demo (FE7U)" Click="OpenOPClassDemoFE7U_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Demo (FE8U)" Click="OpenOPClassDemoFE8U_Click" Margin="4" MinWidth="100" />
+              <Button Content="OP Font (FE8U)" Click="OpenOPClassFontFE8U_Click" Margin="4" MinWidth="100" />
+              <Button Content="Alpha Name" Click="OpenOPClassAlphaName_Click" Margin="4" MinWidth="100" />
+              <Button Content="Alpha (FE6)" Click="OpenOPClassAlphaNameFE6_Click" Margin="4" MinWidth="100" />
+              <Button Content="Class List" Click="OpenSomeClassList_Click" Margin="4" MinWidth="100" />
+              <Button Content="Weapon Lock" Click="OpenVennouWeaponLock_Click" Margin="4" MinWidth="100" />
+              <Button Content="Short Text" Click="OpenUnitsShortText_Click" Margin="4" MinWidth="100" />
+            </WrapPanel>
+          </Expander>
+
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

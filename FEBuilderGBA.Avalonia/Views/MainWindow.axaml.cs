@@ -1575,9 +1575,32 @@ namespace FEBuilderGBA.Avalonia.Views
             FilterTextBox.Text = "";
         }
 
+        private void CollapseAll_Click(object? sender, RoutedEventArgs e)
+        {
+            SetAllExpandersExpanded(EditorPanel, false);
+        }
+
+        private void ExpandAll_Click(object? sender, RoutedEventArgs e)
+        {
+            SetAllExpandersExpanded(EditorPanel, true);
+        }
+
         /// <summary>
-        /// Show/hide buttons and section headers based on the filter text.
+        /// Set IsExpanded on all Expander children of the editor panel.
+        /// </summary>
+        static void SetAllExpandersExpanded(StackPanel panel, bool expanded)
+        {
+            foreach (var child in panel.Children)
+            {
+                if (child is Expander exp)
+                    exp.IsExpanded = expanded;
+            }
+        }
+
+        /// <summary>
+        /// Show/hide buttons and section expanders based on the filter text.
         /// Case-insensitive substring match on button Content.
+        /// Also matches against the Expander header (section name).
         /// </summary>
         void ApplyFilter(string filter)
         {
@@ -1587,7 +1610,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
             foreach (var child in EditorPanel.Children)
             {
-                if (child is not WrapPanel wp) continue;
+                if (child is not Expander exp) continue;
+                if (exp.Content is not WrapPanel wp) continue;
+
+                string sectionName = exp.Header?.ToString() ?? "";
+                bool sectionMatch = hasFilter && sectionName.Contains(filter, StringComparison.OrdinalIgnoreCase);
+
+                bool anyButtonVisible = false;
                 foreach (var item in wp.Children)
                 {
                     if (item is not Button btn) continue;
@@ -1602,19 +1631,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     if (hasFilter)
                     {
-                        bool match = content.Contains(filter, StringComparison.OrdinalIgnoreCase);
+                        bool match = sectionMatch || content.Contains(filter, StringComparison.OrdinalIgnoreCase);
                         btn.IsVisible = match;
-                        if (match) matchCount++;
+                        if (match) { matchCount++; anyButtonVisible = true; }
                     }
                     else
                     {
                         btn.IsVisible = true;
+                        anyButtonVisible = true;
                     }
                 }
-            }
 
-            // Auto-hide section headers when no buttons are visible
-            AutoHideEmptySections(EditorPanel);
+                // Hide entire expander if no buttons are visible
+                exp.IsVisible = anyButtonVisible;
+                // Auto-expand sections with matches when filtering
+                if (hasFilter && anyButtonVisible)
+                    exp.IsExpanded = true;
+            }
 
             FilterMatchLabel.IsVisible = hasFilter;
             if (hasFilter)
@@ -2284,12 +2317,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
             HideVersionMismatchedButtons(EditorPanel, ver, isMultibyte);
 
-            // FE8-only whole sections
+            // FE8-only whole sections (Expanders)
             bool isFE8 = ver == 8;
-            SetSectionVisible(MonstersHeader, MonstersPanel, isFE8);
-            SetSectionVisible(SummonsHeader, SummonsPanel, isFE8);
-            SetSectionVisible(SkillsHeader, SkillsPanel, isFE8);
-            SetSectionVisible(SkillsExtHeader, SkillsExtPanel, isFE8);
+            MonstersExpander.IsVisible = isFE8;
+            SummonsExpander.IsVisible = isFE8;
+            SkillsExpander.IsVisible = isFE8;
+            SkillsExtExpander.IsVisible = isFE8;
 
             // Senseki Comment is FE7-only (no version suffix in its Content)
             SensekiCommentButton.IsVisible = ver == 7;
@@ -2298,14 +2331,14 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Reset all buttons and section headers inside the panel to visible.
+        /// Reset all buttons and section expanders inside the panel to visible.
         /// </summary>
         static void ResetAllButtonVisibility(StackPanel panel)
         {
             foreach (var child in panel.Children)
             {
                 child.IsVisible = true;
-                if (child is WrapPanel wp)
+                if (child is Expander exp && exp.Content is WrapPanel wp)
                 {
                     foreach (var btn in wp.Children)
                     {
@@ -2317,7 +2350,7 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Walk all WrapPanels inside the editor panel, check each Button's Content
+        /// Walk all Expander > WrapPanel inside the editor panel, check each Button's Content
         /// text for a version tag, and hide buttons that don't match.
         /// Also stores version visibility in Tag property so the search filter can respect it.
         /// </summary>
@@ -2325,7 +2358,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             foreach (var child in panel.Children)
             {
-                if (child is not WrapPanel wp) continue;
+                if (child is not Expander exp) continue;
+                if (exp.Content is not WrapPanel wp) continue;
                 foreach (var item in wp.Children)
                 {
                     if (item is not Button btn) continue;
@@ -2361,41 +2395,23 @@ namespace FEBuilderGBA.Avalonia.Views
             return null; // no tag — always show
         }
 
-        /// <summary>Show or hide a section header + its WrapPanel together.</summary>
-        static void SetSectionVisible(TextBlock header, WrapPanel panel, bool visible)
-        {
-            header.IsVisible = visible;
-            panel.IsVisible = visible;
-        }
-
         /// <summary>
-        /// After filtering, if all buttons inside a WrapPanel are hidden,
-        /// also hide the preceding TextBlock header.
+        /// After filtering, if all buttons inside an Expander are hidden,
+        /// also hide the entire Expander.
         /// </summary>
         static void AutoHideEmptySections(StackPanel panel)
         {
-            TextBlock? lastHeader = null;
             foreach (var child in panel.Children)
             {
-                if (child is TextBlock tb)
+                if (child is not Expander exp) continue;
+                if (exp.Content is not WrapPanel wp) continue;
+                bool anyVisible = false;
+                foreach (var btn in wp.Children)
                 {
-                    lastHeader = tb;
-                    continue;
+                    if (btn.IsVisible) { anyVisible = true; break; }
                 }
-                if (child is WrapPanel wp)
-                {
-                    bool anyVisible = false;
-                    foreach (var btn in wp.Children)
-                    {
-                        if (btn.IsVisible) { anyVisible = true; break; }
-                    }
-                    if (!anyVisible)
-                    {
-                        wp.IsVisible = false;
-                        if (lastHeader != null) lastHeader.IsVisible = false;
-                    }
-                    lastHeader = null;
-                }
+                if (!anyVisible)
+                    exp.IsVisible = false;
             }
         }
     }

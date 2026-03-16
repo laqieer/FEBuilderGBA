@@ -1379,28 +1379,28 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MainWindow_MonstersSection_HasNames()
+        public void MainWindow_MonstersSection_HasExpander()
         {
             var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
-            Assert.Contains("Name=\"MonstersHeader\"", axaml);
+            Assert.Contains("Name=\"MonstersExpander\"", axaml);
             Assert.Contains("Name=\"MonstersPanel\"", axaml);
         }
 
         [Fact]
-        public void MainWindow_SummonsSection_HasNames()
+        public void MainWindow_SummonsSection_HasExpander()
         {
             var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
-            Assert.Contains("Name=\"SummonsHeader\"", axaml);
+            Assert.Contains("Name=\"SummonsExpander\"", axaml);
             Assert.Contains("Name=\"SummonsPanel\"", axaml);
         }
 
         [Fact]
-        public void MainWindow_SkillsSection_HasNames()
+        public void MainWindow_SkillsSection_HasExpanders()
         {
             var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
-            Assert.Contains("Name=\"SkillsHeader\"", axaml);
+            Assert.Contains("Name=\"SkillsExpander\"", axaml);
             Assert.Contains("Name=\"SkillsPanel\"", axaml);
-            Assert.Contains("Name=\"SkillsExtHeader\"", axaml);
+            Assert.Contains("Name=\"SkillsExtExpander\"", axaml);
             Assert.Contains("Name=\"SkillsExtPanel\"", axaml);
         }
 
@@ -1699,7 +1699,6 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("FilterTextBox.Focus()", src);
         }
 
-<<<<<<< HEAD
         // ------------------------------------------------------------------ DisASMView is functional, not placeholder
 
         [Fact]
@@ -1979,6 +1978,67 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
             Assert.Contains("void ResetTypeSearchBuffer()", src);
+        }
+
+        // ------------------------------------------------------------------ Collapsible Sections (#71)
+
+        [Fact]
+        public void MainWindow_HasExpanderElements()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            // All sections should use Expander instead of plain TextBlock headers
+            Assert.Contains("<Expander", axaml);
+            Assert.Contains("IsExpanded=\"True\"", axaml);
+            // Check key named expanders exist
+            Assert.Contains("Name=\"CharactersExpander\"", axaml);
+            Assert.Contains("Name=\"ItemsExpander\"", axaml);
+            Assert.Contains("Name=\"MapsExpander\"", axaml);
+            Assert.Contains("Name=\"GraphicsExpander\"", axaml);
+            Assert.Contains("Name=\"AudioExpander\"", axaml);
+            Assert.Contains("Name=\"ToolsExpander\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_HasCollapseExpandAllMenuItems()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("CollapseAll_Click", axaml);
+            Assert.Contains("ExpandAll_Click", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_HasCollapseExpandAllHandlers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("void CollapseAll_Click(", src);
+            Assert.Contains("void ExpandAll_Click(", src);
+            Assert.Contains("SetAllExpandersExpanded(", src);
+        }
+
+        [Fact]
+        public void MainWindow_ApplyFilter_MatchesSectionName()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // Filter should match against Expander header text (section name)
+            Assert.Contains("sectionName.Contains(filter", src);
+        }
+
+        [Fact]
+        public void MainWindow_NoOldTextBlockSectionHeaders()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            // Old pattern: TextBlock with FontSize 16 as section header (outside Expanders)
+            // These should no longer exist in EditorPanel -- all sections use Expander now
+            // The only TextBlocks with FontSize should be the title area
+            var lines = axaml.Split('\n');
+            bool insideEditorPanel = false;
+            foreach (var line in lines)
+            {
+                if (line.Contains("Name=\"EditorPanel\"")) insideEditorPanel = true;
+                if (insideEditorPanel && line.Trim().StartsWith("<TextBlock") && line.Contains("FontSize=\"16\""))
+                    Assert.Fail($"Found old-style TextBlock section header inside EditorPanel: {line.Trim()}");
+                if (insideEditorPanel && line.Contains("</StackPanel>") && !line.Contains("<")) break;
+            }
         }
     }
 }
