@@ -43,6 +43,19 @@ namespace FEBuilderGBA.Avalonia.Views
             RebuildRecentFilesMenu();
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.F)
+            {
+                if (FilterTextBox != null && SearchPanel.IsVisible)
+                {
+                    FilterTextBox.Focus();
+                    e.Handled = true;
+                }
+            }
+        }
+
         void OnLanguageChanged()
         {
             Dispatcher.UIThread.Post(() =>
