@@ -85,6 +85,17 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void CommandPicker_Click(object? sender, RoutedEventArgs e)
+        {
+            var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
+            var result = await picker.ShowDialog<EventScript.Script?>(this);
+            if (result != null)
+            {
+                string name = EventScript.makeCommandComboText(result, true);
+                StatusLabel.Text = $"Selected: {name}";
+            }
+        }
+
         /// <summary>Navigate to a specific address and disassemble.</summary>
         public void NavigateTo(uint address)
         {

@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ScriptCommandPickerView"
+        Title="Select Script Command" Width="800" Height="600"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="WidthAndHeight">
+  <DockPanel Margin="12">
+    <!-- Bottom buttons -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button Name="SelectButton" Content="Select" Width="80" Click="Select_Click" />
+      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+    </StackPanel>
+
+    <!-- Info panel at bottom -->
+    <Border DockPanel.Dock="Bottom" Background="#10808080" CornerRadius="4" Padding="8" Margin="0,8,0,0"
+            MinHeight="60" MaxHeight="120">
+      <ScrollViewer>
+        <TextBlock Name="InfoLabel" TextWrapping="Wrap" FontSize="12" />
+      </ScrollViewer>
+    </Border>
+
+    <!-- Main: categories on left, filter + commands on right -->
+    <Grid ColumnDefinitions="200,8,*">
+      <!-- Left: Category list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Categories" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox Name="CategoryList" SelectionMode="Single"
+                 SelectionChanged="CategoryList_SelectionChanged" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
+
+      <!-- Right: Filter + Script commands list -->
+      <DockPanel Grid.Column="2">
+        <TextBox Name="FilterBox" DockPanel.Dock="Top" Watermark="Filter commands..."
+                 Margin="0,0,0,4" />
+        <ListBox Name="ScriptList" FontFamily="Consolas" FontSize="12"
+                 SelectionMode="Single"
+                 SelectionChanged="ScriptList_SelectionChanged" />
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</Window>
