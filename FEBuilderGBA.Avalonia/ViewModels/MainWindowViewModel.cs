@@ -42,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _filterText = "";
         long _romSize;
         long _estimatedFreeSpace;
+        bool _hasUnsavedChanges;
 
         /// <summary>Observable list of recent files for the menu.</summary>
         public ObservableCollection<RecentFileEntry> RecentFiles { get; } = new();
@@ -63,7 +64,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string RomFilename
         {
             get => _romFilename;
-            set => SetField(ref _romFilename, value);
+            set { SetField(ref _romFilename, value); OnPropertyChanged(nameof(WindowTitle)); }
+        }
+
+        public bool HasUnsavedChanges
+        {
+            get => _hasUnsavedChanges;
+            set { SetField(ref _hasUnsavedChanges, value); OnPropertyChanged(nameof(WindowTitle)); }
+        }
+
+        /// <summary>
+        /// Computed window title: "FEBuilderGBA - [filename] *" when dirty,
+        /// "FEBuilderGBA - [filename]" when clean, "FEBuilderGBA" when no ROM loaded.
+        /// </summary>
+        public string WindowTitle
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_romFilename))
+                    return "FEBuilderGBA";
+                return _hasUnsavedChanges
+                    ? $"FEBuilderGBA - {_romFilename} *"
+                    : $"FEBuilderGBA - {_romFilename}";
+            }
         }
 
         public string StatusText
@@ -100,6 +123,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RomSize = CoreState.ROM.Data?.Length ?? 0;
                 EstimatedFreeSpace = EstimateFreeSpace(CoreState.ROM);
                 StatusText = $"{RomFilename} | {RomVersion} | {RomSize:N0} " + R._("bytes") + $" | " + R._("Free:") + $" ~{EstimatedFreeSpace:N0} " + R._("bytes");
+                HasUnsavedChanges = false;
             }
             else
             {
@@ -109,6 +133,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RomSize = 0;
                 EstimatedFreeSpace = 0;
                 StatusText = R._("No ROM loaded");
+                HasUnsavedChanges = false;
             }
         }
 

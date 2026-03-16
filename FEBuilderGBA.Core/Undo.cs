@@ -59,6 +59,12 @@ namespace FEBuilderGBA
         public List<UndoData> UndoBuffer { get; private set; }
         public int Postion { get; private set; } //UndoBufferの位置 通常 終端を指す.
         public int PostionWhenFileSaving { get; private set; } //ファイルを保存したときの終端
+
+        /// <summary>
+        /// Returns true when the undo position differs from the saved position,
+        /// meaning the ROM has unsaved modifications.
+        /// </summary>
+        public bool IsModified => Postion != PostionWhenFileSaving;
         byte[] RollBackCancelBackup; //ロールバックをキャンセルするためのバックアップ
 
         public Undo()
