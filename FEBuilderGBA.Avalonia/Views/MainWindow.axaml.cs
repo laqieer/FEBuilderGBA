@@ -234,13 +234,15 @@ namespace FEBuilderGBA.Avalonia.Views
             // Filter editor buttons for loaded ROM version
             UpdateEditorVisibility();
 
-            // Show detected ROM version in status bar
+            // Show detected ROM version and size in status bar
             try
             {
                 string ver = CoreState.ROM.RomInfo?.VersionToFilename ?? "Unknown";
                 VersionDetectionLabel.Text = R._("ROM:") + $" {ver}";
+                long romBytes = CoreState.ROM.Data?.Length ?? 0;
+                RomSizeLabel.Text = romBytes > 0 ? $"{romBytes / 1024.0 / 1024.0:F1} MB" : "";
             }
-            catch { VersionDetectionLabel.Text = ""; }
+            catch { VersionDetectionLabel.Text = ""; RomSizeLabel.Text = ""; }
 
             // Remember last opened ROM
             if (CoreState.Config != null)
