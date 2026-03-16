@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="FEBuilderGBA.Avalonia.Controls.AddressListControl">
+             x:Class="FEBuilderGBA.Avalonia.Controls.AddressListControl"
+             Focusable="True">
   <Grid RowDefinitions="Auto,*,Auto,Auto">
     <!-- Search bar -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
