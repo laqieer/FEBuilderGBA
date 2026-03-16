@@ -135,5 +135,35 @@ namespace FEBuilderGBA.Tests.Unit
             var slnContent = File.ReadAllText(slnPath);
             Assert.Contains("FEBuilderGBA.Avalonia", slnContent);
         }
+
+        [Fact]
+        public void MainWindowStatusBarUsesDockPanelLayout()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaProjectDir, "Views", "MainWindow.axaml"));
+
+            // Status bar should use DockPanel for responsive layout (not fixed-width Grid columns)
+            Assert.Contains("DockPanel.Dock=\"Bottom\"", axaml);
+            // Right-aligned items should dock right
+            Assert.Contains("DockPanel.Dock=\"Right\"", axaml);
+            // StatusText should have text trimming for overflow
+            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", axaml);
+            // Status bar should have top border for visual separation
+            Assert.Contains("BorderThickness=\"0,1,0,0\"", axaml);
+            // Named status elements must be present
+            Assert.Contains("Name=\"StatusText\"", axaml);
+            Assert.Contains("Name=\"VersionDetectionLabel\"", axaml);
+            Assert.Contains("Name=\"RomSizeLabel\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindowToolbarUsesSemanticSpacer()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaProjectDir, "Views", "MainWindow.axaml"));
+
+            // Toolbar should not use empty TextBlock as spacer
+            Assert.DoesNotContain("Text=\"\" />", axaml);
+            // Should use Panel as a proper fill element
+            Assert.Contains("<Panel />", axaml);
+        }
     }
 }

@@ -45,11 +45,14 @@
     </Menu>
 
     <!-- Status Bar -->
-    <Border DockPanel.Dock="Bottom" Background="#E8E8E8" Padding="8,4">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Name="StatusText" Text="No ROM loaded" />
-        <TextBlock Grid.Column="1" Name="VersionDetectionLabel" Text="" Foreground="Gray" Margin="8,0,0,0" />
-      </Grid>
+    <Border DockPanel.Dock="Bottom" Background="#E8E8E8" Padding="8,4" BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <TextBlock Name="RomSizeLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
+          <TextBlock Name="VersionDetectionLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Name="StatusText" Text="No ROM loaded" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      </DockPanel>
     </Border>
 
     <!-- Toolbar with Easy Mode toggle -->
@@ -57,7 +60,7 @@
       <DockPanel>
         <ToggleButton Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
                       DockPanel.Dock="Right" Padding="12,4" Margin="4,0" FontSize="12" />
-        <TextBlock Text="" /> <!-- spacer -->
+        <Panel /> <!-- fill remaining space -->
       </DockPanel>
     </Border>
 
