@@ -1057,11 +1057,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("EventFunctionPointerView", () => wm.Open<EventFunctionPointerView>()),
                 ("EventFunctionPointerFE7View", () => wm.Open<EventFunctionPointerFE7View>()),
                 ("EventAssemblerView", () => wm.Open<EventAssemblerView>()),
-                ("ProcsScriptView", () => wm.Open<ProcsScriptView>()),
+                ("ProcsScriptView", () => wm.Open<ProcsScriptCategorySelectView>()),
                 ("EventScriptTemplateView", () => wm.Open<EventScriptTemplateView>()),
 
                 // AI Script Editors
-                ("AIScriptView", () => wm.Open<AIScriptView>()),
+                ("AIScriptView", () => wm.Open<AIScriptCategorySelectView>()),
                 ("AIASMCALLTALKView", () => wm.Open<AIASMCALLTALKView>()),
                 ("AIASMCoordinateView", () => wm.Open<AIASMCoordinateView>()),
                 ("AIASMRangeView", () => wm.Open<AIASMRangeView>()),
@@ -1924,11 +1924,11 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenEventFunctionPointer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventFunctionPointerView>();
         private void OpenEventFunctionPointerFE7_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventFunctionPointerFE7View>();
         private void OpenEventAssembler_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventAssemblerView>();
-        private void OpenProcsScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ProcsScriptView>();
+        private void OpenProcsScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ProcsScriptCategorySelectView>();
         private void OpenEventScriptTemplate_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventScriptTemplateView>();
 
         // ===================== AI Script Editors =====================
-        private void OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptView>();
+        private void OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptCategorySelectView>();
         private void OpenAIASMCALLTALK_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCALLTALKView>();
         private void OpenAIASMCoordinate_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCoordinateView>();
         private void OpenAIASMRange_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMRangeView>();

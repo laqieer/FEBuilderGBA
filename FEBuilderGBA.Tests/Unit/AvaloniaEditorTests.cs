@@ -1139,6 +1139,35 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OpenOptions_Click", src);
         }
 
+        [Fact]
+        public void MainWindow_AIScriptButton_OpensCategoySelectView()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // The AI Script main entry point must open the category select view, not the placeholder
+            Assert.Contains("Open<AIScriptCategorySelectView>", src);
+            // Ensure the old placeholder wiring is gone from the click handler
+            Assert.DoesNotContain("OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptView>", src);
+        }
+
+        [Fact]
+        public void MainWindow_ProcsScriptButton_OpensCategorySelectView()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // The Procs Script main entry point must open the category select view, not the placeholder
+            Assert.Contains("Open<ProcsScriptCategorySelectView>", src);
+            // Ensure the old placeholder wiring is gone from the click handler
+            Assert.DoesNotContain("OpenProcsScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ProcsScriptView>", src);
+        }
+
+        [Fact]
+        public void MainWindow_FormRegistry_WiresScriptViewsToCategorySelects()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            // The form registry entries for AIScriptView and ProcsScriptView should open category select views
+            Assert.Contains("(\"AIScriptView\", () => wm.Open<AIScriptCategorySelectView>())", src);
+            Assert.Contains("(\"ProcsScriptView\", () => wm.Open<ProcsScriptCategorySelectView>())", src);
+        }
+
         // ------------------------------------------------------------------ NumericUpDown FormatString regression
 
         /// <summary>
