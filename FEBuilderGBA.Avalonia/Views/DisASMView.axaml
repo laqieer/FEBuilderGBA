@@ -1,21 +1,25 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.DisASMView"
-        Title="Disassembler" Width="1483" Height="967"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Disassembler" Width="900" Height="700"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner">
+  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+  <DockPanel Margin="8">
+    <TextBlock Text="Disassembler" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Disassembler" FontSize="18" FontWeight="Bold" />
+    <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox x:Name="AddressBox" Width="160" Watermark="0x08000000" Text="{Binding AddressInput}" />
+      <TextBlock Text="Length:" VerticalAlignment="Center" />
+      <TextBox x:Name="LengthBox" Width="120" Watermark="0x200" Text="{Binding LengthInput}" />
+      <Button Content="Disassemble" Click="Disassemble_Click" MinWidth="100" />
+      <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
+    </StackPanel>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    <TextBox x:Name="OutputBox" IsReadOnly="True" AcceptsReturn="True"
+             FontFamily="Consolas, Courier New, monospace" FontSize="12"
+             TextWrapping="NoWrap" />
+  </DockPanel>
+  </ScrollViewer>
 </Window>

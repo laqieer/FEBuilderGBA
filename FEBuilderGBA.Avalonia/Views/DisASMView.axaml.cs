@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -16,42 +18,40 @@ namespace FEBuilderGBA.Avalonia.Views
         public DisASMView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            DataContext = _vm;
+            _vm.IsLoaded = true;
         }
 
-        void LoadList()
+        async void Disassemble_Click(object? sender, RoutedEventArgs e)
         {
-            try
+            _vm.StatusMessage = "Disassembling...";
+            OutputBox.Text = "Working...";
+
+            List<string>? lines = null;
+            string? error = null;
+
+            await Task.Run(() =>
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                (lines, error) = _vm.RunDisassembly();
+            });
+
+            if (error != null)
+            {
+                OutputBox.Text = error;
+                _vm.StatusMessage = "Failed.";
             }
-            catch (Exception ex)
+            else if (lines != null)
             {
-                Log.Error("DisASMView.LoadList failed: {0}", ex.Message);
+                OutputBox.Text = string.Join(Environment.NewLine, lines);
+                _vm.StatusMessage = $"Done. {lines.Count} lines.";
             }
         }
 
-        void OnSelected(uint addr)
+        public void NavigateTo(uint address)
         {
-            try
-            {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("DisASMView.OnSelected failed: {0}", ex.Message);
-            }
+            _vm.AddressInput = $"0x{address:X08}";
         }
 
-        void UpdateUI()
-        {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-        }
-
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        public void SelectFirstItem() { }
     }
 }
