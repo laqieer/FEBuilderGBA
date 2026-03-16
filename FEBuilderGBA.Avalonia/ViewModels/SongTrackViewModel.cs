@@ -174,6 +174,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Preview a MIDI file by parsing its metadata without writing to ROM.
+        /// Returns a formatted metadata string, or an error message prefixed with "Error:".
+        /// </summary>
+        public string PreviewMidi(string filename)
+        {
+            if (!File.Exists(filename))
+                return $"Error: File not found: {filename}";
+
+            var midiInfo = SongMidiCore.ParseMidiFile(filename);
+            if (midiInfo == null)
+                return "Error: Failed to parse MIDI file -- invalid format.";
+
+            return SongTrackImportMidiViewModel.FormatMidiMetadata(midiInfo, filename);
+        }
+
+        /// <summary>
         /// Import a MIDI file into the current song.
         /// Converts MIDI to GBA format and writes to ROM.
         /// Returns null on success, or an error/info message string.
@@ -190,7 +206,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Parse MIDI info for summary
             var midiInfo = SongMidiCore.ParseMidiFile(filename);
             if (midiInfo == null)
-                return "Failed to parse MIDI file — invalid format.";
+                return "Failed to parse MIDI file -- invalid format.";
 
             // Convert and write to ROM
             string result = SongMidiCore.ImportMidiFile(filename, CurrentAddr, InstrumentAddr);

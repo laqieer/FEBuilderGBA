@@ -147,22 +147,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                string? result = _vm.ImportMidi(path);
-                if (result != null)
+                // Parse and show MIDI metadata preview
+                string preview = _vm.PreviewMidi(path);
+                if (preview.StartsWith("Error:"))
                 {
-                    // If it contains parsed MIDI info, show as info; otherwise as error
-                    if (result.Contains("MIDI file parsed"))
-                        CoreState.Services.ShowInfo(result);
-                    else
-                        CoreState.Services.ShowError(result);
+                    CoreState.Services.ShowError(preview);
+                    return;
                 }
-                else
-                {
-                    CoreState.Services.ShowInfo("MIDI imported successfully.");
-                    // Reload to reflect changes
-                    _vm.LoadEntry(_vm.CurrentAddr);
-                    UpdateUI();
-                }
+
+                // Show metadata with write-back warning
+                string message = preview + "\n\n" +
+                    "---\n" +
+                    "MIDI write-back to ROM is not yet fully implemented.\n" +
+                    "Full MIDI-to-GBA conversion will be available in a future update.";
+                CoreState.Services.ShowInfo(message);
             }
             catch (Exception ex)
             {
