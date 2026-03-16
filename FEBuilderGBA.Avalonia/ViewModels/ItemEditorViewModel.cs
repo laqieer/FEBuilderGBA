@@ -470,14 +470,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Resolve a skill ID to a display name.
-        /// Falls back to hex representation since skill name tables
-        /// vary by skill system variant.
+        /// Resolve a skill ID to a display name via NameResolver.
         /// </summary>
         static string ResolveSkillName(uint skillId)
         {
             if (skillId == 0) return "(None)";
-            return $"Skill 0x{skillId:X02}";
+            return NameResolver.GetSkillName(skillId);
         }
     }
 }

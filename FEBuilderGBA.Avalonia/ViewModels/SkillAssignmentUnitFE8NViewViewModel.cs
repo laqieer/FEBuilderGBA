@@ -57,9 +57,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["PersonalSkill"] = $"0x{PersonalSkill:X02}",
-                ["SkillSet1"] = $"0x{SkillSet1:X02}",
-                ["SkillSet2"] = $"0x{SkillSet2:X02}",
+                ["PersonalSkill"] = NameResolver.GetSkillName(PersonalSkill),
+                ["SkillSet1"] = NameResolver.GetSkillName(SkillSet1),
+                ["SkillSet2"] = NameResolver.GetSkillName(SkillSet2),
             };
         }
 
