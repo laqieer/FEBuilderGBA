@@ -9,7 +9,7 @@
   <Grid ColumnDefinitions="Auto,*" Margin="12,22,12,12">
     <!-- Icon (WinForms FormIcon 80x80 at 12,22) -->
     <Border Grid.Column="0" Width="80" Height="80" VerticalAlignment="Top"
-            Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1"
+            Background="{DynamicResource UndoInfoBackgroundBrush}" BorderBrush="{DynamicResource UndoInfoBorderBrush}" BorderThickness="1"
             Margin="0,0,12,0">
       <TextBlock Text="↩" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
     </Border>

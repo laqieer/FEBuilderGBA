@@ -22,7 +22,7 @@
 
       <!-- Tile editing panel -->
       <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
-              Background="#FF2A2A2A" CornerRadius="4">
+              Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
         <StackPanel Spacing="4">
           <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
           <TextBlock Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
@@ -37,7 +37,7 @@
       </Border>
 
       <!-- Map image in scrollable area -->
-      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Background="#FF202020" Margin="8,0,8,8">
+      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
           <controls:GbaImageControl Name="MapImageControl" />
         </ScrollViewer>

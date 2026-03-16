@@ -7,7 +7,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="BG Image Select" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+    <Border DockPanel.Dock="Top" Background="{DynamicResource InfoBannerBackgroundBrush}" BorderBrush="{DynamicResource InfoBannerBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
       <TextBlock TextWrapping="Wrap"
                  Text="Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM." />
     </Border>

@@ -4,4 +4,70 @@
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Status bar / toolbar backgrounds (overridden per theme in code-behind) -->
+            <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#E8E8E8" />
+            <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#F0F0F0" />
+            <SolidColorBrush x:Key="ToolbarBorderBrush" Color="#DDDDDD" />
+
+            <!-- Section heading accent color (EasyMode panel headers, etc.) -->
+            <SolidColorBrush x:Key="SectionHeadingBrush" Color="#2B579A" />
+
+            <!-- Category card border -->
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#CCCCCC" />
+
+            <!-- Info banner (light blue info boxes) -->
+            <SolidColorBrush x:Key="InfoBannerBackgroundBrush" Color="#D1ECF1" />
+            <SolidColorBrush x:Key="InfoBannerBorderBrush" Color="#17A2B8" />
+
+            <!-- Subtle panel background -->
+            <SolidColorBrush x:Key="SubtlePanelBackgroundBrush" Color="#F8F9FA" />
+            <SolidColorBrush x:Key="SubtlePanelBorderBrush" Color="#DEE2E6" />
+
+            <!-- Warning banner -->
+            <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF3CD" />
+            <SolidColorBrush x:Key="WarningBorderBrush" Color="#FFC107" />
+            <SolidColorBrush x:Key="WarningTextBrush" Color="#B8860B" />
+            <SolidColorBrush x:Key="WarningTextSecondaryBrush" Color="#8B6914" />
+
+            <!-- Dependency warning (PatchManager) -->
+            <SolidColorBrush x:Key="DependencyWarningBackgroundBrush" Color="#FFFDE8" />
+            <SolidColorBrush x:Key="DependencyWarningBorderBrush" Color="#F0C000" />
+
+            <!-- Highlight / accent overlay -->
+            <SolidColorBrush x:Key="AccentOverlayBrush" Color="#33FF8C00" />
+
+            <!-- Script category select button -->
+            <SolidColorBrush x:Key="ScriptCategoryButtonBrush" Color="#4060A0" />
+            <SolidColorBrush x:Key="ScriptCategoryOverlayBrush" Color="#20808080" />
+
+            <!-- Error/long message dialog -->
+            <SolidColorBrush x:Key="ErrorDialogBackgroundBrush" Color="#FFF8F8" />
+
+            <!-- Undo popup info -->
+            <SolidColorBrush x:Key="UndoInfoBackgroundBrush" Color="#E3F2FD" />
+            <SolidColorBrush x:Key="UndoInfoBorderBrush" Color="#90CAF9" />
+
+            <!-- Emulator/RAM warning -->
+            <SolidColorBrush x:Key="EmulatorWarningBackgroundBrush" Color="#FFF8E1" />
+
+            <!-- Map editor dark backgrounds -->
+            <SolidColorBrush x:Key="MapEditorToolbarBrush" Color="#FF2A2A2A" />
+            <SolidColorBrush x:Key="MapEditorCanvasBrush" Color="#FF202020" />
+
+            <!-- Text char code view -->
+            <SolidColorBrush x:Key="CharCodeHeaderBrush" Color="#FF6888A8" />
+            <SolidColorBrush x:Key="CharCodeCellBrush" Color="#FFE0E0E0" />
+
+            <!-- Welcome banner -->
+            <SolidColorBrush x:Key="WelcomeBannerBrush" Color="#E8EAF6" />
+            <SolidColorBrush x:Key="WelcomeBannerBorderBrush" Color="#C5CAE9" />
+
+            <!-- Subtitle overlay (intentionally dark for video overlay) -->
+            <SolidColorBrush x:Key="SubtitleOverlayBackgroundBrush" Color="Black" />
+            <SolidColorBrush x:Key="SubtitleOverlayForegroundBrush" Color="White" />
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

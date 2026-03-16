@@ -7,7 +7,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Palette Clipboard" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+    <Border DockPanel.Dock="Top" Background="{DynamicResource InfoBannerBackgroundBrush}" BorderBrush="{DynamicResource InfoBannerBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
       <TextBlock TextWrapping="Wrap"
                  Text="Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use." />
     </Border>
@@ -19,7 +19,7 @@
     </StackPanel>
     <StackPanel Spacing="8">
       <TextBlock Text="Clipboard Contents:" FontWeight="SemiBold" />
-      <Border Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="4" Padding="12" MinHeight="60">
+      <Border Background="{DynamicResource SubtlePanelBackgroundBrush}" BorderBrush="{DynamicResource SubtlePanelBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12" MinHeight="60">
         <TextBlock Name="ClipboardStatusLabel" Text="[No palette data in clipboard]" Foreground="Gray" />
       </Border>
     </StackPanel>

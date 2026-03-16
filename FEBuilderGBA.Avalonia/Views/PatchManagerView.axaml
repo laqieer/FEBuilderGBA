@@ -78,12 +78,12 @@
 
           <!-- Dependencies Warning -->
           <Border Name="DependencyWarningBorder" IsVisible="False"
-                  Background="#FFFDE8" BorderBrush="#F0C000" BorderThickness="1"
+                  Background="{DynamicResource DependencyWarningBackgroundBrush}" BorderBrush="{DynamicResource DependencyWarningBorderBrush}" BorderThickness="1"
                   CornerRadius="4" Padding="8" Margin="0,0,0,4">
             <StackPanel Spacing="4">
-              <TextBlock Text="Unmet Dependencies" FontWeight="SemiBold" Foreground="#B8860B" />
+              <TextBlock Text="Unmet Dependencies" FontWeight="SemiBold" Foreground="{DynamicResource WarningTextBrush}" />
               <TextBlock Name="DependencyWarningText" TextWrapping="Wrap" FontSize="12"
-                         Foreground="#8B6914" />
+                         Foreground="{DynamicResource WarningTextSecondaryBrush}" />
             </StackPanel>
           </Border>
 

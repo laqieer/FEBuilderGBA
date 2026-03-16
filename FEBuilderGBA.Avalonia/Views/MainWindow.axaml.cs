@@ -137,6 +137,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // Refresh Easy Mode toggle text
             if (EasyModeMenuItem != null)
                 EasyModeMenuItem.Header = _isEasyMode ? R._("Switch to _Normal Mode") : R._("Toggle _Easy Mode");
+            // Refresh Dark Mode toggle text
+            if (DarkModeMenuItem != null && Application.Current is App app)
+                DarkModeMenuItem.Header = app.IsDarkMode ? R._("Switch to _Light Mode") : R._("Toggle _Dark Mode");
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
@@ -193,6 +196,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void MainWindow_Opened(object? sender, EventArgs e)
         {
+            // Set dark mode menu label from persisted preference
+            RefreshMenuHeaders();
+
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))
             {
@@ -1525,6 +1531,18 @@ namespace FEBuilderGBA.Avalonia.Views
         private void Exit_Click(object? sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        // ===== Dark Mode Toggle =====
+
+        private void ToggleDarkMode_Click(object? sender, RoutedEventArgs e)
+        {
+            if (Application.Current is App app)
+            {
+                app.ToggleTheme();
+                if (DarkModeMenuItem != null)
+                    DarkModeMenuItem.Header = app.IsDarkMode ? R._("Switch to _Light Mode") : R._("Toggle _Dark Mode");
+            }
         }
 
         // ===== Easy Mode Toggle =====

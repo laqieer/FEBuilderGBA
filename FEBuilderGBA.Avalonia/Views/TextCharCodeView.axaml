@@ -23,7 +23,7 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="24" Margin="0,0,0,8">
       <StackPanel Spacing="4">
         <TextBlock Text="Item Font" FontWeight="SemiBold" />
-        <Border Background="#FF6888A8" Padding="4" CornerRadius="2">
+        <Border Background="{DynamicResource CharCodeHeaderBrush}" Padding="4" CornerRadius="2">
           <Image Name="ItemFontImage" Width="64" Height="64" Stretch="Uniform"
                  RenderOptions.BitmapInterpolationMode="None" />
         </Border>
@@ -31,7 +31,7 @@
       </StackPanel>
       <StackPanel Spacing="4">
         <TextBlock Text="Serif Font" FontWeight="SemiBold" />
-        <Border Background="#FFE0E0E0" Padding="4" CornerRadius="2">
+        <Border Background="{DynamicResource CharCodeCellBrush}" Padding="4" CornerRadius="2">
           <Image Name="SerifFontImage" Width="64" Height="64" Stretch="Uniform"
                  RenderOptions.BitmapInterpolationMode="None" />
         </Border>

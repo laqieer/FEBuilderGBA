@@ -173,7 +173,7 @@
         <!-- Validation Warnings -->
         <Border Name="WarningsBorder" IsVisible="False"
                 BorderBrush="Orange" BorderThickness="1" Padding="8" CornerRadius="4"
-                Background="#33FF8C00" Margin="0,8,0,0">
+                Background="{DynamicResource AccentOverlayBrush}" Margin="0,8,0,0">
           <StackPanel Spacing="2">
             <TextBlock Text="Warnings" FontWeight="Bold" Foreground="DarkOrange" />
             <ItemsControl Name="WarningsList">

@@ -27,6 +27,8 @@
         <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
         <MenuItem Header="_Collapse All Sections" Click="CollapseAll_Click" Name="CollapseAllMenuItem" />
         <MenuItem Header="_Expand All Sections" Click="ExpandAll_Click" Name="ExpandAllMenuItem" />
+        <Separator />
+        <MenuItem Header="Toggle _Dark Mode" Click="ToggleDarkMode_Click" Name="DarkModeMenuItem" />
       </MenuItem>
       <MenuItem Header="_Tools">
         <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
@@ -50,7 +52,7 @@
     </Menu>
 
     <!-- Status Bar -->
-    <Border DockPanel.Dock="Bottom" Background="#E8E8E8" Padding="8,4" BorderBrush="#CCCCCC" BorderThickness="0,1,0,0">
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource StatusBarBackgroundBrush}" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <TextBlock Name="RomSizeLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
@@ -61,7 +63,7 @@
     </Border>
 
     <!-- Toolbar with Easy Mode toggle -->
-    <Border DockPanel.Dock="Top" Background="#F0F0F0" Padding="8,4" BorderBrush="#DDDDDD" BorderThickness="0,0,0,1">
+    <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBackgroundBrush}" Padding="8,4" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
       <DockPanel>
         <ToggleButton Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
                       DockPanel.Dock="Right" Padding="12,4" Margin="4,0" FontSize="12" />
