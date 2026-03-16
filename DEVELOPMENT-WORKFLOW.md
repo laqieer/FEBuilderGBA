@@ -7,6 +7,8 @@ Do NOT start coding until explicitly allowed.
 The human developer owns all final decisions.
 Your role is to assist, not override this process.
 
+> **Note:** This repo's default branch is `master`. All branch/rebase commands below use `master` accordingly.
+
 ---
 
 ## PHASE 1 — ISSUE ANALYSIS & PLAN DRAFTING
@@ -41,6 +43,9 @@ For each unit:
 
 ### File Overlap Analysis
 | File | WU1 | WU2 | ... |
+|------|-----|-----|-----|
+| example.cs | X | | X |
+
 (mark which WUs touch which files — conflicts need sequential handling)
 
 ### Test Strategy
@@ -79,7 +84,12 @@ For each unit:
   - Better alternatives or simpler approaches
 
 ### 5. Revise Plan Based on Feedback
-- **Edit** the original issue comment (don't create new ones)
+- **Edit** the original issue comment (don't create new ones):
+  ```bash
+  # Find the comment ID, then update it
+  COMMENT_ID=$(gh api repos/laqieer/FEBuilderGBA/issues/<N>/comments --jq '.[0].id')
+  gh api repos/laqieer/FEBuilderGBA/issues/comments/$COMMENT_ID -X PATCH -f body="updated plan"
+  ```
 - Address every point raised — either fix it or explain why not
 - Do NOT write code during revision
 
@@ -104,7 +114,7 @@ Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
 **Commit discipline:**
 - One logical change per commit
 - Commit messages reference the issue: `feat: add X (#N)` or `fix: resolve Y (#N)`
-- Commit as `laqieer <laqieer@126.com>`
+- **When using Claude Code automation:** commit as `laqieer <laqieer@126.com>` (human contributors use their own identity)
 - Every commit must build and pass tests
 
 **Scope discipline:**
@@ -166,7 +176,7 @@ Address feedback in categories:
 | **Scope overreach** | Update PR body, change `Closes` to `Ref` |
 | **Missing feature** | Add it if in plan scope, otherwise note as future work |
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
-| **Needs rebase** | Rebase onto master, resolve conflicts, force push |
+| **Needs rebase** | Rebase onto default branch, resolve conflicts, force push |
 
 ### 11. Iterate Until Approved
 - Fix all issues raised
@@ -254,5 +264,10 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
-**All commits as `laqieer <laqieer@126.com>`.**
-**All PR bodies end with `Generated with Claude Code (claude-opus-4-6)`.**
+**This repo's default branch is `master`.**
+
+**When using Claude Code / Copilot automation:**
+- Commits as `laqieer <laqieer@126.com>`
+- PR bodies end with `Generated with Claude Code (claude-opus-4-6)`
+
+**Human contributors:** Use your own identity and commit signing workflow.
