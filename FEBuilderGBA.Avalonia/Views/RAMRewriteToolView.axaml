@@ -11,7 +11,7 @@
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <StackPanel Spacing="12">
-      <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="#FFF8E1">
+      <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="{DynamicResource EmulatorWarningBackgroundBrush}">
         <StackPanel Spacing="8">
           <TextBlock Text="Platform Notice" FontWeight="Bold" FontSize="14" Foreground="DarkOrange" />
           <TextBlock TextWrapping="Wrap"

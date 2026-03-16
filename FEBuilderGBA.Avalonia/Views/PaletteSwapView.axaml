@@ -7,7 +7,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Palette Swap" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <Border DockPanel.Dock="Top" Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
+    <Border DockPanel.Dock="Top" Background="{DynamicResource InfoBannerBackgroundBrush}" BorderBrush="{DynamicResource InfoBannerBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,8">
       <TextBlock TextWrapping="Wrap"
                  Text="Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data." />
     </Border>

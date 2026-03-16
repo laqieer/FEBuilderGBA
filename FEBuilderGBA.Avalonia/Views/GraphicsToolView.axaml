@@ -56,10 +56,10 @@
     </StackPanel>
 
     <!-- Image info -->
-    <TextBlock DockPanel.Dock="Top" Text="{Binding ImageInfo}" Margin="0,0,0,4" Foreground="DimGray" />
+    <TextBlock DockPanel.Dock="Top" Text="{Binding ImageInfo}" Margin="0,0,0,4" Foreground="{DynamicResource SubtleTextForegroundBrush}" />
 
     <!-- Image display -->
-    <Border Background="#F0F0F0" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="4" Padding="4"
+    <Border Background="{DynamicResource SubtlePanelBackgroundBrush}" BorderBrush="{DynamicResource SubtlePanelBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4"
             MinHeight="128" MinWidth="128">
       <controls:GbaImageControl x:Name="ImageDisplay" />
     </Border>

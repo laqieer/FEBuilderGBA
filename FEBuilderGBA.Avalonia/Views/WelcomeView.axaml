@@ -7,8 +7,8 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="14,10,14,10">
     <!-- Logo area (WinForms pictureBox1 1123x278) -->
-    <Border DockPanel.Dock="Top" Height="278" Background="#E8EAF6"
-            BorderBrush="#C5CAE9" BorderThickness="1" Margin="0,0,0,8">
+    <Border DockPanel.Dock="Top" Height="278" Background="{DynamicResource WelcomeBannerBrush}"
+            BorderBrush="{DynamicResource WelcomeBannerBorderBrush}" BorderThickness="1" Margin="0,0,0,8">
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
         <TextBlock Text="FEBuilderGBA" FontSize="36" FontWeight="Bold"
                    HorizontalAlignment="Center" />

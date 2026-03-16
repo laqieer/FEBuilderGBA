@@ -13,9 +13,9 @@
                HorizontalAlignment="Center" MinWidth="300" MaxWidth="500" />
 
       <!-- Characters -->
-      <Border Name="CategoryCharacters" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryCharacters" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Characters" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Characters" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Edit playable and enemy unit stats, class data, and support relationships."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -28,9 +28,9 @@
       </Border>
 
       <!-- Items -->
-      <Border Name="CategoryItems" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryItems" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Items" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Items" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Edit weapons, items, their effects, shops, and promotions."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -43,9 +43,9 @@
       </Border>
 
       <!-- Maps -->
-      <Border Name="CategoryMaps" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryMaps" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Maps" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Maps" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Configure chapter settings, map layouts, terrain, and movement costs."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -58,9 +58,9 @@
       </Border>
 
       <!-- Events -->
-      <Border Name="CategoryEvents" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryEvents" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Events" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Events" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Edit event scripts that control story scenes, cutscenes, and gameplay triggers."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -72,9 +72,9 @@
       </Border>
 
       <!-- Graphics -->
-      <Border Name="CategoryGraphics" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryGraphics" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Graphics" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Graphics" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Edit character portraits, battle animations, CGs, and sprite graphics."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -88,9 +88,9 @@
       </Border>
 
       <!-- Music -->
-      <Border Name="CategoryMusic" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryMusic" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Music" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Music" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Manage background music, sound effects, and the in-game sound room."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -102,9 +102,9 @@
       </Border>
 
       <!-- Text -->
-      <Border Name="CategoryText" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryText" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Text" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Text" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Edit in-game dialogue, menus, and all text strings in the ROM."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
@@ -114,9 +114,9 @@
       </Border>
 
       <!-- Tools -->
-      <Border Name="CategoryTools" BorderBrush="#CCCCCC" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
+      <Border Name="CategoryTools" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,4">
         <StackPanel Spacing="8">
-          <TextBlock Text="Tools" FontSize="18" FontWeight="SemiBold" Foreground="#2B579A" />
+          <TextBlock Text="Tools" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource SectionHeadingBrush}" />
           <TextBlock Text="Advanced utilities: hex editing, patching, ROM diagnostics, and more."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">

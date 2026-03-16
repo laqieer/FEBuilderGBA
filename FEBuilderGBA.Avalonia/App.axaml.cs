@@ -4,12 +4,20 @@ using System.Text;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.Styling;
 using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.Avalonia
 {
     public partial class App : Application
     {
+        /// <summary>Config key used to persist the theme preference.</summary>
+        internal const string ThemeConfigKey = "Avalonia_Theme";
+
+        /// <summary>Returns true when the app is currently using dark mode.</summary>
+        public bool IsDarkMode => RequestedThemeVariant == ThemeVariant.Dark;
+
         /// <summary>ROM path passed via --rom command line argument.</summary>
         public static string? StartupRomPath { get; set; }
 
@@ -71,6 +79,9 @@ namespace FEBuilderGBA.Avalonia
                 CoreState.Config = config;
             }
 
+            // Apply saved theme preference
+            ApplySavedTheme();
+
             // Parse command line arguments
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -79,6 +90,105 @@ namespace FEBuilderGBA.Avalonia
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>Toggle between light and dark mode, updating dynamic resources and persisting the choice.</summary>
+        public void ToggleTheme()
+        {
+            bool switchToDark = !IsDarkMode;
+            RequestedThemeVariant = switchToDark ? ThemeVariant.Dark : ThemeVariant.Light;
+            ApplyThemeResources(switchToDark);
+
+            // Persist
+            if (CoreState.Config != null)
+            {
+                CoreState.Config[ThemeConfigKey] = switchToDark ? "Dark" : "Light";
+                CoreState.Config.Save();
+            }
+        }
+
+        void ApplySavedTheme()
+        {
+            bool dark = false;
+            if (CoreState.Config != null)
+            {
+                string pref = CoreState.Config.at(ThemeConfigKey, "Light");
+                dark = string.Equals(pref, "Dark", StringComparison.OrdinalIgnoreCase);
+            }
+            RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+            ApplyThemeResources(dark);
+        }
+
+        void ApplyThemeResources(bool dark)
+        {
+            if (Resources == null) return;
+
+            if (dark)
+            {
+                SetBrush("StatusBarBackgroundBrush", "#2D2D2D");
+                SetBrush("ToolbarBackgroundBrush", "#333333");
+                SetBrush("ToolbarBorderBrush", "#444444");
+                SetBrush("SectionHeadingBrush", "#6B9BD2");
+                SetBrush("CardBorderBrush", "#555555");
+                SetBrush("InfoBannerBackgroundBrush", "#1A3A4A");
+                SetBrush("InfoBannerBorderBrush", "#2A8A9A");
+                SetBrush("SubtlePanelBackgroundBrush", "#2A2A2A");
+                SetBrush("SubtlePanelBorderBrush", "#444444");
+                SetBrush("WarningBackgroundBrush", "#3D3520");
+                SetBrush("WarningBorderBrush", "#AA8800");
+                SetBrush("WarningTextBrush", "#D4A830");
+                SetBrush("WarningTextSecondaryBrush", "#C4A040");
+                SetBrush("DependencyWarningBackgroundBrush", "#3D3820");
+                SetBrush("DependencyWarningBorderBrush", "#AA8800");
+                SetBrush("AccentOverlayBrush", "#33FF8C00");
+                SetBrush("ScriptCategoryButtonBrush", "#5070B0");
+                SetBrush("ScriptCategoryOverlayBrush", "#30808080");
+                SetBrush("ErrorDialogBackgroundBrush", "#3A2020");
+                SetBrush("UndoInfoBackgroundBrush", "#1A2A3A");
+                SetBrush("UndoInfoBorderBrush", "#406090");
+                SetBrush("EmulatorWarningBackgroundBrush", "#3A3520");
+                SetBrush("CharCodeHeaderBrush", "#4A6080");
+                SetBrush("CharCodeCellBrush", "#3A3A3A");
+                SetBrush("WelcomeBannerBrush", "#2A2A3A");
+                SetBrush("WelcomeBannerBorderBrush", "#3A3A5A");
+            }
+            else
+            {
+                SetBrush("StatusBarBackgroundBrush", "#E8E8E8");
+                SetBrush("ToolbarBackgroundBrush", "#F0F0F0");
+                SetBrush("ToolbarBorderBrush", "#DDDDDD");
+                SetBrush("SectionHeadingBrush", "#2B579A");
+                SetBrush("CardBorderBrush", "#CCCCCC");
+                SetBrush("InfoBannerBackgroundBrush", "#D1ECF1");
+                SetBrush("InfoBannerBorderBrush", "#17A2B8");
+                SetBrush("SubtlePanelBackgroundBrush", "#F8F9FA");
+                SetBrush("SubtlePanelBorderBrush", "#DEE2E6");
+                SetBrush("WarningBackgroundBrush", "#FFF3CD");
+                SetBrush("WarningBorderBrush", "#FFC107");
+                SetBrush("WarningTextBrush", "#B8860B");
+                SetBrush("WarningTextSecondaryBrush", "#8B6914");
+                SetBrush("DependencyWarningBackgroundBrush", "#FFFDE8");
+                SetBrush("DependencyWarningBorderBrush", "#F0C000");
+                SetBrush("AccentOverlayBrush", "#33FF8C00");
+                SetBrush("ScriptCategoryButtonBrush", "#4060A0");
+                SetBrush("ScriptCategoryOverlayBrush", "#20808080");
+                SetBrush("ErrorDialogBackgroundBrush", "#FFF8F8");
+                SetBrush("UndoInfoBackgroundBrush", "#E3F2FD");
+                SetBrush("UndoInfoBorderBrush", "#90CAF9");
+                SetBrush("EmulatorWarningBackgroundBrush", "#FFF8E1");
+                SetBrush("CharCodeHeaderBrush", "#FF6888A8");
+                SetBrush("CharCodeCellBrush", "#FFE0E0E0");
+                SetBrush("WelcomeBannerBrush", "#E8EAF6");
+                SetBrush("WelcomeBannerBorderBrush", "#C5CAE9");
+            }
+        }
+
+        void SetBrush(string key, string color)
+        {
+            if (Resources.ContainsKey(key) && Resources[key] is SolidColorBrush brush)
+            {
+                brush.Color = Color.Parse(color);
+            }
         }
 
         static void ParseArgs(string[]? args)

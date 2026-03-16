@@ -10,7 +10,7 @@
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
       <Button Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
-    <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="#FFF8E1">
+    <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="{DynamicResource EmulatorWarningBackgroundBrush}">
       <StackPanel Spacing="8">
         <TextBlock Text="Platform Notice" FontWeight="Bold" FontSize="14" Foreground="DarkOrange" />
         <TextBlock TextWrapping="Wrap"
