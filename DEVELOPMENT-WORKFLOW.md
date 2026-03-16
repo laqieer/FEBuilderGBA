@@ -202,25 +202,29 @@ Address feedback in categories:
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
 | **Needs rebase** | Rebase onto default branch, resolve conflicts, force push |
 
-**After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews):
+**After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews).
+
+Find all unresolved review threads (use `first: 100` to cover large PRs; paginate if `hasNextPage` is true):
 ```bash
-# List all unresolved inline comments
-gh api repos/laqieer/FEBuilderGBA/pulls/<N>/comments \
-  --jq '.[] | select(.position != null) | "[\(.path):\(.line)] \(.body | split("\n")[0])"'
-```
-These must ALL be addressed (fix the code) and then resolved:
-```bash
-# Get unresolved thread IDs
+# Get ALL unresolved thread IDs and their first comment
 gh api graphql -f query='{
   repository(owner: "laqieer", name: "FEBuilderGBA") {
     pullRequest(number: <N>) {
-      reviewThreads(first: 20) {
-        nodes { id isResolved }
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          isResolved
+          comments(first: 1) { nodes { path line body } }
+        }
       }
     }
   }
-}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .id'
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | "\(.id) [\(.comments.nodes[0].path):\(.comments.nodes[0].line)] \(.comments.nodes[0].body | split("\n")[0])"'
+```
 
+These must ALL be addressed (fix the code) and then resolved:
+```bash
 # Resolve each thread after addressing the feedback
 gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THREAD_ID>"}) { thread { isResolved } } }'
 ```
@@ -264,15 +268,15 @@ gh pr merge <N> -R laqieer/FEBuilderGBA --merge
 | Blocker | Diagnosis | Fix |
 |---------|-----------|-----|
 | **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
-| **CI checks failed** | Read logs: `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
-| **Unresolved conversations** | `gh api graphql` query for unresolved threads (see step 10) | Resolve all threads |
-| **Merge conflicts** | `gh pr view <N> --json mergeable` | Rebase: `git rebase origin/master`, force push |
+| **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
+| **Unresolved conversations** | GraphQL query for unresolved threads (see step 10) | Resolve all threads |
+| **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease` |
 | **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
-| **"not mergeable" (unknown)** | Wait 15s and retry — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
+| **"not mergeable" (unknown)** | Wait 15s — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
 
 ### 14. Confirm Merge
 ```bash
-gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq '.state'
+gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state
 # MUST output: MERGED
 ```
 
