@@ -28,6 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += MainWindow_Opened;
             Closing += MainWindow_Closing;
             FilterTextBox.TextChanged += FilterTextBox_TextChanged;
+            FilterTextBox.KeyDown += FilterTextBox_KeyDown;
 
             // Enable drag-and-drop for ROM files
             DragDrop.SetAllowDrop(this, true);
@@ -1461,6 +1462,15 @@ namespace FEBuilderGBA.Avalonia.Views
         private void FilterTextBox_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
         {
             ApplyFilter(FilterTextBox.Text ?? "");
+        }
+
+        private void FilterTextBox_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ApplyFilter(FilterTextBox.Text ?? "");
+                e.Handled = true;
+            }
         }
 
         private void ClearFilter_Click(object? sender, RoutedEventArgs e)
