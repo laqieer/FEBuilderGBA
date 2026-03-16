@@ -1699,6 +1699,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("FilterTextBox.Focus()", src);
         }
 
+<<<<<<< HEAD
         // ------------------------------------------------------------------ DisASMView is functional, not placeholder
 
         [Fact]
@@ -1804,6 +1805,70 @@ namespace FEBuilderGBA.Tests.Unit
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SongTrackImportSelectInstrumentViewModel.cs"));
             Assert.Contains("BuildInstrumentInfo", src);
             Assert.Contains("InstrumentInfoText", src);
+        }
+
+        // ------------------------------------------------------------------ Keyboard Navigation (#75)
+
+        [Fact]
+        public void AddressListControl_HasHomeKeyHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.Home", src);
+            Assert.Contains("SelectFirst()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasEndKeyHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.End", src);
+            Assert.Contains("SelectLast()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasSelectLastMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void SelectLast()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasCtrlFHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.F", src);
+            Assert.Contains("KeyModifiers.Control", src);
+            Assert.Contains("FocusSearch()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasFocusSearchMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void FocusSearch()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasEnterKeyHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.Enter", src);
+            Assert.Contains("FireSelectionConfirmed()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_IsFocusable()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml"));
+            Assert.Contains("Focusable=\"True\"", axaml);
+        }
+
+        [Fact]
+        public void AddressListControl_HasControlKeyDownHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Control_KeyDown", src);
+            Assert.Contains("KeyDown += Control_KeyDown", src);
         }
     }
 }

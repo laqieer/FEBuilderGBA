@@ -47,6 +47,7 @@ namespace FEBuilderGBA.Avalonia.Controls
             AddressList.DoubleTapped += AddressList_DoubleTapped;
             AddressList.KeyDown += AddressList_KeyDown;
             SearchBox.KeyDown += SearchBox_KeyDown;
+            KeyDown += Control_KeyDown;
         }
 
         /// <summary>Load address list from AddrResult items.</summary>
@@ -99,6 +100,19 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             if (_displayItems.Count > 0)
                 AddressList.SelectedIndex = 0;
+        }
+
+        /// <summary>Select the last item in the list.</summary>
+        public void SelectLast()
+        {
+            if (_displayItems.Count > 0)
+                AddressList.SelectedIndex = _displayItems.Count - 1;
+        }
+
+        /// <summary>Focus the search TextBox.</summary>
+        public void FocusSearch()
+        {
+            SearchBox.Focus();
         }
 
         /// <summary>Select an item by address.</summary>
@@ -169,6 +183,26 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (e.Key == Key.Enter)
             {
                 FireSelectionConfirmed();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Home)
+            {
+                SelectFirst();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.End)
+            {
+                SelectLast();
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>Handle Ctrl+F at the UserControl level to focus search from anywhere.</summary>
+        void Control_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                FocusSearch();
                 e.Handled = true;
             }
         }
