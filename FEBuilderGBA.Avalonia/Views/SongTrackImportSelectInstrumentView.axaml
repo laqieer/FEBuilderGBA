@@ -17,11 +17,11 @@
         </Grid>
 
         <!-- Instrument set info -->
-        <Border Background="#D1ECF1" BorderBrush="#17A2B8" BorderThickness="1"
+        <Border Background="{DynamicResource InfoBannerBackgroundBrush}" BorderBrush="{DynamicResource InfoBannerBorderBrush}" BorderThickness="1"
                 CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
-            <TextBlock Text="About Instrument Selection" FontWeight="Bold" Foreground="#0C5460" />
-            <TextBlock TextWrapping="Wrap" Foreground="#0C5460"
+            <TextBlock Text="About Instrument Selection" FontWeight="Bold" Foreground="{DynamicResource InfoBannerTextBrush}" />
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource InfoBannerTextBrush}"
                        Text="This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes." />
           </StackPanel>
         </Border>
@@ -35,11 +35,11 @@
         </Border>
 
         <!-- Not yet implemented warning -->
-        <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1"
+        <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
                 CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
-            <TextBlock Text="Not Yet Implemented" FontWeight="Bold" Foreground="#856404" />
-            <TextBlock TextWrapping="Wrap" Foreground="#856404"
+            <TextBlock Text="Not Yet Implemented" FontWeight="Bold" Foreground="{DynamicResource WarningTextBrush}" />
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource WarningTextBrush}"
                        Text="Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library." />
           </StackPanel>
         </Border>
