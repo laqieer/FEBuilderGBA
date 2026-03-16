@@ -54,6 +54,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     e.Handled = true;
                 }
             }
+            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Y)
+            {
+                // Redo is not supported by the undo system — show status message
+                StatusText.Text = R._("Redo is not supported.");
+                e.Handled = true;
+            }
+            else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F5)
+            {
+                // Refresh: invalidate all open editors so they reload from ROM data
+                Undo.OnAllFormsInvalidated?.Invoke();
+                StatusText.Text = R._("View refreshed.");
+                e.Handled = true;
+            }
         }
 
         void OnLanguageChanged()
@@ -1496,6 +1509,12 @@ namespace FEBuilderGBA.Avalonia.Views
         private void Undo_Click(object? sender, RoutedEventArgs e)
         {
             CoreState.Undo?.RunUndo();
+        }
+
+        private void Refresh_Click(object? sender, RoutedEventArgs e)
+        {
+            Undo.OnAllFormsInvalidated?.Invoke();
+            StatusText.Text = R._("View refreshed.");
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)

@@ -20,6 +20,8 @@
       </MenuItem>
       <MenuItem Header="_Edit">
         <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" InputGesture="Ctrl+Z" />
+        <Separator />
+        <MenuItem Header="Re_fresh" Name="RefreshMenuItem" Click="Refresh_Click" InputGesture="F5" />
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
