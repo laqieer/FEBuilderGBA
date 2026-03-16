@@ -321,6 +321,10 @@ Key data structure differences between ROM versions:
 
 Always check `Program.ROM.RomInfo.version` when implementing version-specific logic.
 
+## Development Workflow
+
+See **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** for the mandatory development workflow with Copilot CLI review gates. Key phases: Issue → Plan → Copilot Review → Implement → PR → Copilot Review → Merge. Plan-first, code-second.
+
 ## Workflow Preferences
 
 - **Always push after every commit** — run `git push` immediately after `git commit`, no separate prompt needed
