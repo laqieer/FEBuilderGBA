@@ -3,6 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
+using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -11,16 +13,24 @@ namespace FEBuilderGBA.Avalonia.Controls
 {
     /// <summary>
     /// Displays a GBA image (IImage) as an Avalonia WriteableBitmap.
-    /// Supports zoom and pixel-perfect rendering.
+    /// Supports zoom (mouse wheel and +/- buttons) and pan via ScrollViewer.
     /// </summary>
     public partial class GbaImageControl : UserControl
     {
         WriteableBitmap? _bitmap;
         int _zoom = 2;
 
+        /// <summary>Minimum zoom factor.</summary>
+        public const int ZoomMin = 1;
+
+        /// <summary>Maximum zoom factor.</summary>
+        public const int ZoomMax = 8;
+
         public GbaImageControl()
         {
             InitializeComponent();
+            UpdateZoomLabel();
+            PointerWheelChanged += OnPointerWheelChanged;
         }
 
         /// <summary>Zoom factor (1 = 1:1, 2 = 2x, etc.).</summary>
@@ -29,7 +39,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             get => _zoom;
             set
             {
-                _zoom = Math.Max(1, Math.Min(8, value));
+                int clamped = Math.Max(ZoomMin, Math.Min(ZoomMax, value));
+                if (_zoom == clamped) return;
+                _zoom = clamped;
+                UpdateZoomLabel();
                 UpdateDisplay();
             }
         }
@@ -126,6 +139,31 @@ namespace FEBuilderGBA.Avalonia.Controls
                 ImageDisplay.Height = _bitmap.PixelSize.Height * _zoom;
             }
         }
+
+        void UpdateZoomLabel()
+        {
+            if (ZoomLabel != null)
+                ZoomLabel.Text = $"{_zoom}x";
+        }
+
+        /// <summary>Mouse wheel zoom handler.</summary>
+        void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        {
+            if (e.Delta.Y > 0)
+                Zoom++;
+            else if (e.Delta.Y < 0)
+                Zoom--;
+            e.Handled = true;
+        }
+
+        /// <summary>Zoom in button click.</summary>
+        void OnZoomInClick(object? sender, RoutedEventArgs e) => Zoom++;
+
+        /// <summary>Zoom out button click.</summary>
+        void OnZoomOutClick(object? sender, RoutedEventArgs e) => Zoom--;
+
+        /// <summary>Reset zoom to 1x.</summary>
+        void OnZoomResetClick(object? sender, RoutedEventArgs e) => Zoom = 1;
 
         /// <summary>Whether a bitmap is available for export.</summary>
         public bool HasImage => _bitmap != null;

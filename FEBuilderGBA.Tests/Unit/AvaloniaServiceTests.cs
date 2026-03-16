@@ -131,6 +131,43 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Image", src);
         }
 
+        [Fact]
+        public void GbaImageControl_HasZoomProperty()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("public int Zoom", src);
+            Assert.Contains("ZoomMin", src);
+            Assert.Contains("ZoomMax", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasZoomHandlers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
+            Assert.Contains("OnPointerWheelChanged", src);
+            Assert.Contains("OnZoomInClick", src);
+            Assert.Contains("OnZoomOutClick", src);
+            Assert.Contains("OnZoomResetClick", src);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasScrollViewer()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml"));
+            Assert.Contains("ScrollViewer", axaml);
+            Assert.Contains("ImageScroller", axaml);
+        }
+
+        [Fact]
+        public void GbaImageControl_HasZoomButtons()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml"));
+            Assert.Contains("ZoomInButton", axaml);
+            Assert.Contains("ZoomOutButton", axaml);
+            Assert.Contains("ZoomResetButton", axaml);
+            Assert.Contains("ZoomLabel", axaml);
+        }
+
         // ---- FileDialogHelper ----
 
         [Fact]
