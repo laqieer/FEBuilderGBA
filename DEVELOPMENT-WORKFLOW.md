@@ -220,7 +220,8 @@ gh api graphql -f query='{
       }
     }
   }
-}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | "\(.id) [\(.comments.nodes[0].path):\(.comments.nodes[0].line)] \(.comments.nodes[0].body | split("\n")[0])"'
+}' --jq '(.data.repository.pullRequest.reviewThreads | "hasNextPage=\(.pageInfo.hasNextPage) endCursor=\(.pageInfo.endCursor)"), (.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | "\(.id) [\(.comments.nodes[0].path):\(.comments.nodes[0].line)] \(.comments.nodes[0].body | split("\n")[0])")'
+# If hasNextPage=true, re-run with: reviewThreads(first: 100, after: "<endCursor>")
 ```
 
 These must ALL be addressed (fix the code) and then resolved:
