@@ -1870,5 +1870,115 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Control_KeyDown", src);
             Assert.Contains("KeyDown += Control_KeyDown", src);
         }
+
+        [Fact]
+        public void AddressListControl_HasPageUpHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.PageUp", src);
+            Assert.Contains("PageUp()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasPageDownHandler()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("Key.PageDown", src);
+            Assert.Contains("PageDown()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasPageUpMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void PageUp()", src);
+            // Should clamp to 0
+            Assert.Contains("Math.Max(0,", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasPageDownMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("public void PageDown()", src);
+            // Should clamp to last item
+            Assert.Contains("Math.Min(_displayItems.Count - 1,", src);
+        }
+
+        [Fact]
+        public void AddressListControl_PageSizeConstant()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("const int PageSize = 10", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasTypeToSearchBuffer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("_typeSearchBuffer", src);
+            Assert.Contains("TypeSearchBuffer", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasTypeSearchTimeout()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("const int TypeSearchTimeoutMs = 500", src);
+            Assert.Contains("DispatcherTimer", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasHandleTypeToSearch()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("HandleTypeToSearch(", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasJumpToTypeSearchMatch()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("JumpToTypeSearchMatch(", src);
+            // Should be case-insensitive
+            Assert.Contains("StringComparison.OrdinalIgnoreCase", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasKeyToCharHelper()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("KeyToChar(", src);
+            // Should handle letters and digits
+            Assert.Contains("Key.A", src);
+            Assert.Contains("Key.Z", src);
+            Assert.Contains("Key.D0", src);
+            Assert.Contains("Key.D9", src);
+        }
+
+        [Fact]
+        public void AddressListControl_TypeSearchResetsOnTimeout()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            // Timer resets the buffer
+            Assert.Contains("_typeSearchBuffer = \"\"", src);
+            Assert.Contains("_typeSearchTimer.Stop()", src);
+            Assert.Contains("_typeSearchTimer.Start()", src);
+        }
+
+        [Fact]
+        public void AddressListControl_PageUpScrollsIntoView()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            // PageUp/PageDown should call ScrollIntoView
+            Assert.Contains("ScrollIntoView(target)", src);
+        }
+
+        [Fact]
+        public void AddressListControl_HasResetTypeSearchBuffer()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
+            Assert.Contains("void ResetTypeSearchBuffer()", src);
+        }
     }
 }

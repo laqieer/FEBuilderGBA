@@ -7,6 +7,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Controls
@@ -30,6 +31,16 @@ namespace FEBuilderGBA.Avalonia.Controls
         bool _isRefreshing;
         // Optional icon loader function: given an item index, returns a Bitmap or null.
         Func<int, Bitmap?>? _iconLoader;
+
+        /// <summary>Number of items to jump for PageUp/PageDown.</summary>
+        internal const int PageSize = 10;
+
+        /// <summary>Timeout in milliseconds before the type-to-search buffer resets.</summary>
+        internal const int TypeSearchTimeoutMs = 500;
+
+        // Type-to-search state
+        string _typeSearchBuffer = "";
+        DispatcherTimer? _typeSearchTimer;
 
         /// <summary>Fired when the selected address changes.</summary>
         public event Action<uint>? SelectedAddressChanged;
@@ -195,6 +206,114 @@ namespace FEBuilderGBA.Avalonia.Controls
                 SelectLast();
                 e.Handled = true;
             }
+            else if (e.Key == Key.PageUp)
+            {
+                PageUp();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.PageDown)
+            {
+                PageDown();
+                e.Handled = true;
+            }
+            else
+            {
+                // Type-to-search: handle printable characters
+                HandleTypeToSearch(e);
+            }
+        }
+
+        /// <summary>Move selection up by PageSize items.</summary>
+        public void PageUp()
+        {
+            if (_displayItems.Count == 0) return;
+            int current = AddressList.SelectedIndex;
+            if (current < 0) current = 0;
+            int target = Math.Max(0, current - PageSize);
+            AddressList.SelectedIndex = target;
+            AddressList.ScrollIntoView(target);
+        }
+
+        /// <summary>Move selection down by PageSize items.</summary>
+        public void PageDown()
+        {
+            if (_displayItems.Count == 0) return;
+            int current = AddressList.SelectedIndex;
+            if (current < 0) current = 0;
+            int target = Math.Min(_displayItems.Count - 1, current + PageSize);
+            AddressList.SelectedIndex = target;
+            AddressList.ScrollIntoView(target);
+        }
+
+        /// <summary>Handle type-to-search: accumulate typed characters and jump to matching item.</summary>
+        void HandleTypeToSearch(KeyEventArgs e)
+        {
+            // Only handle letter/digit keys without modifier keys (except Shift for uppercase)
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Control) ||
+                e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+                return;
+
+            char? ch = KeyToChar(e.Key, e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+            if (ch == null) return;
+
+            _typeSearchBuffer += ch.Value;
+            e.Handled = true;
+
+            // Reset or restart the timer
+            if (_typeSearchTimer == null)
+            {
+                _typeSearchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(TypeSearchTimeoutMs) };
+                _typeSearchTimer.Tick += (_, _) =>
+                {
+                    _typeSearchBuffer = "";
+                    _typeSearchTimer.Stop();
+                };
+            }
+            _typeSearchTimer.Stop();
+            _typeSearchTimer.Start();
+
+            // Search for the first item whose text starts with the buffer
+            JumpToTypeSearchMatch(_typeSearchBuffer);
+        }
+
+        /// <summary>Jump to the first display item whose text starts with the given prefix (case-insensitive).</summary>
+        internal void JumpToTypeSearchMatch(string prefix)
+        {
+            for (int i = 0; i < _displayItems.Count; i++)
+            {
+                if (_displayItems[i].Text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    AddressList.SelectedIndex = i;
+                    AddressList.ScrollIntoView(i);
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Convert a Key enum to a printable character, or null if not printable.</summary>
+        static char? KeyToChar(Key key, bool shift)
+        {
+            if (key >= Key.A && key <= Key.Z)
+            {
+                char c = (char)('a' + (key - Key.A));
+                return shift ? char.ToUpper(c) : c;
+            }
+            if (key >= Key.D0 && key <= Key.D9)
+                return (char)('0' + (key - Key.D0));
+            if (key >= Key.NumPad0 && key <= Key.NumPad9)
+                return (char)('0' + (key - Key.NumPad0));
+            if (key == Key.Space) return ' ';
+            return null;
+        }
+
+        /// <summary>Get the current type-to-search buffer (for testing).</summary>
+        internal string TypeSearchBuffer => _typeSearchBuffer;
+
+        /// <summary>Reset the type-to-search buffer (for testing).</summary>
+        internal void ResetTypeSearchBuffer()
+        {
+            _typeSearchBuffer = "";
+            _typeSearchTimer?.Stop();
         }
 
         /// <summary>Handle Ctrl+F at the UserControl level to focus search from anywhere.</summary>
