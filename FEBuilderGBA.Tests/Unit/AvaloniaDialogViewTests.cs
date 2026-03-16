@@ -800,7 +800,23 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Name=\"OpenROMButton\"", src);
             Assert.Contains("Name=\"UpdateCheckButton\"", src);
             Assert.Contains("Name=\"ManButton\"", src);
-            Assert.Contains("Width=\"851\"", src);
+            Assert.Contains("MaxWidth=\"400\"", src);
+        }
+
+        [Fact]
+        public void WelcomeView_Axaml_HasVersionInfoBinding()
+        {
+            var src = ReadAxaml("WelcomeView.axaml");
+            Assert.Contains("{Binding VersionInfo}", src);
+            Assert.Contains("Name=\"VersionText\"", src);
+        }
+
+        [Fact]
+        public void WelcomeViewModel_HasVersionInfoProperty()
+        {
+            var src = ReadVM("WelcomeViewModel.cs");
+            Assert.Contains("VersionInfo", src);
+            Assert.Contains("SetField", src);
         }
 
         [Fact]
@@ -811,6 +827,39 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OpenROM_Click", src);
             Assert.Contains("UpdateCheck_Click", src);
             Assert.Contains("Manual_Click", src);
+        }
+
+        // --- EasyModePanel search/filter (#72) ---
+
+        [Fact]
+        public void EasyModePanel_Axaml_HasSearchBox()
+        {
+            var src = ReadAxaml("EasyModePanel.axaml");
+            Assert.Contains("Name=\"SearchBox\"", src);
+            Assert.Contains("Watermark=\"Search editors...\"", src);
+        }
+
+        [Fact]
+        public void EasyModePanel_Axaml_HasNamedCategories()
+        {
+            var src = ReadAxaml("EasyModePanel.axaml");
+            Assert.Contains("Name=\"CategoryCharacters\"", src);
+            Assert.Contains("Name=\"CategoryItems\"", src);
+            Assert.Contains("Name=\"CategoryMaps\"", src);
+            Assert.Contains("Name=\"CategoryEvents\"", src);
+            Assert.Contains("Name=\"CategoryGraphics\"", src);
+            Assert.Contains("Name=\"CategoryMusic\"", src);
+            Assert.Contains("Name=\"CategoryText\"", src);
+            Assert.Contains("Name=\"CategoryTools\"", src);
+        }
+
+        [Fact]
+        public void EasyModePanel_CodeBehind_HasApplyFilterMethod()
+        {
+            var src = ReadView("EasyModePanel.axaml.cs");
+            Assert.Contains("ApplyFilter", src);
+            Assert.Contains("SearchBox_TextChanged", src);
+            Assert.Contains("GetCategories", src);
         }
 
         // ===========================================================================

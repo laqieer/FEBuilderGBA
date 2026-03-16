@@ -14,20 +14,20 @@
                    HorizontalAlignment="Center" />
         <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="16"
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
-        <TextBlock Name="VersionText" FontSize="12"
+        <TextBlock Name="VersionText" Text="{Binding VersionInfo}" FontSize="12"
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
       </StackPanel>
     </Border>
-    <!-- Buttons (WinForms 851x47/50 each, centered at X:214) -->
+    <!-- Buttons (constrained width for better layout) -->
     <StackPanel Spacing="12" HorizontalAlignment="Center">
-      <Button Name="OpenLastROMButton" Content="Open Last ROM" Width="851" Height="47"
-              HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
-      <Button Name="OpenROMButton" Content="Open ROM" Width="851" Height="50"
-              HorizontalContentAlignment="Center" Click="OpenROM_Click" />
-      <Button Name="UpdateCheckButton" Content="Check for Updates" Width="851" Height="47"
-              HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
-      <Button Name="ManButton" Content="Online Manual" Width="851" Height="47"
-              HorizontalContentAlignment="Center" Click="Manual_Click" />
+      <Button Name="OpenLastROMButton" Content="Open Last ROM" MinWidth="200" MaxWidth="400" Height="47"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
+      <Button Name="OpenROMButton" Content="Open ROM" MinWidth="200" MaxWidth="400" Height="50"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenROM_Click" />
+      <Button Name="UpdateCheckButton" Content="Check for Updates" MinWidth="200" MaxWidth="400" Height="47"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
+      <Button Name="ManButton" Content="Online Manual" MinWidth="200" MaxWidth="400" Height="47"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="Manual_Click" />
     </StackPanel>
   </DockPanel>
   </ScrollViewer>
