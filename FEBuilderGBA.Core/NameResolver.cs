@@ -131,6 +131,12 @@ namespace FEBuilderGBA
             catch { return "???"; }
         }
 
+        /// <summary>Get the name of a skill by index.</summary>
+        public static string GetSkillName(uint id)
+        {
+            return _cache.GetOrAdd(("skill", id), _ => ResolveSkillName(id));
+        }
+
         static string ResolveSongName(uint id)
         {
             try
@@ -141,6 +147,25 @@ namespace FEBuilderGBA
                 return $"Song 0x{id:X}";
             }
             catch { return "???"; }
+        }
+
+        static string ResolveSkillName(uint id)
+        {
+            if (id == 0) return "(None)";
+            try
+            {
+                // Delegate to the UI-layer resolver if available
+                var resolver = CoreState.SkillNameResolver;
+                if (resolver != null)
+                {
+                    string name = resolver(id);
+                    if (!string.IsNullOrEmpty(name))
+                        return name;
+                }
+                // Fallback: hex representation
+                return $"Skill 0x{id:X02}";
+            }
+            catch { return $"Skill 0x{id:X02}"; }
         }
     }
 }

@@ -220,6 +220,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // Detect installed patches (SkillSystem, MagicSplit, etc.)
             PatchDetectionService.Instance.Refresh();
 
+            // Wire skill name resolution callback for NameResolver
+            CoreState.SkillNameResolver = id => PatchDetectionService.Instance.ResolveSkillName(id);
+
             // Update UI
             _vm.UpdateFromRom();
             StatusText.Text = _vm.StatusText;

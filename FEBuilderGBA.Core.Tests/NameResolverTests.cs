@@ -109,6 +109,84 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(expected, NameResolver.StripControlCodes(input!));
         }
 
+        [Fact]
+        public void GetSkillName_Zero_ReturnsNone()
+        {
+            NameResolver.ClearCache();
+            string result = NameResolver.GetSkillName(0);
+            Assert.Equal("(None)", result);
+        }
+
+        [Fact]
+        public void GetSkillName_NoResolver_ReturnsHexFallback()
+        {
+            var savedResolver = CoreState.SkillNameResolver;
+            try
+            {
+                CoreState.SkillNameResolver = null;
+                NameResolver.ClearCache();
+                string result = NameResolver.GetSkillName(0x1A);
+                Assert.Equal("Skill 0x1A", result);
+            }
+            finally
+            {
+                CoreState.SkillNameResolver = savedResolver;
+            }
+        }
+
+        [Fact]
+        public void GetSkillName_WithResolver_ReturnsResolvedName()
+        {
+            var savedResolver = CoreState.SkillNameResolver;
+            try
+            {
+                CoreState.SkillNameResolver = id => id == 5 ? "Adept" : null;
+                NameResolver.ClearCache();
+                string result = NameResolver.GetSkillName(5);
+                Assert.Equal("Adept", result);
+            }
+            finally
+            {
+                CoreState.SkillNameResolver = savedResolver;
+            }
+        }
+
+        [Fact]
+        public void GetSkillName_ResolverReturnsNull_FallsBackToHex()
+        {
+            var savedResolver = CoreState.SkillNameResolver;
+            try
+            {
+                CoreState.SkillNameResolver = id => null;
+                NameResolver.ClearCache();
+                string result = NameResolver.GetSkillName(0xFF);
+                Assert.Equal("Skill 0xFF", result);
+            }
+            finally
+            {
+                CoreState.SkillNameResolver = savedResolver;
+            }
+        }
+
+        [Fact]
+        public void GetSkillName_CacheWorksAcrossCalls()
+        {
+            var savedResolver = CoreState.SkillNameResolver;
+            try
+            {
+                int callCount = 0;
+                CoreState.SkillNameResolver = id => { callCount++; return "TestSkill"; };
+                NameResolver.ClearCache();
+                NameResolver.GetSkillName(10);
+                NameResolver.GetSkillName(10); // should use cache
+                Assert.Equal(1, callCount);
+            }
+            finally
+            {
+                CoreState.SkillNameResolver = savedResolver;
+            }
+        }
+
         [Theory]
         [InlineData(" Lord ", "Lord")]
         [InlineData("\r\nKnight\n", "Knight")]

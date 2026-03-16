@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -321,5 +322,134 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>True if the HALFBODY portrait extension is installed.</summary>
         public bool IsHalfBody => PortraitExtends == PortraitExtendsType.HalfBody;
+
+        // ---- Skill name resolution ----
+
+        /// <summary>Cached skill text table base address for SkillSystem patch.</summary>
+        uint _skillSystemTextBase;
+
+        /// <summary>
+        /// Resolve a skill ID to a human-readable name using the detected skill system.
+        /// Returns null if resolution fails (caller should use hex fallback).
+        /// </summary>
+        public string ResolveSkillName(uint id)
+        {
+            if (id == 0) return null;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                switch (SkillSystem)
+                {
+                    case SkillSystemType.CSkillSys09x:
+                    case SkillSystemType.CSkillSys300:
+                        return ResolveCSkillSysName(rom, id);
+
+                    case SkillSystemType.SkillSystem:
+                        return ResolveSkillSystemName(rom, id);
+
+                    case SkillSystemType.FE8N_Ver2:
+                    case SkillSystemType.FE8N_Ver3:
+                    case SkillSystemType.FE8N:
+                        return ResolveFE8NSkillName(rom, id);
+
+                    default:
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// CSkillSys09x/300: skill info table at fixed address 0xB2A614.
+        /// Each entry is 8 bytes; text ID at offset +4 (u16).
+        /// </summary>
+        static string ResolveCSkillSysName(ROM rom, uint id)
+        {
+            const uint gpSkillInfos = 0xB2A614;
+            if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return null;
+            uint baseAddr = rom.p32(gpSkillInfos);
+            if (!U.isSafetyOffset(baseAddr, rom)) return null;
+            uint entryAddr = baseAddr + 8 * id;
+            if (!U.isSafetyOffset(entryAddr + 6, rom)) return null;
+            uint textId = rom.u16(entryAddr + 4);
+            if (textId == 0) return null;
+            string text = NameResolver.GetTextById(textId);
+            return string.IsNullOrEmpty(text) || text == "???" ? null : text;
+        }
+
+        /// <summary>
+        /// SkillSystems (FE8U): find TEXT pointer via byte-pattern scan.
+        /// Text table stores u16 text IDs, entry = base + id * 2.
+        /// </summary>
+        string ResolveSkillSystemName(ROM rom, uint id)
+        {
+            if (_skillSystemTextBase == 0)
+                _skillSystemTextBase = FindSkillSystemTextBase(rom);
+            if (_skillSystemTextBase == 0 || _skillSystemTextBase == U.NOT_FOUND)
+                return null;
+            uint entryAddr = _skillSystemTextBase + id * 2;
+            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            uint textId = rom.u16(entryAddr);
+            if (textId == 0) return null;
+            string text = NameResolver.GetTextById(textId);
+            if (string.IsNullOrEmpty(text) || text == "???") return null;
+            // SkillSystem text format is often "Name: Description" — extract just the name
+            int colon = text.IndexOf(':');
+            if (colon > 0) return text.Substring(0, colon).Trim();
+            return text;
+        }
+
+        /// <summary>
+        /// FE8N variants: skill config at 0x89268 area.
+        /// The text table pointer is at 0x89274 (ver2/ver3) or found via pattern scan.
+        /// </summary>
+        static string ResolveFE8NSkillName(ROM rom, uint id)
+        {
+            // FE8N ver2/3 have skill text pointers at known offsets
+            // Ver2: 5 pointers at 0x89274, text pointer is at index 2 (0x8927C)
+            // Ver3: similar layout with extension at 0x89280
+            // Base FE8N: simpler layout at 0x89268 area
+            uint textPtrAddr = 0x8927C; // common for ver2/3
+            if (!U.isSafetyOffset(textPtrAddr + 4, rom)) return null;
+            uint textBase = rom.p32(textPtrAddr);
+            if (!U.isSafetyOffset(textBase, rom)) return null;
+            uint entryAddr = textBase + id * 2;
+            if (!U.isSafetyOffset(entryAddr + 2, rom)) return null;
+            uint textId = rom.u16(entryAddr);
+            if (textId == 0) return null;
+            string text = NameResolver.GetTextById(textId);
+            return string.IsNullOrEmpty(text) || text == "???" ? null : text;
+        }
+
+        /// <summary>
+        /// Scan for the SkillSystems TEXT pointer by searching byte patterns in ROM.
+        /// Mirrors the WinForms SkillConfigSkillSystemForm.FindSkillPointer("TEXT", 0).
+        /// </summary>
+        static uint FindSkillSystemTextBase(ROM rom)
+        {
+            // Two known TEXT patterns from WinForms
+            var patterns = new (byte[] data, uint skip)[]
+            {
+                (new byte[] { 0x07, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x06, 0x48, 0x21, 0x1C }, 16),
+                (new byte[] { 0x40, 0x5D, 0x08, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x07, 0x48, 0x21, 0x1C, 0x4C, 0x31 }, 16),
+            };
+
+            foreach (var (data, skip) in patterns)
+            {
+                uint found = U.Grep(rom.Data, data, 0xB00000, 0xC00000, 4);
+                if (found == U.NOT_FOUND) continue;
+                uint a = found + (uint)data.Length + skip;
+                if (!U.isSafetyOffset(a + 4, rom)) continue;
+                uint p = rom.u32(a);
+                if (!U.isSafetyPointer(p)) continue;
+                return U.toOffset(p);
+            }
+            return 0;
+        }
     }
 }

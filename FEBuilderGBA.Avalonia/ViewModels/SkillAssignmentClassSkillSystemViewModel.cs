@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["ClassSkill"] = $"0x{ClassSkill:X02}",
+                ["ClassSkill"] = NameResolver.GetSkillName(ClassSkill),
             };
         }
 
