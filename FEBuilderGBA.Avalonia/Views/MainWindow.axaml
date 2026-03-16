@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
         x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
-        Title="FEBuilderGBA (Avalonia Preview)"
+        Title="{Binding WindowTitle}"
         Width="900" Height="700"
         SizeToContent="WidthAndHeight">
   <DockPanel>

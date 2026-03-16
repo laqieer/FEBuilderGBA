@@ -31,7 +31,10 @@ namespace FEBuilderGBA.Avalonia.Services
             if (_currentUndoData != null && CoreState.Undo != null)
             {
                 if (_currentUndoData.list.Count > 0)
+                {
                     CoreState.Undo.Push(_currentUndoData);
+                    NotifyUnsavedChanges();
+                }
             }
             _currentUndoData = null;
         }
@@ -55,5 +58,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>Whether there's an active undo group.</summary>
         public bool HasPendingUndo => _currentUndoData != null;
+
+        /// <summary>Notify the main window that there are unsaved changes.</summary>
+        static void NotifyUnsavedChanges()
+        {
+            if (WindowManager.Instance.MainWindow?.DataContext is ViewModels.MainWindowViewModel vm)
+                vm.HasUnsavedChanges = true;
+        }
     }
 }

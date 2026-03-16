@@ -24,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public MainWindow()
         {
             InitializeComponent();
+            DataContext = _vm;
             WindowManager.Instance.MainWindow = this;
             Opened += MainWindow_Opened;
             Closing += MainWindow_Closing;
@@ -1388,6 +1389,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (CoreState.ROM == null) return;
             CoreState.ROM.Save(CoreState.ROM.Filename, false);
+            _vm.HasUnsavedChanges = false;
             CoreState.Services.ShowInfo(R._("ROM saved."));
         }
 
@@ -1400,6 +1402,8 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrEmpty(path)) return;
 
             CoreState.ROM.Save(path, false);
+            _vm.RomFilename = Path.GetFileName(path);
+            _vm.HasUnsavedChanges = false;
             CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(path)}");
         }
 
@@ -1422,6 +1426,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private void Undo_Click(object? sender, RoutedEventArgs e)
         {
             CoreState.Undo?.RunUndo();
+            _vm.HasUnsavedChanges = true;
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)
