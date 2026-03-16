@@ -200,7 +200,7 @@ Address feedback in categories:
 | **Scope overreach** | Update PR body, change `Closes` to `Ref` |
 | **Missing feature** | Add it if in plan scope, otherwise note as future work |
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
-| **Needs rebase** | Rebase onto default branch, resolve conflicts, force push |
+| **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger Copilot CLI review |
 
 **After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews).
 
@@ -270,7 +270,7 @@ gh pr merge <N> -R laqieer/FEBuilderGBA --merge
 | **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
 | **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
 | **Unresolved conversations** | GraphQL query for unresolved threads (see step 10) | Resolve all threads |
-| **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease` |
+| **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review (rebase can introduce changes) |
 | **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
 | **"not mergeable" (unknown)** | Wait 15s — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
 
