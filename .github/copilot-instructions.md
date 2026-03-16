@@ -104,7 +104,31 @@ Runtime data is not embedded into the binaries. The WinForms project copies `con
 - Avalonia editor binding is also name-driven, but uses `EditorFormRef` field names: `B{offset}`, `S{offset}`, `W{offset}`, `D{offset}`, and `P{offset}`.
 - Headless paths matter. `FEBuilderGBA\Program.cs` checks `--version` and other CLI flags before WinForms initialization so CI can run the executable in headless mode. Preserve that startup ordering when changing command routing.
 - WinForms and E2E validation assume `x86` builds. If a change touches WinForms startup, command-line behavior in `FEBuilderGBA.exe`, or E2E helpers, prefer validating with the `msbuild` x86 solution build rather than only with project-level `dotnet build`.
-- When creating a git commit message or any GitHub post for this repository (issue, discussion, comment, or reply), append a footer with the current Copilot CLI version and model configuration used for that action. Use the live session values rather than hardcoded text, e.g. `Copilot CLI: 1.0.5-0` and `Model: GPT-5.4 (gpt-5.4)`.
+- See the "Mandatory footer on ALL GitHub outputs" section below — every GitHub post must include the Copilot CLI version/model footer.
+## Mandatory footer on ALL GitHub outputs
+
+**Every** piece of text that Copilot CLI posts to GitHub MUST end with a footer containing the current Copilot CLI version and model configuration. This applies to ALL of the following without exception:
+
+- Pull request reviews (including approval/comment reviews)
+- Pull request comments and replies
+- Issue comments and replies
+- Discussion comments and replies
+- Commit messages
+- PR descriptions/bodies
+
+**Format:** Two lines at the very end of the message:
+```
+Copilot CLI: <version>
+Model: <display-name> (<model-id>)
+```
+
+**Example:**
+```
+Copilot CLI: 1.0.6-0
+Model: GPT-5.4 (gpt-5.4)
+```
+
+Use the **live session values** from the current runtime — never hardcode. This footer is non-negotiable and must never be omitted, even on short comments or approvals.
 
 ## GitHub targeting rules
 
