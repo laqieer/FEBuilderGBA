@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string name = $"0x{i:X2}";
                 // Try to get unit name if this portrait index corresponds to a unit
                 try { string uname = NameResolver.GetUnitName((uint)i); if (uname != "???" && uname != $"#{i}") name += $" {uname}"; }
-                catch { }
+                catch (Exception ex) { Log.Error("ImagePortraitViewModel.LoadList unit name resolve: {0}", ex.Message); }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
             return result;

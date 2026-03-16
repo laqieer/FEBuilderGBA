@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         var window = factory();
                         await Task.Delay(50);  // Let it initialize
-                        try { window.Close(); } catch { }
+                        try { window.Close(); } catch (Exception ex) { Log.Error("MainWindow.SmokeTest window close: {0}", ex.Message); }
                         passed++;
                         Console.WriteLine($"SMOKE: {name} ... OK");
                     }
@@ -442,7 +442,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch { }
+                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.ScreenshotAll window close: {0}", ex.Message); }
                     }
                 }
 
@@ -807,7 +807,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch { }
+                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.DataVerify window close: {0}", ex.Message); }
                     }
                 }
 
@@ -2105,13 +2105,13 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OnlineManual_Click(object? sender, RoutedEventArgs e)
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/wiki") { UseShellExecute = true }); }
-            catch { }
+            catch (Exception ex) { Log.Error("MainWindow.OnlineManual_Click launch browser: {0}", ex.Message); }
         }
 
         private void Discussions_Click(object? sender, RoutedEventArgs e)
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
-            catch { }
+            catch (Exception ex) { Log.Error("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
         }
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)
