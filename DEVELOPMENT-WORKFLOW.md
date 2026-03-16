@@ -3,6 +3,7 @@
 You MUST follow this workflow strictly.
 Do NOT skip steps.
 Do NOT start coding until explicitly allowed.
+**The final goal is MERGED. Continue until the PR is merged — do not stop at "ready to merge".**
 
 The human developer owns all final decisions.
 Your role is to assist, not override this process.
@@ -175,7 +176,7 @@ EOF
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
 
-### 10. Copilot CLI PR Review
+### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
@@ -201,11 +202,35 @@ Address feedback in categories:
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
 | **Needs rebase** | Rebase onto default branch, resolve conflicts, force push |
 
+**After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews):
+```bash
+# List all unresolved inline comments
+gh api repos/laqieer/FEBuilderGBA/pulls/<N>/comments \
+  --jq '.[] | select(.position != null) | "[\(.path):\(.line)] \(.body | split("\n")[0])"'
+```
+These must ALL be addressed (fix the code) and then resolved:
+```bash
+# Get unresolved thread IDs
+gh api graphql -f query='{
+  repository(owner: "laqieer", name: "FEBuilderGBA") {
+    pullRequest(number: <N>) {
+      reviewThreads(first: 20) {
+        nodes { id isResolved }
+      }
+    }
+  }
+}' --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .id'
+
+# Resolve each thread after addressing the feedback
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THREAD_ID>"}) { thread { isResolved } } }'
+```
+
 ### 11. Iterate Until Approved
-- Fix all issues raised
+- Fix ALL issues raised — both Copilot CLI reviews AND GitHub Copilot bot inline comments
 - Push fixes as new commits (not amends)
+- Resolve all review threads after addressing them
 - Re-trigger Copilot CLI review using the same invocation from step 10
-- Repeat until: **no unresolved Copilot CLI comments**
+- Repeat until: **no unresolved comments of any kind**
 
 **Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
 ```
@@ -216,19 +241,44 @@ Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be
 
 ---
 
-## PHASE 5 — MERGE & FINALIZATION
+## PHASE 5 — MERGE COMPLETION LOOP
+
+**This phase is a loop. Continue until the PR state is MERGED.**
 
 ### 12. Pre-Merge Checklist
-Before merge, verify:
+Before attempting merge, verify ALL of these:
 - [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
+- [ ] All GitHub Copilot bot inline comments addressed and threads resolved
 - [ ] All CI checks green (build + E2E for all ROM variants)
 - [ ] Branch is up to date with master (rebase if needed)
 - [ ] No merge conflicts
-- [ ] PR body accurately reflects what was delivered
+- [ ] PR body accurately reflects what was delivered (update if code changes were added during review)
 
-**Do NOT merge until Copilot CLI has posted its signoff on the PR.**
+### 13. Attempt Merge
+```bash
+gh pr merge <N> -R laqieer/FEBuilderGBA --merge
+```
 
-### 13. Merge Strategy
+**If merge fails**, diagnose and fix the blocker:
+
+| Blocker | Diagnosis | Fix |
+|---------|-----------|-----|
+| **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
+| **CI checks failed** | Read logs: `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
+| **Unresolved conversations** | `gh api graphql` query for unresolved threads (see step 10) | Resolve all threads |
+| **Merge conflicts** | `gh pr view <N> --json mergeable` | Rebase: `git rebase origin/master`, force push |
+| **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
+| **"not mergeable" (unknown)** | Wait 15s and retry — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
+
+### 14. Confirm Merge
+```bash
+gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq '.state'
+# MUST output: MERGED
+```
+
+**If not MERGED, go back to step 12.** Repeat the checklist → attempt → diagnose → fix loop until the PR is confirmed MERGED.
+
+### 15. Merge Strategy (Multiple PRs)
 When merging multiple PRs:
 
 **Serial merge order** — merge one, wait for GitHub to recalculate merge status, then merge the next. This avoids the rebase cascade problem where merging PR A causes PRs B, C, D to all conflict simultaneously.
@@ -251,7 +301,7 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 # If MERGEABLE: merge directly
 ```
 
-### 14. Post-Merge
+### 16. Post-Merge
 - Verify the issue was auto-closed (if `Closes #N` was used)
 - Pull latest master: `git fetch origin master`
 
@@ -279,6 +329,14 @@ Even "just add a shortcut" can conflict with other work.
 Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 **Do:** Use the file overlap analysis table. Overlapping files go in the same agent.
 
+### Don't: Stop at "ready to merge" without confirming MERGED
+"All checks pass" and "Copilot signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
+**Do:** Always run `gh pr view <N> --json state --jq '.state'` and confirm the output is `MERGED`. If not, diagnose and fix.
+
+### Don't: Ignore GitHub Copilot bot inline comments
+The Copilot bot (separate from Copilot CLI) posts inline code comments on each push. Unresolved threads block merge when `required_review_thread_resolution` is enabled.
+**Do:** After each push, check for inline comments, address them, and resolve the threads via GraphQL.
+
 ### Don't: Merge before Copilot CLI posts its signoff on the PR
 A local-only review doesn't count — the review must be visible on GitHub.
 **Do:** Use `--enable-all-github-mcp-tools --allow-all-tools` so Copilot CLI can post via GitHub MCP tools. Verify with `gh api repos/.../pulls/<N>/reviews`.
@@ -293,8 +351,9 @@ A local-only review doesn't count — the review must be visible on GitHub.
 ```
 Issue → Plan Comment → Copilot Review → Revise → Accept
   → Branch → Implement → Tests → Push
-  → PR → Copilot Review → Fix → Approve
-  → Rebase → CI Green → Merge → Close Issue
+  → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
+  → Re-review → Signoff → CI Green → Merge → Confirm MERGED
+  ↑___________________________________________|  (loop until MERGED)
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
