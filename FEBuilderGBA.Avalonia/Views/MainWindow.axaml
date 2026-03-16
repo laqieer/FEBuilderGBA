@@ -9,17 +9,19 @@
     <!-- Menu Bar -->
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
-        <MenuItem Header="_Open ROM..." Click="OpenRom_Click" />
+        <MenuItem Header="_Open ROM..." Click="OpenRom_Click" InputGesture="Ctrl+O" />
         <MenuItem Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
         <MenuItem Header="_Recent Files" Name="RecentFilesMenuItem" />
         <Separator />
-        <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" />
+        <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" InputGesture="Ctrl+S" />
         <MenuItem Header="Save _As..." Click="SaveAsRom_Click" Name="SaveAsMenuItem" IsEnabled="False" />
         <Separator />
         <MenuItem Header="E_xit" Click="Exit_Click" />
       </MenuItem>
       <MenuItem Header="_Edit">
-        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" />
+        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" InputGesture="Ctrl+Z" />
+        <Separator />
+        <MenuItem Header="Re_fresh" Name="RefreshMenuItem" Click="Refresh_Click" InputGesture="F5" />
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />

@@ -44,6 +44,32 @@ namespace FEBuilderGBA.Avalonia.Views
             RebuildRecentFilesMenu();
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.F)
+            {
+                if (FilterTextBox != null && SearchPanel.IsVisible)
+                {
+                    FilterTextBox.Focus();
+                    e.Handled = true;
+                }
+            }
+            else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Y)
+            {
+                // Redo is not supported by the undo system — show status message
+                StatusText.Text = R._("Redo is not supported.");
+                e.Handled = true;
+            }
+            else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F5)
+            {
+                // Refresh: invalidate all open editors so they reload from ROM data
+                Undo.OnAllFormsInvalidated?.Invoke();
+                StatusText.Text = R._("View refreshed.");
+                e.Handled = true;
+            }
+        }
+
         void OnLanguageChanged()
         {
             Dispatcher.UIThread.Post(() =>
@@ -1488,6 +1514,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             CoreState.Undo?.RunUndo();
             _vm.HasUnsavedChanges = CoreState.Undo?.IsModified ?? false;
+        }
+
+        private void Refresh_Click(object? sender, RoutedEventArgs e)
+        {
+            Undo.OnAllFormsInvalidated?.Invoke();
+            StatusText.Text = R._("View refreshed.");
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)

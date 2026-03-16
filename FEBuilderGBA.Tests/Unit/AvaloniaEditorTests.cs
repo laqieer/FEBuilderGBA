@@ -1613,5 +1613,61 @@ namespace FEBuilderGBA.Tests.Unit
             var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EasyModePanel.axaml"));
             Assert.Contains("OAM Sprite Viewer", axaml);
         }
+
+        // ------------------------------------------------------------------ Keyboard shortcuts
+
+        [Fact]
+        public void MainWindow_HasKeyboardShortcut_CtrlO_OpenRom()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("InputGesture=\"Ctrl+O\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_HasKeyboardShortcut_CtrlS_Save()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("InputGesture=\"Ctrl+S\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_HasKeyboardShortcut_CtrlZ_Undo()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("InputGesture=\"Ctrl+Z\"", axaml);
+        }
+
+        [Fact]
+        public void MainWindow_HasKeyboardShortcut_CtrlY_Redo()
+        {
+            // Redo menu item was removed (PR #91), but Ctrl+Y is handled in code-behind
+            // to show a "not supported" status message
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.DoesNotContain("RedoMenuItem", axaml);
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("Key.Y", src);
+            Assert.Contains("Redo is not supported", src);
+        }
+
+        [Fact]
+        public void MainWindow_HasKeyboardShortcut_F5_Refresh()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("InputGesture=\"F5\"", axaml);
+            Assert.Contains("Refresh_Click", axaml);
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("Key.F5", src);
+            Assert.Contains("OnAllFormsInvalidated", src);
+            Assert.Contains("Refresh_Click", src);
+        }
+
+        [Fact]
+        public void MainWindow_HasOnKeyDown_CtrlF_FocusFilter()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("OnKeyDown", src);
+            Assert.Contains("Key.F", src);
+            Assert.Contains("FilterTextBox.Focus()", src);
+        }
     }
 }
