@@ -89,8 +89,9 @@ namespace FEBuilderGBA.Avalonia.Services
             var parent = owner ?? MainWindow;
             if (parent != null)
             {
-                // Show as modal dialog; navigate after it's opened
-                _ = window.ShowDialog(parent).ContinueWith(_ => tcs.TrySetResult(null), TaskScheduler.Default);
+                // Show as modal dialog. The Closed event handler above already
+                // sets tcs to null when the window closes without a selection.
+                _ = window.ShowDialog(parent);
             }
             else
             {

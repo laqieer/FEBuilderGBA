@@ -84,6 +84,53 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("CloseAll", src);
         }
 
+        [Fact]
+        public void WindowManager_PickFromEditor_WiresEventBeforeShow()
+        {
+            // Verify SelectionConfirmed is wired before ShowDialog/Show is called
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            // Search within PickFromEditor method only
+            int pickMethodStart = src.IndexOf("PickFromEditor");
+            Assert.True(pickMethodStart > 0, "PickFromEditor method not found");
+            int eventWirePos = src.IndexOf("SelectionConfirmed +=", pickMethodStart);
+            int showDialogPos = src.IndexOf(".ShowDialog(", pickMethodStart);
+            int showPos = src.IndexOf("window.Show()", pickMethodStart);
+            Assert.True(eventWirePos > 0, "SelectionConfirmed event wiring not found");
+            Assert.True(showDialogPos > 0, "ShowDialog call not found");
+            Assert.True(eventWirePos < showDialogPos,
+                "SelectionConfirmed must be wired BEFORE ShowDialog to prevent race condition");
+            if (showPos > 0)
+            {
+                Assert.True(eventWirePos < showPos,
+                    "SelectionConfirmed must be wired BEFORE Show to prevent race condition");
+            }
+        }
+
+        [Fact]
+        public void WindowManager_PickFromEditor_NoShowDialogContinueWith()
+        {
+            // The race condition was caused by .ShowDialog().ContinueWith() which could
+            // set tcs to null before SelectionConfirmed had a chance to fire.
+            // The Closed event handler already covers the "no selection" case.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            // Extract just the PickFromEditor method body
+            int methodStart = src.IndexOf("PickFromEditor");
+            int returnPos = src.IndexOf("return await tcs.Task;", methodStart);
+            string methodBody = src.Substring(methodStart, returnPos - methodStart);
+            // ShowDialog should not be chained with .ContinueWith
+            Assert.DoesNotContain("ShowDialog(parent).ContinueWith", methodBody);
+        }
+
+        [Fact]
+        public void WindowManager_PickFromEditor_ClosedEventSetsTcsNull()
+        {
+            // Verify the Closed event handler provides the fallback null result
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            int closedPos = src.IndexOf("window.Closed +=");
+            Assert.True(closedPos > 0, "Closed event handler not found");
+            Assert.Contains("tcs.TrySetResult(null)", src);
+        }
+
         // ---- IEditorView ----
 
         [Fact]
