@@ -1698,5 +1698,46 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("Key.F", src);
             Assert.Contains("FilterTextBox.Focus()", src);
         }
+
+        // ------------------------------------------------------------------ DisASMView is functional, not placeholder
+
+        [Fact]
+        public void DisASMView_HasDisassembleButton_NotPlaceholder()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "DisASMView.axaml"));
+            // Must have a Disassemble button and output TextBox — not just an address label
+            Assert.Contains("Disassemble_Click", axaml);
+            Assert.Contains("OutputBox", axaml);
+            Assert.Contains("AddressBox", axaml);
+            Assert.Contains("LengthBox", axaml);
+        }
+
+        [Fact]
+        public void DisASMView_CodeBehind_CallsRunDisassembly()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "DisASMView.axaml.cs"));
+            Assert.Contains("RunDisassembly", src);
+            Assert.Contains("Disassemble_Click", src);
+        }
+
+        [Fact]
+        public void DisASMViewModel_UsesDisassemblerCore()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "DisASMViewModel.cs"));
+            Assert.Contains("DisassemblerCore", src);
+            Assert.Contains("DisassembleRange", src);
+            Assert.Contains("RunDisassembly", src);
+        }
+
+        [Fact]
+        public void MainWindow_DisASMButton_OpensDisASMView()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("OpenDisASM_Click", axaml);
+
+            var cs = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("OpenDisASM_Click", cs);
+            Assert.Contains("Open<DisASMView>", cs);
+        }
     }
 }

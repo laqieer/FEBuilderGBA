@@ -29,44 +29,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Run_Click(object? sender, RoutedEventArgs e)
         {
-            if (IDAOption.IsChecked == true)
+            if (RangeOption.IsChecked == true)
+                _vm.SelectedAction = 3;
+            else if (IDAOption.IsChecked == true)
                 _vm.SelectedAction = 1;
             else if (NoCashOption.IsChecked == true)
                 _vm.SelectedAction = 2;
             else
                 _vm.SelectedAction = 0;
 
-            if (CoreState.ROM == null)
-            {
-                _vm.Output = "Error: No ROM loaded.";
-                OutputBox.Text = _vm.Output;
-                return;
-            }
-
             _vm.StatusMessage = "Disassembling... please wait.";
             _vm.Output = "Working...";
             OutputBox.Text = _vm.Output;
 
-            int action = _vm.SelectedAction;
             List<string>? lines = null;
             string? error = null;
 
             await Task.Run(() =>
             {
-                try
-                {
-                    var core = new DisassemblerCore();
-                    lines = action switch
-                    {
-                        1 => core.ExportIDAMapLines(),
-                        2 => core.ExportNoCashSymLines(),
-                        _ => core.DisassembleToLines(),
-                    };
-                }
-                catch (Exception ex)
-                {
-                    error = $"Error: {ex.Message}";
-                }
+                (lines, error) = _vm.RunDisassembly();
             });
 
             if (error != null)

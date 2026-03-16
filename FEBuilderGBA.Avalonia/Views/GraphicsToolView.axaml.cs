@@ -24,6 +24,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
+        void Draw_Click(object? sender, RoutedEventArgs e)
+        {
+            var image = _vm.DrawTiles();
+            if (image != null)
+            {
+                ImageDisplay.Zoom = _vm.Zoom;
+                ImageDisplay.SetImage(image);
+            }
+            else
+            {
+                ImageDisplay.SetImage(null);
+            }
+        }
+
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
 
         public void NavigateTo(uint address) { }
