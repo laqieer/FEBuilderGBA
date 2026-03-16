@@ -76,6 +76,14 @@ For each unit:
 
 ### 4. Trigger Copilot CLI Review
 - The plan comment MUST be reviewed by Copilot CLI before proceeding
+- **Invocation** — Copilot CLI must post its review on GitHub (not just locally):
+  ```bash
+  copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
+  Post your review findings as a comment on the issue. \
+  Include your Copilot CLI version and model at the end." \
+  --autopilot --enable-all-github-mcp-tools --allow-all-tools
+  ```
+  > **Why `--allow-all-tools`?** Copilot CLI needs both read tools (to fetch the issue/PR) and write tools (to post comments/reviews). `--enable-all-github-mcp-tools` exposes the GitHub MCP tools, and `--allow-all-tools` auto-approves their use so the non-interactive `--autopilot` session can complete without prompts.
 - Copilot CLI checks for:
   - Design gaps or missing components
   - Risky assumptions about existing code
@@ -168,6 +176,21 @@ EOF
 - Include test coverage notes and known limitations
 
 ### 10. Copilot CLI PR Review
+- **Invocation** — trigger review and ensure it posts on the PR:
+  ```bash
+  copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
+  Post your review as a pull request review on GitHub. \
+  Include your Copilot CLI version and model at the end." \
+  --autopilot --enable-all-github-mcp-tools --allow-all-tools
+  ```
+- Verify the review was posted by Copilot with the required footer:
+  ```bash
+  # Get the latest Copilot review (filter by bot author and check for footer)
+  gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
+    --jq '[.[] | select(.user.login == "Copilot" or .user.login == "copilot" or .user.type == "Bot")] | .[-1].body'
+  # The output MUST contain both "Copilot CLI:" and "Model:" lines
+  ```
+
 Address feedback in categories:
 
 | Category | Action |
@@ -181,10 +204,15 @@ Address feedback in categories:
 ### 11. Iterate Until Approved
 - Fix all issues raised
 - Push fixes as new commits (not amends)
-- Re-trigger Copilot CLI review
+- Re-trigger Copilot CLI review using the same invocation from step 10
 - Repeat until: **no unresolved Copilot CLI comments**
 
-**Exit condition:** Copilot CLI has no blocking concerns on the latest diff.
+**Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
+```
+Copilot CLI: <version>
+Model: <display-name> (<model-id>)
+```
+Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be present at the end of the review body.
 
 ---
 
@@ -192,11 +220,13 @@ Address feedback in categories:
 
 ### 12. Pre-Merge Checklist
 Before merge, verify:
+- [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
 - [ ] All CI checks green (build + E2E for all ROM variants)
 - [ ] Branch is up to date with master (rebase if needed)
 - [ ] No merge conflicts
-- [ ] Copilot CLI review has no unresolved concerns
 - [ ] PR body accurately reflects what was delivered
+
+**Do NOT merge until Copilot CLI has posted its signoff on the PR.**
 
 ### 13. Merge Strategy
 When merging multiple PRs:
@@ -248,6 +278,10 @@ Even "just add a shortcut" can conflict with other work.
 ### Don't: Run parallel agents on overlapping files
 Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 **Do:** Use the file overlap analysis table. Overlapping files go in the same agent.
+
+### Don't: Merge before Copilot CLI posts its signoff on the PR
+A local-only review doesn't count — the review must be visible on GitHub.
+**Do:** Use `--enable-all-github-mcp-tools --allow-all-tools` so Copilot CLI can post via GitHub MCP tools. Verify with `gh api repos/.../pulls/<N>/reviews`.
 
 ### Don't: Force-push without `--force-with-lease`
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.

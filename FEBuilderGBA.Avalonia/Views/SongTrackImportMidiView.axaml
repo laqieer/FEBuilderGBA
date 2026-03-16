@@ -33,12 +33,12 @@
         </Border>
 
         <!-- Write-back status -->
-        <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1"
+        <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
                 CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
-            <TextBlock Text="Note" FontWeight="Bold" Foreground="#856404" />
+            <TextBlock Text="Note" FontWeight="Bold" Foreground="{DynamicResource WarningTextBrush}" />
             <TextBlock Text="MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results."
-                       TextWrapping="Wrap" Foreground="#856404" />
+                       TextWrapping="Wrap" Foreground="{DynamicResource WarningTextBrush}" />
           </StackPanel>
         </Border>
 

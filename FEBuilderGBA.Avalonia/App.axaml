@@ -21,6 +21,7 @@
             <!-- Info banner (light blue info boxes) -->
             <SolidColorBrush x:Key="InfoBannerBackgroundBrush" Color="#D1ECF1" />
             <SolidColorBrush x:Key="InfoBannerBorderBrush" Color="#17A2B8" />
+            <SolidColorBrush x:Key="InfoBannerTextBrush" Color="#0C5460" />
 
             <!-- Subtle panel background -->
             <SolidColorBrush x:Key="SubtlePanelBackgroundBrush" Color="#F8F9FA" />

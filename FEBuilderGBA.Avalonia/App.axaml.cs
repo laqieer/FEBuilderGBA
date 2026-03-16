@@ -132,6 +132,7 @@ namespace FEBuilderGBA.Avalonia
                 SetBrush("CardBorderBrush", "#555555");
                 SetBrush("InfoBannerBackgroundBrush", "#1A3A4A");
                 SetBrush("InfoBannerBorderBrush", "#2A8A9A");
+                SetBrush("InfoBannerTextBrush", "#8ECFDB");
                 SetBrush("SubtlePanelBackgroundBrush", "#2A2A2A");
                 SetBrush("SubtlePanelBorderBrush", "#444444");
                 SetBrush("WarningBackgroundBrush", "#3D3520");
@@ -161,6 +162,7 @@ namespace FEBuilderGBA.Avalonia
                 SetBrush("CardBorderBrush", "#CCCCCC");
                 SetBrush("InfoBannerBackgroundBrush", "#D1ECF1");
                 SetBrush("InfoBannerBorderBrush", "#17A2B8");
+                SetBrush("InfoBannerTextBrush", "#0C5460");
                 SetBrush("SubtlePanelBackgroundBrush", "#F8F9FA");
                 SetBrush("SubtlePanelBorderBrush", "#DEE2E6");
                 SetBrush("WarningBackgroundBrush", "#FFF3CD");
