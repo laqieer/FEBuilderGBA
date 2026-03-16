@@ -1426,7 +1426,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private void Undo_Click(object? sender, RoutedEventArgs e)
         {
             CoreState.Undo?.RunUndo();
-            _vm.HasUnsavedChanges = true;
+            _vm.HasUnsavedChanges = CoreState.Undo?.IsModified ?? false;
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)
@@ -1530,7 +1530,7 @@ namespace FEBuilderGBA.Avalonia.Views
             var undo = CoreState.Undo;
             if (undo == null || CoreState.ROM == null) return;
 
-            bool hasUnsavedChanges = undo.Postion != undo.PostionWhenFileSaving;
+            bool hasUnsavedChanges = undo.IsModified;
             if (!hasUnsavedChanges) return;
 
             // Cancel close, show prompt, then re-close if confirmed
