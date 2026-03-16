@@ -79,7 +79,7 @@ For each unit:
 - **Invocation** — Copilot CLI must post its review on GitHub (not just locally):
   ```bash
   copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
-  Post your review findings as a comment on the issue using GitHub tools. \
+  Post your review findings as a comment on the issue. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
@@ -178,7 +178,7 @@ EOF
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
-  Post your review using the create_pull_request_review GitHub tool. \
+  Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
