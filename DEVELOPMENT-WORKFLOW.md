@@ -83,6 +83,7 @@ For each unit:
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
+  > **Why `--allow-all-tools`?** Copilot CLI needs both read tools (to fetch the issue/PR) and write tools (to post comments/reviews). `--enable-all-github-mcp-tools` exposes the GitHub MCP tools, and `--allow-all-tools` auto-approves their use so the non-interactive `--autopilot` session can complete without prompts.
 - Copilot CLI checks for:
   - Design gaps or missing components
   - Risky assumptions about existing code
@@ -182,7 +183,13 @@ EOF
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
-- Verify the review was posted: `gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews --jq '.[-1].body'`
+- Verify the review was posted by Copilot with the required footer:
+  ```bash
+  # Get the latest Copilot review (filter by bot author and check for footer)
+  gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
+    --jq '[.[] | select(.user.login == "Copilot" or .user.login == "copilot" or .user.type == "Bot")] | .[-1].body'
+  # The output MUST contain both "Copilot CLI:" and "Model:" lines
+  ```
 
 Address feedback in categories:
 
@@ -200,7 +207,12 @@ Address feedback in categories:
 - Re-trigger Copilot CLI review using the same invocation from step 10
 - Repeat until: **no unresolved Copilot CLI comments**
 
-**Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer.
+**Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
+```
+Copilot CLI: <version>
+Model: <display-name> (<model-id>)
+```
+Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be present at the end of the review body.
 
 ---
 
@@ -208,7 +220,7 @@ Address feedback in categories:
 
 ### 12. Pre-Merge Checklist
 Before merge, verify:
-- [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a version/model footer
+- [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
 - [ ] All CI checks green (build + E2E for all ROM variants)
 - [ ] Branch is up to date with master (rebase if needed)
 - [ ] No merge conflicts
