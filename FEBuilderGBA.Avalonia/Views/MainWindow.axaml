@@ -19,7 +19,6 @@
       </MenuItem>
       <MenuItem Header="_Edit">
         <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" />
-        <MenuItem Header="_Redo" Name="RedoMenuItem" IsEnabled="False" IsVisible="False" />
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
