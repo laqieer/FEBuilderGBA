@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             foreach (var w in new List<Window>(_windows.Values))
             {
-                try { w.Close(); } catch { }
+                try { w.Close(); } catch (Exception ex) { Log.Error("WindowManager.CloseAll window close: {0}", ex.Message); }
             }
             _windows.Clear();
         }

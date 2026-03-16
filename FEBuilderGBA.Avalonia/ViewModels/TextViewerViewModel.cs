@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ScanTable(rom, rom.RomInfo.item_pointer, rom.RomInfo.item_datasize,
                     textId, "Item", id => NameResolver.GetItemName(id), refs);
             }
-            catch { }
+            catch (Exception ex) { Log.Error("TextViewerViewModel.FindCrossReferences: {0}", ex.Message); }
             return refs;
         }
 
@@ -459,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         result.Add(new AddrResult(entryAddr, $"{U.ToHexString(i)} {preview}", i));
                     }
                 }
-                catch { }
+                catch (Exception ex) { Log.Error("TextViewerViewModel.LoadTextList text decode: {0}", ex.Message); }
             }
             return result;
         }

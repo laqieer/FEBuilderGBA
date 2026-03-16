@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using FEBuilderGBA.Avalonia.Services;
@@ -75,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (textId > 0 && textId < 0xFFFF)
                     return NameResolver.GetTextById(textId);
             }
-            catch { }
+            catch (Exception ex) { Log.Error("SoundRoomFE6ViewModel.GetSongName text resolve: {0}", ex.Message); }
             return $"Song {rom.u32(addr):X}";
         }
 
