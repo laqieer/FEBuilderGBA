@@ -2,20 +2,39 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptView"
-        Title="Event Script Editor" Width="1563" Height="922"
+        Title="Event Script Editor" Width="1100" Height="750"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+  <DockPanel Margin="8">
+    <TextBlock DockPanel.Dock="Top" Text="Event Script Editor" FontSize="18" FontWeight="Bold" Margin="8,4,8,8" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Event Script Editor" FontSize="18" FontWeight="Bold" />
+    <!-- Address input bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8,0,8,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
+               FontFamily="Consolas" FontSize="13" />
+      <Button Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
+      <Button Name="CategoryButton" Content="Select Category..." Click="Category_Click" />
+      <TextBlock Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" Margin="8,0,0,0" />
+    </StackPanel>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    <!-- Main content: split between command list and text display -->
+    <Grid ColumnDefinitions="*,8,*" Margin="8,0,8,8">
+      <!-- Left: Command list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Commands" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox Name="CommandsList" FontFamily="Consolas" FontSize="12"
+                 SelectionMode="Single" SelectionChanged="CommandsList_SelectionChanged" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
+
+      <!-- Right: Full disassembled text -->
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="Disassembled Script" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <TextBox Name="ScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas" FontSize="12"
+                 TextWrapping="NoWrap" />
+      </DockPanel>
+    </Grid>
+  </DockPanel>
 </Window>

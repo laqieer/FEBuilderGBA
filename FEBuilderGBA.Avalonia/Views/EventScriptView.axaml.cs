@@ -16,42 +16,70 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventScriptView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            CommandsList.ItemsSource = _vm.Commands;
         }
 
-        void LoadList()
+        void Disassemble_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.AddressText = AddressBox.Text ?? "";
+            RunDisassemble();
+        }
+
+        void RunDisassemble()
+        {
+            if (_vm.TryParseAddress(out uint address))
+            {
+                _vm.DisassembleAt(address);
+                ScriptTextBox.Text = _vm.DisassembledText;
+                StatusLabel.Text = _vm.StatusText;
+            }
+            else
+            {
+                StatusLabel.Text = "Invalid address. Enter a hex value like 0x08001234 or 1234.";
+            }
+        }
+
+        void CommandsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            int index = CommandsList.SelectedIndex;
+            _vm.SelectedCommandIndex = index;
+
+            // Open popup editor for the selected command
+            if (index >= 0 && index < _vm.Commands.Count)
+            {
+                // Could open EventScriptPopupView here for detailed editing
+            }
+        }
+
+        async void Category_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                var dialog = new EventScriptCategorySelectView();
+                var result = await dialog.ShowDialog<string?>(this);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    StatusLabel.Text = $"Selected category: {result}";
+                }
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptView.LoadList failed: {0}", ex.Message);
+                Log.Error("EventScriptView.Category_Click failed: {0}", ex.Message);
             }
         }
 
-        void OnSelected(uint addr)
+        /// <summary>Navigate to a specific address and disassemble.</summary>
+        public void NavigateTo(uint address)
         {
-            try
-            {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("EventScriptView.OnSelected failed: {0}", ex.Message);
-            }
+            _vm.AddressText = $"0x{address:X08}";
+            AddressBox.Text = _vm.AddressText;
+            RunDisassemble();
         }
 
-        void UpdateUI()
+        public void SelectFirstItem()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            if (CommandsList.ItemCount > 0)
+                CommandsList.SelectedIndex = 0;
         }
-
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }
