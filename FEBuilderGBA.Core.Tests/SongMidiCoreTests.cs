@@ -528,6 +528,67 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(64, tracks[0][1].Data2);
         }
 
+        [Fact]
+        public void ParseMidiBytes_MetadataFields_ContainsExpectedValues()
+        {
+            // Build a MIDI with tempo, program change, and notes
+            byte[] trackData = new byte[]
+            {
+                0x00, 0xFF, 0x51, 0x03,    // tempo meta
+                0x06, 0x1A, 0x80,           // 400000 us = 150 BPM
+                0x00, 0xC0, 42,             // Program change -> 42
+                0x00, 0x90, 60, 100,        // NoteOn C4
+                0x60, 0x80, 60, 0,          // NoteOff
+                0x00, 0xFF, 0x2F, 0x00
+            };
+
+            byte[] midi = BuildTestMidi(1, 1, 96, trackData);
+            var info = SongMidiCore.ParseMidiBytes(midi);
+
+            Assert.NotNull(info);
+            Assert.Equal(1, info.Format);
+            Assert.Equal(1, info.TrackCount);
+            Assert.Equal(96, info.TicksPerQuarterNote);
+            Assert.Equal(150.0, info.TempoBPM, 1);
+            Assert.Single(info.Tracks);
+            Assert.Equal(1, info.Tracks[0].NoteCount);
+            Assert.True(info.Tracks[0].EventCount >= 3); // tempo + program change + note
+            Assert.Contains(42, info.Tracks[0].InstrumentChanges);
+            Assert.Contains(0, info.Tracks[0].Channels);
+            Assert.True(info.Tracks[0].TotalTicks > 0);
+        }
+
+        [Fact]
+        public void ParseMidiFile_TempFile_RoundTripsMetadata()
+        {
+            // Export a MIDI, write to temp file, parse it back, verify metadata
+            var track = new SongMidiCore.Track();
+            track.codes.Add(new SongMidiCore.Code(0, 0, 0xBB, 60)); // tempo
+            track.codes.Add(new SongMidiCore.Code(0, 0, 0xD0, 60, 100)); // note
+            track.codes.Add(new SongMidiCore.Code(0, 96, 0xB1)); // FINE
+
+            var tracks = new List<SongMidiCore.Track> { track };
+            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+
+            try
+            {
+                SongMidiCore.ExportMidiFile(tempFile, tracks, 1, 0, 0, 0);
+                var info = SongMidiCore.ParseMidiFile(tempFile);
+
+                Assert.NotNull(info);
+                Assert.Equal(1, info.Format);
+                Assert.True(info.TrackCount >= 1);
+                Assert.Equal(24, info.TicksPerQuarterNote);
+                Assert.True(info.TempoBPM > 0);
+                Assert.True(info.Tracks.Count >= 1);
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile))
+                    System.IO.File.Delete(tempFile);
+            }
+        }
+
         #endregion
 
         #region ConvertMidiToGBA Tests

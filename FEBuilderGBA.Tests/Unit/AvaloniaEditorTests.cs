@@ -1739,5 +1739,71 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("OpenDisASM_Click", cs);
             Assert.Contains("Open<DisASMView>", cs);
         }
+
+        // ------------------------------------------------------------------ MIDI Import Metadata
+
+        [Fact]
+        public void SongTrackImportMidiView_HasMidiMetadataUI()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackImportMidiView.axaml"));
+            Assert.Contains("MidiInfoBorder", axaml);
+            Assert.Contains("MidiInfoLabel", axaml);
+            Assert.Contains("BrowseMidi_Click", axaml);
+            Assert.Contains("MIDI write-back to ROM is not yet fully implemented", axaml);
+        }
+
+        [Fact]
+        public void SongTrackImportMidiView_CodeBehind_ParsesMidiInfo()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackImportMidiView.axaml.cs"));
+            Assert.Contains("ParseMidiInfo", src);
+            Assert.Contains("MidiInfoText", src);
+            Assert.Contains("MIDI write-back to ROM is not yet fully implemented", src);
+        }
+
+        [Fact]
+        public void SongTrackImportMidiViewModel_HasFormatMidiMetadata()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SongTrackImportMidiViewModel.cs"));
+            Assert.Contains("FormatMidiMetadata", src);
+            Assert.Contains("SongMidiCore.ParseMidiFile", src);
+            Assert.Contains("HasMidiInfo", src);
+            Assert.Contains("MidiInfoText", src);
+        }
+
+        [Fact]
+        public void SongTrackView_ImportMidi_ShowsPreviewAndWarning()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackView.axaml.cs"));
+            Assert.Contains("PreviewMidi", src);
+            Assert.Contains("MIDI write-back to ROM is not yet fully implemented", src);
+        }
+
+        [Fact]
+        public void SongTrackViewModel_HasPreviewMidiMethod()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SongTrackViewModel.cs"));
+            Assert.Contains("public string PreviewMidi(string filename)", src);
+            Assert.Contains("FormatMidiMetadata", src);
+        }
+
+        // ------------------------------------------------------------------ Instrument Selection
+
+        [Fact]
+        public void SongTrackImportSelectInstrumentView_HasInfoPanels()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackImportSelectInstrumentView.axaml"));
+            Assert.Contains("InstrumentInfoLabel", axaml);
+            Assert.Contains("Not Yet Implemented", axaml);
+            Assert.Contains("About Instrument Selection", axaml);
+        }
+
+        [Fact]
+        public void SongTrackImportSelectInstrumentViewModel_HasBuildInstrumentInfo()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "SongTrackImportSelectInstrumentViewModel.cs"));
+            Assert.Contains("BuildInstrumentInfo", src);
+            Assert.Contains("InstrumentInfoText", src);
+        }
     }
 }

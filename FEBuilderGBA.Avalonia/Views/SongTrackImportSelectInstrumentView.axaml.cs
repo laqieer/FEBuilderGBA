@@ -49,6 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            InstrumentInfoLabel.Text = _vm.InstrumentInfoText;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

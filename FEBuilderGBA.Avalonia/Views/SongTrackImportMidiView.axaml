@@ -15,6 +15,37 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <!-- MIDI file selection -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Content="Browse MIDI File..." Click="BrowseMidi_Click" />
+          <TextBlock Name="MidiFileLabel" Text="No file selected" VerticalAlignment="Center" Foreground="Gray" />
+        </StackPanel>
+
+        <!-- MIDI metadata display -->
+        <Border Name="MidiInfoBorder" IsVisible="false" BorderBrush="Gray" BorderThickness="1"
+                CornerRadius="4" Padding="12" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="MIDI File Metadata" FontSize="14" FontWeight="SemiBold" />
+            <TextBlock Name="MidiInfoLabel" Text="" FontFamily="Consolas,Courier New,monospace"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <!-- Write-back status -->
+        <Border Background="#FFF3CD" BorderBrush="#FFC107" BorderThickness="1"
+                CornerRadius="4" Padding="12" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Note" FontWeight="Bold" Foreground="#856404" />
+            <TextBlock Text="MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results."
+                       TextWrapping="Wrap" Foreground="#856404" />
+          </StackPanel>
+        </Border>
+
+        <!-- Import button (with warning) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button Name="ImportButton" Content="Import to ROM (Experimental)" Click="ImportMidi_Click" IsEnabled="false" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>
