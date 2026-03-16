@@ -12,6 +12,13 @@
       <RadioButton x:Name="DisASMOption" Content="DisASM" IsChecked="True" GroupName="DumpAction" />
       <RadioButton x:Name="IDAOption" Content="IDA MAP" GroupName="DumpAction" />
       <RadioButton x:Name="NoCashOption" Content="No$GBA SYM" GroupName="DumpAction" />
+      <RadioButton x:Name="RangeOption" Content="Address Range" GroupName="DumpAction" />
+    </StackPanel>
+    <StackPanel x:Name="AddressPanel" Orientation="Horizontal" Spacing="8" DockPanel.Dock="Top" Margin="0,0,0,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox x:Name="AddressBox" Width="140" Watermark="0x08000000" Text="{Binding AddressInput}" />
+      <TextBlock Text="Length:" VerticalAlignment="Center" />
+      <TextBox x:Name="LengthBox" Width="100" Watermark="0x100" Text="{Binding LengthInput}" />
     </StackPanel>
     <StackPanel Orientation="Horizontal" Spacing="8" DockPanel.Dock="Top" Margin="0,0,0,8">
       <Button Content="Run Dump" Width="100" Click="Run_Click" />

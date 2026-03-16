@@ -323,6 +323,71 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Disassemble a specific address range and return lines.
+        /// <paramref name="startAddress"/> is a ROM offset (not GBA pointer).
+        /// <paramref name="length"/> is the number of bytes to disassemble.
+        /// </summary>
+        public List<string> DisassembleRange(uint startAddress, uint length)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                throw new InvalidOperationException("No ROM loaded.");
+
+            var symbolMap = LoadSymbolMap(rom);
+            IAsmMapFile asmMap = symbolMap.Count > 0 ? new DictionaryAsmMapFile(symbolMap) : null;
+
+            var disasm = asmMap != null ? new DisassemblerTrumb(asmMap) : new DisassemblerTrumb();
+            var vm = new DisassemblerTrumb.VM();
+
+            var lines = new List<string>();
+
+            uint romLen = (uint)rom.Data.Length;
+            uint end = Math.Min(startAddress + length, romLen);
+
+            if (startAddress >= romLen)
+            {
+                lines.Add($"; Address 0x{startAddress:X08} is beyond ROM size (0x{romLen:X})");
+                return lines;
+            }
+
+            lines.Add($"; Disassembly at 0x{startAddress + 0x08000000:X08} (offset 0x{startAddress:X08}), length 0x{length:X}");
+            lines.Add("");
+
+            uint pos = startAddress;
+            while (pos < end)
+            {
+                uint romAddr = pos + 0x08000000;
+                if (symbolMap.TryGetValue(romAddr, out AsmMapSt symbol))
+                {
+                    lines.Add("");
+                    if (!string.IsNullOrEmpty(symbol.Name))
+                        lines.Add($"; === {symbol.Name} {symbol.ResultAndArgs} ===");
+                }
+
+                var code = disasm.Disassembler(rom.Data, pos, end - pos, vm);
+                if (code == null || string.IsNullOrEmpty(code.ASM))
+                {
+                    if (pos + 2 <= end)
+                    {
+                        ushort raw = (ushort)(rom.Data[pos] | (rom.Data[pos + 1] << 8));
+                        lines.Add($"  0x{romAddr:X08}:  .short 0x{raw:X04}");
+                    }
+                    pos += 2;
+                    continue;
+                }
+
+                string comment = string.IsNullOrEmpty(code.Comment) ? "" : $" ; {code.Comment}";
+                lines.Add($"  0x{romAddr:X08}:  {code.ASM}{comment}");
+
+                uint step = code.GetLength();
+                if (step == 0) step = 2;
+                pos += step;
+            }
+
+            return lines;
+        }
+
+        /// <summary>
         /// Simple IAsmMapFile backed by a dictionary.
         /// </summary>
         class DictionaryAsmMapFile : IAsmMapFile
