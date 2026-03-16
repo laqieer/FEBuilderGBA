@@ -109,12 +109,14 @@ Runtime data is not embedded into the binaries. The WinForms project copies `con
 
 **Every** piece of text that Copilot CLI posts to GitHub MUST end with a footer containing the current Copilot CLI version and model configuration. This applies to ALL of the following without exception:
 
+- Issue bodies (when creating new issues)
+- Issue comments and replies
+- Pull request descriptions/bodies (when creating new PRs)
 - Pull request reviews (including approval/comment reviews)
 - Pull request comments and replies
-- Issue comments and replies
+- Discussion opening posts (when creating new discussions)
 - Discussion comments and replies
 - Commit messages
-- PR descriptions/bodies
 
 **Format:** Two lines at the very end of the message:
 ```
