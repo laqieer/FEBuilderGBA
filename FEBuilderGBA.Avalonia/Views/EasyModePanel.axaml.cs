@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,9 +8,53 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EasyModePanel : UserControl
     {
+        /// <summary>Category borders paired with their searchable keywords (category name + button labels).</summary>
+        private List<(Border border, string keywords)>? _categories;
+
         public EasyModePanel()
         {
             InitializeComponent();
+            SearchBox.TextChanged += SearchBox_TextChanged;
+        }
+
+        /// <summary>Lazily build the category list after the control is initialized.</summary>
+        private List<(Border border, string keywords)> GetCategories()
+        {
+            if (_categories != null) return _categories;
+            _categories = new List<(Border, string)>
+            {
+                (CategoryCharacters, "characters units classes support talk"),
+                (CategoryItems, "items weapons weapon effect shops promotions"),
+                (CategoryMaps, "maps map settings editor terrain names move costs"),
+                (CategoryEvents, "events event scripts conditions units"),
+                (CategoryGraphics, "graphics portraits battle animations cg viewer image"),
+                (CategoryMusic, "music song table tracks sound room"),
+                (CategoryText, "text editor dialogue"),
+                (CategoryTools, "tools hex editor patch manager lint pointer"),
+            };
+            return _categories;
+        }
+
+        private void SearchBox_TextChanged(object? sender, TextChangedEventArgs e)
+        {
+            ApplyFilter(SearchBox.Text);
+        }
+
+        /// <summary>
+        /// Show/hide category sections based on the search query.
+        /// Empty query shows all categories. Otherwise, only categories whose
+        /// keywords contain the query substring (case-insensitive) are shown.
+        /// </summary>
+        internal void ApplyFilter(string? query)
+        {
+            var categories = GetCategories();
+            bool showAll = string.IsNullOrWhiteSpace(query);
+            var q = (query ?? "").Trim();
+
+            foreach (var (border, keywords) in categories)
+            {
+                border.IsVisible = showAll || keywords.Contains(q, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         // Characters
