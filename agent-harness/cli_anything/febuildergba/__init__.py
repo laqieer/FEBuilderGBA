@@ -1,0 +1,3 @@
+"""cli-anything-febuildergba: CLI harness for FEBuilderGBA ROM hacking suite."""
+
+__version__ = "1.0.0"

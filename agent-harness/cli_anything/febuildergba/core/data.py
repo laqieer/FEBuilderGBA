@@ -1,0 +1,144 @@
+"""Struct data export/import — wraps FEBuilderGBA.CLI --export-data/--import-data."""
+
+import os
+import csv
+from typing import Optional
+
+from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
+from cli_anything.febuildergba.core.project import list_tables
+
+
+def export_table(rom_path: str, table: str, output_path: str,
+                 force_version: str = "") -> dict:
+    """Export a struct data table to TSV.
+
+    Args:
+        rom_path: Path to ROM file.
+        table: Table name (e.g., "units", "classes", "items", or "all").
+        output_path: Output TSV file path (or directory prefix for "all").
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with export results.
+    """
+    if table != "all" and table not in list_tables():
+        raise ValueError(f"Unknown table: {table}. Use 'all' or one of: {', '.join(list_tables())}")
+
+    args = ["--export-data", f"--rom={rom_path}", f"--table={table}",
+            f"--out={output_path}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Export failed (exit {result.returncode}): {result.stderr}")
+
+    # Determine output files
+    if table == "all":
+        files = [f for f in os.listdir(os.path.dirname(output_path) or ".")
+                 if f.startswith(os.path.basename(output_path)) and f.endswith(".tsv")]
+    else:
+        files = [output_path] if os.path.isfile(output_path) else []
+
+    return {
+        "table": table,
+        "output_files": files,
+        "output_path": output_path,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+    }
+
+
+def import_table(rom_path: str, table: str, input_path: str,
+                 force_version: str = "") -> dict:
+    """Import struct data from TSV into ROM.
+
+    Args:
+        rom_path: Path to ROM file.
+        table: Table name.
+        input_path: Input TSV file path.
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with import results.
+    """
+    if table not in list_tables():
+        raise ValueError(f"Unknown table: {table}")
+
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    args = ["--import-data", f"--rom={rom_path}", f"--table={table}",
+            f"--in={input_path}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    return {
+        "table": table,
+        "input_path": input_path,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.returncode != 0 else "",
+    }
+
+
+def roundtrip_table(rom_path: str, table: str = "all",
+                    force_version: str = "") -> dict:
+    """Validate struct data round-trip (export → import → export, compare).
+
+    Args:
+        rom_path: Path to ROM file.
+        table: Table name or "all".
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with roundtrip validation results.
+    """
+    args = ["--data-roundtrip", f"--rom={rom_path}", f"--table={table}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    return {
+        "table": table,
+        "lossless": result.returncode == 0,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.returncode != 0 else "",
+    }
+
+
+def read_tsv(path: str) -> list[dict]:
+    """Read a TSV file and return rows as dicts.
+
+    Args:
+        path: Path to TSV file.
+
+    Returns:
+        List of row dicts with column headers as keys.
+    """
+    rows = []
+    with open(path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            rows.append(dict(row))
+    return rows
+
+
+def tsv_summary(path: str) -> dict:
+    """Get summary info about a TSV export file.
+
+    Returns:
+        Dict with row count, column names, first few rows.
+    """
+    rows = read_tsv(path)
+    return {
+        "path": path,
+        "row_count": len(rows),
+        "columns": list(rows[0].keys()) if rows else [],
+        "preview": rows[:5],
+    }
