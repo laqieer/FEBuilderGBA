@@ -178,6 +178,7 @@ def data_roundtrip_cmd(ctx, table, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = roundtrip_table(rom, table, fv)
+    _check_exit_code(result, f"Data roundtrip ({table})")
     status = "PASS (lossless)" if result["lossless"] else "FAIL (mismatches)"
     _output(result, f"Roundtrip {table}: {status}")
 
@@ -249,6 +250,7 @@ def text_roundtrip_cmd(ctx, out_prefix, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = roundtrip_text(rom, out_prefix, fv)
+    _check_exit_code(result, "Text roundtrip")
     status = "PASS (lossless)" if result["lossless"] else "FAIL (mismatches)"
     _output(result, f"Text roundtrip: {status}")
 
@@ -264,6 +266,7 @@ def lint_cmd(ctx, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = lint_rom(rom, fv)
+    _check_exit_code(result, "Lint")
     if _json_mode:
         _output(result)
     else:
@@ -294,6 +297,7 @@ def patch_create_cmd(ctx, out, from_rom):
     from cli_anything.febuildergba.core.export import create_ups
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     result = create_ups(rom, out, from_rom)
+    _check_exit_code(result, "Patch create")
     _output(result, f"Created UPS patch: {out} ({result['file_size']} bytes)")
 
 
@@ -327,6 +331,7 @@ def disasm_cmd(ctx, out, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = disassemble(rom, out, fv)
+    _check_exit_code(result, "Disassembly")
     _output(result, f"Disassembled to {out} ({result['file_size']} bytes)")
 
 
@@ -349,6 +354,7 @@ def image_quantize_cmd(in_file, out, palette_no, no_scale, no_reserve_1st, ignor
     """Quantize image palette to 16 colors for GBA."""
     from cli_anything.febuildergba.core.export import decrease_color
     result = decrease_color(in_file, out, palette_no, no_scale, no_reserve_1st, ignore_tsa)
+    _check_exit_code(result, "Image quantize")
     _output(result, f"Quantized to {out} ({result['file_size']} bytes)")
 
 
@@ -360,6 +366,7 @@ def image_convert_map_cmd(in_file, out_img, out_tsa):
     """Convert image to map tiles + TSA."""
     from cli_anything.febuildergba.core.export import convert_map_image
     result = convert_map_image(in_file, out_img, out_tsa)
+    _check_exit_code(result, "Map conversion")
     _output(result, f"Converted map: {out_img}, {out_tsa}")
 
 
@@ -390,9 +397,10 @@ def rebuild_cmd(ctx, from_rom, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = rebuild(rom, from_rom, fv)
+    _check_exit_code(result, "Rebuild")
     if _session:
         _session.record_operation("rebuild", {"from_rom": from_rom})
-    _output(result, f"Rebuilt ROM: exit {result['exit_code']}")
+    _output(result, f"Rebuilt ROM successfully")
 
 
 # ── Pointer calc command ──────────────────────────────────────────────
@@ -408,6 +416,7 @@ def pointercalc_cmd(ctx, target, address, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = pointer_calc(rom, target, address, fv)
+    _check_exit_code(result, "Pointer calc")
     _output(result, result.get("stdout", ""))
 
 
