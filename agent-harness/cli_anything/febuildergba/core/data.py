@@ -31,9 +31,6 @@ def export_table(rom_path: str, table: str, output_path: str,
 
     result = run_cli(args)
 
-    if result.returncode != 0:
-        raise RuntimeError(f"Export failed (exit {result.returncode}): {result.stderr}")
-
     # Determine output files (return full paths)
     if table == "all":
         out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
@@ -52,6 +49,7 @@ def export_table(rom_path: str, table: str, output_path: str,
         "output_path": output_path,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 

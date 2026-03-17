@@ -313,6 +313,7 @@ def patch_apply_cmd(ctx, patch_file, out):
     from cli_anything.febuildergba.core.export import apply_ups
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     result = apply_ups(rom, patch_file, out)
+    _check_exit_code(result, "Patch apply")
     if _session:
         _session.record_operation("patch_apply", {"patch": patch_file})
         _session.mark_modified()
@@ -382,6 +383,7 @@ def songexchange_cmd(ctx, from_rom, from_song, to_song):
     from cli_anything.febuildergba.core.export import song_exchange
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     result = song_exchange(rom, from_rom, from_song, to_song)
+    _check_exit_code(result, "Song exchange")
     _output(result, f"Exchanged song {from_song} -> {to_song}")
 
 
@@ -564,8 +566,12 @@ def repl(project_path):
                 args = shlex.split(line, posix=(os.name != "nt"))
                 # Prepend global options from session
                 global_args = []
+                if _json_mode:
+                    global_args.append("--json")
+                if _session and _session.path:
+                    global_args += ["--session-file", str(_session.path)]
                 if _session and _session.is_open():
-                    global_args = ["--rom", _session.state.rom_path]
+                    global_args += ["--rom", _session.state.rom_path]
 
                 cli.main(global_args + args, standalone_mode=False)
             except SystemExit:

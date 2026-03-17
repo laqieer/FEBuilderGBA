@@ -33,17 +33,17 @@ Python CLI Harness (cli-anything-febuildergba)
 
 | Group | Purpose |
 |-------|---------|
-| `rom` | ROM loading, info, save, version detection |
+| `rom` | ROM loading, info, validate, version detection |
 | `data` | Struct data export/import (40 tables: units, classes, items, etc.) |
 | `text` | Text export/import, roundtrip validation |
 | `lint` | ROM integrity validation |
 | `patch` | UPS patch creation/application |
-| `asm` | Disassembly |
-| `image` | Palette quantization, graphics operations |
-| `map` | Map tile conversion |
-| `music` | Song exchange between ROMs |
+| `disasm` | Disassemble ROM to text file |
+| `image` | Palette quantization (`quantize`), map tile conversion (`convert-map`) |
+| `songexchange` | Song exchange between ROMs |
 | `rebuild` | ROM defragmentation/rebuild |
-| `session` | Session management (open, close, status, undo) |
+| `pointercalc` | Search for pointer references in ROM |
+| `session` | Session management (open, close, status, history) |
 
 ## Data Formats
 

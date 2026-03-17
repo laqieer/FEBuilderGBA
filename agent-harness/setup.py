@@ -17,7 +17,10 @@ setup(
     long_description_content_type="text/markdown",
     author="laqieer",
     license="MIT",
-    packages=find_namespace_packages(include=["cli_anything.*"]),
+    packages=find_namespace_packages(
+        include=["cli_anything.*"],
+        exclude=["cli_anything.*.tests", "cli_anything.*.tests.*"],
+    ),
     package_data={
         "cli_anything.febuildergba": ["skills/*.md"],
     },

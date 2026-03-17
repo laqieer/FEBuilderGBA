@@ -29,6 +29,7 @@ def create_ups(rom_path: str, output_path: str,
         "file_size": file_size,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -55,18 +56,13 @@ def apply_ups(rom_path: str, patch_path: str,
 
     result = run_cli(args)
 
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Patch apply failed (exit {result.returncode}): "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
-
     return {
         "rom_path": rom_path,
         "patch_path": patch_path,
         "output_path": output_path,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -95,6 +91,7 @@ def disassemble(rom_path: str, output_path: str,
         "file_size": file_size,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -120,6 +117,7 @@ def rebuild(rom_path: str, from_rom: str,
         "rom_path": rom_path,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -160,6 +158,7 @@ def decrease_color(input_path: str, output_path: str,
         "file_size": file_size,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -188,6 +187,7 @@ def pointer_calc(rom_path: str, target: str, address: str,
         "address": address,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -212,17 +212,12 @@ def song_exchange(rom_path: str, from_rom: str,
 
     result = run_cli(args)
 
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Song exchange failed (exit {result.returncode}): "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
-
     return {
         "from_song": from_song,
         "to_song": to_song,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -247,4 +242,5 @@ def convert_map_image(input_path: str, out_img: str, out_tsa: str) -> dict:
         "out_tsa": out_tsa,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }

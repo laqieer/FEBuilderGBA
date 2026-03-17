@@ -27,13 +27,13 @@ def find_febuildergba_cli() -> list[str]:
     Raises:
         RuntimeError: If FEBuilderGBA.CLI cannot be found.
     """
-    # 1. Explicit env var
-    env_path = os.environ.get("FEBUILDERGBA_CLI")
+    # 1. Explicit env var (prefer FEBUILDERGBA_CLI_EXE if set)
+    env_path = os.environ.get("FEBUILDERGBA_CLI_EXE") or os.environ.get("FEBUILDERGBA_CLI")
     if env_path:
         if os.path.isfile(env_path):
             return [env_path]
         raise RuntimeError(
-            f"FEBUILDERGBA_CLI={env_path} but file does not exist."
+            f"FEBUILDERGBA_CLI_EXE/FEBUILDERGBA_CLI={env_path} but file does not exist."
         )
 
     # 2. Walk up from this file to find the repo root containing FEBuilderGBA.CLI/

@@ -7,7 +7,10 @@ from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
 
 
 def rom_info(rom_path: str, force_version: str = "") -> dict:
-    """Get ROM information by running --version with --rom.
+    """Get ROM information by running --lint to validate and load the ROM.
+
+    Uses --lint (which fully loads the ROM) as the primary validation path.
+    Falls back to local header detection if the backend is unavailable.
 
     Args:
         rom_path: Path to the .gba ROM file.
@@ -19,17 +22,24 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
     if not os.path.isfile(rom_path):
         raise FileNotFoundError(f"ROM file not found: {rom_path}")
 
-    args = ["--rom", rom_path]
-    if force_version:
-        args += [f"--force-version={force_version}"]
-    args.append("--version")
-
-    result = run_cli(args)
-    version_text = result.stdout.strip()
-
     rom_size = os.path.getsize(rom_path)
 
-    # Parse version output to detect ROM version
+    # Try --lint for full ROM validation (loads ROM, checks integrity)
+    lint_output = ""
+    lint_exit = -1
+    try:
+        args = ["--rom", rom_path]
+        if force_version:
+            args += [f"--force-version={force_version}"]
+        args.append("--lint")
+        result = run_cli(args)
+        lint_output = result.stdout.strip()
+        lint_exit = result.returncode
+    except RuntimeError:
+        # Backend not available — fall back to local header detection
+        pass
+
+    # Detect version from header (always available, no backend needed)
     detected_version = _detect_version(rom_path, force_version)
 
     return {
@@ -39,7 +49,8 @@ def rom_info(rom_path: str, force_version: str = "") -> dict:
         "rom_size_mb": round(rom_size / (1024 * 1024), 2),
         "detected_version": detected_version,
         "force_version": force_version,
-        "version_output": version_text,
+        "lint_output": lint_output,
+        "lint_exit_code": lint_exit,
     }
 
 
@@ -74,7 +85,7 @@ def validate_rom(rom_path: str) -> bool:
 
     Validates:
     - File exists and is >= 1 MB
-    - First byte is a GBA ARM branch opcode (0x2E typically)
+    - File is at least 0xC0 bytes (full GBA header)
     - Fixed header byte at 0xB2 is 0x96 (GBA ROM header complement check)
     """
     if not os.path.isfile(rom_path):

@@ -31,6 +31,7 @@ def export_text(rom_path: str, output_path: str,
         "file_size": file_size,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
 
 
@@ -116,4 +117,5 @@ def batch_translate(rom_path: str, export_path: str, import_path: str,
         "import_path": import_path,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
     }
