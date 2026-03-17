@@ -42,7 +42,7 @@
           <ItemsControl Name="RecentFilesList">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <Button Content="{Binding}" Click="RecentFile_Click" Tag="{Binding}"
+                <Button Content="{Binding Display}" Click="RecentFile_Click" Tag="{Binding Index}"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                         Padding="8,6" Margin="0,2" FontSize="12"
                         Background="Transparent" Cursor="Hand" />

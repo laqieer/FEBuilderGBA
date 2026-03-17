@@ -2111,7 +2111,8 @@ namespace FEBuilderGBA.Tests.Unit
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WelcomeView.axaml.cs"));
             Assert.Contains("LoadRecentFiles()", src);
             Assert.Contains("RecentFile_Click", src);
-            Assert.Contains("Recent_Rom_", src);
+            Assert.Contains("RecentFileKeyPrefix", src); // Uses shared constant from MainWindowViewModel
+            Assert.Contains("LoadRomFile", src); // Directly loads ROM via MainWindow
         }
 
         // ================================================================

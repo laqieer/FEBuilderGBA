@@ -135,6 +135,9 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("EasyExportText failed: {0}", ex.Message);
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel is Window w)
+                    await MessageBoxWindow.Show(w, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
 
@@ -154,7 +157,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var vm = new TextViewerViewModel();
                 int count = vm.ImportAllTexts(path);
-                if (count >= 0)
+                if (count > 0)
                 {
                     await MessageBoxWindow.Show(ownerWindow,
                         $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok);
@@ -162,12 +165,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        "Import failed. Check the TSV format.", "Import Error", MessageBoxMode.Ok);
+                        "No texts were imported. Check the file format.", "Import", MessageBoxMode.Ok);
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("EasyImportText failed: {0}", ex.Message);
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel is Window w)
+                    await MessageBoxWindow.Show(w, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
 
