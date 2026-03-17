@@ -18,17 +18,40 @@
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
       </StackPanel>
     </Border>
-    <!-- Buttons (constrained width for better layout) -->
-    <StackPanel Spacing="12" HorizontalAlignment="Center">
-      <Button Name="OpenLastROMButton" Content="Open Last ROM" MinWidth="200" MaxWidth="400" Height="47"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
-      <Button Name="OpenROMButton" Content="Open ROM" MinWidth="200" MaxWidth="400" Height="50"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenROM_Click" />
-      <Button Name="UpdateCheckButton" Content="Check for Updates" MinWidth="200" MaxWidth="400" Height="47"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
-      <Button Name="ManButton" Content="Online Manual" MinWidth="200" MaxWidth="400" Height="47"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="Manual_Click" />
-    </StackPanel>
+    <!-- Buttons and Recent Files side by side -->
+    <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+      <!-- Action Buttons -->
+      <StackPanel Grid.Column="0" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,16,0">
+        <Button Name="OpenLastROMButton" Content="Open Last ROM" MinWidth="200" MaxWidth="400" Height="47"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
+        <Button Name="OpenROMButton" Content="Open ROM" MinWidth="200" MaxWidth="400" Height="50"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenROM_Click" />
+        <Button Name="UpdateCheckButton" Content="Check for Updates" MinWidth="200" MaxWidth="400" Height="47"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
+        <Button Name="ManButton" Content="Online Manual" MinWidth="200" MaxWidth="400" Height="47"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="Manual_Click" />
+      </StackPanel>
+
+      <!-- Recent Files Section -->
+      <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="6" Padding="12" Margin="16,0,0,0"
+              VerticalAlignment="Top" Name="RecentFilesBorder">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Recent Files" FontSize="16" FontWeight="SemiBold" />
+          <TextBlock Name="NoRecentFilesLabel" Text="No recent files" Foreground="Gray" FontSize="12"
+                     IsVisible="True" />
+          <ItemsControl Name="RecentFilesList">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Content="{Binding Display}" Click="RecentFile_Click" Tag="{Binding Index}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                        Padding="8,6" Margin="0,2" FontSize="12"
+                        Background="Transparent" Cursor="Hand" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </Grid>
   </DockPanel>
   </ScrollViewer>
 </Window>

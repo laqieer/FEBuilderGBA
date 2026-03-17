@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -29,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 (CategoryEvents, "events event scripts conditions units"),
                 (CategoryGraphics, "graphics portraits battle animations cg viewer image"),
                 (CategoryMusic, "music song table tracks sound room"),
-                (CategoryText, "text editor dialogue"),
+                (CategoryText, "text editor dialogue export import tsv"),
                 (CategoryTools, "tools hex editor patch manager lint pointer"),
             };
             return _categories;
@@ -100,6 +104,78 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // Text
         private void EasyOpenTextViewer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<TextViewerView>();
+
+        private async void EasyExportText_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+
+                var tsvType = new global::Avalonia.Platform.Storage.FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } };
+                var allType = new global::Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerSaveOptions
+                {
+                    Title = "Export Texts",
+                    SuggestedFileName = "texts.tsv",
+                    FileTypeChoices = new[] { tsvType, allType },
+                });
+                string? path = file?.TryGetLocalPath();
+                if (path == null) return;
+
+                var vm = new TextViewerViewModel();
+                int count = vm.ExportAllTexts(path);
+                var ownerWindow = topLevel as Window ?? new Window();
+                await MessageBoxWindow.Show(ownerWindow,
+                    $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EasyExportText failed: {0}", ex.Message);
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel is Window w)
+                    await MessageBoxWindow.Show(w, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
+
+        private async void EasyImportText_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+
+                var ownerWindow = topLevel as Window ?? new Window();
+                string? path = await FileDialogHelper.OpenFile(ownerWindow, "TSV Files", "*.tsv");
+                if (path == null) return;
+
+                var vm = new TextViewerViewModel();
+                int count = vm.ImportAllTexts(path);
+                if (count > 0)
+                {
+                    await MessageBoxWindow.Show(ownerWindow,
+                        $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok);
+                }
+                else
+                {
+                    await MessageBoxWindow.Show(ownerWindow,
+                        "No texts were imported. Check the file format.", "Import", MessageBoxMode.Ok);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EasyImportText failed: {0}", ex.Message);
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel is Window w)
+                    await MessageBoxWindow.Show(w, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
+            }
+        }
 
         // Tools
         private void EasyOpenHexEditor_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<HexEditorView>();

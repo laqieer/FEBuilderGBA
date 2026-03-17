@@ -2040,5 +2040,183 @@ namespace FEBuilderGBA.Tests.Unit
                 if (insideEditorPanel && line.Contains("</StackPanel>") && !line.Contains("<")) break;
             }
         }
+
+        // ================================================================
+        // Issue #59 — Weapon rank labels exist in Unit and Class editors
+        // ================================================================
+
+        [Fact]
+        public void UnitEditorView_HasWeaponRankTextBlocks()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
+            Assert.Contains("Name=\"SwordRankText\"", src);
+            Assert.Contains("Name=\"LanceRankText\"", src);
+            Assert.Contains("Name=\"AxeRankText\"", src);
+            Assert.Contains("Name=\"BowRankText\"", src);
+            Assert.Contains("Name=\"StaffRankText\"", src);
+            Assert.Contains("Name=\"AnimaRankText\"", src);
+            Assert.Contains("Name=\"LightRankText\"", src);
+            Assert.Contains("Name=\"DarkRankText\"", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_WiresWeaponRankLabels()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("WireWeaponRankLabels()", src);
+            Assert.Contains("UpdateWeaponRankLabels()", src);
+            Assert.Contains("WeaponRankUtil.GetRankLetter", src);
+        }
+
+        [Fact]
+        public void ClassEditorView_HasWeaponRankTextBlocks()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
+            Assert.Contains("Name=\"WepSwordRankText\"", src);
+            Assert.Contains("Name=\"WepLanceRankText\"", src);
+            Assert.Contains("Name=\"WepAxeRankText\"", src);
+            Assert.Contains("Name=\"WepBowRankText\"", src);
+            Assert.Contains("Name=\"WepStaffRankText\"", src);
+            Assert.Contains("Name=\"WepAnimaRankText\"", src);
+            Assert.Contains("Name=\"WepLightRankText\"", src);
+            // B44-B51 rank texts
+            Assert.Contains("Name=\"B44RankText\"", src);
+            Assert.Contains("Name=\"B51RankText\"", src);
+        }
+
+        [Fact]
+        public void ClassEditorView_WiresWeaponRankLabels()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml.cs"));
+            Assert.Contains("UpdateWeaponRankLabels()", src);
+            Assert.Contains("WeaponRankUtil.GetRankLetter", src);
+        }
+
+        // ================================================================
+        // Issue #70 — Welcome screen shows recent files
+        // ================================================================
+
+        [Fact]
+        public void WelcomeView_HasRecentFilesSection()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WelcomeView.axaml"));
+            Assert.Contains("Recent Files", src);
+            Assert.Contains("Name=\"RecentFilesList\"", src);
+            Assert.Contains("Name=\"NoRecentFilesLabel\"", src);
+        }
+
+        [Fact]
+        public void WelcomeView_CodeBehindLoadsRecentFiles()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WelcomeView.axaml.cs"));
+            Assert.Contains("LoadRecentFiles()", src);
+            Assert.Contains("RecentFile_Click", src);
+            Assert.Contains("RecentFileKeyPrefix", src); // Uses shared constant from MainWindowViewModel
+            Assert.Contains("LoadRomFile", src); // Directly loads ROM via MainWindow
+        }
+
+        // ================================================================
+        // Issue #72 — Easy Mode has text export/import buttons
+        // ================================================================
+
+        [Fact]
+        public void EasyModePanel_HasTextExportImportButtons()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EasyModePanel.axaml"));
+            Assert.Contains("Export Text (TSV)", src);
+            Assert.Contains("Import Text (TSV)", src);
+            Assert.Contains("EasyExportText_Click", src);
+            Assert.Contains("EasyImportText_Click", src);
+        }
+
+        [Fact]
+        public void EasyModePanel_CodeBehindHasTextExportImport()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EasyModePanel.axaml.cs"));
+            Assert.Contains("EasyExportText_Click", src);
+            Assert.Contains("EasyImportText_Click", src);
+            Assert.Contains("ExportAllTexts", src);
+            Assert.Contains("ImportAllTexts", src);
+        }
+
+        // ================================================================
+        // Issue #73 — Collapsible Expanders and tooltips in editors
+        // ================================================================
+
+        [Fact]
+        public void UnitEditorView_HasCollapsibleExpanders()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
+            Assert.Contains("<Expander Header=\"Identity\"", src);
+            Assert.Contains("<Expander Header=\"Base Stats\"", src);
+            Assert.Contains("<Expander Header=\"Weapon Levels\"", src);
+            Assert.Contains("<Expander Header=\"Growth Rates", src);
+            Assert.Contains("<Expander Header=\"Ability Flags\"", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_HasTooltips()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
+            // At least 5 ToolTip.Tip attributes in the editor
+            int tipCount = 0;
+            int idx = 0;
+            while ((idx = src.IndexOf("ToolTip.Tip=", idx)) >= 0)
+            {
+                tipCount++;
+                idx++;
+            }
+            Assert.True(tipCount >= 5, $"Expected at least 5 ToolTip.Tip attributes in UnitEditorView, found {tipCount}");
+        }
+
+        [Fact]
+        public void ClassEditorView_HasCollapsibleExpanders()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
+            Assert.Contains("<Expander Header=\"Identity", src);
+            Assert.Contains("<Expander Header=\"Base Stats\"", src);
+            Assert.Contains("<Expander Header=\"Weapon Levels\"", src);
+            Assert.Contains("<Expander Header=\"Growth Rates\"", src);
+            Assert.Contains("<Expander Header=\"Ability Flags\"", src);
+            Assert.Contains("<Expander Header=\"Growth Caps", src);
+        }
+
+        [Fact]
+        public void ClassEditorView_HasTooltips()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
+            int tipCount = 0;
+            int idx = 0;
+            while ((idx = src.IndexOf("ToolTip.Tip=", idx)) >= 0)
+            {
+                tipCount++;
+                idx++;
+            }
+            Assert.True(tipCount >= 5, $"Expected at least 5 ToolTip.Tip attributes in ClassEditorView, found {tipCount}");
+        }
+
+        [Fact]
+        public void ItemEditorView_HasCollapsibleExpanders()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml"));
+            Assert.Contains("<Expander Header=\"Basic Info\"", src);
+            Assert.Contains("<Expander Header=\"Stats / Bonuses\"", src);
+            Assert.Contains("<Expander Header=\"Weapon Properties\"", src);
+            Assert.Contains("<Expander Header=\"Trait Flags\"", src);
+        }
+
+        [Fact]
+        public void ItemEditorView_HasTooltips()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml"));
+            int tipCount = 0;
+            int idx = 0;
+            while ((idx = src.IndexOf("ToolTip.Tip=", idx)) >= 0)
+            {
+                tipCount++;
+                idx++;
+            }
+            Assert.True(tipCount >= 5, $"Expected at least 5 ToolTip.Tip attributes in ItemEditorView, found {tipCount}");
+        }
     }
 }
