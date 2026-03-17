@@ -33,27 +33,32 @@
         </StackPanel>
 
         <!-- Identity Section with Portrait -->
-        <TextBlock Text="Identity" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Identity" IsExpanded="True" Margin="0,8,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="*,Auto">
             <!-- Fields -->
             <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Text ID for the unit's display name" />
               <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="6" Text="Desc ID:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="6" Text="Desc ID:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Text ID for the unit's description" />
               <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="DescIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
 
-              <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Unique identifier for this unit" />
               <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="The unit's class, which determines base stats and abilities" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <ComboBox Name="ClassIdCombo" MinWidth="120" Margin="0,2" />
                 <Button Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
                 <Button Content="Pick..." Click="PickClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick class from editor" />
               </StackPanel>
-              <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Portrait graphic index for this unit" />
               <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown FormatString="0" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="80" />
                 <TextBlock Name="PortraitNameLabel" VerticalAlignment="Center" Foreground="Gray" MaxWidth="120" TextTrimming="CharacterEllipsis" />
@@ -61,9 +66,11 @@
                 <Button Content="Pick..." Click="PickPortrait_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick portrait from editor" />
               </StackPanel>
 
-              <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Map sprite face index" />
               <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="2" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="2" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" Margin="0,2"
+                         ToolTip.Tip="Elemental affinity for support bonuses" />
               <ComboBox Grid.Row="2" Grid.Column="4" Name="AffinityCombo" MinWidth="120" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="6" Text="Sort:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
@@ -75,16 +82,20 @@
             </Border>
           </Grid>
         </Border>
+        </Expander>
 
         <!-- Base Stats Section -->
-        <TextBlock Text="Base Stats" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Base Stats" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="LV:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="LV:" VerticalAlignment="Center" Margin="0,2"
+                       ToolTip.Tip="Starting level of this unit" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="3" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="3" Text="HP:" VerticalAlignment="Center" Margin="0,2"
+                       ToolTip.Tip="Base Hit Points (signed offset from class base)" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="-128" Maximum="127" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="6" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="6" Text="Str:" VerticalAlignment="Center" Margin="0,2"
+                       ToolTip.Tip="Base Strength/Magic (signed offset from class base)" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="-128" Maximum="127" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
@@ -102,9 +113,10 @@
             <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="-128" Maximum="127" Margin="0,2" />
           </Grid>
         </Border>
+        </Expander>
 
         <!-- Weapon Levels Section -->
-        <TextBlock Text="Weapon Levels" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Weapon Levels" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,Auto,16,Auto,120,Auto,16,Auto,120,Auto" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
@@ -135,12 +147,14 @@
             <TextBlock Grid.Row="2" Grid.Column="6" Name="DarkRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
           </Grid>
         </Border>
+        </Expander>
 
         <!-- Growth Rates Section -->
-        <TextBlock Text="Growth Rates (%)" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Growth Rates (%)" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="HP:" VerticalAlignment="Center" Margin="0,2"
+                       ToolTip.Tip="Percent chance of HP increasing on level up" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" Margin="0,2" />
@@ -158,9 +172,10 @@
             <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
+        </Expander>
 
         <!-- Growth Simulator -->
-        <TextBlock Text="Growth Simulator" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Growth Simulator" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -171,9 +186,10 @@
             <TextBlock Name="GrowthSimLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
+        </Expander>
 
         <!-- Ability Flags Section -->
-        <TextBlock Text="Ability Flags" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Ability Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <TextBlock Text="Byte 1:" FontWeight="SemiBold" Margin="0,2" />
@@ -186,9 +202,10 @@
             <controls:BitFlagPanel Name="Ability4Flags" />
           </StackPanel>
         </Border>
+        </Expander>
 
         <!-- Support & Other Section -->
-        <TextBlock Text="Support &amp; Other" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Support &amp; Other" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="Auto,180" RowDefinitions="Auto">
@@ -227,6 +244,7 @@
             </StackPanel>
           </StackPanel>
         </Border>
+        </Expander>
 
         <!-- Validation Warnings -->
         <Border Name="WarningsBorder" IsVisible="False"

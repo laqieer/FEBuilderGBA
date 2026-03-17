@@ -109,6 +109,8 @@
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
             <Button Content="Text Editor" Click="EasyOpenTextViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Export Text (TSV)" Click="EasyExportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button Content="Import Text (TSV)" Click="EasyImportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>

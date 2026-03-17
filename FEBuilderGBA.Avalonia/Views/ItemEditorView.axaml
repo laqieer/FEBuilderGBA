@@ -25,99 +25,120 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <!-- Row 0: Address -->
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Address -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <TextBlock Name="AddrLabel" VerticalAlignment="Center" />
+        </StackPanel>
 
-          <!-- Row 1: W0 Name ID -->
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="1" Grid.Column="3" Text="Name:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
+        <!-- Basic Info -->
+        <Expander Header="Basic Info" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
+                     ToolTip.Tip="Text ID for this item's display name" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
-          <!-- Row 2: W2 Desc ID, W4 Use Desc ID -->
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Desc ID (W2):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="Use Desc (W4):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Desc ID (W2):" VerticalAlignment="Center"
+                     ToolTip.Tip="Text ID for the item description" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Use Desc (W4):" VerticalAlignment="Center"
+                     ToolTip.Tip="Text ID for the item usage description" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
 
-          <!-- Row 3: B6 Item Number, B7 Weapon Type (ComboBox) -->
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Item # (B6):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ItemNumberBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="3" Grid.Column="3" Text="Type (B7):" VerticalAlignment="Center" />
-          <ComboBox Grid.Row="3" Grid.Column="4" Name="WeaponTypeCombo" Width="200" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Item # (B6):" VerticalAlignment="Center"
+                     ToolTip.Tip="Internal item number (unique ID)" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ItemNumberBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Type (B7):" VerticalAlignment="Center"
+                     ToolTip.Tip="Weapon type (Sword, Lance, Axe, etc.)" />
+          <ComboBox Grid.Row="2" Grid.Column="4" Name="WeaponTypeCombo" Width="200" />
+        </Grid>
+        </Border>
+        </Expander>
 
-          <!-- Row 4-5: Traits replaced by BitFlagPanels below the grid -->
-
-          <!-- Row 4: P12 Stat Bonuses, P16 Effectiveness -->
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Stat Bonus (P12):" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+        <!-- Stats / Bonuses -->
+        <Expander Header="Stats / Bonuses" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Stat Bonus (P12):" VerticalAlignment="Center"
+                     ToolTip.Tip="Pointer to stat bonuses when equipped" />
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <TextBox Name="StatBonusesPtrBox" Width="120" />
             <Button Content="Jump" Click="JumpToStatBonuses_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
-          <TextBlock Grid.Row="4" Grid.Column="3" Text="Effective (P16):" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="4" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Effective (P16):" VerticalAlignment="Center"
+                     ToolTip.Tip="Pointer to effectiveness list (bonus vs. classes)" />
+          <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <TextBox Name="EffectivenessPtrBox" Width="120" />
             <Button Content="Jump" Click="JumpToEffectiveness_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
-          <!-- Row 5: B20 Uses, B21 Might -->
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="5" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center"
+                     ToolTip.Tip="Number of uses before the item breaks" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center"
+                     ToolTip.Tip="Attack power" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
 
-          <!-- Row 6: B22 Hit, B23 Weight -->
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="6" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center"
+                     ToolTip.Tip="Hit rate bonus" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center"
+                     ToolTip.Tip="Item weight (reduces attack speed)" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
 
-          <!-- Row 7: B24 Crit, B25 Range -->
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="7" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center"
+                     ToolTip.Tip="Critical hit rate bonus" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center"
+                     ToolTip.Tip="Attack range (encoded as min-max)" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
 
-          <!-- Row 8: W26 Price, B28 Weapon Rank -->
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="8" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center"
+                     ToolTip.Tip="Base item price" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
 
-          <!-- Row 9: B29 Icon, B30 Usage Effect -->
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="9" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 10: B31 Damage Effect, B32 Weapon Exp -->
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="10" Grid.Column="3" Text="Wep Exp (B32):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="4" Name="WeaponExpBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 11: B33-B35 Unknown/Extension -->
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Unk33 (B33):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="Unk33Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="11" Grid.Column="3" Text="Unk34 (B34):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="4" Name="Unk34Box" Minimum="0" Maximum="255" />
-
-          <!-- Row 12: B35 -->
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
-
-          <!-- Row 13: Shop prices (computed) -->
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="Buy Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="13" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="13" Grid.Column="3" Text="Sell Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="13" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
-
-          <!-- Row 14: Forge price -->
-          <TextBlock Grid.Row="14" Grid.Column="0" Text="Forge Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="14" Grid.Column="1" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Buy Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Text="Sell Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="5" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
+        </Border>
+        </Expander>
+
+        <!-- Weapon Properties -->
+        <Expander Header="Weapon Properties" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center"
+                     ToolTip.Tip="Effect when using the item" />
+          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center"
+                     ToolTip.Tip="Special effect applied on hit" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Wep Exp (B32):" VerticalAlignment="Center"
+                     ToolTip.Tip="Weapon experience gained per use" />
+          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="WeaponExpBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unk33 (B33):" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unk33Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Unk34 (B34):" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="Unk34Box" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
+          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Forge Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="3" Grid.Column="4" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+        </Grid>
+        </Border>
+        </Expander>
 
         <!-- Null pointer warnings -->
         <TextBlock Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
@@ -156,7 +177,7 @@
         </Border>
 
         <!-- Trait Flags (BitFlagPanels) -->
-        <TextBlock Text="Trait Flags" FontWeight="Bold" Margin="0,8,0,2" />
+        <Expander Header="Trait Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <TextBlock Text="Trait 1 (B8):" FontWeight="SemiBold" Margin="0,2" />
@@ -169,6 +190,7 @@
             <controls:BitFlagPanel Name="Trait4Flags" />
           </StackPanel>
         </Border>
+        </Expander>
 
         <!-- Validation Warnings -->
         <Border Name="WarningsBorder" IsVisible="False"
