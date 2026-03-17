@@ -29,6 +29,11 @@ lint_stderr.txt
 # Stale release folder
 r/
 
+# Python build artifacts
+__pycache__/
+*.egg-info/
+.venv/
+
 # IDE / editor
 .vs/
 .claude/
