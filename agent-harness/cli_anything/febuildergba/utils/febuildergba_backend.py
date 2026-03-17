@@ -20,7 +20,6 @@ def find_febuildergba_cli() -> list[str]:
     1. FEBUILDERGBA_CLI env var (explicit path)
     2. Published exe in repo agent-harness/../FEBuilderGBA.CLI/bin/
     3. 'dotnet run' via project file in the repo
-    4. cli-anything-febuildergba installed alongside the repo
 
     Returns:
         Command list to invoke the CLI (e.g., ["dotnet", "run", ...] or ["/path/to/exe"]).
@@ -37,9 +36,19 @@ def find_febuildergba_cli() -> list[str]:
             f"FEBUILDERGBA_CLI={env_path} but file does not exist."
         )
 
-    # 2. Look relative to this package (agent-harness/cli_anything/febuildergba/utils/)
-    pkg_dir = Path(__file__).resolve().parent.parent.parent.parent.parent
-    # pkg_dir should be the repo root (FEBuilderGBA/)
+    # 2. Walk up from this file to find the repo root containing FEBuilderGBA.CLI/
+    pkg_dir = Path(__file__).resolve().parent
+    for _ in range(8):
+        pkg_dir = pkg_dir.parent
+        if (pkg_dir / "FEBuilderGBA.CLI").is_dir():
+            break
+    else:
+        # Fallback: try __file__ without resolve() (handles Cygwin/editable installs)
+        pkg_dir = Path(__file__).parent
+        for _ in range(8):
+            pkg_dir = pkg_dir.parent
+            if (pkg_dir / "FEBuilderGBA.CLI").is_dir():
+                break
 
     # Check for published exe
     for config in ["Release", "Debug"]:

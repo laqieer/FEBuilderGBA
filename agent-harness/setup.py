@@ -1,10 +1,19 @@
+import os
 from setuptools import setup, find_namespace_packages
+
+here = os.path.dirname(os.path.abspath(__file__))
+readme_path = os.path.join(here, "cli_anything", "febuildergba", "README.md")
+try:
+    with open(readme_path, encoding="utf-8") as f:
+        long_description = f.read()
+except FileNotFoundError:
+    long_description = "CLI harness for FEBuilderGBA"
 
 setup(
     name="cli-anything-febuildergba",
     version="1.0.0",
     description="CLI harness for FEBuilderGBA — Fire Emblem GBA ROM hacking suite",
-    long_description=open("cli_anything/febuildergba/README.md").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     author="laqieer",
     license="MIT",

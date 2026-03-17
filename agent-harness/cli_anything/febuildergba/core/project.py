@@ -70,14 +70,25 @@ def _detect_version(rom_path: str, force_version: str = "") -> str:
 
 
 def validate_rom(rom_path: str) -> bool:
-    """Check if file looks like a valid GBA ROM."""
+    """Check if file looks like a valid GBA ROM.
+
+    Validates:
+    - File exists and is >= 1 MB
+    - First byte is a GBA ARM branch opcode (0x2E typically)
+    - Fixed header byte at 0xB2 is 0x96 (GBA ROM header complement check)
+    """
     if not os.path.isfile(rom_path):
         return False
     try:
+        size = os.path.getsize(rom_path)
+        if size < 0x100000:
+            return False
         with open(rom_path, "rb") as f:
-            header = f.read(4)
-        # GBA ROMs start with a branch instruction (typically 0x2E000000EA)
-        return len(header) >= 4 and os.path.getsize(rom_path) >= 0x100000
+            header = f.read(0xC0)
+        if len(header) < 0xC0:
+            return False
+        # GBA ROMs have a fixed 0x96 at offset 0xB2
+        return header[0xB2] == 0x96
     except Exception:
         return False
 

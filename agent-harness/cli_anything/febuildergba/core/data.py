@@ -34,12 +34,17 @@ def export_table(rom_path: str, table: str, output_path: str,
     if result.returncode != 0:
         raise RuntimeError(f"Export failed (exit {result.returncode}): {result.stderr}")
 
-    # Determine output files
+    # Determine output files (return full paths)
     if table == "all":
-        files = [f for f in os.listdir(os.path.dirname(output_path) or ".")
-                 if f.startswith(os.path.basename(output_path)) and f.endswith(".tsv")]
+        out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+        prefix = os.path.basename(output_path)
+        files = [
+            os.path.join(out_dir, f)
+            for f in os.listdir(out_dir)
+            if f.startswith(prefix) and f.endswith(".tsv")
+        ]
     else:
-        files = [output_path] if os.path.isfile(output_path) else []
+        files = [os.path.abspath(output_path)] if os.path.isfile(output_path) else []
 
     return {
         "table": table,

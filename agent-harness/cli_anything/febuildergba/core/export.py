@@ -32,23 +32,39 @@ def create_ups(rom_path: str, output_path: str,
     }
 
 
-def apply_ups(rom_path: str, patch_path: str) -> dict:
+def apply_ups(rom_path: str, patch_path: str,
+              output_path: str = "") -> dict:
     """Apply a UPS patch to a ROM.
 
+    The backend contract is: --applyups=<output> --rom=<original> --patch=<patch.ups>
+
     Args:
-        rom_path: Path to ROM file.
+        rom_path: Path to original ROM file.
         patch_path: Path to UPS patch file.
+        output_path: Output ROM path (default: <rom_path>.patched.gba).
 
     Returns:
         Dict with patch application results.
     """
-    args = [f"--applyups={patch_path}", f"--rom={rom_path}"]
+    if not output_path:
+        base, ext = os.path.splitext(rom_path)
+        output_path = f"{base}.patched{ext}"
+
+    args = [f"--applyups={output_path}", f"--rom={rom_path}",
+            f"--patch={patch_path}"]
 
     result = run_cli(args)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Patch apply failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
 
     return {
         "rom_path": rom_path,
         "patch_path": patch_path,
+        "output_path": output_path,
         "exit_code": result.returncode,
         "stdout": result.stdout.strip(),
     }
@@ -176,14 +192,17 @@ def pointer_calc(rom_path: str, target: str, address: str,
 
 
 def song_exchange(rom_path: str, from_rom: str,
-                  from_song: int, to_song: int) -> dict:
+                  from_song: str, to_song: str) -> dict:
     """Copy a song from one ROM to another.
+
+    Song IDs are passed as hex strings (e.g., "1A", "0x1A") since
+    the backend parses them with NumberStyles.HexNumber.
 
     Args:
         rom_path: Destination ROM.
         from_rom: Source ROM.
-        from_song: Source song ID.
-        to_song: Destination song ID.
+        from_song: Source song ID (hex string, e.g. "1A" or "0x1A").
+        to_song: Destination song ID (hex string).
 
     Returns:
         Dict with song exchange results.
@@ -192,6 +211,12 @@ def song_exchange(rom_path: str, from_rom: str,
             f"--fromsong={from_song}", f"--tosong={to_song}"]
 
     result = run_cli(args)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Song exchange failed (exit {result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
 
     return {
         "from_song": from_song,

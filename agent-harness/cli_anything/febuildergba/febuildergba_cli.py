@@ -8,6 +8,7 @@ Usage:
 
 import json
 import os
+import shlex
 import sys
 
 import click
@@ -31,6 +32,15 @@ def _output(data: dict, human_message: str = ""):
             click.echo(human_message)
         elif "error" in data:
             click.echo(f"Error: {data['error']}", err=True)
+
+
+def _check_exit_code(result: dict, context: str = "Command"):
+    """Raise ClickException if backend returned non-zero exit code."""
+    if result.get("exit_code", 0) != 0:
+        stderr = result.get("stderr", "") or result.get("stdout", "")
+        raise click.ClickException(
+            f"{context} failed (exit {result['exit_code']}): {stderr}"
+        )
 
 
 def _get_rom_path(ctx_rom: str = "") -> str:
@@ -134,6 +144,7 @@ def data_export_cmd(ctx, table, out, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = export_table(rom, table, out, fv)
+    _check_exit_code(result, f"Data export ({table})")
     if _session:
         _session.record_operation("data_export", {"table": table, "out": out})
     _output(result, f"Exported {table} to {out}")
@@ -150,6 +161,7 @@ def data_import_cmd(ctx, table, in_file, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = import_table(rom, table, in_file, fv)
+    _check_exit_code(result, f"Data import ({table})")
     if _session:
         _session.record_operation("data_import", {"table": table, "in": in_file})
         _session.mark_modified()
@@ -206,6 +218,7 @@ def text_export_cmd(ctx, out, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = export_text(rom, out, fv)
+    _check_exit_code(result, "Text export")
     _output(result, f"Exported text to {out} ({result['file_size']} bytes)")
 
 
@@ -219,6 +232,7 @@ def text_import_cmd(ctx, in_file, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = import_text(rom, in_file, fv)
+    _check_exit_code(result, "Text import")
     if _session:
         _session.record_operation("text_import", {"in": in_file})
         _session.mark_modified()
@@ -285,16 +299,20 @@ def patch_create_cmd(ctx, out, from_rom):
 
 @patch.command("apply")
 @click.argument("patch_file")
+@click.option("-o", "--out", default="", help="Output ROM path (default: <rom>.patched.gba)")
 @click.pass_context
-def patch_apply_cmd(ctx, patch_file):
-    """Apply a UPS patch to the ROM."""
+def patch_apply_cmd(ctx, patch_file, out):
+    """Apply a UPS patch to a ROM.
+
+    Backend contract: --applyups=<output> --rom=<original> --patch=<patch.ups>
+    """
     from cli_anything.febuildergba.core.export import apply_ups
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
-    result = apply_ups(rom, patch_file)
+    result = apply_ups(rom, patch_file, out)
     if _session:
         _session.record_operation("patch_apply", {"patch": patch_file})
         _session.mark_modified()
-    _output(result, f"Applied patch: {patch_file}")
+    _output(result, f"Applied patch: {patch_file} -> {result.get('output_path', '')}")
 
 
 # ── ASM commands ──────────────────────────────────────────────────────
@@ -349,11 +367,11 @@ def image_convert_map_cmd(in_file, out_img, out_tsa):
 
 @cli.command("songexchange")
 @click.option("--from-rom", required=True, help="Source ROM")
-@click.option("--from-song", required=True, type=int, help="Source song ID")
-@click.option("--to-song", required=True, type=int, help="Destination song ID")
+@click.option("--from-song", required=True, type=str, help="Source song ID (hex, e.g. 1A or 0x1A)")
+@click.option("--to-song", required=True, type=str, help="Destination song ID (hex)")
 @click.pass_context
 def songexchange_cmd(ctx, from_rom, from_song, to_song):
-    """Copy a song from one ROM to another."""
+    """Copy a song from one ROM to another. Song IDs are hex (e.g. 1A, 0x1A)."""
     from cli_anything.febuildergba.core.export import song_exchange
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     result = song_exchange(rom, from_rom, from_song, to_song)
@@ -534,7 +552,7 @@ def repl(project_path):
 
             # Parse and dispatch to Click commands
             try:
-                args = line.split()
+                args = shlex.split(line, posix=(os.name != "nt"))
                 # Prepend global options from session
                 global_args = []
                 if _session and _session.is_open():
