@@ -17,6 +17,11 @@ namespace FEBuilderGBA
         /// </summary>
         public static string GetPatch2RemoteUrl()
         {
+            // Check user-configured custom URL first
+            string custom = CoreState.Config?.at("submodule_patch2_url", "");
+            if (!string.IsNullOrWhiteSpace(custom))
+                return custom;
+
             int releaseSource = CoreState.ReleaseSource;
             string lang = CoreState.Language;
             bool useGitee = (releaseSource == 2) || (releaseSource == 0 && lang == "zh");

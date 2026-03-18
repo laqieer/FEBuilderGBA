@@ -273,14 +273,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
 
-            if (!string.IsNullOrWhiteSpace(SubmodulePatch2Url))
-                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "config", "patch2"), SubmodulePatch2Url);
+            // Apply or restore defaults for each submodule
+            ApplyOneRemote(Path.Combine(baseDir, "config", "patch2"),
+                SubmodulePatch2Url, GitUtil.GetPatch2RemoteUrl());
+            ApplyOneRemote(Path.Combine(baseDir, "resources", "FE-Repo"),
+                SubmoduleFERepoUrl, GitUtil.FERepoDefaultUrl);
+            ApplyOneRemote(Path.Combine(baseDir, "resources", "FE-Repo-Music-No-Preview"),
+                SubmoduleFERepoMusicUrl, GitUtil.FERepoMusicDefaultUrl);
+        }
 
-            if (!string.IsNullOrWhiteSpace(SubmoduleFERepoUrl))
-                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "resources", "FE-Repo"), SubmoduleFERepoUrl);
-
-            if (!string.IsNullOrWhiteSpace(SubmoduleFERepoMusicUrl))
-                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "resources", "FE-Repo-Music-No-Preview"), SubmoduleFERepoMusicUrl);
+        static void ApplyOneRemote(string submodulePath, string customUrl, string defaultUrl)
+        {
+            // Use custom URL if set, otherwise restore default
+            string effectiveUrl = string.IsNullOrWhiteSpace(customUrl) ? defaultUrl : customUrl;
+            if (!GitUtil.SetSubmoduleRemote(submodulePath, effectiveUrl))
+                Log.Error("Failed to set remote for {0}", submodulePath);
         }
 
         internal static void ReloadTranslations()
