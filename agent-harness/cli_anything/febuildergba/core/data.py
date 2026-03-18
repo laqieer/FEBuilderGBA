@@ -169,7 +169,7 @@ def diff_tsv(path_a: str, path_b: str) -> dict:
         if row_a != row_b:
             diffs = {}
             all_fields = set(row_a.keys()) | set(row_b.keys())
-            for field in all_fields:
+            for field in sorted(all_fields):
                 val_a = row_a.get(field, "")
                 val_b = row_b.get(field, "")
                 if val_a != val_b:

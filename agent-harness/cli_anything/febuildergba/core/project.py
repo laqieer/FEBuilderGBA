@@ -183,6 +183,9 @@ def save_rom(rom_path: str, output_path: str) -> dict:
     abs_src = os.path.abspath(rom_path)
     abs_dst = os.path.abspath(output_path)
 
+    if os.path.normcase(abs_src) == os.path.normcase(abs_dst):
+        raise ValueError(f"Source and destination are the same file: {abs_src}")
+
     shutil.copy2(abs_src, abs_dst)
     file_size = os.path.getsize(abs_dst)
 

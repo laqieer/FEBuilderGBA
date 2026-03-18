@@ -416,7 +416,7 @@ def patch_list_cmd(ctx, config_dir, force_version):
         click.echo(f"Patches for {result['version']}: {result['count']}")
         for p in result["patches"]:
             name = p["name"]
-            comment = f" — {p['comment']}" if p["comment"] else ""
+            comment = f" — {p['info']}" if p.get("info") else ""
             click.echo(f"  {name}{comment}")
 
 

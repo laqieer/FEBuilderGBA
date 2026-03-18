@@ -296,12 +296,12 @@ class TestCLISubprocess:
             rom = _find_rom()
         except Exception:
             pytest.skip("No ROM available")
-        result = self._run(["--json", "rom", "header", rom], check=False)
-        if result.returncode == 0:
-            data = json.loads(result.stdout)
-            assert "game_code" in data
-            assert len(data["game_code"]) == 4
-            print(f"\n  Header game_code: {data['game_code']}")
+        result = self._run(["--json", "rom", "header", rom])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert "game_code" in data
+        assert len(data["game_code"]) == 4
+        print(f"\n  Header game_code: {data['game_code']}")
 
     def test_data_diff_identical(self, tmp_path):
         """Test data diff with identical files."""
@@ -331,11 +331,9 @@ class TestCLISubprocess:
             rom = _find_rom()
         except Exception:
             pytest.skip("No ROM available")
-        try:
-            result = self._run(["--json", "--rom", rom, "text", "search", "Eirika"], check=False)
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                assert "matches" in data
-                print(f"\n  Text search 'Eirika': {data.get('match_count', 0)} matches")
-        except RuntimeError:
-            pytest.skip("Backend not available")
+        result = self._run(["--json", "--rom", rom, "text", "search", "Eirika"], check=False)
+        if result.returncode != 0:
+            pytest.skip(f"Backend failed: {result.stderr}")
+        data = json.loads(result.stdout)
+        assert "matches" in data
+        print(f"\n  Text search 'Eirika': {data.get('match_count', 0)} matches")

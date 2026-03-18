@@ -372,11 +372,12 @@ class TestPatchList:
         ver_dir = tmp_path / "config" / "patch2" / "FE8U"
         ver_dir.mkdir(parents=True)
         (ver_dir / "PATCH_Test.txt").write_text(
-            "NAME=Test Patch\nCOMMENT=A test patch\n"
+            "NAME=Test Patch\nINFO=A test patch\n"
         )
         result = list_patches(str(tmp_path / "config"), "FE8U")
         assert result["count"] >= 1
         assert any(p["name"] == "Test Patch" for p in result["patches"])
+        assert any(p["info"] == "A test patch" for p in result["patches"])
 
     def test_list_patches_empty(self, tmp_path):
         from cli_anything.febuildergba.core.patches import list_patches
