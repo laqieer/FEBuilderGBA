@@ -345,7 +345,7 @@ For **every** code change, follow this checklist in order before committing:
    dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj --configuration Release --no-build
    ```
 4. **Update README and docs** to reflect the change
-5. **Capture screenshot(s)** proving the bugfix or feature works — attach to PR description and issue comments. Acceptable: UI screenshot, CLI/terminal output, test run output, or diff screenshot for non-visual changes.
+5. **Capture screenshot(s)** proving the bugfix or feature works (save locally; attach to PR description and issue comments when opening/updating the PR). Acceptable: UI screenshot, CLI/terminal output, test run output, or diff screenshot for non-visual changes.
 6. **Commit and push**
 7. **Watch CI/CD** — after the push, wait for the E2E pipeline to finish, then inspect the results
 8. **Fix any CI failures** and repeat from step 1 until all tests pass in CI

@@ -181,7 +181,7 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
-- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to both the PR description and any related issue comments. No PR may be opened without visual proof. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For non-visual changes (library refactors, build/CI fixes, docs-only), a terminal output or diff screenshot is sufficient.
+- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to the PR description and any related issue comments (if applicable). No PR may be opened without visual proof. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For non-visual changes (library refactors, build/CI fixes, docs-only), a terminal output or diff screenshot is sufficient.
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
@@ -359,8 +359,8 @@ A local-only review doesn't count — the review must be visible on GitHub.
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
 ### Don't: Open a PR without screenshots
-A PR without visual proof of the bugfix or feature is incomplete. Copilot CLI will flag missing screenshots as a blocking issue.
-**Do:** Always capture and attach screenshot(s) to the PR description and related issue comments before requesting review.
+A PR without visual proof of the bugfix or feature is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue.
+**Do:** Always capture and attach screenshot(s) to the PR description (and related issue comments, if applicable) before requesting review.
 
 ---
 
