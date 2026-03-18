@@ -113,6 +113,13 @@ Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
 
 ### 7. Branch & Implement
 
+**Always sync master before branching:**
+```bash
+git checkout master && git pull
+git checkout -b <branch-name>
+```
+Never work directly on master — always create a feature branch.
+
 **Branch naming:** `feat/<short-desc>-<issue>` or `fix/<short-desc>-<issue>`
 
 **Parallel execution rules:**
@@ -325,6 +332,11 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 
 ### 16. Post-Merge
 - Verify the issue was auto-closed (if `Closes #N` was used)
+- If working in a worktree, clean it up:
+  ```bash
+  # Ensure all changes are committed or discarded first — git worktree remove will fail on a dirty worktree
+  git worktree remove <path>
+  ```
 - Switch back to master and sync:
   ```bash
   git checkout master && git pull
@@ -369,6 +381,10 @@ A local-only review doesn't count — the review must be visible on GitHub.
 ### Don't: Force-push without `--force-with-lease`
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
+### Don't: Work directly on master
+Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
+**Do:** Always create a feature branch from an up-to-date master: `git checkout master && git pull && git checkout -b feat/...`
+
 ### Don't: Open a feat/fix PR without screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
 **Do:** For feat/fix PRs, always capture and attach screenshot(s) to the PR description before requesting review. For `docs`/`chore` PRs, screenshots are optional.
@@ -383,7 +399,7 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
   → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
   → Re-review → Signoff → CI Green → Merge → Confirm MERGED
   ↑___________________________________________|  (loop until MERGED)
-  → Checkout master & pull
+  → Clean up worktree (if any) → Checkout master & pull
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
