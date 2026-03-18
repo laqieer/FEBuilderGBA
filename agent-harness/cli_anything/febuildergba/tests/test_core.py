@@ -238,3 +238,154 @@ class TestSessionState:
              "history": [], "modified": False, "extra_key": "ignored"}
         state = SessionState.from_dict(d)
         assert state.rom_path == "/test.gba"
+
+
+# ── ROM header tests ──────────────────────────────────────────────────
+
+class TestRomHeader:
+    """Tests for core/project.py rom_header."""
+
+    def test_header_fe8u(self, tmp_path):
+        from cli_anything.febuildergba.core.project import rom_header
+        rom = bytearray(0x100000)  # 1 MB min
+        rom[0xA0:0xAC] = b"FIRE EMBLEM\x00"
+        rom[0xAC:0xB0] = b"BE8E"
+        rom[0xB0:0xB2] = b"01"
+        rom[0xB2] = 0x96
+        rom[0xB3] = 0x00
+        rom[0xB4] = 0x00
+        rom[0xBC] = 0x01
+        rom[0xBD] = 0x42
+        path = tmp_path / "fe8u.gba"
+        path.write_bytes(bytes(rom))
+        result = rom_header(str(path))
+        assert result["game_code"] == "BE8E"
+        assert result["title"].startswith("FIRE EMBLEM")
+        assert result["maker_code"] == "01"
+        assert result["software_version"] == 1
+        assert result["header_checksum"] == 0x42
+
+    def test_header_missing_file(self):
+        from cli_anything.febuildergba.core.project import rom_header
+        with pytest.raises(FileNotFoundError):
+            rom_header("/nonexistent.gba")
+
+
+# ── ROM save tests ────────────────────────────────────────────────────
+
+class TestRomSave:
+    """Tests for core/project.py save_rom."""
+
+    def test_save_rom(self, tmp_path):
+        from cli_anything.febuildergba.core.project import save_rom
+        src = tmp_path / "input.gba"
+        src.write_bytes(b"\x00" * 1024)
+        dst = str(tmp_path / "output.gba")
+        result = save_rom(str(src), dst)
+        assert result["output_path"] == dst
+        assert result["file_size"] == 1024
+        assert os.path.isfile(dst)
+
+    def test_save_rom_missing(self):
+        from cli_anything.febuildergba.core.project import save_rom
+        with pytest.raises(FileNotFoundError):
+            save_rom("/nonexistent.gba", "/out.gba")
+
+
+# ── Data diff tests ───────────────────────────────────────────────────
+
+class TestDataDiff:
+    """Tests for core/data.py diff_tsv."""
+
+    def test_identical_files(self, tmp_path):
+        from cli_anything.febuildergba.core.data import diff_tsv
+        tsv = tmp_path / "a.tsv"
+        tsv.write_text("ID\tName\n0\tEirika\n1\tSeth\n")
+        result = diff_tsv(str(tsv), str(tsv))
+        assert result["unchanged_count"] == 2
+        assert len(result["added_rows"]) == 0
+        assert len(result["removed_rows"]) == 0
+        assert len(result["changed_rows"]) == 0
+
+    def test_added_row(self, tmp_path):
+        from cli_anything.febuildergba.core.data import diff_tsv
+        a = tmp_path / "a.tsv"
+        b = tmp_path / "b.tsv"
+        a.write_text("ID\tName\n0\tEirika\n")
+        b.write_text("ID\tName\n0\tEirika\n1\tSeth\n")
+        result = diff_tsv(str(a), str(b))
+        assert len(result["added_rows"]) == 1
+        assert result["added_rows"][0]["ID"] == "1"
+
+    def test_removed_row(self, tmp_path):
+        from cli_anything.febuildergba.core.data import diff_tsv
+        a = tmp_path / "a.tsv"
+        b = tmp_path / "b.tsv"
+        a.write_text("ID\tName\n0\tEirika\n1\tSeth\n")
+        b.write_text("ID\tName\n0\tEirika\n")
+        result = diff_tsv(str(a), str(b))
+        assert len(result["removed_rows"]) == 1
+
+    def test_changed_row(self, tmp_path):
+        from cli_anything.febuildergba.core.data import diff_tsv
+        a = tmp_path / "a.tsv"
+        b = tmp_path / "b.tsv"
+        a.write_text("ID\tName\tHP\n0\tEirika\t16\n")
+        b.write_text("ID\tName\tHP\n0\tEirika\t20\n")
+        result = diff_tsv(str(a), str(b))
+        assert len(result["changed_rows"]) == 1
+
+
+# ── Data lookup tests ─────────────────────────────────────────────────
+
+class TestDataLookup:
+    """Tests for core/data.py lookup_entry."""
+
+    def test_lookup_found(self, tmp_path):
+        from cli_anything.febuildergba.core.data import lookup_entry
+        tsv = tmp_path / "units.tsv"
+        tsv.write_text("ID\tName\tHP\n0\tEirika\t16\n1\tSeth\t30\n")
+        result = lookup_entry(str(tsv), "1")
+        assert result["found"]
+        assert result["row"]["Name"] == "Seth"
+
+    def test_lookup_not_found(self, tmp_path):
+        from cli_anything.febuildergba.core.data import lookup_entry
+        tsv = tmp_path / "units.tsv"
+        tsv.write_text("ID\tName\n0\tEirika\n")
+        result = lookup_entry(str(tsv), "99")
+        assert not result["found"]
+
+    def test_lookup_missing_file(self):
+        from cli_anything.febuildergba.core.data import lookup_entry
+        with pytest.raises(FileNotFoundError):
+            lookup_entry("/nonexistent.tsv", "0")
+
+
+# ── Patch list tests ──────────────────────────────────────────────────
+
+class TestPatchList:
+    """Tests for core/patches.py list_patches."""
+
+    def test_list_patches(self, tmp_path):
+        from cli_anything.febuildergba.core.patches import list_patches
+        ver_dir = tmp_path / "config" / "patch2" / "FE8U"
+        ver_dir.mkdir(parents=True)
+        (ver_dir / "PATCH_Test.txt").write_text(
+            "NAME=Test Patch\nCOMMENT=A test patch\n"
+        )
+        result = list_patches(str(tmp_path / "config"), "FE8U")
+        assert result["count"] >= 1
+        assert any(p["name"] == "Test Patch" for p in result["patches"])
+
+    def test_list_patches_empty(self, tmp_path):
+        from cli_anything.febuildergba.core.patches import list_patches
+        ver_dir = tmp_path / "config" / "patch2" / "FE8U"
+        ver_dir.mkdir(parents=True)
+        result = list_patches(str(tmp_path / "config"), "FE8U")
+        assert result["count"] == 0
+
+    def test_list_patches_missing_dir(self, tmp_path):
+        from cli_anything.febuildergba.core.patches import list_patches
+        result = list_patches(str(tmp_path / "nonexistent"), "FE8U")
+        assert result["count"] == 0

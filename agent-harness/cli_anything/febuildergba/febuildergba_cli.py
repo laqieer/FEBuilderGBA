@@ -125,6 +125,36 @@ def rom_tables_cmd():
             "\n".join(f"  {t}" for t in tables))
 
 
+@rom.command("header")
+@click.argument("rom_file", required=False)
+@click.pass_context
+def rom_header_cmd(ctx, rom_file):
+    """Dump raw GBA header fields (title, game_code, maker_code, etc.)."""
+    from cli_anything.febuildergba.core.project import rom_header
+    path = rom_file or _get_rom_path(ctx.obj.get("rom_path", ""))
+    result = rom_header(path)
+    _output(result, (
+        f"Title:            {result['title']}\n"
+        f"Game Code:        {result['game_code']}\n"
+        f"Maker Code:       {result['maker_code']}\n"
+        f"Unit Code:        0x{result['unit_code']:02X}\n"
+        f"Device Type:      0x{result['device_type']:02X}\n"
+        f"Software Version: 0x{result['software_version']:02X}\n"
+        f"Header Checksum:  0x{result['header_checksum']:02X}"
+    ))
+
+
+@rom.command("save")
+@click.option("-o", "--out", required=True, help="Output ROM file path")
+@click.pass_context
+def rom_save_cmd(ctx, out):
+    """Copy ROM file to a new location."""
+    from cli_anything.febuildergba.core.project import save_rom
+    path = _get_rom_path(ctx.obj.get("rom_path", ""))
+    result = save_rom(path, out)
+    _output(result, f"Saved ROM to {result['output_path']} ({result['file_size']} bytes)")
+
+
 # ── Data commands ─────────────────────────────────────────────────────
 
 @cli.group()
@@ -201,6 +231,48 @@ def data_inspect_cmd(tsv_file):
                 click.echo(f"  {row}")
 
 
+@data.command("diff")
+@click.argument("file_a")
+@click.argument("file_b")
+def data_diff_cmd(file_a, file_b):
+    """Compare two TSV exports and report differences."""
+    from cli_anything.febuildergba.core.data import diff_tsv
+    result = diff_tsv(file_a, file_b)
+    if _json_mode:
+        _output(result)
+    else:
+        added = len(result["added_rows"])
+        removed = len(result["removed_rows"])
+        changed = len(result["changed_rows"])
+        unchanged = result["unchanged_count"]
+        click.echo(f"Added:     {added}")
+        click.echo(f"Removed:   {removed}")
+        click.echo(f"Changed:   {changed}")
+        click.echo(f"Unchanged: {unchanged}")
+        for ch in result["changed_rows"]:
+            click.echo(f"  [{ch['id']}]")
+            for field, vals in ch["fields"].items():
+                click.echo(f"    {field}: {vals['old']} -> {vals['new']}")
+
+
+@data.command("lookup")
+@click.argument("tsv_file")
+@click.argument("entry_id")
+def data_lookup_cmd(tsv_file, entry_id):
+    """Look up a single entry by ID from an exported TSV."""
+    from cli_anything.febuildergba.core.data import lookup_entry
+    result = lookup_entry(tsv_file, entry_id)
+    if _json_mode:
+        _output(result)
+    else:
+        if result["found"]:
+            click.echo(f"Entry {entry_id}:")
+            for k, v in result["row"].items():
+                click.echo(f"  {k}: {v}")
+        else:
+            click.echo(f"Entry {entry_id} not found")
+
+
 # ── Text commands ─────────────────────────────────────────────────────
 
 @cli.group()
@@ -255,6 +327,25 @@ def text_roundtrip_cmd(ctx, out_prefix, force_version):
     _output(result, f"Text roundtrip: {status}")
 
 
+@text.command("search")
+@click.argument("query")
+@click.option("--force-version", default="")
+@click.pass_context
+def text_search_cmd(ctx, query, force_version):
+    """Search ROM text by substring."""
+    from cli_anything.febuildergba.core.text import search_text
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = search_text(rom, query, fv)
+    _check_exit_code(result, "Text search")
+    if _json_mode:
+        _output(result)
+    else:
+        click.echo(f"Search: '{query}' — {result['match_count']} matches")
+        for m in result["matches"]:
+            click.echo(f"  [{m['id']}] {m['text']}")
+
+
 # ── Lint commands ─────────────────────────────────────────────────────
 
 @cli.command("lint")
@@ -284,7 +375,7 @@ def lint_cmd(ctx, force_version):
 
 @cli.group()
 def patch():
-    """UPS patch creation and application."""
+    """Patch operations — list, create UPS, apply UPS."""
     pass
 
 
@@ -299,6 +390,34 @@ def patch_create_cmd(ctx, out, from_rom):
     result = create_ups(rom, out, from_rom)
     _check_exit_code(result, "Patch create")
     _output(result, f"Created UPS patch: {out} ({result['file_size']} bytes)")
+
+
+@patch.command("list")
+@click.option("--config-dir", default="", help="Path to config/ directory")
+@click.option("--force-version", default="")
+@click.pass_context
+def patch_list_cmd(ctx, config_dir, force_version):
+    """List available patches for the ROM version."""
+    from cli_anything.febuildergba.core.patches import list_patches
+    from cli_anything.febuildergba.core.project import _detect_version
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    if not fv:
+        fv = _detect_version(rom)
+    if not config_dir:
+        # Default: look for config/ relative to the ROM or current directory
+        config_dir = os.path.join(os.path.dirname(os.path.abspath(rom)), "config")
+        if not os.path.isdir(config_dir):
+            config_dir = os.path.join(os.getcwd(), "config")
+    result = list_patches(config_dir, fv)
+    if _json_mode:
+        _output(result)
+    else:
+        click.echo(f"Patches for {result['version']}: {result['count']}")
+        for p in result["patches"]:
+            name = p["name"]
+            comment = f" — {p['comment']}" if p["comment"] else ""
+            click.echo(f"  {name}{comment}")
 
 
 @patch.command("apply")
@@ -521,18 +640,24 @@ def repl(project_path):
     commands_help = {
         "rom info <file>": "Show ROM information",
         "rom validate <file>": "Validate GBA ROM",
+        "rom header <file>": "Dump raw GBA header fields",
         "rom tables": "List supported data tables",
+        "rom save -o <file>": "Copy ROM to new location",
         "session open <rom>": "Open ROM session",
         "session status": "Show session status",
         "session close": "Close session",
         "data export <table> -o <file>": "Export table to TSV",
         "data import <table> -i <file>": "Import table from TSV",
         "data roundtrip": "Validate data round-trip",
+        "data diff <file_a> <file_b>": "Compare two TSV exports",
+        "data lookup <tsv> <id>": "Look up entry by ID in TSV",
         "text export -o <file>": "Export ROM text",
         "text import -i <file>": "Import text into ROM",
+        "text search <query>": "Search ROM text by substring",
         "lint": "Run ROM integrity checks",
         "patch create -o <file>": "Create UPS patch",
         "patch apply <file>": "Apply UPS patch",
+        "patch list": "List available patches",
         "disasm -o <file>": "Disassemble ROM",
         "check": "Check backend availability",
         "help": "Show this help",

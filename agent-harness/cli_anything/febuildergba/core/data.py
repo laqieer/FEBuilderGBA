@@ -115,6 +115,105 @@ def roundtrip_table(rom_path: str, table: str = "all",
     }
 
 
+def diff_tsv(path_a: str, path_b: str) -> dict:
+    """Compare two TSV exports and report differences.
+
+    Pure Python — reads two TSV files and compares by first column (ID).
+
+    Args:
+        path_a: Path to the first TSV file.
+        path_b: Path to the second TSV file.
+
+    Returns:
+        Dict with added_rows, removed_rows, changed_rows, unchanged_count.
+    """
+    if not os.path.isfile(path_a):
+        raise FileNotFoundError(f"File not found: {path_a}")
+    if not os.path.isfile(path_b):
+        raise FileNotFoundError(f"File not found: {path_b}")
+
+    rows_a = read_tsv(path_a)
+    rows_b = read_tsv(path_b)
+
+    if not rows_a and not rows_b:
+        return {
+            "added_rows": [],
+            "removed_rows": [],
+            "changed_rows": [],
+            "unchanged_count": 0,
+        }
+
+    # Use first column as the key
+    key_col_a = list(rows_a[0].keys())[0] if rows_a else None
+    key_col_b = list(rows_b[0].keys())[0] if rows_b else None
+
+    dict_a = {row[key_col_a]: row for row in rows_a} if key_col_a else {}
+    dict_b = {row[key_col_b]: row for row in rows_b} if key_col_b else {}
+
+    keys_a = set(dict_a.keys())
+    keys_b = set(dict_b.keys())
+
+    added_keys = sorted(keys_b - keys_a)
+    removed_keys = sorted(keys_a - keys_b)
+    common_keys = keys_a & keys_b
+
+    added_rows = [dict_b[k] for k in added_keys]
+    removed_rows = [dict_a[k] for k in removed_keys]
+
+    changed_rows = []
+    unchanged_count = 0
+
+    for k in sorted(common_keys):
+        row_a = dict_a[k]
+        row_b = dict_b[k]
+        if row_a != row_b:
+            diffs = {}
+            all_fields = set(row_a.keys()) | set(row_b.keys())
+            for field in all_fields:
+                val_a = row_a.get(field, "")
+                val_b = row_b.get(field, "")
+                if val_a != val_b:
+                    diffs[field] = {"old": val_a, "new": val_b}
+            changed_rows.append({"id": k, "fields": diffs})
+        else:
+            unchanged_count += 1
+
+    return {
+        "added_rows": added_rows,
+        "removed_rows": removed_rows,
+        "changed_rows": changed_rows,
+        "unchanged_count": unchanged_count,
+    }
+
+
+def lookup_entry(tsv_path: str, entry_id: str) -> dict:
+    """Look up a single entry by ID from an exported TSV.
+
+    Pure Python — reads TSV and finds the row where the first column
+    matches the given entry_id.
+
+    Args:
+        tsv_path: Path to TSV file.
+        entry_id: Value to match in the first column.
+
+    Returns:
+        Dict with found=True/False and the row data if found.
+    """
+    if not os.path.isfile(tsv_path):
+        raise FileNotFoundError(f"File not found: {tsv_path}")
+
+    rows = read_tsv(tsv_path)
+    if not rows:
+        return {"found": False, "entry_id": entry_id, "row": None}
+
+    key_col = list(rows[0].keys())[0]
+    for row in rows:
+        if row[key_col] == entry_id:
+            return {"found": True, "entry_id": entry_id, "row": row}
+
+    return {"found": False, "entry_id": entry_id, "row": None}
+
+
 def read_tsv(path: str) -> list[dict]:
     """Read a TSV file and return rows as dicts.
 

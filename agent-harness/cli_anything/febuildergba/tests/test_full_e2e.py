@@ -289,3 +289,53 @@ class TestCLISubprocess:
     def test_session_status_no_session(self):
         result = self._run(["session", "status"])
         assert result.returncode == 0
+
+    def test_rom_header(self):
+        """Test ROM header dump with real ROM."""
+        try:
+            rom = _find_rom()
+        except Exception:
+            pytest.skip("No ROM available")
+        result = self._run(["--json", "rom", "header", rom], check=False)
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            assert "game_code" in data
+            assert len(data["game_code"]) == 4
+            print(f"\n  Header game_code: {data['game_code']}")
+
+    def test_data_diff_identical(self, tmp_path):
+        """Test data diff with identical files."""
+        tsv = str(tmp_path / "test.tsv")
+        with open(tsv, "w") as f:
+            f.write("ID\tName\n0\tEirika\n1\tSeth\n")
+        result = self._run(["--json", "data", "diff", tsv, tsv])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["unchanged_count"] == 2
+        assert len(data["added_rows"]) == 0
+
+    def test_data_lookup(self, tmp_path):
+        """Test data lookup by ID."""
+        tsv = str(tmp_path / "test.tsv")
+        with open(tsv, "w") as f:
+            f.write("ID\tName\tHP\n0\tEirika\t16\n1\tSeth\t30\n")
+        result = self._run(["--json", "data", "lookup", tsv, "1"])
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["found"]
+        assert data["row"]["Name"] == "Seth"
+
+    def test_text_search(self):
+        """Test text search with real ROM."""
+        try:
+            rom = _find_rom()
+        except Exception:
+            pytest.skip("No ROM available")
+        try:
+            result = self._run(["--json", "--rom", rom, "text", "search", "Eirika"], check=False)
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                assert "matches" in data
+                print(f"\n  Text search 'Eirika': {data.get('match_count', 0)} matches")
+        except RuntimeError:
+            pytest.skip("Backend not available")

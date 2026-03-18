@@ -1,6 +1,7 @@
 """ROM project management — open, info, save, close."""
 
 import os
+import shutil
 from typing import Optional
 
 from cli_anything.febuildergba.utils.febuildergba_backend import run_cli
@@ -121,3 +122,72 @@ def list_tables() -> list[str]:
         "class_alpha_names", "summon_units", "summons_demon_king",
         "monster_probability",
     ]
+
+
+def rom_header(rom_path: str) -> dict:
+    """Dump raw GBA header fields from a ROM file.
+
+    Pure Python — reads the ROM binary directly, no backend needed.
+
+    Args:
+        rom_path: Path to the .gba ROM file.
+
+    Returns:
+        Dict with header fields: title, game_code, maker_code,
+        unit_code, device_type, software_version, header_checksum.
+    """
+    if not os.path.isfile(rom_path):
+        raise FileNotFoundError(f"ROM file not found: {rom_path}")
+
+    with open(rom_path, "rb") as f:
+        header = f.read(0xC0)
+
+    if len(header) < 0xBE:
+        raise ValueError(f"File too small for GBA header: {len(header)} bytes")
+
+    title = header[0xA0:0xAC].decode("ascii", errors="replace").rstrip("\x00")
+    game_code = header[0xAC:0xB0].decode("ascii", errors="replace")
+    maker_code = header[0xB0:0xB2].decode("ascii", errors="replace")
+    unit_code = header[0xB3]
+    device_type = header[0xB4]
+    software_version = header[0xBC]
+    header_checksum = header[0xBD]
+
+    return {
+        "rom_path": os.path.abspath(rom_path),
+        "title": title,
+        "game_code": game_code,
+        "maker_code": maker_code,
+        "unit_code": unit_code,
+        "device_type": device_type,
+        "software_version": software_version,
+        "header_checksum": header_checksum,
+    }
+
+
+def save_rom(rom_path: str, output_path: str) -> dict:
+    """Copy a ROM file to a new location.
+
+    Pure Python — copies the file, no backend needed.
+
+    Args:
+        rom_path: Path to the source ROM file.
+        output_path: Destination path for the copy.
+
+    Returns:
+        Dict with copy results.
+    """
+    if not os.path.isfile(rom_path):
+        raise FileNotFoundError(f"ROM file not found: {rom_path}")
+
+    abs_src = os.path.abspath(rom_path)
+    abs_dst = os.path.abspath(output_path)
+
+    shutil.copy2(abs_src, abs_dst)
+    file_size = os.path.getsize(abs_dst)
+
+    return {
+        "source": abs_src,
+        "output_path": abs_dst,
+        "file_size": file_size,
+    }
