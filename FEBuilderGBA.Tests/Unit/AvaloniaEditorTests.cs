@@ -1639,6 +1639,27 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("AutoSaveIntervalBox", axaml);
         }
 
+        // ------------------------------------------------------------------ Issue #129 — Submodule Remote URLs
+
+        [Fact]
+        public void OptionsView_HasSubmoduleUrlFields()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OptionsView.axaml"));
+            Assert.Contains("Patch2UrlTextBox", axaml);
+            Assert.Contains("FERepoUrlTextBox", axaml);
+            Assert.Contains("FERepoMusicUrlTextBox", axaml);
+        }
+
+        [Fact]
+        public void OptionsViewModel_HasSubmoduleUrlProperties()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "OptionsViewModel.cs"));
+            Assert.Contains("SubmodulePatch2Url", src);
+            Assert.Contains("SubmoduleFERepoUrl", src);
+            Assert.Contains("SubmoduleFERepoMusicUrl", src);
+            Assert.Contains("ApplySubmoduleRemotes", src);
+        }
+
         // ------------------------------------------------------------------ Preview Icons
 
         [Fact]
