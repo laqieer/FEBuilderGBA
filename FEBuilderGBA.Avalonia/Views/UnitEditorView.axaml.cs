@@ -365,7 +365,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var img = PreviewIconHelper.LoadPortraitMini(_vm.PortraitId);
+                // Resolve portrait ID with class fallback for generic units
+                uint previewPortraitId = _vm.PortraitId;
+                if (previewPortraitId == 0)
+                    previewPortraitId = PreviewIconHelper.GetClassPortraitId(_vm.ClassId);
+                var img = PreviewIconHelper.LoadPortraitMini(previewPortraitId);
                 if (img != null)
                 {
                     ListPreviewImage.Zoom = 1;
