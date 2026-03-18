@@ -103,6 +103,11 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot
 # Capture WinForms screenshots of all editors (saves PNGs for side-by-side comparison with Avalonia)
 FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
+# NOTE: Avalonia and WinForms share the same config.xml for settings.
+# The Avalonia Options dialog exposes 20+ external tool paths (emulator, sappy,
+# event_assembler, devkitpro_eabi, etc.) using the same config keys as WinForms,
+# so settings configured in one GUI are available in the other.
+
 # Export decoded graphics editor images (for cross-platform pixel comparison)
 # Exports 16 editors: PortraitViewer, BattleBGViewer, BattleTerrainViewer, BigCGViewer,
 # ChapterTitleViewer, ChapterTitleFE7Viewer, ItemIconViewer, SystemIconViewer,
@@ -159,7 +164,7 @@ FEBuilderGBA.sln
 │   └── WriteValidator.cs                  ROM write validation utilities
 ├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 19 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors, with ambient undo, dirty tracking, data export/import)
+├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
 ├── FEBuilderGBA.Tests/          net9.0-windows (unit tests)
 ├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform tests)

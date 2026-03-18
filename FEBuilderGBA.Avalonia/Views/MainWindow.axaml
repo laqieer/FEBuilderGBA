@@ -36,9 +36,13 @@
         <Separator />
         <MenuItem Header="_External Tools">
           <MenuItem Header="Run _Emulator..." Click="RunEmulator_Click" />
+          <MenuItem Header="Run Emulator _2..." Click="RunEmulator2_Click" />
           <MenuItem Header="Run _Binary Editor..." Click="RunBinaryEditor_Click" />
           <MenuItem Header="Run _Sappy..." Click="RunSappy_Click" />
-          <MenuItem Header="Run _Custom Tool..." Click="RunCustomTool_Click" />
+          <Separator />
+          <MenuItem Header="Run Program _1..." Click="RunProgram1_Click" />
+          <MenuItem Header="Run Program _2..." Click="RunProgram2_Click" />
+          <MenuItem Header="Run Program _3..." Click="RunProgram3_Click" />
         </MenuItem>
         <Separator />
         <MenuItem Header="_Options..." Click="Options_Click" />
