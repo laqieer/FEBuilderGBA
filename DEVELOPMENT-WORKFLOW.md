@@ -160,10 +160,9 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- MANDATORY: Replace this comment block with actual screenshot(s).
-     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
-     Delete this entire comment and add real image(s) below. -->
-
+<!-- MANDATORY: Replace the placeholder below with actual screenshot(s).
+     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff. -->
+![description](replace-with-actual-url)
 
 ## Test plan
 - [x] <what was tested>
@@ -187,8 +186,9 @@ EOF
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
-  Verify the PR description contains at least one real embedded image (GitHub attachment URL or raw repo image link) proving the bugfix or feature works. \
-  Treat a Screenshots section with only placeholder text, HTML comments, or no actual image links as missing. Flag missing screenshots as a blocking issue. \
+  Verify the PR description contains at least one real Markdown image link (![...](URL)) proving the bugfix or feature works. \
+  Accept any valid image URL (GitHub attachments, raw repo links, relative paths, standard GitHub file URLs). \
+  Treat a Screenshots section with only the placeholder text 'replace-with-actual-url', only HTML comments, or no image links at all as missing. Flag missing screenshots as a blocking issue. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
