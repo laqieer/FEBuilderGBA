@@ -160,9 +160,9 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- MANDATORY: Replace the placeholder below with actual screenshot(s).
-     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff. -->
-![description](replace-with-actual-url)
+<!-- For feat/fix PRs: MANDATORY — replace this comment with actual screenshot(s).
+     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
+     For docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
 - [x] <what was tested>
@@ -180,16 +180,17 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
-- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to the PR description and any related issue comments (if applicable). No PR may be opened without visual proof. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For non-visual changes (library refactors, build/CI fixes, docs-only), a terminal output or diff screenshot is sufficient.
+- **Screenshots are MANDATORY for `feat` and `fix` PRs** — include screenshot(s) proving the feature or bugfix works. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For `docs` and `chore` PRs (documentation, gitignore, CI config, dependency bumps, etc.), screenshots are optional and the Screenshots section may be omitted entirely.
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
   Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. \
-  Additionally, verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the bugfix or feature works. \
+  Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the feature/bugfix works. \
   Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, relative repo paths, or blob URLs with ?raw=1. \
-  Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue. \
+  Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue for feat/fix PRs. \
+  For docs/chore PRs (title starts with 'docs' or 'chore'), screenshots are optional — do NOT flag their absence. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -359,9 +360,9 @@ A local-only review doesn't count — the review must be visible on GitHub.
 ### Don't: Force-push without `--force-with-lease`
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
-### Don't: Open a PR without screenshots
-A PR without visual proof of the bugfix or feature is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue.
-**Do:** Always capture and attach screenshot(s) to the PR description (and related issue comments, if applicable) before requesting review.
+### Don't: Open a feat/fix PR without screenshots
+A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
+**Do:** For feat/fix PRs, always capture and attach screenshot(s) to the PR description before requesting review. For `docs`/`chore` PRs, screenshots are optional.
 
 ---
 
