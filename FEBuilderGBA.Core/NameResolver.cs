@@ -55,6 +55,16 @@ namespace FEBuilderGBA
             return _cache.GetOrAdd(("class", id), _ => ResolveClassName(id));
         }
 
+        /// <summary>
+        /// Get the unit or class name associated with a given portrait ID.
+        /// Scans the unit table first (portrait at offset +6), then falls back
+        /// to the class table (portrait at offset +8). Returns empty if not found.
+        /// </summary>
+        public static string GetPortraitName(uint portraitId)
+        {
+            return _cache.GetOrAdd(("portrait", portraitId), _ => ResolvePortraitName(portraitId));
+        }
+
         /// <summary>Get the name of an item by index.</summary>
         public static string GetItemName(uint id)
         {
@@ -112,6 +122,56 @@ namespace FEBuilderGBA
                 return textId == 0 ? $"#{id}" : GetTextById(textId);
             }
             catch { return "???"; }
+        }
+
+        static string ResolvePortraitName(uint portraitId)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return "";
+
+                uint unitBase = DerefPointer(rom, rom.RomInfo.unit_pointer);
+                uint unitSize = rom.RomInfo.unit_datasize;
+                uint unitCount = rom.RomInfo.unit_maxcount;
+                if (unitCount == 0) unitCount = 0x100;
+
+                if (unitBase != 0 && unitSize != 0)
+                {
+                    for (uint i = 0; i < unitCount; i++)
+                    {
+                        uint entryAddr = unitBase + (i * unitSize);
+                        if (!U.isSafetyOffset(entryAddr + 7, rom)) break;
+                        if (rom.u16(entryAddr + 6) == portraitId)
+                        {
+                            uint textId = rom.u16(entryAddr);
+                            if (textId != 0) return GetTextById(textId);
+                        }
+                    }
+                }
+
+                // Fallback: scan class table (portrait field at offset +8)
+                uint classBase = DerefPointer(rom, rom.RomInfo.class_pointer);
+                uint classSize = rom.RomInfo.class_datasize;
+                uint classCount = 0x100; // reasonable upper bound
+
+                if (classBase != 0 && classSize != 0)
+                {
+                    for (uint i = 0; i < classCount; i++)
+                    {
+                        uint entryAddr = classBase + (i * classSize);
+                        if (!U.isSafetyOffset(entryAddr + 9, rom)) break;
+                        if (rom.u16(entryAddr + 8) == portraitId)
+                        {
+                            uint textId = rom.u16(entryAddr);
+                            if (textId != 0) return GetTextById(textId);
+                        }
+                    }
+                }
+
+                return "";
+            }
+            catch { return ""; }
         }
 
         static string ResolveItemName(uint id)

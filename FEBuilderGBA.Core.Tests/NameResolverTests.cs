@@ -187,6 +187,27 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void GetPortraitName_ReturnsEmptyWhenNoRom()
+        {
+            NameResolver.ClearCache();
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                string name = NameResolver.GetPortraitName(0);
+                Assert.Equal("", name);
+
+                string name2 = NameResolver.GetPortraitName(999);
+                Assert.Equal("", name2);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
         [Theory]
         [InlineData(" Lord ", "Lord")]
         [InlineData("\r\nKnight\n", "Knight")]

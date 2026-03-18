@@ -42,6 +42,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire weapon rank label updates
             WireWeaponRankLabels();
+
+            // Wire portrait name live update
+            PortraitIdBox.ValueChanged += OnPortraitIdChanged;
         }
 
         /// <summary>
@@ -88,6 +91,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnWeaponValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             UpdateWeaponRankLabels();
+        }
+
+        void OnPortraitIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(PortraitIdBox.Value ?? 0);
+            _vm.PortraitId = id;
+            PortraitNameLabel.Text = NameResolver.GetPortraitName(id);
+            TryShowPortrait();
         }
 
         void UpdateWeaponRankLabels()
@@ -192,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassIdCombo.SelectedIndex = classIdx >= 0 ? classIdx : (int)_vm.ClassId;
 
             PortraitIdBox.Value = _vm.PortraitId;
-            PortraitNameLabel.Text = NameResolver.GetUnitName(_vm.PortraitId);
+            PortraitNameLabel.Text = NameResolver.GetPortraitName(_vm.PortraitId);
             MapFaceBox.Value = _vm.MapFace;
 
             // Affinity combo
@@ -485,7 +497,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null)
                 {
                     PortraitIdBox.Value = result.Index;
-                    PortraitNameLabel.Text = NameResolver.GetUnitName((uint)result.Index);
+                    PortraitNameLabel.Text = NameResolver.GetPortraitName((uint)result.Index);
                     TryShowPortrait();
                 }
             }
