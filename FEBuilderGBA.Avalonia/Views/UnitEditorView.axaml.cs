@@ -42,6 +42,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire weapon rank label updates
             WireWeaponRankLabels();
+
+            // Wire portrait name live update
+            PortraitIdBox.ValueChanged += OnPortraitIdChanged;
         }
 
         /// <summary>
@@ -88,6 +91,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnWeaponValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             UpdateWeaponRankLabels();
+        }
+
+        void OnPortraitIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            uint id = (uint)(PortraitIdBox.Value ?? 0);
+            PortraitNameLabel.Text = NameResolver.GetPortraitName(id);
+            TryShowPortrait();
         }
 
         void UpdateWeaponRankLabels()
