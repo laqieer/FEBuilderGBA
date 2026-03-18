@@ -79,6 +79,14 @@ namespace FEBuilderGBA.Avalonia
                 CoreState.Config = config;
             }
 
+            // Initialize language from config (backward-compatible: try "Language", then "func_lang")
+            if (CoreState.Config != null)
+            {
+                string lang = CoreState.Config.at("Language", CoreState.Config.at("func_lang", "auto"));
+                CoreState.Language = lang;
+            }
+            ViewModels.OptionsViewModel.ReloadTranslations();
+
             // Apply saved theme preference
             ApplySavedTheme();
 

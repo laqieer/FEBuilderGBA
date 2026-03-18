@@ -78,8 +78,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.UpdateFromRom();
                 StatusText.Text = _vm.StatusText;
 
-                // Refresh menu headers
+                // Refresh menu headers and navigation labels
                 RefreshMenuHeaders();
+                RefreshNavigationLabels();
             });
         }
 
@@ -140,6 +141,45 @@ namespace FEBuilderGBA.Avalonia.Views
             // Refresh Dark Mode toggle text
             if (DarkModeMenuItem != null && Application.Current is App app)
                 DarkModeMenuItem.Header = app.IsDarkMode ? R._("Switch to _Light Mode") : R._("Toggle _Dark Mode");
+        }
+
+        /// <summary>
+        /// Refresh navigation expander headers and button labels using R._() translations.
+        /// </summary>
+        void RefreshNavigationLabels()
+        {
+            // Expander headers
+            if (CharactersExpander != null) CharactersExpander.Header = R._("Characters");
+            if (ItemsExpander != null) ItemsExpander.Header = R._("Items");
+            if (MapsExpander != null) MapsExpander.Header = R._("Maps");
+            if (TextExpander != null) TextExpander.Header = R._("Text");
+            if (GraphicsExpander != null) GraphicsExpander.Header = R._("Graphics");
+            if (AudioExpander != null) AudioExpander.Header = R._("Audio");
+            if (ArenaExpander != null) ArenaExpander.Header = R._("Arena");
+            if (MonstersExpander != null) MonstersExpander.Header = R._("Monsters");
+            if (SummonsExpander != null) SummonsExpander.Header = R._("Summons");
+            if (ItemsSpecializedExpander != null) ItemsSpecializedExpander.Header = R._("Items (Specialized)");
+            if (MenusExpander != null) MenusExpander.Header = R._("Menus");
+            if (CreditsExpander != null) CreditsExpander.Header = R._("Credits");
+            if (WorldMapExpander != null) WorldMapExpander.Header = R._("World Map");
+            if (ImageEditorsExpander != null) ImageEditorsExpander.Header = R._("Image Editors");
+            if (EventScriptsExpander != null) EventScriptsExpander.Header = R._("Event Scripts");
+            if (AIScriptsExpander != null) AIScriptsExpander.Header = R._("AI Scripts");
+            if (MapEditorsExpander != null) MapEditorsExpander.Header = R._("Map Editors");
+            if (AudioAdvancedExpander != null) AudioAdvancedExpander.Header = R._("Audio (Advanced)");
+            if (UnitClassSpecializedExpander != null) UnitClassSpecializedExpander.Header = R._("Unit/Class Specialized");
+            if (TextTranslationExpander != null) TextTranslationExpander.Header = R._("Text/Translation");
+            if (PatchesExpander != null) PatchesExpander.Header = R._("Patches");
+            if (SkillsExpander != null) SkillsExpander.Header = R._("Skill Systems");
+            if (WorldMapAdvancedExpander != null) WorldMapAdvancedExpander.Header = R._("World Map (Advanced)");
+            if (StructuralDataExpander != null) StructuralDataExpander.Header = R._("Structural Data");
+            if (ToolsExpander != null) ToolsExpander.Header = R._("Tools");
+            if (StatusScreenExpander != null) StatusScreenExpander.Header = R._("Status Screen");
+            if (SkillsExtExpander != null) SkillsExtExpander.Header = R._("Skill Systems (Extended)");
+            if (VersionSpecificExpander != null) VersionSpecificExpander.Header = R._("Version-Specific");
+
+            // Easy mode toggle button
+            if (EasyModeToggle != null) EasyModeToggle.Content = R._("Easy Mode");
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
@@ -2274,22 +2314,37 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("Emulator_Path", "emulator");
+            await RunExternalTool("emulator", "emulator");
+        }
+
+        private async void RunEmulator2_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("emulator2", "emulator 2");
         }
 
         private async void RunBinaryEditor_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("BinaryEditor_Path", "binary editor");
+            await RunExternalTool("program1", "binary editor");
         }
 
         private async void RunSappy_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("Sappy_Path", "Sappy");
+            await RunExternalTool("sappy", "Sappy");
         }
 
-        private async void RunCustomTool_Click(object? sender, RoutedEventArgs e)
+        private async void RunProgram1_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("CustomTool_Path", "custom tool");
+            await RunExternalTool("program1", "Program 1");
+        }
+
+        private async void RunProgram2_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("program2", "Program 2");
+        }
+
+        private async void RunProgram3_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunExternalTool("program3", "Program 3");
         }
 
         private async System.Threading.Tasks.Task RunExternalTool(string configKey, string toolName)
