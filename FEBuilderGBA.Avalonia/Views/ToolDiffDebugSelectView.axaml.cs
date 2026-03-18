@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string emulatorPath = "";
                 var cfg = CoreState.Config;
                 if (cfg != null)
-                    emulatorPath = cfg.at("Emulator_Path", "");
+                    emulatorPath = cfg.at("emulator", "");
 
                 if (string.IsNullOrEmpty(emulatorPath) || !System.IO.File.Exists(emulatorPath))
                 {

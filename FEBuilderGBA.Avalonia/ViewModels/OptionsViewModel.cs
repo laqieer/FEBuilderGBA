@@ -85,32 +85,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SrccodeTexteditor { get => _srccodeTexteditor; set => SetField(ref _srccodeTexteditor, value); }
         public string SrccodeDirectory { get => _srccodeDirectory; set => SetField(ref _srccodeDirectory, value); }
 
-        /// <summary>
-        /// Maps ViewModel property names to WinForms-compatible config keys.
-        /// </summary>
-        public static readonly (string Property, string ConfigKey)[] ToolPathMappings = new[]
-        {
-            (nameof(Emulator), "emulator"),
-            (nameof(Emulator2), "emulator2"),
-            (nameof(Program1), "program1"),
-            (nameof(Program2), "program2"),
-            (nameof(Program3), "program3"),
-            (nameof(Sappy), "sappy"),
-            (nameof(Mid2agb), "mid2agb"),
-            (nameof(GbaMusRiper), "gba_mus_riper"),
-            (nameof(Sox), "sox"),
-            (nameof(Midfix4agb), "midfix4agb"),
-            (nameof(EventAssembler), "event_assembler"),
-            (nameof(DevkitproEabi), "devkitpro_eabi"),
-            (nameof(GoldroadAsm), "goldroad_asm"),
-            (nameof(Cflags), "CFLAGS"),
-            (nameof(Retdec), "retdec"),
-            (nameof(Python3), "python3"),
-            (nameof(Feclib), "FECLIB"),
-            (nameof(SrccodeTexteditor), "srccode_texteditor"),
-            (nameof(SrccodeDirectory), "srccode_directory"),
-        };
-
         /// <summary>Load settings from CoreState and Config.</summary>
         public void Load()
         {

@@ -4,6 +4,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class OptionsLanguageTests
     {
         [Fact]
@@ -54,9 +55,10 @@ namespace FEBuilderGBA.Core.Tests
         {
             // Simulate config with only func_lang (WinForms style)
             var cfg = new Config();
-            // Config doesn't have func_lang set, so "at" returns default
+            cfg["func_lang"] = "zh";
+            // "Language" key is missing, so fallback reads func_lang
             string lang = cfg.at("Language", cfg.at("func_lang", "auto"));
-            Assert.Equal("auto", lang);
+            Assert.Equal("zh", lang);
         }
 
         [Fact]
@@ -76,6 +78,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.Language = origLang;
                 CoreState.BaseDirectory = origBase;
+                OptionsViewModel.ReloadTranslations();
             }
         }
 
@@ -95,6 +98,7 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.Language = origLang;
                 CoreState.BaseDirectory = origBase;
+                OptionsViewModel.ReloadTranslations();
             }
         }
     }
