@@ -244,6 +244,12 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THRE
 ### 11. Iterate Until Approved
 - Fix ALL issues raised — both Copilot CLI reviews AND GitHub Copilot bot inline comments
 - Push fixes as new commits (not amends)
+- **After each push, wait for the GitHub Copilot bot auto-review to complete** (typically 2-5 minutes). Verify by checking for a new review with a timestamp after your push:
+  ```bash
+  gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
+    --jq '[.[] | select(.user.login == "Copilot" or .user.type == "Bot")] | .[-1].submitted_at'
+  ```
+- Re-run the unresolved threads query from step 10 to catch **newly posted** comments
 - Resolve all review threads after addressing them
 - Re-trigger Copilot CLI review using the same invocation from step 10
 - Repeat until: **no unresolved comments of any kind**
