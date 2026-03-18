@@ -160,10 +160,9 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- MANDATORY for feat/fix PRs: Replace the placeholder below with actual screenshot(s).
+<!-- For feat/fix PRs: MANDATORY — replace this comment with actual screenshot(s).
      Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
-     For docs/chore PRs this section may be omitted. -->
-![description](replace-with-actual-url)
+     For docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
 - [x] <what was tested>
