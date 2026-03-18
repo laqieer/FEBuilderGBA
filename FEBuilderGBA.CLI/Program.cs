@@ -221,8 +221,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
             Console.WriteLine("  --test                   Run self-test diagnostics (requires --rom)");
-            Console.WriteLine("  --disasm-event           Disassemble event script (requires --rom, --addr, --type)");
-            Console.WriteLine("    --type=<kind>          Script type: event, procs, ai");
+            Console.WriteLine("  --disasm-event           Disassemble event script (requires --rom, --addr)");
+            Console.WriteLine("    --type=<kind>          Script type: event (default), procs, ai");
             Console.WriteLine("    --addr=<hex>           Start address in hex (e.g., 0x9A0000)");
             Console.WriteLine("    --out=<path>           Output file (optional, prints to stdout if omitted)");
             Console.WriteLine("  --lint-oam               Validate battle animation OAM data (requires --rom, --addr)");
@@ -1722,6 +1722,7 @@ namespace FEBuilderGBA.CLI
             var lines = new List<string>();
             uint currentAddr = U.toOffset(addr);
             int maxOps = 500; // safety limit
+            int consecutiveUnknowns = 0;
 
             for (int i = 0; i < maxOps; i++)
             {
@@ -1733,6 +1734,21 @@ namespace FEBuilderGBA.CLI
                 {
                     lines.Add($"0x{currentAddr:X08}\t???");
                     break;
+                }
+
+                // Stop after consecutive unknown instructions (invalid data region)
+                if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                {
+                    consecutiveUnknowns++;
+                    if (consecutiveUnknowns >= 3)
+                    {
+                        lines.Add($"0x{currentAddr:X08}\t(stopped: {consecutiveUnknowns} consecutive unknown instructions)");
+                        break;
+                    }
+                }
+                else
+                {
+                    consecutiveUnknowns = 0;
                 }
 
                 // Format: address \t command_name \t arg1 \t arg2 ...
@@ -1753,9 +1769,9 @@ namespace FEBuilderGBA.CLI
 
                 currentAddr += (uint)code.Script.Size;
 
-                // Stop on ENDA/END/ENDB type terminators
-                string name = scriptName.ToUpper();
-                if (name.Contains("ENDA") || name.Contains("ENDB") || name == "END")
+                // Stop on terminator instructions
+                if (code.Script.Has == EventScript.ScriptHas.TERM
+                    || code.Script.Has == EventScript.ScriptHas.MAPTERM)
                     break;
             }
 

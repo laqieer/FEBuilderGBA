@@ -584,7 +584,9 @@ def disasm_event_cmd(ctx, addr, script_type, out, force_version):
     _check_exit_code(result, "Event disassembly")
     if _json_mode:
         _output(result)
-    elif not out:
+    elif out:
+        click.echo(result.get("stderr", result.get("stdout", "")).split("\n")[-1])
+    else:
         click.echo(result.get("stdout", ""))
 
 
@@ -601,7 +603,7 @@ def lint_oam_cmd(ctx, addr, length, force_version):
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
     result = lint_oam(rom, addr, length, fv)
-    _check_exit_code(result, "OAM lint")
+    # Don't _check_exit_code — exit 1 means lint found issues (not fatal)
     if _json_mode:
         _output(result)
     else:
