@@ -565,6 +565,75 @@ def export_midi_cmd(ctx, song_id, out, force_version):
     _output(result, f"MIDI exported: {out} ({result['file_size']} bytes)")
 
 
+# ── Event script disassembly command ──────────────────────────────────
+
+@cli.command("disasm-event")
+@click.argument("addr")
+@click.option("--type", "script_type", default="event",
+              type=click.Choice(["event", "procs", "ai"]),
+              help="Script type (default: event)")
+@click.option("-o", "--out", default="", help="Output file (default: stdout)")
+@click.option("--force-version", default="")
+@click.pass_context
+def disasm_event_cmd(ctx, addr, script_type, out, force_version):
+    """Disassemble event script at ROM address. Address is hex (e.g. 0x9A0000)."""
+    from cli_anything.febuildergba.core.export import disasm_event
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = disasm_event(rom, addr, script_type, out, fv)
+    _check_exit_code(result, "Event disassembly")
+    if _json_mode:
+        _output(result)
+    elif out:
+        click.echo(result.get("stderr", result.get("stdout", "")).split("\n")[-1])
+    else:
+        click.echo(result.get("stdout", ""))
+
+
+# ── OAM lint command ─────────────────────────────────────────────────
+
+@cli.command("lint-oam")
+@click.argument("addr")
+@click.option("--length", default=0, type=int, help="Bytes to scan (0=auto)")
+@click.option("--force-version", default="")
+@click.pass_context
+def lint_oam_cmd(ctx, addr, length, force_version):
+    """Validate battle animation OAM data at ROM address."""
+    from cli_anything.febuildergba.core.export import lint_oam
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = lint_oam(rom, addr, length, fv)
+    # Don't _check_exit_code — exit 1 means lint found issues (not fatal)
+    if _json_mode:
+        _output(result)
+    else:
+        if result["clean"]:
+            click.echo(f"OAM lint: CLEAN (no issues at {addr})")
+        else:
+            click.echo(f"OAM lint: {result['issue_count']} issue(s)")
+            for issue in result["issues"]:
+                click.echo(f"  {issue}")
+
+
+# ── Patch apply command ──────────────────────────────────────────────
+
+@patch.command("apply-bin")
+@click.argument("patch_file")
+@click.option("--force-version", default="")
+@click.pass_context
+def patch_apply_bin_cmd(ctx, patch_file, force_version):
+    """Apply a BIN patch from config/patch2/. Creates backup automatically."""
+    from cli_anything.febuildergba.core.export import apply_patch
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = apply_patch(rom, patch_file, fv)
+    _check_exit_code(result, "Patch apply")
+    if _session:
+        _session.record_operation("patch_apply_bin", {"patch": patch_file})
+        _session.mark_modified()
+    _output(result, result.get("stdout", ""))
+
+
 # ── Rebuild command ───────────────────────────────────────────────────
 
 @cli.command("rebuild")
@@ -720,6 +789,9 @@ def repl(project_path):
         "names <kind> <ids>": "Resolve IDs to names (unit/class/item/song)",
         "portrait <unit_id> -o <file>": "Render unit portrait to PNG",
         "export-midi <song_id> -o <file>": "Export song to MIDI",
+        "disasm-event <addr>": "Disassemble event script",
+        "lint-oam <addr>": "Validate OAM sprite data",
+        "patch apply-bin <file>": "Apply BIN patch",
         "disasm -o <file>": "Disassemble ROM",
         "check": "Check backend availability",
         "help": "Show this help",
