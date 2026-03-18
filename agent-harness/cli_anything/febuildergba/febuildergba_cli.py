@@ -518,7 +518,10 @@ def names_cmd(ctx, kind, ids, force_version):
     from cli_anything.febuildergba.core.export import resolve_names
     rom = _get_rom_path(ctx.obj.get("rom_path", ""))
     fv = force_version or _get_force_version()
-    id_list = [int(x.strip()) for x in ids.split(",")]
+    try:
+        id_list = [int(x.strip()) for x in ids.split(",") if x.strip()]
+    except ValueError:
+        raise click.UsageError(f"Invalid IDs '{ids}'. Use comma-separated integers (e.g. 0,1,2,3)")
     result = resolve_names(rom, kind, id_list, fv)
     _check_exit_code(result, "Name resolution")
     if _json_mode:
@@ -714,7 +717,7 @@ def repl(project_path):
         "patch create -o <file>": "Create UPS patch",
         "patch apply <file>": "Apply UPS patch",
         "patch list": "List available patches",
-        "names <kind> <ids>": "Resolve IDs to names (unit/class/item)",
+        "names <kind> <ids>": "Resolve IDs to names (unit/class/item/song)",
         "portrait <unit_id> -o <file>": "Render unit portrait to PNG",
         "export-midi <song_id> -o <file>": "Export song to MIDI",
         "disasm -o <file>": "Disassemble ROM",

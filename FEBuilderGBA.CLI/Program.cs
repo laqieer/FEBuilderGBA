@@ -196,7 +196,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --force-detail           Force detailed editor mode (Avalonia GUI)");
             Console.WriteLine("  --translate_batch        Batch translation: export + import all text");
             Console.WriteLine("  --resolve-names          Resolve entity IDs to names (requires --rom, --kind, --ids)");
-            Console.WriteLine("    --kind=<type>          Entity type: unit, class, item");
+            Console.WriteLine("    --kind=<type>          Entity type: unit, class, item, song");
             Console.WriteLine("    --ids=<list>           Comma-separated IDs (e.g., 0,1,2,3)");
             Console.WriteLine("  --render-portrait        Render unit portrait to PNG (requires --rom, --unit-id, --out)");
             Console.WriteLine("    --unit-id=<id>         Unit index number");
@@ -1438,7 +1438,7 @@ namespace FEBuilderGBA.CLI
             }
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
             {
-                Console.Error.WriteLine("Error: --resolve-names requires --kind=<unit|class|item>");
+                Console.Error.WriteLine("Error: --resolve-names requires --kind=<unit|class|item|song>");
                 return 1;
             }
             if (!argsDic.ContainsKey("--ids") || string.IsNullOrEmpty(argsDic["--ids"]))
@@ -1521,21 +1521,33 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            // Read portrait pointer from the unit data
+            // Bounds check unit ID
             uint unitBase = rom.p32(U.toOffset(rom.RomInfo.unit_pointer));
             uint unitDataSize = rom.RomInfo.unit_datasize;
             uint unitAddr = unitBase + (unitId * unitDataSize);
+            if (!U.isSafetyOffset(unitAddr + unitDataSize - 1, rom))
+            {
+                Console.Error.WriteLine($"Error: Unit ID {unitId} is out of range.");
+                return 1;
+            }
 
-            // Portrait ID is typically at offset +6 in the unit struct
+            // Portrait ID at offset +6 in unit struct
             uint portraitId = rom.u8(unitAddr + 6);
 
-            // Look up portrait data
+            // Portrait struct layout:
+            //   +0: face pointer (4), +4: mini portrait (4), +8: palette (4), +12: mouth frames (4)
+            //   FE7/8: +20: eyeX(1), +21: eyeY(1), +22: mouthX(1), +23: mouthY(1)
             uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
             uint portraitDataSize = rom.RomInfo.portrait_datasize;
             uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
+            if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+            {
+                Console.Error.WriteLine($"Error: Portrait ID {portraitId} is out of range.");
+                return 1;
+            }
 
             uint facePtr = rom.p32(portraitAddr + 0);
-            uint palettePtr = rom.p32(portraitAddr + 4);
+            uint palettePtr = rom.p32(portraitAddr + 8);  // palette at +8, not +4
 
             if (facePtr == 0 || palettePtr == 0)
             {
@@ -1543,9 +1555,9 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            // Eye position from portrait struct (offsets 12, 13 for most versions)
-            byte eyeX = (portraitDataSize >= 14) ? (byte)rom.u8(portraitAddr + 12) : (byte)0;
-            byte eyeY = (portraitDataSize >= 15) ? (byte)rom.u8(portraitAddr + 13) : (byte)0;
+            // Eye position: FE7/8 at +20,+21; FE6 has different layout (shorter struct)
+            byte eyeX = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 20) : (byte)0;
+            byte eyeY = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 21) : (byte)0;
 
             var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0);
             if (image == null)
@@ -1600,18 +1612,24 @@ namespace FEBuilderGBA.CLI
 
             // Each song table entry is 8 bytes: pointer to song header (4) + extra (4)
             uint songAddr = tableAddr + (songId * 8);
+            if (!U.isSafetyOffset(songAddr + 3, rom))
+            {
+                Console.Error.WriteLine($"Error: Song 0x{songId:X} is out of range.");
+                return 1;
+            }
             uint songHeaderPtr = rom.p32(songAddr);
 
-            if (songHeaderPtr == 0 || !U.isSafetyOffset(songHeaderPtr, rom))
+            if (songHeaderPtr == 0 || !U.isSafetyOffset(songHeaderPtr + 7, rom))
             {
                 Console.Error.WriteLine($"Error: Song 0x{songId:X} not found or invalid pointer.");
                 return 1;
             }
 
-            // Parse song header: numTracks(1), priority(1), reverb(1), pad(1), voicegroup(4), then track ptrs
+            // Song header: numTracks(1), numBlks(1), priority(1), reverb(1), voicegroup(4)
             uint numTracks = rom.u8(songHeaderPtr);
-            uint priority = rom.u8(songHeaderPtr + 1);
-            uint reverb = rom.u8(songHeaderPtr + 2);
+            uint numBlks = rom.u8(songHeaderPtr + 1);
+            uint priority = rom.u8(songHeaderPtr + 2);
+            uint reverb = rom.u8(songHeaderPtr + 3);
             uint voicegroupPtr = rom.p32(songHeaderPtr + 4);
 
             if (numTracks == 0 || numTracks > 16)
@@ -1623,7 +1641,7 @@ namespace FEBuilderGBA.CLI
             // Parse GBA tracks using SongMidiCore
             var tracks = SongMidiCore.ParseTracks(rom, songHeaderPtr, numTracks);
 
-            SongMidiCore.ExportMidiFile(outputPath, tracks, (int)numTracks, (int)priority, (int)reverb, voicegroupPtr);
+            SongMidiCore.ExportMidiFile(outputPath, tracks, (int)numBlks, (int)priority, (int)reverb, voicegroupPtr);
             var fileInfo = new FileInfo(outputPath);
             Console.WriteLine($"MIDI exported: {outputPath} ({fileInfo.Length:N0} bytes, {numTracks} tracks)");
             return 0;
