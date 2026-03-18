@@ -1507,11 +1507,11 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void UnitEditorView_PortraitThumbnailReadsOffsetSix()
+        public void UnitEditorView_PortraitThumbnailUsesResolveHelper()
         {
-            // Portrait ID is at offset 6 in the unit struct (u16)
+            // Portrait ID resolution now uses the shared helper
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
-            Assert.Contains("rom.u16(addr + 6)", src);
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId(addr)", src);
             Assert.Contains("PreviewIconHelper.LoadPortraitMini(portraitId)", src);
             Assert.Contains("ImageConversionHelper.ToAvaloniaBitmap(img)", src);
         }
