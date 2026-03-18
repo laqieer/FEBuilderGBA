@@ -87,12 +87,19 @@ namespace FEBuilderGBA.Avalonia.Services
         public static uint ResolveUnitPortraitId(uint unitAddr)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
+            if (rom?.RomInfo == null || !U.isSafetyOffset(unitAddr + 7)) return 0;
 
-            uint portraitId = rom.u16(unitAddr + 6);
-            if (portraitId == 0)
-                portraitId = GetClassPortraitId(rom.u8(unitAddr + 5));
-            return portraitId;
+            try
+            {
+                uint portraitId = rom.u16(unitAddr + 6);
+                if (portraitId == 0)
+                    portraitId = GetClassPortraitId(rom.u8(unitAddr + 5));
+                return portraitId;
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         /// <summary>
