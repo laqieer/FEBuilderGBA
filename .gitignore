@@ -57,6 +57,7 @@ screenshots_stdout.txt
 ss-stderr.txt
 ss-stdout.txt
 docs/screenshots/*_test_output.txt
+cli-logs/
 
 # IDE / editor
 .vs/
