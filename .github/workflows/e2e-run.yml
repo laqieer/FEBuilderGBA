@@ -16,11 +16,6 @@ on:
         required: false
         type: number
         default: 20
-      is-scheduled:
-        description: "Whether this run was triggered by a cron schedule"
-        required: false
-        type: boolean
-        default: false
     secrets:
       ROMS_URL:
         required: false
@@ -278,7 +273,7 @@ jobs:
 
       # ---------------------------------------------------------------- Create issue on scheduled failure
       - name: Create issue on scheduled E2E failure
-        if: failure() && inputs.is-scheduled
+        if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
