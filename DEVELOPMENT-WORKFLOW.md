@@ -319,7 +319,10 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 
 ### 16. Post-Merge
 - Verify the issue was auto-closed (if `Closes #N` was used)
-- Pull latest master: `git fetch origin master`
+- Switch back to master and sync:
+  ```bash
+  git checkout master && git pull
+  ```
 
 ---
 
@@ -374,6 +377,7 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
   → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
   → Re-review → Signoff → CI Green → Merge → Confirm MERGED
   ↑___________________________________________|  (loop until MERGED)
+  → Checkout master & pull
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
