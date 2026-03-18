@@ -397,7 +397,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _portraitImage = null;
 
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || PortraitId == 0) return;
+            if (rom?.RomInfo == null) return;
+
+            // Resolve effective portrait ID: use unit's own, or fall back to class portrait
+            uint effectivePortraitId = PortraitId;
+            if (effectivePortraitId == 0)
+                effectivePortraitId = FEBuilderGBA.Avalonia.Services.PreviewIconHelper.GetClassPortraitId(ClassId);
+            if (effectivePortraitId == 0) return;
 
             try
             {
@@ -410,7 +416,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint dataSize = rom.RomInfo.portrait_datasize;
                 if (dataSize == 0) dataSize = 28;
 
-                uint portraitAddr = portraitBase + PortraitId * dataSize;
+                uint portraitAddr = portraitBase + effectivePortraitId * dataSize;
                 if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
 
                 uint imgPtr = rom.u32(portraitAddr + 4);

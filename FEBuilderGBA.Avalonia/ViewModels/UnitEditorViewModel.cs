@@ -572,7 +572,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _portraitImage = null;
 
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || PortraitId == 0) return;
+            if (rom?.RomInfo == null) return;
+
+            // Resolve effective portrait ID: use unit's own, or fall back to class portrait
+            uint effectivePortraitId = PortraitId;
+            if (effectivePortraitId == 0)
+                effectivePortraitId = FEBuilderGBA.Avalonia.Services.PreviewIconHelper.GetClassPortraitId(ClassId);
+            if (effectivePortraitId == 0) return;
 
             try
             {
@@ -585,23 +591,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint dataSize = rom.RomInfo.portrait_datasize;
                 if (dataSize == 0) dataSize = 28;
 
-                uint portraitAddr = portraitBase + PortraitId * dataSize;
+                uint portraitAddr = portraitBase + effectivePortraitId * dataSize;
                 if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
 
-                uint imgPtr = rom.u32(portraitAddr + 4);  // offset 4 = map/mini face
+                // Read main face sprite sheet (offset +0) and palette (offset +8)
+                uint facePtr = rom.u32(portraitAddr + 0);
                 uint palPtr = rom.u32(portraitAddr + 8);
 
-                if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return;
+                if (!U.isPointer(facePtr) || !U.isPointer(palPtr)) return;
 
-                uint imgAddr = imgPtr - 0x08000000;
-                uint palAddr = palPtr - 0x08000000;
+                // Read eye coordinates (+22, +23) and state (+24) for FE7/8
+                byte eyeX = (dataSize > 22) ? (byte)rom.u8(portraitAddr + 22) : (byte)0;
+                byte eyeY = (dataSize > 23) ? (byte)rom.u8(portraitAddr + 23) : (byte)0;
+                byte state = (dataSize > 24) ? (byte)rom.u8(portraitAddr + 24) : (byte)0;
 
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return;
-
-                _portraitImage = ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                // Assemble full 96x80 portrait using PortraitRendererCore
+                _portraitImage = PortraitRendererCore.DrawPortraitUnit(facePtr, palPtr, eyeX, eyeY, state);
             }
             catch
             {

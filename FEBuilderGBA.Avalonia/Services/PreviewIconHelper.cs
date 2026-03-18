@@ -81,6 +81,57 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Resolve the portrait ID for a unit: returns the unit's own portrait ID,
+        /// or falls back to the class portrait if the unit has none (portrait ID 0).
+        /// </summary>
+        public static uint ResolveUnitPortraitId(uint unitAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || !U.isSafetyOffset(unitAddr + 7)) return 0;
+
+            try
+            {
+                uint portraitId = rom.u16(unitAddr + 6);
+                if (portraitId == 0)
+                    portraitId = GetClassPortraitId(rom.u8(unitAddr + 5));
+                return portraitId;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Get the portrait ID associated with a class ID (offset +8 in class struct).
+        /// Returns 0 if the class has no portrait.
+        /// </summary>
+        public static uint GetClassPortraitId(uint classId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || classId == 0) return 0;
+
+            try
+            {
+                uint classPtr = rom.RomInfo.class_pointer;
+                if (classPtr == 0) return 0;
+
+                uint classBase = rom.p32(classPtr);
+                if (!U.isSafetyOffset(classBase)) return 0;
+
+                uint classSize = rom.RomInfo.class_datasize;
+                uint classAddr = classBase + classId * classSize;
+                if (classAddr + classSize > (uint)rom.Data.Length) return 0;
+
+                return rom.u16(classAddr + 8);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
         /// Load a 16x16 item icon for the given icon index (B29 field).
         /// Returns null on failure.
         /// </summary>

@@ -365,7 +365,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var img = PreviewIconHelper.LoadPortraitMini(_vm.PortraitId);
+                // Resolve portrait ID with class fallback for generic units
+                uint previewPortraitId = _vm.PortraitId;
+                if (previewPortraitId == 0)
+                    previewPortraitId = PreviewIconHelper.GetClassPortraitId(_vm.ClassId);
+                var img = PreviewIconHelper.LoadPortraitMini(previewPortraitId);
                 if (img != null)
                 {
                     ListPreviewImage.Zoom = 1;
@@ -594,8 +598,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = items[index].addr;
-                // Portrait ID is at offset 6 (u16) in the unit struct
-                uint portraitId = rom.u16(addr + 6);
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitId(addr);
                 if (portraitId == 0) return null;
 
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);

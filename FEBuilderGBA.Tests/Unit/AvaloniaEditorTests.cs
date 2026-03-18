@@ -1507,11 +1507,11 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void UnitEditorView_PortraitThumbnailReadsOffsetSix()
+        public void UnitEditorView_PortraitThumbnailUsesResolveHelper()
         {
-            // Portrait ID is at offset 6 in the unit struct (u16)
+            // Portrait ID resolution now uses the shared helper
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
-            Assert.Contains("rom.u16(addr + 6)", src);
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId(addr)", src);
             Assert.Contains("PreviewIconHelper.LoadPortraitMini(portraitId)", src);
             Assert.Contains("ImageConversionHelper.ToAvaloniaBitmap(img)", src);
         }
@@ -1529,6 +1529,52 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "AddressListControl.axaml.cs"));
             Assert.Contains("_iconLoader?.Invoke(i)", src);
+        }
+
+        // ------------------------------------------------------------------ Issue #56/#140 — Portrait Fix
+
+        [Fact]
+        public void UnitEditorViewModel_UsesPortraitRendererCore()
+        {
+            // LoadPortraitImage must use PortraitRendererCore.DrawPortraitUnit
+            // instead of ImageUtilCore.LoadROMTiles4bpp for the main portrait (#140)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitEditorViewModel.cs"));
+            Assert.Contains("PortraitRendererCore.DrawPortraitUnit(", src);
+            Assert.DoesNotContain("LoadROMTiles4bpp(imgAddr, palette, 4, 4", src);
+        }
+
+        [Fact]
+        public void UnitFE6View_HasSetItemsWithIcons()
+        {
+            // FE6 view must also show portrait icons in the list (#56)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("LoadUnitPortraitThumbnail", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_HasPortraitFallbackViaResolveHelper()
+        {
+            // When portrait ID is 0, use ResolveUnitPortraitId helper (#56)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
+        }
+
+        [Fact]
+        public void UnitFE6View_HasPortraitFallbackViaResolveHelper()
+        {
+            // FE6 view also uses the shared resolve helper (#56)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
+        }
+
+        [Fact]
+        public void PreviewIconHelper_HasResolveAndClassPortraitHelpers()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("public static uint GetClassPortraitId(uint classId)", src);
+            Assert.Contains("public static uint ResolveUnitPortraitId(uint unitAddr)", src);
+            Assert.Contains("rom.u16(classAddr + 8)", src);
         }
 
         // ------------------------------------------------------------------ Preview Icons
