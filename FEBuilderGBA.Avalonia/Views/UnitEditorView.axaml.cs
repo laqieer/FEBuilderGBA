@@ -192,7 +192,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassIdCombo.SelectedIndex = classIdx >= 0 ? classIdx : (int)_vm.ClassId;
 
             PortraitIdBox.Value = _vm.PortraitId;
-            PortraitNameLabel.Text = NameResolver.GetUnitName(_vm.PortraitId);
+            PortraitNameLabel.Text = NameResolver.GetPortraitName(_vm.PortraitId);
             MapFaceBox.Value = _vm.MapFace;
 
             // Affinity combo
@@ -485,7 +485,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null)
                 {
                     PortraitIdBox.Value = result.Index;
-                    PortraitNameLabel.Text = NameResolver.GetUnitName((uint)result.Index);
+                    PortraitNameLabel.Text = NameResolver.GetPortraitName((uint)result.Index);
                     TryShowPortrait();
                 }
             }
