@@ -17,6 +17,16 @@ FEBuilderGBA.Tests/bin/
 FEBuilderGBA.Tests/obj/
 FEBuilderGBA.E2ETests/bin/
 FEBuilderGBA.E2ETests/obj/
+FEBuilderGBA.Core.Tests/bin/
+FEBuilderGBA.Core.Tests/obj/
+
+# CLI build outputs
+FEBuilderGBA.CLI/bin/
+FEBuilderGBA.CLI/obj/
+
+# SkiaSharp build outputs
+FEBuilderGBA.SkiaSharp/bin/
+FEBuilderGBA.SkiaSharp/obj/
 
 # Test results and coverage
 **/TestResults/
@@ -33,6 +43,20 @@ r/
 __pycache__/
 *.egg-info/
 .venv/
+
+# Temporary test/export artifacts
+build.log
+export_avalonia/
+export_test/
+export_winforms/
+roundtrip_*.tsv
+e2e-screenshots/
+screenshots-*/
+screenshots_stderr.txt
+screenshots_stdout.txt
+ss-stderr.txt
+ss-stdout.txt
+docs/screenshots/*_test_output.txt
 
 # IDE / editor
 .vs/
