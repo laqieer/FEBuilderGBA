@@ -362,13 +362,15 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void DrawPortraitUnitFE6_ZeroPointer_ReturnsNull()
+        public void DrawPortraitUnitFE6_ZeroFacePointer_ReturnsNull()
         {
+            // Zero face pointer with non-null ROM should still return null
+            // (toOffset(0) == 0, which triggers the unitFace == 0 guard)
             var saved = CoreState.ROM;
             CoreState.ROM = null;
             try
             {
-                var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0, 0, 0, 0, 0);
+                var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0, 0x08000100, 0, 0, 0);
                 Assert.Null(result);
             }
             finally

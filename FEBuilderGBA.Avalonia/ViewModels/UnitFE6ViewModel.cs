@@ -421,9 +421,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 // FE6 portrait struct (16 bytes): +0=face, +4=mapface, +8=palette, +12=mouthX, +13=mouthY
                 uint facePtr = rom.u32(portraitAddr + 0);
+                uint mapFacePtr = rom.u32(portraitAddr + 4);
                 uint palPtr = rom.u32(portraitAddr + 8);
 
                 if (!U.isPointer(facePtr) || !U.isPointer(palPtr)) return;
+
+                // If map_face is 0, this is a class-card entry (not a mug sheet).
+                // Skip full portrait rendering — the mini face fallback already handles it.
+                if (!U.isPointer(mapFacePtr)) return;
 
                 byte mouthX = (dataSize > 12) ? (byte)rom.u8(portraitAddr + 12) : (byte)0;
                 byte mouthY = (dataSize > 13) ? (byte)rom.u8(portraitAddr + 13) : (byte)0;

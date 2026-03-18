@@ -53,7 +53,7 @@ namespace FEBuilderGBA
             byte[] tileData = LZ77.decompress(rom.Data, unitFace);
             if (tileData == null || tileData.Length == 0) return null;
 
-            byte[] sheetPixels = DecodeTilesToRGBA(tileData, SheetWidthPx, SheetHeightPx, gbaPalette, svc);
+            byte[] sheetPixels = PortraitRendererCore.DecodeTilesToRGBA(tileData, SheetWidthPx, SheetHeightPx, gbaPalette, svc);
             if (sheetPixels == null) return null;
 
             // Assemble 96x80 face — identical to FE7/8
@@ -128,54 +128,6 @@ namespace FEBuilderGBA
             }
         }
 
-        /// <summary>
-        /// Decode 4bpp tile data into RGBA pixel array (same algorithm as PortraitRendererCore).
-        /// </summary>
-        static byte[] DecodeTilesToRGBA(byte[] tileData, int width, int height, byte[] gbaPalette, IImageService svc)
-        {
-            int tilesX = width / 8;
-            int tilesY = height / 8;
-            byte[] pixels = new byte[width * height * 4];
-
-            int tileIndex = 0;
-            for (int ty = 0; ty < tilesY; ty++)
-            {
-                for (int tx = 0; tx < tilesX; tx++)
-                {
-                    int tileOffset = tileIndex * 32;
-                    if (tileOffset + 32 > tileData.Length) break;
-
-                    for (int py = 0; py < 8; py++)
-                    {
-                        for (int px = 0; px < 8; px++)
-                        {
-                            int bytePos = tileOffset + py * 4 + px / 2;
-                            if (bytePos >= tileData.Length) continue;
-
-                            byte b = tileData[bytePos];
-                            int colorIndex = (px % 2 == 0) ? (b & 0x0F) : ((b >> 4) & 0x0F);
-
-                            int palByteOffset = colorIndex * 2;
-                            if (palByteOffset + 2 > gbaPalette.Length) continue;
-
-                            ushort gbaColor = (ushort)(gbaPalette[palByteOffset] | (gbaPalette[palByteOffset + 1] << 8));
-                            svc.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte bl);
-
-                            int destXp = tx * 8 + px;
-                            int destYp = ty * 8 + py;
-                            int idx = (destYp * width + destXp) * 4;
-                            if (idx + 3 >= pixels.Length) continue;
-
-                            pixels[idx + 0] = r;
-                            pixels[idx + 1] = g;
-                            pixels[idx + 2] = bl;
-                            pixels[idx + 3] = (byte)(colorIndex == 0 ? 0 : 255);
-                        }
-                    }
-                    tileIndex++;
-                }
-            }
-            return pixels;
-        }
+        // DecodeTilesToRGBA is shared from PortraitRendererCore.DecodeTilesToRGBA (internal)
     }
 }
