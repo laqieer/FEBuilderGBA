@@ -153,6 +153,11 @@ namespace FEBuilderGBA.CLI
                 return RunApplyPatch(argsDic);
             }
 
+            if (argsDic.ContainsKey("--list-patches"))
+            {
+                return RunListPatches(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -230,6 +235,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
+            Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -1911,6 +1917,99 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine("ROM restored from backup.");
                 return 1;
             }
+        }
+
+        static int RunListPatches(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --list-patches requires --rom=<rom>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            string version = CoreState.ROM.RomInfo?.VersionToFilename;
+            if (string.IsNullOrEmpty(version))
+            {
+                Console.Error.WriteLine("Error: Could not detect ROM version.");
+                return 1;
+            }
+
+            // Try multiple locations for patch2 directory
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            string patchDir = Path.Combine(baseDir, "config", "patch2", version);
+
+            // Fallback: check repo-root config/patch2 (for development runs)
+            if (!Directory.Exists(patchDir) || !Directory.GetFiles(patchDir, "PATCH_*.txt", SearchOption.AllDirectories).Any())
+            {
+                string repoRoot = FindRepoRoot(baseDir);
+                if (repoRoot != null)
+                {
+                    string altDir = Path.Combine(repoRoot, "config", "patch2", version);
+                    if (Directory.Exists(altDir))
+                        patchDir = altDir;
+                }
+            }
+
+            if (!Directory.Exists(patchDir))
+            {
+                Console.Error.WriteLine($"Error: Patch directory not found: {patchDir}");
+                return 1;
+            }
+
+            string lang = CoreState.Language ?? "en";
+            var patches = PatchMetadataCore.EnumeratePatches(patchDir, CoreState.ROM, lang);
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Version: {version}");
+            Console.WriteLine($"Patch directory: {patchDir}");
+            Console.WriteLine();
+
+            int installed = 0, unknown = 0;
+            foreach (var p in patches)
+            {
+                string status;
+                switch (p.Status)
+                {
+                    case PatchMetadataCore.PatchStatus.Installed:
+                        status = "[INSTALLED]";
+                        installed++;
+                        break;
+                    case PatchMetadataCore.PatchStatus.NotInstalled:
+                        status = "[         ]";
+                        break;
+                    default:
+                        status = "[  ???    ]";
+                        unknown++;
+                        break;
+                }
+                Console.WriteLine($"  {status} {p.DirectoryName}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"Total: {patches.Count} patches, {installed} installed" +
+                (unknown > 0 ? $", {unknown} unknown" : ""));
+            return 0;
+        }
+
+        /// <summary>
+        /// Walk up from a directory to find the repo root (contains .git).
+        /// </summary>
+        static string FindRepoRoot(string startDir)
+        {
+            string dir = startDir;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (Directory.Exists(Path.Combine(dir, ".git")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
         }
 
         /// <summary>
