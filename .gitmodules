@@ -7,3 +7,9 @@
 [submodule "tools/ColorzCore"]
 	path = tools/ColorzCore
 	url = https://github.com/FireEmblemUniverse/ColorzCore
+[submodule "resources/FE-Repo"]
+	path = resources/FE-Repo
+	url = https://github.com/Klokinator/FE-Repo
+[submodule "resources/FE-Repo-Music-No-Preview"]
+	path = resources/FE-Repo-Music-No-Preview
+	url = https://github.com/laqieer/FE-Repo-Music-No-Preview
