@@ -160,8 +160,9 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- MANDATORY: Attach screenshot(s) proving the bugfix or feature works -->
-![description](url)
+<!-- MANDATORY: Replace the placeholder below with actual screenshot(s).
+     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff. -->
+![description](replace-with-actual-url)
 
 ## Test plan
 - [x] <what was tested>
@@ -179,14 +180,15 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
-- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to both the PR description and any related issue comments. No PR may be opened without visual proof.
+- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to the PR description and any related issue comments (if applicable). No PR may be opened without visual proof. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For non-visual changes (library refactors, build/CI fixes, docs-only), a terminal output or diff screenshot is sufficient.
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
-  Verify the PR description contains screenshot(s) proving the bugfix or feature works. \
-  If screenshots are missing, flag it as a blocking issue. \
+  Verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the bugfix or feature works. \
+  Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, relative repo paths, or blob URLs with ?raw=1. \
+  Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -357,8 +359,8 @@ A local-only review doesn't count — the review must be visible on GitHub.
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
 ### Don't: Open a PR without screenshots
-A PR without visual proof of the bugfix or feature is incomplete. Copilot CLI will flag missing screenshots as a blocking issue.
-**Do:** Always capture and attach screenshot(s) to the PR description and related issue comments before requesting review.
+A PR without visual proof of the bugfix or feature is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue.
+**Do:** Always capture and attach screenshot(s) to the PR description (and related issue comments, if applicable) before requesting review.
 
 ---
 
