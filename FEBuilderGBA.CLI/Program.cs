@@ -1940,10 +1940,21 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            string baseDir = CoreState.BaseDirectory;
-            if (string.IsNullOrEmpty(baseDir))
-                baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            // Try multiple locations for patch2 directory
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
             string patchDir = Path.Combine(baseDir, "config", "patch2", version);
+
+            // Fallback: check repo-root config/patch2 (for development runs)
+            if (!Directory.Exists(patchDir) || !Directory.GetFiles(patchDir, "PATCH_*.txt", SearchOption.AllDirectories).Any())
+            {
+                string repoRoot = FindRepoRoot(baseDir);
+                if (repoRoot != null)
+                {
+                    string altDir = Path.Combine(repoRoot, "config", "patch2", version);
+                    if (Directory.Exists(altDir))
+                        patchDir = altDir;
+                }
+            }
 
             if (!Directory.Exists(patchDir))
             {
@@ -1951,81 +1962,54 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
+            string lang = CoreState.Language ?? "en";
+            var patches = PatchMetadataCore.EnumeratePatches(patchDir, CoreState.ROM, lang);
+
             Console.WriteLine($"ROM: {romPath}");
             Console.WriteLine($"Version: {version}");
             Console.WriteLine($"Patch directory: {patchDir}");
             Console.WriteLine();
 
-            int total = 0, installed = 0;
-            foreach (string dir in Directory.GetDirectories(patchDir).OrderBy(d => d))
+            int installed = 0, unknown = 0;
+            foreach (var p in patches)
             {
-                string patchName = Path.GetFileName(dir);
-                // Find the PATCH_*.txt file
-                string[] patchFiles = Directory.GetFiles(dir, "PATCH_*.txt");
-                if (patchFiles.Length == 0) continue;
-
-                string patchFile = patchFiles[0];
-                bool isInstalled = false;
-
-                // Check PATCHED_IF line to determine if patch is installed
-                try
+                string status;
+                switch (p.Status)
                 {
-                    foreach (string line in File.ReadLines(patchFile))
-                    {
-                        string trimmed = line.Trim();
-                        if (trimmed.StartsWith("PATCHED_IF:"))
-                        {
-                            isInstalled = CheckPatchedIf(trimmed.Substring("PATCHED_IF:".Length));
-                            break;
-                        }
-                    }
+                    case PatchMetadataCore.PatchStatus.Installed:
+                        status = "[INSTALLED]";
+                        installed++;
+                        break;
+                    case PatchMetadataCore.PatchStatus.NotInstalled:
+                        status = "[         ]";
+                        break;
+                    default:
+                        status = "[  ???    ]";
+                        unknown++;
+                        break;
                 }
-                catch { /* ignore read errors */ }
-
-                string status = isInstalled ? "[INSTALLED]" : "[         ]";
-                Console.WriteLine($"  {status} {patchName}");
-                total++;
-                if (isInstalled) installed++;
+                Console.WriteLine($"  {status} {p.DirectoryName}");
             }
 
             Console.WriteLine();
-            Console.WriteLine($"Total: {total} patches, {installed} installed");
+            Console.WriteLine($"Total: {patches.Count} patches, {installed} installed" +
+                (unknown > 0 ? $", {unknown} unknown" : ""));
             return 0;
         }
 
         /// <summary>
-        /// Check if a PATCHED_IF condition is satisfied in the current ROM.
-        /// Format: "0xADDRESS=0xBYTE 0xBYTE ..."
+        /// Walk up from a directory to find the repo root (contains .git).
         /// </summary>
-        static bool CheckPatchedIf(string condition)
+        static string FindRepoRoot(string startDir)
         {
-            var rom = CoreState.ROM;
-            if (rom == null) return false;
-
-            // Parse "0xADDRESS=0xBYTE 0xBYTE ..."
-            int eqIdx = condition.IndexOf('=');
-            if (eqIdx < 0) return false;
-
-            string addrStr = condition.Substring(0, eqIdx).Trim();
-            string bytesStr = condition.Substring(eqIdx + 1).Trim();
-
-            if (!uint.TryParse(addrStr.Replace("0x", "").Replace("0X", ""),
-                System.Globalization.NumberStyles.HexNumber, null, out uint addr))
-                return false;
-
-            string[] byteTokens = bytesStr.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (string token in byteTokens)
+            string dir = startDir;
+            while (!string.IsNullOrEmpty(dir))
             {
-                if (!byte.TryParse(token.Replace("0x", "").Replace("0X", ""),
-                    System.Globalization.NumberStyles.HexNumber, null, out byte expected))
-                    continue;
-
-                if (addr >= (uint)rom.Data.Length) return false;
-                if (rom.Data[addr] != expected) return false;
-                addr++;
+                if (Directory.Exists(Path.Combine(dir, ".git")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
             }
-
-            return true;
+            return null;
         }
 
         /// <summary>
