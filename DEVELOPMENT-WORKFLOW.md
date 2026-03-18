@@ -113,11 +113,14 @@ Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
 
 ### 7. Branch & Implement
 
-**Always sync master before branching:**
+**Always sync master before branching (from the main repo, not a linked worktree):**
 ```bash
+# Run this in the main repo root — not inside a linked worktree
 git checkout master && git pull
 git checkout -b <branch-name>
 ```
+For parallel worktree agents: sync master in the main repo first, then create worktrees from it.
+
 Never work directly on master — always create a feature branch.
 
 **Branch naming:** `feat/<short-desc>-<issue>` or `fix/<short-desc>-<issue>`
