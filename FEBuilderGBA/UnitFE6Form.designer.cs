@@ -39,7 +39,6 @@
             this.J_10 = new System.Windows.Forms.Label();
             this.B8 = new System.Windows.Forms.NumericUpDown();
             this.W6 = new System.Windows.Forms.NumericUpDown();
-            this.L_6_PORTRAITNAME = new FEBuilderGBA.TextBoxEx();
             this.J_8_GENERICENEMYPORTRAIT = new System.Windows.Forms.Label();
             this.J_6_PORTRAIT = new System.Windows.Forms.Label();
             this.B5 = new System.Windows.Forms.NumericUpDown();
@@ -2234,7 +2233,7 @@
             // L_6_PORTRAIT_AUTO
             // 
             this.L_6_PORTRAIT_AUTO.Interpolation = System.Drawing.Drawing2D.InterpolationMode.Bicubic;
-            this.L_6_PORTRAIT_AUTO.Location = new System.Drawing.Point(1016, 108);
+            this.L_6_PORTRAIT_AUTO.Location = new System.Drawing.Point(1016, 89);
             this.L_6_PORTRAIT_AUTO.Margin = new System.Windows.Forms.Padding(2);
             this.L_6_PORTRAIT_AUTO.Name = "L_6_PORTRAIT_AUTO";
             this.L_6_PORTRAIT_AUTO.Size = new System.Drawing.Size(172, 143);
@@ -2252,18 +2251,7 @@
             this.L_5_CLASS.ReadOnly = true;
             this.L_5_CLASS.Size = new System.Drawing.Size(116, 25);
             this.L_5_CLASS.TabIndex = 23;
-            //
-            // L_6_PORTRAITNAME
-            //
-            this.L_6_PORTRAITNAME.ErrorMessage = "";
-            this.L_6_PORTRAITNAME.Location = new System.Drawing.Point(1016, 80);
-            this.L_6_PORTRAITNAME.Margin = new System.Windows.Forms.Padding(2);
-            this.L_6_PORTRAITNAME.Name = "L_6_PORTRAITNAME";
-            this.L_6_PORTRAITNAME.Placeholder = "";
-            this.L_6_PORTRAITNAME.ReadOnly = true;
-            this.L_6_PORTRAITNAME.Size = new System.Drawing.Size(116, 25);
-            this.L_6_PORTRAITNAME.TabIndex = 2854;
-            //
+            // 
             // systemIconPictureBox7
             // 
             this.systemIconPictureBox7.IconNumber = ((uint)(6u));
@@ -2559,7 +2547,6 @@
             this.Controls.Add(this.J_6_PORTRAIT);
             this.Controls.Add(this.J_18);
             this.Controls.Add(this.L_5_CLASS);
-            this.Controls.Add(this.L_6_PORTRAITNAME);
             this.Controls.Add(this.systemIconPictureBox7);
             this.Controls.Add(this.B5);
             this.Controls.Add(this.J_17);
@@ -2734,7 +2721,6 @@
         private System.Windows.Forms.Label J_8_GENERICENEMYPORTRAIT;
         private System.Windows.Forms.Label J_6_PORTRAIT;
         private FEBuilderGBA.TextBoxEx L_5_CLASS;
-        private FEBuilderGBA.TextBoxEx L_6_PORTRAITNAME;
         private System.Windows.Forms.NumericUpDown B5;
         private System.Windows.Forms.NumericUpDown B9;
         private System.Windows.Forms.Label L_9_ATTRIBUTE;

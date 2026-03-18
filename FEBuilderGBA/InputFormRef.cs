@@ -352,20 +352,6 @@ namespace FEBuilderGBA
 
                 return;
             }
-            if (linktype == "PORTRAITNAME")
-            {// portrait name text link
-                TextBoxEx link_object = ((TextBoxEx)link_info);
-                src_object.ValueChanged += (sender, e) =>
-                {
-                    link_object.Text = ImagePortraitForm.GetPortraitName((uint)src_object.Value);
-                };
-                link_object.DoubleClick += (sender, e) =>
-                {
-                    JumpTo(src_object, link_info, "PORTRAIT", new string[] { });
-                };
-
-                return;
-            }
             if (linktype == "GENERICENEMYPORTRAIT")
             {//一般兵の顔像とリンク.
                 PictureBox link_object = ((PictureBox)link_info);
@@ -3863,17 +3849,6 @@ namespace FEBuilderGBA
                 }
             }
             else if (linktype == "PORTRAIT")
-            {
-                if (Program.ROM.RomInfo.version == 6)
-                {
-                    InputFormRef.JumpForm<ImagePortraitFE6Form>(value, "AddressList", src_object);
-                }
-                else
-                {
-                    InputFormRef.JumpForm<ImagePortraitForm>(value, "AddressList", src_object);
-                }
-            }
-            else if (linktype == "PORTRAITNAME")
             {
                 if (Program.ROM.RomInfo.version == 6)
                 {

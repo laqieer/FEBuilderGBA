@@ -49,7 +49,6 @@
             this.J_10 = new System.Windows.Forms.Label();
             this.B8 = new System.Windows.Forms.NumericUpDown();
             this.W6 = new System.Windows.Forms.NumericUpDown();
-            this.L_6_PORTRAITNAME = new FEBuilderGBA.TextBoxEx();
             this.J_8_GENERICENEMYPORTRAIT = new System.Windows.Forms.Label();
             this.J_6_PORTRAIT = new System.Windows.Forms.Label();
             this.B5 = new System.Windows.Forms.NumericUpDown();
@@ -590,7 +589,7 @@
             0,
             0});
             this.W6.Name = "W6";
-            this.W6.Size = new System.Drawing.Size(72, 20);
+            this.W6.Size = new System.Drawing.Size(48, 20);
             this.W6.TabIndex = 9;
             // 
             // J_8_GENERICENEMYPORTRAIT
@@ -2807,7 +2806,7 @@
             // L_6_PORTRAIT_AUTO
             // 
             this.L_6_PORTRAIT_AUTO.Interpolation = System.Drawing.Drawing2D.InterpolationMode.Bicubic;
-            this.L_6_PORTRAIT_AUTO.Location = new System.Drawing.Point(701, 73);
+            this.L_6_PORTRAIT_AUTO.Location = new System.Drawing.Point(677, 59);
             this.L_6_PORTRAIT_AUTO.Margin = new System.Windows.Forms.Padding(1);
             this.L_6_PORTRAIT_AUTO.Name = "L_6_PORTRAIT_AUTO";
             this.L_6_PORTRAIT_AUTO.Size = new System.Drawing.Size(115, 95);
@@ -2825,18 +2824,7 @@
             this.L_5_CLASS.ReadOnly = true;
             this.L_5_CLASS.Size = new System.Drawing.Size(79, 20);
             this.L_5_CLASS.TabIndex = 23;
-            //
-            // L_6_PORTRAITNAME
-            //
-            this.L_6_PORTRAITNAME.ErrorMessage = "";
-            this.L_6_PORTRAITNAME.Location = new System.Drawing.Point(701, 52);
-            this.L_6_PORTRAITNAME.Margin = new System.Windows.Forms.Padding(1);
-            this.L_6_PORTRAITNAME.Name = "L_6_PORTRAITNAME";
-            this.L_6_PORTRAITNAME.Placeholder = "";
-            this.L_6_PORTRAITNAME.ReadOnly = true;
-            this.L_6_PORTRAITNAME.Size = new System.Drawing.Size(115, 20);
-            this.L_6_PORTRAITNAME.TabIndex = 3371;
-            //
+            // 
             // systemIconPictureBox7
             // 
             this.systemIconPictureBox7.IconNumber = ((uint)(6u));
@@ -3005,7 +2993,6 @@
             this.Controls.Add(this.B30);
             this.Controls.Add(this.J_ID_UNITPALETTEFE8);
             this.Controls.Add(this.b16);
-            this.Controls.Add(this.L_6_PORTRAITNAME);
             this.Controls.Add(this.L_6_PORTRAIT_AUTO);
             this.Controls.Add(this.b12);
             this.Controls.Add(this.B10);
@@ -3201,7 +3188,6 @@
         private System.Windows.Forms.Label J_8_GENERICENEMYPORTRAIT;
         private System.Windows.Forms.Label J_6_PORTRAIT;
         private FEBuilderGBA.TextBoxEx L_5_CLASS;
-        private FEBuilderGBA.TextBoxEx L_6_PORTRAITNAME;
         private System.Windows.Forms.NumericUpDown B5;
         private System.Windows.Forms.NumericUpDown B9;
         private System.Windows.Forms.Label L_9_ATTRIBUTE;
