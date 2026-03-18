@@ -1586,6 +1586,59 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("rom.u16(classAddr + 8)", src);
         }
 
+        // ------------------------------------------------------------------ Issue #126 — Auto-Save
+
+        [Fact]
+        public void AutoSaveService_ComputeSidecarPath_HasCorrectNaming()
+        {
+            // Verify the source code computes {base}.autosave.gba (not {base}.gba.autosave)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("baseName + \".autosave.gba\"", src);
+            Assert.Contains("GetFileNameWithoutExtension", src);
+        }
+
+        [Fact]
+        public void AutoSaveService_SidecarPath_NeverMatchesPrimary()
+        {
+            // Verify there's a guard against overwriting the primary ROM
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("sidecar, rom.Filename", src);
+            Assert.Contains("sidecar, _romFilename", src);
+        }
+
+        [Fact]
+        public void AutoSaveService_UsesAtomicWrite()
+        {
+            // Verify writes go to temp file first, then move
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("File.WriteAllBytes(tempPath", src);
+            Assert.Contains("File.Move(tempPath", src);
+        }
+
+        [Fact]
+        public void AutoSaveService_WritesOffUIThread()
+        {
+            // Verify disk write runs on background thread
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("Task.Run(", src);
+        }
+
+        [Fact]
+        public void MainWindow_ReferencesAutoSaveService()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("AutoSaveService", src);
+            Assert.Contains("TryStartAutoSave", src);
+        }
+
+        [Fact]
+        public void OptionsView_HasAutoSaveControls()
+        {
+            var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "OptionsView.axaml"));
+            Assert.Contains("AutoSaveCheckBox", axaml);
+            Assert.Contains("AutoSaveIntervalBox", axaml);
+        }
+
         // ------------------------------------------------------------------ Preview Icons
 
         [Fact]

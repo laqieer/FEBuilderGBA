@@ -30,6 +30,13 @@
 
             <!-- Auto-Backup -->
             <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
+
+            <!-- Auto-Save -->
+            <CheckBox Name="AutoSaveCheckBox" Content="Enable auto-save (saves to .autosave.gba sidecar file)" Margin="0,8,0,0" />
+            <StackPanel Orientation="Horizontal" Margin="24,4,0,0">
+              <TextBlock Text="Interval (minutes):" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <NumericUpDown Name="AutoSaveIntervalBox" Minimum="1" Maximum="60" Value="5" Width="100" />
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
