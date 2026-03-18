@@ -56,9 +56,9 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Get the name of the unit that uses a given portrait ID.
-        /// Scans the unit table for entries whose portrait field (offset +6)
-        /// matches the given ID.
+        /// Get the unit or class name associated with a given portrait ID.
+        /// Scans the unit table first (portrait at offset +6), then falls back
+        /// to the class table (portrait at offset +8). Returns empty if not found.
         /// </summary>
         public static string GetPortraitName(uint portraitId)
         {

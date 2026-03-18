@@ -188,11 +188,24 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void GetPortraitName_ReturnsStringForAnyInput()
+        public void GetPortraitName_ReturnsEmptyWhenNoRom()
         {
-            // Without a loaded ROM, should return empty or non-null
-            string name = NameResolver.GetPortraitName(0);
-            Assert.NotNull(name);
+            NameResolver.ClearCache();
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                string name = NameResolver.GetPortraitName(0);
+                Assert.Equal("", name);
+
+                string name2 = NameResolver.GetPortraitName(999);
+                Assert.Equal("", name2);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
         }
 
         [Theory]

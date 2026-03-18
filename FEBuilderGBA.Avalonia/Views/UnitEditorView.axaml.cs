@@ -97,6 +97,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.IsLoading) return;
             uint id = (uint)(PortraitIdBox.Value ?? 0);
+            _vm.PortraitId = id;
             PortraitNameLabel.Text = NameResolver.GetPortraitName(id);
             TryShowPortrait();
         }
