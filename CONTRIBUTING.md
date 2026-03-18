@@ -14,6 +14,7 @@ Documentation is a first-class deliverable. Every code change should include cor
 | Bug fix | None required unless it changes behavior |
 | New config key | CLAUDE.md (Configuration Files section) |
 | Build/CI change | CLAUDE.md (Build & Development Commands) |
+| Submodule change | CLAUDE.md (Dependencies section), wiki if applicable |
 
 ### Where Documentation Lives
 
@@ -30,19 +31,20 @@ The [project wiki](https://github.com/laqieer/FEBuilderGBA/wiki) hosts user guid
 **When to update the wiki:**
 - New user-facing features (editors, CLI commands, settings)
 - Changed workflows or setup procedures
-- New submodule integrations (patch2, FE-Repo, etc.)
+- New submodule integrations
 
-**How to update the wiki:**
+**How to update the wiki (maintainers):**
 1. Clone the wiki: `git clone https://github.com/laqieer/FEBuilderGBA.wiki.git`
 2. Edit markdown files and push
 3. Or edit directly on GitHub via the wiki web UI
 
-**Wiki pages to maintain:**
-- Home — project overview and quick links
-- Getting Started — setup and first ROM load
-- CLI Reference — all `--command` options with examples
-- Avalonia GUI — cross-platform editor guide
-- Submodules — patch2, FE-Repo, FE-Repo-Music setup and update
+**How to propose wiki changes (contributors without write access):**
+1. Open an issue with the `documentation` label describing the proposed changes
+2. Or include the proposed wiki text in your PR description for a maintainer to apply
+
+**Wiki pages to keep current:**
+- Existing pages should be updated when their topic area changes
+- New pages may be created for major features — coordinate with maintainers
 
 ### Doc Review in PRs
 
