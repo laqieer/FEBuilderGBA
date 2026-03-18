@@ -588,20 +588,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint portraitAddr = portraitBase + PortraitId * dataSize;
                 if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
 
-                uint imgPtr = rom.u32(portraitAddr + 4);  // offset 4 = map/mini face
+                // Read main face sprite sheet (offset +0) and palette (offset +8)
+                uint facePtr = rom.u32(portraitAddr + 0);
                 uint palPtr = rom.u32(portraitAddr + 8);
 
-                if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return;
+                if (!U.isPointer(facePtr) || !U.isPointer(palPtr)) return;
 
-                uint imgAddr = imgPtr - 0x08000000;
-                uint palAddr = palPtr - 0x08000000;
+                // Read eye coordinates for FE7/8 (offset +20, +21)
+                byte eyeX = (dataSize > 21) ? (byte)rom.u8(portraitAddr + 20) : (byte)0;
+                byte eyeY = (dataSize > 21) ? (byte)rom.u8(portraitAddr + 21) : (byte)0;
 
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return;
-
-                _portraitImage = ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                // Assemble full 96x80 portrait using PortraitRendererCore
+                _portraitImage = PortraitRendererCore.DrawPortraitUnit(facePtr, palPtr, eyeX, eyeY, 0);
             }
             catch
             {

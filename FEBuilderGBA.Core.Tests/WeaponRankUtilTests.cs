@@ -15,9 +15,11 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(120u, "C")]
         [InlineData(121u, "B")]
         [InlineData(150u, "B")]
-        [InlineData(151u, "A")]
-        [InlineData(180u, "A")]
-        [InlineData(181u, "S")]
+        [InlineData(151u, "B")]
+        [InlineData(180u, "B")]
+        [InlineData(181u, "A")]
+        [InlineData(250u, "A")]
+        [InlineData(251u, "S")]
         [InlineData(255u, "S")]
         public void GetRankLetter_ReturnsCorrectGrade(uint value, string expected)
         {
