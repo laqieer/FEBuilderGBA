@@ -151,6 +151,7 @@ Before opening the PR, verify:
 - [ ] Does the PR fully deliver what the referenced issues require?
 - [ ] If partial, use `Ref #N (partial — <what's missing>)` instead of `Closes #N`
 - [ ] Don't claim to close issues that require more work beyond this PR
+- [ ] Documentation updated: CLAUDE.md, README.md, --help text as applicable (see [CONTRIBUTING.md](CONTRIBUTING.md))
 
 ---
 
