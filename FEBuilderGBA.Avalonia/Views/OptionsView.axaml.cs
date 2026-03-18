@@ -30,6 +30,9 @@ namespace FEBuilderGBA.Avalonia.Views
             AutoBackupCheckBox.IsChecked = _vm.AutoBackup;
             AutoSaveCheckBox.IsChecked = _vm.AutoSaveEnabled;
             AutoSaveIntervalBox.Value = _vm.AutoSaveIntervalMinutes;
+            Patch2UrlTextBox.Text = _vm.SubmodulePatch2Url;
+            FERepoUrlTextBox.Text = _vm.SubmoduleFERepoUrl;
+            FERepoMusicUrlTextBox.Text = _vm.SubmoduleFERepoMusicUrl;
 
             // External Tools tab
             EmulatorTextBox.Text = _vm.Emulator;
@@ -106,6 +109,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.AutoBackup = AutoBackupCheckBox.IsChecked == true;
             _vm.AutoSaveEnabled = AutoSaveCheckBox.IsChecked == true;
             _vm.AutoSaveIntervalMinutes = (int)(AutoSaveIntervalBox.Value ?? 5);
+            _vm.SubmodulePatch2Url = Patch2UrlTextBox.Text ?? "";
+            _vm.SubmoduleFERepoUrl = FERepoUrlTextBox.Text ?? "";
+            _vm.SubmoduleFERepoMusicUrl = FERepoMusicUrlTextBox.Text ?? "";
 
             // External Tools
             _vm.Emulator = EmulatorTextBox.Text ?? "";

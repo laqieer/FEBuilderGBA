@@ -38,6 +38,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _srccodeTexteditor = "";
         string _srccodeDirectory = "";
 
+        // Submodule remote URLs
+        string _submodulePatch2Url = "";
+        string _submoduleFERepoUrl = "";
+        string _submoduleFERepoMusicUrl = "";
+
         /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
         {
@@ -103,6 +108,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SrccodeTexteditor { get => _srccodeTexteditor; set => SetField(ref _srccodeTexteditor, value); }
         public string SrccodeDirectory { get => _srccodeDirectory; set => SetField(ref _srccodeDirectory, value); }
 
+        // ---- Submodule Remote URLs ----
+
+        public string SubmodulePatch2Url { get => _submodulePatch2Url; set => SetField(ref _submodulePatch2Url, value); }
+        public string SubmoduleFERepoUrl { get => _submoduleFERepoUrl; set => SetField(ref _submoduleFERepoUrl, value); }
+        public string SubmoduleFERepoMusicUrl { get => _submoduleFERepoMusicUrl; set => SetField(ref _submoduleFERepoMusicUrl, value); }
+
         /// <summary>Load settings from CoreState and Config.</summary>
         public void Load()
         {
@@ -153,6 +164,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     Feclib = cfg.at("FECLIB", "");
                     SrccodeTexteditor = cfg.at("srccode_texteditor", "");
                     SrccodeDirectory = cfg.at("srccode_directory", "");
+
+                    // Submodule remote URLs (empty = use defaults)
+                    SubmodulePatch2Url = cfg.at("submodule_patch2_url", "");
+                    SubmoduleFERepoUrl = cfg.at("submodule_fe_repo_url", "");
+                    SubmoduleFERepoMusicUrl = cfg.at("submodule_fe_repo_music_url", "");
                 }
             }
             finally
@@ -230,7 +246,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 cfg["srccode_texteditor"] = SrccodeTexteditor ?? "";
                 cfg["srccode_directory"] = SrccodeDirectory ?? "";
 
+                // Submodule remote URLs
+                cfg["submodule_patch2_url"] = SubmodulePatch2Url ?? "";
+                cfg["submodule_fe_repo_url"] = SubmoduleFERepoUrl ?? "";
+                cfg["submodule_fe_repo_music_url"] = SubmoduleFERepoMusicUrl ?? "";
+
                 cfg.Save();
+
+                // Apply submodule remote URL changes
+                ApplySubmoduleRemotes();
             }
 
             // Reload translations with new language
@@ -243,6 +267,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CoreState.RaiseLanguageChanged();
 
             MarkClean();
+        }
+
+        void ApplySubmoduleRemotes()
+        {
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+
+            if (!string.IsNullOrWhiteSpace(SubmodulePatch2Url))
+                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "config", "patch2"), SubmodulePatch2Url);
+
+            if (!string.IsNullOrWhiteSpace(SubmoduleFERepoUrl))
+                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "resources", "FE-Repo"), SubmoduleFERepoUrl);
+
+            if (!string.IsNullOrWhiteSpace(SubmoduleFERepoMusicUrl))
+                GitUtil.SetSubmoduleRemote(Path.Combine(baseDir, "resources", "FE-Repo-Music-No-Preview"), SubmoduleFERepoMusicUrl);
         }
 
         internal static void ReloadTranslations()

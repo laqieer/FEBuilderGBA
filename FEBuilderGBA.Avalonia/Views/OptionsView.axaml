@@ -31,6 +31,19 @@
             <!-- Auto-Backup -->
             <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
 
+            <!-- Submodule Remote URLs -->
+            <Expander Header="Submodule Remote URLs (advanced)" Margin="0,12,0,0" IsExpanded="False">
+              <StackPanel Spacing="4" Margin="8,4,0,0">
+                <TextBlock Text="Leave blank for defaults. Set custom URLs for forks/mirrors." FontSize="11" Foreground="Gray" />
+                <TextBlock Text="Patch2 Remote URL" Margin="0,4,0,0" />
+                <TextBox Name="Patch2UrlTextBox" Watermark="https://github.com/laqieer/FEBuilderGBA-patch2.git" />
+                <TextBlock Text="FE-Repo Remote URL" Margin="0,4,0,0" />
+                <TextBox Name="FERepoUrlTextBox" Watermark="https://github.com/Klokinator/FE-Repo" />
+                <TextBlock Text="FE-Repo-Music Remote URL" Margin="0,4,0,0" />
+                <TextBox Name="FERepoMusicUrlTextBox" Watermark="https://github.com/laqieer/FE-Repo-Music-No-Preview" />
+              </StackPanel>
+            </Expander>
+
             <!-- Auto-Save -->
             <CheckBox Name="AutoSaveCheckBox" Content="Enable auto-save (saves to .autosave.gba sidecar file)" Margin="0,8,0,0" />
             <StackPanel Orientation="Horizontal" Margin="24,4,0,0">

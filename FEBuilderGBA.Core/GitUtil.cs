@@ -195,5 +195,29 @@ namespace FEBuilderGBA
 
             return RunGit(gitExe, "reset --hard FETCH_HEAD", repoPath, outputCallback, outputLog);
         }
+
+        /// <summary>
+        /// Default remote URLs for managed submodules.
+        /// </summary>
+        public const string FERepoDefaultUrl = "https://github.com/Klokinator/FE-Repo";
+        public const string FERepoMusicDefaultUrl = "https://github.com/laqieer/FE-Repo-Music-No-Preview";
+
+        /// <summary>
+        /// Set the origin remote URL for a submodule directory.
+        /// Returns true if successful.
+        /// </summary>
+        public static bool SetSubmoduleRemote(string submodulePath, string newUrl)
+        {
+            if (string.IsNullOrEmpty(submodulePath) || !IsGitRepo(submodulePath))
+                return false;
+            if (string.IsNullOrEmpty(newUrl))
+                return false;
+
+            string gitExe = FindGitExecutable();
+            if (gitExe == null) return false;
+
+            int code = RunGit(gitExe, $"remote set-url origin \"{newUrl}\"", submodulePath);
+            return code == 0;
+        }
     }
 }
