@@ -117,7 +117,7 @@ Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
 ```bash
 # Run this in the main repo root — not inside a linked worktree
 git checkout master && git pull
-git checkout -b <branch-name>
+git checkout -b feat/<short-desc>-<issue>   # or fix/<short-desc>-<issue>
 ```
 For parallel worktree agents: sync master in the main repo first, then create worktrees from it.
 
