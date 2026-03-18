@@ -383,6 +383,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 RebuildRecentFilesMenu();
             }
 
+            // Start auto-save if enabled
+            TryStartAutoSave(path);
+
             return true;
         }
 
@@ -1537,6 +1540,7 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.ROM.Save(path, false);
             _vm.RomFilename = Path.GetFileName(path);
             _vm.HasUnsavedChanges = false;
+            AutoSaveService.Instance.UpdateRomFilename(path);
             CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(path)}");
         }
 
@@ -1712,10 +1716,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 FilterMatchLabel.Text = $"{matchCount} " + R._("editor(s) matching") + $" \"{filter}\"";
         }
 
+        // ===== Auto-Save =====
+
+        void TryStartAutoSave(string romFilename)
+        {
+            var (enabled, interval) = AutoSaveService.ReadConfig();
+            if (enabled && !string.IsNullOrEmpty(romFilename))
+                AutoSaveService.Instance.Start(interval, romFilename);
+            else
+                AutoSaveService.Instance.Stop();
+        }
+
         // ===== Closing Dirty Check =====
 
         private async void MainWindow_Closing(object? sender, global::Avalonia.Controls.WindowClosingEventArgs e)
         {
+            AutoSaveService.Instance.Stop();
+
             // In headless/screenshot mode, allow close without prompting
             if (App.SmokeTestMode) return;
 
@@ -2066,6 +2083,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var dialog = new OptionsView();
             await dialog.ShowDialog(this);
+            // Re-read auto-save config after options dialog closes
+            TryStartAutoSave(CoreState.ROM?.Filename);
         }
 
         private async void About_Click(object? sender, RoutedEventArgs e)

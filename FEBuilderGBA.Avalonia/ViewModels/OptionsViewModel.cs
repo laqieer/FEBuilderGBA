@@ -13,6 +13,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         List<string> _availableLanguages = new();
         string _gitPath = "git";
         bool _autoBackup = true;
+        bool _autoSaveEnabled = false;
+        int _autoSaveIntervalMinutes = 5;
 
         // External tool paths — keys match WinForms config.xml exactly
         string _emulator = "";
@@ -64,6 +66,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _autoBackup, value);
         }
 
+        /// <summary>Whether auto-save to sidecar file is enabled.</summary>
+        public bool AutoSaveEnabled
+        {
+            get => _autoSaveEnabled;
+            set => SetField(ref _autoSaveEnabled, value);
+        }
+
+        /// <summary>Auto-save interval in minutes (1-60).</summary>
+        public int AutoSaveIntervalMinutes
+        {
+            get => _autoSaveIntervalMinutes;
+            set => SetField(ref _autoSaveIntervalMinutes, Math.Clamp(value, 1, 60));
+        }
+
         // ---- External Tool Paths ----
 
         public string Emulator { get => _emulator; set => SetField(ref _emulator, value); }
@@ -109,6 +125,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     int backupVal = 2;
                     int.TryParse(cfg.at("func_auto_backup", "2"), out backupVal);
                     AutoBackup = backupVal > 0;
+
+                    // Auto-save settings
+                    AutoSaveEnabled = cfg.at("autosave_enabled", "false") == "true";
+                    int asInterval = 5;
+                    int.TryParse(cfg.at("autosave_interval_minutes", "5"), out asInterval);
+                    AutoSaveIntervalMinutes = Math.Clamp(asInterval, 1, 60);
 
                     // Load all tool paths using WinForms-compatible keys
                     Emulator = GetToolPath(cfg, "emulator", "Emulator_Path");
@@ -181,6 +203,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 cfg["func_auto_backup"] = AutoBackup ? "2" : "0";
                 cfg["Language"] = langCode;
                 cfg["func_lang"] = langCode; // backward compat with WinForms
+
+                // Auto-save settings
+                cfg["autosave_enabled"] = AutoSaveEnabled ? "true" : "false";
+                cfg["autosave_interval_minutes"] = AutoSaveIntervalMinutes.ToString();
 
                 // Save all tool paths using WinForms-compatible keys
                 cfg["emulator"] = Emulator ?? "";

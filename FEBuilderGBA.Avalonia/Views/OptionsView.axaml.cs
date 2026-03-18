@@ -28,6 +28,8 @@ namespace FEBuilderGBA.Avalonia.Views
             // General tab
             GitPathTextBox.Text = _vm.GitPath;
             AutoBackupCheckBox.IsChecked = _vm.AutoBackup;
+            AutoSaveCheckBox.IsChecked = _vm.AutoSaveEnabled;
+            AutoSaveIntervalBox.Value = _vm.AutoSaveIntervalMinutes;
 
             // External Tools tab
             EmulatorTextBox.Text = _vm.Emulator;
@@ -102,6 +104,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Language = lang;  // e.g. "ja — 日本語"
             _vm.GitPath = GitPathTextBox.Text ?? "git";
             _vm.AutoBackup = AutoBackupCheckBox.IsChecked == true;
+            _vm.AutoSaveEnabled = AutoSaveCheckBox.IsChecked == true;
+            _vm.AutoSaveIntervalMinutes = (int)(AutoSaveIntervalBox.Value ?? 5);
 
             // External Tools
             _vm.Emulator = EmulatorTextBox.Text ?? "";
