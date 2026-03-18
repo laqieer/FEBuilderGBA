@@ -339,7 +339,7 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
   ```bash
   # 1. Ensure all changes are committed or discarded — git worktree remove fails on a dirty worktree
   # 2. Navigate back to the main repo root (you cannot remove a worktree from inside it)
-  cd /path/to/main/repo        # e.g., cd C:\Users\you\source\repos\laqieer\FEBuilderGBA
+  cd /path/to/main/repo
   git worktree list             # verify which worktrees exist
   git worktree remove <path>    # remove the linked worktree
   ```
