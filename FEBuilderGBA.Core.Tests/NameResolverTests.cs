@@ -187,6 +187,14 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void GetPortraitName_ReturnsStringForAnyInput()
+        {
+            // Without a loaded ROM, should return empty or non-null
+            string name = NameResolver.GetPortraitName(0);
+            Assert.NotNull(name);
+        }
+
         [Theory]
         [InlineData(" Lord ", "Lord")]
         [InlineData("\r\nKnight\n", "Knight")]
