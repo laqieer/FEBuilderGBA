@@ -334,10 +334,13 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 - Verify the issue was auto-closed (if `Closes #N` was used)
 - If working in a worktree, clean it up:
   ```bash
-  # Ensure all changes are committed or discarded first — git worktree remove will fail on a dirty worktree
-  git worktree remove <path>
+  # 1. Ensure all changes are committed or discarded — git worktree remove fails on a dirty worktree
+  # 2. Navigate back to the main repo root (you cannot remove a worktree from inside it)
+  cd /path/to/main/repo        # e.g., cd C:\Users\you\source\repos\laqieer\FEBuilderGBA
+  git worktree list             # verify which worktrees exist
+  git worktree remove <path>    # remove the linked worktree
   ```
-- Switch back to master and sync:
+- Switch back to master and sync (from the main repo):
   ```bash
   git checkout master && git pull
   ```
