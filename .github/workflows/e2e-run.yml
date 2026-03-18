@@ -23,7 +23,7 @@ on:
 permissions:
   contents: read
   checks: write
-  issues: write
+  issues: write   # needed for auto-creating issues on scheduled failures
 
 jobs:
   e2e:
@@ -290,16 +290,21 @@ jobs:
             exit 0
           fi
 
+          BODY=$(cat <<EOFBODY
+## Scheduled E2E failure: ${ROM_NAME}
+
+The daily scheduled E2E test for **${ROM_NAME}** failed.
+
+- **Run:** ${RUN_URL}
+- **Date:** ${DATE}
+- **Branch:** ${{ github.ref_name }}
+
+Please investigate and fix the failing tests.
+EOFBODY
+          )
+
           gh issue create \
             --repo "${{ github.repository }}" \
             --title "${TITLE}" \
             --label "e2e-failure" \
-            --body "## Scheduled E2E failure: ${ROM_NAME}
-
-          The daily scheduled E2E test for **${ROM_NAME}** failed.
-
-          - **Run:** ${RUN_URL}
-          - **Date:** ${DATE}
-          - **Branch:** ${{ github.ref_name }}
-
-          Please investigate and fix the failing tests."
+            --body "${BODY}"

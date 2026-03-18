@@ -398,7 +398,7 @@ Committing to master means no PR review, no Copilot CLI gate, and no clean rever
 
 ### Don't: Guess why merge is blocked
 Assuming "needs approval" when the real cause is an outdated branch or unresolved threads wastes time and misses the actual fix.
-**Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
+**Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
 
 ### Don't: Open a feat/fix PR without screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
