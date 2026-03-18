@@ -150,6 +150,25 @@ namespace FEBuilderGBA
                     }
                 }
 
+                // Fallback: scan class table (portrait field at offset +8)
+                uint classBase = DerefPointer(rom, rom.RomInfo.class_pointer);
+                uint classSize = rom.RomInfo.class_datasize;
+                uint classCount = 0x100; // reasonable upper bound
+
+                if (classBase != 0 && classSize != 0)
+                {
+                    for (uint i = 0; i < classCount; i++)
+                    {
+                        uint entryAddr = classBase + (i * classSize);
+                        if (!U.isSafetyOffset(entryAddr + 9, rom)) break;
+                        if (rom.u16(entryAddr + 8) == portraitId)
+                        {
+                            uint textId = rom.u16(entryAddr);
+                            if (textId != 0) return GetTextById(textId);
+                        }
+                    }
+                }
+
                 return "";
             }
             catch { return ""; }

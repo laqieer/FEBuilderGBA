@@ -95,6 +95,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnPortraitIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
+            if (_vm.IsLoading) return;
             uint id = (uint)(PortraitIdBox.Value ?? 0);
             PortraitNameLabel.Text = NameResolver.GetPortraitName(id);
             TryShowPortrait();
