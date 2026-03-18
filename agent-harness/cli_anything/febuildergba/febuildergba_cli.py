@@ -506,6 +506,62 @@ def songexchange_cmd(ctx, from_rom, from_song, to_song):
     _output(result, f"Exchanged song {from_song} -> {to_song}")
 
 
+# ── Name resolution command ───────────────────────────────────────────
+
+@cli.command("names")
+@click.argument("kind", type=click.Choice(["unit", "class", "item", "song"]))
+@click.argument("ids")
+@click.option("--force-version", default="")
+@click.pass_context
+def names_cmd(ctx, kind, ids, force_version):
+    """Resolve entity IDs to names. IDs are comma-separated (e.g. 0,1,2,3)."""
+    from cli_anything.febuildergba.core.export import resolve_names
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    id_list = [int(x.strip()) for x in ids.split(",")]
+    result = resolve_names(rom, kind, id_list, fv)
+    _check_exit_code(result, "Name resolution")
+    if _json_mode:
+        _output(result)
+    else:
+        for id_str, name in result.get("names", {}).items():
+            click.echo(f"  {id_str}\t{name}")
+
+
+# ── Portrait rendering command ────────────────────────────────────────
+
+@cli.command("portrait")
+@click.argument("unit_id", type=int)
+@click.option("-o", "--out", required=True, help="Output PNG file path")
+@click.option("--force-version", default="")
+@click.pass_context
+def portrait_cmd(ctx, unit_id, out, force_version):
+    """Render a unit portrait to PNG."""
+    from cli_anything.febuildergba.core.export import render_portrait
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = render_portrait(rom, unit_id, out, fv)
+    _check_exit_code(result, "Portrait render")
+    _output(result, f"Portrait rendered: {out} ({result['file_size']} bytes)")
+
+
+# ── MIDI export command ───────────────────────────────────────────────
+
+@cli.command("export-midi")
+@click.argument("song_id", type=str)
+@click.option("-o", "--out", required=True, help="Output MIDI file path")
+@click.option("--force-version", default="")
+@click.pass_context
+def export_midi_cmd(ctx, song_id, out, force_version):
+    """Export a GBA song to MIDI file. Song ID is hex (e.g. 1A, 0x1A)."""
+    from cli_anything.febuildergba.core.export import export_midi
+    rom = _get_rom_path(ctx.obj.get("rom_path", ""))
+    fv = force_version or _get_force_version()
+    result = export_midi(rom, song_id, out, fv)
+    _check_exit_code(result, "MIDI export")
+    _output(result, f"MIDI exported: {out} ({result['file_size']} bytes)")
+
+
 # ── Rebuild command ───────────────────────────────────────────────────
 
 @cli.command("rebuild")
@@ -658,6 +714,9 @@ def repl(project_path):
         "patch create -o <file>": "Create UPS patch",
         "patch apply <file>": "Apply UPS patch",
         "patch list": "List available patches",
+        "names <kind> <ids>": "Resolve IDs to names (unit/class/item)",
+        "portrait <unit_id> -o <file>": "Render unit portrait to PNG",
+        "export-midi <song_id> -o <file>": "Export song to MIDI",
         "disasm -o <file>": "Disassemble ROM",
         "check": "Check backend availability",
         "help": "Show this help",

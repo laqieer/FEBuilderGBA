@@ -337,3 +337,51 @@ class TestCLISubprocess:
         data = json.loads(result.stdout)
         assert "matches" in data
         print(f"\n  Text search 'Eirika': {data.get('match_count', 0)} matches")
+
+    def test_resolve_names(self):
+        """Test name resolution with real ROM."""
+        try:
+            rom = _find_rom()
+        except Exception:
+            pytest.skip("No ROM available")
+        result = self._run(["--json", "--rom", rom, "names", "unit", "0,1,2"], check=False)
+        if result.returncode != 0:
+            pytest.skip(f"Backend failed: {result.stderr}")
+        data = json.loads(result.stdout)
+        assert data["count"] == 3
+        assert "0" in data["names"]
+        print(f"\n  Unit 0: {data['names'].get('0', '?')}")
+
+    def test_render_portrait(self, tmp_path):
+        """Test portrait rendering with real ROM."""
+        try:
+            rom = _find_rom()
+        except Exception:
+            pytest.skip("No ROM available")
+        out = str(tmp_path / "portrait.png")
+        result = self._run(["--json", "--rom", rom, "portrait", "0", "-o", out], check=False)
+        if result.returncode != 0:
+            pytest.skip(f"Backend failed: {result.stderr}")
+        data = json.loads(result.stdout)
+        assert data["file_size"] > 0
+        assert os.path.isfile(out)
+        print(f"\n  Portrait: {out} ({data['file_size']} bytes)")
+
+    def test_export_midi(self, tmp_path):
+        """Test MIDI export with real ROM."""
+        try:
+            rom = _find_rom()
+        except Exception:
+            pytest.skip("No ROM available")
+        out = str(tmp_path / "song.mid")
+        result = self._run(["--json", "--rom", rom, "export-midi", "0x1A", "-o", out], check=False)
+        if result.returncode != 0:
+            pytest.skip(f"Backend failed: {result.stderr}")
+        data = json.loads(result.stdout)
+        assert data["file_size"] > 0
+        assert os.path.isfile(out)
+        # Verify MIDI magic bytes
+        with open(out, "rb") as f:
+            magic = f.read(4)
+        assert magic == b"MThd", f"Expected MIDI header, got {magic}"
+        print(f"\n  MIDI: {out} ({data['file_size']} bytes)")

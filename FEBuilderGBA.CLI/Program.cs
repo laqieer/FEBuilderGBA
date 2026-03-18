@@ -122,6 +122,21 @@ namespace FEBuilderGBA.CLI
                 return RunTranslateBatch(argsDic);
             }
 
+            if (argsDic.ContainsKey("--resolve-names"))
+            {
+                return RunResolveNames(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--render-portrait"))
+            {
+                return RunRenderPortrait(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--export-midi"))
+            {
+                return RunExportMidi(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -180,6 +195,15 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --lastrom                Load last-used ROM from config");
             Console.WriteLine("  --force-detail           Force detailed editor mode (Avalonia GUI)");
             Console.WriteLine("  --translate_batch        Batch translation: export + import all text");
+            Console.WriteLine("  --resolve-names          Resolve entity IDs to names (requires --rom, --kind, --ids)");
+            Console.WriteLine("    --kind=<type>          Entity type: unit, class, item");
+            Console.WriteLine("    --ids=<list>           Comma-separated IDs (e.g., 0,1,2,3)");
+            Console.WriteLine("  --render-portrait        Render unit portrait to PNG (requires --rom, --unit-id, --out)");
+            Console.WriteLine("    --unit-id=<id>         Unit index number");
+            Console.WriteLine("    --out=<path>           Output PNG file path");
+            Console.WriteLine("  --export-midi            Export song to MIDI file (requires --rom, --song-id, --out)");
+            Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
+            Console.WriteLine("    --out=<path>           Output MIDI file path");
             Console.WriteLine("  --test                   Run self-test diagnostics (requires --rom)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
@@ -1403,6 +1427,206 @@ namespace FEBuilderGBA.CLI
             {
                 try { if (File.Exists(tempRom)) File.Delete(tempRom); } catch { }
             }
+        }
+
+        static int RunResolveNames(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --resolve-names requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            {
+                Console.Error.WriteLine("Error: --resolve-names requires --kind=<unit|class|item>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--ids") || string.IsNullOrEmpty(argsDic["--ids"]))
+            {
+                Console.Error.WriteLine("Error: --resolve-names requires --ids=<0,1,2,...>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string kind = argsDic["--kind"].ToLower();
+            string idsStr = argsDic["--ids"];
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            string[] idParts = idsStr.Split(',');
+            foreach (string idStr in idParts)
+            {
+                if (!uint.TryParse(idStr.Trim(), out uint id))
+                {
+                    Console.Error.WriteLine($"Warning: Invalid ID '{idStr}', skipping.");
+                    continue;
+                }
+                string name;
+                switch (kind)
+                {
+                    case "unit": name = NameResolver.GetUnitName(id); break;
+                    case "class": name = NameResolver.GetClassName(id); break;
+                    case "item": name = NameResolver.GetItemName(id); break;
+                    case "song": name = NameResolver.GetSongName(id); break;
+                    default:
+                        Console.Error.WriteLine($"Error: Unknown kind '{kind}'. Use: unit, class, item, song");
+                        return 1;
+                }
+                Console.WriteLine($"{id}\t{name}");
+            }
+            return 0;
+        }
+
+        static int RunRenderPortrait(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --render-portrait requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--unit-id") || string.IsNullOrEmpty(argsDic["--unit-id"]))
+            {
+                Console.Error.WriteLine("Error: --render-portrait requires --unit-id=<id>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --render-portrait requires --out=<output.png>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string outputPath = argsDic["--out"];
+
+            if (!uint.TryParse(argsDic["--unit-id"], out uint unitId))
+            {
+                Console.Error.WriteLine("Error: --unit-id must be a valid number.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                Console.Error.WriteLine("Error: ROM not loaded correctly.");
+                return 1;
+            }
+
+            // Read portrait pointer from the unit data
+            uint unitBase = rom.p32(U.toOffset(rom.RomInfo.unit_pointer));
+            uint unitDataSize = rom.RomInfo.unit_datasize;
+            uint unitAddr = unitBase + (unitId * unitDataSize);
+
+            // Portrait ID is typically at offset +6 in the unit struct
+            uint portraitId = rom.u8(unitAddr + 6);
+
+            // Look up portrait data
+            uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
+            uint portraitDataSize = rom.RomInfo.portrait_datasize;
+            uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
+
+            uint facePtr = rom.p32(portraitAddr + 0);
+            uint palettePtr = rom.p32(portraitAddr + 4);
+
+            if (facePtr == 0 || palettePtr == 0)
+            {
+                Console.Error.WriteLine($"Error: Unit {unitId} has no portrait data (facePtr=0x{facePtr:X}, palettePtr=0x{palettePtr:X}).");
+                return 1;
+            }
+
+            // Eye position from portrait struct (offsets 12, 13 for most versions)
+            byte eyeX = (portraitDataSize >= 14) ? (byte)rom.u8(portraitAddr + 12) : (byte)0;
+            byte eyeY = (portraitDataSize >= 15) ? (byte)rom.u8(portraitAddr + 13) : (byte)0;
+
+            var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0);
+            if (image == null)
+            {
+                Console.Error.WriteLine($"Error: Failed to render portrait for unit {unitId}.");
+                return 1;
+            }
+
+            image.Save(outputPath);
+            var fileInfo = new FileInfo(outputPath);
+            Console.WriteLine($"Portrait rendered: {outputPath} ({fileInfo.Length:N0} bytes, {image.Width}x{image.Height})");
+            return 0;
+        }
+
+        static int RunExportMidi(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-midi requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--song-id") || string.IsNullOrEmpty(argsDic["--song-id"]))
+            {
+                Console.Error.WriteLine("Error: --export-midi requires --song-id=<hex_id>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --export-midi requires --out=<output.mid>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string outputPath = argsDic["--out"];
+            string songIdStr = argsDic["--song-id"].Replace("0x", "").Replace("0X", "");
+
+            if (!uint.TryParse(songIdStr, System.Globalization.NumberStyles.HexNumber, null, out uint songId))
+            {
+                Console.Error.WriteLine("Error: Invalid --song-id hex value.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            uint soundTablePtr = rom.RomInfo.sound_table_pointer;
+            uint tableAddr = rom.p32(U.toOffset(soundTablePtr));
+
+            // Each song table entry is 8 bytes: pointer to song header (4) + extra (4)
+            uint songAddr = tableAddr + (songId * 8);
+            uint songHeaderPtr = rom.p32(songAddr);
+
+            if (songHeaderPtr == 0 || !U.isSafetyOffset(songHeaderPtr, rom))
+            {
+                Console.Error.WriteLine($"Error: Song 0x{songId:X} not found or invalid pointer.");
+                return 1;
+            }
+
+            // Parse song header: numTracks(1), priority(1), reverb(1), pad(1), voicegroup(4), then track ptrs
+            uint numTracks = rom.u8(songHeaderPtr);
+            uint priority = rom.u8(songHeaderPtr + 1);
+            uint reverb = rom.u8(songHeaderPtr + 2);
+            uint voicegroupPtr = rom.p32(songHeaderPtr + 4);
+
+            if (numTracks == 0 || numTracks > 16)
+            {
+                Console.Error.WriteLine($"Error: Song 0x{songId:X} has invalid track count ({numTracks}).");
+                return 1;
+            }
+
+            // Parse GBA tracks using SongMidiCore
+            var tracks = SongMidiCore.ParseTracks(rom, songHeaderPtr, numTracks);
+
+            SongMidiCore.ExportMidiFile(outputPath, tracks, (int)numTracks, (int)priority, (int)reverb, voicegroupPtr);
+            var fileInfo = new FileInfo(outputPath);
+            Console.WriteLine($"MIDI exported: {outputPath} ({fileInfo.Length:N0} bytes, {numTracks} tracks)");
+            return 0;
         }
 
         /// <summary>

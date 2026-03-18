@@ -244,3 +244,105 @@ def convert_map_image(input_path: str, out_img: str, out_tsa: str) -> dict:
         "stdout": result.stdout.strip(),
         "stderr": result.stderr.strip() if result.stderr else "",
     }
+
+
+def resolve_names(rom_path: str, kind: str, ids: list[int],
+                  force_version: str = "") -> dict:
+    """Resolve entity IDs to human-readable names.
+
+    Args:
+        rom_path: Path to ROM file.
+        kind: Entity type (unit, class, item, song).
+        ids: List of entity IDs.
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with resolved names.
+    """
+    ids_str = ",".join(str(i) for i in ids)
+    args = ["--resolve-names", f"--rom={rom_path}",
+            f"--kind={kind}", f"--ids={ids_str}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    names = {}
+    if result.stdout:
+        for line in result.stdout.strip().splitlines():
+            parts = line.split("\t", 1)
+            if len(parts) == 2:
+                names[parts[0]] = parts[1]
+
+    return {
+        "kind": kind,
+        "names": names,
+        "count": len(names),
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }
+
+
+def render_portrait(rom_path: str, unit_id: int, output_path: str,
+                    force_version: str = "") -> dict:
+    """Render a unit portrait to PNG.
+
+    Args:
+        rom_path: Path to ROM file.
+        unit_id: Unit index number.
+        output_path: Output PNG file path.
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with rendering results.
+    """
+    args = ["--render-portrait", f"--rom={rom_path}",
+            f"--unit-id={unit_id}", f"--out={output_path}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+
+    return {
+        "unit_id": unit_id,
+        "output_path": output_path,
+        "file_size": file_size,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }
+
+
+def export_midi(rom_path: str, song_id: str, output_path: str,
+                force_version: str = "") -> dict:
+    """Export a GBA song to MIDI file.
+
+    Args:
+        rom_path: Path to ROM file.
+        song_id: Song ID in hex (e.g., "1A" or "0x1A").
+        output_path: Output MIDI file path.
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with export results.
+    """
+    args = ["--export-midi", f"--rom={rom_path}",
+            f"--song-id={song_id}", f"--out={output_path}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    file_size = os.path.getsize(output_path) if os.path.isfile(output_path) else 0
+
+    return {
+        "song_id": song_id,
+        "output_path": output_path,
+        "file_size": file_size,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }
