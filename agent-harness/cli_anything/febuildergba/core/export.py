@@ -346,3 +346,99 @@ def export_midi(rom_path: str, song_id: str, output_path: str,
         "stdout": result.stdout.strip(),
         "stderr": result.stderr.strip() if result.stderr else "",
     }
+
+
+def disasm_event(rom_path: str, addr: str, script_type: str = "event",
+                 output_path: str = "", force_version: str = "") -> dict:
+    """Disassemble event script bytecode.
+
+    Args:
+        rom_path: Path to ROM file.
+        addr: Start address in hex (e.g., "0x9A0000").
+        script_type: Script type (event, procs, ai).
+        output_path: Output file (empty = return in stdout).
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with disassembly results.
+    """
+    args = ["--disasm-event", f"--rom={rom_path}", f"--addr={addr}",
+            f"--type={script_type}"]
+    if output_path:
+        args.append(f"--out={output_path}")
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    return {
+        "addr": addr,
+        "script_type": script_type,
+        "output_path": output_path,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }
+
+
+def lint_oam(rom_path: str, addr: str, length: int = 0,
+             force_version: str = "") -> dict:
+    """Validate battle animation OAM sprite data.
+
+    Args:
+        rom_path: Path to ROM file.
+        addr: OAM data address in hex.
+        length: Bytes to scan (0 = auto).
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with lint results.
+    """
+    args = ["--lint-oam", f"--rom={rom_path}", f"--addr={addr}"]
+    if length:
+        args.append(f"--length={length}")
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    lines = result.stdout.strip().splitlines() if result.stdout else []
+    issues = [l.strip() for l in lines if l.strip() and not l.startswith("OAM lint:")]
+    clean = result.returncode == 0
+
+    return {
+        "addr": addr,
+        "clean": clean,
+        "issue_count": len(issues),
+        "issues": issues,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }
+
+
+def apply_patch(rom_path: str, patch_file: str,
+                force_version: str = "") -> dict:
+    """Apply a BIN patch to a ROM.
+
+    Args:
+        rom_path: Path to ROM file.
+        patch_file: Path to PATCH_*.txt file.
+        force_version: Optional forced version.
+
+    Returns:
+        Dict with patch application results.
+    """
+    args = ["--apply-patch", f"--rom={rom_path}", f"--patch-file={patch_file}"]
+    if force_version:
+        args.append(f"--force-version={force_version}")
+
+    result = run_cli(args)
+
+    return {
+        "rom_path": rom_path,
+        "patch_file": patch_file,
+        "exit_code": result.returncode,
+        "stdout": result.stdout.strip(),
+        "stderr": result.stderr.strip() if result.stderr else "",
+    }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using FEBuilderGBA;
 using FEBuilderGBA.SkiaSharp;
@@ -137,6 +138,21 @@ namespace FEBuilderGBA.CLI
                 return RunExportMidi(argsDic);
             }
 
+            if (argsDic.ContainsKey("--disasm-event"))
+            {
+                return RunDisasmEvent(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--lint-oam"))
+            {
+                return RunLintOAM(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--apply-patch"))
+            {
+                return RunApplyPatch(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -205,6 +221,15 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
             Console.WriteLine("  --test                   Run self-test diagnostics (requires --rom)");
+            Console.WriteLine("  --disasm-event           Disassemble event script (requires --rom, --addr, --type)");
+            Console.WriteLine("    --type=<kind>          Script type: event, procs, ai");
+            Console.WriteLine("    --addr=<hex>           Start address in hex (e.g., 0x9A0000)");
+            Console.WriteLine("    --out=<path>           Output file (optional, prints to stdout if omitted)");
+            Console.WriteLine("  --lint-oam               Validate battle animation OAM data (requires --rom, --addr)");
+            Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
+            Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
+            Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
+            Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -1645,6 +1670,231 @@ namespace FEBuilderGBA.CLI
             var fileInfo = new FileInfo(outputPath);
             Console.WriteLine($"MIDI exported: {outputPath} ({fileInfo.Length:N0} bytes, {numTracks} tracks)");
             return 0;
+        }
+
+        static int RunDisasmEvent(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --disasm-event requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            {
+                Console.Error.WriteLine("Error: --disasm-event requires --addr=<hex_address>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string addrStr = argsDic["--addr"].Replace("0x", "").Replace("0X", "");
+            string scriptType = argsDic.ContainsKey("--type") ? argsDic["--type"].ToLower() : "event";
+            string outputPath = argsDic.ContainsKey("--out") ? argsDic["--out"] : null;
+
+            if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+            {
+                Console.Error.WriteLine("Error: Invalid --addr hex value.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            EventScript es;
+            switch (scriptType)
+            {
+                case "event": es = CoreState.EventScript; break;
+                case "procs": es = CoreState.ProcsScript; break;
+                case "ai": es = CoreState.AIScript; break;
+                default:
+                    Console.Error.WriteLine($"Error: Unknown script type '{scriptType}'. Use: event, procs, ai");
+                    return 1;
+            }
+            if (es == null)
+            {
+                Console.Error.WriteLine("Error: Event script system not initialized.");
+                return 1;
+            }
+
+            var rom = CoreState.ROM;
+            var lines = new List<string>();
+            uint currentAddr = U.toOffset(addr);
+            int maxOps = 500; // safety limit
+
+            for (int i = 0; i < maxOps; i++)
+            {
+                if (currentAddr >= (uint)rom.Data.Length)
+                    break;
+
+                var code = es.DisAseemble(rom.Data, currentAddr + 0x08000000);
+                if (code == null || code.Script == null)
+                {
+                    lines.Add($"0x{currentAddr:X08}\t???");
+                    break;
+                }
+
+                // Format: address \t command_name \t arg1 \t arg2 ...
+                var sb = new System.Text.StringBuilder();
+                string scriptName = (code.Script.Info != null && code.Script.Info.Length > 0) ? code.Script.Info[0] : "???";
+                sb.Append($"0x{currentAddr:X08}\t{scriptName}");
+
+                for (int a = 0; a < code.Script.Args.Length; a++)
+                {
+                    if (code.Script.Args[a].Type != EventScript.ArgType.FIXED)
+                    {
+                        uint v;
+                        string argStr = EventScript.GetArg(code, a, out v);
+                        sb.Append($"\t{argStr}");
+                    }
+                }
+                lines.Add(sb.ToString());
+
+                currentAddr += (uint)code.Script.Size;
+
+                // Stop on ENDA/END/ENDB type terminators
+                string name = scriptName.ToUpper();
+                if (name.Contains("ENDA") || name.Contains("ENDB") || name == "END")
+                    break;
+            }
+
+            string output = string.Join("\n", lines);
+
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                File.WriteAllText(outputPath, output);
+                Console.WriteLine($"Event script disassembled: {outputPath} ({lines.Count} instructions)");
+            }
+            else
+            {
+                Console.Write(output);
+                if (!output.EndsWith("\n")) Console.WriteLine();
+                Console.Error.WriteLine($"Disassembled {lines.Count} instructions from 0x{U.toOffset(addr):X08}");
+            }
+            return 0;
+        }
+
+        static int RunLintOAM(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --lint-oam requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            {
+                Console.Error.WriteLine("Error: --lint-oam requires --addr=<hex_address>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string addrStr = argsDic["--addr"].Replace("0x", "").Replace("0X", "");
+            int length = 0;
+            if (argsDic.ContainsKey("--length") && !string.IsNullOrEmpty(argsDic["--length"]))
+            {
+                int.TryParse(argsDic["--length"], out length);
+            }
+
+            if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+            {
+                Console.Error.WriteLine("Error: Invalid --addr hex value.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+            uint offset = U.toOffset(addr);
+            if (!U.isSafetyOffset(offset, rom))
+            {
+                Console.Error.WriteLine($"Error: Address 0x{addr:X} is out of ROM range.");
+                return 1;
+            }
+
+            var errors = BattleAnimeCompositionCore.LintOAM(rom.Data, (int)offset, length);
+
+            if (errors.Count == 0)
+            {
+                Console.WriteLine($"OAM lint: CLEAN (no issues at 0x{addr:X})");
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine($"OAM lint: {errors.Count} issue(s) at 0x{addr:X}");
+                foreach (var err in errors)
+                    Console.WriteLine($"  {err}");
+                return 1;
+            }
+        }
+
+        static int RunApplyPatch(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --apply-patch requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--patch-file") || string.IsNullOrEmpty(argsDic["--patch-file"]))
+            {
+                Console.Error.WriteLine("Error: --apply-patch requires --patch-file=<PATCH_xxx.txt>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string patchFile = argsDic["--patch-file"];
+
+            if (!File.Exists(patchFile))
+            {
+                Console.Error.WriteLine($"Error: Patch file not found: {patchFile}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            // Check dependencies first
+            var deps = PatchMetadataCore.CheckDependencies(CoreState.ROM, patchFile);
+            if (deps.Count > 0)
+            {
+                var unsatisfied = deps.Where(d => !d.IsSatisfied).ToList();
+                if (unsatisfied.Count > 0)
+                {
+                    Console.Error.WriteLine("Error: Unsatisfied patch dependencies:");
+                    foreach (var d in unsatisfied)
+                        Console.Error.WriteLine($"  {d.Condition} — {d.Comment}");
+                    return 1;
+                }
+            }
+
+            // Create backup before applying
+            string backupPath = romPath + ".backup";
+            File.Copy(romPath, backupPath, true);
+            Console.WriteLine($"Backup saved: {backupPath}");
+
+            var result = PatchMetadataCore.ApplyPatch(CoreState.ROM, patchFile);
+
+            if (result.Success)
+            {
+                // Save the modified ROM
+                File.WriteAllBytes(romPath, CoreState.ROM.Data);
+                Console.WriteLine($"Patch applied: {result.Message} ({result.BytesWritten} bytes written)");
+                return 0;
+            }
+            else
+            {
+                Console.Error.WriteLine($"Error: {result.Message}");
+                // Restore from backup
+                File.Copy(backupPath, romPath, true);
+                Console.Error.WriteLine("ROM restored from backup.");
+                return 1;
+            }
         }
 
         /// <summary>
