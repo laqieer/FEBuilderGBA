@@ -153,6 +153,11 @@ namespace FEBuilderGBA.CLI
                 return RunApplyPatch(argsDic);
             }
 
+            if (argsDic.ContainsKey("--list-patches"))
+            {
+                return RunListPatches(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -230,6 +235,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
+            Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -1911,6 +1917,115 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine("ROM restored from backup.");
                 return 1;
             }
+        }
+
+        static int RunListPatches(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --list-patches requires --rom=<rom>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            string version = CoreState.ROM.RomInfo?.VersionToFilename;
+            if (string.IsNullOrEmpty(version))
+            {
+                Console.Error.WriteLine("Error: Could not detect ROM version.");
+                return 1;
+            }
+
+            string baseDir = CoreState.BaseDirectory;
+            if (string.IsNullOrEmpty(baseDir))
+                baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string patchDir = Path.Combine(baseDir, "config", "patch2", version);
+
+            if (!Directory.Exists(patchDir))
+            {
+                Console.Error.WriteLine($"Error: Patch directory not found: {patchDir}");
+                return 1;
+            }
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Version: {version}");
+            Console.WriteLine($"Patch directory: {patchDir}");
+            Console.WriteLine();
+
+            int total = 0, installed = 0;
+            foreach (string dir in Directory.GetDirectories(patchDir).OrderBy(d => d))
+            {
+                string patchName = Path.GetFileName(dir);
+                // Find the PATCH_*.txt file
+                string[] patchFiles = Directory.GetFiles(dir, "PATCH_*.txt");
+                if (patchFiles.Length == 0) continue;
+
+                string patchFile = patchFiles[0];
+                bool isInstalled = false;
+
+                // Check PATCHED_IF line to determine if patch is installed
+                try
+                {
+                    foreach (string line in File.ReadLines(patchFile))
+                    {
+                        string trimmed = line.Trim();
+                        if (trimmed.StartsWith("PATCHED_IF:"))
+                        {
+                            isInstalled = CheckPatchedIf(trimmed.Substring("PATCHED_IF:".Length));
+                            break;
+                        }
+                    }
+                }
+                catch { /* ignore read errors */ }
+
+                string status = isInstalled ? "[INSTALLED]" : "[         ]";
+                Console.WriteLine($"  {status} {patchName}");
+                total++;
+                if (isInstalled) installed++;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"Total: {total} patches, {installed} installed");
+            return 0;
+        }
+
+        /// <summary>
+        /// Check if a PATCHED_IF condition is satisfied in the current ROM.
+        /// Format: "0xADDRESS=0xBYTE 0xBYTE ..."
+        /// </summary>
+        static bool CheckPatchedIf(string condition)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return false;
+
+            // Parse "0xADDRESS=0xBYTE 0xBYTE ..."
+            int eqIdx = condition.IndexOf('=');
+            if (eqIdx < 0) return false;
+
+            string addrStr = condition.Substring(0, eqIdx).Trim();
+            string bytesStr = condition.Substring(eqIdx + 1).Trim();
+
+            if (!uint.TryParse(addrStr.Replace("0x", "").Replace("0X", ""),
+                System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+                return false;
+
+            string[] byteTokens = bytesStr.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string token in byteTokens)
+            {
+                if (!byte.TryParse(token.Replace("0x", "").Replace("0X", ""),
+                    System.Globalization.NumberStyles.HexNumber, null, out byte expected))
+                    continue;
+
+                if (addr >= (uint)rom.Data.Length) return false;
+                if (rom.Data[addr] != expected) return false;
+                addr++;
+            }
+
+            return true;
         }
 
         /// <summary>
