@@ -594,12 +594,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 if (!U.isPointer(facePtr) || !U.isPointer(palPtr)) return;
 
-                // Read eye coordinates for FE7/8 (offset +20, +21)
-                byte eyeX = (dataSize > 21) ? (byte)rom.u8(portraitAddr + 20) : (byte)0;
-                byte eyeY = (dataSize > 21) ? (byte)rom.u8(portraitAddr + 21) : (byte)0;
+                // Read eye coordinates (+22, +23) and state (+24) for FE7/8
+                byte eyeX = (dataSize > 22) ? (byte)rom.u8(portraitAddr + 22) : (byte)0;
+                byte eyeY = (dataSize > 23) ? (byte)rom.u8(portraitAddr + 23) : (byte)0;
+                byte state = (dataSize > 24) ? (byte)rom.u8(portraitAddr + 24) : (byte)0;
 
                 // Assemble full 96x80 portrait using PortraitRendererCore
-                _portraitImage = PortraitRendererCore.DrawPortraitUnit(facePtr, palPtr, eyeX, eyeY, 0);
+                _portraitImage = PortraitRendererCore.DrawPortraitUnit(facePtr, palPtr, eyeX, eyeY, state);
             }
             catch
             {

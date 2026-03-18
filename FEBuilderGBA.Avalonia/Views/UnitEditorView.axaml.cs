@@ -594,13 +594,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint addr = items[index].addr;
-                // Portrait ID is at offset 6 (u16) in the unit struct
-                uint portraitId = rom.u16(addr + 6);
-
-                // Fallback: if portrait ID is 0, use the unit's class portrait
-                if (portraitId == 0)
-                    portraitId = PreviewIconHelper.GetClassPortraitId(rom.u8(addr + 5));
-
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitId(addr);
                 if (portraitId == 0) return null;
 
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);

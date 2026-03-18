@@ -81,6 +81,21 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Resolve the portrait ID for a unit: returns the unit's own portrait ID,
+        /// or falls back to the class portrait if the unit has none (portrait ID 0).
+        /// </summary>
+        public static uint ResolveUnitPortraitId(uint unitAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            uint portraitId = rom.u16(unitAddr + 6);
+            if (portraitId == 0)
+                portraitId = GetClassPortraitId(rom.u8(unitAddr + 5));
+            return portraitId;
+        }
+
+        /// <summary>
         /// Get the portrait ID associated with a class ID (offset +8 in class struct).
         /// Returns 0 if the class has no portrait.
         /// </summary>

@@ -1539,7 +1539,7 @@ namespace FEBuilderGBA.Tests.Unit
             // LoadPortraitImage must use PortraitRendererCore.DrawPortraitUnit
             // instead of ImageUtilCore.LoadROMTiles4bpp for the main portrait (#140)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitEditorViewModel.cs"));
-            Assert.Contains("PortraitRendererCore.DrawPortraitUnit(facePtr, palPtr, eyeX, eyeY, 0)", src);
+            Assert.Contains("PortraitRendererCore.DrawPortraitUnit(", src);
             Assert.DoesNotContain("LoadROMTiles4bpp(imgAddr, palette, 4, 4", src);
         }
 
@@ -1553,27 +1553,27 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void UnitEditorView_HasPortraitFallbackForClassId()
+        public void UnitEditorView_HasPortraitFallbackViaResolveHelper()
         {
-            // When portrait ID is 0, fall back to class portrait (#56)
+            // When portrait ID is 0, use ResolveUnitPortraitId helper (#56)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
-            Assert.Contains("PreviewIconHelper.GetClassPortraitId", src);
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
         }
 
         [Fact]
-        public void UnitFE6View_HasPortraitFallbackForClassId()
+        public void UnitFE6View_HasPortraitFallbackViaResolveHelper()
         {
-            // FE6 view also needs the class portrait fallback (#56)
+            // FE6 view also uses the shared resolve helper (#56)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
-            Assert.Contains("PreviewIconHelper.GetClassPortraitId", src);
+            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
         }
 
         [Fact]
-        public void PreviewIconHelper_HasGetClassPortraitId()
+        public void PreviewIconHelper_HasResolveAndClassPortraitHelpers()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
             Assert.Contains("public static uint GetClassPortraitId(uint classId)", src);
-            // Reads portrait ID from class struct offset +8
+            Assert.Contains("public static uint ResolveUnitPortraitId(uint unitAddr)", src);
             Assert.Contains("rom.u16(classAddr + 8)", src);
         }
 
