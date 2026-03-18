@@ -35,10 +35,11 @@ jobs:
 
     steps:
       # ---------------------------------------------------------------- checkout
-      - name: Checkout (with submodules)
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Init build-required submodules
+        run: git submodule update --init config/patch2
 
       # ---------------------------------------------------------------- MSBuild
       - name: Add MSBuild to PATH

@@ -17,8 +17,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
+
+    - name: Init build-required submodules
+      run: git submodule update --init config/patch2
 
     - name: Setup .NET 9.0
       uses: actions/setup-dotnet@v4
@@ -72,8 +73,9 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
+
+    - name: Init build-required submodules
+      run: git submodule update --init config/patch2
 
     - name: Setup .NET 9.0
       uses: actions/setup-dotnet@v4
