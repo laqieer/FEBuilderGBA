@@ -7,11 +7,17 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsColorzCore_DetectsCorrectly()
         {
-            Assert.True(ToolPathResolver.IsColorzCore(@"C:\tools\ColorzCore.exe"));
+            // Use Path.Combine for cross-platform paths
+            Assert.True(ToolPathResolver.IsColorzCore(
+                System.IO.Path.Combine("tools", "ColorzCore.exe")));
             Assert.True(ToolPathResolver.IsColorzCore("/usr/bin/ColorzCore.exe"));
-            Assert.False(ToolPathResolver.IsColorzCore(@"C:\tools\Core.exe"));
+            Assert.False(ToolPathResolver.IsColorzCore(
+                System.IO.Path.Combine("tools", "Core.exe")));
             Assert.False(ToolPathResolver.IsColorzCore(null));
             Assert.False(ToolPathResolver.IsColorzCore(""));
+            // Just the filename itself
+            Assert.True(ToolPathResolver.IsColorzCore("ColorzCore.exe"));
+            Assert.False(ToolPathResolver.IsColorzCore("Core.exe"));
         }
 
         [Fact]
