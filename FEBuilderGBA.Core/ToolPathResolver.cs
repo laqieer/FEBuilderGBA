@@ -22,31 +22,61 @@ namespace FEBuilderGBA
                 return configured;
 
             // 2. Check bundled tools (submodule build output)
-            string baseDir = CoreState.BaseDirectory ?? "";
-            if (string.IsNullOrEmpty(baseDir))
-                return null;
+            // Search both the app base directory and repo root (for dev builds)
+            string[] searchRoots = GetSearchRoots();
 
-            // ColorzCore (preferred)
-            string colorzCorePath = Path.Combine(baseDir, "tools", "ColorzCore", "bin", "Release", "net8.0", "ColorzCore.exe");
-            if (File.Exists(colorzCorePath))
-                return colorzCorePath;
+            foreach (string root in searchRoots)
+            {
+                // ColorzCore (preferred) — submodule layout: tools/ColorzCore/ColorzCore/bin/...
+                foreach (string config in new[] { "Release", "Debug" })
+                {
+                    string colorzCore = Path.Combine(root, "tools", "ColorzCore", "ColorzCore",
+                        "bin", config, "net6.0", "ColorzCore.exe");
+                    if (File.Exists(colorzCore)) return colorzCore;
+                }
 
-            // ColorzCore published output
-            string colorzCorePublish = Path.Combine(baseDir, "tools", "ColorzCore", "bin", "Release", "net8.0", "publish", "ColorzCore.exe");
-            if (File.Exists(colorzCorePublish))
-                return colorzCorePublish;
+                // Event Assembler Core.exe — submodule layout: tools/Event-Assembler/Event Assembler/Core/bin/...
+                foreach (string config in new[] { "Release", "Debug" })
+                {
+                    string eaCore = Path.Combine(root, "tools", "Event-Assembler", "Event Assembler", "Core",
+                        "bin", config, "net6.0", "Core.exe");
+                    if (File.Exists(eaCore)) return eaCore;
+                }
 
-            // Event Assembler Core.exe
-            string eaCorePath = Path.Combine(baseDir, "tools", "Event-Assembler", "bin", "Release", "Core.exe");
-            if (File.Exists(eaCorePath))
-                return eaCorePath;
-
-            // Event Assembler in tools/bin (if pre-built)
-            string eaBinPath = Path.Combine(baseDir, "tools", "bin", "Core.exe");
-            if (File.Exists(eaBinPath))
-                return eaBinPath;
+                // Pre-built binaries in tools/bin/ (manual placement)
+                string preBuild = Path.Combine(root, "tools", "bin", "ColorzCore.exe");
+                if (File.Exists(preBuild)) return preBuild;
+                preBuild = Path.Combine(root, "tools", "bin", "Core.exe");
+                if (File.Exists(preBuild)) return preBuild;
+            }
 
             return null;
+        }
+
+        /// <summary>
+        /// Get directories to search for bundled tools: app base dir + repo root.
+        /// </summary>
+        static string[] GetSearchRoots()
+        {
+            var roots = new System.Collections.Generic.List<string>();
+
+            string baseDir = CoreState.BaseDirectory;
+            if (!string.IsNullOrEmpty(baseDir))
+                roots.Add(baseDir);
+
+            // Walk up to find repo root (contains .git directory)
+            string dir = baseDir ?? System.AppDomain.CurrentDomain.BaseDirectory;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (Directory.Exists(Path.Combine(dir, ".git")) && dir != baseDir)
+                {
+                    roots.Add(dir);
+                    break;
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+
+            return roots.ToArray();
         }
 
         /// <summary>
