@@ -546,7 +546,7 @@ namespace FEBuilderGBA
 
     public class ROM
     {
-        public string Filename { get; protected set; }
+        public string Filename { get; set; }
         public ROMFEINFO RomInfo { get; protected set; }
         public byte[] Data{ get; protected set; }
         public bool Modified { get; protected set; }

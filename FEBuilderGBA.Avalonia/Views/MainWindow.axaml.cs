@@ -1526,6 +1526,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CoreState.ROM == null) return;
             CoreState.ROM.Save(CoreState.ROM.Filename, false);
             _vm.HasUnsavedChanges = false;
+            AutoSaveService.Instance.MarkSaved();
             CoreState.Services.ShowInfo(R._("ROM saved."));
         }
 
@@ -1538,9 +1539,11 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrEmpty(path)) return;
 
             CoreState.ROM.Save(path, false);
+            CoreState.ROM.Filename = path;  // Keep ROM.Filename in sync after Save As
             _vm.RomFilename = Path.GetFileName(path);
             _vm.HasUnsavedChanges = false;
             AutoSaveService.Instance.UpdateRomFilename(path);
+            AutoSaveService.Instance.MarkSaved();
             CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(path)}");
         }
 
@@ -1731,17 +1734,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void MainWindow_Closing(object? sender, global::Avalonia.Controls.WindowClosingEventArgs e)
         {
-            AutoSaveService.Instance.Stop();
-
             // In headless/screenshot mode, allow close without prompting
-            if (App.SmokeTestMode) return;
+            if (App.SmokeTestMode) { AutoSaveService.Instance.Stop(); return; }
 
             // Check if ROM has unsaved changes via undo buffer
             var undo = CoreState.Undo;
-            if (undo == null || CoreState.ROM == null) return;
+            if (undo == null || CoreState.ROM == null) { AutoSaveService.Instance.Stop(); return; }
 
             bool hasUnsavedChanges = undo.IsModified;
-            if (!hasUnsavedChanges) return;
+            if (!hasUnsavedChanges) { AutoSaveService.Instance.Stop(); return; }
 
             // Cancel close, show prompt, then re-close if confirmed
             e.Cancel = true;
@@ -1752,6 +1753,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (result == MessageBoxResult.Yes)
             {
+                AutoSaveService.Instance.Stop();
                 // Detach handler to prevent re-entry, then close
                 Closing -= MainWindow_Closing;
                 CoreState.LanguageChanged -= OnLanguageChanged;
@@ -2084,7 +2086,8 @@ namespace FEBuilderGBA.Avalonia.Views
             var dialog = new OptionsView();
             await dialog.ShowDialog(this);
             // Re-read auto-save config after options dialog closes
-            TryStartAutoSave(CoreState.ROM?.Filename);
+            string currentTarget = AutoSaveService.Instance.CurrentRomFilename ?? CoreState.ROM?.Filename;
+            TryStartAutoSave(currentTarget);
         }
 
         private async void About_Click(object? sender, RoutedEventArgs e)

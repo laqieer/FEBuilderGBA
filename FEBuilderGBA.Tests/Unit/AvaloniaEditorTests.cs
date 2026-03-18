@@ -1603,6 +1603,24 @@ namespace FEBuilderGBA.Tests.Unit
             // Verify there's a guard against overwriting the primary ROM
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
             Assert.Contains("sidecar, rom.Filename", src);
+            Assert.Contains("sidecar, _romFilename", src);
+        }
+
+        [Fact]
+        public void AutoSaveService_UsesAtomicWrite()
+        {
+            // Verify writes go to temp file first, then move
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("File.WriteAllBytes(tempPath", src);
+            Assert.Contains("File.Move(tempPath", src);
+        }
+
+        [Fact]
+        public void AutoSaveService_WritesOffUIThread()
+        {
+            // Verify disk write runs on background thread
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "AutoSaveService.cs"));
+            Assert.Contains("Task.Run(", src);
         }
 
         [Fact]

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia.Threading;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -15,8 +16,15 @@ namespace FEBuilderGBA.Avalonia.Services
 
         DispatcherTimer _timer;
         string _romFilename;
+        int _lastSavedUndoPosition = -1;
+        bool _writing;
 
         AutoSaveService() { }
+
+        /// <summary>
+        /// The current ROM filename tracked by the service (updated on Save As).
+        /// </summary>
+        public string CurrentRomFilename => _romFilename;
 
         /// <summary>
         /// Compute the auto-save sidecar file path from the primary ROM filename.
@@ -34,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             Stop();
             _romFilename = romFilename;
+            _lastSavedUndoPosition = CoreState.Undo?.Postion ?? -1;
 
             if (intervalMinutes < 1) intervalMinutes = 5;
 
@@ -51,34 +60,68 @@ namespace FEBuilderGBA.Avalonia.Services
             _timer = null;
         }
 
+        public bool IsRunning => _timer != null;
+
         public void UpdateRomFilename(string newFilename)
         {
             _romFilename = newFilename;
+            // Reset position so we don't skip the first save after rename
+            _lastSavedUndoPosition = CoreState.Undo?.Postion ?? -1;
+        }
+
+        /// <summary>
+        /// Mark the current undo position as "saved" so autosave skips until next edit.
+        /// Call this after a successful manual Save or Save As.
+        /// </summary>
+        public void MarkSaved()
+        {
+            _lastSavedUndoPosition = CoreState.Undo?.Postion ?? -1;
         }
 
         void OnTick()
         {
+            if (_writing) return;
+
             var rom = CoreState.ROM;
             if (rom == null) return;
 
-            // Only save if there are unsaved changes
-            if (CoreState.Undo == null || !CoreState.Undo.IsModified) return;
+            // Only save if undo position changed since last autosave/manual save
+            int currentPos = CoreState.Undo?.Postion ?? -1;
+            if (currentPos == _lastSavedUndoPosition) return;
 
             string sidecar = ComputeSidecarPath(_romFilename);
             if (string.IsNullOrEmpty(sidecar)) return;
 
             // Belt-and-suspenders: never overwrite the primary ROM
             if (string.Equals(sidecar, rom.Filename, StringComparison.OrdinalIgnoreCase)) return;
+            if (string.Equals(sidecar, _romFilename, StringComparison.OrdinalIgnoreCase)) return;
 
-            try
+            // Copy data on UI thread, write on background thread
+            byte[] data = rom.Data;
+            if (data == null || data.Length == 0) return;
+
+            _writing = true;
+            int savedPos = currentPos;
+            Task.Run(() =>
             {
-                File.WriteAllBytes(sidecar, rom.Data);
-                Log.Notify("Auto-saved to " + Path.GetFileName(sidecar));
-            }
-            catch (Exception ex)
-            {
-                Log.Error("Auto-save failed: {0}", ex.Message);
-            }
+                try
+                {
+                    // Write to temp file first, then move for atomicity
+                    string tempPath = sidecar + ".tmp";
+                    File.WriteAllBytes(tempPath, data);
+                    File.Move(tempPath, sidecar, true);
+                    _lastSavedUndoPosition = savedPos;
+                    Log.Notify("Auto-saved to " + Path.GetFileName(sidecar));
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Auto-save failed: {0}", ex.Message);
+                }
+                finally
+                {
+                    _writing = false;
+                }
+            });
         }
 
         /// <summary>
