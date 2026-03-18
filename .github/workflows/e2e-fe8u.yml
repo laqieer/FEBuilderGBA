@@ -21,4 +21,5 @@ jobs:
       rom-name: FE8U
       job-name: "E2E FE8U"
       timeout: 30
+      is-scheduled: ${{ github.event_name == 'schedule' }}
     secrets: inherit
