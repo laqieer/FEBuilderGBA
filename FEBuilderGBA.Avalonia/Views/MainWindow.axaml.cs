@@ -2314,7 +2314,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("emulator", "emulator");
+            await RunExternalTool("emulator", "emulator", "Emulator_Path");
         }
 
         private async void RunEmulator2_Click(object? sender, RoutedEventArgs e)
@@ -2324,17 +2324,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void RunBinaryEditor_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("program1", "binary editor");
+            string path = OptionsViewModel.GetToolPath(CoreState.Config, "binary_editor", "BinaryEditor_Path");
+            if (string.IsNullOrEmpty(path))
+            {
+                WindowManager.Instance.Open<HexEditorView>();
+                return;
+            }
+
+            await RunExternalTool("binary_editor", "binary editor", "BinaryEditor_Path");
         }
 
         private async void RunSappy_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("sappy", "Sappy");
+            await RunExternalTool("sappy", "Sappy", "Sappy_Path");
         }
 
         private async void RunProgram1_Click(object? sender, RoutedEventArgs e)
         {
-            await RunExternalTool("program1", "Program 1");
+            await RunExternalTool("program1", "Program 1", "CustomTool_Path");
         }
 
         private async void RunProgram2_Click(object? sender, RoutedEventArgs e)
@@ -2347,9 +2354,9 @@ namespace FEBuilderGBA.Avalonia.Views
             await RunExternalTool("program3", "Program 3");
         }
 
-        private async System.Threading.Tasks.Task RunExternalTool(string configKey, string toolName)
+        private async System.Threading.Tasks.Task RunExternalTool(string configKey, string toolName, params string[] fallbackKeys)
         {
-            string path = CoreState.Config?.at(configKey, "") ?? "";
+            string path = OptionsViewModel.GetToolPath(CoreState.Config, configKey, fallbackKeys);
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
                 await MessageBoxWindow.Show(this,

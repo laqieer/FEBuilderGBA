@@ -54,6 +54,16 @@
               </Grid>
             </StackPanel>
 
+            <!-- Editors -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Editors" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Binary Editor" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="BinaryEditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="BinaryEditorTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
             <!-- Custom Programs -->
             <StackPanel Spacing="4">
               <TextBlock Text="Custom Programs" FontWeight="Bold" Margin="0,0,0,4" />

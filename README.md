@@ -104,9 +104,10 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot
 FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
 # NOTE: Avalonia and WinForms share the same config.xml for settings.
-# The Avalonia Options dialog exposes 20+ external tool paths (emulator, sappy,
-# event_assembler, devkitpro_eabi, etc.) using the same config keys as WinForms,
-# so settings configured in one GUI are available in the other.
+# The Avalonia Options dialog exposes 20+ external tool paths (emulator,
+# binary_editor, sappy, event_assembler, devkitpro_eabi, etc.) using the same
+# config keys as WinForms, and still reads legacy Avalonia-only keys such as
+# Emulator_Path/BinaryEditor_Path during upgrade so existing settings keep working.
 
 # Export decoded graphics editor images (for cross-platform pixel comparison)
 # Exports 16 editors: PortraitViewer, BattleBGViewer, BattleTerrainViewer, BigCGViewer,

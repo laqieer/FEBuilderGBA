@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -19,6 +20,7 @@ namespace FEBuilderGBA.Core.Tests
         static readonly string[] ToolPathKeys = new[]
         {
             "emulator", "emulator2",
+            "binary_editor",
             "program1", "program2", "program3",
             "sappy", "mid2agb", "gba_mus_riper", "sox", "midfix4agb",
             "event_assembler", "devkitpro_eabi", "goldroad_asm", "CFLAGS", "retdec", "python3", "FECLIB",
@@ -101,14 +103,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void OldAvaloniaKeys_NotUsed()
+        public void LegacyAvaloniaKeys_DefaultToEmptyString()
         {
-            // Ensure the old Avalonia-specific keys are not set by default
-            // These were the broken keys: Emulator_Path, BinaryEditor_Path, Sappy_Path, CustomTool_Path
+            // Legacy Avalonia-only keys should be absent until an older config is loaded.
             Assert.Equal("", _config.at("Emulator_Path", ""));
             Assert.Equal("", _config.at("BinaryEditor_Path", ""));
             Assert.Equal("", _config.at("Sappy_Path", ""));
             Assert.Equal("", _config.at("CustomTool_Path", ""));
+        }
+
+        [Fact]
+        public void Load_FallsBackToLegacyAvaloniaToolKeys()
+        {
+            _config["Emulator_Path"] = "/legacy/emulator.exe";
+            _config["BinaryEditor_Path"] = "/legacy/binary.exe";
+            _config["Sappy_Path"] = "/legacy/sappy.exe";
+            _config["CustomTool_Path"] = "/legacy/custom.exe";
+
+            var vm = new OptionsViewModel();
+            vm.Load();
+
+            Assert.Equal("/legacy/emulator.exe", vm.Emulator);
+            Assert.Equal("/legacy/binary.exe", vm.BinaryEditor);
+            Assert.Equal("/legacy/sappy.exe", vm.Sappy);
+            Assert.Equal("/legacy/custom.exe", vm.Program1);
         }
     }
 }

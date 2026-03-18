@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // External tool paths — keys match WinForms config.xml exactly
         string _emulator = "";
         string _emulator2 = "";
+        string _binaryEditor = "";
         string _program1 = "";
         string _program2 = "";
         string _program3 = "";
@@ -35,7 +36,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _srccodeTexteditor = "";
         string _srccodeDirectory = "";
 
-        /// <summary>Current UI language code (e.g. "en", "zh").</summary>
+        /// <summary>Current language selection entry (e.g. "en — English").</summary>
         public string Language
         {
             get => _language;
@@ -67,6 +68,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public string Emulator { get => _emulator; set => SetField(ref _emulator, value); }
         public string Emulator2 { get => _emulator2; set => SetField(ref _emulator2, value); }
+        public string BinaryEditor { get => _binaryEditor; set => SetField(ref _binaryEditor, value); }
         public string Program1 { get => _program1; set => SetField(ref _program1, value); }
         public string Program2 { get => _program2; set => SetField(ref _program2, value); }
         public string Program3 { get => _program3; set => SetField(ref _program3, value); }
@@ -109,12 +111,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     AutoBackup = backupVal > 0;
 
                     // Load all tool paths using WinForms-compatible keys
-                    Emulator = cfg.at("emulator", "");
+                    Emulator = GetToolPath(cfg, "emulator", "Emulator_Path");
                     Emulator2 = cfg.at("emulator2", "");
-                    Program1 = cfg.at("program1", "");
+                    BinaryEditor = GetToolPath(cfg, "binary_editor", "BinaryEditor_Path");
+                    Program1 = GetToolPath(cfg, "program1", "CustomTool_Path");
                     Program2 = cfg.at("program2", "");
                     Program3 = cfg.at("program3", "");
-                    Sappy = cfg.at("sappy", "");
+                    Sappy = GetToolPath(cfg, "sappy", "Sappy_Path");
                     Mid2agb = cfg.at("mid2agb", "");
                     GbaMusRiper = cfg.at("gba_mus_riper", "");
                     Sox = cfg.at("sox", "");
@@ -145,6 +148,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return sep > 0 ? displayString.Substring(0, sep) : displayString;
         }
 
+        internal static string GetToolPath(Config? cfg, string key, params string[] fallbackKeys)
+        {
+            if (cfg == null)
+                return "";
+
+            string value = cfg.at(key, "");
+            if (!string.IsNullOrEmpty(value))
+                return value;
+
+            foreach (string fallbackKey in fallbackKeys)
+            {
+                value = cfg.at(fallbackKey, "");
+                if (!string.IsNullOrEmpty(value))
+                    return value;
+            }
+
+            return "";
+        }
+
         /// <summary>Save settings to CoreState and Config.</summary>
         public void Save()
         {
@@ -163,6 +185,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Save all tool paths using WinForms-compatible keys
                 cfg["emulator"] = Emulator ?? "";
                 cfg["emulator2"] = Emulator2 ?? "";
+                cfg["binary_editor"] = BinaryEditor ?? "";
                 cfg["program1"] = Program1 ?? "";
                 cfg["program2"] = Program2 ?? "";
                 cfg["program3"] = Program3 ?? "";

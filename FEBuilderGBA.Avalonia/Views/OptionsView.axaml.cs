@@ -32,6 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // External Tools tab
             EmulatorTextBox.Text = _vm.Emulator;
             Emulator2TextBox.Text = _vm.Emulator2;
+            BinaryEditorTextBox.Text = _vm.BinaryEditor;
             Program1TextBox.Text = _vm.Program1;
             Program2TextBox.Text = _vm.Program2;
             Program3TextBox.Text = _vm.Program3;
@@ -105,6 +106,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // External Tools
             _vm.Emulator = EmulatorTextBox.Text ?? "";
             _vm.Emulator2 = Emulator2TextBox.Text ?? "";
+            _vm.BinaryEditor = BinaryEditorTextBox.Text ?? "";
             _vm.Program1 = Program1TextBox.Text ?? "";
             _vm.Program2 = Program2TextBox.Text ?? "";
             _vm.Program3 = Program3TextBox.Text ?? "";
