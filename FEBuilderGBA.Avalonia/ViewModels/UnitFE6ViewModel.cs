@@ -414,25 +414,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isSafetyOffset(portraitBase)) return;
 
                 uint dataSize = rom.RomInfo.portrait_datasize;
-                if (dataSize == 0) dataSize = 28;
+                if (dataSize == 0) dataSize = 16;
 
                 uint portraitAddr = portraitBase + effectivePortraitId * dataSize;
                 if (portraitAddr + dataSize > (uint)rom.Data.Length) return;
 
-                uint imgPtr = rom.u32(portraitAddr + 4);
+                // FE6 portrait struct (16 bytes): +0=face, +4=mapface, +8=palette, +12=mouthX, +13=mouthY
+                uint facePtr = rom.u32(portraitAddr + 0);
                 uint palPtr = rom.u32(portraitAddr + 8);
 
-                if (!U.isPointer(imgPtr) || !U.isPointer(palPtr)) return;
+                if (!U.isPointer(facePtr) || !U.isPointer(palPtr)) return;
 
-                uint imgAddr = imgPtr - 0x08000000;
-                uint palAddr = palPtr - 0x08000000;
+                byte mouthX = (dataSize > 12) ? (byte)rom.u8(portraitAddr + 12) : (byte)0;
+                byte mouthY = (dataSize > 13) ? (byte)rom.u8(portraitAddr + 13) : (byte)0;
 
-                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return;
-
-                _portraitImage = ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                _portraitImage = PortraitRendererCoreFE6.DrawPortraitUnitFE6(facePtr, palPtr, mouthX, mouthY, 0);
             }
             catch
             {

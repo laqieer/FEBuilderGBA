@@ -1544,6 +1544,15 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
+        public void UnitFE6ViewModel_UsesPortraitRendererCoreFE6()
+        {
+            // FE6 must use the FE6-specific renderer for full 96x80 portraits (#56)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitFE6ViewModel.cs"));
+            Assert.Contains("PortraitRendererCoreFE6.DrawPortraitUnitFE6(", src);
+            Assert.DoesNotContain("LoadROMTiles4bpp(imgAddr, palette, 4, 4", src);
+        }
+
+        [Fact]
         public void UnitFE6View_HasSetItemsWithIcons()
         {
             // FE6 view must also show portrait icons in the list (#56)
