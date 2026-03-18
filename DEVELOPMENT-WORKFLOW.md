@@ -186,7 +186,8 @@ EOF
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
-  Verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the bugfix or feature works. \
+  Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. \
+  Additionally, verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the bugfix or feature works. \
   Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, relative repo paths, or blob URLs with ?raw=1. \
   Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue. \
   Post your review as a pull request review on GitHub. \

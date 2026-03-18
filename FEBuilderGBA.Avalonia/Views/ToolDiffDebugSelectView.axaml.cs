@@ -76,8 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Read emulator path from config
                 string emulatorPath = "";
                 var cfg = CoreState.Config;
-                if (cfg != null)
-                    emulatorPath = cfg.at("Emulator_Path", "");
+                emulatorPath = OptionsViewModel.GetToolPath(cfg, "emulator", "Emulator_Path");
 
                 if (string.IsNullOrEmpty(emulatorPath) || !System.IO.File.Exists(emulatorPath))
                 {

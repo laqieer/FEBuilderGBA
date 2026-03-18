@@ -2,42 +2,174 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.OptionsView"
         Title="Options"
-        Width="520" Height="340"
+        Width="620" Height="560"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         ShowInTaskbar="False"
-        SizeToContent="WidthAndHeight">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        SizeToContent="Height">
   <Grid RowDefinitions="*,Auto" Margin="16">
-    <!-- Settings -->
-    <StackPanel Grid.Row="0" Spacing="12">
-      <!-- Language -->
-      <StackPanel Spacing="4">
-        <TextBlock Text="Language" FontWeight="SemiBold" />
-        <ComboBox Name="LanguageCombo" HorizontalAlignment="Stretch" />
-      </StackPanel>
+    <TabControl Grid.Row="0">
+      <!-- General Tab -->
+      <TabItem Header="General">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+          <StackPanel Spacing="12">
+            <!-- Language -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Language" FontWeight="SemiBold" />
+              <ComboBox Name="LanguageCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
 
-      <!-- Git Path -->
-      <StackPanel Spacing="4">
-        <TextBlock Text="Git Executable Path" FontWeight="SemiBold" />
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBox Name="GitPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
-          <Button Name="BrowseGitButton" Grid.Column="1" Content="Browse..." Click="BrowseGit_Click" Padding="12,6" />
-        </Grid>
-      </StackPanel>
+            <!-- Git Path -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Git Executable Path" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="GitPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GitPathTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
 
-      <!-- Emulator Path -->
-      <StackPanel Spacing="4">
-        <TextBlock Text="Emulator Path" FontWeight="SemiBold" />
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBox Name="EmulatorPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
-          <Button Name="BrowseEmulatorButton" Grid.Column="1" Content="Browse..." Click="BrowseEmulator_Click" Padding="12,6" />
-        </Grid>
-      </StackPanel>
+            <!-- Auto-Backup -->
+            <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
 
-      <!-- Auto-Backup -->
-      <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
-    </StackPanel>
+      <!-- External Tools Tab -->
+      <TabItem Header="External Tools">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
+          <StackPanel Spacing="16">
+
+            <!-- Emulation -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Emulation" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Emulator" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="EmulatorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EmulatorTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="Emulator 2" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Emulator2TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Emulator2TextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+            <!-- Editors -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Editors" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Binary Editor" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="BinaryEditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="BinaryEditorTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+            <!-- Custom Programs -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Custom Programs" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Program 1" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Program1TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program1TextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="Program 2" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Program2TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program2TextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="Program 3" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Program3TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program3TextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+            <!-- Audio Tools -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Audio Tools" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Sappy (Sound Editor)" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="SappyTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SappyTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="mid2agb" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Mid2agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Mid2agbTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="gba_mus_riper" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="GbaMusRiperTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GbaMusRiperTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="SoX (Sound eXchange)" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="SoxTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SoxTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="midfix4agb" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Midfix4agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Midfix4agbTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+            <!-- Development Tools -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Development Tools" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Event Assembler" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="EventAssemblerTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EventAssemblerTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="DevkitPro ARM EABI" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="DevkitproEabiTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="DevkitproEabiTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="GoldRoad ASM" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="GoldroadAsmTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GoldroadAsmTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="CFLAGS" Margin="0,4,0,0" />
+              <TextBox Name="CflagsTextBox" />
+              <TextBlock Text="RetDec Decompiler" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="RetdecTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="RetdecTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="Python 3" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="Python3TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Python3TextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="FECLIB" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="FeclibTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="FeclibTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+            <!-- Source Code -->
+            <StackPanel Spacing="4">
+              <TextBlock Text="Source Code" FontWeight="Bold" Margin="0,0,0,4" />
+              <TextBlock Text="Text Editor" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="SrccodeTexteditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SrccodeTexteditorTextBox" Padding="12,6" />
+              </Grid>
+              <TextBlock Text="Source Directory" Margin="0,4,0,0" />
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox Name="SrccodeDirectoryTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="SrccodeDirectoryTextBox" Padding="12,6" />
+              </Grid>
+            </StackPanel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
 
     <!-- OK / Cancel -->
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
@@ -45,5 +177,4 @@
       <Button Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
     </StackPanel>
   </Grid>
-  </ScrollViewer>
 </Window>
