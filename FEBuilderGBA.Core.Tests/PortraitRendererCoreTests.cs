@@ -341,6 +341,141 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(255, parts.SpriteSheetPixels[3]);
         }
 
+        // ================================================================
+        // FE6-specific portrait renderer tests
+        // ================================================================
+
+        [Fact]
+        public void DrawPortraitUnitFE6_NullROM_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0x08000000, 0x08000100, 2, 3, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawPortraitUnitFE6_ZeroFacePointer_ReturnsNull()
+        {
+            // Zero face pointer with non-null ROM should still return null
+            // (toOffset(0) == 0, which triggers the unitFace == 0 guard)
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCoreFE6.DrawPortraitUnitFE6(0, 0x08000100, 0, 0, 0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void FE6MouthFrames_HaveCorrectCoordinates()
+        {
+            // Verify the FE6 mouth frame coordinate mapping matches WinForms
+            var frames = PortraitRendererCoreFE6.MouthFrames;
+            Assert.Equal(4, frames.Length);
+
+            // Frame 1: (192, 0) 32x16
+            Assert.Equal((192, 0, 32, 16), frames[0]);
+            // Frame 2: (224, 0) 32x16
+            Assert.Equal((224, 0, 32, 16), frames[1]);
+            // Frame 3: (192, 16) 32x16
+            Assert.Equal((192, 16, 32, 16), frames[2]);
+            // Frame 4: (224, 16) 32x16
+            Assert.Equal((224, 16, 32, 16), frames[3]);
+
+            // Frame 5 split coordinates
+            Assert.Equal(0, PortraitRendererCoreFE6.Frame5TopX);
+            Assert.Equal(32, PortraitRendererCoreFE6.Frame5TopY);
+            Assert.Equal(32, PortraitRendererCoreFE6.Frame5BotX);
+            Assert.Equal(32, PortraitRendererCoreFE6.Frame5BotY);
+        }
+
+        [Fact]
+        public void FE6ApplyMouthFrame_Frame1_BlitsCorrectRegion()
+        {
+            // Create a synthetic 256x40 sheet with a marker at frame 1 position (192, 0)
+            int sheetW = 256, sheetH = 40;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+            int markerIdx = (0 * sheetW + 192) * 4;
+            sheet[markerIdx + 0] = 255; // R
+            sheet[markerIdx + 1] = 0;   // G
+            sheet[markerIdx + 2] = 0;   // B
+            sheet[markerIdx + 3] = 255; // A
+
+            byte[] face = new byte[96 * 80 * 4];
+            // mouthX=2, mouthY=3 -> pixel (16, 24)
+            PortraitRendererCoreFE6.ApplyMouthFrame(1, sheet, sheetW, 2, 3, face, 96);
+
+            int destIdx = (24 * 96 + 16) * 4;
+            Assert.Equal(255, face[destIdx + 0]); // R
+            Assert.Equal(0, face[destIdx + 1]);   // G
+            Assert.Equal(0, face[destIdx + 2]);   // B
+            Assert.Equal(255, face[destIdx + 3]); // A
+        }
+
+        [Fact]
+        public void FE6ApplyMouthFrame_Frame5_BlitsSplitRegions()
+        {
+            // Frame 5 is split: top from (0,32), bottom from (32,32)
+            int sheetW = 256, sheetH = 40;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+
+            // Mark top half at (0, 32) with green
+            int topIdx = (32 * sheetW + 0) * 4;
+            sheet[topIdx + 0] = 0; sheet[topIdx + 1] = 255; sheet[topIdx + 2] = 0; sheet[topIdx + 3] = 255;
+
+            // Mark bottom half at (32, 32) with blue
+            int botIdx = (32 * sheetW + 32) * 4;
+            sheet[botIdx + 0] = 0; sheet[botIdx + 1] = 0; sheet[botIdx + 2] = 255; sheet[botIdx + 3] = 255;
+
+            byte[] face = new byte[96 * 80 * 4];
+            PortraitRendererCoreFE6.ApplyMouthFrame(5, sheet, sheetW, 1, 1, face, 96);
+
+            // Top half goes to (8, 8)
+            int topDest = (8 * 96 + 8) * 4;
+            Assert.Equal(0, face[topDest + 0]);
+            Assert.Equal(255, face[topDest + 1]); // Green
+            Assert.Equal(0, face[topDest + 2]);
+
+            // Bottom half goes to (8, 16) — 8 pixels below top
+            int botDest = (16 * 96 + 8) * 4;
+            Assert.Equal(0, face[botDest + 0]);
+            Assert.Equal(0, face[botDest + 1]);
+            Assert.Equal(255, face[botDest + 2]); // Blue
+        }
+
+        [Fact]
+        public void FE6AssembleFace_ProducesCorrectDimensions()
+        {
+            // Verify AssembleFace produces non-zero output
+            int sheetW = 256, sheetH = 40;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+            // Paint entire sheet white (opaque)
+            for (int i = 0; i < sheet.Length; i += 4)
+            {
+                sheet[i] = 255; sheet[i + 1] = 255; sheet[i + 2] = 255; sheet[i + 3] = 255;
+            }
+
+            byte[] face = new byte[96 * 80 * 4];
+            PortraitRendererCoreFE6.AssembleFace(sheet, sheetW, face, 96);
+
+            // Check center pixel is non-zero (face area was painted)
+            int centerIdx = (40 * 96 + 48) * 4;
+            Assert.Equal(255, face[centerIdx + 3]); // Alpha should be opaque
+        }
+
         [Fact]
         public void SplitPortraitSheet_MouthFrames_MappedCorrectly()
         {

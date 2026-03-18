@@ -401,7 +401,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Decode 4bpp tile data into RGBA pixel array.
         /// </summary>
-        static byte[] DecodeTilesToRGBA(byte[] tileData, int width, int height, byte[] gbaPalette, IImageService svc)
+        internal static byte[] DecodeTilesToRGBA(byte[] tileData, int width, int height, byte[] gbaPalette, IImageService svc)
         {
             int tilesX = width / 8;
             int tilesY = height / 8;
