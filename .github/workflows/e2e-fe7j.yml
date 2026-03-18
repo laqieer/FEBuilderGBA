@@ -5,11 +5,14 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  schedule:
+    - cron: '0 21 * * *'   # Daily UTC 21:00 (Beijing 05:00)
   workflow_dispatch:
 
 permissions:
   contents: read
   checks: write
+  issues: write
 
 jobs:
   e2e:

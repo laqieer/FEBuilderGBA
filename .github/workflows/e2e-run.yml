@@ -23,6 +23,7 @@ on:
 permissions:
   contents: read
   checks: write
+  issues: write
 
 jobs:
   e2e:
@@ -269,3 +270,36 @@ jobs:
           name: cli-output-logs-${{ inputs.rom-name }}
           path: ${{ github.workspace }}\cli-logs\
           if-no-files-found: ignore
+
+      # ---------------------------------------------------------------- Create issue on scheduled failure
+      - name: Create issue on scheduled E2E failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          ROM_NAME="${{ inputs.rom-name }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DATE=$(date -u +%Y-%m-%d)
+          TITLE="E2E failure: ${ROM_NAME} (${DATE})"
+
+          # Per-variant duplicate check: skip if an open issue already exists for this ROM
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --label "e2e-failure" --state open --search "E2E failure: ${ROM_NAME}" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "Open issue #${EXISTING} already exists for ${ROM_NAME} — skipping."
+            exit 0
+          fi
+
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "${TITLE}" \
+            --label "e2e-failure" \
+            --body "## Scheduled E2E failure: ${ROM_NAME}
+
+          The daily scheduled E2E test for **${ROM_NAME}** failed.
+
+          - **Run:** ${RUN_URL}
+          - **Date:** ${DATE}
+          - **Branch:** ${{ github.ref_name }}
+
+          Please investigate and fix the failing tests."

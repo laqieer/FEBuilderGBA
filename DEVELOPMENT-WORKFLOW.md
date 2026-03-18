@@ -281,8 +281,12 @@ Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be
 Before attempting merge, verify ALL of these:
 - [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
 - [ ] All GitHub Copilot bot inline comments addressed and threads resolved
-- [ ] All CI checks green (build + E2E for all ROM variants)
-- [ ] Branch is up to date with master (rebase if needed)
+- [ ] All **required** CI checks green (build via `check.yml`). E2E checks are informational — they run daily on master via cron, not required for merge.
+- [ ] Branch is up to date with master — verify with:
+  ```bash
+  gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus --jq .mergeStateStatus
+  # If BEHIND or DIRTY: rebase onto master and push
+  ```
 - [ ] No merge conflicts
 - [ ] PR body accurately reflects what was delivered (update if code changes were added during review)
 
@@ -298,6 +302,7 @@ gh pr merge <N> -R laqieer/FEBuilderGBA --merge
 | **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
 | **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
 | **Unresolved conversations** | GraphQL query for unresolved threads (see step 10) | Resolve all threads |
+| **Branch outdated** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus --jq .mergeStateStatus` shows `BEHIND` | `git fetch origin master && git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review |
 | **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review (rebase can introduce changes) |
 | **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
 | **"not mergeable" (unknown)** | Wait 15s — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
@@ -390,6 +395,10 @@ A local-only review doesn't count — the review must be visible on GitHub.
 ### Don't: Work directly on master
 Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
 **Do:** Always create a feature branch from an up-to-date master: `git checkout master && git pull && git checkout -b feat/...`
+
+### Don't: Guess why merge is blocked
+Assuming "needs approval" when the real cause is an outdated branch or unresolved threads wastes time and misses the actual fix.
+**Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
 
 ### Don't: Open a feat/fix PR without screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
