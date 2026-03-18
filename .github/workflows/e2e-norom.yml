@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [master]
   schedule:
-    - cron: '0 20 * * *'   # Daily UTC 20:00 (Beijing 04:00)
+    - cron: '3 20 * * *'   # Daily UTC 20:03 (Beijing 04:03)
   workflow_dispatch:
 
 permissions:
