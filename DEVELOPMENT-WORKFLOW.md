@@ -160,8 +160,10 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- MANDATORY: Attach screenshot(s) proving the bugfix or feature works -->
-![description](url)
+<!-- MANDATORY: Replace this comment block with actual screenshot(s).
+     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
+     Delete this entire comment and add real image(s) below. -->
+
 
 ## Test plan
 - [x] <what was tested>
@@ -179,14 +181,14 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
-- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to both the PR description and any related issue comments. No PR may be opened without visual proof.
+- **MANDATORY: Include screenshot(s)** proving the bugfix or feature works — attach to both the PR description and any related issue comments. No PR may be opened without visual proof. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For non-visual changes (library refactors, build/CI fixes, docs-only), a terminal output or diff screenshot is sufficient.
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
-  Verify the PR description contains screenshot(s) proving the bugfix or feature works. \
-  If screenshots are missing, flag it as a blocking issue. \
+  Verify the PR description contains at least one real embedded image (GitHub attachment URL or raw repo image link) proving the bugfix or feature works. \
+  Treat a Screenshots section with only placeholder text, HTML comments, or no actual image links as missing. Flag missing screenshots as a blocking issue. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
