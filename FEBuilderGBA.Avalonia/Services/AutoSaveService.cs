@@ -96,9 +96,11 @@ namespace FEBuilderGBA.Avalonia.Services
             if (string.Equals(sidecar, rom.Filename, StringComparison.OrdinalIgnoreCase)) return;
             if (string.Equals(sidecar, _romFilename, StringComparison.OrdinalIgnoreCase)) return;
 
-            // Copy data on UI thread, write on background thread
-            byte[] data = rom.Data;
-            if (data == null || data.Length == 0) return;
+            // Snapshot ROM data on UI thread to avoid torn writes
+            byte[] srcData = rom.Data;
+            if (srcData == null || srcData.Length == 0) return;
+            byte[] data = new byte[srcData.Length];
+            Buffer.BlockCopy(srcData, 0, data, 0, srcData.Length);
 
             _writing = true;
             int savedPos = currentPos;
