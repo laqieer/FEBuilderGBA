@@ -31,17 +31,28 @@ cli-anything-febuildergba
 ### One-shot Commands
 
 ```bash
-# ROM info
+# ROM info and header
 cli-anything-febuildergba rom info roms/FE8U.gba
+cli-anything-febuildergba rom header roms/FE8U.gba
 
-# Export unit data
+# Export unit data, look up a single entry
 cli-anything-febuildergba --rom roms/FE8U.gba data export units -o units.tsv
+cli-anything-febuildergba data lookup units.tsv 1
+
+# Compare two exports
+cli-anything-febuildergba data diff units_before.tsv units_after.tsv
+
+# Search ROM text
+cli-anything-febuildergba --rom roms/FE8U.gba text search "Eirika"
+
+# List available patches
+cli-anything-febuildergba --rom roms/FE8U.gba patch list
+
+# Save ROM copy
+cli-anything-febuildergba --rom roms/FE8U.gba rom save -o backup.gba
 
 # Lint check
 cli-anything-febuildergba --rom roms/FE8U.gba lint
-
-# Export all text
-cli-anything-febuildergba --rom roms/FE8U.gba text export -o texts.tsv
 
 # JSON output (for agents)
 cli-anything-febuildergba --json rom info roms/FE8U.gba
@@ -56,7 +67,7 @@ cli-anything-febuildergba session open roms/FE8U.gba
 # Subsequent commands use the session ROM
 cli-anything-febuildergba data export units -o units.tsv
 cli-anything-febuildergba lint
-cli-anything-febuildergba text export -o texts.tsv
+cli-anything-febuildergba text search "Seth"
 
 # Check session status
 cli-anything-febuildergba session status
@@ -66,11 +77,11 @@ cli-anything-febuildergba session status
 
 | Group | Description |
 |-------|-------------|
-| `rom` | ROM info, validation, table listing |
-| `data` | Struct data export/import (40 tables) |
-| `text` | Text export/import, roundtrip validation |
+| `rom` | ROM info, header dump, validation, save, table listing |
+| `data` | Struct data export/import/diff/lookup (40 tables) |
+| `text` | Text export/import, search, roundtrip validation |
 | `lint` | ROM integrity checks |
-| `patch` | UPS patch creation/application |
+| `patch` | UPS patch creation/application, patch listing |
 | `image` | Palette quantization, map tile conversion |
 | `disasm` | ROM disassembly |
 | `rebuild` | ROM defragmentation |
@@ -87,7 +98,8 @@ and 28 more. Run `cli-anything-febuildergba rom tables` for the full list.
 
 | Variable | Description |
 |----------|-------------|
-| `FEBUILDERGBA_CLI` | Explicit path to FEBuilderGBA.CLI executable |
+| `FEBUILDERGBA_CLI_EXE` | Explicit path to FEBuilderGBA.CLI executable (preferred) |
+| `FEBUILDERGBA_CLI` | Fallback path to FEBuilderGBA.CLI executable |
 
 ## Running Tests
 
