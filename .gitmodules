@@ -1,3 +1,9 @@
 [submodule "config/patch2"]
 	path = config/patch2
 	url = https://github.com/laqieer/FEBuilderGBA-patch2.git
+[submodule "tools/Event-Assembler"]
+	path = tools/Event-Assembler
+	url = https://github.com/laqieer/Event-Assembler
+[submodule "tools/ColorzCore"]
+	path = tools/ColorzCore
+	url = https://github.com/FireEmblemUniverse/ColorzCore
