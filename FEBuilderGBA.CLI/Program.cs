@@ -193,6 +193,31 @@ namespace FEBuilderGBA.CLI
                 return RunThreeWayMerge(argsDic);
             }
 
+            if (argsDic.ContainsKey("--import-midi"))
+            {
+                return RunImportMidi(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--compile-event"))
+            {
+                return RunCompileEvent(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--freespace"))
+            {
+                return RunFreeSpace(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--hex-dump"))
+            {
+                return RunHexDump(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--search-text"))
+            {
+                return RunSearchText(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -294,7 +319,21 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --list-resources         List available resources from FE-Repo/FE-Repo-Music submodules");
             Console.WriteLine("    --category=<name>      Filter by category (e.g., 'Battle Animations', 'Portraits')");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
+            Console.WriteLine("  --import-midi            Import MIDI file into ROM song slot (requires --rom, --song-id, --in)");
+            Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
+            Console.WriteLine("    --in=<path>            Input MIDI file path");
+            Console.WriteLine("  --compile-event          Compile event script with EA/ColorzCore (requires --rom, --in)");
+            Console.WriteLine("    --in=<path>            Input .event source file");
+            Console.WriteLine("    --out=<path>           Output ROM path (default: overwrites input ROM)");
+            Console.WriteLine("  --freespace              Scan and report free space in ROM (requires --rom)");
+            Console.WriteLine("    --min-size=<int>       Minimum free block size to report (default: 16)");
+            Console.WriteLine("  --hex-dump               Dump ROM bytes in hex+ASCII format (requires --rom, --addr)");
+            Console.WriteLine("    --addr=<hex>           Start address in hex (e.g., 0x1000)");
+            Console.WriteLine("    --length=<int>         Number of bytes to dump (default: 256)");
+            Console.WriteLine("  --search-text            Search for text pattern across all ROM text entries (requires --rom, --query)");
+            Console.WriteLine("    --query=<text>         Text pattern to search for (case-insensitive)");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
+            Console.WriteLine("    --patch-name=<name>    Filter patches by name (substring match)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -318,6 +357,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid");
+            Console.WriteLine("  FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba");
+            Console.WriteLine("  FEBuilderGBA.CLI --list-patches --rom=rom.gba --patch-name=SkillSystem");
+            Console.WriteLine("  FEBuilderGBA.CLI --freespace --rom=rom.gba --min-size=256");
+            Console.WriteLine("  FEBuilderGBA.CLI --hex-dump --rom=rom.gba --addr=0x1000 --length=512");
+            Console.WriteLine("  FEBuilderGBA.CLI --search-text --rom=rom.gba --query=Eirika");
             Console.WriteLine("  FEBuilderGBA.CLI --lastrom");
             Console.WriteLine("  FEBuilderGBA.CLI --translate_batch --rom=rom.gba --out=texts.tsv --in=translated.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --test --rom=rom.gba");
@@ -2322,9 +2367,21 @@ namespace FEBuilderGBA.CLI
             string lang = CoreState.Language ?? "en";
             var patches = PatchMetadataCore.EnumeratePatches(patchDir, CoreState.ROM, lang);
 
+            // Apply --patch-name filter if specified
+            string patchNameFilter = argsDic.ContainsKey("--patch-name") ? argsDic["--patch-name"] : null;
+            if (!string.IsNullOrEmpty(patchNameFilter))
+            {
+                patches = patches.Where(p =>
+                    p.DirectoryName != null &&
+                    p.DirectoryName.IndexOf(patchNameFilter, StringComparison.OrdinalIgnoreCase) >= 0
+                ).ToList();
+            }
+
             Console.WriteLine($"ROM: {romPath}");
             Console.WriteLine($"Version: {version}");
             Console.WriteLine($"Patch directory: {patchDir}");
+            if (!string.IsNullOrEmpty(patchNameFilter))
+                Console.WriteLine($"Filter: {patchNameFilter}");
             Console.WriteLine();
 
             int installed = 0, unknown = 0;
@@ -2682,6 +2739,467 @@ namespace FEBuilderGBA.CLI
             }
 
             Console.WriteLine($"Total resource files: {totalResources}");
+            return 0;
+        }
+
+        static int RunImportMidi(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --import-midi requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--song-id") || string.IsNullOrEmpty(argsDic["--song-id"]))
+            {
+                Console.Error.WriteLine("Error: --import-midi requires --song-id=<hex_id>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            {
+                Console.Error.WriteLine("Error: --import-midi requires --in=<midi_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string midiPath = argsDic["--in"];
+            string songIdStr = argsDic["--song-id"].Replace("0x", "").Replace("0X", "");
+
+            if (!uint.TryParse(songIdStr, System.Globalization.NumberStyles.HexNumber, null, out uint songId))
+            {
+                Console.Error.WriteLine("Error: Invalid --song-id hex value.");
+                return 1;
+            }
+
+            if (!File.Exists(midiPath))
+            {
+                Console.Error.WriteLine($"Error: MIDI file not found: {midiPath}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            uint soundTablePtr = rom.RomInfo.sound_table_pointer;
+            uint tableAddr = rom.p32(U.toOffset(soundTablePtr));
+
+            // Each song table entry is 8 bytes: pointer to song header (4) + extra (4)
+            uint songAddr = tableAddr + (songId * 8);
+            if (!U.isSafetyOffset(songAddr + 7, rom))
+            {
+                Console.Error.WriteLine($"Error: Song 0x{songId:X} is out of range.");
+                return 1;
+            }
+
+            uint songHeaderPtr = rom.p32(songAddr);
+            if (songHeaderPtr == 0 || !U.isSafetyOffset(songHeaderPtr + 7, rom))
+            {
+                Console.Error.WriteLine($"Error: Song 0x{songId:X} not found or invalid pointer.");
+                return 1;
+            }
+
+            // Read instrument pointer from song header (+4) as raw GBA pointer
+            // ImportMidiFile expects the raw 0x08xxxxxx pointer, not a ROM offset
+            uint instrumentPtr = rom.u32(songHeaderPtr + 4);
+
+            // Parse MIDI info for display
+            var midiInfo = SongMidiCore.ParseMidiFile(midiPath);
+            if (midiInfo != null)
+            {
+                Console.WriteLine($"MIDI: {midiPath}");
+                Console.WriteLine($"  Format: {midiInfo.Format}, Tracks: {midiInfo.TrackCount}, TPQN: {midiInfo.TicksPerQuarterNote}");
+                if (midiInfo.TempoBPM > 0)
+                    Console.WriteLine($"  Tempo: {midiInfo.TempoBPM:F1} BPM");
+            }
+
+            // Import MIDI to ROM
+            string error = SongMidiCore.ImportMidiFile(midiPath, songAddr, instrumentPtr);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Console.Error.WriteLine($"Error: {error}");
+                return 1;
+            }
+
+            // Save ROM
+            rom.Save(romPath, true);
+            Console.WriteLine($"Song 0x{songId:X} imported from {midiPath} and saved to {romPath}");
+            return 0;
+        }
+
+        static int RunCompileEvent(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --compile-event requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            {
+                Console.Error.WriteLine("Error: --compile-event requires --in=<event_file>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string eventPath = Path.GetFullPath(argsDic["--in"]);
+            string outputPath = argsDic.ContainsKey("--out") ? argsDic["--out"] : romPath;
+
+            if (!File.Exists(eventPath))
+            {
+                Console.Error.WriteLine($"Error: Event file not found: {eventPath}");
+                return 1;
+            }
+
+            // Resolve EA/ColorzCore executable
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            string eaExe = ToolPathResolver.ResolveEventAssembler();
+            if (string.IsNullOrEmpty(eaExe) || !File.Exists(eaExe))
+            {
+                Console.Error.WriteLine("Error: Event Assembler / ColorzCore not found.");
+                Console.Error.WriteLine("  Set the path via config, or build the submodule:");
+                Console.Error.WriteLine("  git submodule update --init tools/Event-Assembler tools/ColorzCore");
+                Console.Error.WriteLine("  dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release");
+                return 1;
+            }
+
+            bool isColorzCore = ToolPathResolver.IsColorzCore(eaExe);
+            var rom = CoreState.ROM;
+            string gameCode = rom.RomInfo.TitleToFilename;
+
+            // Write current ROM to temp file for EA to modify
+            string tempRomPath = Path.Combine(Path.GetTempPath(), $"febuilder_ea_{DateTime.Now.Ticks}.gba");
+            File.WriteAllBytes(tempRomPath, rom.Data);
+
+            // Generate minimal auto-def wrapper
+            string wrapperContent = $"#include \"{Path.GetFileName(eventPath)}\"\n";
+
+            string wrapperPath = Path.Combine(Path.GetDirectoryName(eventPath),
+                $"_FBG_CLI_{DateTime.Now.Ticks}.event");
+            File.WriteAllText(wrapperPath, wrapperContent);
+
+            // Build EA arguments
+            string symFile = Path.GetTempFileName();
+            string toolDir = Path.GetDirectoryName(eaExe);
+
+            string eaArgs;
+            if (isColorzCore)
+            {
+                eaArgs = $"A {gameCode} " +
+                    $"\"-input:{wrapperPath}\" " +
+                    $"\"-output:{tempRomPath}\" " +
+                    $"\"--nocash-sym:{symFile}\"";
+            }
+            else
+            {
+                eaArgs = $"A {gameCode} " +
+                    $"\"-input:{wrapperPath}\" " +
+                    $"\"-output:{tempRomPath}\" " +
+                    $"\"-symOutput:{symFile}\"";
+            }
+
+            Console.WriteLine($"Event Assembler: {eaExe}");
+            Console.WriteLine($"Game: {gameCode}");
+            Console.WriteLine($"Input: {eventPath}");
+            Console.WriteLine($"Compiling...");
+
+            try
+            {
+                string output = RunEAProcess(eaExe, eaArgs, toolDir);
+
+                // Check for compilation errors
+                bool hasError = !IsEASuccess(output);
+
+                // Fallback for older EA: retry without -symOutput if it's unsupported
+                if (hasError && !isColorzCore &&
+                    (output.Contains("symOutput doesn't exist.") || output.Contains("Unrecognized flag: symOutput")))
+                {
+                    Console.WriteLine("Retrying without -symOutput (older EA detected)...");
+                    // Re-copy ROM since first attempt may have corrupted it
+                    File.WriteAllBytes(tempRomPath, rom.Data);
+
+                    string fallbackArgs = $"A {gameCode} " +
+                        $"\"-input:{wrapperPath}\" " +
+                        $"\"-output:{tempRomPath}\"";
+
+                    output = RunEAProcess(eaExe, fallbackArgs, toolDir);
+                    hasError = !IsEASuccess(output);
+                }
+
+                if (hasError)
+                {
+                    Console.Error.WriteLine("Compilation failed:");
+                    Console.Error.WriteLine(output);
+                    return 1;
+                }
+
+                // Compilation succeeded — save the modified ROM
+                if (File.Exists(tempRomPath))
+                {
+                    File.Copy(tempRomPath, outputPath, overwrite: true);
+                    Console.WriteLine($"Compilation successful.");
+                    if (!string.IsNullOrEmpty(output.Trim()))
+                        Console.WriteLine(output.Trim());
+
+                    // Print symbol info if available
+                    if (File.Exists(symFile))
+                    {
+                        string symbols = File.ReadAllText(symFile).Trim();
+                        if (!string.IsNullOrEmpty(symbols))
+                        {
+                            int symCount = symbols.Split('\n').Length;
+                            Console.WriteLine($"Symbols: {symCount} entries");
+                        }
+                    }
+
+                    Console.WriteLine($"Output: {outputPath}");
+                }
+                else
+                {
+                    Console.Error.WriteLine("Error: EA did not produce output ROM.");
+                    return 1;
+                }
+            }
+            finally
+            {
+                // Cleanup temp files
+                try { if (File.Exists(wrapperPath)) File.Delete(wrapperPath); } catch { }
+                try { if (File.Exists(tempRomPath)) File.Delete(tempRomPath); } catch { }
+                try { if (File.Exists(symFile)) File.Delete(symFile); } catch { }
+            }
+
+            return 0;
+        }
+
+        static string RunEAProcess(string exePath, string args, string workDir)
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo(exePath, args)
+            {
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                WorkingDirectory = workDir,
+            };
+
+            var sb = new System.Text.StringBuilder();
+            using (var proc = System.Diagnostics.Process.Start(psi))
+            {
+                proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
+                proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+
+                if (!proc.WaitForExit(120_000))
+                {
+                    proc.Kill();
+                    return "Error: Event Assembler timed out after 120 seconds.";
+                }
+            }
+            return sb.ToString();
+        }
+
+        static bool IsEASuccess(string output)
+        {
+            return output.IndexOf("No errors or warnings.", StringComparison.Ordinal) >= 0
+                || output.IndexOf("No errors. Please continue being awesome.", StringComparison.Ordinal) >= 0;
+        }
+
+        static int RunFreeSpace(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --freespace requires --rom=<rom>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            int minSize = 16;
+            if (argsDic.ContainsKey("--min-size") && !string.IsNullOrEmpty(argsDic["--min-size"]))
+            {
+                if (!int.TryParse(argsDic["--min-size"], out minSize) || minSize < 1)
+                {
+                    Console.Error.WriteLine("Error: Invalid --min-size value.");
+                    return 1;
+                }
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+            var data = rom.Data;
+            int length = data.Length;
+
+            Console.WriteLine($"ROM: {romPath} ({length:N0} bytes, {length / 1024}KB)");
+            Console.WriteLine($"Minimum block size: {minSize} bytes");
+            Console.WriteLine();
+
+            // Scan for free space blocks (runs of 0x00 or 0xFF)
+            var blocks = new List<(uint addr, int size, byte fill)>();
+            int i = 0;
+            while (i < length)
+            {
+                byte b = data[i];
+                if (b == 0x00 || b == 0xFF)
+                {
+                    int start = i;
+                    byte fill = b;
+                    while (i < length && data[i] == fill)
+                        i++;
+                    int blockSize = i - start;
+                    if (blockSize >= minSize)
+                        blocks.Add(((uint)start, blockSize, fill));
+                }
+                else
+                {
+                    i++;
+                }
+            }
+
+            long totalFree = 0;
+            foreach (var block in blocks)
+            {
+                string fillStr = block.fill == 0xFF ? "0xFF" : "0x00";
+                Console.WriteLine($"  0x{block.addr:X08}  {block.size,8:N0} bytes  ({fillStr})");
+                totalFree += block.size;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"Free blocks: {blocks.Count} (>= {minSize} bytes)");
+            Console.WriteLine($"Total free: {totalFree:N0} bytes ({totalFree * 100 / length}% of ROM)");
+            return 0;
+        }
+
+        static int RunHexDump(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --hex-dump requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            {
+                Console.Error.WriteLine("Error: --hex-dump requires --addr=<hex_address>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string addrStr = argsDic["--addr"].Replace("0x", "").Replace("0X", "");
+            int dumpLength = 256;
+
+            if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+            {
+                Console.Error.WriteLine("Error: Invalid --addr hex value.");
+                return 1;
+            }
+
+            if (argsDic.ContainsKey("--length") && !string.IsNullOrEmpty(argsDic["--length"]))
+            {
+                if (!int.TryParse(argsDic["--length"], out dumpLength) || dumpLength < 1)
+                {
+                    Console.Error.WriteLine("Error: Invalid --length value.");
+                    return 1;
+                }
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+            uint offset = U.toOffset(addr);
+            int end = Math.Min((int)offset + dumpLength, rom.Data.Length);
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Hex dump: 0x{offset:X08} - 0x{end - 1:X08} ({end - (int)offset} bytes)");
+            Console.WriteLine();
+
+            // Hex dump in xxd-style format: address | hex bytes | ASCII
+            for (uint pos = offset; pos < end; pos += 16)
+            {
+                var hexPart = new System.Text.StringBuilder();
+                var asciiPart = new System.Text.StringBuilder();
+                int lineBytes = Math.Min(16, (int)(end - pos));
+
+                for (int j = 0; j < 16; j++)
+                {
+                    if (j == 8) hexPart.Append(' ');
+                    if (j < lineBytes)
+                    {
+                        byte b = rom.Data[pos + j];
+                        hexPart.Append($"{b:X02} ");
+                        asciiPart.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');
+                    }
+                    else
+                    {
+                        hexPart.Append("   ");
+                    }
+                }
+
+                Console.WriteLine($"  {pos:X08}  {hexPart} |{asciiPart}|");
+            }
+
+            return 0;
+        }
+
+        static int RunSearchText(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --search-text requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--query") || string.IsNullOrEmpty(argsDic["--query"]))
+            {
+                Console.Error.WriteLine("Error: --search-text requires --query=<text>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string query = argsDic["--query"];
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Loading and decoding all text entries...");
+
+            var entries = TranslateCore.DumpTexts(CoreState.ROM);
+
+            Console.WriteLine($"Searching {entries.Count} text entries for: \"{query}\"");
+            Console.WriteLine();
+
+            int matches = 0;
+            foreach (var (textId, text) in entries)
+            {
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                if (text.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // Truncate long texts for display
+                    string display = text.Replace("\n", "\\n").Replace("\r", "");
+                    if (display.Length > 120)
+                        display = display.Substring(0, 117) + "...";
+                    Console.WriteLine($"  0x{textId:X04}  {display}");
+                    matches++;
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"Found {matches} matches in {entries.Count} text entries.");
             return 0;
         }
 

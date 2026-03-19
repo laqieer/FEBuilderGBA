@@ -352,5 +352,134 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal("", dic["--translate"]);
             Assert.Equal("test.gba", dic["--rom"]);
         }
+
+        // ------------------------------------------------------------------ import-midi, compile-event, list-patches filter
+
+        [Fact]
+        public void CliProgram_HasImportMidiCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--import-midi", src);
+            Assert.Contains("RunImportMidi", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasCompileEventCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--compile-event", src);
+            Assert.Contains("RunCompileEvent", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasPatchNameFilter()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--patch-name", src);
+        }
+
+        [Fact]
+        public void ParseArgs_ImportMidiArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--import-midi", "--rom=test.gba", "--song-id=0x1A", "--in=song.mid" });
+            Assert.True(dic.ContainsKey("--import-midi"));
+            Assert.Equal("test.gba", dic["--rom"]);
+            Assert.Equal("0x1A", dic["--song-id"]);
+            Assert.Equal("song.mid", dic["--in"]);
+        }
+
+        [Fact]
+        public void ParseArgs_CompileEventArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--compile-event", "--rom=test.gba", "--in=script.event", "--out=modified.gba" });
+            Assert.True(dic.ContainsKey("--compile-event"));
+            Assert.Equal("test.gba", dic["--rom"]);
+            Assert.Equal("script.event", dic["--in"]);
+            Assert.Equal("modified.gba", dic["--out"]);
+        }
+
+        [Fact]
+        public void ParseArgs_ListPatchesWithNameFilter()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--list-patches", "--rom=test.gba", "--patch-name=Skill" });
+            Assert.True(dic.ContainsKey("--list-patches"));
+            Assert.Equal("Skill", dic["--patch-name"]);
+        }
+
+        [Fact]
+        public void CliProgram_ImportMidiUsesCoreSongMidiCore()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("SongMidiCore.ImportMidiFile", src);
+            Assert.Contains("SongMidiCore.ParseMidiFile", src);
+        }
+
+        [Fact]
+        public void CliProgram_CompileEventUsesToolPathResolver()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("ToolPathResolver.ResolveEventAssembler", src);
+            Assert.Contains("ToolPathResolver.IsColorzCore", src);
+        }
+
+        [Fact]
+        public void CliProgram_HelpShowsNewGapCommands()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--import-midi", src);
+            Assert.Contains("--compile-event", src);
+            Assert.Contains("--patch-name", src);
+        }
+
+        // ------------------------------------------------------------------ freespace, hex-dump, search-text
+
+        [Fact]
+        public void CliProgram_HasFreeSpaceCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--freespace", src);
+            Assert.Contains("RunFreeSpace", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasHexDumpCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--hex-dump", src);
+            Assert.Contains("RunHexDump", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasSearchTextCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--search-text", src);
+            Assert.Contains("RunSearchText", src);
+        }
+
+        [Fact]
+        public void ParseArgs_FreeSpaceArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--freespace", "--rom=test.gba", "--min-size=256" });
+            Assert.True(dic.ContainsKey("--freespace"));
+            Assert.Equal("256", dic["--min-size"]);
+        }
+
+        [Fact]
+        public void ParseArgs_HexDumpArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--hex-dump", "--rom=test.gba", "--addr=0x1000", "--length=512" });
+            Assert.True(dic.ContainsKey("--hex-dump"));
+            Assert.Equal("0x1000", dic["--addr"]);
+            Assert.Equal("512", dic["--length"]);
+        }
+
+        [Fact]
+        public void ParseArgs_SearchTextArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--search-text", "--rom=test.gba", "--query=Eirika" });
+            Assert.True(dic.ContainsKey("--search-text"));
+            Assert.Equal("Eirika", dic["--query"]);
+        }
     }
 }

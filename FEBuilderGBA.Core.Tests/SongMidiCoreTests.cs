@@ -3,6 +3,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class SongMidiCoreTests
     {
         [Fact]
@@ -66,7 +67,7 @@ namespace FEBuilderGBA.Core.Tests
             track.codes.Add(new SongMidiCore.Code(0, 0, 0xB1));
 
             var tracks = new List<SongMidiCore.Track> { track };
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
 
             try
             {
@@ -139,6 +140,116 @@ namespace FEBuilderGBA.Core.Tests
         {
             string result = SongMidiCore.ImportMidiFile("nonexistent_dummy.mid", 0, 0);
             Assert.Contains("File not found", result);
+        }
+
+        [Fact]
+        public void ImportMidiFile_NoRomLoaded_ReturnsError()
+        {
+            // Build a valid MIDI file
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,
+                0x60, 0x80, 60, 0,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
+            try
+            {
+                System.IO.File.WriteAllBytes(tempFile, midiBytes);
+
+                var origRom = CoreState.ROM;
+                CoreState.ROM = null;
+                try
+                {
+                    string result = SongMidiCore.ImportMidiFile(tempFile, 0, 0);
+                    Assert.Contains("No ROM loaded", result);
+                }
+                finally
+                {
+                    CoreState.ROM = origRom;
+                }
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile))
+                    System.IO.File.Delete(tempFile);
+            }
+        }
+
+        [Fact]
+        public void ImportMidiFile_ValidMidi_WritesToRom()
+        {
+            // Build a valid MIDI file
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,
+                0x60, 0x80, 60, 0,
+                0x00, 0xFF, 0x2F, 0x00
+            };
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
+            try
+            {
+                System.IO.File.WriteAllBytes(tempFile, midiBytes);
+
+                // Create a ROM with non-zero data in the used area and free space (0xFF) after
+                byte[] romData = new byte[0x10000]; // 64KB
+                // Fill first 0x500 with non-zero/non-FF to prevent accidental free space detection
+                for (int i = 0; i < 0x500; i++)
+                    romData[i] = 0x42;
+                // Fill rest with 0xFF (free space)
+                for (int i = 0x500; i < romData.Length; i++)
+                    romData[i] = 0xFF;
+
+                // Set up a song table entry at 0x300 (points to song header at 0x400)
+                uint songTableEntry = 0x300;
+                uint songHeader = 0x400;
+                // Song table: pointer to header
+                uint headerGbaPtr = songHeader + 0x08000000;
+                romData[songTableEntry + 0] = (byte)(headerGbaPtr & 0xFF);
+                romData[songTableEntry + 1] = (byte)((headerGbaPtr >> 8) & 0xFF);
+                romData[songTableEntry + 2] = (byte)((headerGbaPtr >> 16) & 0xFF);
+                romData[songTableEntry + 3] = (byte)((headerGbaPtr >> 24) & 0xFF);
+
+                // Song header: 1 track, voicegroup at 0x800
+                romData[songHeader + 0] = 1; // trackCount
+                uint instAddr = 0x08000800;
+                romData[songHeader + 4] = (byte)(instAddr & 0xFF);
+                romData[songHeader + 5] = (byte)((instAddr >> 8) & 0xFF);
+                romData[songHeader + 6] = (byte)((instAddr >> 16) & 0xFF);
+                romData[songHeader + 7] = (byte)((instAddr >> 24) & 0xFF);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                var origRom = CoreState.ROM;
+                CoreState.ROM = rom;
+                try
+                {
+                    string result = SongMidiCore.ImportMidiFile(tempFile, songTableEntry, instAddr);
+                    Assert.Equal(string.Empty, result); // success
+
+                    // Verify the song table entry was updated to a new GBA pointer
+                    uint newRawPtr = (uint)(rom.Data[songTableEntry]
+                        | (rom.Data[songTableEntry + 1] << 8)
+                        | (rom.Data[songTableEntry + 2] << 16)
+                        | (rom.Data[songTableEntry + 3] << 24));
+                    Assert.NotEqual(headerGbaPtr, newRawPtr); // should point somewhere else now
+                    Assert.True((newRawPtr & 0x08000000) != 0, "Updated pointer should be a GBA pointer");
+                }
+                finally
+                {
+                    CoreState.ROM = origRom;
+                }
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile))
+                    System.IO.File.Delete(tempFile);
+            }
         }
 
         #region ParseMidiBytes Tests
@@ -568,7 +679,7 @@ namespace FEBuilderGBA.Core.Tests
             track.codes.Add(new SongMidiCore.Code(0, 96, 0xB1)); // FINE
 
             var tracks = new List<SongMidiCore.Track> { track };
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
 
             try
             {
