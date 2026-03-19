@@ -155,10 +155,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     GbaMusRiper = cfg.at("gba_mus_riper", "");
                     Sox = cfg.at("sox", "");
                     Midfix4agb = cfg.at("midfix4agb", "");
-                    // Event Assembler: check config, then fall back to bundled tools
                     EventAssembler = cfg.at("event_assembler", "");
-                    if (string.IsNullOrEmpty(EventAssembler))
-                        EventAssembler = ToolPathResolver.ResolveEventAssembler() ?? "";
                     DevkitproEabi = cfg.at("devkitpro_eabi", "");
                     GoldroadAsm = cfg.at("goldroad_asm", "");
                     Cflags = cfg.at("CFLAGS", "");
