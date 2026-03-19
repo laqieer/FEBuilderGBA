@@ -1714,7 +1714,7 @@ namespace FEBuilderGBA
         const double CurrentEAVersion = 11.1;
         public bool IsOldEA()
         {
-            return IsOldEA(Program.Config.at("event_assembler"));
+            return IsOldEA(ToolPathResolver.ResolveEventAssembler() ?? "");
         }
         public bool IsOldEA(string EAFilename)
         {

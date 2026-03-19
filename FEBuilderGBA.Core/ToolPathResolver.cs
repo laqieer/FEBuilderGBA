@@ -80,6 +80,43 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve lyn.exe path from the Event Assembler directory.
+        /// Checks Tools/lyn.exe relative to the EA executable, then searches
+        /// the EA submodule's Event Assembler directory.
+        /// </summary>
+        public static string ResolveLynExe(string eaExePath)
+        {
+            if (string.IsNullOrEmpty(eaExePath)) return null;
+
+            // Standard location: same dir as EA, under Tools/lyn.exe
+            string eaDir = Path.GetDirectoryName(eaExePath);
+            if (!string.IsNullOrEmpty(eaDir))
+            {
+                string standard = Path.Combine(eaDir, "Tools", "lyn.exe");
+                if (File.Exists(standard)) return standard;
+
+                // Also check parent directories (bundled layout may have deeper nesting)
+                string parent = eaDir;
+                for (int i = 0; i < 4; i++)
+                {
+                    parent = Path.GetDirectoryName(parent);
+                    if (string.IsNullOrEmpty(parent)) break;
+                    string candidate = Path.Combine(parent, "Tools", "lyn.exe");
+                    if (File.Exists(candidate)) return candidate;
+                }
+            }
+
+            // Search from repo root
+            foreach (string root in GetSearchRoots())
+            {
+                string sub = Path.Combine(root, "tools", "Event-Assembler", "Event Assembler", "Tools", "lyn.exe");
+                if (File.Exists(sub)) return sub;
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Check if the resolved EA path points to ColorzCore (vs classic EA Core.exe).
         /// </summary>
         public static bool IsColorzCore(string eaPath)

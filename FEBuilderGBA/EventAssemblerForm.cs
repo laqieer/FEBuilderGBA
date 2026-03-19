@@ -151,7 +151,7 @@ namespace FEBuilderGBA
 
         private void EventAssemblerForm_Load(object sender, EventArgs e)
         {
-            string event_assembler = Program.Config.at("event_assembler", "");
+            string event_assembler = ToolPathResolver.ResolveEventAssembler() ?? "";
             if (event_assembler == "")
             {
                 R.ShowStopError("{0}の設定がありません。 設定->オプションから、{0}を設定してください。", "event_assembler");

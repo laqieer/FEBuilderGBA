@@ -998,8 +998,9 @@ namespace FEBuilderGBA
         }
         static bool ConvertLYN_O_to_Event(string target_filename, out string output)
         {
-            string EACoreEXE = Program.Config.at("event_assembler", "");
-            string lynEXE = Path.Combine(Path.GetDirectoryName(EACoreEXE), "Tools/lyn.exe");
+            string EACoreEXE = ToolPathResolver.ResolveEventAssembler() ?? "";
+            string lynEXE = ToolPathResolver.ResolveLynExe(EACoreEXE)
+                ?? Path.Combine(Path.GetDirectoryName(EACoreEXE) ?? "", "Tools", "lyn.exe");
             if (!File.Exists(lynEXE))
             {
                 output = R.Error("lyn.exeが見つかりません。\r\n{0}",lynEXE);
@@ -1148,13 +1149,13 @@ namespace FEBuilderGBA
             output = "";
             out_symbol = "";
 
-            string compiler_exe = Program.Config.at("event_assembler", "");
+            string compiler_exe = ToolPathResolver.ResolveEventAssembler() ?? "";
             if (compiler_exe == "" || !File.Exists(compiler_exe))
             {
                 output = R._("{0}の設定がありません。 設定->オプションから、{0}を設定してください。", "event_assembler core.exe");
                 return false;
             }
-            bool isColorzCore = MainFormUtil.IsColorzCore(compiler_exe);
+            bool isColorzCore = ToolPathResolver.IsColorzCore(compiler_exe);
 
             string autoDef = EAUtil.MakeEAAutoDef(target_filename, freearea, org_sp,org_data, isColorzCore);
 
@@ -1698,7 +1699,7 @@ namespace FEBuilderGBA
         {
             output = "";
 
-            string compiler_exe = Program.Config.at("event_assembler", "");
+            string compiler_exe = ToolPathResolver.ResolveEventAssembler() ?? "";
             if (compiler_exe == "" || !File.Exists(compiler_exe))
             {
                 output = R._("{0}の設定がありません。 設定->オプションから、{0}を設定してください。", "event_assembler core.exe");

@@ -4558,7 +4558,7 @@ namespace FEBuilderGBA
             string type = U.at(patch.Param, "TYPE");
             if (type == "EA")
             {
-                string event_assembler = Program.Config.at("event_assembler", "");
+                string event_assembler = ToolPathResolver.ResolveEventAssembler() ?? "";
                 if (event_assembler == "")
                 {
                     return R.Error("{0}の設定がありません。 設定->オプションから、{0}を設定してください。", "event_assembler");
