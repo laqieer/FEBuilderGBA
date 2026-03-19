@@ -138,6 +138,11 @@ namespace FEBuilderGBA.CLI
                 return RunExportPortraitAll(argsDic);
             }
 
+            if (argsDic.ContainsKey("--generate-font"))
+            {
+                return RunGenerateFont(argsDic);
+            }
+
             if (argsDic.ContainsKey("--export-midi"))
             {
                 return RunExportMidi(argsDic);
@@ -249,6 +254,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --out=<path>           Output PNG file path");
             Console.WriteLine("  --export-portrait-all    Export all portraits to PNG files (requires --rom, --out)");
             Console.WriteLine("    --out=<dir>            Output directory for portrait PNGs");
+            Console.WriteLine("  --generate-font          Generate font bitmap from text using system or .ttf font (requires --out)");
+            Console.WriteLine("    --text=<chars>         Characters to generate (e.g., \"ABC\")");
+            Console.WriteLine("    --font-file=<path>     Path to .ttf/.otf font file (optional; uses system default if omitted)");
+            Console.WriteLine("    --font-size=<float>    Font size in points (default: 12)");
+            Console.WriteLine("    --vertical-offset=<int> Vertical pixel offset (-8 to 8, default: 0)");
+            Console.WriteLine("    --item-font            Generate item font style (default: text/serif style)");
             Console.WriteLine("  --export-midi            Export song to MIDI file (requires --rom, --song-id, --out)");
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
@@ -1756,6 +1767,79 @@ namespace FEBuilderGBA.CLI
 
             Console.WriteLine($"Exported {exported} portraits to {outputDir}/ ({errors} errors, {maxEntries} entries scanned)");
             return errors > 0 ? 2 : 0;
+        }
+
+        static int RunGenerateFont(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --generate-font requires --out=<output.png>");
+                return 1;
+            }
+
+            string text = argsDic.ContainsKey("--text") ? argsDic["--text"] : "A";
+            string outputPath = argsDic["--out"];
+
+            float fontSize = 12f;
+            if (argsDic.ContainsKey("--font-size"))
+                float.TryParse(argsDic["--font-size"], out fontSize);
+
+            int verticalOffset = 0;
+            if (argsDic.ContainsKey("--vertical-offset"))
+                int.TryParse(argsDic["--vertical-offset"], out verticalOffset);
+            verticalOffset = Math.Clamp(verticalOffset, -8, 8);
+
+            // Load font via SkiaSharp (cross-platform)
+            global::SkiaSharp.SKTypeface typeface = null;
+            if (argsDic.ContainsKey("--font-file") && !string.IsNullOrEmpty(argsDic["--font-file"]))
+            {
+                string fontFile = argsDic["--font-file"];
+                if (!File.Exists(fontFile))
+                {
+                    Console.Error.WriteLine($"Error: Font file not found: {fontFile}");
+                    return 1;
+                }
+                typeface = global::SkiaSharp.SKTypeface.FromFile(fontFile);
+                if (typeface == null)
+                {
+                    Console.Error.WriteLine($"Error: Failed to load font from {fontFile}");
+                    return 1;
+                }
+            }
+
+            using var paint = new global::SkiaSharp.SKPaint
+            {
+                TextSize = fontSize,
+                IsAntialias = true,
+                Color = global::SkiaSharp.SKColors.Black,
+                Typeface = typeface ?? global::SkiaSharp.SKTypeface.Default
+            };
+
+            // Render each character to a 16x16 tile
+            int charSize = 16;
+            int totalWidth = text.Length * charSize;
+            using var bitmap = new global::SkiaSharp.SKBitmap(totalWidth, charSize);
+            using var canvas = new global::SkiaSharp.SKCanvas(bitmap);
+            canvas.Clear(global::SkiaSharp.SKColors.White);
+
+            for (int i = 0; i < text.Length; i++)
+            {
+                string ch = text[i].ToString();
+                float x = i * charSize;
+                float y = charSize - 2 + verticalOffset; // baseline offset
+                canvas.DrawText(ch, x, y, paint);
+            }
+
+            // Save as PNG
+            using var image = global::SkiaSharp.SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(global::SkiaSharp.SKEncodedImageFormat.Png, 100);
+            using var stream = File.OpenWrite(outputPath);
+            data.SaveTo(stream);
+
+            typeface?.Dispose();
+            var fileInfo = new FileInfo(outputPath);
+            Console.WriteLine($"Font generated: {outputPath} ({text.Length} chars, {totalWidth}x{charSize}, {fileInfo.Length} bytes)");
+            return 0;
         }
 
         static int RunExportMidi(Dictionary<string, string> argsDic)
