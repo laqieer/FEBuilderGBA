@@ -16,6 +16,11 @@ on:
         required: false
         type: number
         default: 20
+      caller-event:
+        description: "The caller workflow's github.event_name (e.g. schedule, push, pull_request)"
+        required: false
+        type: string
+        default: ""
     secrets:
       ROMS_URL:
         required: false
@@ -274,7 +279,7 @@ jobs:
 
       # ---------------------------------------------------------------- Create issue on scheduled failure
       - name: Create issue on scheduled E2E failure
-        if: failure() && github.event_name == 'schedule'
+        if: failure() && inputs.caller-event == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash

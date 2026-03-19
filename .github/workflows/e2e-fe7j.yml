@@ -21,4 +21,5 @@ jobs:
       rom-name: FE7J
       job-name: "E2E FE7J"
       timeout: 30
+      caller-event: ${{ github.event_name }}
     secrets: inherit
