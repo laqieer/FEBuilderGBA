@@ -19,12 +19,15 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Init build-required submodules
-      run: git submodule update --init config/patch2
+      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 
     - name: Setup .NET 9.0
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.0.x'
+
+    - name: Build ColorzCore (bundled EA tool)
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
 
     - name: Build Core library
       run: dotnet build FEBuilderGBA.Core/FEBuilderGBA.Core.csproj -c Release
@@ -75,18 +78,36 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Init build-required submodules
-      run: git submodule update --init config/patch2
+      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 
     - name: Setup .NET 9.0
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '9.0.x'
 
+    - name: Publish ColorzCore (self-contained per-RID)
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
+
     - name: Publish CLI
       run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }}
 
     - name: Publish Avalonia
       run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }}
+
+    - name: Bundle ColorzCore into CLI and Avalonia artifacts
+      shell: bash
+      run: |
+        for target in cli avalonia; do
+          mkdir -p "publish/${target}-${{ matrix.rid }}/tools/bin"
+          cp -r publish/tools-${{ matrix.rid }}/* "publish/${target}-${{ matrix.rid }}/tools/bin/"
+        done
+        # Copy lyn.exe if present in submodule
+        if [ -f "tools/Event-Assembler/Event Assembler/Tools/lyn.exe" ]; then
+          for target in cli avalonia; do
+            mkdir -p "publish/${target}-${{ matrix.rid }}/tools/bin/Tools"
+            cp "tools/Event-Assembler/Event Assembler/Tools/lyn.exe" "publish/${target}-${{ matrix.rid }}/tools/bin/Tools/lyn.exe"
+          done
+        fi
 
     - name: Upload CLI artifact
       uses: actions/upload-artifact@v4
