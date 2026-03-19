@@ -585,6 +585,16 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void FERepoButton_Click(object? sender, RoutedEventArgs e)
+        {
+            var browser = new FERepoResourceBrowserWindow();
+            string result = await browser.ShowDialog<string>(this);
+            if (!string.IsNullOrEmpty(result))
+            {
+                ImportImageFromFile(result);
+            }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }
