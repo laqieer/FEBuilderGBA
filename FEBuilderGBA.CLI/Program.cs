@@ -133,6 +133,11 @@ namespace FEBuilderGBA.CLI
                 return RunRenderPortrait(argsDic);
             }
 
+            if (argsDic.ContainsKey("--export-portrait-all"))
+            {
+                return RunExportPortraitAll(argsDic);
+            }
+
             if (argsDic.ContainsKey("--export-midi"))
             {
                 return RunExportMidi(argsDic);
@@ -242,6 +247,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --render-portrait        Render unit portrait to PNG (requires --rom, --unit-id, --out)");
             Console.WriteLine("    --unit-id=<id>         Unit index number");
             Console.WriteLine("    --out=<path>           Output PNG file path");
+            Console.WriteLine("  --export-portrait-all    Export all portraits to PNG files (requires --rom, --out)");
+            Console.WriteLine("    --out=<dir>            Output directory for portrait PNGs");
             Console.WriteLine("  --export-midi            Export song to MIDI file (requires --rom, --song-id, --out)");
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
@@ -1633,6 +1640,75 @@ namespace FEBuilderGBA.CLI
             image.Save(outputPath);
             var fileInfo = new FileInfo(outputPath);
             Console.WriteLine($"Portrait rendered: {outputPath} ({fileInfo.Length:N0} bytes, {image.Width}x{image.Height})");
+            return 0;
+        }
+
+        static int RunExportPortraitAll(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-portrait-all requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --export-portrait-all requires --out=<directory>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string outputDir = argsDic["--out"];
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                Console.Error.WriteLine("Error: ROM not loaded correctly.");
+                return 1;
+            }
+
+            Directory.CreateDirectory(outputDir);
+
+            uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
+            uint portraitDataSize = rom.RomInfo.portrait_datasize;
+
+            int exported = 0;
+            int errors = 0;
+            for (uint id = 0; id < 256; id++)
+            {
+                uint portraitAddr = portraitBase + (id * portraitDataSize);
+                if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+                    break;
+
+                uint facePtr = rom.p32(portraitAddr + 0);
+                uint palettePtr = rom.p32(portraitAddr + 8);
+                if (facePtr == 0 || palettePtr == 0)
+                    continue;
+
+                byte eyeX = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 20) : (byte)0;
+                byte eyeY = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 21) : (byte)0;
+
+                try
+                {
+                    var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0);
+                    if (image == null) { errors++; continue; }
+
+                    string outPath = Path.Combine(outputDir, $"portrait_{id:D3}.png");
+                    image.Save(outPath);
+                    exported++;
+                }
+                catch
+                {
+                    errors++;
+                }
+            }
+
+            Console.WriteLine($"Exported {exported} portraits to {outputDir}/ ({errors} errors)");
             return 0;
         }
 
