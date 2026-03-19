@@ -46,6 +46,12 @@ git submodule update --init --recursive
 
 **Note:** The patch repository ([FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2)) is maintained separately for independent versioning and faster updates.
 
+**Bundled Tools:** [Event Assembler](https://github.com/laqieer/Event-Assembler) and [ColorzCore](https://github.com/FireEmblemUniverse/ColorzCore) are included as submodules in `tools/`. If no external EA path is configured, FEBuilderGBA automatically uses the bundled tools. To build them locally:
+```bash
+git submodule update --init tools/Event-Assembler tools/ColorzCore
+dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+```
+
 ### Cross-Platform Build (Linux / macOS / Windows)
 
 The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net9.0` and build on any platform:

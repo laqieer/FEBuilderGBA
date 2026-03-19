@@ -109,10 +109,16 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 The application requires these runtime files (copied to output by MSBuild targets):
 - `config/` directory - Contains all game data definitions, patches, translations (copied from repo-root `config/`)
 - `7-zip32.dll` (optional) - Native archive handling for maximum speed (source: `FEBuilderGBA/lib/`)
+- `tools/bin/` (optional) - Bundled EA/ColorzCore tools (built from submodules `tools/ColorzCore` and `tools/Event-Assembler`)
 
 Archive handling:
 - **If 7-zip32.dll exists**: Uses native DLL (very fast, no progress reporting)
 - **If 7-zip32.dll missing**: Falls back to SharpCompress (pure .NET, slower but with progress)
+
+Event Assembler / ColorzCore:
+- **If user sets external path**: Uses configured path (takes priority)
+- **If no path configured**: `ToolPathResolver` searches for bundled tools in `tools/bin/`, `tools/ColorzCore/`, and `tools/Event-Assembler/`
+- **To build bundled tools locally**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release`
 
 ## Architecture Overview
 
