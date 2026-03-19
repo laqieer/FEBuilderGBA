@@ -407,3 +407,8 @@ Critical runtime dependencies in `config/` directory:
 2. Clear relevant caches after changes
 3. Update UI to reflect changes
 4. Test with multiple ROM versions if applicable
+
+# Agent Team PUA Config
+All teammates must load the pua skill before starting work.
+Teammates report to Leader in [PUA-REPORT] format after 2+ failures.
+Leader manages global pressure levels and cross-teammate failure transfer.
