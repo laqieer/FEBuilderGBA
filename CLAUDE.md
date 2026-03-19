@@ -118,6 +118,15 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Compile event script with EA/ColorzCore
 ./FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba
 
+# Scan ROM free space
+./FEBuilderGBA.CLI --freespace --rom=rom.gba --min-size=256
+
+# Hex dump ROM region
+./FEBuilderGBA.CLI --hex-dump --rom=rom.gba --addr=0x1000 --length=512
+
+# Search for text across all ROM text entries
+./FEBuilderGBA.CLI --search-text --rom=rom.gba --query=Eirika
+
 # Disassemble event scripts
 ./FEBuilderGBA.CLI --disasm-event --rom=rom.gba --out=events.txt
 

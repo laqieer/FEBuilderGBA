@@ -3,6 +3,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    [Collection("SharedState")]
     public class SongMidiCoreTests
     {
         [Fact]
@@ -66,7 +67,7 @@ namespace FEBuilderGBA.Core.Tests
             track.codes.Add(new SongMidiCore.Code(0, 0, 0xB1));
 
             var tracks = new List<SongMidiCore.Track> { track };
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
 
             try
             {
@@ -153,7 +154,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
 
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
             try
             {
                 System.IO.File.WriteAllBytes(tempFile, midiBytes);
@@ -189,7 +190,7 @@ namespace FEBuilderGBA.Core.Tests
             };
             byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
 
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
             try
             {
                 System.IO.File.WriteAllBytes(tempFile, midiBytes);
@@ -678,7 +679,7 @@ namespace FEBuilderGBA.Core.Tests
             track.codes.Add(new SongMidiCore.Code(0, 96, 0xB1)); // FINE
 
             var tracks = new List<SongMidiCore.Track> { track };
-            string tempFile = System.IO.Path.GetTempFileName() + ".mid";
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"febuilder_test_{System.Guid.NewGuid():N}.mid");
 
             try
             {

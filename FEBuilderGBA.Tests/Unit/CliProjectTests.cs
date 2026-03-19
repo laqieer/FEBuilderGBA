@@ -430,5 +430,56 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("--compile-event", src);
             Assert.Contains("--patch-name", src);
         }
+
+        // ------------------------------------------------------------------ freespace, hex-dump, search-text
+
+        [Fact]
+        public void CliProgram_HasFreeSpaceCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--freespace", src);
+            Assert.Contains("RunFreeSpace", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasHexDumpCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--hex-dump", src);
+            Assert.Contains("RunHexDump", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasSearchTextCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--search-text", src);
+            Assert.Contains("RunSearchText", src);
+        }
+
+        [Fact]
+        public void ParseArgs_FreeSpaceArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--freespace", "--rom=test.gba", "--min-size=256" });
+            Assert.True(dic.ContainsKey("--freespace"));
+            Assert.Equal("256", dic["--min-size"]);
+        }
+
+        [Fact]
+        public void ParseArgs_HexDumpArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--hex-dump", "--rom=test.gba", "--addr=0x1000", "--length=512" });
+            Assert.True(dic.ContainsKey("--hex-dump"));
+            Assert.Equal("0x1000", dic["--addr"]);
+            Assert.Equal("512", dic["--length"]);
+        }
+
+        [Fact]
+        public void ParseArgs_SearchTextArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--search-text", "--rom=test.gba", "--query=Eirika" });
+            Assert.True(dic.ContainsKey("--search-text"));
+            Assert.Equal("Eirika", dic["--query"]);
+        }
     }
 }
