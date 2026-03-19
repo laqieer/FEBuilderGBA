@@ -49,6 +49,16 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // Add FE-Repo browse button next to Import
+            var feRepoButton = new Button
+            {
+                Text = R._("FE-Repo"),
+                Size = new System.Drawing.Size(80, 20),
+                Location = new System.Drawing.Point(ImportButton.Right + 3, ImportButton.Top)
+            };
+            feRepoButton.Click += FERepoButton_Click;
+            ImportButton.Parent?.Controls.Add(feRepoButton);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -1376,6 +1386,34 @@ namespace FEBuilderGBA
             Program.ResourceCache.Update("Portrait_" + U.ToHexString(this.AddressList.SelectedIndex), imagefilename);
             this.OpenSourceButton.Show();
             this.SelectSourceButton.Show();
+        }
+
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            using (var browser = new FERepoResourceBrowserForm())
+            {
+                if (browser.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(browser.SelectedFilePath))
+                {
+                    if (!InputFormRef.CheckWriteProtectionID00()) return;
+
+                    Bitmap fullColor = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
+                    if (fullColor == null) return;
+
+                    if (fullColor.Width == 128 && fullColor.Height == 112)
+                    {
+                        using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+                        {
+                            ImportFaceImage(fullColor, browser.SelectedFilePath);
+                        }
+                    }
+                    else
+                    {
+                        R.ShowStopError(R._("Selected image dimensions ({0}x{1}) are not a valid portrait size (128x112)."),
+                            fullColor.Width.ToString(), fullColor.Height.ToString());
+                    }
+                    fullColor.Dispose();
+                }
+            }
         }
 
         private void ImportButton_Click(object sender, EventArgs e)
