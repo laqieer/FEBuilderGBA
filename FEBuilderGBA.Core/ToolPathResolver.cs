@@ -12,11 +12,6 @@ namespace FEBuilderGBA
     public static class ToolPathResolver
     {
         /// <summary>
-        /// Resolve the Event Assembler / ColorzCore executable path.
-        /// Priority: (1) user-configured path from config, (2) bundled ColorzCore.exe, (3) bundled Core.exe.
-        /// Returns null if no valid executable is found.
-        /// </summary>
-        /// <summary>
         /// Get executable filenames to search for, accounting for platform.
         /// On Windows: "Name.exe". On Linux/macOS: both "Name" and "Name.exe".
         /// </summary>
@@ -27,6 +22,11 @@ namespace FEBuilderGBA
             return new[] { baseName, baseName + ".exe" };
         }
 
+        /// <summary>
+        /// Resolve the Event Assembler / ColorzCore executable path.
+        /// Priority: (1) user-configured path from config, (2) bundled ColorzCore, (3) bundled Core.
+        /// Returns null if no valid executable is found.
+        /// </summary>
         public static string ResolveEventAssembler()
         {
             // 1. Check user-configured path
@@ -156,7 +156,11 @@ namespace FEBuilderGBA
         {
             if (string.IsNullOrEmpty(eaPath)) return false;
             string fileName = Path.GetFileName(eaPath);
-            return fileName == "ColorzCore.exe" || fileName == "ColorzCore";
+            var comparison = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            return fileName.Equals("ColorzCore.exe", comparison)
+                || fileName.Equals("ColorzCore", comparison);
         }
     }
 }

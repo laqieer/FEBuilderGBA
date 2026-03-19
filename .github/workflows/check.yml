@@ -39,7 +39,7 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Build ColorzCore (bundled EA tool)
-      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}}
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
