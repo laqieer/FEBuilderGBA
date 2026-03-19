@@ -402,6 +402,9 @@ Critical runtime dependencies in `config/` directory:
 3. Test installation/uninstallation
 4. Add to patch filter if needed (`PatchMainFilter.cs`)
 
+### Browsing FE-Repo Resources
+The FE-Repo submodule (`resources/FE-Repo/`) contains public GBA Fire Emblem graphics (portraits, battle animations, sprites, icons). Users can browse and insert these resources from the portrait editor via the "FE-Repo" button (WinForms) or the FE-Repo Resource Browser window (Avalonia). The `FERepoResourceBrowser` Core class provides cross-platform resource discovery.
+
 ### Adding Form/Feature
 1. Create Form class (inherit from `Form`)
 2. Use Designer for UI layout
