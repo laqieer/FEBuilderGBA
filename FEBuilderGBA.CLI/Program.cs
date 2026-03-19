@@ -252,7 +252,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --expand-table           Expand a ROM data table by one entry (requires --rom, --pointer, --entry-size)");
             Console.WriteLine("    --pointer=<hex>        ROM address of the table pointer (e.g., 0x005524 for portraits)");
             Console.WriteLine("    --entry-size=<int>     Size of each table entry in bytes (e.g., 28 for FE8U portraits)");
-            Console.WriteLine("    --count=<int>          Current entry count (auto-detected if omitted)");
+            Console.WriteLine("    --count=<int>          Current entry count (REQUIRED for safety)");
             Console.WriteLine("  --uninstall-patch        Restore original bytes for fixed-address BIN patches (requires --rom, --patch-file, --original-rom)");
             Console.WriteLine("    --original-rom=<path>  Path to the clean/unmodified ROM for byte restoration");
             Console.WriteLine("                           Note: only reverses fixed BIN:0xADDR=file entries; FREEAREA/JUMP/EA patches need full GUI uninstall");
@@ -2065,9 +2065,17 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            uint currentCount = info.EstimatedCount;
+            uint currentCount;
             if (argsDic.ContainsKey("--count") && uint.TryParse(argsDic["--count"], out uint userCount))
+            {
                 currentCount = userCount;
+            }
+            else
+            {
+                Console.Error.WriteLine("Error: --count is required for safety. Use --count=<N> to specify the current entry count.");
+                Console.Error.WriteLine($"  Hint: auto-detected estimate is {info.EstimatedCount} (stops at first all-zero entry).");
+                return 1;
+            }
 
             Console.WriteLine($"ROM: {romPath}");
             Console.WriteLine($"Table pointer: 0x{pointerAddr:X}");
