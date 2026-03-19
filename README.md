@@ -52,6 +52,7 @@ git submodule update --init tools/Event-Assembler tools/ColorzCore
 # Windows:
 dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
 # Linux/macOS (produces a runnable executable in tools/bin/):
+# Replace linux-x64 with your platform's RID (e.g. osx-arm64, osx-x64)
 dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true -o tools/bin
 ```
 
