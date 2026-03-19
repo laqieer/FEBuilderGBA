@@ -3700,17 +3700,32 @@ namespace FEBuilderGBA
         //足りないフォントの生成.
         public static Bitmap AutoGenerateFont(string moji, Font font, bool isItemFont, bool isSquareFont, out int out_width)
         {
+            return AutoGenerateFont(moji, font, isItemFont, isSquareFont, 0, out out_width);
+        }
+
+        public static Bitmap AutoGenerateFont(string moji, Font font, bool isItemFont, bool isSquareFont, int verticalOffset, out int out_width)
+        {
             if (isItemFont)
             {
-                return AutoGenerateItemFont(moji, font, out out_width);
+                return AutoGenerateItemFont(moji, font, verticalOffset, out out_width);
             }
             else
             {
-                return AutoGenerateTextFont(moji, font, out out_width);
+                return AutoGenerateTextFont(moji, font, verticalOffset, out out_width);
             }
         }
 
-        static Bitmap AutoGenerateTextFont(string moji, Font font, out int out_width)
+        /// <summary>
+        /// Load a font from a .ttf or .otf file for use with AutoGenerateFont.
+        /// </summary>
+        public static Font LoadFontFromFile(string fontFilePath, float size)
+        {
+            var collection = new System.Drawing.Text.PrivateFontCollection();
+            collection.AddFontFile(fontFilePath);
+            return new Font(collection.Families[0], size);
+        }
+
+        static Bitmap AutoGenerateTextFont(string moji, Font font, int verticalOffset, out int out_width)
         {
             Bitmap baseBitmap = new Bitmap(16,16);
             using (Graphics g = Graphics.FromImage(baseBitmap))
@@ -3734,7 +3749,7 @@ namespace FEBuilderGBA
             using (Graphics g = Graphics.FromImage(fontBitmap))
             {
                 g.FillRectangle(Brushes.White, new Rectangle(0, 0, 16, 16));
-                g.DrawImage(scaleBitmap, -2, 0);
+                g.DrawImage(scaleBitmap, -2, verticalOffset);
             }
 
             Bitmap destBitmap = ImageUtil.BlankDummy(16);
@@ -3781,7 +3796,7 @@ namespace FEBuilderGBA
             return c.R < 0xa0 ;
         }
 
-        static Bitmap AutoGenerateItemFont(string moji, Font font, out int out_width)
+        static Bitmap AutoGenerateItemFont(string moji, Font font, int verticalOffset, out int out_width)
         {
             Bitmap baseBitmap = new Bitmap(16, 16);
             using (Graphics g = Graphics.FromImage(baseBitmap))
@@ -3805,7 +3820,7 @@ namespace FEBuilderGBA
             using (Graphics g = Graphics.FromImage(fontBitmap))
             {
                 g.FillRectangle(Brushes.White, new Rectangle(0, 0, 16, 16));
-                g.DrawImage(scaleBitmap, -1, 2);
+                g.DrawImage(scaleBitmap, -1, 2 + verticalOffset);
             }
 
             Bitmap destBitmap = ImageUtil.BlankDummy(16);
