@@ -30,10 +30,11 @@ namespace FEBuilderGBA
             UseFontNameTextEdit.Text = UseFontNameTextEdit.Font.FontFamily.ToString();
             AutoGenbutton.AccessibleDescription = R._("ROMに存在しいフォントをPCに存在するフォントから自動的に作成します。\r\nまとめて複数のフォントを一気に作りたい場合は、ROM翻訳ツールから作ることをお勧めします。");
 
-            // Add vertical offset control and font file button
-            _verticalOffsetLabel = new Label { Text = R._("V.Offset:"), Size = new Size(55, 20), Location = new Point(AutoGenbutton.Right + 5, AutoGenbutton.Top + 2) };
-            _verticalOffsetBox = new NumericUpDown { Minimum = -8, Maximum = 8, Value = 0, Size = new Size(50, 20), Location = new Point(_verticalOffsetLabel.Right + 2, AutoGenbutton.Top) };
-            _loadFontFileButton = new Button { Text = R._("Load .ttf"), Size = new Size(70, 22), Location = new Point(_verticalOffsetBox.Right + 5, AutoGenbutton.Top) };
+            // Add vertical offset control and font file button below AutoGen
+            int belowY = AutoGenbutton.Bottom + 3;
+            _verticalOffsetLabel = new Label { Text = R._("V.Offset:"), Size = new Size(55, 20), Location = new Point(AutoGenbutton.Left, belowY + 2) };
+            _verticalOffsetBox = new NumericUpDown { Minimum = -8, Maximum = 8, Value = 0, Size = new Size(50, 20), Location = new Point(_verticalOffsetLabel.Right + 2, belowY) };
+            _loadFontFileButton = new Button { Text = R._("Load .ttf/.otf"), Size = new Size(90, 22), Location = new Point(_verticalOffsetBox.Right + 8, belowY) };
             _loadFontFileButton.Click += LoadFontFileButton_Click;
             AutoGenbutton.Parent?.Controls.AddRange(new Control[] { _verticalOffsetLabel, _verticalOffsetBox, _loadFontFileButton });
 
@@ -1145,7 +1146,8 @@ namespace FEBuilderGBA
                 {
                     try
                     {
-                        Font loaded = ImageUtil.LoadFontFromFile(dlg.FileName, 12f);
+                        float currentSize = UseFontNameTextEdit.Font?.Size ?? 12f;
+                        Font loaded = ImageUtil.LoadFontFromFile(dlg.FileName, currentSize);
                         UseFontNameTextEdit.Font = loaded;
                         UseFontNameTextEdit.Text = loaded.FontFamily.Name + " (" + Path.GetFileName(dlg.FileName) + ")";
                     }

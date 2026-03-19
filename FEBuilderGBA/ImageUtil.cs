@@ -3715,14 +3715,18 @@ namespace FEBuilderGBA
             }
         }
 
+        // Keep PrivateFontCollection alive so the Font remains valid and the file isn't locked indefinitely
+        static System.Drawing.Text.PrivateFontCollection _loadedFontCollection;
+
         /// <summary>
         /// Load a font from a .ttf or .otf file for use with AutoGenerateFont.
         /// </summary>
         public static Font LoadFontFromFile(string fontFilePath, float size)
         {
-            var collection = new System.Drawing.Text.PrivateFontCollection();
-            collection.AddFontFile(fontFilePath);
-            return new Font(collection.Families[0], size);
+            _loadedFontCollection?.Dispose();
+            _loadedFontCollection = new System.Drawing.Text.PrivateFontCollection();
+            _loadedFontCollection.AddFontFile(fontFilePath);
+            return new Font(_loadedFontCollection.Families[0], size);
         }
 
         static Bitmap AutoGenerateTextFont(string moji, Font font, int verticalOffset, out int out_width)
