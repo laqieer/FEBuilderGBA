@@ -21,4 +21,5 @@ jobs:
       rom-name: none
       job-name: "E2E No ROM"
       timeout: 10
+      caller-event: ${{ github.event_name }}
     secrets: inherit

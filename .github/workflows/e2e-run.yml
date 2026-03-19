@@ -16,6 +16,11 @@ on:
         required: false
         type: number
         default: 20
+      caller-event:
+        description: "The caller workflow's github.event_name (e.g. schedule, push, pull_request)"
+        required: false
+        type: string
+        default: ""
     secrets:
       ROMS_URL:
         required: false
@@ -274,7 +279,7 @@ jobs:
 
       # ---------------------------------------------------------------- Create issue on scheduled failure
       - name: Create issue on scheduled E2E failure
-        if: failure()
+        if: failure() && inputs.caller-event == 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -291,21 +296,15 @@ jobs:
             exit 0
           fi
 
-          BODY=$(cat <<EOFBODY
-## Scheduled E2E failure: ${ROM_NAME}
-
-The daily scheduled E2E test for **${ROM_NAME}** failed.
-
-- **Run:** ${RUN_URL}
-- **Date:** ${DATE}
-- **Branch:** ${{ github.ref_name }}
-
-Please investigate and fix the failing tests.
-EOFBODY
-          )
+          BODY="## Scheduled E2E failure: ${ROM_NAME}"
+          BODY="${BODY}\n\nThe daily scheduled E2E test for **${ROM_NAME}** failed."
+          BODY="${BODY}\n\n- **Run:** ${RUN_URL}"
+          BODY="${BODY}\n- **Date:** ${DATE}"
+          BODY="${BODY}\n- **Branch:** ${{ github.ref_name }}"
+          BODY="${BODY}\n\nPlease investigate and fix the failing tests."
 
           gh issue create \
             --repo "${{ github.repository }}" \
             --title "${TITLE}" \
             --label "e2e-failure" \
-            --body "${BODY}"
+            --body "$(printf '%b' "${BODY}")"
