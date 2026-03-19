@@ -50,7 +50,7 @@
         </ListBox>
 
         <!-- Preview -->
-        <Border Grid.Row="1" Background="#F0F0F0" Margin="4" CornerRadius="4">
+        <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" Margin="4" CornerRadius="4">
           <Image Source="{Binding PreviewImage}"
                  Stretch="Uniform"
                  Margin="8" />

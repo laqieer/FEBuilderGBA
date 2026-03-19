@@ -1399,19 +1399,25 @@ namespace FEBuilderGBA
                     Bitmap fullColor = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
                     if (fullColor == null) return;
 
-                    if (fullColor.Width == 128 && fullColor.Height == 112)
+                    try
                     {
-                        using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+                        if (fullColor.Width == 128 && fullColor.Height == 112)
                         {
-                            ImportFaceImage(fullColor, browser.SelectedFilePath);
+                            using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
+                            {
+                                ImportFaceImage(fullColor, browser.SelectedFilePath);
+                            }
+                        }
+                        else
+                        {
+                            R.ShowStopError(R._("Selected image dimensions ({0}x{1}) are not a valid portrait size (128x112)."),
+                                fullColor.Width.ToString(), fullColor.Height.ToString());
                         }
                     }
-                    else
+                    finally
                     {
-                        R.ShowStopError(R._("Selected image dimensions ({0}x{1}) are not a valid portrait size (128x112)."),
-                            fullColor.Width.ToString(), fullColor.Height.ToString());
+                        fullColor.Dispose();
                     }
-                    fullColor.Dispose();
                 }
             }
         }

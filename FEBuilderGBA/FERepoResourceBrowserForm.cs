@@ -182,19 +182,20 @@ namespace FEBuilderGBA
             for (int i = 0; i < maxThumbnails; i++)
             {
                 var entry = files[i];
+                string key = i.ToString();
                 try
                 {
                     using (var img = Image.FromFile(entry.FullPath))
                     {
-                        thumbnailList.Images.Add(entry.FileName, new Bitmap(img, 48, 48));
+                        thumbnailList.Images.Add(key, new Bitmap(img, 48, 48));
                     }
                 }
                 catch
                 {
-                    thumbnailList.Images.Add(entry.FileName, new Bitmap(48, 48));
+                    thumbnailList.Images.Add(key, new Bitmap(48, 48));
                 }
 
-                var item = new ListViewItem(entry.FileName, entry.FileName)
+                var item = new ListViewItem(entry.FileName, key)
                 {
                     Tag = entry.FullPath
                 };
