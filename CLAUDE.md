@@ -14,8 +14,8 @@ FEBuilderGBA.sln
 ├── FEBuilderGBA.CLI/         # net9.0 — Cross-platform CLI (--version, --help, --makeups)
 ├── FEBuilderGBA.SkiaSharp/   # net9.0 — SkiaSharp IImageService implementation
 ├── FEBuilderGBA.Avalonia/    # net9.0 — Cross-platform Avalonia UI preview
-├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (1508 tests)
-├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (807 tests)
+├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (1666 tests)
+├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (1004 tests)
 └── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
 ```
 
@@ -102,6 +102,42 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Validate struct data round-trip (exit 0=lossless, 2=mismatches)
 ./FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all
+
+# Render unit portrait to PNG
+./FEBuilderGBA.CLI --render-portrait --rom=rom.gba --unit-id=1 --out=portrait.png
+
+# Export all portraits to PNG files
+./FEBuilderGBA.CLI --export-portrait-all --rom=rom.gba --out=portraits/
+
+# Export song to MIDI
+./FEBuilderGBA.CLI --export-midi --rom=rom.gba --song-id=0x1A --out=song.mid
+
+# Disassemble event scripts
+./FEBuilderGBA.CLI --disasm-event --rom=rom.gba --out=events.txt
+
+# Lint OAM sprites
+./FEBuilderGBA.CLI --lint-oam --rom=rom.gba
+
+# Apply binary patch
+./FEBuilderGBA.CLI --apply-patch --rom=rom.gba --patch-file=patch.txt
+
+# List patches and install status
+./FEBuilderGBA.CLI --list-patches --rom=rom.gba
+
+# Uninstall binary patch
+./FEBuilderGBA.CLI --uninstall-patch --rom=rom.gba --patch-file=patch.txt --original-rom=clean.gba
+
+# List FE-Repo/music resources
+./FEBuilderGBA.CLI --list-resources [--category="Battle Animations"]
+
+# Expand data table
+./FEBuilderGBA.CLI --expand-table --rom=rom.gba --pointer=0x8000000 --entry-size=28 --count=100
+
+# Three-way ROM merge
+./FEBuilderGBA.CLI --merge3 --rom=base.gba --target=modA.gba --in=modB.gba --out=merged.gba
+
+# Resolve name IDs
+./FEBuilderGBA.CLI --resolve-names --rom=rom.gba --kind=unit --ids=0,1,2,3
 ```
 
 ### Dependencies
