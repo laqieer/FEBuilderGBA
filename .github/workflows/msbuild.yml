@@ -158,7 +158,8 @@ jobs:
           Copy-Item "$colorzSrc/*" "tools/bin/" -Recurse -Force
           Write-Host "Bundled ColorzCore copied to tools/bin/ from $colorzSrc"
         } else {
-          Write-Host "WARNING: ColorzCore build output not found at expected paths"
+          Write-Host "##[error]ColorzCore build output not found at expected paths"
+          exit 1
         }
         # Copy lyn.exe if present
         $lynSrc = "tools/Event-Assembler/Event Assembler/Tools/lyn.exe"

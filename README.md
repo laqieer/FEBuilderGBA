@@ -52,6 +52,8 @@ git submodule update --init tools/Event-Assembler tools/ColorzCore
 dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
 ```
 
+**Runtime note:** The WinForms release ships ColorzCore as a framework-dependent net6.0 executable. It runs on the .NET 9 Desktop Runtime that FEBuilderGBA already requires (via roll-forward). Cross-platform releases (CLI/Avalonia) ship ColorzCore as self-contained, requiring no additional runtime.
+
 ### Cross-Platform Build (Linux / macOS / Windows)
 
 The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net9.0` and build on any platform:
