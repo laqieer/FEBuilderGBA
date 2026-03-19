@@ -999,7 +999,8 @@ namespace FEBuilderGBA
         static bool ConvertLYN_O_to_Event(string target_filename, out string output)
         {
             string EACoreEXE = ToolPathResolver.ResolveEventAssembler() ?? "";
-            string lynEXE = Path.Combine(Path.GetDirectoryName(EACoreEXE), "Tools/lyn.exe");
+            string lynEXE = ToolPathResolver.ResolveLynExe(EACoreEXE)
+                ?? Path.Combine(Path.GetDirectoryName(EACoreEXE) ?? "", "Tools", "lyn.exe");
             if (!File.Exists(lynEXE))
             {
                 output = R.Error("lyn.exeが見つかりません。\r\n{0}",lynEXE);
