@@ -148,11 +148,17 @@ jobs:
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8J"
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8U"
         # Copy bundled ColorzCore to tools/bin/ for ToolPathResolver
+        # Check both BaseOutputPath=bin/Core and standard bin/ layout
         $colorzSrc = "tools/ColorzCore/ColorzCore/bin/Core/${{env.BUILD_CONFIGURATION}}/net6.0"
+        if (-not (Test-Path $colorzSrc)) {
+          $colorzSrc = "tools/ColorzCore/ColorzCore/bin/${{env.BUILD_CONFIGURATION}}/net6.0"
+        }
         if (Test-Path $colorzSrc) {
           $null = New-Item -ItemType Directory -Force -Path "tools/bin"
           Copy-Item "$colorzSrc/*" "tools/bin/" -Recurse -Force
-          Write-Host "Bundled ColorzCore copied to tools/bin/"
+          Write-Host "Bundled ColorzCore copied to tools/bin/ from $colorzSrc"
+        } else {
+          Write-Host "WARNING: ColorzCore build output not found at expected paths"
         }
         # Copy lyn.exe if present
         $lynSrc = "tools/Event-Assembler/Event Assembler/Tools/lyn.exe"

@@ -9,13 +9,19 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void IsColorzCore_DetectsCorrectly()
         {
+            // Windows-style .exe
             Assert.True(ToolPathResolver.IsColorzCore(Path.Combine("tools", "ColorzCore.exe")));
             Assert.True(ToolPathResolver.IsColorzCore("/usr/bin/ColorzCore.exe"));
+            Assert.True(ToolPathResolver.IsColorzCore("ColorzCore.exe"));
+            // Linux/macOS no-extension
+            Assert.True(ToolPathResolver.IsColorzCore(Path.Combine("tools", "bin", "ColorzCore")));
+            Assert.True(ToolPathResolver.IsColorzCore("/usr/bin/ColorzCore"));
+            Assert.True(ToolPathResolver.IsColorzCore("ColorzCore"));
+            // Non-ColorzCore
             Assert.False(ToolPathResolver.IsColorzCore(Path.Combine("tools", "Core.exe")));
+            Assert.False(ToolPathResolver.IsColorzCore("Core"));
             Assert.False(ToolPathResolver.IsColorzCore(null));
             Assert.False(ToolPathResolver.IsColorzCore(""));
-            Assert.True(ToolPathResolver.IsColorzCore("ColorzCore.exe"));
-            Assert.False(ToolPathResolver.IsColorzCore("Core.exe"));
         }
 
         [Fact]

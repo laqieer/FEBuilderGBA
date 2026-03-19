@@ -46,6 +46,10 @@ jobs:
       - name: Init build-required submodules
         run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 
+      # ---------------------------------------------------------------- Build bundled tools
+      - name: Build ColorzCore (bundled EA tool)
+        run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
+
       # ---------------------------------------------------------------- MSBuild
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
