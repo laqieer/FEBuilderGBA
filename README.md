@@ -55,7 +55,7 @@ dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
 dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true
 ```
 
-**Runtime note:** The WinForms release ships ColorzCore as a framework-dependent net6.0 executable. It runs on the .NET 9 Desktop Runtime that FEBuilderGBA already requires (via roll-forward). Cross-platform releases (CLI/Avalonia) ship ColorzCore as self-contained, requiring no additional runtime.
+**Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
 
 ### Cross-Platform Build (Linux / macOS / Windows)
 

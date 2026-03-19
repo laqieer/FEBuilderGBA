@@ -37,8 +37,8 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
-    - name: Build ColorzCore (bundled EA tool)
-      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}}
+    - name: Publish ColorzCore (self-contained Windows x86)
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} -r win-x86 --self-contained true -o tools/publish
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -147,18 +147,14 @@ jobs:
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7U"
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8J"
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8U"
-        # Copy bundled ColorzCore to tools/bin/ for ToolPathResolver
-        # Check both BaseOutputPath=bin/Core and standard bin/ layout
-        $colorzSrc = "tools/ColorzCore/ColorzCore/bin/Core/${{env.BUILD_CONFIGURATION}}/net6.0"
-        if (-not (Test-Path $colorzSrc)) {
-          $colorzSrc = "tools/ColorzCore/ColorzCore/bin/${{env.BUILD_CONFIGURATION}}/net6.0"
-        }
-        if (Test-Path $colorzSrc) {
+        # Copy self-contained ColorzCore to tools/bin/ for ToolPathResolver
+        $colorzSrc = "tools/publish"
+        if (Test-Path "$colorzSrc/ColorzCore.exe") {
           $null = New-Item -ItemType Directory -Force -Path "tools/bin"
           Copy-Item "$colorzSrc/*" "tools/bin/" -Recurse -Force
-          Write-Host "Bundled ColorzCore copied to tools/bin/ from $colorzSrc"
+          Write-Host "Self-contained ColorzCore copied to tools/bin/"
         } else {
-          Write-Host "##[error]ColorzCore build output not found at expected paths"
+          Write-Host "##[error]ColorzCore publish output not found at tools/publish/"
           exit 1
         }
         # Copy lyn.exe if present

@@ -97,8 +97,13 @@ namespace FEBuilderGBA
             if (!string.IsNullOrEmpty(baseDir))
                 roots.Add(baseDir);
 
+            // Always include AppDomain base directory as a fallback search root
+            string appBaseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (!string.IsNullOrEmpty(appBaseDir) && appBaseDir != baseDir)
+                roots.Add(appBaseDir);
+
             // Walk up to find repo root (contains .git directory)
-            string dir = baseDir ?? System.AppDomain.CurrentDomain.BaseDirectory;
+            string dir = baseDir ?? appBaseDir;
             while (!string.IsNullOrEmpty(dir))
             {
                 if (Directory.Exists(Path.Combine(dir, ".git")) && dir != baseDir)
