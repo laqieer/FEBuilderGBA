@@ -163,6 +163,11 @@ namespace FEBuilderGBA.CLI
                 return RunListResources(argsDic);
             }
 
+            if (argsDic.ContainsKey("--uninstall-patch"))
+            {
+                return RunUninstallPatch(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -239,6 +244,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
+            Console.WriteLine("  --uninstall-patch        Restore original bytes for fixed-address BIN patches (requires --rom, --patch-file, --original-rom)");
+            Console.WriteLine("    --original-rom=<path>  Path to the clean/unmodified ROM for byte restoration");
+            Console.WriteLine("                           Note: only reverses fixed BIN:0xADDR=file entries; FREEAREA/JUMP/EA patches need full GUI uninstall");
             Console.WriteLine("  --list-resources         List available resources from FE-Repo/FE-Repo-Music submodules");
             Console.WriteLine("    --category=<name>      Filter by category (e.g., 'Battle Animations', 'Portraits')");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
@@ -2001,6 +2009,125 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine();
             Console.WriteLine($"Total: {patches.Count} patches, {installed} installed" +
                 (unknown > 0 ? $", {unknown} unknown" : ""));
+            return 0;
+        }
+
+        static int RunUninstallPatch(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --uninstall-patch requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--patch-file") || string.IsNullOrEmpty(argsDic["--patch-file"]))
+            {
+                Console.Error.WriteLine("Error: --uninstall-patch requires --patch-file=<PATCH_xxx.txt>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--original-rom") || string.IsNullOrEmpty(argsDic["--original-rom"]))
+            {
+                Console.Error.WriteLine("Error: --uninstall-patch requires --original-rom=<clean_rom.gba>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string patchFile = argsDic["--patch-file"];
+            string originalRomPath = argsDic["--original-rom"];
+
+            if (!File.Exists(patchFile))
+            {
+                Console.Error.WriteLine($"Error: Patch file not found: {patchFile}");
+                return 1;
+            }
+            if (!File.Exists(originalRomPath))
+            {
+                Console.Error.WriteLine($"Error: Original ROM not found: {originalRomPath}");
+                return 1;
+            }
+
+            byte[] modifiedRom = File.ReadAllBytes(romPath);
+            byte[] originalRom = File.ReadAllBytes(originalRomPath);
+
+            // Parse BIN lines from the patch file to find addresses that were patched
+            int restoredRanges = 0;
+            int restoredBytes = 0;
+            bool hasUnsupportedDirectives = false;
+            string patchDir = Path.GetDirectoryName(patchFile);
+
+            foreach (string line in File.ReadLines(patchFile))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith("//") || trimmed.StartsWith("#")) continue;
+
+                // Detect unsupported directives
+                if (trimmed.StartsWith("BIN:$FREEAREA") || trimmed.StartsWith("JUMP:") ||
+                    trimmed.StartsWith("EA:") || trimmed.StartsWith("CLEAR:"))
+                {
+                    hasUnsupportedDirectives = true;
+                    continue;
+                }
+
+                // BIN:0xADDR=filename.bin — restore original bytes at that address
+                if (trimmed.StartsWith("BIN:"))
+                {
+                    string rest = trimmed.Substring(4);
+                    int eqIdx = rest.IndexOf('=');
+                    if (eqIdx < 0) continue;
+
+                    string addrStr = rest.Substring(0, eqIdx).Trim();
+                    string binFile = rest.Substring(eqIdx + 1).Trim();
+
+                    if (!uint.TryParse(addrStr.Replace("0x", "").Replace("0X", ""),
+                        System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+                        continue;
+
+                    // Determine size of patched region from bin file
+                    int size;
+                    string binPath = Path.Combine(patchDir, binFile);
+                    if (File.Exists(binPath))
+                    {
+                        size = (int)new FileInfo(binPath).Length;
+                    }
+                    else
+                    {
+                        // If bin file not found, skip this range
+                        Console.Error.WriteLine($"  Warning: {binFile} not found, skipping 0x{addr:X}");
+                        continue;
+                    }
+
+                    if (addr + size > originalRom.Length || addr + size > modifiedRom.Length)
+                    {
+                        Console.Error.WriteLine($"  Warning: range 0x{addr:X}+{size} exceeds ROM size, skipping");
+                        continue;
+                    }
+
+                    // Restore original bytes
+                    Array.Copy(originalRom, addr, modifiedRom, addr, size);
+                    restoredRanges++;
+                    restoredBytes += size;
+                    Console.WriteLine($"  Restored 0x{addr:X} ({size} bytes)");
+                }
+            }
+
+            if (restoredRanges == 0)
+            {
+                Console.Error.WriteLine("No BIN ranges found in patch file. Only BIN-type patches can be uninstalled.");
+                return 1;
+            }
+
+            // Create backup before writing
+            string backupPath = romPath + ".backup";
+            File.Copy(romPath, backupPath, true);
+            Console.WriteLine($"Backup saved: {backupPath}");
+
+            File.WriteAllBytes(romPath, modifiedRom);
+            Console.WriteLine($"Patch uninstalled: {restoredRanges} ranges, {restoredBytes} bytes restored");
+            if (hasUnsupportedDirectives)
+            {
+                Console.Error.WriteLine("Warning: This patch contains FREEAREA/JUMP/EA/CLEAR directives that");
+                Console.Error.WriteLine("could not be reversed. The uninstall may be incomplete.");
+                Console.Error.WriteLine("For full uninstall, use the GUI patch manager.");
+            }
             return 0;
         }
 
