@@ -21,6 +21,31 @@ namespace FEBuilderGBA
 
             this.SongTable.OwnerDraw(ListBoxEx.DrawTextOnly, DrawMode.OwnerDrawFixed);
             this.OtherROMSongTable.OwnerDraw(ListBoxEx.DrawTextOnly, DrawMode.OwnerDrawFixed);
+
+            // Add FE-Repo Music browse button
+            var feRepoMusicButton = new Button
+            {
+                Text = R._("FE-Repo Music"),
+                Size = new System.Drawing.Size(120, 25),
+                Location = new System.Drawing.Point(5, 5)
+            };
+            feRepoMusicButton.Click += FERepoMusicButton_Click;
+            this.Controls.Add(feRepoMusicButton);
+            feRepoMusicButton.BringToFront();
+        }
+
+        void FERepoMusicButton_Click(object sender, EventArgs e)
+        {
+            using (var browser = new FERepoMusicBrowserForm())
+            {
+                if (browser.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(browser.SelectedFilePath))
+                {
+                    // Copy selected .s file path to clipboard for use in song exchange
+                    System.Windows.Forms.Clipboard.SetText(browser.SelectedFilePath);
+                    R.ShowOK(R._("Music file path copied to clipboard:\n{0}\n\nUse this path with the song exchange import."),
+                        browser.SelectedFilePath);
+                }
+            }
         }
         public class SongSt
         {

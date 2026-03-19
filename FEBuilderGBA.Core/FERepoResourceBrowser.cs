@@ -29,6 +29,7 @@ namespace FEBuilderGBA
         };
 
         static readonly string[] ImageExtensions = { ".png", ".bmp", ".gif" };
+        static readonly string[] MusicExtensions = { ".s", ".mid", ".midi", ".wav" };
 
         /// <summary>
         /// Find the FE-Repo root directory by searching from the given base directory.
@@ -49,6 +50,69 @@ namespace FEBuilderGBA
                 dir = parent;
             }
             return null;
+        }
+
+        /// <summary>
+        /// Find the FE-Repo-Music root directory by searching from the given base directory.
+        /// </summary>
+        public static string FindMusicRepoRoot(string baseDir)
+        {
+            if (string.IsNullOrEmpty(baseDir)) return null;
+
+            string dir = baseDir;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                string candidate = Path.Combine(dir, "resources", "FE-Repo-Music-No-Preview");
+                if (Directory.Exists(candidate))
+                    return candidate;
+                string parent = Path.GetDirectoryName(dir);
+                if (parent == dir) break;
+                dir = parent;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Get music resource files within a category and optional subcategory.
+        /// Filters for .s, .mid, .midi, .wav files.
+        /// </summary>
+        public static ResourceEntry[] GetMusicFiles(string repoRoot, string category, string subCategory = null, int maxResults = 0)
+        {
+            if (string.IsNullOrEmpty(repoRoot) || string.IsNullOrEmpty(category))
+                return Array.Empty<ResourceEntry>();
+
+            string searchDir = string.IsNullOrEmpty(subCategory)
+                ? Path.Combine(repoRoot, category)
+                : Path.Combine(repoRoot, category, subCategory);
+
+            if (!Directory.Exists(searchDir))
+                return Array.Empty<ResourceEntry>();
+
+            var entries = new List<ResourceEntry>();
+            try
+            {
+                foreach (string file in Directory.EnumerateFiles(searchDir, "*", SearchOption.AllDirectories))
+                {
+                    string ext = Path.GetExtension(file).ToLowerInvariant();
+                    if (!MusicExtensions.Contains(ext)) continue;
+
+                    var info = new FileInfo(file);
+                    entries.Add(new ResourceEntry
+                    {
+                        FullPath = file,
+                        FileName = Path.GetFileName(file),
+                        Category = category,
+                        SubCategory = subCategory ?? "",
+                        FileSize = info.Length
+                    });
+
+                    if (maxResults > 0 && entries.Count >= maxResults)
+                        break;
+                }
+            }
+            catch (Exception) { }
+
+            return entries.OrderBy(e => e.FileName).ToArray();
         }
 
         /// <summary>
