@@ -1698,12 +1698,14 @@ namespace FEBuilderGBA.CLI
                 if (facePtr == 0 || palettePtr == 0)
                     continue;
 
-                byte eyeX = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 20) : (byte)0;
-                byte eyeY = (portraitDataSize > 21) ? (byte)rom.u8(portraitAddr + 21) : (byte)0;
+                // FE7/8 portrait struct: +20=mouthX, +21=mouthY, +22=eyeX, +23=eyeY, +24=state
+                byte eyeX = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 22) : (byte)0;
+                byte eyeY = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 23) : (byte)0;
+                byte state = (portraitDataSize > 24) ? (byte)rom.u8(portraitAddr + 24) : (byte)0;
 
                 try
                 {
-                    using (var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0))
+                    using (var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, state))
                     {
                         if (image == null) { Console.Error.WriteLine($"  Portrait {id}: render returned null"); errors++; continue; }
 
