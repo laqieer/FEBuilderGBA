@@ -8,10 +8,13 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         public string SelectedFilePath => (DataContext as FERepoResourceBrowserViewModel)?.SelectedFilePath;
 
-        public FERepoResourceBrowserWindow()
+        public FERepoResourceBrowserWindow() : this(false) { }
+
+        public FERepoResourceBrowserWindow(bool musicMode)
         {
             InitializeComponent();
-            DataContext = new FERepoResourceBrowserViewModel();
+            DataContext = new FERepoResourceBrowserViewModel(musicMode);
+            if (musicMode) Title = "FE-Repo Music Browser";
         }
 
         void InsertButton_Click(object sender, RoutedEventArgs e)

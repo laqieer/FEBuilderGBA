@@ -16,6 +16,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _canInsert;
         CategoryNode _selectedCategory;
         string _repoRoot;
+        bool _musicMode;
 
         public ObservableCollection<CategoryNode> Categories
         {
@@ -69,10 +70,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public string SelectedFilePath { get; set; }
 
-        public FERepoResourceBrowserViewModel()
+        public FERepoResourceBrowserViewModel() : this(false) { }
+
+        public FERepoResourceBrowserViewModel(bool musicMode)
         {
+            _musicMode = musicMode;
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            _repoRoot = FERepoResourceBrowser.FindRepoRoot(baseDir);
+            _repoRoot = musicMode
+                ? FERepoResourceBrowser.FindMusicRepoRoot(baseDir)
+                : FERepoResourceBrowser.FindRepoRoot(baseDir);
             LoadCategories();
         }
 
@@ -105,7 +111,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanInsert = false;
             SelectedFilePath = null;
 
-            var files = FERepoResourceBrowser.GetResourceFiles(_repoRoot, node.Category, node.SubCategory, maxResults: 200);
+            var files = _musicMode
+                ? FERepoResourceBrowser.GetMusicFiles(_repoRoot, node.Category, node.SubCategory, maxResults: 500)
+                : FERepoResourceBrowser.GetResourceFiles(_repoRoot, node.Category, node.SubCategory, maxResults: 200);
             StatusText = $"{files.Length} resources found";
             if (files.Length >= 200) StatusText += " (limited to 200)";
 
