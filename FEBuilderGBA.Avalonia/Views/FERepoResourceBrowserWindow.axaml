@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
+        x:Class="FEBuilderGBA.Avalonia.Views.FERepoResourceBrowserWindow"
+        Title="FE-Repo Resource Browser"
+        Width="900" Height="600"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner">
+
+  <Design.DataContext>
+    <vm:FERepoResourceBrowserViewModel />
+  </Design.DataContext>
+
+  <ScrollViewer>
+  <DockPanel MinWidth="900" MinHeight="560">
+    <!-- Bottom: status + buttons -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="8" Spacing="8">
+      <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
+                 HorizontalAlignment="Left" Width="500" />
+      <Button Content="Insert" IsEnabled="{Binding CanInsert}"
+              Click="InsertButton_Click" Width="80" />
+      <Button Content="Cancel" Click="CancelButton_Click" Width="80" />
+    </StackPanel>
+
+    <!-- Main content: categories | files + preview -->
+    <Grid ColumnDefinitions="250,*">
+      <!-- Left: category tree -->
+      <TreeView Grid.Column="0" ItemsSource="{Binding Categories}"
+                SelectedItem="{Binding SelectedCategory}"
+                Margin="4">
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate ItemsSource="{Binding Children}">
+            <TextBlock Text="{Binding Name}" />
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+
+      <!-- Right: files + preview -->
+      <Grid Grid.Column="1" RowDefinitions="*,*">
+        <!-- File list -->
+        <ListBox Grid.Row="0" ItemsSource="{Binding ResourceFiles}"
+                 SelectedItem="{Binding SelectedFile}"
+                 Margin="4">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding FileName}" Margin="4,2" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Preview -->
+        <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" Margin="4" CornerRadius="4">
+          <Image Source="{Binding PreviewImage}"
+                 Stretch="Uniform"
+                 Margin="8" />
+        </Border>
+      </Grid>
+    </Grid>
+  </DockPanel>
+  </ScrollViewer>
+</Window>
