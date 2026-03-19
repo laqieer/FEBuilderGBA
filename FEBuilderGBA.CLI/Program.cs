@@ -1672,19 +1672,41 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            Directory.CreateDirectory(outputDir);
+            try { Directory.CreateDirectory(outputDir); }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: Cannot create output directory: {ex.Message}");
+                return 1;
+            }
 
             uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
             uint portraitDataSize = rom.RomInfo.portrait_datasize;
 
             // Determine entry count by scanning for valid portrait entries
+            // Stop at first entry where both face and palette pointers are invalid (non-pointer, non-zero)
             int maxEntries = 0;
+            int consecutiveInvalid = 0;
             for (uint id = 0; id < 0x400; id++)
             {
                 uint addr = portraitBase + (id * portraitDataSize);
                 if (!U.isSafetyOffset(addr + portraitDataSize - 1, rom))
                     break;
-                maxEntries++;
+
+                uint faceVal = rom.u32(addr + 0);
+                uint palVal = rom.u32(addr + 8);
+                bool faceOk = faceVal == 0 || U.isPointer(faceVal);
+                bool palOk = palVal == 0 || U.isPointer(palVal);
+
+                if (!faceOk && !palOk)
+                {
+                    consecutiveInvalid++;
+                    if (consecutiveInvalid >= 3) break; // 3 consecutive invalid = end of table
+                }
+                else
+                {
+                    consecutiveInvalid = 0;
+                }
+                maxEntries = (int)id + 1;
             }
 
             int exported = 0;
@@ -1698,14 +1720,25 @@ namespace FEBuilderGBA.CLI
                 if (facePtr == 0 || palettePtr == 0)
                     continue;
 
-                // FE7/8 portrait struct: +20=mouthX, +21=mouthY, +22=eyeX, +23=eyeY, +24=state
-                byte eyeX = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 22) : (byte)0;
-                byte eyeY = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 23) : (byte)0;
-                byte state = (portraitDataSize > 24) ? (byte)rom.u8(portraitAddr + 24) : (byte)0;
-
                 try
                 {
-                    using (var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, state))
+                    IImage image;
+                    if (rom.RomInfo.version == 6)
+                    {
+                        // FE6: portrait struct has mouth at +12/+13
+                        byte fe6MouthX = (portraitDataSize > 13) ? (byte)rom.u8(portraitAddr + 12) : (byte)0;
+                        byte fe6MouthY = (portraitDataSize > 13) ? (byte)rom.u8(portraitAddr + 13) : (byte)0;
+                        image = PortraitRendererCoreFE6.DrawPortraitUnitFE6(facePtr, palettePtr, fe6MouthX, fe6MouthY, 0);
+                    }
+                    else
+                    {
+                        // FE7/8 portrait struct: +20=mouthX, +21=mouthY, +22=eyeX, +23=eyeY, +24=state
+                        byte eyeX = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 22) : (byte)0;
+                        byte eyeY = (portraitDataSize > 23) ? (byte)rom.u8(portraitAddr + 23) : (byte)0;
+                        byte state = (portraitDataSize > 24) ? (byte)rom.u8(portraitAddr + 24) : (byte)0;
+                        image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, state);
+                    }
+                    using (image)
                     {
                         if (image == null) { Console.Error.WriteLine($"  Portrait {id}: render returned null"); errors++; continue; }
 
