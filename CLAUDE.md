@@ -112,6 +112,12 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Export song to MIDI
 ./FEBuilderGBA.CLI --export-midi --rom=rom.gba --song-id=0x1A --out=song.mid
 
+# Import MIDI file into ROM song slot
+./FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid
+
+# Compile event script with EA/ColorzCore
+./FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba
+
 # Disassemble event scripts
 ./FEBuilderGBA.CLI --disasm-event --rom=rom.gba --out=events.txt
 
@@ -122,7 +128,9 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --apply-patch --rom=rom.gba --patch-file=patch.txt
 
 # List patches and install status
+# List patches and install status (with optional name filter)
 ./FEBuilderGBA.CLI --list-patches --rom=rom.gba
+./FEBuilderGBA.CLI --list-patches --rom=rom.gba --patch-name=SkillSystem
 
 # Uninstall binary patch
 ./FEBuilderGBA.CLI --uninstall-patch --rom=rom.gba --patch-file=patch.txt --original-rom=clean.gba
