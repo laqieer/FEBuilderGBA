@@ -413,21 +413,40 @@ namespace FEBuilderGBA
                 return InputFormRef.JumpFormLow<MainFE0Form>();
             }
 
-            if (OptionForm.first_form() == OptionForm.first_form_enum.EASY 
+            if (OptionForm.first_form() == OptionForm.first_form_enum.EASY
                 && U.stringbool(U.at(ArgsDic, "--force-detail","0")) == false )
             {
                 return InputFormRef.JumpFormLow<MainSimpleMenuForm>();
             }
 
+            // Start auto-save if enabled
+            TryStartAutoSave();
+
+            DialogResult result;
             if (Program.ROM.RomInfo.version == 6)
             {
-                return InputFormRef.JumpFormLow<MainFE6Form>();
+                result = InputFormRef.JumpFormLow<MainFE6Form>();
             }
             else if (Program.ROM.RomInfo.version == 7)
             {
-                return InputFormRef.JumpFormLow<MainFE7Form>();
+                result = InputFormRef.JumpFormLow<MainFE7Form>();
             }
-            return InputFormRef.JumpFormLow<MainFE8Form>();
+            else
+            {
+                result = InputFormRef.JumpFormLow<MainFE8Form>();
+            }
+
+            AutoSaveWinForms.Instance.Stop();
+            return result;
+        }
+
+        static void TryStartAutoSave()
+        {
+            var (enabled, interval) = AutoSaveWinForms.ReadConfig();
+            if (enabled && Program.ROM != null)
+                AutoSaveWinForms.Instance.Start(interval, Program.ROM.Filename);
+            else
+                AutoSaveWinForms.Instance.Stop();
         }
 
         public static string OpenROMDialog()
