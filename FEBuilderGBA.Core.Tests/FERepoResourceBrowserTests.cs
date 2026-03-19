@@ -117,17 +117,22 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetCategories_WithActualSubmodule()
         {
-            // Integration test: verify actual FE-Repo submodule if present
+            // Integration test: verify actual FE-Repo submodule if present and initialized
             string repoRoot = FERepoResourceBrowser.FindRepoRoot(
                 CoreState.BaseDirectory ?? System.AppDomain.CurrentDomain.BaseDirectory);
             if (repoRoot == null)
             {
-                // Submodule not initialized — skip
+                // Submodule directory not found — skip
                 return;
             }
 
             string[] cats = FERepoResourceBrowser.GetCategories(repoRoot);
-            Assert.NotEmpty(cats);
+            if (cats.Length == 0)
+            {
+                // Submodule directory exists but not initialized (CI) — skip
+                return;
+            }
+
             Assert.Contains("Portrait Repository", cats);
         }
     }
