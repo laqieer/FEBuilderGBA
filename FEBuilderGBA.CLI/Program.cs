@@ -143,6 +143,11 @@ namespace FEBuilderGBA.CLI
                 return RunGenerateFont(argsDic);
             }
 
+            if (argsDic.ContainsKey("--import-portrait"))
+            {
+                return RunImportPortrait(argsDic);
+            }
+
             if (argsDic.ContainsKey("--export-midi"))
             {
                 return RunExportMidi(argsDic);
@@ -260,6 +265,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --font-size=<float>    Font size in points (default: 12)");
             Console.WriteLine("    --vertical-offset=<int> Vertical pixel offset (-8 to 8, default: 0)");
             Console.WriteLine("    --item-font            Generate item font style (default: text/serif style)");
+            Console.WriteLine("  --import-portrait        Import PNG into ROM portrait slot (requires --rom, --unit-id, --in)");
+            Console.WriteLine("    --unit-id=<id>         Portrait index number");
+            Console.WriteLine("    --in=<path>            Input PNG file path");
             Console.WriteLine("  --export-midi            Export song to MIDI file (requires --rom, --song-id, --out)");
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
@@ -1839,6 +1847,93 @@ namespace FEBuilderGBA.CLI
             typeface?.Dispose();
             var fileInfo = new FileInfo(outputPath);
             Console.WriteLine($"Font generated: {outputPath} ({text.Length} chars, {totalWidth}x{charSize}, {fileInfo.Length} bytes)");
+            return 0;
+        }
+
+        static int RunImportPortrait(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --import-portrait requires --rom=<rom>"); return 1; }
+            if (!argsDic.ContainsKey("--unit-id") || string.IsNullOrEmpty(argsDic["--unit-id"]))
+            { Console.Error.WriteLine("Error: --import-portrait requires --unit-id=<id>"); return 1; }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --import-portrait requires --in=<input.png>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            string inputPath = argsDic["--in"];
+
+            if (!uint.TryParse(argsDic["--unit-id"], out uint portraitId))
+            { Console.Error.WriteLine("Error: --unit-id must be a valid number."); return 1; }
+            if (!File.Exists(inputPath))
+            { Console.Error.WriteLine($"Error: Input file not found: {inputPath}"); return 1; }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            { Console.Error.WriteLine("Error: ROM not loaded correctly."); return 1; }
+
+            uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
+            uint portraitDataSize = rom.RomInfo.portrait_datasize;
+            uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
+            if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+            { Console.Error.WriteLine($"Error: Portrait ID {portraitId} is out of range."); return 1; }
+
+            // Load PNG via SkiaSharp and convert to RGBA
+            byte[] rgbaPixels;
+            int width, height;
+            using (var skBitmap = global::SkiaSharp.SKBitmap.Decode(inputPath))
+            {
+                if (skBitmap == null)
+                { Console.Error.WriteLine("Error: Failed to load image."); return 1; }
+
+                width = skBitmap.Width;
+                height = skBitmap.Height;
+                using var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888);
+                rgbaPixels = converted.Bytes;
+            }
+
+            // Quantize to 16 colors using Core's DecreaseColorCore
+            var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
+            if (quantResult == null)
+            { Console.Error.WriteLine("Error: Color quantization failed."); return 1; }
+
+            // Encode as 4bpp tiles
+            byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
+            if (tileData == null)
+            { Console.Error.WriteLine("Error: Tile encoding failed."); return 1; }
+
+            // Check if existing data is compressed
+            uint currentFacePtr = rom.p32(portraitAddr + 0);
+            bool isCompressed = U.isSafetyOffset(U.toOffset(currentFacePtr)) && LZ77.iscompress(rom.Data, U.toOffset(currentFacePtr));
+
+            // Write tile data
+            uint tileAddr;
+            if (isCompressed)
+            {
+                tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, portraitAddr + 0);
+            }
+            else
+            {
+                byte[] withHeader = new byte[4 + tileData.Length];
+                withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
+                Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
+                tileAddr = ImageImportCore.WriteRawToROM(rom, withHeader, portraitAddr + 0);
+            }
+            if (tileAddr == U.NOT_FOUND)
+            { Console.Error.WriteLine("Error: No free ROM space for tile data."); return 1; }
+
+            // Write palette
+            uint palAddr = ImageImportCore.WritePaletteToROM(rom, quantResult.GBAPalette, portraitAddr + 8);
+            if (palAddr == U.NOT_FOUND)
+            { Console.Error.WriteLine("Error: No free ROM space for palette."); return 1; }
+
+            // Save ROM
+            rom.Save(romPath, true);
+            Console.WriteLine($"Portrait {portraitId} imported from {inputPath} ({width}x{height}) and saved to {romPath}");
             return 0;
         }
 
