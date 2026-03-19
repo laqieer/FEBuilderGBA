@@ -173,6 +173,11 @@ namespace FEBuilderGBA.CLI
                 return RunExpandTable(argsDic);
             }
 
+            if (argsDic.ContainsKey("--merge3"))
+            {
+                return RunThreeWayMerge(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -249,6 +254,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
+            Console.WriteLine("  --merge3                 Three-way merge of ROM files (requires --base, --mine, --theirs, --out)");
+            Console.WriteLine("    --base=<path>          Common ancestor ROM");
+            Console.WriteLine("    --mine=<path>          Your modified ROM");
+            Console.WriteLine("    --theirs=<path>        Their modified ROM");
             Console.WriteLine("  --expand-table           Expand a ROM data table by one entry (requires --rom, --pointer, --entry-size)");
             Console.WriteLine("    --pointer=<hex>        ROM address of the table pointer (e.g., 0x005524 for portraits)");
             Console.WriteLine("    --entry-size=<int>     Size of each table entry in bytes (e.g., 28 for FE8U portraits)");
@@ -2018,6 +2027,66 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine();
             Console.WriteLine($"Total: {patches.Count} patches, {installed} installed" +
                 (unknown > 0 ? $", {unknown} unknown" : ""));
+            return 0;
+        }
+
+        static int RunThreeWayMerge(Dictionary<string, string> argsDic)
+        {
+            string[] required = { "--base", "--mine", "--theirs", "--out" };
+            foreach (string key in required)
+            {
+                if (!argsDic.ContainsKey(key) || string.IsNullOrEmpty(argsDic[key]))
+                {
+                    Console.Error.WriteLine($"Error: --merge3 requires {key}=<path>");
+                    return 1;
+                }
+            }
+
+            string basePath = argsDic["--base"];
+            string minePath = argsDic["--mine"];
+            string theirsPath = argsDic["--theirs"];
+            string outPath = argsDic["--out"];
+
+            if (!File.Exists(basePath)) { Console.Error.WriteLine($"Error: Base ROM not found: {basePath}"); return 1; }
+            if (!File.Exists(minePath)) { Console.Error.WriteLine($"Error: Mine ROM not found: {minePath}"); return 1; }
+            if (!File.Exists(theirsPath)) { Console.Error.WriteLine($"Error: Theirs ROM not found: {theirsPath}"); return 1; }
+
+            byte[] baseRom = File.ReadAllBytes(basePath);
+            byte[] mineRom = File.ReadAllBytes(minePath);
+            byte[] theirsRom = File.ReadAllBytes(theirsPath);
+
+            // Pad to same size if needed
+            int maxLen = Math.Max(baseRom.Length, Math.Max(mineRom.Length, theirsRom.Length));
+            if (baseRom.Length < maxLen) { byte[] tmp = new byte[maxLen]; Array.Copy(baseRom, tmp, baseRom.Length); for (int i = baseRom.Length; i < maxLen; i++) tmp[i] = 0xFF; baseRom = tmp; }
+            if (mineRom.Length < maxLen) { byte[] tmp = new byte[maxLen]; Array.Copy(mineRom, tmp, mineRom.Length); for (int i = mineRom.Length; i < maxLen; i++) tmp[i] = 0xFF; mineRom = tmp; }
+            if (theirsRom.Length < maxLen) { byte[] tmp = new byte[maxLen]; Array.Copy(theirsRom, tmp, theirsRom.Length); for (int i = theirsRom.Length; i < maxLen; i++) tmp[i] = 0xFF; theirsRom = tmp; }
+
+            Console.WriteLine($"Base:   {basePath} ({new FileInfo(basePath).Length:N0} bytes)");
+            Console.WriteLine($"Mine:   {minePath} ({new FileInfo(minePath).Length:N0} bytes)");
+            Console.WriteLine($"Theirs: {theirsPath} ({new FileInfo(theirsPath).Length:N0} bytes)");
+            Console.WriteLine();
+
+            var result = ThreeWayMergeCore.Merge(baseRom, mineRom, theirsRom);
+
+            File.WriteAllBytes(outPath, result.MergedData);
+
+            Console.WriteLine($"Merged: {outPath} ({result.MergedData.Length:N0} bytes)");
+            Console.WriteLine($"Changes from Mine:   {result.ChangesMine:N0} bytes");
+            Console.WriteLine($"Changes from Theirs: {result.ChangesTheirs:N0} bytes");
+            Console.WriteLine($"Both same change:    {result.ChangesBoth:N0} bytes");
+            Console.WriteLine($"Conflicts:           {result.ConflictBytes:N0} bytes ({result.Conflicts.Count} ranges)");
+
+            if (result.Conflicts.Count > 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine("Conflict ranges (defaulted to Mine's values):");
+                foreach (var c in result.Conflicts)
+                {
+                    Console.WriteLine($"  0x{c.Offset:X} - 0x{c.Offset + c.Length - 1:X} ({c.Length} bytes)");
+                }
+                return 2; // Exit code 2 = merged with conflicts
+            }
+
             return 0;
         }
 
