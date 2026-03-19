@@ -1677,13 +1677,21 @@ namespace FEBuilderGBA.CLI
             uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
             uint portraitDataSize = rom.RomInfo.portrait_datasize;
 
+            // Determine entry count by scanning for valid portrait entries
+            int maxEntries = 0;
+            for (uint id = 0; id < 0x400; id++)
+            {
+                uint addr = portraitBase + (id * portraitDataSize);
+                if (!U.isSafetyOffset(addr + portraitDataSize - 1, rom))
+                    break;
+                maxEntries++;
+            }
+
             int exported = 0;
             int errors = 0;
-            for (uint id = 0; id < 256; id++)
+            for (uint id = 0; id < (uint)maxEntries; id++)
             {
                 uint portraitAddr = portraitBase + (id * portraitDataSize);
-                if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
-                    break;
 
                 uint facePtr = rom.p32(portraitAddr + 0);
                 uint palettePtr = rom.p32(portraitAddr + 8);
@@ -1695,21 +1703,24 @@ namespace FEBuilderGBA.CLI
 
                 try
                 {
-                    var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0);
-                    if (image == null) { errors++; continue; }
+                    using (var image = PortraitRendererCore.DrawPortraitUnit(facePtr, palettePtr, eyeX, eyeY, 0))
+                    {
+                        if (image == null) { Console.Error.WriteLine($"  Portrait {id}: render returned null"); errors++; continue; }
 
-                    string outPath = Path.Combine(outputDir, $"portrait_{id:D3}.png");
-                    image.Save(outPath);
-                    exported++;
+                        string outPath = Path.Combine(outputDir, $"portrait_{id:D3}.png");
+                        image.Save(outPath);
+                        exported++;
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.Error.WriteLine($"  Portrait {id}: {ex.Message}");
                     errors++;
                 }
             }
 
-            Console.WriteLine($"Exported {exported} portraits to {outputDir}/ ({errors} errors)");
-            return 0;
+            Console.WriteLine($"Exported {exported} portraits to {outputDir}/ ({errors} errors, {maxEntries} entries scanned)");
+            return errors > 0 ? 2 : 0;
         }
 
         static int RunExportMidi(Dictionary<string, string> argsDic)
