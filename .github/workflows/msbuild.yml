@@ -32,10 +32,13 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Init build-required submodules
-      run: git submodule update --init config/patch2
+      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
+
+    - name: Publish ColorzCore (self-contained Windows x86)
+      run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} -r win-x86 --self-contained true -o tools/publish
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
@@ -144,6 +147,23 @@ jobs:
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7U"
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8J"
         $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8U"
+        # Copy self-contained ColorzCore to tools/bin/ for ToolPathResolver
+        $colorzSrc = "tools/publish"
+        if (Test-Path "$colorzSrc/ColorzCore.exe") {
+          $null = New-Item -ItemType Directory -Force -Path "tools/bin"
+          Copy-Item "$colorzSrc/*" "tools/bin/" -Recurse -Force
+          Write-Host "Self-contained ColorzCore copied to tools/bin/"
+        } else {
+          Write-Host "##[error]ColorzCore publish output not found at tools/publish/"
+          exit 1
+        }
+        # Copy lyn.exe if present
+        $lynSrc = "tools/Event-Assembler/Event Assembler/Tools/lyn.exe"
+        if (Test-Path $lynSrc) {
+          $null = New-Item -ItemType Directory -Force -Path "tools/bin/Tools"
+          Copy-Item $lynSrc "tools/bin/Tools/lyn.exe" -Force
+          Write-Host "Bundled lyn.exe copied to tools/bin/Tools/"
+        }
         echo "`n*Build $build_time from GitHub Action workflow [${{ github.workflow }} #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) & source code commit [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).*" >> README.md
 
     - name: Upload Core Artifact
@@ -155,4 +175,5 @@ jobs:
           *.dll
           *.json
           config/
+          tools/bin/
           README*.md

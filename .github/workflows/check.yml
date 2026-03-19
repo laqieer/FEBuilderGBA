@@ -33,10 +33,13 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Init build-required submodules
-      run: git submodule update --init config/patch2
+      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
+
+    - name: Build ColorzCore (bundled EA tool)
+      run: dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}}
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
