@@ -168,6 +168,11 @@ namespace FEBuilderGBA.CLI
                 return RunUninstallPatch(argsDic);
             }
 
+            if (argsDic.ContainsKey("--expand-table"))
+            {
+                return RunExpandTable(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -244,6 +249,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
+            Console.WriteLine("  --expand-table           Expand a ROM data table by one entry (requires --rom, --pointer, --entry-size)");
+            Console.WriteLine("    --pointer=<hex>        ROM address of the table pointer (e.g., 0x005524 for portraits)");
+            Console.WriteLine("    --entry-size=<int>     Size of each table entry in bytes (e.g., 28 for FE8U portraits)");
+            Console.WriteLine("    --count=<int>          Current entry count (REQUIRED for safety)");
             Console.WriteLine("  --uninstall-patch        Restore original bytes for fixed-address BIN patches (requires --rom, --patch-file, --original-rom)");
             Console.WriteLine("    --original-rom=<path>  Path to the clean/unmodified ROM for byte restoration");
             Console.WriteLine("                           Note: only reverses fixed BIN:0xADDR=file entries; FREEAREA/JUMP/EA patches need full GUI uninstall");
@@ -2010,6 +2019,89 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Total: {patches.Count} patches, {installed} installed" +
                 (unknown > 0 ? $", {unknown} unknown" : ""));
             return 0;
+        }
+
+        static int RunExpandTable(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --expand-table requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--pointer") || string.IsNullOrEmpty(argsDic["--pointer"]))
+            {
+                Console.Error.WriteLine("Error: --expand-table requires --pointer=<hex>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--entry-size") || string.IsNullOrEmpty(argsDic["--entry-size"]))
+            {
+                Console.Error.WriteLine("Error: --expand-table requires --entry-size=<int>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string ptrStr = argsDic["--pointer"].Replace("0x", "").Replace("0X", "");
+            if (!uint.TryParse(ptrStr, System.Globalization.NumberStyles.HexNumber, null, out uint pointerAddr))
+            {
+                Console.Error.WriteLine("Error: Invalid pointer address.");
+                return 1;
+            }
+            if (!uint.TryParse(argsDic["--entry-size"], out uint entrySize) || entrySize == 0)
+            {
+                Console.Error.WriteLine("Error: Invalid entry size.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+            var info = DataExpansionCore.GetTableInfo(rom, pointerAddr, entrySize);
+            if (info == null)
+            {
+                Console.Error.WriteLine("Error: Could not read table at pointer 0x{0:X}.", pointerAddr);
+                return 1;
+            }
+
+            uint currentCount;
+            if (argsDic.ContainsKey("--count") && uint.TryParse(argsDic["--count"], out uint userCount))
+            {
+                currentCount = userCount;
+            }
+            else
+            {
+                Console.Error.WriteLine("Error: --count is required for safety. Use --count=<N> to specify the current entry count.");
+                Console.Error.WriteLine($"  Hint: auto-detected estimate is {info.EstimatedCount} (stops at first all-zero entry).");
+                return 1;
+            }
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Table pointer: 0x{pointerAddr:X}");
+            Console.WriteLine($"Table base: 0x{info.BaseAddress:X}");
+            Console.WriteLine($"Entry size: {entrySize} bytes");
+            Console.WriteLine($"Current count: {currentCount}");
+
+            // Create backup
+            string backupPath = romPath + ".backup";
+            File.Copy(romPath, backupPath, true);
+            Console.WriteLine($"Backup: {backupPath}");
+
+            var result = DataExpansionCore.ExpandTable(rom, pointerAddr, entrySize, currentCount);
+            if (result.Success)
+            {
+                File.WriteAllBytes(romPath, rom.Data);
+                Console.WriteLine($"Expanded: new base 0x{result.NewBaseAddress:X}, count {result.NewCount}");
+                return 0;
+            }
+            else
+            {
+                Console.Error.WriteLine($"Error: {result.Error}");
+                File.Copy(backupPath, romPath, true);
+                Console.Error.WriteLine("ROM restored from backup.");
+                return 1;
+            }
         }
 
         static int RunUninstallPatch(Dictionary<string, string> argsDic)
