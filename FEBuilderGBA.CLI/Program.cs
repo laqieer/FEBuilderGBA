@@ -158,6 +158,11 @@ namespace FEBuilderGBA.CLI
                 return RunListPatches(argsDic);
             }
 
+            if (argsDic.ContainsKey("--list-resources"))
+            {
+                return RunListResources(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -234,6 +239,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
+            Console.WriteLine("  --list-resources         List available resources from FE-Repo/FE-Repo-Music submodules");
+            Console.WriteLine("    --category=<name>      Filter by category (e.g., 'Battle Animations', 'Portraits')");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
@@ -2010,6 +2017,60 @@ namespace FEBuilderGBA.CLI
                 dir = Path.GetDirectoryName(dir);
             }
             return null;
+        }
+
+        static int RunListResources(Dictionary<string, string> argsDic)
+        {
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            string repoRoot = FindRepoRoot(baseDir) ?? baseDir;
+
+            string category = argsDic.ContainsKey("--category") ? argsDic["--category"] : null;
+
+            // Resource directories to scan
+            var repoDirs = new (string path, string label)[]
+            {
+                (Path.Combine(repoRoot, "resources", "FE-Repo"), "FE-Repo (Graphics)"),
+                (Path.Combine(repoRoot, "resources", "FE-Repo-Music-No-Preview"), "FE-Repo-Music"),
+            };
+
+            int totalResources = 0;
+            foreach (var (repoPath, label) in repoDirs)
+            {
+                if (!Directory.Exists(repoPath))
+                {
+                    Console.WriteLine($"{label}: not found at {repoPath}");
+                    Console.WriteLine("  Run: git submodule update --init resources/");
+                    Console.WriteLine();
+                    continue;
+                }
+
+                Console.WriteLine($"{label}: {repoPath}");
+
+                string[] categories = Directory.GetDirectories(repoPath)
+                    .Where(d => !Path.GetFileName(d).StartsWith("ZZ") &&
+                                !Path.GetFileName(d).StartsWith("."))
+                    .OrderBy(d => Path.GetFileName(d))
+                    .ToArray();
+
+                foreach (string catDir in categories)
+                {
+                    string catName = Path.GetFileName(catDir);
+
+                    // Filter by category if specified
+                    if (!string.IsNullOrEmpty(category) &&
+                        !catName.Contains(category, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    int fileCount = Directory.GetFiles(catDir, "*", SearchOption.AllDirectories).Length;
+                    int subDirCount = Directory.GetDirectories(catDir).Length;
+                    Console.WriteLine($"  {catName}: {subDirCount} folders, {fileCount} files");
+                    totalResources += fileCount;
+                }
+                Console.WriteLine();
+            }
+
+            Console.WriteLine($"Total resource files: {totalResources}");
+            return 0;
         }
 
         /// <summary>
