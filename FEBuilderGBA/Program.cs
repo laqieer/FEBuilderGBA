@@ -413,31 +413,30 @@ namespace FEBuilderGBA
                 return InputFormRef.JumpFormLow<MainFE0Form>();
             }
 
+            // Start auto-save if enabled (before any main form)
+            TryStartAutoSave();
+
+            Form mainForm;
             if (OptionForm.first_form() == OptionForm.first_form_enum.EASY
                 && U.stringbool(U.at(ArgsDic, "--force-detail","0")) == false )
             {
-                return InputFormRef.JumpFormLow<MainSimpleMenuForm>();
+                mainForm = InputFormRef.JumpFormLow<MainSimpleMenuForm>();
             }
-
-            // Start auto-save if enabled
-            TryStartAutoSave();
-
-            DialogResult result;
-            if (Program.ROM.RomInfo.version == 6)
+            else if (Program.ROM.RomInfo.version == 6)
             {
-                result = InputFormRef.JumpFormLow<MainFE6Form>();
+                mainForm = InputFormRef.JumpFormLow<MainFE6Form>();
             }
             else if (Program.ROM.RomInfo.version == 7)
             {
-                result = InputFormRef.JumpFormLow<MainFE7Form>();
+                mainForm = InputFormRef.JumpFormLow<MainFE7Form>();
             }
             else
             {
-                result = InputFormRef.JumpFormLow<MainFE8Form>();
+                mainForm = InputFormRef.JumpFormLow<MainFE8Form>();
             }
 
             AutoSaveWinForms.Instance.Stop();
-            return result;
+            return mainForm;
         }
 
         static void TryStartAutoSave()

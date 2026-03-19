@@ -15,8 +15,8 @@ namespace FEBuilderGBA
 
         Timer _timer;
         string _romFilename;
-        int _lastSavedUndoPosition = -1;
-        bool _writing;
+        volatile int _lastSavedUndoPosition = -1;
+        volatile bool _writing;
 
         AutoSaveWinForms() { }
 
@@ -94,6 +94,7 @@ namespace FEBuilderGBA
 
             _writing = true;
             int savedPos = currentPos;
+            var ctx = System.Threading.SynchronizationContext.Current;
             Task.Run(() =>
             {
                 try
@@ -102,11 +103,14 @@ namespace FEBuilderGBA
                     File.WriteAllBytes(tempPath, data);
                     File.Move(tempPath, sidecar, true);
                     _lastSavedUndoPosition = savedPos;
-                    Log.Notify("Auto-saved to " + Path.GetFileName(sidecar));
+                    // Marshal log notification to UI thread to avoid cross-thread ListBox access
+                    if (ctx != null)
+                        ctx.Post(_ => Log.Notify("Auto-saved to " + Path.GetFileName(sidecar)), null);
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Auto-save failed: {0}", ex.Message);
+                    if (ctx != null)
+                        ctx.Post(_ => Log.Error("Auto-save failed: {0}", ex.Message), null);
                 }
                 finally
                 {
@@ -123,9 +127,9 @@ namespace FEBuilderGBA
             bool enabled = Program.Config?.at("autosave_enabled", "false") == "true";
             int interval = 5;
             string val = Program.Config?.at("autosave_interval_minutes", "5");
-            if (val != null) int.TryParse(val, out interval);
-            if (interval < 1) interval = 1;
-            if (interval > 60) interval = 60;
+            if (val != null && int.TryParse(val, out int parsed))
+                interval = parsed;
+            interval = Math.Clamp(interval, 1, 60);
             return (enabled, interval);
         }
     }
