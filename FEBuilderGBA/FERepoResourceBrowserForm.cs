@@ -170,14 +170,15 @@ namespace FEBuilderGBA
         {
             fileListView.Items.Clear();
             thumbnailList.Images.Clear();
+            previewBox.Image?.Dispose();
             previewBox.Image = null;
             insertButton.Enabled = false;
             SelectedFilePath = null;
 
-            var files = FERepoResourceBrowser.GetResourceFiles(repoRoot, category, subCategory);
+            var files = FERepoResourceBrowser.GetResourceFiles(repoRoot, category, subCategory, maxResults: 200);
             statusLabel.Text = string.Format(R._("{0} resources found"), files.Length);
 
-            int maxThumbnails = Math.Min(files.Length, 200);
+            int maxThumbnails = files.Length;
             for (int i = 0; i < maxThumbnails; i++)
             {
                 var entry = files[i];
@@ -200,9 +201,9 @@ namespace FEBuilderGBA
                 fileListView.Items.Add(item);
             }
 
-            if (files.Length > maxThumbnails)
+            if (files.Length >= 200)
             {
-                statusLabel.Text += string.Format(R._(" (showing first {0})"), maxThumbnails);
+                statusLabel.Text += R._(" (limited to 200)");
             }
         }
 
@@ -210,6 +211,7 @@ namespace FEBuilderGBA
         {
             if (fileListView.SelectedItems.Count == 0)
             {
+                previewBox.Image?.Dispose();
                 previewBox.Image = null;
                 insertButton.Enabled = false;
                 SelectedFilePath = null;
@@ -225,7 +227,7 @@ namespace FEBuilderGBA
                 previewBox.Image?.Dispose();
                 previewBox.Image = Image.FromFile(path);
                 var info = new FileInfo(path);
-                statusLabel.Text = string.Format("{0} ({1}x{2}, {3} bytes)",
+                statusLabel.Text = string.Format(R._("{0} ({1}x{2}, {3} bytes)"),
                     Path.GetFileName(path), previewBox.Image.Width, previewBox.Image.Height, info.Length);
             }
             catch

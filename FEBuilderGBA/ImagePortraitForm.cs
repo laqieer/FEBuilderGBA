@@ -49,12 +49,12 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
-            // Add FE-Repo browse button next to Import
+            // Add FE-Repo browse button below Import
             var feRepoButton = new Button
             {
                 Text = R._("FE-Repo"),
-                Size = new System.Drawing.Size(80, 20),
-                Location = new System.Drawing.Point(ImportButton.Right + 3, ImportButton.Top)
+                Size = new System.Drawing.Size(107, 20),
+                Location = new System.Drawing.Point(ImportButton.Left, ImportButton.Bottom + 2)
             };
             feRepoButton.Click += FERepoButton_Click;
             ImportButton.Parent?.Controls.Add(feRepoButton);

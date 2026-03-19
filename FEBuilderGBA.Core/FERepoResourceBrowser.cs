@@ -88,7 +88,7 @@ namespace FEBuilderGBA
         /// Get image resource files within a category and optional subcategory.
         /// Recursively searches all subdirectories.
         /// </summary>
-        public static ResourceEntry[] GetResourceFiles(string repoRoot, string category, string subCategory = null)
+        public static ResourceEntry[] GetResourceFiles(string repoRoot, string category, string subCategory = null, int maxResults = 0)
         {
             if (string.IsNullOrEmpty(repoRoot) || string.IsNullOrEmpty(category))
                 return Array.Empty<ResourceEntry>();
@@ -125,6 +125,9 @@ namespace FEBuilderGBA
                         SubCategory = subCat,
                         FileSize = info.Length
                     });
+
+                    if (maxResults > 0 && entries.Count >= maxResults)
+                        break;
                 }
             }
             catch (Exception)

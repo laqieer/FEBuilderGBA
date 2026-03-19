@@ -105,11 +105,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanInsert = false;
             SelectedFilePath = null;
 
-            var files = FERepoResourceBrowser.GetResourceFiles(_repoRoot, node.Category, node.SubCategory);
+            var files = FERepoResourceBrowser.GetResourceFiles(_repoRoot, node.Category, node.SubCategory, maxResults: 200);
             StatusText = $"{files.Length} resources found";
+            if (files.Length >= 200) StatusText += " (limited to 200)";
 
-            int max = Math.Min(files.Length, 200);
-            for (int i = 0; i < max; i++)
+            for (int i = 0; i < files.Length; i++)
             {
                 ResourceFiles.Add(new ResourceFileItem
                 {
@@ -119,8 +119,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 });
             }
 
-            if (files.Length > max)
-                StatusText += $" (showing first {max})";
         }
 
         void OnSelectedFileChanged(ResourceFileItem value)
