@@ -244,8 +244,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --addr=<hex>           OAM data address in ROM");
             Console.WriteLine("    --length=<int>         Number of bytes to scan (0=auto, default)");
             Console.WriteLine("  --apply-patch            Apply a BIN patch to ROM (requires --rom, --patch-file)");
-            Console.WriteLine("  --uninstall-patch        Restore original bytes for a patch (requires --rom, --patch-file, --original-rom)");
+            Console.WriteLine("  --uninstall-patch        Restore original bytes for fixed-address BIN patches (requires --rom, --patch-file, --original-rom)");
             Console.WriteLine("    --original-rom=<path>  Path to the clean/unmodified ROM for byte restoration");
+            Console.WriteLine("                           Note: only reverses fixed BIN:0xADDR=file entries; FREEAREA/JUMP/EA patches need full GUI uninstall");
             Console.WriteLine("  --list-resources         List available resources from FE-Repo/FE-Repo-Music submodules");
             Console.WriteLine("    --category=<name>      Filter by category (e.g., 'Battle Animations', 'Portraits')");
             Console.WriteLine("    --patch-file=<path>    Path to PATCH_*.txt file");
@@ -2050,12 +2051,21 @@ namespace FEBuilderGBA.CLI
             // Parse BIN lines from the patch file to find addresses that were patched
             int restoredRanges = 0;
             int restoredBytes = 0;
+            bool hasUnsupportedDirectives = false;
             string patchDir = Path.GetDirectoryName(patchFile);
 
             foreach (string line in File.ReadLines(patchFile))
             {
                 string trimmed = line.Trim();
                 if (trimmed.StartsWith("//") || trimmed.StartsWith("#")) continue;
+
+                // Detect unsupported directives
+                if (trimmed.StartsWith("BIN:$FREEAREA") || trimmed.StartsWith("JUMP:") ||
+                    trimmed.StartsWith("EA:") || trimmed.StartsWith("CLEAR:"))
+                {
+                    hasUnsupportedDirectives = true;
+                    continue;
+                }
 
                 // BIN:0xADDR=filename.bin — restore original bytes at that address
                 if (trimmed.StartsWith("BIN:"))
@@ -2112,6 +2122,12 @@ namespace FEBuilderGBA.CLI
 
             File.WriteAllBytes(romPath, modifiedRom);
             Console.WriteLine($"Patch uninstalled: {restoredRanges} ranges, {restoredBytes} bytes restored");
+            if (hasUnsupportedDirectives)
+            {
+                Console.Error.WriteLine("Warning: This patch contains FREEAREA/JUMP/EA/CLEAR directives that");
+                Console.Error.WriteLine("could not be reversed. The uninstall may be incomplete.");
+                Console.Error.WriteLine("For full uninstall, use the GUI patch manager.");
+            }
             return 0;
         }
 
