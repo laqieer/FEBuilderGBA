@@ -13,6 +13,9 @@ namespace FEBuilderGBA
     public partial class FontForm : Form
     {
         byte[] SelectFontBitmapByte = null;
+        Label _verticalOffsetLabel;
+        NumericUpDown _verticalOffsetBox;
+        Button _loadFontFileButton;
 
         public FontForm()
         {
@@ -26,6 +29,14 @@ namespace FEBuilderGBA
 
             UseFontNameTextEdit.Text = UseFontNameTextEdit.Font.FontFamily.ToString();
             AutoGenbutton.AccessibleDescription = R._("ROMに存在しいフォントをPCに存在するフォントから自動的に作成します。\r\nまとめて複数のフォントを一気に作りたい場合は、ROM翻訳ツールから作ることをお勧めします。");
+
+            // Add vertical offset control and font file button below AutoGen
+            int belowY = AutoGenbutton.Bottom + 3;
+            _verticalOffsetLabel = new Label { Text = R._("V.Offset:"), Size = new Size(55, 20), Location = new Point(AutoGenbutton.Left, belowY + 2) };
+            _verticalOffsetBox = new NumericUpDown { Minimum = -8, Maximum = 8, Value = 0, Size = new Size(50, 20), Location = new Point(_verticalOffsetLabel.Right + 2, belowY) };
+            _loadFontFileButton = new Button { Text = R._("Load .ttf/.otf"), Size = new Size(90, 22), Location = new Point(_verticalOffsetBox.Right + 8, belowY) };
+            _loadFontFileButton.Click += LoadFontFileButton_Click;
+            AutoGenbutton.Parent?.Controls.AddRange(new Control[] { _verticalOffsetLabel, _verticalOffsetBox, _loadFontFileButton });
 
             if (Program.ROM.RomInfo.is_multibyte)
             {
@@ -1090,7 +1101,8 @@ namespace FEBuilderGBA
             bool isItemFont = this.FontType.SelectedIndex == 0;
             bool isSquareFont = false;
             int font_width;
-            Bitmap autogen = ImageUtil.AutoGenerateFont(mojiText, UseFontNameTextEdit.Font, isItemFont, isSquareFont, out font_width);
+            int vOffset = (int)(_verticalOffsetBox?.Value ?? 0);
+            Bitmap autogen = ImageUtil.AutoGenerateFont(mojiText, UseFontNameTextEdit.Font, isItemFont, isSquareFont, vOffset, out font_width);
             if (autogen == null)
             {
                 R.ShowStopError("フォントの自動生成に失敗しました。対応する日本語フォントがありません。");
@@ -1120,6 +1132,29 @@ namespace FEBuilderGBA
                 {
                     //セリフ
                     ImageFormRef.ExportImage(this, autogen, InputFormRef.MakeSaveImageFilename(this, "Serif_" + mojiText), font_width);
+                }
+            }
+        }
+
+        private void LoadFontFileButton_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                dlg.Filter = "Font files (*.ttf;*.otf)|*.ttf;*.otf|All files (*.*)|*.*";
+                dlg.Title = R._("Load Open Source Font");
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    try
+                    {
+                        float currentSize = UseFontNameTextEdit.Font?.Size ?? 12f;
+                        Font loaded = ImageUtil.LoadFontFromFile(dlg.FileName, currentSize);
+                        UseFontNameTextEdit.Font = loaded;
+                        UseFontNameTextEdit.Text = loaded.FontFamily.Name + " (" + Path.GetFileName(dlg.FileName) + ")";
+                    }
+                    catch (Exception ex)
+                    {
+                        R.ShowStopError(R._("Failed to load font: {0}"), ex.Message);
+                    }
                 }
             }
         }
