@@ -119,7 +119,7 @@ Event Assembler / ColorzCore:
 - **If user sets external path**: Uses configured path (takes priority)
 - **If no path configured**: `ToolPathResolver` searches for bundled tools in `tools/bin/`, `tools/ColorzCore/`, and `tools/Event-Assembler/`
 - **To build bundled tools locally (Windows)**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release`
-- **To build bundled tools locally (Linux/macOS)**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true` (replace `linux-x64` with your RID)
+- **To build bundled tools locally (Linux/macOS)**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true -o tools/bin` (replace `linux-x64` with your RID)
 
 ## Architecture Overview
 

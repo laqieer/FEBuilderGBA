@@ -51,8 +51,8 @@ git submodule update --init --recursive
 git submodule update --init tools/Event-Assembler tools/ColorzCore
 # Windows:
 dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release
-# Linux/macOS (produces a runnable executable):
-dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true
+# Linux/macOS (produces a runnable executable in tools/bin/):
+dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true -o tools/bin
 ```
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
