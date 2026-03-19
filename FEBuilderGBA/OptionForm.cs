@@ -64,6 +64,9 @@ namespace FEBuilderGBA
             srccode_texteditor.Text = GetSrccodeTexteditor();
             srccode_directory.Text = GetSrccodeDirectory();
 
+            // Submodule remote URLs
+            LoadSubmoduleUrls();
+
             Color_Control_BackColor_button.BackColor = Color_Control_BackColor();
             Color_Control_ForeColor_button.BackColor = Color_Control_ForeColor();
             Color_Input_BackColor_button.BackColor = Color_Input_BackColor();
@@ -257,6 +260,9 @@ namespace FEBuilderGBA
             Program.Config["srccode_texteditor"] = srccode_texteditor.Text;
             Program.Config["srccode_directory"] = srccode_directory.Text;
             Program.Config["git_path"] = git_path_textbox.Text;
+
+            // Save submodule remote URLs
+            SaveSubmoduleUrls();
 
             Program.Config["Color_Control_BackColor"] = Color_Control_BackColor_button.BackColor.Name;
             Program.Config["Color_Control_ForeColor"] = Color_Control_ForeColor_button.BackColor.Name;
@@ -1957,6 +1963,85 @@ namespace FEBuilderGBA
         private void Color_List_RelatedList_BackColor_button_Click(object sender, EventArgs e)
         {
             Color_List_RelatedLine_BackColor_button.BackColor = SelectColorDialog(Color_List_RelatedLine_BackColor_button.BackColor);
+        }
+
+        // Submodule remote URL fields (added programmatically)
+        TextBox _submodulePatch2Url;
+        TextBox _submoduleFERepoUrl;
+        TextBox _submoduleFERepoMusicUrl;
+
+        void LoadSubmoduleUrls()
+        {
+            // Find or create a GroupBox for submodule URLs in the first available TabPage
+            if (_submodulePatch2Url != null) return; // already initialized
+
+            // Create fields — they'll be accessible via the config keys even without visible UI
+            _submodulePatch2Url = new TextBox { Text = Program.Config.at("submodule_patch2_url", "") };
+            _submoduleFERepoUrl = new TextBox { Text = Program.Config.at("submodule_fe_repo_url", "") };
+            _submoduleFERepoMusicUrl = new TextBox { Text = Program.Config.at("submodule_fe_repo_music_url", "") };
+
+            // Add a GroupBox to the "Etc" tab if it exists
+            foreach (Control c in this.Controls)
+            {
+                if (c is TabControl tc)
+                {
+                    foreach (TabPage tp in tc.TabPages)
+                    {
+                        if (tp.Text.Contains("Etc") || tp.Text.Contains("etc") || tp.Text.Contains(R._("その他")))
+                        {
+                            var grp = new GroupBox
+                            {
+                                Text = R._("Submodule Remote URLs"),
+                                Dock = DockStyle.Bottom,
+                                Height = 110
+                            };
+                            var panel = new TableLayoutPanel
+                            {
+                                Dock = DockStyle.Fill,
+                                ColumnCount = 2,
+                                RowCount = 3,
+                                Padding = new Padding(4)
+                            };
+                            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+                            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                            panel.Controls.Add(new Label { Text = "Patch2 URL:", Dock = DockStyle.Fill }, 0, 0);
+                            panel.Controls.Add(_submodulePatch2Url, 1, 0);
+                            _submodulePatch2Url.Dock = DockStyle.Fill;
+                            panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 1);
+                            panel.Controls.Add(_submoduleFERepoUrl, 1, 1);
+                            _submoduleFERepoUrl.Dock = DockStyle.Fill;
+                            panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 2);
+                            panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 2);
+                            _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
+                            grp.Controls.Add(panel);
+                            tp.Controls.Add(grp);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        void SaveSubmoduleUrls()
+        {
+            if (_submodulePatch2Url == null) return;
+            string oldPatch2 = Program.Config.at("submodule_patch2_url", "");
+            string oldFERepo = Program.Config.at("submodule_fe_repo_url", "");
+            string oldMusic = Program.Config.at("submodule_fe_repo_music_url", "");
+
+            Program.Config["submodule_patch2_url"] = _submodulePatch2Url.Text ?? "";
+            Program.Config["submodule_fe_repo_url"] = _submoduleFERepoUrl.Text ?? "";
+            Program.Config["submodule_fe_repo_music_url"] = _submoduleFERepoMusicUrl.Text ?? "";
+
+            // Apply remote URL changes to submodules
+            string repoRoot = System.IO.Path.GetDirectoryName(
+                System.IO.Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory));
+            if (!string.IsNullOrEmpty(_submodulePatch2Url.Text) && _submodulePatch2Url.Text != oldPatch2)
+                GitUtil.SetSubmoduleRemote(System.IO.Path.Combine(repoRoot, "config", "patch2"), _submodulePatch2Url.Text);
+            if (!string.IsNullOrEmpty(_submoduleFERepoUrl.Text) && _submoduleFERepoUrl.Text != oldFERepo)
+                GitUtil.SetSubmoduleRemote(System.IO.Path.Combine(repoRoot, "resources", "FE-Repo"), _submoduleFERepoUrl.Text);
+            if (!string.IsNullOrEmpty(_submoduleFERepoMusicUrl.Text) && _submoduleFERepoMusicUrl.Text != oldMusic)
+                GitUtil.SetSubmoduleRemote(System.IO.Path.Combine(repoRoot, "resources", "FE-Repo-Music-No-Preview"), _submoduleFERepoMusicUrl.Text);
         }
     }
 }
