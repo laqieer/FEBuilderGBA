@@ -260,8 +260,11 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("MapSettingFE6View", afterMethod);
 
             // Must check FE7U (version 7, !isMultibyte) before generic FE7
-            Assert.Contains("MapSettingFE7UView", afterMethod);
-            Assert.Contains("MapSettingFE7View", afterMethod);
+            int fe7uIndex = afterMethod.IndexOf("MapSettingFE7UView", System.StringComparison.Ordinal);
+            int fe7Index = afterMethod.IndexOf("MapSettingFE7View", System.StringComparison.Ordinal);
+            Assert.True(fe7uIndex >= 0, "FE7U-specific Map settings dispatch not found");
+            Assert.True(fe7Index >= 0, "FE7 generic Map settings dispatch not found");
+            Assert.True(fe7uIndex < fe7Index, "FE7U dispatch must appear before generic FE7 dispatch");
         }
 
         [Fact]
