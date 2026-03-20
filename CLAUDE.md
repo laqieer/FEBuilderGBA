@@ -96,6 +96,8 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # summon_units, summons_demon_king, monster_probability)
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv
 ./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data  # data.{table}.tsv per table
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=csv --out=units.csv
+./FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --format=ea --out=units.ea
 
 # Import struct data from TSV
 ./FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv
@@ -124,6 +126,10 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Export battle animation to .txt + PNG files
 ./FEBuilderGBA.CLI --export-battle-anime --rom=rom.gba --animation-id=1 --out=anim.txt
+
+# Export battle animation as animated GIF
+./FEBuilderGBA.CLI --export-battle-anime --rom=rom.gba --animation-id=1 --gif --out=anim.gif
+./FEBuilderGBA.CLI --export-battle-anime --rom=rom.gba --animation-id=1 --gif --section=2 --out=crit.gif
 
 # Scan ROM free space
 ./FEBuilderGBA.CLI --freespace --rom=rom.gba --min-size=256
@@ -162,6 +168,10 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Resolve name IDs
 ./FEBuilderGBA.CLI --resolve-names --rom=rom.gba --kind=unit --ids=0,1,2,3
+
+# Compare two ROMs byte-by-byte
+./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba
+./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba --out=diff.tsv
 ```
 
 ### Dependencies
