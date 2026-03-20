@@ -665,5 +665,123 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(0, code);
             Assert.Contains("not yet supported", stderr, StringComparison.OrdinalIgnoreCase);
         }
+
+        // ================================================================ --rom-info (#180)
+
+        [Fact]
+        public void RomInfo_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--rom-info", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void RomInfo_NonRomFile_Errors()
+        {
+            var tmp = TempFile(".txt");
+            File.WriteAllText(tmp, "this is not a ROM file");
+            var (code, _, stderr) = AppRunner.Run(CliExe, $"--rom-info --rom=\"{tmp}\"", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("Not a recognized", stderr);
+        }
+
+        // ================================================================ --list-tables (#180)
+
+        [Fact]
+        public void ListTables_ExitsZero()
+        {
+            var (code, stdout, _) = AppRunner.Run(CliExe, "--list-tables", timeoutMs: 15_000);
+            Assert.Equal(0, code);
+            Assert.Contains("units", stdout);
+            Assert.Contains("classes", stdout);
+            Assert.Contains("items", stdout);
+        }
+
+        // ================================================================ --export-palette (#180)
+
+        [Fact]
+        public void ExportPalette_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-palette --addr=0x0 --out=test.pal", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ExportPalette_MissingAddr_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-palette --rom=test.gba --out=test.pal", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--addr", stderr);
+        }
+
+        [Fact]
+        public void ExportPalette_MissingOut_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-palette --rom=test.gba --addr=0x0", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--out", stderr);
+        }
+
+        [Fact]
+        public void ExportPalette_InvalidColorCount_Errors()
+        {
+            var rom = TempFile(".gba");
+            File.WriteAllBytes(rom, new byte[1024]);
+            var (code, _, stderr) = AppRunner.Run(CliExe, $"--export-palette --rom=\"{rom}\" --addr=0x0 --out=test.pal --colors=999", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("1-256", stderr);
+        }
+
+        // ================================================================ --import-palette (#180)
+
+        [Fact]
+        public void ImportPalette_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-palette --addr=0x0 --in=test.pal", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ImportPalette_MissingAddr_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-palette --rom=test.gba --in=test.pal", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--addr", stderr);
+        }
+
+        [Fact]
+        public void ImportPalette_MissingIn_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-palette --rom=test.gba --addr=0x0", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--in", stderr);
+        }
+
+        [Fact]
+        public void ImportPalette_OddLengthFileRejected_Errors()
+        {
+            var rom = TempFile(".gba");
+            File.WriteAllBytes(rom, new byte[1024]);
+            var pal = TempFile(".gbapal");
+            File.WriteAllBytes(pal, new byte[] { 0x01, 0x02, 0x03 }); // 3 bytes = odd length
+            var (code, _, stderr) = AppRunner.Run(CliExe, $"--import-palette --rom=\"{rom}\" --addr=0x0 --in=\"{pal}\"", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("odd", stderr, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void ImportPalette_UnsupportedExtension_Errors()
+        {
+            var rom = TempFile(".gba");
+            File.WriteAllBytes(rom, new byte[1024]);
+            var pal = TempFile(".weird");
+            File.WriteAllBytes(pal, new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            var (code, _, stderr) = AppRunner.Run(CliExe, $"--import-palette --rom=\"{rom}\" --addr=0x0 --in=\"{pal}\"", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("Unsupported", stderr, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

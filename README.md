@@ -95,6 +95,10 @@ dotnet run --project FEBuilderGBA.CLI -- --force-detail
 dotnet run --project FEBuilderGBA.CLI -- --translate_batch --rom=rom.gba --out=texts.tsv
 dotnet run --project FEBuilderGBA.CLI -- --test --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --testonly --rom=rom.gba
+dotnet run --project FEBuilderGBA.CLI -- --rom-info --rom=rom.gba
+dotnet run --project FEBuilderGBA.CLI -- --list-tables
+dotnet run --project FEBuilderGBA.CLI -- --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
+dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
 
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
@@ -177,7 +181,7 @@ FEBuilderGBA.sln
 │   ├── MapConvertCore.cs                  Map tile conversion
 │   ├── NameResolver.cs                    Entity name resolution with caching
 │   └── WriteValidator.cs                  ROM write validation utilities
-├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 42 commands)
+├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 51 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
 ├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 323 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
