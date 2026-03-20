@@ -17,7 +17,7 @@
     <ScrollViewer Name="ImageScroller" HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-      <Image Name="ImageDisplay" Stretch="None" RenderOptions.BitmapInterpolationMode="None" />
+      <Image Name="ImageDisplay" Stretch="Fill" RenderOptions.BitmapInterpolationMode="None" />
     </ScrollViewer>
   </DockPanel>
 </UserControl>
