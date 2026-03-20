@@ -3770,6 +3770,8 @@ namespace FEBuilderGBA.CLI
 
             bool compress = argsDic.ContainsKey("--compress");
             bool decompress = argsDic.ContainsKey("--decompress");
+            if (compress && decompress)
+            { Console.Error.WriteLine("Error: --lz77 cannot use both --compress and --decompress"); return 1; }
             if (!compress && !decompress)
             { Console.Error.WriteLine("Error: --lz77 requires --compress or --decompress"); return 1; }
 
@@ -3784,6 +3786,8 @@ namespace FEBuilderGBA.CLI
 
             if (compress)
             {
+                if (input.Length < 3)
+                { Console.Error.WriteLine("Error: Input too small for LZ77 compression (minimum 3 bytes)."); return 1; }
                 byte[] result = LZ77.compress(input);
                 File.WriteAllBytes(outPath, result);
                 int ratio = input.Length > 0 ? (int)(100L * result.Length / input.Length) : 0;
@@ -3791,9 +3795,11 @@ namespace FEBuilderGBA.CLI
             }
             else
             {
+                if (!LZ77.iscompress(input, 0))
+                { Console.Error.WriteLine("Error: Input is not valid LZ77 compressed data."); return 1; }
                 byte[] result = LZ77.decompress(input, 0);
                 if (result == null || result.Length == 0)
-                { Console.Error.WriteLine("Error: LZ77 decompression failed (invalid data)."); return 1; }
+                { Console.Error.WriteLine("Error: LZ77 decompression failed."); return 1; }
                 File.WriteAllBytes(outPath, result);
                 Console.WriteLine($"Decompressed: {outPath} ({result.Length} bytes)");
             }

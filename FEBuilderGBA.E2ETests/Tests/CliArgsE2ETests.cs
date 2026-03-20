@@ -583,7 +583,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--compress", stderr);
         }
 
-        // ================================================================ --checksum (error paths)
+        // ================================================================ --checksum (error + success paths)
 
         [Fact]
         public void Checksum_MissingRom_Errors()
@@ -593,7 +593,40 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--rom", stderr);
         }
 
-        // ================================================================ --repair-header (error paths)
+        [Fact]
+        public void Checksum_ValidHeader_ReturnsZero()
+        {
+            // Build a minimal valid GBA ROM header (0xC0 bytes)
+            byte[] rom = new byte[0x200];
+            // Write title at 0xA0
+            System.Text.Encoding.ASCII.GetBytes("TESTROM\0\0\0\0\0").CopyTo(rom, 0xA0);
+            // Compute correct checksum
+            int sum = 0;
+            for (int i = 0xA0; i < 0xBD; i++) sum += rom[i];
+            rom[0xBD] = (byte)(-(0x19 + sum));
+
+            var path = TempFile(".gba");
+            File.WriteAllBytes(path, rom);
+
+            var (code, stdout, _) = AppRunner.Run(CliExe, $"--checksum --rom={path}", timeoutMs: 15_000);
+            Assert.Equal(0, code);
+            Assert.Contains("VALID", stdout);
+        }
+
+        [Fact]
+        public void Checksum_InvalidHeader_ReturnsTwo()
+        {
+            byte[] rom = new byte[0x200];
+            rom[0xBD] = 0xFF; // Wrong checksum
+            var path = TempFile(".gba");
+            File.WriteAllBytes(path, rom);
+
+            var (code, stdout, _) = AppRunner.Run(CliExe, $"--checksum --rom={path}", timeoutMs: 15_000);
+            Assert.Equal(2, code);
+            Assert.Contains("INVALID", stdout);
+        }
+
+        // ================================================================ --repair-header (error + success paths)
 
         [Fact]
         public void RepairHeader_MissingRom_Errors()
@@ -601,6 +634,26 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--repair-header", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void RepairHeader_FixesInvalidChecksum()
+        {
+            byte[] rom = new byte[0x200];
+            System.Text.Encoding.ASCII.GetBytes("FIXME\0\0\0\0\0\0\0").CopyTo(rom, 0xA0);
+            rom[0xBD] = 0xFF; // Wrong checksum
+            var path = TempFile(".gba");
+            File.WriteAllBytes(path, rom);
+
+            // Repair
+            var (code1, stdout1, _) = AppRunner.Run(CliExe, $"--repair-header --rom={path}", timeoutMs: 15_000);
+            Assert.Equal(0, code1);
+            Assert.Contains("Repaired", stdout1);
+
+            // Verify
+            var (code2, stdout2, _) = AppRunner.Run(CliExe, $"--checksum --rom={path}", timeoutMs: 15_000);
+            Assert.Equal(0, code2);
+            Assert.Contains("VALID", stdout2);
         }
 
         // ================================================================ Unknown command
