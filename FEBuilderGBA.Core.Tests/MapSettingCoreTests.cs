@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        // ---- FE6-specific version data size tests ----
+        // ---- Version data size tests ----
 
         [Fact]
         public void FE6_MapSettingDataSize_Is68Or72()
@@ -75,7 +75,6 @@ namespace FEBuilderGBA.Core.Tests
             rom.LoadLow("test.gba", new byte[0x1000000], "AFEJ01");
             Assert.NotNull(rom.RomInfo);
             Assert.Equal(6, rom.RomInfo.version);
-            // FE6 data size is either 68 or 72 depending on the world map event table
             Assert.True(rom.RomInfo.map_setting_datasize == 68 || rom.RomInfo.map_setting_datasize == 72,
                 $"FE6 map_setting_datasize should be 68 or 72 but was {rom.RomInfo.map_setting_datasize}");
         }
@@ -126,12 +125,108 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(rom.RomInfo.is_multibyte);
         }
 
+        [Fact]
+        public void MakeMapIDList_FE7U_ValidatesWithCorrectClearConditionOffsets()
+        {
+            // FE7U has clear conditions at offsets 0x8C/0x8E (140/142),
+            // not 0x88/0x8A (136/138) like FE7JP/FE8.
+            // D0 must be a non-pointer so the full validation path is exercised.
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "AE7E01");
+                CoreState.ROM = rom;
+
+                uint mapPtr = rom.RomInfo.map_setting_pointer;
+                uint baseAddr = 0x200;
+                WriteU32(rom.Data, (int)mapPtr, 0x08000000 + baseAddr);
+
+                // D0: non-pointer value to force the full validation path
+                WriteU32(rom.Data, (int)baseAddr, 0x00000001);
+                // W4, B6: non-zero PLISTs
+                WriteU16(rom.Data, (int)(baseAddr + 4), 1);
+                rom.Data[baseAddr + 6] = 1;
+                // B12: weather (must be < 0xE)
+                rom.Data[baseAddr + 12] = 0x01;
+                // Map name texts at 0x70/0x72 - valid text IDs
+                WriteU16(rom.Data, (int)(baseAddr + 0x70), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x72), 1);
+                // FE7U clear conditions at 0x8C/0x8E (140/142) - valid text IDs
+                WriteU16(rom.Data, (int)(baseAddr + 0x8C), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x8E), 1);
+
+                // Set up text pointer table so textmax > 0
+                WriteU32(rom.Data, (int)rom.RomInfo.text_pointer, 0x08000400);
+                WriteU32(rom.Data, 0x400, 0x08000500); // text entry 0
+                WriteU32(rom.Data, 0x404, 0x08000600); // text entry 1
+
+                var list = MapSettingCore.MakeMapIDList();
+                Assert.NotEmpty(list);
+                Assert.Equal(baseAddr, list[0].addr);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void MakeMapIDList_FE7U_RejectsInvalidClearConditionAt0x8C()
+        {
+            // If FE7U clear condition at offset 0x8C (140) is invalid, the entry should be rejected
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "AE7E01");
+                CoreState.ROM = rom;
+
+                uint mapPtr = rom.RomInfo.map_setting_pointer;
+                uint baseAddr = 0x200;
+                WriteU32(rom.Data, (int)mapPtr, 0x08000000 + baseAddr);
+
+                // Non-pointer D0 (forces validation path)
+                WriteU32(rom.Data, (int)baseAddr, 0x00000001);
+                // W4: valid PLIST
+                WriteU16(rom.Data, (int)(baseAddr + 4), 1);
+                rom.Data[baseAddr + 6] = 1;
+                // B12: valid weather
+                rom.Data[baseAddr + 12] = 0x01;
+                // Map name texts at 0x70/0x72 - valid
+                WriteU16(rom.Data, (int)(baseAddr + 0x70), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x72), 1);
+                // FE7U clear conditions at 0x8C - INVALID (huge text ID)
+                WriteU16(rom.Data, (int)(baseAddr + 0x8C), 0xFFFF);
+                WriteU16(rom.Data, (int)(baseAddr + 0x8E), 1);
+
+                // Set up text pointer table
+                WriteU32(rom.Data, (int)rom.RomInfo.text_pointer, 0x08000400);
+                WriteU32(rom.Data, 0x400, 0x08000500);
+                WriteU32(rom.Data, 0x404, 0x08000600);
+
+                var list = MapSettingCore.MakeMapIDList();
+                // Entry should be rejected because clear condition at offset 0x8C is invalid
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);
             data[offset + 1] = (byte)((value >> 8) & 0xFF);
             data[offset + 2] = (byte)((value >> 16) & 0xFF);
             data[offset + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        static void WriteU16(byte[] data, int offset, ushort value)
+        {
+            data[offset + 0] = (byte)(value & 0xFF);
+            data[offset + 1] = (byte)((value >> 8) & 0xFF);
         }
     }
 }

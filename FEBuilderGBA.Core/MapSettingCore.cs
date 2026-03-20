@@ -100,23 +100,40 @@ namespace FEBuilderGBA
                     return false;
             }
 
-            // For FE8-style ROMs with larger data size, do text ID bounds check
+            // For FE7/FE8-style ROMs with larger data size, do text ID bounds check
             if (rom.RomInfo.map_setting_datasize >= 148)
             {
-                // These offsets are FE8-specific
                 uint textmax = GetTextDataCount(rom);
                 if (textmax > 0)
                 {
-                    uint map1 = rom.u16(addr + 0x70);
+                    // Map name text IDs are at the same offset for FE7/FE7U/FE8
+                    uint map1 = rom.u16(addr + 0x70); // offset 112
                     if (map1 >= textmax) return false;
 
-                    uint map2 = rom.u16(addr + 0x72);
+                    uint map2 = rom.u16(addr + 0x72); // offset 114
                     if (map2 >= textmax) return false;
 
-                    uint clearcond1 = rom.u16(addr + 0x88);
+                    // Clear condition text offsets differ by version:
+                    // FE7U (152-byte struct): 0x8C/0x8E (offsets 140/142)
+                    // FE7JP/FE8 (148-byte struct): 0x88/0x8A (offsets 136/138)
+                    uint clearCondOff1, clearCondOff2;
+                    if (rom.RomInfo.map_setting_datasize >= 152)
+                    {
+                        // FE7U: 4 extra bytes shift clear conditions
+                        clearCondOff1 = 0x8C; // 140
+                        clearCondOff2 = 0x8E; // 142
+                    }
+                    else
+                    {
+                        // FE7JP / FE8
+                        clearCondOff1 = 0x88; // 136
+                        clearCondOff2 = 0x8A; // 138
+                    }
+
+                    uint clearcond1 = rom.u16(addr + clearCondOff1);
                     if (clearcond1 >= textmax) return false;
 
-                    uint clearcond2 = rom.u16(addr + 0x8A);
+                    uint clearcond2 = rom.u16(addr + clearCondOff2);
                     if (clearcond2 >= textmax) return false;
                 }
             }
@@ -160,8 +177,10 @@ namespace FEBuilderGBA
             }
 
             // FE7/FE8: chapter prefix + name text at offset 112
+            // Chapter number offset: FE7U (152-byte) at 132, FE7JP/FE8 (148-byte) at 128
             string mapCp = "";
-            uint chaptere = rom.u8(addr + 128);
+            uint chapterOffset = rom.RomInfo.map_setting_datasize >= 152 ? 132u : 128u;
+            uint chaptere = rom.u8(addr + chapterOffset);
             if (chaptere > 0)
             {
                 if (U.isEven(chaptere))
