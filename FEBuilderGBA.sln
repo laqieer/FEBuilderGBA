@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEBuilderGBA.Core.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEBuilderGBA.SkiaSharp", "FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj", "{EAE76435-984C-4128-8CA4-874B75E9C624}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FEBuilderGBA.Avalonia.Tests", "FEBuilderGBA.Avalonia.Tests\FEBuilderGBA.Avalonia.Tests.csproj", "{E0F72A07-C888-42D8-9D11-76AF789226AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -125,6 +127,18 @@ Global
 		{EAE76435-984C-4128-8CA4-874B75E9C624}.Release|x86.Build.0 = Release|Any CPU
 		{EAE76435-984C-4128-8CA4-874B75E9C624}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EAE76435-984C-4128-8CA4-874B75E9C624}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|x64.Build.0 = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|x86.Build.0 = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|x64.ActiveCfg = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|x64.Build.0 = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|x86.ActiveCfg = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|x86.Build.0 = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E0F72A07-C888-42D8-9D11-76AF789226AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
