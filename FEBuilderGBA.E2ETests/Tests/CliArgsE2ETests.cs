@@ -761,15 +761,15 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
-        public void ImportPalette_TextFileRejected_Errors()
+        public void ImportPalette_OddLengthFileRejected_Errors()
         {
             var rom = TempFile(".gba");
             File.WriteAllBytes(rom, new byte[1024]);
             var pal = TempFile(".bin");
-            File.WriteAllText(pal, "this is not a palette file at all");
+            File.WriteAllBytes(pal, new byte[] { 0x01, 0x02, 0x03 }); // 3 bytes = odd length
             var (code, _, stderr) = AppRunner.Run(CliExe, $"--import-palette --rom=\"{rom}\" --addr=0x0 --in=\"{pal}\"", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
-            Assert.Contains("text", stderr, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("odd", stderr, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

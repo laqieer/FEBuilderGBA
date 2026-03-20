@@ -4059,38 +4059,18 @@ namespace FEBuilderGBA.CLI
             byte[] fileData = File.ReadAllBytes(inPath);
             string ext = Path.GetExtension(inPath);
 
-            // Detect format: content-based first, then fall back to extension-based.
-            // DetectFormat returns GbaRaw as default when content detection fails
-            // (e.g. BOM-prefixed JASC file). Fall back to extension for known palette types.
+            // Detect format using content-based detection + extension hints.
+            // DetectFormat handles content sniffing (JASC header, GIMP header, etc.)
+            // and also uses extension for ACT, GPL, TXT, PAL formats.
             PaletteFormat format = PaletteFormatConverter.DetectFormat(fileData, ext);
-            if (format == PaletteFormat.GbaRaw)
-            {
-                string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
-                // Only override GbaRaw for extensions that map to a specific palette format
-                switch (extLower)
-                {
-                    case "pal": format = PaletteFormat.JascPal; break;
-                    case "act": format = PaletteFormat.AdobeAct; break;
-                    case "gpl": format = PaletteFormat.GimpGpl; break;
-                    case "txt": format = PaletteFormat.HexText; break;
-                    // For unknown extensions, keep GbaRaw (will be validated below)
-                }
-            }
 
-            // Reject GbaRaw for files that don't look like raw palette data
-            // (odd length, or contains non-binary content like ASCII text)
+            // Validate GbaRaw: reject files that are clearly not raw palette data
             if (format == PaletteFormat.GbaRaw)
             {
-                if (fileData.Length % 2 != 0 || fileData.Length == 0)
-                { Console.Error.WriteLine($"Error: Input file does not appear to be a valid palette (odd length or empty). Use a .pal, .act, .gpl, or .txt palette format."); return 1; }
-                // Check if file looks like ASCII text rather than binary palette data
-                int textChars = 0;
-                for (int i = 0; i < Math.Min(fileData.Length, 64); i++)
-                {
-                    if (fileData[i] >= 0x20 && fileData[i] <= 0x7E) textChars++;
-                }
-                if (textChars > Math.Min(fileData.Length, 64) * 3 / 4)
-                { Console.Error.WriteLine($"Error: Input file appears to be text, not raw GBA palette data. Use .pal (JASC), .gpl (GIMP), or .txt (hex) format."); return 1; }
+                if (fileData.Length == 0)
+                { Console.Error.WriteLine("Error: Input file is empty."); return 1; }
+                if (fileData.Length % 2 != 0)
+                { Console.Error.WriteLine($"Error: Input file has odd byte count ({fileData.Length}), not valid raw GBA palette (2 bytes per color). Use .pal, .act, .gpl, or .txt format."); return 1; }
             }
 
             try
