@@ -8,13 +8,247 @@
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Settings (FE7U)" FontSize="18" FontWeight="Bold" />
+      <StackPanel Spacing="4" Margin="8">
+        <TextBlock Text="Map Settings (FE7 US)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- Section 1: CP / Pointer (D0) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="CP / Pointer" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="D0: CP" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="ND0" Width="120" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 2: Map Style / PLIST (W4, B6-B11) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Style / PLIST" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="W4: Object type (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW4" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B6: Palette (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB6" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="B7: Chipset config (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB7" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="B8: Map pointer (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB8" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="B9: Tile animation 1 (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB9" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="B10: Tile animation 2 (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB10" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="B11: Map change (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB11" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 3: Map Properties (B12-B19) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Properties" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="B12: Fog level" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB12" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B13: Battle preparation" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB13" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="B14: Chapter title image" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB14" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="B15: Chapter title image 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB15" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="B16: Padding" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB16" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="B17: Padding" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB17" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="B18: Weather" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB18" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="B19: Battle BG" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB19" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 4: BGM / Music (W20-W42) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="BGM / Music" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="W20: Difficulty adjustment" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW20" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="W22: Player phase BGM" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW22" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="W24: Enemy phase BGM" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW24" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="W26: NPC phase BGM" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NW26" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="W28: Player phase BGM 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NW28" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="W30: Enemy phase BGM 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NW30" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="W32: NPC phase BGM 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NW32" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="W34: Player phase BGM flag 4" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NW34" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="8" Grid.Column="0" Text="W36: Enemy phase BGM flag 4" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="NW36" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="9" Grid.Column="0" Text="W38: Prologue BGM (Common)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="NW38" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="10" Grid.Column="0" Text="W40: Prologue BGM (Eliwood)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="NW40" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="11" Grid.Column="0" Text="W42: Prologue BGM (Hector)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="NW42" Minimum="0" Maximum="65535" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 5: Breakable Wall HP -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Breakable Wall HP / Unknowns" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="B44: Breakable wall HP" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB44" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B61: ??" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB61" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="W94: ??" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW94" Minimum="0" Maximum="65535" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 6: Pointers (D96-D108) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Difficulty Pointers (D96-D108)" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,180" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Eliwood Normal (D96):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="ND96" Width="120" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Eliwood Hard (D100):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="1" Grid.Column="1" Name="ND100" Width="120" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Hector Normal (D104):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="2" Grid.Column="1" Name="ND104" Width="120" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Hector Hard (D108):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="3" Grid.Column="1" Name="ND108" Width="120" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 7: Map Name Text IDs (W112-W118) FE7U has 4 text IDs -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Chapter Title Text IDs" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,10,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="W112: Eliwood title text" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW112" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Name="W112TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="W114: Hector title text" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW114" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Name="W114TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="W116: Eliwood title text 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW116" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="2" Grid.Column="3" Name="W116TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="W118: Hector title text 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NW118" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="3" Grid.Column="3" Name="W118TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 8: Event / Fortune Teller (B120-B131) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Event / Fortune Teller" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="B120: Event ID (PLIST)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB120" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B121: World map auto event" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB121" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="W122: Fortune text (opening)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW122" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="W124: Fortune text (Eliwood)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NW124" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="W126: Fortune text (Hector)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NW126" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="W128: Fortune text (confirm)" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NW128" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="B130: Fortune portrait" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB130" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="B131: Fortune fee" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB131" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 9: Chapter / Transporter / Victory (B132-B139) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Chapter / Transporter / Victory" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="B132: Prep screen Ch no. 1" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB132" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B133: Prep screen Ch no. 2" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB133" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="B134: Transporter Eliwood X" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB134" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="B135: Transporter Hector X" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB135" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="B136: Transporter Eliwood Y" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB136" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="B137: Transporter Hector Y" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB137" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="B138: Victory BGM enemy count" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB138" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="B139: Darken before start" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB139" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 10: Clear Conditions (W140, W142) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Clear Conditions" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,10,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="W140: Clear condition text" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW140" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Name="W140TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="W142: Detail clear condition" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW142" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Name="W142TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Section 11: Display Flags (B144-B151) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Display Flags (B144-B151)" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="B144: Special display" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB144" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="B145: Turn count display" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB145" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="B146: Defense unit mark" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB146" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="B147: Escape marker X" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB147" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="B148: Escape marker Y" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB148" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="B149: ??" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB149" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="B150: ??" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB150" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="B151: ??" VerticalAlignment="Center" />
+              <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB151" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Write Button -->
+        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
