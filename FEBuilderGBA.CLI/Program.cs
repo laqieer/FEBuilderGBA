@@ -3090,10 +3090,20 @@ namespace FEBuilderGBA.CLI
                 return (img.GetPixelData(), img.Width, img.Height);
             };
 
-            // Detect format by file extension
-            string ext = Path.GetExtension(scriptPath).ToUpperInvariant();
+            // Detect format: check FEditor .bin header first, then fall back to extension
             string error;
-            if (ext == ".BIN")
+            bool isFEditorBin = false;
+            string ext = Path.GetExtension(scriptPath).ToUpperInvariant();
+            if (ext == ".BIN" || ext == "")
+            {
+                // Check for FEditor serialization header
+                byte[] header = new byte[8];
+                using (var fs = File.OpenRead(scriptPath))
+                    fs.Read(header, 0, Math.Min(8, (int)fs.Length));
+                // FEditor header: 5C 78 78 75 72 or 5C 78 70
+                isFEditorBin = (header[0] == 0x5C && header[1] == 0x78);
+            }
+            if (isFEditorBin)
             {
                 error = BattleAnimeImportCore.ImportFEditorBin(
                     scriptPath, animAddr, imageLoader);

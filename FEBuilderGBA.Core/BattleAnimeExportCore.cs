@@ -157,22 +157,29 @@ namespace FEBuilderGBA
                             frameCount++;
 
                             // Render frame using OAM composition
+                            bool saved = false;
                             try
                             {
-                                using var result = RenderFrameFromData(rom, gfxPtr, oamOffset,
+                                using var result = RenderFrameFromData(gfxPtr, oamOffset,
                                     oamData, paletteData);
                                 if (result != null)
                                 {
                                     string pngPath = Path.Combine(outputDir, pngName);
                                     result.Save(pngPath);
+                                    saved = true;
                                 }
                             }
-                            catch { /* Skip frames that fail to render */ }
+                            catch (Exception ex)
+                            {
+                                Log.Error("Export frame render failed", ex.Message);
+                            }
 
-                            frameFiles[key] = pngName;
+                            if (saved)
+                                frameFiles[key] = pngName;
                         }
 
-                        lines.Add($"{wait}p-{pngName}");
+                        if (frameFiles.ContainsKey(key))
+                            lines.Add($"{wait}p-{frameFiles[key]}");
                         n += 12;
                     }
                     else if (cmdType == 0x80 || (frameData[n] == 0 && frameData[n + 1] == 0 &&
@@ -203,7 +210,7 @@ namespace FEBuilderGBA
         /// Uses BattleAnimeRendererCore.RenderSingleFrame for proper OAM-composed output
         /// matching WinForms DrawFrameImageWide.
         /// </summary>
-        static IImage RenderFrameFromData(ROM rom, uint gfxPtr, uint oamOffset,
+        static IImage RenderFrameFromData(uint gfxPtr, uint oamOffset,
             byte[] oamData, byte[] paletteData)
         {
             if (!U.isPointer(gfxPtr)) return null;

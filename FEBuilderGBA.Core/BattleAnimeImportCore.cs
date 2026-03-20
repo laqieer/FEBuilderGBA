@@ -891,6 +891,22 @@ namespace FEBuilderGBA
                     return $"Failed to load sheet image: {sheetName}";
 
                 var (rgba, w, h) = loaded.Value;
+
+                // FEditor sheets may have an extra 8px palette column (264x64).
+                // Crop to 256x64 (32x8 tiles) to match the expected tile layout.
+                if (w == (SEAT_TILE_WIDTH + 1) * 8)
+                {
+                    int cropW = SEAT_TILE_WIDTH * 8;
+                    byte[] cropped = new byte[cropW * h * 4];
+                    for (int y = 0; y < h; y++)
+                        Array.Copy(rgba, y * w * 4, cropped, y * cropW * 4, cropW * 4);
+                    rgba = cropped;
+                    w = cropW;
+                }
+
+                if (w != SEAT_TILE_WIDTH * 8 || h != SEAT_TILE_HEIGHT * 8)
+                    return $"Sheet image must be {SEAT_TILE_WIDTH * 8}x{SEAT_TILE_HEIGHT * 8}: {sheetName} ({w}x{h})";
+
                 // Quantize and encode as 4bpp tiles
                 var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);
                 if (qr == null)
@@ -938,10 +954,10 @@ namespace FEBuilderGBA
             rom.write_range(ltrAddr, ltrCompressed);
             rom.write_p32(animRecordAddr + 24, ltrAddr);
 
-            // Write palette
-            byte[] palCompressed = (palette.Length >= 0x80)
-                ? LZ77.compress(palette)
-                : LZ77.compress(new byte[0x80]); // empty 4-team palette
+            // Write palette (must be at least 0x80 bytes: 4 teams x 16 colors x 2 bytes)
+            if (palette.Length < 0x80)
+                return "FEditor .bin: palette data too short (expected 128 bytes for 4-team palette).";
+            byte[] palCompressed = LZ77.compress(palette);
             uint palAddr = rom.FindFreeSpace(searchStart, (uint)palCompressed.Length);
             if (palAddr == U.NOT_FOUND)
                 palAddr = rom.FindFreeSpace(0x100, (uint)palCompressed.Length);
