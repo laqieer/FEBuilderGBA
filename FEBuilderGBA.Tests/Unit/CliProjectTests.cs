@@ -509,5 +509,32 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal("5", dic["--animation-id"]);
             Assert.Equal("anim.txt", dic["--in"]);
         }
+
+        // ------------------------------------------------------------------ export-battle-anime + .bin import
+
+        [Fact]
+        public void CliProgram_HasExportBattleAnimeCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--export-battle-anime", src);
+            Assert.Contains("RunExportBattleAnime", src);
+        }
+
+        [Fact]
+        public void CliProgram_ImportBattleAnimeDetectsBinFormat()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("ImportFEditorBin", src);
+            Assert.Contains(".BIN", src);
+        }
+
+        [Fact]
+        public void ParseArgs_ExportBattleAnimeArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--export-battle-anime", "--rom=test.gba", "--animation-id=3", "--out=anim.txt" });
+            Assert.True(dic.ContainsKey("--export-battle-anime"));
+            Assert.Equal("3", dic["--animation-id"]);
+            Assert.Equal("anim.txt", dic["--out"]);
+        }
     }
 }

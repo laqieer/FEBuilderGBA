@@ -196,5 +196,85 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = origRom;
             }
         }
+        // ------------------------------------------------------------------ FEditor .bin import tests
+
+        [Fact]
+        public void ImportFEditorBin_MissingFile_ReturnsError()
+        {
+            var origRom = CoreState.ROM;
+            CoreState.ROM = new ROM();
+            CoreState.ROM.SwapNewROMDataDirect(new byte[0x10000]);
+            try
+            {
+                string result = BattleAnimeImportCore.ImportFEditorBin(
+                    "/nonexistent/anim.bin", 0x1000, _ => null);
+                Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void ImportFEditorBin_NoRom_ReturnsError()
+        {
+            var origRom = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                string tempFile = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(), $"febuilder_test_{Guid.NewGuid():N}.bin");
+                System.IO.File.WriteAllBytes(tempFile, new byte[] { 0x00, 0x01, 0x02 });
+                try
+                {
+                    string result = BattleAnimeImportCore.ImportFEditorBin(
+                        tempFile, 0x1000, _ => null);
+                    Assert.Contains("No ROM", result);
+                }
+                finally
+                {
+                    System.IO.File.Delete(tempFile);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void ImportFEditorBin_InvalidHeader_ReturnsError()
+        {
+            byte[] romData = new byte[0x20000];
+            for (int i = 0x2000; i < romData.Length; i++) romData[i] = 0xFF;
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(romData);
+
+            var origRom = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                string tempFile = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(), $"febuilder_test_{Guid.NewGuid():N}.bin");
+                // Write garbage data (no valid FEditor header)
+                System.IO.File.WriteAllBytes(tempFile, new byte[100]);
+                try
+                {
+                    string result = BattleAnimeImportCore.ImportFEditorBin(
+                        tempFile, 0x1000, _ => null);
+                    Assert.Contains("header", result, StringComparison.OrdinalIgnoreCase);
+                }
+                finally
+                {
+                    System.IO.File.Delete(tempFile);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
     }
 }
