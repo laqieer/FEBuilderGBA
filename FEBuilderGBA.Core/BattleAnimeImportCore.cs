@@ -787,5 +787,277 @@ namespace FEBuilderGBA
         }
 
         #endregion
+
+        #region FEditor .bin Import
+
+        static readonly byte[] FEDITOR_HEADER_1 = { 0x5C, 0x78, 0x78, 0x75, 0x72 };
+        static readonly byte[] FEDITOR_HEADER_2 = { 0x5C, 0x78, 0x70 };
+        static readonly byte[] FEDITOR_FOOTER = { 0x75, 0x71, 0x00, 0x7E, 0x00 };
+        const int FEDITOR_HEADER_SKIP = 0x38;
+
+        /// <summary>
+        /// Import battle animation from FEditor serialized .bin format.
+        /// Requires companion files: {basename} Frame Data.dmp, {basename} Sheet N.png
+        /// </summary>
+        public static string ImportFEditorBin(string binPath, uint animRecordAddr,
+            Func<string, (byte[] rgba, int w, int h)?> imageLoader)
+        {
+            if (!File.Exists(binPath))
+                return $"File not found: {binPath}";
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "No ROM loaded.";
+
+            byte[] binData = File.ReadAllBytes(binPath);
+            string baseName = Path.GetFileNameWithoutExtension(binPath);
+            string baseDir = Path.GetDirectoryName(Path.GetFullPath(binPath));
+
+            // Locate header
+            uint headerPos = GrepBytes(binData, FEDITOR_HEADER_1, 0);
+            int headerSkip = FEDITOR_HEADER_SKIP + FEDITOR_HEADER_1.Length;
+
+            if (headerPos == U.NOT_FOUND)
+            {
+                // Try variant header
+                headerPos = GrepBytes(binData, FEDITOR_HEADER_2, 0);
+                if (headerPos == U.NOT_FOUND)
+                    return "Invalid FEditor .bin file: header not found.";
+
+                // For variant header, find the next occurrence of footer to determine skip
+                uint footerAfterHeader = GrepBytes(binData, new byte[] { 0x70, 0x78, 0x75, 0x72 },
+                    headerPos + (uint)FEDITOR_HEADER_2.Length);
+                if (footerAfterHeader == U.NOT_FOUND)
+                    return "Invalid FEditor .bin file: cannot determine header variant.";
+                headerSkip = (int)(footerAfterHeader - headerPos) + 4 + FEDITOR_HEADER_SKIP;
+            }
+
+            uint pos = headerPos + (uint)headerSkip;
+            if (pos + SECTION_COUNT * 4 > binData.Length)
+                return "FEditor .bin file too short for section data.";
+
+            // Extract section data (48 bytes)
+            byte[] sectionData = new byte[SECTION_COUNT * 4];
+            Array.Copy(binData, pos, sectionData, 0, SECTION_COUNT * 4);
+            pos += SECTION_COUNT * 4;
+
+            // Skip to RightToLeftOAM (skip footer + 5 bytes)
+            pos += (uint)FEDITOR_FOOTER.Length + 5;
+            uint oamEnd = GrepBytes(binData, FEDITOR_FOOTER, pos);
+            if (oamEnd == U.NOT_FOUND)
+                return "FEditor .bin: cannot find RightToLeftOAM boundary.";
+
+            int rtlLen = (int)(oamEnd - pos);
+            if (rtlLen < 0 || pos + rtlLen > binData.Length)
+                return "FEditor .bin: RightToLeftOAM bounds invalid.";
+            byte[] rightToLeftOAM = new byte[rtlLen];
+            Array.Copy(binData, (int)pos, rightToLeftOAM, 0, rtlLen);
+
+            // Skip to LeftToRightOAM
+            pos = oamEnd + (uint)FEDITOR_FOOTER.Length + 5;
+            oamEnd = GrepBytes(binData, FEDITOR_FOOTER, pos);
+            if (oamEnd == U.NOT_FOUND)
+                return "FEditor .bin: cannot find LeftToRightOAM boundary.";
+
+            int ltrLen = (int)(oamEnd - pos);
+            if (ltrLen < 0 || pos + ltrLen > binData.Length)
+                return "FEditor .bin: LeftToRightOAM bounds invalid.";
+            byte[] leftToRightOAM = new byte[ltrLen];
+            Array.Copy(binData, (int)pos, leftToRightOAM, 0, ltrLen);
+
+            // Extract palette (remaining data after footer)
+            pos = oamEnd + (uint)FEDITOR_FOOTER.Length + 5;
+            int palLen = (int)(binData.Length - pos);
+            if (palLen < 0) palLen = 0;
+            byte[] palette = new byte[palLen];
+            if (palLen > 0)
+                Array.Copy(binData, (int)pos, palette, 0, palLen);
+
+            // Read frame data from companion .dmp file
+            string dmpPath = Path.Combine(baseDir, baseName + " Frame Data.dmp");
+            if (!File.Exists(dmpPath))
+                return $"Companion file not found: {baseName} Frame Data.dmp";
+            byte[] frameDataRaw = File.ReadAllBytes(dmpPath);
+
+            // Load sheet PNGs
+            var sheetDatas = new List<byte[]>();
+            for (int i = 1; i <= 254; i++)
+            {
+                string sheetName = $"{baseName} Sheet {i}.png";
+                string sheetPath = Path.Combine(baseDir, sheetName);
+                if (!File.Exists(sheetPath)) break;
+
+                var loaded = imageLoader(sheetPath);
+                if (loaded == null)
+                    return $"Failed to load sheet image: {sheetName}";
+
+                var (rgba, w, h) = loaded.Value;
+
+                // FEditor sheets may have an extra 8px palette column (264x64).
+                // Crop to 256x64 (32x8 tiles) to match the expected tile layout.
+                if (w == (SEAT_TILE_WIDTH + 1) * 8)
+                {
+                    int cropW = SEAT_TILE_WIDTH * 8;
+                    byte[] cropped = new byte[cropW * h * 4];
+                    for (int y = 0; y < h; y++)
+                        Array.Copy(rgba, y * w * 4, cropped, y * cropW * 4, cropW * 4);
+                    rgba = cropped;
+                    w = cropW;
+                }
+
+                if (w != SEAT_TILE_WIDTH * 8 || h != SEAT_TILE_HEIGHT * 8)
+                    return $"Sheet image must be {SEAT_TILE_WIDTH * 8}x{SEAT_TILE_HEIGHT * 8}: {sheetName} ({w}x{h})";
+
+                // Quantize and encode as 4bpp tiles
+                var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);
+                if (qr == null)
+                    return $"Failed to quantize sheet: {sheetName}";
+
+                byte[] tiles = EncodeSeatTo4bpp(qr.IndexData, w, h);
+                sheetDatas.Add(LZ77.compress(tiles));
+            }
+
+            if (sheetDatas.Count == 0)
+                return $"No sheet images found: {baseName} Sheet 1.png";
+
+            // Write to ROM
+            uint searchStart = (uint)(rom.Data.Length / 2);
+
+            // Write sheet images
+            var sheetAddrs = new List<uint>();
+            foreach (var sheet in sheetDatas)
+            {
+                uint addr = rom.FindFreeSpace(searchStart, (uint)sheet.Length);
+                if (addr == U.NOT_FOUND)
+                    addr = rom.FindFreeSpace(0x100, (uint)sheet.Length);
+                if (addr == U.NOT_FOUND)
+                    return $"No free space for sheet ({sheet.Length} bytes).";
+                rom.write_range(addr, sheet);
+                sheetAddrs.Add(addr);
+            }
+
+            // Write SEPARATE OAM data (distinct +20 and +24)
+            byte[] rtlCompressed = LZ77.compress(rightToLeftOAM);
+            uint rtlAddr = rom.FindFreeSpace(searchStart, (uint)rtlCompressed.Length);
+            if (rtlAddr == U.NOT_FOUND)
+                rtlAddr = rom.FindFreeSpace(0x100, (uint)rtlCompressed.Length);
+            if (rtlAddr == U.NOT_FOUND)
+                return "No free space for RightToLeftOAM.";
+            rom.write_range(rtlAddr, rtlCompressed);
+            rom.write_p32(animRecordAddr + 20, rtlAddr);
+
+            byte[] ltrCompressed = LZ77.compress(leftToRightOAM);
+            uint ltrAddr = rom.FindFreeSpace(searchStart, (uint)ltrCompressed.Length);
+            if (ltrAddr == U.NOT_FOUND)
+                ltrAddr = rom.FindFreeSpace(0x100, (uint)ltrCompressed.Length);
+            if (ltrAddr == U.NOT_FOUND)
+                return "No free space for LeftToRightOAM.";
+            rom.write_range(ltrAddr, ltrCompressed);
+            rom.write_p32(animRecordAddr + 24, ltrAddr);
+
+            // Write palette (must be at least 0x80 bytes: 4 teams x 16 colors x 2 bytes)
+            if (palette.Length < 0x80)
+                return "FEditor .bin: palette data too short (expected 128 bytes for 4-team palette).";
+            byte[] palCompressed = LZ77.compress(palette);
+            uint palAddr = rom.FindFreeSpace(searchStart, (uint)palCompressed.Length);
+            if (palAddr == U.NOT_FOUND)
+                palAddr = rom.FindFreeSpace(0x100, (uint)palCompressed.Length);
+            if (palAddr == U.NOT_FOUND)
+                return "No free space for palette.";
+            rom.write_range(palAddr, palCompressed);
+            rom.write_p32(animRecordAddr + 28, palAddr);
+
+            // Update frame data with sheet addresses
+            UpdateFrameDataAddresses(frameDataRaw, sheetAddrs);
+
+            // Write frame data compressed
+            byte[] frameCompressed = LZ77.compress(frameDataRaw);
+            uint frameAddr = rom.FindFreeSpace(searchStart, (uint)frameCompressed.Length);
+            if (frameAddr == U.NOT_FOUND)
+                frameAddr = rom.FindFreeSpace(0x100, (uint)frameCompressed.Length);
+            if (frameAddr == U.NOT_FOUND)
+                return "No free space for frame data.";
+            rom.write_range(frameAddr, frameCompressed);
+            rom.write_p32(animRecordAddr + 16, frameAddr);
+
+            // Write section data
+            uint secAddr = rom.FindFreeSpace(searchStart, (uint)sectionData.Length);
+            if (secAddr == U.NOT_FOUND)
+                secAddr = rom.FindFreeSpace(0x100, (uint)sectionData.Length);
+            if (secAddr == U.NOT_FOUND)
+                return "No free space for section data.";
+            rom.write_range(secAddr, sectionData);
+            rom.write_p32(animRecordAddr + 12, secAddr);
+
+            return string.Empty;
+        }
+
+        internal static void UpdateFrameDataAddresses(byte[] frameData, List<uint> sheetAddrs)
+        {
+            // First pass: collect unique graphics pointers in order of first appearance.
+            // Each unique pointer maps to a sequential sheet index (Sheet 1, Sheet 2, ...).
+            var uniquePtrs = new List<uint>();
+            var ptrToIndex = new Dictionary<uint, int>();
+
+            for (int i = 0; i + 11 < frameData.Length; )
+            {
+                byte cmdType = frameData[i + 3];
+                if (cmdType == 0x86)
+                {
+                    uint gfxPtr = (uint)(frameData[i + 4] | (frameData[i + 5] << 8) |
+                        (frameData[i + 6] << 16) | (frameData[i + 7] << 24));
+                    if (!ptrToIndex.ContainsKey(gfxPtr))
+                    {
+                        ptrToIndex[gfxPtr] = uniquePtrs.Count;
+                        uniquePtrs.Add(gfxPtr);
+                    }
+                    i += 12;
+                }
+                else
+                {
+                    i += 4;
+                }
+            }
+
+            // Second pass: replace each graphics pointer with the new ROM address
+            for (int i = 0; i + 11 < frameData.Length; )
+            {
+                byte cmdType = frameData[i + 3];
+                if (cmdType == 0x86)
+                {
+                    uint gfxPtr = (uint)(frameData[i + 4] | (frameData[i + 5] << 8) |
+                        (frameData[i + 6] << 16) | (frameData[i + 7] << 24));
+                    int sheetIdx = ptrToIndex.ContainsKey(gfxPtr) ? ptrToIndex[gfxPtr] : 0;
+                    if (sheetIdx < sheetAddrs.Count)
+                    {
+                        uint newPtr = U.toPointer(sheetAddrs[sheetIdx]);
+                        frameData[i + 4] = (byte)(newPtr & 0xFF);
+                        frameData[i + 5] = (byte)((newPtr >> 8) & 0xFF);
+                        frameData[i + 6] = (byte)((newPtr >> 16) & 0xFF);
+                        frameData[i + 7] = (byte)((newPtr >> 24) & 0xFF);
+                    }
+                    i += 12;
+                }
+                else
+                {
+                    i += 4;
+                }
+            }
+        }
+
+        static uint GrepBytes(byte[] data, byte[] pattern, uint startPos)
+        {
+            for (uint i = startPos; i <= data.Length - pattern.Length; i++)
+            {
+                bool match = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (data[i + j] != pattern[j]) { match = false; break; }
+                }
+                if (match) return i;
+            }
+            return U.NOT_FOUND;
+        }
+
+        #endregion
     }
 }

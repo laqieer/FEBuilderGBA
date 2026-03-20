@@ -208,6 +208,11 @@ namespace FEBuilderGBA.CLI
                 return RunImportBattleAnime(argsDic);
             }
 
+            if (argsDic.ContainsKey("--export-battle-anime"))
+            {
+                return RunExportBattleAnime(argsDic);
+            }
+
             if (argsDic.ContainsKey("--freespace"))
             {
                 return RunFreeSpace(argsDic);
@@ -330,9 +335,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --compile-event          Compile event script with EA/ColorzCore (requires --rom, --in)");
             Console.WriteLine("    --in=<path>            Input .event source file");
             Console.WriteLine("    --out=<path>           Output ROM path (default: overwrites input ROM)");
-            Console.WriteLine("  --import-battle-anime    Import battle animation from .txt script (requires --rom, --animation-id, --in)");
+            Console.WriteLine("  --import-battle-anime    Import battle animation from .txt or .bin (requires --rom, --animation-id, --in)");
             Console.WriteLine("    --animation-id=<id>    0-based animation index in ROM table");
-            Console.WriteLine("    --in=<path>            Input .txt animation script file");
+            Console.WriteLine("    --in=<path>            Input .txt script or FEditor .bin file");
+            Console.WriteLine("  --export-battle-anime    Export battle animation to .txt + PNGs (requires --rom, --animation-id, --out)");
+            Console.WriteLine("    --animation-id=<id>    0-based animation index in ROM table");
+            Console.WriteLine("    --out=<path>           Output .txt file path (PNGs saved alongside)");
             Console.WriteLine("  --freespace              Scan and report free space in ROM (requires --rom)");
             Console.WriteLine("    --min-size=<int>       Minimum free block size to report (default: 16)");
             Console.WriteLine("  --hex-dump               Dump ROM bytes in hex+ASCII format (requires --rom, --addr)");
@@ -3073,17 +3081,38 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Script: {scriptPath}");
             Console.WriteLine($"Importing...");
 
-            // Image loader using SkiaSharp
+            // Image loader using SkiaSharp (dispose IImage after extracting pixels)
             Func<string, (byte[] rgba, int w, int h)?> imageLoader = (path) =>
             {
                 if (!File.Exists(path)) return null;
-                var img = CoreState.ImageService?.LoadImage(path);
+                using var img = CoreState.ImageService?.LoadImage(path);
                 if (img == null) return null;
                 return (img.GetPixelData(), img.Width, img.Height);
             };
 
-            string error = BattleAnimeImportCore.ImportBattleAnime(
-                scriptPath, animAddr, imageLoader);
+            // Detect format: check FEditor .bin header first, then fall back to extension
+            string error;
+            bool isFEditorBin = false;
+            string ext = Path.GetExtension(scriptPath).ToUpperInvariant();
+            if (ext == ".BIN" || ext == "")
+            {
+                // Check for FEditor serialization header
+                byte[] header = new byte[8];
+                using (var fs = File.OpenRead(scriptPath))
+                    fs.Read(header, 0, Math.Min(8, (int)fs.Length));
+                // FEditor header: 5C 78 78 75 72 or 5C 78 70
+                isFEditorBin = (header[0] == 0x5C && header[1] == 0x78);
+            }
+            if (isFEditorBin)
+            {
+                error = BattleAnimeImportCore.ImportFEditorBin(
+                    scriptPath, animAddr, imageLoader);
+            }
+            else
+            {
+                error = BattleAnimeImportCore.ImportBattleAnime(
+                    scriptPath, animAddr, imageLoader);
+            }
 
             if (!string.IsNullOrEmpty(error))
             {
@@ -3093,6 +3122,61 @@ namespace FEBuilderGBA.CLI
 
             rom.Save(romPath, true);
             Console.WriteLine($"Battle animation {animId} imported and saved to {romPath}");
+            return 0;
+        }
+
+        static int RunExportBattleAnime(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-battle-anime requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--animation-id") || string.IsNullOrEmpty(argsDic["--animation-id"]))
+            {
+                Console.Error.WriteLine("Error: --export-battle-anime requires --animation-id=<id> (0-based)");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --export-battle-anime requires --out=<output.txt>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string outputPath = argsDic["--out"];
+
+            if (!uint.TryParse(argsDic["--animation-id"], out uint animId))
+            {
+                Console.Error.WriteLine("Error: Invalid --animation-id value.");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+            uint animAddr = BattleAnimeImportCore.ResolveBattleAnimeAddr(rom, animId);
+            if (animAddr == U.NOT_FOUND)
+            {
+                Console.Error.WriteLine($"Error: Animation ID {animId} is out of range.");
+                return 1;
+            }
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Animation ID: {animId} (address: 0x{animAddr:X08})");
+            Console.WriteLine($"Exporting...");
+
+            string error = BattleAnimeExportCore.ExportBattleAnime(rom, animAddr, outputPath);
+            if (!string.IsNullOrEmpty(error))
+            {
+                Console.Error.WriteLine($"Error: {error}");
+                return 1;
+            }
+
+            Console.WriteLine($"Battle animation {animId} exported to {outputPath}");
             return 0;
         }
 
