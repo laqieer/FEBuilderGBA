@@ -4075,18 +4075,20 @@ namespace FEBuilderGBA.CLI
 
             // If DetectFormat returned GbaRaw but the file has a known palette extension,
             // fall back to extension-based detection (handles BOM-prefixed JASC files, etc.)
-            // Only override for unambiguous extensions: .act and .gpl always mean specific formats.
-            // .pal and .txt are handled by DetectFormat's content sniffing (JASC header, hex text).
+            // If DetectFormat returns GbaRaw, only override for unambiguous binary extensions.
+            // .pal and .txt are already handled by DetectFormat's content sniffing
+            // (JASC header, hex text patterns). Since we strip UTF-8 BOM above,
+            // BOM-prefixed JASC .pal files are detected correctly by content.
             if (format == PaletteFormat.GbaRaw)
             {
                 string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
                 switch (extLower)
                 {
-                    case "pal": format = PaletteFormat.JascPal; break; // .pal with no JASC header detected = try JASC anyway (may have BOM)
-                    case "act": format = PaletteFormat.AdobeAct; break;
-                    case "gpl": format = PaletteFormat.GimpGpl; break;
-                    case "txt": format = PaletteFormat.HexText; break;
-                    case "gbapal": break; // Keep GbaRaw
+                    case "pal": break; // DetectFormat already checked for JASC header; keep GbaRaw
+                    case "act": format = PaletteFormat.AdobeAct; break; // ACT is always binary, no header
+                    case "gpl": format = PaletteFormat.GimpGpl; break; // DetectFormat checks header but may miss edge cases
+                    case "txt": break; // DetectFormat already checked for hex text; keep GbaRaw
+                    case "gbapal": break; // Explicitly raw
                     default:
                         Console.Error.WriteLine($"Error: Unsupported input extension '{ext}'. Use .pal (JASC), .act (ACT), .gpl (GIMP), .txt (Hex), or .gbapal (raw).");
                         return 1;
