@@ -243,6 +243,35 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public void SelectFirstItem()", src);
         }
 
+        [Fact]
+        public void OpenMapSettings_Click_DispatchesByVersion()
+        {
+            // The "Map Settings" button handler must dispatch to version-specific views
+            // instead of always opening the generic MapSettingView
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+
+            // Extract the OpenMapSettings_Click method body
+            int methodStart = src.IndexOf("private void OpenMapSettings_Click");
+            Assert.True(methodStart >= 0, "OpenMapSettings_Click not found");
+
+            // Must check ver == 6 for FE6 dispatch
+            string afterMethod = src.Substring(methodStart, 600);
+            Assert.Contains("ver == 6", afterMethod);
+            Assert.Contains("MapSettingFE6View", afterMethod);
+
+            // Must check FE7U (version 7, !isMultibyte) before generic FE7
+            Assert.Contains("MapSettingFE7UView", afterMethod);
+            Assert.Contains("MapSettingFE7View", afterMethod);
+        }
+
+        [Fact]
+        public void MapSettingViewModel_GuardsFE6Version()
+        {
+            // The generic MapSettingViewModel must reject FE6 ROMs to prevent data corruption
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapSettingViewModel.cs"));
+            Assert.Contains("rom.RomInfo.version == 6", src);
+        }
+
         // ------------------------------------------------------------------ Text Viewer (WU-9)
 
         [Fact]
