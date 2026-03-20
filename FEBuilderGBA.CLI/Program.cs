@@ -3965,7 +3965,7 @@ namespace FEBuilderGBA.CLI
         static int RunListTables(Dictionary<string, string> argsDic)
         {
             // Tables are registered in StructExportCore's static constructor
-            var names = StructExportCore.GetTableNames().OrderBy(n => n);
+            var names = StructExportCore.GetTableNames().OrderBy(n => n, StringComparer.Ordinal);
             foreach (string name in names)
             {
                 Console.WriteLine(name);
@@ -4013,8 +4013,11 @@ namespace FEBuilderGBA.CLI
             byte[] rawPalette = new byte[byteCount];
             Array.Copy(romData, addr, rawPalette, 0, byteCount);
 
-            // Determine format from output file extension
+            // Determine format from output file extension — only accept known palette extensions
             string ext = Path.GetExtension(outPath);
+            string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
+            if (extLower != "pal" && extLower != "act" && extLower != "gpl" && extLower != "txt" && extLower != "gbapal")
+            { Console.Error.WriteLine($"Error: Unsupported output extension '{ext}'. Use .pal (JASC), .act (ACT), .gpl (GIMP), .txt (Hex), or .gbapal (raw)."); return 1; }
             PaletteFormat format = PaletteFormatConverter.FormatFromExtension(ext);
 
             try
@@ -4072,12 +4075,21 @@ namespace FEBuilderGBA.CLI
 
             // If DetectFormat returned GbaRaw but the file has a known palette extension,
             // fall back to extension-based detection (handles BOM-prefixed JASC files, etc.)
+            // Only override for unambiguous extensions: .act and .gpl always mean specific formats.
+            // .pal and .txt are handled by DetectFormat's content sniffing (JASC header, hex text).
             if (format == PaletteFormat.GbaRaw)
             {
                 string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
-                if (extLower == "pal" || extLower == "act" || extLower == "gpl" || extLower == "txt")
+                switch (extLower)
                 {
-                    format = PaletteFormatConverter.FormatFromExtension(ext);
+                    case "pal": format = PaletteFormat.JascPal; break; // .pal with no JASC header detected = try JASC anyway (may have BOM)
+                    case "act": format = PaletteFormat.AdobeAct; break;
+                    case "gpl": format = PaletteFormat.GimpGpl; break;
+                    case "txt": format = PaletteFormat.HexText; break;
+                    case "gbapal": break; // Keep GbaRaw
+                    default:
+                        Console.Error.WriteLine($"Error: Unsupported input extension '{ext}'. Use .pal (JASC), .act (ACT), .gpl (GIMP), .txt (Hex), or .gbapal (raw).");
+                        return 1;
                 }
             }
 
