@@ -437,6 +437,7 @@ See **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** for the mandatory dev
 - **Always commit as `laqieer <laqieer@126.com>`** — never use the zhiwenzhu identity for any commit in this repo or its submodules
 - **After creating or cloning any git repo**, immediately set: `git config user.name "laqieer" && git config user.email "laqieer@126.com"`
 - **ALL GitHub operations (`gh`) MUST target the fork `laqieer/FEBuilderGBA`** — always pass `-R laqieer/FEBuilderGBA`. This includes creating issues/PRs, listing issues, checking issue status, commenting, and any other `gh` command. NEVER interact with the upstream org repo `FEBuilderGBA/FEBuilderGBA`. This is non-negotiable.
+- **ALWAYS use isolated worktree for new tasks** — every implementation task MUST use `isolation: "worktree"` in the Agent tool. Never run `git checkout`, `git stash`, or `git switch` in the main worktree. Multiple Claude Code sessions share the repo — touching the main worktree's git state will break other sessions. Run `git fetch origin` before spawning the worktree agent to ensure remote refs are current.
 
 ## Pre-Commit Checklist (MANDATORY)
 
