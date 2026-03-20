@@ -243,6 +243,21 @@ namespace FEBuilderGBA.CLI
                 return RunDiff(argsDic);
             }
 
+            if (argsDic.ContainsKey("--lz77"))
+            {
+                return RunLZ77(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--checksum"))
+            {
+                return RunChecksum(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--repair-header"))
+            {
+                return RunRepairHeader(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -371,6 +386,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("    --patch-name=<name>    Filter patches by name (substring match)");
             Console.WriteLine("  --export-map-settings    Export all chapter/map settings to TSV (requires --rom, --out)");
+            Console.WriteLine("  --lz77                   LZ77 compress or decompress a file (requires --in, --out, --compress or --decompress)");
+            Console.WriteLine("    --compress             Compress input file");
+            Console.WriteLine("    --decompress           Decompress input file");
+            Console.WriteLine("  --checksum               Validate GBA ROM header checksum (requires --rom)");
+            Console.WriteLine("  --repair-header          Fix GBA ROM header checksum (requires --rom)");
             Console.WriteLine("  --diff                   Compare two ROMs byte-by-byte (requires --rom, --rom2)");
             Console.WriteLine("    --rom2=<path>          Second ROM to compare against");
             Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
@@ -3738,6 +3758,120 @@ namespace FEBuilderGBA.CLI
 
             File.WriteAllText(outputPath, sb.ToString(), System.Text.Encoding.UTF8);
             Console.WriteLine($"Exported {maps.Count} map settings to: {outputPath}");
+            return 0;
+        }
+
+        static int RunLZ77(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --lz77 requires --in=<input_file>"); return 1; }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --lz77 requires --out=<output_file>"); return 1; }
+
+            bool compress = argsDic.ContainsKey("--compress");
+            bool decompress = argsDic.ContainsKey("--decompress");
+            if (compress && decompress)
+            { Console.Error.WriteLine("Error: --lz77 cannot use both --compress and --decompress"); return 1; }
+            if (!compress && !decompress)
+            { Console.Error.WriteLine("Error: --lz77 requires --compress or --decompress"); return 1; }
+
+            string inPath = argsDic["--in"];
+            string outPath = argsDic["--out"];
+
+            if (!File.Exists(inPath))
+            { Console.Error.WriteLine($"Error: Input file not found: {inPath}"); return 1; }
+
+            byte[] input = File.ReadAllBytes(inPath);
+            Console.WriteLine($"Input: {inPath} ({input.Length} bytes)");
+
+            if (compress)
+            {
+                if (input.Length < 3)
+                { Console.Error.WriteLine("Error: Input too small for LZ77 compression (minimum 3 bytes)."); return 1; }
+                byte[] result = LZ77.compress(input);
+                File.WriteAllBytes(outPath, result);
+                int ratio = input.Length > 0 ? (int)(100L * result.Length / input.Length) : 0;
+                Console.WriteLine($"Compressed: {outPath} ({result.Length} bytes, {ratio}%)");
+            }
+            else
+            {
+                if (!LZ77.iscompress(input, 0))
+                { Console.Error.WriteLine("Error: Input is not valid LZ77 compressed data."); return 1; }
+                byte[] result = LZ77.decompress(input, 0);
+                if (result == null || result.Length == 0)
+                { Console.Error.WriteLine("Error: LZ77 decompression failed."); return 1; }
+                File.WriteAllBytes(outPath, result);
+                Console.WriteLine($"Decompressed: {outPath} ({result.Length} bytes)");
+            }
+            return 0;
+        }
+
+        static int RunChecksum(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --checksum requires --rom=<rom>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            if (!File.Exists(romPath))
+            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+
+            byte[] data = File.ReadAllBytes(romPath);
+            if (data.Length < 0xC0)
+            { Console.Error.WriteLine("Error: File too small to be a GBA ROM."); return 1; }
+
+            // GBA header checksum: complement of sum of bytes 0xA0-0xBC, stored at 0xBD
+            int sum = 0;
+            for (int i = 0xA0; i < 0xBD; i++)
+                sum += data[i];
+            byte expected = (byte)(-(0x19 + sum));
+            byte actual = data[0xBD];
+
+            Console.WriteLine($"ROM: {romPath} ({data.Length} bytes)");
+            Console.WriteLine($"Title: {System.Text.Encoding.ASCII.GetString(data, 0xA0, 12).TrimEnd('\0')}");
+            Console.WriteLine($"Game Code: {System.Text.Encoding.ASCII.GetString(data, 0xAC, 4)}");
+            Console.WriteLine($"Header checksum: 0x{actual:X02} (expected: 0x{expected:X02})");
+
+            if (actual == expected)
+            {
+                Console.WriteLine("Status: VALID");
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine("Status: INVALID (use --repair-header to fix)");
+                return 2;
+            }
+        }
+
+        static int RunRepairHeader(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --repair-header requires --rom=<rom>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            if (!File.Exists(romPath))
+            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+
+            byte[] data = File.ReadAllBytes(romPath);
+            if (data.Length < 0xC0)
+            { Console.Error.WriteLine("Error: File too small to be a GBA ROM."); return 1; }
+
+            int sum = 0;
+            for (int i = 0xA0; i < 0xBD; i++)
+                sum += data[i];
+            byte correct = (byte)(-(0x19 + sum));
+            byte current = data[0xBD];
+
+            if (current == correct)
+            {
+                Console.WriteLine($"Header checksum already valid (0x{current:X02}). No repair needed.");
+                return 0;
+            }
+
+            data[0xBD] = correct;
+            File.WriteAllBytes(romPath, data);
+            Console.WriteLine($"Repaired header checksum: 0x{current:X02} -> 0x{correct:X02}");
+            Console.WriteLine($"Saved: {romPath}");
             return 0;
         }
     }
