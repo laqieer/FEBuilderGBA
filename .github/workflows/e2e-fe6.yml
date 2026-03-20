@@ -1,10 +1,6 @@
 name: "E2E: FE6"
 
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
   schedule:
     - cron: '33 20 * * *'  # Daily UTC 20:33 (Beijing 04:33)
   workflow_dispatch:
