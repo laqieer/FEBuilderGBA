@@ -66,6 +66,66 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- FE6-specific version data size tests ----
+
+        [Fact]
+        public void FE6_MapSettingDataSize_Is68Or72()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AFEJ01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(6, rom.RomInfo.version);
+            // FE6 data size is either 68 or 72 depending on the world map event table
+            Assert.True(rom.RomInfo.map_setting_datasize == 68 || rom.RomInfo.map_setting_datasize == 72,
+                $"FE6 map_setting_datasize should be 68 or 72 but was {rom.RomInfo.map_setting_datasize}");
+        }
+
+        [Fact]
+        public void FE8U_MapSettingDataSize_Is148()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(8, rom.RomInfo.version);
+            Assert.Equal(148u, rom.RomInfo.map_setting_datasize);
+        }
+
+        [Fact]
+        public void FE7JP_MapSettingDataSize_Is148()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AE7J01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(7, rom.RomInfo.version);
+            Assert.Equal(148u, rom.RomInfo.map_setting_datasize);
+        }
+
+        [Fact]
+        public void FE7U_MapSettingDataSize_Is152()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AE7E01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(7, rom.RomInfo.version);
+            Assert.Equal(152u, rom.RomInfo.map_setting_datasize);
+        }
+
+        [Fact]
+        public void FE6_IsMultibyte_True()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AFEJ01");
+            Assert.True(rom.RomInfo.is_multibyte);
+        }
+
+        [Fact]
+        public void FE7U_IsMultibyte_False()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AE7E01");
+            Assert.False(rom.RomInfo.is_multibyte);
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);

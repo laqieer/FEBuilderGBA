@@ -1788,7 +1788,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void OpenMapSettings_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<MapSettingView>();
+            var rom = CoreState.ROM;
+            int ver = rom?.RomInfo?.version ?? 0;
+            bool isMultibyte = rom?.RomInfo?.is_multibyte ?? false;
+
+            if (ver == 6)
+                WindowManager.Instance.Open<MapSettingFE6View>();
+            else if (ver == 7 && !isMultibyte)
+                WindowManager.Instance.Open<MapSettingFE7UView>();
+            else if (ver == 7)
+                WindowManager.Instance.Open<MapSettingFE7View>();
+            else
+                WindowManager.Instance.Open<MapSettingView>();
         }
 
         private void OpenTextViewer_Click(object? sender, RoutedEventArgs e)

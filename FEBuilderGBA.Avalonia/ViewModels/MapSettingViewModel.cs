@@ -224,6 +224,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
+            // FE6 has a completely different struct layout (u8 BGM fields, 68-72 bytes).
+            // Use MapSettingFE6ViewModel instead. Guard against accidental misuse.
+            if (rom.RomInfo.version == 6) return;
+
             uint dataSize = rom.RomInfo.map_setting_datasize;
             if (dataSize == 0) dataSize = 148;
             if (addr + dataSize > (uint)rom.Data.Length) return;
@@ -379,6 +383,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
+
+            // FE6 has a completely different struct layout — block writes here.
+            if (rom.RomInfo.version == 6) return;
 
             uint addr = CurrentAddr;
             uint dataSize = DataSize;
