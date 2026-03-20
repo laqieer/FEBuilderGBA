@@ -18,7 +18,7 @@ namespace FEBuilderGBA.Avalonia.Controls
     public partial class GbaImageControl : UserControl
     {
         WriteableBitmap? _bitmap;
-        int _zoom = 2;
+        int _zoom = 1;
 
         // Drag-pan state
         bool _isPanning;

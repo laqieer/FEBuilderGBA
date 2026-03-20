@@ -6,7 +6,7 @@
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0" Spacing="4">
       <Button Name="ZoomOutButton" Content="-" Width="28" Height="28" FontSize="14"
               Click="OnZoomOutClick" ToolTip.Tip="Zoom out" />
-      <TextBlock Name="ZoomLabel" Text="2x" VerticalAlignment="Center" MinWidth="30"
+      <TextBlock Name="ZoomLabel" Text="1x" VerticalAlignment="Center" MinWidth="30"
                  TextAlignment="Center" />
       <Button Name="ZoomInButton" Content="+" Width="28" Height="28" FontSize="14"
               Click="OnZoomInClick" ToolTip.Tip="Zoom in" />
@@ -17,7 +17,7 @@
     <ScrollViewer Name="ImageScroller" HorizontalScrollBarVisibility="Auto"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-      <Image Name="ImageDisplay" Stretch="None" RenderOptions.BitmapInterpolationMode="None" />
+      <Image Name="ImageDisplay" Stretch="Fill" RenderOptions.BitmapInterpolationMode="None" />
     </ScrollViewer>
   </DockPanel>
 </UserControl>
