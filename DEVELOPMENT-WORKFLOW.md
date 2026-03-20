@@ -150,6 +150,12 @@ Never work directly on master — always create a feature branch.
 - New tests for every behavioral change
 - Run `dotnet test FEBuilderGBA.Core.Tests/` and `dotnet test FEBuilderGBA.Tests/` before pushing
 - Tests mutating CoreState use `[Collection("SharedState")]`
+- **Avalonia GUI changes MUST include headless UI tests** in `FEBuilderGBA.Avalonia.Tests/`:
+  - Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing
+  - Use `[AvaloniaFact]` / `[AvaloniaTheory]` (from `Avalonia.Headless.XUnit`) to instantiate real controls
+  - Verify **control properties and rendering state**, not just ViewModel logic
+  - Example: test that `Image.Stretch == Stretch.Fill` (catches rendering bugs), not just that a zoom variable changed
+  - Unit tests verify code logic; headless tests verify UI behavior. **Both are required for GUI changes.**
 
 ### 8. Scope Accuracy Check (Before PR)
 Before opening the PR, verify:
@@ -354,7 +360,7 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
   git worktree list             # verify which worktrees exist
   git worktree remove <path>    # remove the linked worktree
   ```
-- No need to sync master — the next task's worktree will pick up the latest state automatically.
+- No need to checkout or pull master — just run `git fetch origin` before creating the next worktree (step 7) to ensure remote refs are current.
 
 ---
 
@@ -397,11 +403,11 @@ A local-only review doesn't count — the review must be visible on GitHub.
 
 ### Don't: Work directly on master
 Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
-**Do:** Always create a feature branch from an up-to-date master: `git checkout master && git pull && git checkout -b feat/...`
+**Do:** Always create a feature branch in an isolated worktree: `git fetch origin` then spawn a worktree agent that runs `git checkout -b feat/... origin/master` (see step 7).
 
 ### Don't: Switch branches or stash in the main worktree
 Multiple Claude Code sessions share the same repo. Running `git checkout`, `git stash`, or `git switch` in the main worktree will break other sessions' working state. Attempting to "restore" it is also wrong — you don't know what state the other session expects.
-**Do:** ALWAYS use `isolation: "worktree"` in the Agent tool for every new implementation task. This gives you an isolated copy of the repo with zero interference. The main worktree is read-only for git state operations.
+**Do:** ALWAYS use `isolation: "worktree"` in the Agent tool for every new implementation task. This gives you an isolated copy of the repo with zero interference. In the main worktree, only safe ref updates like `git fetch origin` are allowed — never `git checkout`, `git stash`, `git switch`, or `git reset`.
 
 ### Don't: Guess why merge is blocked
 Assuming "needs approval" when the real cause is an outdated branch or unresolved threads wastes time and misses the actual fix.
