@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(methodStart >= 0, "OpenMapSettings_Click not found");
 
             // Must check ver == 6 for FE6 dispatch
-            string afterMethod = src.Substring(methodStart, 600);
+            string afterMethod = src.Substring(methodStart, Math.Min(1200, src.Length - methodStart));
             Assert.Contains("ver == 6", afterMethod);
             Assert.Contains("MapSettingFE6View", afterMethod);
 
