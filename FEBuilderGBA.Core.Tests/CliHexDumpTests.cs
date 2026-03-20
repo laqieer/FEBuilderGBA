@@ -8,7 +8,8 @@ namespace FEBuilderGBA.Core.Tests
     {
         /// <summary>
         /// Format a single hex dump line: "XXXXXXXX: XX XX XX ... | ASCII..."
-        /// This mirrors the formatting logic used by the CLI --hex-dump command.
+        /// This tests a standalone formatting helper; the actual CLI --hex-dump
+        /// output format may differ slightly (e.g. spacing/alignment).
         /// </summary>
         static string FormatHexLine(uint address, byte[] data, int offset, int count)
         {

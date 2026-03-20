@@ -3940,6 +3940,10 @@ namespace FEBuilderGBA.CLI
             {
                 version = CoreState.ROM.RomInfo?.VersionToFilename ?? "unknown";
             }
+            else
+            {
+                Console.Error.WriteLine($"Warning: Could not detect ROM version for {romPath}");
+            }
 
             Console.WriteLine($"file={romPath}");
             Console.WriteLine($"size={data.Length}");
@@ -3950,13 +3954,13 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"header_checksum=0x{actual:X02}");
             Console.WriteLine($"header_checksum_expected=0x{expected:X02}");
             Console.WriteLine($"header_checksum_status={checksumStatus}");
-            return 0;
+            return (version == "unknown") ? 2 : 0;
         }
 
         static int RunListTables(Dictionary<string, string> argsDic)
         {
             // Tables are registered in StructExportCore's static constructor
-            var names = StructExportCore.GetTableNames();
+            var names = StructExportCore.GetTableNames().OrderBy(n => n);
             foreach (string name in names)
             {
                 Console.WriteLine(name);
@@ -3976,19 +3980,23 @@ namespace FEBuilderGBA.CLI
             string romPath = argsDic["--rom"];
             string outPath = argsDic["--out"];
 
-            // Parse address
+            if (!File.Exists(romPath))
+            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+
+            // Parse address (supports both raw offsets and 0x08xxxxxx GBA pointers)
             string addrStr = argsDic["--addr"];
             if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 addrStr = addrStr.Substring(2);
             if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
             { Console.Error.WriteLine($"Error: Invalid hex address: {argsDic["--addr"]}"); return 1; }
+            addr = U.toOffset(addr);
 
-            // Parse color count
+            // Parse color count (max 256 for GBA palette)
             int colors = 16;
             if (argsDic.ContainsKey("--colors") && !string.IsNullOrEmpty(argsDic["--colors"]))
             {
-                if (!int.TryParse(argsDic["--colors"], out colors) || colors <= 0)
-                { Console.Error.WriteLine($"Error: Invalid color count: {argsDic["--colors"]}"); return 1; }
+                if (!int.TryParse(argsDic["--colors"], out colors) || colors <= 0 || colors > 256)
+                { Console.Error.WriteLine($"Error: Invalid color count (must be 1-256): {argsDic["--colors"]}"); return 1; }
             }
 
             byte[] romData = File.ReadAllBytes(romPath);
@@ -4030,15 +4038,18 @@ namespace FEBuilderGBA.CLI
             string romPath = argsDic["--rom"];
             string inPath = argsDic["--in"];
 
+            if (!File.Exists(romPath))
+            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
             if (!File.Exists(inPath))
             { Console.Error.WriteLine($"Error: Input file not found: {inPath}"); return 1; }
 
-            // Parse address
+            // Parse address (supports both raw offsets and 0x08xxxxxx GBA pointers)
             string addrStr = argsDic["--addr"];
             if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 addrStr = addrStr.Substring(2);
             if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
             { Console.Error.WriteLine($"Error: Invalid hex address: {argsDic["--addr"]}"); return 1; }
+            addr = U.toOffset(addr);
 
             byte[] fileData = File.ReadAllBytes(inPath);
             string ext = Path.GetExtension(inPath);

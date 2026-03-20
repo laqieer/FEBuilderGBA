@@ -6,7 +6,8 @@ namespace FEBuilderGBA.Core.Tests
     public class CliFreeSpaceTests
     {
         /// <summary>
-        /// Find contiguous runs of 0xFF bytes in a ROM data array.
+        /// Find contiguous runs of 0xFF or 0x00 bytes in a ROM data array.
+        /// The actual CLI --freespace treats both 0x00 and 0xFF as free blocks.
         /// Returns a list of (offset, length) tuples for each free region
         /// that meets the minimum size threshold.
         /// </summary>
@@ -16,10 +17,11 @@ namespace FEBuilderGBA.Core.Tests
             int i = 0;
             while (i < data.Length)
             {
-                if (data[i] == 0xFF)
+                if (data[i] == 0xFF || data[i] == 0x00)
                 {
+                    byte freeVal = data[i];
                     int start = i;
-                    while (i < data.Length && data[i] == 0xFF)
+                    while (i < data.Length && data[i] == freeVal)
                         i++;
                     int length = i - start;
                     if (length >= minSize)
@@ -36,8 +38,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindFreeRegions_SingleBlock()
         {
-            // 1KB ROM with 0xFF from offset 100 to 199 (100 bytes)
+            // 1KB ROM filled with non-free data, with 0xFF from offset 100 to 199 (100 bytes)
             byte[] rom = new byte[1024];
+            for (int i = 0; i < rom.Length; i++)
+                rom[i] = 0x42; // non-free fill
             for (int i = 100; i < 200; i++)
                 rom[i] = 0xFF;
 
@@ -51,10 +55,10 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FindFreeRegions_NoFreeSpace()
         {
-            // ROM filled with non-0xFF data
+            // ROM filled with non-free data (no 0x00 or 0xFF runs)
             byte[] rom = new byte[512];
             for (int i = 0; i < rom.Length; i++)
-                rom[i] = (byte)(i % 255); // 0x00-0xFE, never 0xFF
+                rom[i] = (byte)((i % 254) + 1); // 0x01-0xFE, never 0x00 or 0xFF
 
             var regions = FindFreeRegions(rom, 1);
 
@@ -65,6 +69,8 @@ namespace FEBuilderGBA.Core.Tests
         public void FindFreeRegions_MultipleBlocks()
         {
             byte[] rom = new byte[1024];
+            for (int i = 0; i < rom.Length; i++)
+                rom[i] = 0x42; // non-free fill
 
             // Block 1: offset 50-99 (50 bytes)
             for (int i = 50; i < 100; i++)
