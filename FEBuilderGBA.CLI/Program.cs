@@ -3081,11 +3081,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Script: {scriptPath}");
             Console.WriteLine($"Importing...");
 
-            // Image loader using SkiaSharp
+            // Image loader using SkiaSharp (dispose IImage after extracting pixels)
             Func<string, (byte[] rgba, int w, int h)?> imageLoader = (path) =>
             {
                 if (!File.Exists(path)) return null;
-                var img = CoreState.ImageService?.LoadImage(path);
+                using var img = CoreState.ImageService?.LoadImage(path);
                 if (img == null) return null;
                 return (img.GetPixelData(), img.Width, img.Height);
             };

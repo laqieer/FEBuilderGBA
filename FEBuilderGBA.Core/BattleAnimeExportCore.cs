@@ -28,29 +28,28 @@ namespace FEBuilderGBA
             uint oamPtr = rom.u32(animRecordAddr + 20);
             uint palettePtr = rom.u32(animRecordAddr + 28);
 
-            if (!U.isPointer(sectionDataPtr) || !U.isPointer(frameDataPtr) ||
-                !U.isPointer(oamPtr) || !U.isPointer(palettePtr))
+            if (!U.isPointer(sectionDataPtr) || !U.isPointer(oamPtr) || !U.isPointer(palettePtr))
                 return "Animation record contains invalid pointers.";
+            // frameDataPtr may be an UnHuffman patch pointer, so check after DecompressFrameData
 
             uint sectionDataOff = U.toOffset(sectionDataPtr);
-            uint frameDataOff = U.toOffset(frameDataPtr);
             uint oamOff = U.toOffset(oamPtr);
             uint paletteOff = U.toOffset(palettePtr);
 
-            // Read section data (12 × 4 bytes, uncompressed)
+            // Read section data (12 x 4 bytes, uncompressed)
             byte[] sectionData = rom.getBinaryData(sectionDataOff, SECTION_COUNT * 4);
 
-            // Decompress frame data, OAM, palette
-            byte[] frameData = LZ77.decompress(rom.Data, frameDataOff);
+            // Decompress frame data (handles both LZ77 and uncompressed-frame-pointer)
+            byte[] frameData = BattleAnimeRendererCore.DecompressFrameData(rom, frameDataPtr);
             if (frameData == null || frameData.Length == 0)
                 return "Failed to decompress frame data.";
 
             byte[] oamData = LZ77.decompress(rom.Data, oamOff);
-            if (oamData == null)
+            if (oamData == null || oamData.Length == 0)
                 return "Failed to decompress OAM data.";
 
             byte[] paletteData = LZ77.decompress(rom.Data, paletteOff);
-            if (paletteData == null)
+            if (paletteData == null || paletteData.Length == 0)
                 return "Failed to decompress palette data.";
 
             string baseName = Path.GetFileNameWithoutExtension(outputTxtPath);
@@ -71,7 +70,6 @@ namespace FEBuilderGBA
             }
 
             // Process each section
-            int mode = 0;
             bool skipNext = false;
 
             for (int section = 0; section < SECTION_COUNT; section++)
@@ -112,7 +110,27 @@ namespace FEBuilderGBA
                         }
                         else if ((cmd24 & 0xFF) == 0x01 && (cmd24 >> 8) > 0)
                         {
-                            // Loop end with count
+                            // Loop end with count — insert L before the looped frames
+                            uint loopCount = (cmd24 >> 8);
+                            int loopFrames = (int)(loopCount / 3);
+
+                            // Find the position to insert L: count back loopFrames frame lines
+                            int insertIdx = -1;
+                            int framesSeen = 0;
+                            for (int li = lines.Count - 1; li >= 0; li--)
+                            {
+                                if (lines[li].Contains("p-"))
+                                {
+                                    framesSeen++;
+                                    if (framesSeen == loopFrames)
+                                    {
+                                        insertIdx = li;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (insertIdx >= 0)
+                                lines.Insert(insertIdx, "L");
                             lines.Add("C01");
                         }
                         else
@@ -138,10 +156,10 @@ namespace FEBuilderGBA
                             pngName = $"{baseName}_{frameCount:D3}.png";
                             frameCount++;
 
-                            // Render frame using Core composition
+                            // Render frame using OAM composition
                             try
                             {
-                                var result = RenderFrameFromData(rom, gfxPtr, oamOffset,
+                                using var result = RenderFrameFromData(rom, gfxPtr, oamOffset,
                                     oamData, paletteData);
                                 if (result != null)
                                 {
@@ -180,29 +198,30 @@ namespace FEBuilderGBA
             return string.Empty;
         }
 
+        /// <summary>
+        /// Render a single animation frame using OAM composition.
+        /// Uses BattleAnimeRendererCore.RenderSingleFrame for proper OAM-composed output
+        /// matching WinForms DrawFrameImageWide.
+        /// </summary>
         static IImage RenderFrameFromData(ROM rom, uint gfxPtr, uint oamOffset,
             byte[] oamData, byte[] paletteData)
         {
             if (!U.isPointer(gfxPtr)) return null;
+            if (oamData == null || paletteData == null) return null;
 
-            // Decompress tile data
-            uint gfxOff = U.toOffset(gfxPtr);
-            if (!U.isSafetyOffset(gfxOff, rom)) return null;
+            // Construct a FrameInfo for the renderer
+            var frame = new BattleAnimeRendererCore.FrameInfo
+            {
+                GraphicsPointer = gfxPtr,
+                OamOffset = oamOffset
+            };
 
-            byte[] tileData = LZ77.decompress(rom.Data, gfxOff);
-            if (tileData == null || tileData.Length == 0) return null;
-
-            // Use first 32 bytes of palette (player team)
+            // Use first 32 bytes of palette (player team colors)
             byte[] pal16 = new byte[32];
             Array.Copy(paletteData, 0, pal16, 0, Math.Min(32, paletteData.Length));
 
-            // Render tile sheet to image
-            var sheetImage = BattleAnimeRendererCore.RenderTileSheet(tileData, pal16, 32);
-            if (sheetImage == null) return null;
-
-            // For now, return the tile sheet as the frame image
-            // Full OAM composition would require the complete DrawOAMSprites pipeline
-            return sheetImage;
+            // Render using OAM composition (same pipeline as WinForms)
+            return BattleAnimeRendererCore.RenderSingleFrame(frame, oamData, pal16);
         }
     }
 }

@@ -846,8 +846,11 @@ namespace FEBuilderGBA
             if (oamEnd == U.NOT_FOUND)
                 return "FEditor .bin: cannot find RightToLeftOAM boundary.";
 
-            byte[] rightToLeftOAM = new byte[oamEnd - pos];
-            Array.Copy(binData, pos, rightToLeftOAM, 0, rightToLeftOAM.Length);
+            int rtlLen = (int)(oamEnd - pos);
+            if (rtlLen < 0 || pos + rtlLen > binData.Length)
+                return "FEditor .bin: RightToLeftOAM bounds invalid.";
+            byte[] rightToLeftOAM = new byte[rtlLen];
+            Array.Copy(binData, (int)pos, rightToLeftOAM, 0, rtlLen);
 
             // Skip to LeftToRightOAM
             pos = oamEnd + (uint)FEDITOR_FOOTER.Length + 5;
@@ -855,14 +858,19 @@ namespace FEBuilderGBA
             if (oamEnd == U.NOT_FOUND)
                 return "FEditor .bin: cannot find LeftToRightOAM boundary.";
 
-            byte[] leftToRightOAM = new byte[oamEnd - pos];
-            Array.Copy(binData, pos, leftToRightOAM, 0, leftToRightOAM.Length);
+            int ltrLen = (int)(oamEnd - pos);
+            if (ltrLen < 0 || pos + ltrLen > binData.Length)
+                return "FEditor .bin: LeftToRightOAM bounds invalid.";
+            byte[] leftToRightOAM = new byte[ltrLen];
+            Array.Copy(binData, (int)pos, leftToRightOAM, 0, ltrLen);
 
             // Extract palette (remaining data after footer)
             pos = oamEnd + (uint)FEDITOR_FOOTER.Length + 5;
-            byte[] palette = new byte[binData.Length - pos];
-            if (palette.Length > 0)
-                Array.Copy(binData, pos, palette, 0, palette.Length);
+            int palLen = (int)(binData.Length - pos);
+            if (palLen < 0) palLen = 0;
+            byte[] palette = new byte[palLen];
+            if (palLen > 0)
+                Array.Copy(binData, (int)pos, palette, 0, palLen);
 
             // Read frame data from companion .dmp file
             string dmpPath = Path.Combine(baseDir, baseName + " Frame Data.dmp");
@@ -967,50 +975,51 @@ namespace FEBuilderGBA
             return string.Empty;
         }
 
-        static void UpdateFrameDataAddresses(byte[] frameData, List<uint> sheetAddrs)
+        internal static void UpdateFrameDataAddresses(byte[] frameData, List<uint> sheetAddrs)
         {
-            // Scan for 0x86 commands and update sheet pointers
+            // First pass: collect unique graphics pointers in order of first appearance.
+            // Each unique pointer maps to a sequential sheet index (Sheet 1, Sheet 2, ...).
+            var uniquePtrs = new List<uint>();
+            var ptrToIndex = new Dictionary<uint, int>();
+
             for (int i = 0; i + 11 < frameData.Length; )
             {
                 byte cmdType = frameData[i + 3];
                 if (cmdType == 0x86)
                 {
-                    // Frame command: bytes [i+4..i+7] = graphics pointer
-                    uint oldPtr = (uint)(frameData[i + 4] | (frameData[i + 5] << 8) |
+                    uint gfxPtr = (uint)(frameData[i + 4] | (frameData[i + 5] << 8) |
                         (frameData[i + 6] << 16) | (frameData[i + 7] << 24));
-
-                    // Map old sheet index to new address
-                    // FEditor uses sequential sheet indices in the pointer field
-                    int sheetIdx = -1;
-                    for (int s = 0; s < sheetAddrs.Count; s++)
+                    if (!ptrToIndex.ContainsKey(gfxPtr))
                     {
-                        // The frame data references sheets by their compressed pointer
-                        // In FEditor format, these are just sequential
-                        if (s == 0 || oldPtr == 0)
-                        {
-                            sheetIdx = 0;
-                            break;
-                        }
-                    }
-                    // Default: use first sheet if we can't determine
-                    if (sheetIdx < 0) sheetIdx = 0;
-                    if (sheetIdx < sheetAddrs.Count)
-                    {
-                        uint gbaPtr = U.toPointer(sheetAddrs[sheetIdx]);
-                        frameData[i + 4] = (byte)(gbaPtr & 0xFF);
-                        frameData[i + 5] = (byte)((gbaPtr >> 8) & 0xFF);
-                        frameData[i + 6] = (byte)((gbaPtr >> 16) & 0xFF);
-                        frameData[i + 7] = (byte)((gbaPtr >> 24) & 0xFF);
+                        ptrToIndex[gfxPtr] = uniquePtrs.Count;
+                        uniquePtrs.Add(gfxPtr);
                     }
                     i += 12;
                 }
-                else if (cmdType == 0x85)
+                else
                 {
                     i += 4;
                 }
-                else if (cmdType == 0x80)
+            }
+
+            // Second pass: replace each graphics pointer with the new ROM address
+            for (int i = 0; i + 11 < frameData.Length; )
+            {
+                byte cmdType = frameData[i + 3];
+                if (cmdType == 0x86)
                 {
-                    i += 4;
+                    uint gfxPtr = (uint)(frameData[i + 4] | (frameData[i + 5] << 8) |
+                        (frameData[i + 6] << 16) | (frameData[i + 7] << 24));
+                    int sheetIdx = ptrToIndex.ContainsKey(gfxPtr) ? ptrToIndex[gfxPtr] : 0;
+                    if (sheetIdx < sheetAddrs.Count)
+                    {
+                        uint newPtr = U.toPointer(sheetAddrs[sheetIdx]);
+                        frameData[i + 4] = (byte)(newPtr & 0xFF);
+                        frameData[i + 5] = (byte)((newPtr >> 8) & 0xFF);
+                        frameData[i + 6] = (byte)((newPtr >> 16) & 0xFF);
+                        frameData[i + 7] = (byte)((newPtr >> 24) & 0xFF);
+                    }
+                    i += 12;
                 }
                 else
                 {

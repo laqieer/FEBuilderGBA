@@ -69,6 +69,8 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--translate_batch", stdout);
             Assert.Contains("--test", stdout);
             Assert.Contains("--testonly", stdout);
+            Assert.Contains("--import-battle-anime", stdout);
+            Assert.Contains("--export-battle-anime", stdout);
         }
 
         [Fact]
@@ -449,6 +451,58 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--translate_batch", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--rom", stderr);
+        }
+
+        // ================================================================ --import-battle-anime (error paths)
+
+        [Fact]
+        public void ImportBattleAnime_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-battle-anime --animation-id=0 --in=test.txt", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ImportBattleAnime_MissingAnimationId_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-battle-anime --rom=test.gba --in=test.txt", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--animation-id", stderr);
+        }
+
+        [Fact]
+        public void ImportBattleAnime_MissingIn_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-battle-anime --rom=test.gba --animation-id=0", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--in", stderr);
+        }
+
+        // ================================================================ --export-battle-anime (error paths)
+
+        [Fact]
+        public void ExportBattleAnime_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-battle-anime --animation-id=0 --out=test.txt", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ExportBattleAnime_MissingAnimationId_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-battle-anime --rom=test.gba --out=test.txt", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--animation-id", stderr);
+        }
+
+        [Fact]
+        public void ExportBattleAnime_MissingOut_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-battle-anime --rom=test.gba --animation-id=0", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--out", stderr);
         }
 
         // ================================================================ Unknown command
