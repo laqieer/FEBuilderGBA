@@ -118,6 +118,9 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Compile event script with EA/ColorzCore
 ./FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba
 
+# Import battle animation from .txt script
+./FEBuilderGBA.CLI --import-battle-anime --rom=rom.gba --animation-id=1 --in=anim.txt
+
 # Scan ROM free space
 ./FEBuilderGBA.CLI --freespace --rom=rom.gba --min-size=256
 
