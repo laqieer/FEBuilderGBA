@@ -520,6 +520,115 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("RunExportBattleAnime", src);
         }
 
+        // ------------------------------------------------------------------ CLI refinement #180: new commands
+
+        [Fact]
+        public void CliProgram_HasRomInfoCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--rom-info", src);
+            Assert.Contains("RunRomInfo", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasListTablesCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--list-tables", src);
+            Assert.Contains("RunListTables", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasExportPaletteCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--export-palette", src);
+            Assert.Contains("RunExportPalette", src);
+        }
+
+        [Fact]
+        public void CliProgram_HasImportPaletteCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--import-palette", src);
+            Assert.Contains("RunImportPalette", src);
+        }
+
+        [Fact]
+        public void ParseArgs_RomInfoFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--rom-info", "--rom=test.gba" });
+            Assert.True(dic.ContainsKey("--rom-info"));
+            Assert.Equal("test.gba", dic["--rom"]);
+        }
+
+        [Fact]
+        public void ParseArgs_ListTablesFlag()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--list-tables" });
+            Assert.True(dic.ContainsKey("--list-tables"));
+        }
+
+        [Fact]
+        public void ParseArgs_ExportPaletteArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--export-palette", "--rom=test.gba", "--addr=0x5524", "--out=pal.pal", "--colors=16" });
+            Assert.True(dic.ContainsKey("--export-palette"));
+            Assert.Equal("0x5524", dic["--addr"]);
+            Assert.Equal("pal.pal", dic["--out"]);
+            Assert.Equal("16", dic["--colors"]);
+        }
+
+        [Fact]
+        public void ParseArgs_ImportPaletteArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--import-palette", "--rom=test.gba", "--addr=0x5524", "--in=pal.pal" });
+            Assert.True(dic.ContainsKey("--import-palette"));
+            Assert.Equal("0x5524", dic["--addr"]);
+            Assert.Equal("pal.pal", dic["--in"]);
+        }
+
+        [Fact]
+        public void CliProgram_HelpShowsRefinementCommands()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--rom-info", src);
+            Assert.Contains("--list-tables", src);
+            Assert.Contains("--export-palette", src);
+            Assert.Contains("--import-palette", src);
+        }
+
+        [Fact]
+        public void CliProgram_ImportPaletteUsesDetectFormat()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("PaletteFormatConverter.DetectFormat", src);
+            Assert.Contains("PaletteFormatConverter.ImportFromFormat", src);
+        }
+
+        [Fact]
+        public void CliProgram_ExportPaletteUsesFormatFromExtension()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("PaletteFormatConverter.FormatFromExtension", src);
+            Assert.Contains("PaletteFormatConverter.ExportToFormat", src);
+        }
+
+        [Fact]
+        public void CliProgram_RomInfoUsesExistingHelpers()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("UPSUtilCore.CRC32", src);
+            Assert.Contains("VersionToFilename", src);
+        }
+
+        [Fact]
+        public void CliProgram_ListTablesUsesStructExportCore()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("StructExportCore.GetTableNames", src);
+        }
+
         [Fact]
         public void CliProgram_ImportBattleAnimeDetectsBinFormat()
         {

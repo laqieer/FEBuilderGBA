@@ -263,6 +263,26 @@ namespace FEBuilderGBA.CLI
                 return RunSelfTest(argsDic);
             }
 
+            if (argsDic.ContainsKey("--rom-info"))
+            {
+                return RunRomInfo(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--list-tables"))
+            {
+                return RunListTables(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--export-palette"))
+            {
+                return RunExportPalette(argsDic);
+            }
+
+            if (argsDic.ContainsKey("--import-palette"))
+            {
+                return RunImportPalette(argsDic);
+            }
+
             // Other commands not yet implemented
             Console.Error.WriteLine("Command not yet supported in cross-platform CLI.");
             Console.Error.WriteLine("Run with --help for usage information.");
@@ -395,6 +415,15 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --rom2=<path>          Second ROM to compare against");
             Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
+            Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum (requires --rom)");
+            Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
+            Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
+            Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
+            Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
+            Console.WriteLine("    --out=<path>           Output file (.pal=JASC, .act=ACT, .gpl=GIMP, .txt=HexText)");
+            Console.WriteLine("  --import-palette         Import palette file into ROM (requires --rom, --addr, --in)");
+            Console.WriteLine("    --addr=<hex>           Palette data address in ROM");
+            Console.WriteLine("    --in=<path>            Input palette file (format auto-detected from content/extension)");
             Console.WriteLine();
             Console.WriteLine("Examples:");
             Console.WriteLine("  FEBuilderGBA.CLI --version");
@@ -3873,6 +3902,170 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Repaired header checksum: 0x{current:X02} -> 0x{correct:X02}");
             Console.WriteLine($"Saved: {romPath}");
             return 0;
+        }
+
+        static int RunRomInfo(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --rom-info requires --rom=<rom>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            if (!File.Exists(romPath))
+            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+
+            byte[] data = File.ReadAllBytes(romPath);
+            if (data.Length < 0xC0)
+            { Console.Error.WriteLine("Error: File too small to be a GBA ROM."); return 1; }
+
+            // Title and game code from header
+            string title = System.Text.Encoding.ASCII.GetString(data, 0xA0, 12).TrimEnd('\0');
+            string gameCode = System.Text.Encoding.ASCII.GetString(data, 0xAC, 4);
+
+            // CRC32 using existing helper
+            var crc = new UPSUtilCore.CRC32();
+            uint crc32 = crc.Calc(data);
+
+            // Header checksum (reuse RunChecksum logic)
+            int sum = 0;
+            for (int i = 0xA0; i < 0xBD; i++)
+                sum += data[i];
+            byte expected = (byte)(-(0x19 + sum));
+            byte actual = data[0xBD];
+            string checksumStatus = (actual == expected) ? "VALID" : "INVALID";
+
+            // Try to detect ROM version
+            string version = "unknown";
+            RomLoader.InitEnvironment();
+            if (RomLoader.LoadRom(romPath, argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null))
+            {
+                version = CoreState.ROM.RomInfo?.VersionToFilename ?? "unknown";
+            }
+
+            Console.WriteLine($"file={romPath}");
+            Console.WriteLine($"size={data.Length}");
+            Console.WriteLine($"title={title}");
+            Console.WriteLine($"game_code={gameCode}");
+            Console.WriteLine($"version={version}");
+            Console.WriteLine($"crc32=0x{crc32:X08}");
+            Console.WriteLine($"header_checksum=0x{actual:X02}");
+            Console.WriteLine($"header_checksum_expected=0x{expected:X02}");
+            Console.WriteLine($"header_checksum_status={checksumStatus}");
+            return 0;
+        }
+
+        static int RunListTables(Dictionary<string, string> argsDic)
+        {
+            // Tables are registered in StructExportCore's static constructor
+            var names = StructExportCore.GetTableNames();
+            foreach (string name in names)
+            {
+                Console.WriteLine(name);
+            }
+            return 0;
+        }
+
+        static int RunExportPalette(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --export-palette requires --rom=<rom>"); return 1; }
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            { Console.Error.WriteLine("Error: --export-palette requires --addr=<hex>"); return 1; }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --export-palette requires --out=<path>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            string outPath = argsDic["--out"];
+
+            // Parse address
+            string addrStr = argsDic["--addr"];
+            if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                addrStr = addrStr.Substring(2);
+            if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+            { Console.Error.WriteLine($"Error: Invalid hex address: {argsDic["--addr"]}"); return 1; }
+
+            // Parse color count
+            int colors = 16;
+            if (argsDic.ContainsKey("--colors") && !string.IsNullOrEmpty(argsDic["--colors"]))
+            {
+                if (!int.TryParse(argsDic["--colors"], out colors) || colors <= 0)
+                { Console.Error.WriteLine($"Error: Invalid color count: {argsDic["--colors"]}"); return 1; }
+            }
+
+            byte[] romData = File.ReadAllBytes(romPath);
+            int byteCount = colors * 2; // 2 bytes per color (BGR555)
+            if (addr + byteCount > romData.Length)
+            { Console.Error.WriteLine($"Error: Address 0x{addr:X} + {byteCount} bytes exceeds ROM size ({romData.Length})."); return 1; }
+
+            // Extract raw palette bytes
+            byte[] rawPalette = new byte[byteCount];
+            Array.Copy(romData, addr, rawPalette, 0, byteCount);
+
+            // Determine format from output file extension
+            string ext = Path.GetExtension(outPath);
+            PaletteFormat format = PaletteFormatConverter.FormatFromExtension(ext);
+
+            try
+            {
+                byte[] output = PaletteFormatConverter.ExportToFormat(rawPalette, format);
+                File.WriteAllBytes(outPath, output);
+                Console.WriteLine($"Exported {colors} colors from 0x{addr:X} as {format} to {outPath}");
+                return 0;
+            }
+            catch (ArgumentException ex)
+            {
+                Console.Error.WriteLine($"Error: {ex.Message}");
+                return 1;
+            }
+        }
+
+        static int RunImportPalette(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --import-palette requires --rom=<rom>"); return 1; }
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            { Console.Error.WriteLine("Error: --import-palette requires --addr=<hex>"); return 1; }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --import-palette requires --in=<path>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            string inPath = argsDic["--in"];
+
+            if (!File.Exists(inPath))
+            { Console.Error.WriteLine($"Error: Input file not found: {inPath}"); return 1; }
+
+            // Parse address
+            string addrStr = argsDic["--addr"];
+            if (addrStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                addrStr = addrStr.Substring(2);
+            if (!uint.TryParse(addrStr, System.Globalization.NumberStyles.HexNumber, null, out uint addr))
+            { Console.Error.WriteLine($"Error: Invalid hex address: {argsDic["--addr"]}"); return 1; }
+
+            byte[] fileData = File.ReadAllBytes(inPath);
+            string ext = Path.GetExtension(inPath);
+
+            // Detect format: content-based first, then extension-based
+            PaletteFormat format = PaletteFormatConverter.DetectFormat(fileData, ext);
+
+            try
+            {
+                byte[] gbaPalette = PaletteFormatConverter.ImportFromFormat(fileData, format);
+
+                byte[] romData = File.ReadAllBytes(romPath);
+                if (addr + gbaPalette.Length > romData.Length)
+                { Console.Error.WriteLine($"Error: Address 0x{addr:X} + {gbaPalette.Length} bytes exceeds ROM size ({romData.Length})."); return 1; }
+
+                Array.Copy(gbaPalette, 0, romData, addr, gbaPalette.Length);
+                File.WriteAllBytes(romPath, romData);
+
+                int colorCount = gbaPalette.Length / 2;
+                Console.WriteLine($"Imported {colorCount} colors from {inPath} ({format}) to 0x{addr:X} in {romPath}");
+                return 0;
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
+            {
+                Console.Error.WriteLine($"Error: {ex.Message}");
+                return 1;
+            }
         }
     }
 }

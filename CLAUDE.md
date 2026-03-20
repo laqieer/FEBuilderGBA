@@ -188,6 +188,18 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Compare two ROMs byte-by-byte
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba --out=diff.tsv
+
+# Print ROM metadata (version, title, size, CRC32, header checksum)
+./FEBuilderGBA.CLI --rom-info --rom=rom.gba
+
+# List all exportable struct table names
+./FEBuilderGBA.CLI --list-tables
+
+# Export GBA palette to file (.pal=JASC, .act=ACT, .gpl=GIMP, .txt=HexText)
+./FEBuilderGBA.CLI --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
+
+# Import palette file into ROM (format auto-detected)
+./FEBuilderGBA.CLI --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
 ```
 
 ### Dependencies
