@@ -145,6 +145,12 @@ Never work directly on master — always create a feature branch.
 - New tests for every behavioral change
 - Run `dotnet test FEBuilderGBA.Core.Tests/` and `dotnet test FEBuilderGBA.Tests/` before pushing
 - Tests mutating CoreState use `[Collection("SharedState")]`
+- **Avalonia GUI changes MUST include headless UI tests** in `FEBuilderGBA.Avalonia.Tests/`:
+  - Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing
+  - Use `[AvaloniaFact]` / `[AvaloniaTheory]` (from `Avalonia.Headless.XUnit`) to instantiate real controls
+  - Verify **control properties and rendering state**, not just ViewModel logic
+  - Example: test that `Image.Stretch == Stretch.Fill` (catches rendering bugs), not just that a zoom variable changed
+  - Unit tests verify code logic; headless tests verify UI behavior. **Both are required for GUI changes.**
 
 ### 8. Scope Accuracy Check (Before PR)
 Before opening the PR, verify:
@@ -404,6 +410,20 @@ Assuming "needs approval" when the real cause is an outdated branch or unresolve
 ### Don't: Open a feat/fix PR without screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
 **Do:** For feat/fix PRs, always capture and attach screenshot(s) to the PR description before requesting review. For `docs`/`chore` PRs, screenshots are optional.
+
+### Don't: Declare GUI changes complete with only unit tests
+Unit tests verify code logic (e.g., "the zoom variable changed to 2"). They do NOT verify UI behavior (e.g., "the image actually rendered at 2x size"). The `Stretch="None"` zoom bug (issue #183) passed all unit tests but zoom never actually worked — because the Image control ignored Width/Height when Stretch was None.
+**Do:** For ANY Avalonia GUI change, write headless UI tests in `FEBuilderGBA.Avalonia.Tests/` using `[AvaloniaFact]`:
+```csharp
+// BAD — only tests ViewModel logic
+Assert.Equal(2, viewModel.Zoom); // Zoom variable is 2, but does the image scale?
+
+// GOOD — tests actual control behavior
+var image = control.FindControl<Image>("ImageDisplay");
+Assert.Equal(Stretch.Fill, image.Stretch);  // Image WILL scale
+Assert.Equal(32, image.Width);              // Image IS scaled to 32px
+```
+Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing. These tests catch rendering bugs that unit tests fundamentally cannot.
 
 ---
 
