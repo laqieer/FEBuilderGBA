@@ -4059,10 +4059,27 @@ namespace FEBuilderGBA.CLI
             byte[] fileData = File.ReadAllBytes(inPath);
             string ext = Path.GetExtension(inPath);
 
+            // Strip UTF-8 BOM if present so content-based detection works correctly
+            if (fileData.Length >= 3 && fileData[0] == 0xEF && fileData[1] == 0xBB && fileData[2] == 0xBF)
+            {
+                byte[] stripped = new byte[fileData.Length - 3];
+                Array.Copy(fileData, 3, stripped, 0, stripped.Length);
+                fileData = stripped;
+            }
+
             // Detect format using content-based detection + extension hints.
-            // DetectFormat handles content sniffing (JASC header, GIMP header, etc.)
-            // and also uses extension for ACT, GPL, TXT, PAL formats.
             PaletteFormat format = PaletteFormatConverter.DetectFormat(fileData, ext);
+
+            // If DetectFormat returned GbaRaw but the file has a known palette extension,
+            // fall back to extension-based detection (handles BOM-prefixed JASC files, etc.)
+            if (format == PaletteFormat.GbaRaw)
+            {
+                string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
+                if (extLower == "pal" || extLower == "act" || extLower == "gpl" || extLower == "txt")
+                {
+                    format = PaletteFormatConverter.FormatFromExtension(ext);
+                }
+            }
 
             // Validate GbaRaw: reject files that are clearly not raw palette data
             if (format == PaletteFormat.GbaRaw)
@@ -4076,6 +4093,21 @@ namespace FEBuilderGBA.CLI
             try
             {
                 byte[] gbaPalette = PaletteFormatConverter.ImportFromFormat(fileData, format);
+                int importedColors = gbaPalette.Length / 2;
+
+                // For JASC/GPL text formats, validate declared vs actual color count
+                if (format == PaletteFormat.JascPal || format == PaletteFormat.GimpGpl)
+                {
+                    string text = System.Text.Encoding.UTF8.GetString(fileData);
+                    string[] lines = text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (format == PaletteFormat.JascPal && lines.Length >= 3 &&
+                        int.TryParse(lines[2].Trim(), out int declaredCount) &&
+                        importedColors < declaredCount)
+                    {
+                        Console.Error.WriteLine($"Error: JASC-PAL declares {declaredCount} colors but only {importedColors} were found. File appears truncated.");
+                        return 1;
+                    }
+                }
 
                 // Validate palette size (GBA max: 256 colors = 512 bytes)
                 if (gbaPalette.Length > 512)
