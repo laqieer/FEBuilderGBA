@@ -26,6 +26,9 @@
   </ItemGroup>
   <!-- Copy config/ directory to output for ROM-based tests -->
   <ItemGroup>
-    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*"
+             Exclude="..\config\patch2\**;..\config\**\*.gba;..\config\**\*.bin;..\config\**\*.iso;..\config\**\*.zip;..\config\**\*.7z;..\config\**\*.rar"
+             LinkBase="config"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
