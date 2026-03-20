@@ -27,6 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
@@ -34,18 +35,29 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapSettingFE7View.LoadList failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadMapSetting(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("MapSettingFE7View.OnSelected failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 

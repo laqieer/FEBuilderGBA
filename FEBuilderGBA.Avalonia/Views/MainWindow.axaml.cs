@@ -1803,7 +1803,13 @@ namespace FEBuilderGBA.Avalonia.Views
             else if (ver == 7)
             {
                 // FE7U (non-multibyte) has 152-byte struct, FE7JP has 148-byte struct
-                if (!rom.RomInfo.is_multibyte)
+                // Dispatch by struct size: FE7U=152, FE7JP=148. Fallback to is_multibyte.
+                uint dataSize = rom.RomInfo.map_setting_datasize;
+                if (dataSize == 152)
+                    WindowManager.Instance.Open<MapSettingFE7UView>();
+                else if (dataSize == 148)
+                    WindowManager.Instance.Open<MapSettingFE7View>();
+                else if (!rom.RomInfo.is_multibyte)
                     WindowManager.Instance.Open<MapSettingFE7UView>();
                 else
                     WindowManager.Instance.Open<MapSettingFE7View>();
