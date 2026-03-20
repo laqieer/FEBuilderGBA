@@ -8,46 +8,23 @@ namespace FEBuilderGBA.Core.Tests
     public class BattleAnimeImportCoreTests
     {
         [Fact]
-        public void ResolveBattleAnimeAddr_ValidId_ReturnsAddress()
+        public void GetTableBounds_NoRomInfo_ReturnsZero()
         {
-            // Create ROM with battle animation table
-            byte[] romData = new byte[0x10000];
-            // Fill with non-zero to avoid false free space
-            for (int i = 0; i < 0x500; i++) romData[i] = 0x42;
-
-            // Set up table at 0x1000 with 3 valid records
-            uint tableAddr = 0x1000;
-            for (uint rec = 0; rec < 3; rec++)
-            {
-                uint addr = tableAddr + rec * 32;
-                // Offset +12: valid pointer
-                uint p12 = 0x08002000 + rec * 0x100;
-                romData[addr + 12] = (byte)(p12 & 0xFF);
-                romData[addr + 13] = (byte)((p12 >> 8) & 0xFF);
-                romData[addr + 14] = (byte)((p12 >> 16) & 0xFF);
-                romData[addr + 15] = (byte)((p12 >> 24) & 0xFF);
-                // Offset +20: valid pointer
-                uint p20 = 0x08003000 + rec * 0x100;
-                romData[addr + 20] = (byte)(p20 & 0xFF);
-                romData[addr + 21] = (byte)((p20 >> 8) & 0xFF);
-                romData[addr + 22] = (byte)((p20 >> 16) & 0xFF);
-                romData[addr + 23] = (byte)((p20 >> 24) & 0xFF);
-                // Offset +24: valid pointer
-                uint p24 = 0x08004000 + rec * 0x100;
-                romData[addr + 24] = (byte)(p24 & 0xFF);
-                romData[addr + 25] = (byte)((p24 >> 8) & 0xFF);
-                romData[addr + 26] = (byte)((p24 >> 16) & 0xFF);
-                romData[addr + 27] = (byte)((p24 >> 24) & 0xFF);
-            }
-
             var rom = new ROM();
-            rom.SwapNewROMDataDirect(romData);
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            // ROM has no RomInfo set, so the pointer will be 0
+            var (baseAddr, endAddr) = BattleAnimeImportCore.GetTableBounds(rom);
+            // Without RomInfo, pointer is 0 → returns (0,0)
+            Assert.Equal(0u, baseAddr);
+        }
 
-            // We need RomInfo to be set — use a stub that returns the table pointer
-            // Since we can't easily mock ROMFEINFO, test the address calculation directly
-            uint expected = tableAddr + 1 * 32;
-            uint actual = tableAddr + (1 * 32); // ID 1 → second record
-            Assert.Equal(expected, actual);
+        [Fact]
+        public void ResolveBattleAnimeAddr_NoRomInfo_ReturnsNotFound()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            uint result = BattleAnimeImportCore.ResolveBattleAnimeAddr(rom, 0);
+            Assert.Equal(U.NOT_FOUND, result);
         }
 
         [Fact]
@@ -80,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
                 string tempScript = System.IO.Path.Combine(
                     System.IO.Path.GetTempPath(),
                     $"febuilder_test_{Guid.NewGuid():N}.txt");
-                System.IO.File.WriteAllText(tempScript, "~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n");
+                System.IO.File.WriteAllText(tempScript, "~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n");
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
@@ -113,12 +90,13 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = rom;
             try
             {
-                // Script with 12 empty sections
+                // With isMode1=true: first ~ generates 2 modes, second ~ generates 2 modes,
+                // remaining 8 ~ generate 1 mode each = 12 total. So 10 ~ lines needed.
                 string tempScript = System.IO.Path.Combine(
                     System.IO.Path.GetTempPath(),
                     $"febuilder_test_{Guid.NewGuid():N}.txt");
                 System.IO.File.WriteAllText(tempScript,
-                    "~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n");
+                    "~\n~\n~\n~\n~\n~\n~\n~\n~\n~\n");
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
@@ -193,9 +171,9 @@ namespace FEBuilderGBA.Core.Tests
                     "C05",       // 85 command
                     "C01",       // 85 command (note: not a loop end since no L before it)
                     "S0A",       // Sound command
-                    "~",         // Section 1
-                    "~",         // Section 2
-                    "~", "~", "~", "~", "~", "~", "~", "~", "~", "~"  // Sections 3-12
+                    "~",         // Modes 0+1 (isMode1=true)
+                    "~",         // Modes 2+3 (isMode1=true)
+                    "~", "~", "~", "~", "~", "~", "~", "~"  // Modes 4-11 (8 sections)
                 });
 
                 string tempScript = System.IO.Path.Combine(

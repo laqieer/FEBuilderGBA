@@ -36,18 +36,17 @@ namespace FEBuilderGBA
         /// <summary>Resolve battle animation record address from 0-based ID.</summary>
         public static uint ResolveBattleAnimeAddr(ROM rom, uint animId)
         {
-            uint ptr = rom.RomInfo.image_battle_animelist_pointer;
-            if (ptr == 0) return U.NOT_FOUND;
-            uint tableBase = rom.p32(U.toOffset(ptr));
-            if (tableBase == 0 || !U.isSafetyOffset(tableBase, rom)) return U.NOT_FOUND;
-            uint addr = tableBase + (animId * 32);
-            if (!U.isSafetyOffset(addr + 31, rom)) return U.NOT_FOUND;
-            return addr;
+            var (tableBase, tableEnd) = GetTableBounds(rom);
+            if (tableBase == 0) return U.NOT_FOUND;
+            uint entryCount = (tableEnd - tableBase) / 32;
+            if (animId >= entryCount) return U.NOT_FOUND;
+            return tableBase + (animId * 32);
         }
 
         /// <summary>Get table base and end addresses for recycling safety.</summary>
         public static (uint baseAddr, uint endAddr) GetTableBounds(ROM rom)
         {
+            if (rom?.RomInfo == null) return (0, 0);
             uint ptr = rom.RomInfo.image_battle_animelist_pointer;
             if (ptr == 0) return (0, 0);
             uint tableBase = rom.p32(U.toOffset(ptr));
@@ -119,7 +118,6 @@ namespace FEBuilderGBA
             public int SheetIndex;   // Which sheet this frame uses
             public uint OamPos;      // OAM offset for this frame
             public uint ImageNumber; // Frame reference index
-            public string Hash;      // For dedup
         }
 
         static BuildResult ParseAndBuild(string[] lines, string baseDir,
@@ -136,11 +134,12 @@ namespace FEBuilderGBA
             byte[] seatPixels = new byte[SEAT_TILE_WIDTH * 8 * SEAT_TILE_HEIGHT * 8]; // indexed
             bool[] seatUsed = new bool[SEAT_TILE_WIDTH * SEAT_TILE_HEIGHT];
             byte[] sharedPalette = null; // GBA 555 format, 32 bytes
+            byte[] sharedRgbaPalette = null; // RGBA format for remapping
             bool isMultiPalette = false;
             int seatSheetCount = 0;
 
             int mode = 0;
-            bool isMode1 = false;
+            bool isMode1 = true; // Attack body (mode 0) generates both body + weapon overlay
             uint countLoopFrame = U.NOT_FOUND;
             uint imageNumber = 0;
 
@@ -264,7 +263,13 @@ namespace FEBuilderGBA
                         if (sharedPalette == null)
                         {
                             sharedPalette = qr.GBAPalette;
+                            sharedRgbaPalette = qr.RGBAPalette;
                             isMultiPalette = (qr.ColorCount > 16);
+                        }
+                        else
+                        {
+                            // Remap this frame's pixels to the shared palette
+                            RemapToSharedPalette(qr.IndexData, qr.RGBAPalette, sharedRgbaPalette, w, h);
                         }
 
                         // Build OAM for this frame
@@ -321,9 +326,7 @@ namespace FEBuilderGBA
 
             if (mode < SECTION_COUNT)
             {
-                // Pad remaining sections to point to end of frame data
-                for (int m = mode; m < SECTION_COUNT; m++)
-                    WriteU32(sectionData, (uint)(m * 4), (uint)frameData.Count);
+                return new BuildResult { Error = $"Script has only {mode} sections, but battle animations require all {SECTION_COUNT} sections (use ~ to separate)." };
             }
 
             // Finalize last sheet
@@ -599,11 +602,16 @@ namespace FEBuilderGBA
 
         static string WriteToRom(ROM rom, uint animRecordAddr, BuildResult data)
         {
+            // Search from ROM midpoint to avoid low-address table regions
+            uint searchStart = (uint)(rom.Data.Length / 2);
+
             // Write sheet images to ROM
             var sheetAddrs = new List<uint>();
             foreach (var sheet in data.SheetImages)
             {
-                uint addr = rom.FindFreeSpace(0x100, (uint)sheet.Length);
+                uint addr = rom.FindFreeSpace(searchStart, (uint)sheet.Length);
+                if (addr == U.NOT_FOUND)
+                    addr = rom.FindFreeSpace(0x100, (uint)sheet.Length); // fallback
                 if (addr == U.NOT_FOUND)
                     return $"Cannot find {sheet.Length} bytes of free space for tile sheet.";
                 rom.write_range(addr, sheet);
@@ -611,20 +619,24 @@ namespace FEBuilderGBA
             }
 
             // Write OAM data (offset +20: right-to-left)
-            uint oamAddr = rom.FindFreeSpace(0x100, (uint)data.OamData.Length);
+            uint oamAddr = rom.FindFreeSpace(searchStart, (uint)data.OamData.Length);
+            if (oamAddr == U.NOT_FOUND)
+                oamAddr = rom.FindFreeSpace(0x100, (uint)data.OamData.Length);
             if (oamAddr == U.NOT_FOUND)
                 return $"Cannot find {data.OamData.Length} bytes of free space for OAM data.";
             rom.write_range(oamAddr, data.OamData);
-            rom.write_u32(animRecordAddr + 20, oamAddr + 0x08000000);
-            // Left-to-right reuses same OAM (simplified — no mirror generation)
-            rom.write_u32(animRecordAddr + 24, oamAddr + 0x08000000);
+            rom.write_p32(animRecordAddr + 20, oamAddr);
+            // Left-to-right reuses same OAM (matches AutoGenLeftOAM patch behavior)
+            rom.write_p32(animRecordAddr + 24, oamAddr);
 
             // Write palette (offset +28)
-            uint palAddr = rom.FindFreeSpace(0x100, (uint)data.PaletteData.Length);
+            uint palAddr = rom.FindFreeSpace(searchStart, (uint)data.PaletteData.Length);
+            if (palAddr == U.NOT_FOUND)
+                palAddr = rom.FindFreeSpace(0x100, (uint)data.PaletteData.Length);
             if (palAddr == U.NOT_FOUND)
                 return $"Cannot find {data.PaletteData.Length} bytes of free space for palette.";
             rom.write_range(palAddr, data.PaletteData);
-            rom.write_u32(animRecordAddr + 28, palAddr + 0x08000000);
+            rom.write_p32(animRecordAddr + 28, palAddr);
 
             // Update frame data with actual sheet addresses
             byte[] frameBytes = data.FrameData;
@@ -638,7 +650,7 @@ namespace FEBuilderGBA
                     uint sheetIdx = ReadU32(frameBytes, pos + 4);
                     if (sheetIdx < sheetAddrs.Count)
                     {
-                        uint gbaPtr = sheetAddrs[(int)sheetIdx] + 0x08000000;
+                        uint gbaPtr = U.toPointer(sheetAddrs[(int)sheetIdx]);
                         WriteU32(frameBytes, (uint)(pos + 4), gbaPtr);
                     }
                     pos += 12;
@@ -659,20 +671,68 @@ namespace FEBuilderGBA
 
             // Write frame data compressed (offset +16)
             byte[] frameCompressed = LZ77.compress(frameBytes);
-            uint frameAddr = rom.FindFreeSpace(0x100, (uint)frameCompressed.Length);
+            uint frameAddr = rom.FindFreeSpace(searchStart, (uint)frameCompressed.Length);
+            if (frameAddr == U.NOT_FOUND)
+                frameAddr = rom.FindFreeSpace(0x100, (uint)frameCompressed.Length);
             if (frameAddr == U.NOT_FOUND)
                 return $"Cannot find {frameCompressed.Length} bytes of free space for frame data.";
             rom.write_range(frameAddr, frameCompressed);
-            rom.write_u32(animRecordAddr + 16, frameAddr + 0x08000000);
+            rom.write_p32(animRecordAddr + 16, frameAddr);
 
             // Write section data (offset +12, uncompressed 48 bytes)
-            uint sectionAddr = rom.FindFreeSpace(0x100, (uint)data.SectionData.Length);
+            uint sectionAddr = rom.FindFreeSpace(searchStart, (uint)data.SectionData.Length);
+            if (sectionAddr == U.NOT_FOUND)
+                sectionAddr = rom.FindFreeSpace(0x100, (uint)data.SectionData.Length);
             if (sectionAddr == U.NOT_FOUND)
                 return $"Cannot find {data.SectionData.Length} bytes of free space for section data.";
             rom.write_range(sectionAddr, data.SectionData);
-            rom.write_u32(animRecordAddr + 12, sectionAddr + 0x08000000);
+            rom.write_p32(animRecordAddr + 12, sectionAddr);
 
             return string.Empty; // success
+        }
+
+        #endregion
+
+        #region Palette Remapping
+
+        /// <summary>Remap indexed pixels to the shared palette by nearest-color matching.</summary>
+        static void RemapToSharedPalette(byte[] indexData, byte[] framePalette, byte[] sharedPalette, int w, int h)
+        {
+            if (framePalette == null || sharedPalette == null) return;
+
+            // Build remap table: for each frame palette entry, find nearest in shared palette
+            int frameColors = framePalette.Length / 4;
+            int sharedColors = sharedPalette.Length / 4;
+            byte[] remap = new byte[Math.Max(frameColors, 256)];
+
+            for (int i = 0; i < frameColors; i++)
+            {
+                if (i == 0) { remap[i] = 0; continue; } // Index 0 = transparent
+
+                int fr = framePalette[i * 4];
+                int fg = framePalette[i * 4 + 1];
+                int fb = framePalette[i * 4 + 2];
+
+                int bestIdx = 0;
+                int bestDist = int.MaxValue;
+                for (int j = 1; j < sharedColors; j++) // skip transparent
+                {
+                    int sr = sharedPalette[j * 4];
+                    int sg = sharedPalette[j * 4 + 1];
+                    int sb = sharedPalette[j * 4 + 2];
+                    int dist = (fr - sr) * (fr - sr) + (fg - sg) * (fg - sg) + (fb - sb) * (fb - sb);
+                    if (dist < bestDist) { bestDist = dist; bestIdx = j; }
+                }
+                remap[i] = (byte)bestIdx;
+            }
+
+            // Apply remap
+            for (int p = 0; p < indexData.Length; p++)
+            {
+                byte idx = indexData[p];
+                if (idx < frameColors)
+                    indexData[p] = remap[idx];
+            }
         }
 
         #endregion

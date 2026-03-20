@@ -3054,14 +3054,19 @@ namespace FEBuilderGBA.CLI
             var rom = CoreState.ROM;
 
             // Resolve animation record address
+            var (tableBase, tableEnd) = BattleAnimeImportCore.GetTableBounds(rom);
+            if (tableBase == 0)
+            {
+                Console.Error.WriteLine("Error: Battle animation table not found in this ROM.");
+                return 1;
+            }
             uint animAddr = BattleAnimeImportCore.ResolveBattleAnimeAddr(rom, animId);
             if (animAddr == U.NOT_FOUND)
             {
-                Console.Error.WriteLine($"Error: Animation ID {animId} is out of range.");
+                uint entryCount = (tableEnd - tableBase) / 32;
+                Console.Error.WriteLine($"Error: Animation ID {animId} is out of range (table has {entryCount} entries, 0-{entryCount - 1}).");
                 return 1;
             }
-
-            var (tableBase, tableEnd) = BattleAnimeImportCore.GetTableBounds(rom);
 
             Console.WriteLine($"ROM: {romPath}");
             Console.WriteLine($"Animation ID: {animId} (address: 0x{animAddr:X08})");
