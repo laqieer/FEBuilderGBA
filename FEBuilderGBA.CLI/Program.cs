@@ -3083,7 +3083,7 @@ namespace FEBuilderGBA.CLI
             };
 
             string error = BattleAnimeImportCore.ImportBattleAnime(
-                scriptPath, animAddr, tableBase, tableEnd, imageLoader);
+                scriptPath, animAddr, imageLoader);
 
             if (!string.IsNullOrEmpty(error))
             {

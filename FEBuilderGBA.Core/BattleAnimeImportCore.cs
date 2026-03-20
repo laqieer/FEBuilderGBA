@@ -73,15 +73,11 @@ namespace FEBuilderGBA
         /// </summary>
         /// <param name="scriptPath">Path to the .txt animation script.</param>
         /// <param name="animRecordAddr">ROM address of the 32-byte animation record.</param>
-        /// <param name="tableBaseAddr">Start of animation table (for recycling).</param>
-        /// <param name="tableEndAddr">End of animation table (for recycling).</param>
         /// <param name="imageLoader">Callback: filename → (rgba, width, height) or null if not found.</param>
         /// <returns>Error message (empty = success).</returns>
         public static string ImportBattleAnime(
             string scriptPath,
             uint animRecordAddr,
-            uint tableBaseAddr,
-            uint tableEndAddr,
             Func<string, (byte[] rgba, int w, int h)?> imageLoader)
         {
             if (!File.Exists(scriptPath))
@@ -254,6 +250,12 @@ namespace FEBuilderGBA
                             return new BuildResult { Error = $"Image not found: {imageFilename} (line {i + 1})" };
 
                         var (rgba, w, h) = loaded.Value;
+
+                        // Validate image dimensions
+                        if (w % 8 != 0 || h % 8 != 0)
+                            return new BuildResult { Error = $"Image dimensions must be multiples of 8: {imageFilename} ({w}x{h})" };
+                        if (w > SCREEN_TILE_WIDTH * 8 || h > 160)
+                            return new BuildResult { Error = $"Image too large (max {SCREEN_TILE_WIDTH * 8}x160): {imageFilename} ({w}x{h})" };
 
                         // Quantize to 16 colors
                         var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);

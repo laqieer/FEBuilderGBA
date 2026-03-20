@@ -36,7 +36,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 string result = BattleAnimeImportCore.ImportBattleAnime(
-                    "/nonexistent/script.txt", 0x1000, 0x1000, 0x2000,
+                    "/nonexistent/script.txt", 0x1000,
                     _ => null);
                 Assert.Contains("not found", result);
             }
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Core.Tests
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
-                        tempScript, 0x1000, 0x1000, 0x2000, _ => null);
+                        tempScript, 0x1000, _ => null);
                     Assert.Contains("No ROM", result);
                 }
                 finally
@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Core.Tests
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
-                        tempScript, 0x1000, 0x1000, 0x2000, _ => null);
+                        tempScript, 0x1000, _ => null);
                     Assert.Equal(string.Empty, result);
                 }
                 finally
@@ -136,8 +136,8 @@ namespace FEBuilderGBA.Core.Tests
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
-                        tempScript, 0x1000, 0x1000, 0x2000,
-                        path => null); // All images fail to load
+                        tempScript, 0x1000,
+                        _ => null); // All images fail to load
                     Assert.Contains("not found", result, StringComparison.OrdinalIgnoreCase);
                 }
                 finally
@@ -183,7 +183,7 @@ namespace FEBuilderGBA.Core.Tests
                 try
                 {
                     string result = BattleAnimeImportCore.ImportBattleAnime(
-                        tempScript, 0x1000, 0x1000, 0x2000, _ => null);
+                        tempScript, 0x1000, _ => null);
                     Assert.Equal(string.Empty, result);
                 }
                 finally
