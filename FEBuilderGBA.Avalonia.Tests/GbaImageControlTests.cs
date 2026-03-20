@@ -9,11 +9,11 @@ namespace FEBuilderGBA.Avalonia.Tests;
 /// <summary>
 /// Headless UI tests for GbaImageControl.
 /// These tests instantiate real Avalonia controls and verify rendering behavior.
-/// The Stretch="None" → Stretch="Fill" bug (issue #183) would have been caught by these tests.
+/// The Stretch="None" -> Stretch="Fill" bug (issue #183) would have been caught by these tests.
 /// </summary>
 public class GbaImageControlTests
 {
-    /// <summary>Create a minimal RGBA test image (solid red 16x16).</summary>
+    /// <summary>Create a solid red RGBA test image of the specified dimensions.</summary>
     static byte[] MakeTestImage(int width, int height)
     {
         byte[] rgba = new byte[width * height * 4];
@@ -177,6 +177,7 @@ public class GbaImageControlTests
         // Test with a portrait-sized image (128x112 is common for GBA portraits)
         var control = new GbaImageControl();
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
+        Assert.NotNull(imageDisplay);
 
         byte[] rgba = MakeTestImage(128, 112);
         control.SetRgbaData(rgba, 128, 112);
