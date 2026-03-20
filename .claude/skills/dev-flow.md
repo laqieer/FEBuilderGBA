@@ -40,7 +40,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
     - Footer: `Generated with Claude Code (claude-opus-4-6)`
 11. **Trigger Copilot CLI review** of the PR:
     ```bash
-    copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. Perform a full code review. Post your review as a pull request review on GitHub. Include your Copilot CLI version and model at the end." --autopilot --enable-all-github-mcp-tools --allow-all-tools
+    copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image proving the feature/bugfix works. Flag missing screenshots as a blocking issue for feat/fix PRs. For docs/chore PRs, screenshots are optional. Post your review as a pull request review on GitHub. Include your Copilot CLI version and model at the end." --autopilot --enable-all-github-mcp-tools --allow-all-tools
     ```
 12. **Check for unresolved threads** (Copilot bot + CLI):
     ```bash
