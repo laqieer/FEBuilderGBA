@@ -228,6 +228,11 @@ namespace FEBuilderGBA.CLI
                 return RunSearchText(argsDic);
             }
 
+            if (argsDic.ContainsKey("--diff"))
+            {
+                return RunDiff(argsDic);
+            }
+
             if (argsDic.ContainsKey("--test") || argsDic.ContainsKey("--testonly"))
             {
                 return RunSelfTest(argsDic);
@@ -275,9 +280,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --in=<path>            Import text from TSV file and write to ROM");
             Console.WriteLine("  --translate-roundtrip    Validate text export/import losslessness (requires --rom)");
             Console.WriteLine("    --out=<base>           Save before/after TSVs as <base>.export1.tsv and <base>.export2.tsv");
-            Console.WriteLine("  --export-data            Export struct data to TSV (requires --rom, --table)");
+            Console.WriteLine("  --export-data            Export struct data to TSV/CSV/EA (requires --rom, --table)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items, or all");
-            Console.WriteLine("    --out=<path>           Output TSV file path (or base path for --table=all)");
+            Console.WriteLine("    --out=<path>           Output file path (or base path for --table=all)");
+            Console.WriteLine("    --format=<fmt>         Output format: tsv (default), csv, ea");
             Console.WriteLine("  --import-data            Import struct data from TSV (requires --rom, --table, --in)");
             Console.WriteLine("    --table=<name>         Table name: units, classes, items");
             Console.WriteLine("    --in=<path>            Input TSV file path");
@@ -338,9 +344,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --import-battle-anime    Import battle animation from .txt or .bin (requires --rom, --animation-id, --in)");
             Console.WriteLine("    --animation-id=<id>    0-based animation index in ROM table");
             Console.WriteLine("    --in=<path>            Input .txt script or FEditor .bin file");
-            Console.WriteLine("  --export-battle-anime    Export battle animation to .txt + PNGs (requires --rom, --animation-id, --out)");
+            Console.WriteLine("  --export-battle-anime    Export battle animation to .txt + PNGs or GIF (requires --rom, --animation-id, --out)");
             Console.WriteLine("    --animation-id=<id>    0-based animation index in ROM table");
-            Console.WriteLine("    --out=<path>           Output .txt file path (PNGs saved alongside)");
+            Console.WriteLine("    --out=<path>           Output .txt file path (PNGs saved alongside), or .gif with --gif");
+            Console.WriteLine("    --gif                  Export as animated GIF instead of .txt + PNGs");
+            Console.WriteLine("    --section=<N>          Section index 0-11 for GIF export (default: 0 = attack body)");
             Console.WriteLine("  --freespace              Scan and report free space in ROM (requires --rom)");
             Console.WriteLine("    --min-size=<int>       Minimum free block size to report (default: 16)");
             Console.WriteLine("  --hex-dump               Dump ROM bytes in hex+ASCII format (requires --rom, --addr)");
@@ -350,6 +358,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --query=<text>         Text pattern to search for (case-insensitive)");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("    --patch-name=<name>    Filter patches by name (substring match)");
+            Console.WriteLine("  --diff                   Compare two ROMs byte-by-byte (requires --rom, --rom2)");
+            Console.WriteLine("    --rom2=<path>          Second ROM to compare against");
+            Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine();
             Console.WriteLine("Examples:");
@@ -1408,21 +1419,38 @@ namespace FEBuilderGBA.CLI
 
                 var entries = StructExportCore.ExportTable(CoreState.ROM, table, structDef);
 
+                string format = "tsv";
+                if (argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"]))
+                    format = argsDic["--format"].ToLowerInvariant();
+
+                string ext = format switch { "csv" => ".csv", "ea" => ".ea", _ => ".tsv" };
+
                 string outPath;
                 if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
                 {
                     if (tableNames.Count > 1)
-                        outPath = argsDic["--out"] + "." + tName + ".tsv";
+                        outPath = argsDic["--out"] + "." + tName + ext;
                     else
                         outPath = argsDic["--out"];
                 }
                 else
                 {
-                    outPath = Path.ChangeExtension(romPath, "." + tName + ".tsv");
+                    outPath = Path.ChangeExtension(romPath, "." + tName + ext);
                 }
 
-                StructExportCore.ExportToTSV(entries, structDef, outPath);
-                Console.WriteLine($"Exported {entries.Count} {tName} entries to: {outPath}");
+                switch (format)
+                {
+                    case "csv":
+                        StructExportCore.ExportToCSV(entries, structDef, outPath);
+                        break;
+                    case "ea":
+                        StructExportCore.ExportToEA(entries, structDef, outPath);
+                        break;
+                    default:
+                        StructExportCore.ExportToTSV(entries, structDef, outPath);
+                        break;
+                }
+                Console.WriteLine($"Exported {entries.Count} {tName} entries ({format}) to: {outPath}");
             }
 
             return 0;
@@ -3167,17 +3195,111 @@ namespace FEBuilderGBA.CLI
 
             Console.WriteLine($"ROM: {romPath}");
             Console.WriteLine($"Animation ID: {animId} (address: 0x{animAddr:X08})");
-            Console.WriteLine($"Exporting...");
 
-            string error = BattleAnimeExportCore.ExportBattleAnime(rom, animAddr, outputPath);
-            if (!string.IsNullOrEmpty(error))
+            bool gifMode = argsDic.ContainsKey("--gif");
+
+            if (gifMode)
             {
-                Console.Error.WriteLine($"Error: {error}");
-                return 1;
+                int section = 0;
+                if (argsDic.ContainsKey("--section") && !string.IsNullOrEmpty(argsDic["--section"]))
+                    int.TryParse(argsDic["--section"], out section);
+                if (section < 0 || section > 11)
+                {
+                    Console.Error.WriteLine("Error: --section must be 0-11.");
+                    return 1;
+                }
+
+                Console.WriteLine($"Exporting GIF (section {section})...");
+                string gifError = ExportBattleAnimeGif(rom, animAddr, outputPath, section);
+                if (!string.IsNullOrEmpty(gifError))
+                {
+                    Console.Error.WriteLine($"Error: {gifError}");
+                    return 1;
+                }
+                Console.WriteLine($"Battle animation {animId} section {section} exported to {outputPath}");
+            }
+            else
+            {
+                Console.WriteLine($"Exporting...");
+                string error = BattleAnimeExportCore.ExportBattleAnime(rom, animAddr, outputPath);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    Console.Error.WriteLine($"Error: {error}");
+                    return 1;
+                }
+                Console.WriteLine($"Battle animation {animId} exported to {outputPath}");
+            }
+            return 0;
+        }
+
+        static string ExportBattleAnimeGif(ROM rom, uint animAddr, string outputPath, int section)
+        {
+            // Read animation record pointers
+            uint sectionDataPtr = rom.u32(animAddr + 12);
+            uint frameDataPtr = rom.u32(animAddr + 16);
+            uint oamPtr = rom.u32(animAddr + 20);
+            uint palettePtr = rom.u32(animAddr + 28);
+
+            if (!U.isPointer(sectionDataPtr) || !U.isPointer(oamPtr) || !U.isPointer(palettePtr))
+                return "Animation record contains invalid pointers.";
+
+            uint sectionDataOff = U.toOffset(sectionDataPtr);
+
+            // Decompress frame data
+            byte[] frameData = BattleAnimeRendererCore.DecompressFrameData(rom, frameDataPtr);
+            if (frameData == null || frameData.Length == 0)
+                return "Failed to decompress frame data.";
+
+            // Get section range
+            BattleAnimeRendererCore.GetSectionRange(section, sectionDataOff,
+                (uint)frameData.Length, rom, out uint start, out uint end);
+
+            // Parse frames in section
+            var frames = BattleAnimeRendererCore.ParseFramesInRange(frameData, start, end);
+            if (frames.Count == 0)
+                return $"No frames found in section {section}.";
+
+            // Decompress OAM and palette
+            uint oamOff = U.toOffset(oamPtr);
+            byte[] oamData = LZ77.decompress(rom.Data, oamOff);
+            if (oamData == null || oamData.Length == 0)
+                return "Failed to decompress OAM data.";
+
+            uint paletteOff = U.toOffset(palettePtr);
+            byte[] paletteData = LZ77.decompress(rom.Data, paletteOff);
+            if (paletteData == null || paletteData.Length == 0)
+                return "Failed to decompress palette data.";
+
+            // First 32 bytes = player team palette
+            byte[] pal16 = new byte[32];
+            Array.Copy(paletteData, 0, pal16, 0, Math.Min(32, paletteData.Length));
+
+            // Render each frame
+            var gifFrames = new List<GifEncoder.GifFrame>();
+            foreach (var fi in frames)
+            {
+                // Get delay from frame data (first 2 bytes of the 0x86 command)
+                uint wait = (uint)(frameData[fi.FrameDataOffset] | (frameData[fi.FrameDataOffset + 1] << 8));
+                int delayCs = (int)(wait * 100 / 60); // GBA frames (60fps) → centiseconds
+
+                using var image = BattleAnimeRendererCore.RenderSingleFrame(fi, oamData, pal16);
+                if (image == null) continue;
+
+                gifFrames.Add(new GifEncoder.GifFrame
+                {
+                    RgbaPixels = image.GetPixelData(),
+                    Width = image.Width,
+                    Height = image.Height,
+                    DelayCs = Math.Max(1, delayCs),
+                });
             }
 
-            Console.WriteLine($"Battle animation {animId} exported to {outputPath}");
-            return 0;
+            if (gifFrames.Count == 0)
+                return "No frames could be rendered.";
+
+            GifEncoder.Encode(gifFrames, outputPath);
+            Console.WriteLine($"  {gifFrames.Count} frames, {frames.Count} frame commands");
+            return string.Empty;
         }
 
         static bool IsEASuccess(string output)
@@ -3415,6 +3537,54 @@ namespace FEBuilderGBA.CLI
                 }
             }
             return dic;
+        }
+
+        static int RunDiff(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --diff requires --rom=<rom1>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--rom2") || string.IsNullOrEmpty(argsDic["--rom2"]))
+            {
+                Console.Error.WriteLine("Error: --diff requires --rom2=<rom2>");
+                return 1;
+            }
+
+            string rom1Path = argsDic["--rom"];
+            string rom2Path = argsDic["--rom2"];
+
+            if (!File.Exists(rom1Path))
+            {
+                Console.Error.WriteLine($"Error: ROM file not found: {rom1Path}");
+                return 1;
+            }
+            if (!File.Exists(rom2Path))
+            {
+                Console.Error.WriteLine($"Error: ROM file not found: {rom2Path}");
+                return 1;
+            }
+
+            byte[] data1 = File.ReadAllBytes(rom1Path);
+            byte[] data2 = File.ReadAllBytes(rom2Path);
+
+            Console.WriteLine($"ROM1: {rom1Path} ({data1.Length} bytes)");
+            Console.WriteLine($"ROM2: {rom2Path} ({data2.Length} bytes)");
+            Console.WriteLine("Comparing...");
+
+            var diff = RomDiffCore.Compare(data1, data2);
+
+            if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                string outPath = argsDic["--out"];
+                string tsv = RomDiffCore.FormatTSV(diff, data1, data2);
+                File.WriteAllText(outPath, tsv);
+                Console.WriteLine($"Diff written to: {outPath}");
+            }
+
+            Console.WriteLine(RomDiffCore.FormatSummary(diff));
+            return 0;
         }
     }
 }

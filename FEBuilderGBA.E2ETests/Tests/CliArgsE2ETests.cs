@@ -71,6 +71,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--testonly", stdout);
             Assert.Contains("--import-battle-anime", stdout);
             Assert.Contains("--export-battle-anime", stdout);
+            Assert.Contains("--diff", stdout);
         }
 
         [Fact]
@@ -503,6 +504,24 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--export-battle-anime --rom=test.gba --animation-id=0", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--out", stderr);
+        }
+
+        // ================================================================ --diff (error paths)
+
+        [Fact]
+        public void Diff_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--diff --rom2=test.gba", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void Diff_MissingRom2_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--diff --rom=test.gba", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom2", stderr);
         }
 
         // ================================================================ Unknown command
