@@ -61,5 +61,6 @@ cli-logs/
 
 # IDE / editor
 .vs/
-.claude/
+.claude/*
+!.claude/skills/
 FEBuilderGBA/FEBuilderGBA.csproj.user
