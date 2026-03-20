@@ -1987,22 +1987,32 @@ namespace FEBuilderGBA.CLI
             if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
             { Console.Error.WriteLine($"Error: Portrait ID {portraitId} is out of range."); return 1; }
 
-            // Load PNG via SkiaSharp and convert to tightly packed RGBA
-            byte[] rgbaPixels;
-            int width, height;
-            using (var skBitmap = global::SkiaSharp.SKBitmap.Decode(inputPath))
-            {
-                if (skBitmap == null)
-                { Console.Error.WriteLine("Error: Failed to load image."); return 1; }
+            string err = ImportPortraitFromFile(rom, inputPath, portraitAddr);
+            if (err != null)
+            { Console.Error.WriteLine($"Error: {err}"); return 1; }
 
-                width = skBitmap.Width;
-                height = skBitmap.Height;
-                // Ensure tightly packed RGBA (no stride padding)
-                rgbaPixels = new byte[width * height * 4];
-                using var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888);
+            rom.Save(romPath, true);
+            Console.WriteLine($"Portrait {portraitId} imported from {inputPath} and saved to {romPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Shared portrait import pipeline: load PNG, quantize, encode 4bpp tiles, write to ROM.
+        /// Returns null on success, error message string on failure.
+        /// </summary>
+        static string ImportPortraitFromFile(ROM rom, string pngPath, uint portraitAddr)
+        {
+            using var skBitmap = global::SkiaSharp.SKBitmap.Decode(pngPath);
+            if (skBitmap == null) return "Failed to decode image.";
+
+            int width = skBitmap.Width;
+            int height = skBitmap.Height;
+            byte[] rgbaPixels = new byte[width * height * 4];
+            using (var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888))
+            {
+                var span = converted.GetPixelSpan();
                 for (int y = 0; y < height; y++)
                 {
-                    var span = converted.GetPixelSpan();
                     int srcOffset = y * converted.RowBytes;
                     int dstOffset = y * width * 4;
                     for (int x = 0; x < width * 4; x++)
@@ -2010,23 +2020,17 @@ namespace FEBuilderGBA.CLI
                 }
             }
 
-            // Quantize to 16 colors using Core's DecreaseColorCore
             var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
-            if (quantResult == null)
-            { Console.Error.WriteLine("Error: Color quantization failed."); return 1; }
+            if (quantResult == null) return "Color quantization failed.";
 
-            // Encode as 4bpp tiles
             byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
-            if (tileData == null)
-            { Console.Error.WriteLine("Error: Tile encoding failed."); return 1; }
+            if (tileData == null) return "Tile encoding failed.";
 
-            // Determine compression: FE6 always compressed, others check existing data
             uint currentFacePtr = rom.p32(portraitAddr + 0);
             bool isFE6 = rom.RomInfo.version == 6;
             bool isCompressed = isFE6 || (currentFacePtr == 0) ||
                 (U.isSafetyOffset(U.toOffset(currentFacePtr)) && LZ77.iscompress(rom.Data, U.toOffset(currentFacePtr)));
 
-            // Write tile data
             uint tileAddr;
             if (isCompressed)
             {
@@ -2034,12 +2038,11 @@ namespace FEBuilderGBA.CLI
             }
             else
             {
-                // Preserve existing header if present, otherwise use standard 4-byte header
                 byte[] existingHeader = new byte[] { 0x00, 0x04, 0x10, 0x00 };
                 if (U.isSafetyOffset(U.toOffset(currentFacePtr)))
                 {
                     uint off = U.toOffset(currentFacePtr);
-                    existingHeader[0] = (byte)rom.u8(off + 0);
+                    existingHeader[0] = (byte)rom.u8(off);
                     existingHeader[1] = (byte)rom.u8(off + 1);
                     existingHeader[2] = (byte)rom.u8(off + 2);
                     existingHeader[3] = (byte)rom.u8(off + 3);
@@ -2049,18 +2052,12 @@ namespace FEBuilderGBA.CLI
                 Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
                 tileAddr = ImageImportCore.WriteRawToROM(rom, withHeader, portraitAddr + 0);
             }
-            if (tileAddr == U.NOT_FOUND)
-            { Console.Error.WriteLine("Error: No free ROM space for tile data."); return 1; }
+            if (tileAddr == U.NOT_FOUND) return "No free ROM space for tile data.";
 
-            // Write palette
             uint palAddr = ImageImportCore.WritePaletteToROM(rom, quantResult.GBAPalette, portraitAddr + 8);
-            if (palAddr == U.NOT_FOUND)
-            { Console.Error.WriteLine("Error: No free ROM space for palette."); return 1; }
+            if (palAddr == U.NOT_FOUND) return "No free ROM space for palette.";
 
-            // Save ROM
-            rom.Save(romPath, true);
-            Console.WriteLine($"Portrait {portraitId} imported from {inputPath} ({width}x{height}) and saved to {romPath}");
-            return 0;
+            return null; // success
         }
 
         static int RunImportPortraitAll(Dictionary<string, string> argsDic)
@@ -2115,69 +2112,11 @@ namespace FEBuilderGBA.CLI
                 if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
                 { Console.Error.WriteLine($"  Skip {name}.png: portrait ID {portraitId} out of range"); failed++; continue; }
 
-                // Load and quantize
-                using var skBitmap = global::SkiaSharp.SKBitmap.Decode(pngPath);
-                if (skBitmap == null)
-                { Console.Error.WriteLine($"  Skip {name}.png: failed to decode image"); failed++; continue; }
+                string err = ImportPortraitFromFile(rom, pngPath, portraitAddr);
+                if (err != null)
+                { Console.Error.WriteLine($"  Skip {name}.png: {err}"); failed++; continue; }
 
-                int width = skBitmap.Width;
-                int height = skBitmap.Height;
-                byte[] rgbaPixels = new byte[width * height * 4];
-                using (var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888))
-                {
-                    var span = converted.GetPixelSpan();
-                    for (int y = 0; y < height; y++)
-                    {
-                        int srcOffset = y * converted.RowBytes;
-                        int dstOffset = y * width * 4;
-                        for (int x = 0; x < width * 4; x++)
-                            rgbaPixels[dstOffset + x] = span[srcOffset + x];
-                    }
-                }
-
-                var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
-                if (quantResult == null)
-                { Console.Error.WriteLine($"  Skip {name}.png: color quantization failed"); failed++; continue; }
-
-                byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
-                if (tileData == null)
-                { Console.Error.WriteLine($"  Skip {name}.png: tile encoding failed"); failed++; continue; }
-
-                // Determine compression
-                uint currentFacePtr = rom.p32(portraitAddr + 0);
-                bool isFE6 = rom.RomInfo.version == 6;
-                bool isCompressed = isFE6 || (currentFacePtr == 0) ||
-                    (U.isSafetyOffset(U.toOffset(currentFacePtr)) && LZ77.iscompress(rom.Data, U.toOffset(currentFacePtr)));
-
-                uint tileAddr;
-                if (isCompressed)
-                {
-                    tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, portraitAddr + 0);
-                }
-                else
-                {
-                    byte[] existingHeader = new byte[] { 0x00, 0x04, 0x10, 0x00 };
-                    if (U.isSafetyOffset(U.toOffset(currentFacePtr)))
-                    {
-                        uint off = U.toOffset(currentFacePtr);
-                        existingHeader[0] = (byte)rom.u8(off);
-                        existingHeader[1] = (byte)rom.u8(off + 1);
-                        existingHeader[2] = (byte)rom.u8(off + 2);
-                        existingHeader[3] = (byte)rom.u8(off + 3);
-                    }
-                    byte[] withHeader = new byte[4 + tileData.Length];
-                    Array.Copy(existingHeader, 0, withHeader, 0, 4);
-                    Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
-                    tileAddr = ImageImportCore.WriteRawToROM(rom, withHeader, portraitAddr + 0);
-                }
-                if (tileAddr == U.NOT_FOUND)
-                { Console.Error.WriteLine($"  Skip {name}.png: no free ROM space for tiles"); failed++; continue; }
-
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, quantResult.GBAPalette, portraitAddr + 8);
-                if (palAddr == U.NOT_FOUND)
-                { Console.Error.WriteLine($"  Skip {name}.png: no free ROM space for palette"); failed++; continue; }
-
-                Console.WriteLine($"  Imported portrait {portraitId} from {name}.png ({width}x{height})");
+                Console.WriteLine($"  Imported portrait {portraitId} from {name}.png");
                 imported++;
             }
 
@@ -2191,7 +2130,7 @@ namespace FEBuilderGBA.CLI
                 Console.WriteLine($"No portraits imported ({failed} failed).");
             }
 
-            return failed > 0 && imported == 0 ? 1 : 0;
+            return failed > 0 ? 1 : 0;
         }
 
         static int RunExportMidi(Dictionary<string, string> argsDic)
