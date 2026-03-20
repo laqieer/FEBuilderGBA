@@ -27,6 +27,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 6. **Spawn worktree agent** with `isolation: "worktree"`. Inside:
    ```bash
    git checkout -b feat/<short-desc>-<issue> origin/master
+   # For Claude Code automation only:
    git config user.name "laqieer" && git config user.email "laqieer@126.com"
    ```
 7. **Implement** per the accepted plan. No scope creep.
@@ -60,7 +61,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 ## Hard Rules
 
 - **ALL `gh` commands use `-R laqieer/FEBuilderGBA`** — never target upstream
-- **ALL commits as `laqieer <laqieer@126.com>`** — never zhiwenzhu
+- **Automation commits as `laqieer <laqieer@126.com>`** — this applies to Claude Code / Copilot automation only; human contributors use their own identity
 - **ALL implementation in isolated worktrees** — never `git checkout`/`stash`/`switch` in main worktree
 - **Screenshots MANDATORY for feat/fix PRs** — docs/chore exempt
 - **Push immediately after every commit**
