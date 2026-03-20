@@ -5,7 +5,7 @@ description: MANDATORY for ANY task that involves code changes, bug fixes, featu
 
 # Development Workflow — Enforced Steps
 
-**You MUST follow these phases in order. Do NOT skip steps. Do NOT write code until Phase 2 is complete.**
+**You MUST follow these phases in order. Do NOT skip steps. Do NOT write code until Phase 1 is complete.**
 
 Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 
