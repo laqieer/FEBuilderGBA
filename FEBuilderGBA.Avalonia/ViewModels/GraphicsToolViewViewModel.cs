@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _tileCountY = 8;
         bool _is4bpp = true;
         bool _isCompressed;
-        int _zoom = 2;
+        int _zoom = 1;
         IImage? _currentImage;
         string _imageInfo = string.Empty;
 

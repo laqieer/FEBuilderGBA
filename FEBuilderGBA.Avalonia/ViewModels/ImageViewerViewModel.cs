@@ -3,7 +3,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class ImageViewerViewModel : ViewModelBase
     {
         string _title = "Image Viewer";
-        int _zoom = 2;
+        int _zoom = 1;
         bool _isLoaded;
         int _imageWidth;
         int _imageHeight;
