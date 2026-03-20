@@ -765,11 +765,23 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             var rom = TempFile(".gba");
             File.WriteAllBytes(rom, new byte[1024]);
-            var pal = TempFile(".bin");
+            var pal = TempFile(".gbapal");
             File.WriteAllBytes(pal, new byte[] { 0x01, 0x02, 0x03 }); // 3 bytes = odd length
             var (code, _, stderr) = AppRunner.Run(CliExe, $"--import-palette --rom=\"{rom}\" --addr=0x0 --in=\"{pal}\"", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("odd", stderr, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void ImportPalette_UnsupportedExtension_Errors()
+        {
+            var rom = TempFile(".gba");
+            File.WriteAllBytes(rom, new byte[1024]);
+            var pal = TempFile(".weird");
+            File.WriteAllBytes(pal, new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            var (code, _, stderr) = AppRunner.Run(CliExe, $"--import-palette --rom=\"{rom}\" --addr=0x0 --in=\"{pal}\"", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("Unsupported", stderr, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
