@@ -203,6 +203,11 @@ namespace FEBuilderGBA.CLI
                 return RunCompileEvent(argsDic);
             }
 
+            if (argsDic.ContainsKey("--import-battle-anime"))
+            {
+                return RunImportBattleAnime(argsDic);
+            }
+
             if (argsDic.ContainsKey("--freespace"))
             {
                 return RunFreeSpace(argsDic);
@@ -325,6 +330,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --compile-event          Compile event script with EA/ColorzCore (requires --rom, --in)");
             Console.WriteLine("    --in=<path>            Input .event source file");
             Console.WriteLine("    --out=<path>           Output ROM path (default: overwrites input ROM)");
+            Console.WriteLine("  --import-battle-anime    Import battle animation from .txt script (requires --rom, --animation-id, --in)");
+            Console.WriteLine("    --animation-id=<id>    0-based animation index in ROM table");
+            Console.WriteLine("    --in=<path>            Input .txt animation script file");
             Console.WriteLine("  --freespace              Scan and report free space in ROM (requires --rom)");
             Console.WriteLine("    --min-size=<int>       Minimum free block size to report (default: 16)");
             Console.WriteLine("  --hex-dump               Dump ROM bytes in hex+ASCII format (requires --rom, --addr)");
@@ -360,6 +368,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid");
             Console.WriteLine("  FEBuilderGBA.CLI --compile-event --rom=rom.gba --in=script.event --out=modified.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --list-patches --rom=rom.gba --patch-name=SkillSystem");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-battle-anime --rom=rom.gba --animation-id=1 --in=anim.txt");
             Console.WriteLine("  FEBuilderGBA.CLI --freespace --rom=rom.gba --min-size=256");
             Console.WriteLine("  FEBuilderGBA.CLI --hex-dump --rom=rom.gba --addr=0x1000 --length=512");
             Console.WriteLine("  FEBuilderGBA.CLI --search-text --rom=rom.gba --query=Eirika");
@@ -3002,6 +3011,84 @@ namespace FEBuilderGBA.CLI
                 }
             }
             return sb.ToString();
+        }
+
+        static int RunImportBattleAnime(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --import-battle-anime requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--animation-id") || string.IsNullOrEmpty(argsDic["--animation-id"]))
+            {
+                Console.Error.WriteLine("Error: --import-battle-anime requires --animation-id=<id> (0-based)");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            {
+                Console.Error.WriteLine("Error: --import-battle-anime requires --in=<script.txt>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string scriptPath = argsDic["--in"];
+
+            if (!uint.TryParse(argsDic["--animation-id"], out uint animId))
+            {
+                Console.Error.WriteLine("Error: Invalid --animation-id value (must be a decimal number).");
+                return 1;
+            }
+
+            if (!File.Exists(scriptPath))
+            {
+                Console.Error.WriteLine($"Error: Script file not found: {scriptPath}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+
+            var rom = CoreState.ROM;
+
+            // Resolve animation record address
+            uint animAddr = BattleAnimeImportCore.ResolveBattleAnimeAddr(rom, animId);
+            if (animAddr == U.NOT_FOUND)
+            {
+                Console.Error.WriteLine($"Error: Animation ID {animId} is out of range.");
+                return 1;
+            }
+
+            var (tableBase, tableEnd) = BattleAnimeImportCore.GetTableBounds(rom);
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Animation ID: {animId} (address: 0x{animAddr:X08})");
+            Console.WriteLine($"Script: {scriptPath}");
+            Console.WriteLine($"Importing...");
+
+            // Image loader using SkiaSharp
+            Func<string, (byte[] rgba, int w, int h)?> imageLoader = (path) =>
+            {
+                if (!File.Exists(path)) return null;
+                var img = CoreState.ImageService?.LoadImage(path);
+                if (img == null) return null;
+                return (img.GetPixelData(), img.Width, img.Height);
+            };
+
+            string error = BattleAnimeImportCore.ImportBattleAnime(
+                scriptPath, animAddr, tableBase, tableEnd, imageLoader);
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                Console.Error.WriteLine($"Error: {error}");
+                return 1;
+            }
+
+            rom.Save(romPath, true);
+            Console.WriteLine($"Battle animation {animId} imported and saved to {romPath}");
+            return 0;
         }
 
         static bool IsEASuccess(string output)

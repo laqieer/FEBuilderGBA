@@ -481,5 +481,33 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(dic.ContainsKey("--search-text"));
             Assert.Equal("Eirika", dic["--query"]);
         }
+
+        // ------------------------------------------------------------------ import-battle-anime
+
+        [Fact]
+        public void CliProgram_HasImportBattleAnimeCommand()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("--import-battle-anime", src);
+            Assert.Contains("RunImportBattleAnime", src);
+        }
+
+        [Fact]
+        public void CliProgram_ImportBattleAnimeUsesCoreClass()
+        {
+            var src = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("BattleAnimeImportCore.ImportBattleAnime", src);
+            Assert.Contains("BattleAnimeImportCore.ResolveBattleAnimeAddr", src);
+        }
+
+        [Fact]
+        public void ParseArgs_ImportBattleAnimeArgs()
+        {
+            var dic = CliProgram.ParseArgs(new[] { "--import-battle-anime", "--rom=test.gba", "--animation-id=5", "--in=anim.txt" });
+            Assert.True(dic.ContainsKey("--import-battle-anime"));
+            Assert.Equal("test.gba", dic["--rom"]);
+            Assert.Equal("5", dic["--animation-id"]);
+            Assert.Equal("anim.txt", dic["--in"]);
+        }
     }
 }
