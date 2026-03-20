@@ -296,43 +296,95 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (lang == "auto")
             {
                 lang = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-                // Map culture names to our language codes
-                if (lang == "ja") lang = "ja";
-                else if (lang == "zh") lang = "zh";
-                else lang = "en"; // default to English
+
+                // Check if a translation file exists for the system locale
+                string baseDir = CoreState.BaseDirectory;
+                if (string.IsNullOrEmpty(baseDir))
+                    baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+                if (lang != "ja")
+                {
+                    string autoFile = Path.Combine(baseDir, "config", "translate", lang + ".txt");
+                    if (!File.Exists(autoFile))
+                        lang = "en"; // default to English if no matching translation
+                }
             }
 
-            // "ja" is the built-in language (no translation file needed)
+            // "ja" is the built-in language (no translation file needed).
+            // Clear the dictionary so str() returns keys as-is (all keys are Japanese).
             if (lang == "ja")
             {
-                // Clear translations to use built-in Japanese strings
-                MyTranslateResource.LoadResource("");
+                MyTranslateResource.Clear();
                 return;
             }
 
-            string baseDir = CoreState.BaseDirectory;
-            if (string.IsNullOrEmpty(baseDir))
-                baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string translateBaseDir = CoreState.BaseDirectory;
+            if (string.IsNullOrEmpty(translateBaseDir))
+                translateBaseDir = AppDomain.CurrentDomain.BaseDirectory;
 
-            string translateFile = Path.Combine(baseDir, "config", "translate", lang + ".txt");
+            string translateFile = Path.Combine(translateBaseDir, "config", "translate", lang + ".txt");
             if (File.Exists(translateFile))
             {
                 MyTranslateResource.LoadResource(translateFile);
             }
+            else
+            {
+                // Requested language file not found — fall back to English
+                string enFile = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
+                if (File.Exists(enFile))
+                    MyTranslateResource.LoadResource(enFile);
+                else
+                    MyTranslateResource.Clear(); // no translation files at all
+            }
         }
 
-        /// <summary>Enumerate languages with display names matching WinForms behavior.</summary>
+        /// <summary>
+        /// Enumerate languages with display names.
+        /// Always includes well-known languages (auto, ja, en, zh) plus any
+        /// additional *.txt translation files found in config/translate/.
+        /// </summary>
         internal static List<string> EnumerateLanguages()
         {
+            // Well-known display names
+            var knownNames = new Dictionary<string, string>
+            {
+                { "auto", "Auto Detect" },
+                { "ja", "\u65e5\u672c\u8a9e" },
+                { "en", "English" },
+                { "zh", "\u4e2d\u6587" },
+            };
+
             // Display format: "code — Display Name"
-            // "auto" = detect from OS locale, "ja" = built-in Japanese (no ja.txt needed)
-            return new List<string>
+            var result = new List<string>
             {
                 "auto \u2014 Auto Detect",
                 "ja \u2014 \u65e5\u672c\u8a9e",
                 "en \u2014 English",
                 "zh \u2014 \u4e2d\u6587",
             };
+
+            // Scan config/translate/ for additional *.txt files
+            string baseDir = CoreState.BaseDirectory;
+            if (string.IsNullOrEmpty(baseDir))
+                baseDir = AppDomain.CurrentDomain.BaseDirectory;
+
+            string translateDir = Path.Combine(baseDir, "config", "translate");
+            if (Directory.Exists(translateDir))
+            {
+                foreach (string file in Directory.GetFiles(translateDir, "*.txt"))
+                {
+                    string code = Path.GetFileNameWithoutExtension(file);
+                    // Skip non-language files and already-listed languages
+                    if (string.IsNullOrEmpty(code) || code.Contains("_") || code.Contains("dic"))
+                        continue;
+                    if (knownNames.ContainsKey(code))
+                        continue;
+
+                    result.Add(code + " \u2014 " + code);
+                }
+            }
+
+            return result;
         }
     }
 }

@@ -59,5 +59,14 @@ namespace FEBuilderGBA
         {
             Resource.LoadResource(fullfilename);
         }
+
+        /// <summary>
+        /// Clear all translation entries so str() returns keys as-is (built-in Japanese).
+        /// Use this instead of LoadResource("") which would trigger a missing-file error.
+        /// </summary>
+        public static void Clear()
+        {
+            Resource.Clear();
+        }
     }
 }
