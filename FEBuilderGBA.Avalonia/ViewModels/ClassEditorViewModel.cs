@@ -189,6 +189,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>True when the currently loaded ROM is FE6 (72-byte class struct).</summary>
+        public bool IsFE6 => CoreState.ROM?.RomInfo?.version == 6;
+
         public void LoadClass(uint addr)
         {
             ROM rom = CoreState.ROM;
@@ -200,13 +203,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoading = true;
             CurrentAddr = addr;
 
-            // Text IDs
+            // Text IDs (same offset for all versions)
             NameId = rom.u16(addr + 0);       // W0
             DescId = rom.u16(addr + 2);       // W2
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
 
-            // Identity
+            // Identity (same offset for all versions)
             ClassNumber = rom.u8(addr + 4);   // B4
             PromotionLevel = rom.u8(addr + 5); // B5
             WaitIcon = rom.u8(addr + 6);      // B6
@@ -214,7 +217,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             PortraitId = rom.u16(addr + 8);   // W8
             BuildStat = rom.u8(addr + 10);    // B10
 
-            // Base stats
+            // Base stats (same offset for all versions)
             BaseHp = rom.u8(addr + 11);       // B11
             BaseStr = rom.u8(addr + 12);      // B12
             BaseSkl = rom.u8(addr + 13);      // B13
@@ -225,7 +228,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Con = rom.u8(addr + 18);          // B18
             ClassStat19 = rom.u8(addr + 19);  // B19
 
-            // Weapon proficiency
+            // Weapon proficiency (same offset for all versions)
             WepSword = rom.u8(addr + 20);     // B20
             WepLance = rom.u8(addr + 21);     // B21
             WepAxe = rom.u8(addr + 22);       // B22
@@ -234,7 +237,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             WepAnima = rom.u8(addr + 25);     // B25
             WepLight = rom.u8(addr + 26);     // B26
 
-            // Growth rates
+            // Growth rates (same offset for all versions)
             GrowHp = rom.u8(addr + 27);       // B27
             GrowStr = rom.u8(addr + 28);      // B28
             GrowSkl = rom.u8(addr + 29);      // B29
@@ -243,41 +246,88 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             GrowRes = rom.u8(addr + 32);      // B32
             GrowLck = rom.u8(addr + 33);      // B33
 
-            // Stat caps / promotion bonuses (signed)
+            // Stat caps / promotion bonuses (signed, same offset for all versions)
             CapHp = (sbyte)rom.u8(addr + 34);  // b34
             CapStr = (sbyte)rom.u8(addr + 35); // b35
-            CapSkl = (sbyte)rom.u8(addr + 36); // b36
-            CapSpd = (sbyte)rom.u8(addr + 37); // b37
-            CapDef = (sbyte)rom.u8(addr + 38); // b38
-            CapRes = (sbyte)rom.u8(addr + 39); // b39
 
-            // Ability flags
-            Ability1 = rom.u8(addr + 40);     // B40
-            Ability2 = rom.u8(addr + 41);     // B41
-            Ability3 = rom.u8(addr + 42);     // B42
-            Ability4 = rom.u8(addr + 43);     // B43
+            // From here, offsets diverge between FE6 (72-byte struct) and FE7/8 (84-byte struct).
+            // FE6: b36-b39 = ability flags, B40-B47 = weapon ranks, P48 = battle anim,
+            //      P52/P56/P60/P64 = move costs, D68 = unknown
+            // FE7/8: b36-b39 = stat caps continued, B40-B43 = ability flags,
+            //        B44-B51 = weapon ranks, P52 = battle anim, P56-P64 = move costs,
+            //        P68/P72/P76 = terrain ptrs, D80 = unknown
+            if (IsFE6)
+            {
+                // FE6: stat caps are only HP and Str (b34-b35)
+                // b36-b39 are ability flags in FE6
+                CapSkl = 0;
+                CapSpd = 0;
+                CapDef = 0;
+                CapRes = 0;
 
-            // Weapon rank levels
-            WepRankSword = rom.u8(addr + 44); // B44
-            WepRankLance = rom.u8(addr + 45); // B45
-            WepRankAxe = rom.u8(addr + 46);   // B46
-            WepRankBow = rom.u8(addr + 47);   // B47
-            WepRankStaff = rom.u8(addr + 48); // B48
-            WepRankAnima = rom.u8(addr + 49); // B49
-            WepRankLight = rom.u8(addr + 50); // B50
-            WepRankDark = rom.u8(addr + 51);  // B51
+                // Ability flags at +36..+39
+                Ability1 = rom.u8(addr + 36);
+                Ability2 = rom.u8(addr + 37);
+                Ability3 = rom.u8(addr + 38);
+                Ability4 = rom.u8(addr + 39);
 
-            // Pointers
-            BattleAnimePtr = rom.u32(addr + 52);   // P52
-            MoveCostPtr = rom.u32(addr + 56);      // P56
-            MoveCostRainPtr = rom.u32(addr + 60);  // P60
-            MoveCostSnowPtr = rom.u32(addr + 64);  // P64
-            TerrainAvoidPtr = rom.u32(addr + 68);  // P68
-            TerrainDefPtr = rom.u32(addr + 72);    // P72
-            TerrainResPtr = rom.u32(addr + 76);    // P76
+                // Weapon rank levels at +40..+47
+                WepRankSword = rom.u8(addr + 40);
+                WepRankLance = rom.u8(addr + 41);
+                WepRankAxe = rom.u8(addr + 42);
+                WepRankBow = rom.u8(addr + 43);
+                WepRankStaff = rom.u8(addr + 44);
+                WepRankAnima = rom.u8(addr + 45);
+                WepRankLight = rom.u8(addr + 46);
+                WepRankDark = rom.u8(addr + 47);
 
-            // D80
-            UnknownD80 = rom.u32(addr + 80);      // D80
+                // Pointers (FE6)
+                BattleAnimePtr = rom.u32(addr + 48);
+                MoveCostPtr = rom.u32(addr + 52);
+                MoveCostRainPtr = rom.u32(addr + 56);
+                MoveCostSnowPtr = rom.u32(addr + 60);
+
+                // FE6 has a 4th move cost pointer at +64 instead of terrain ptrs
+                // and unknown at +68
+                TerrainAvoidPtr = 0; // Not present in FE6
+                TerrainDefPtr = 0;   // Not present in FE6
+                TerrainResPtr = 0;   // Not present in FE6
+                UnknownD80 = rom.u32(addr + 68);  // D68 in FE6
+            }
+            else
+            {
+                // FE7/8: stat caps continue at b36-b39
+                CapSkl = (sbyte)rom.u8(addr + 36);
+                CapSpd = (sbyte)rom.u8(addr + 37);
+                CapDef = (sbyte)rom.u8(addr + 38);
+                CapRes = (sbyte)rom.u8(addr + 39);
+
+                // Ability flags at +40..+43
+                Ability1 = rom.u8(addr + 40);
+                Ability2 = rom.u8(addr + 41);
+                Ability3 = rom.u8(addr + 42);
+                Ability4 = rom.u8(addr + 43);
+
+                // Weapon rank levels at +44..+51
+                WepRankSword = rom.u8(addr + 44);
+                WepRankLance = rom.u8(addr + 45);
+                WepRankAxe = rom.u8(addr + 46);
+                WepRankBow = rom.u8(addr + 47);
+                WepRankStaff = rom.u8(addr + 48);
+                WepRankAnima = rom.u8(addr + 49);
+                WepRankLight = rom.u8(addr + 50);
+                WepRankDark = rom.u8(addr + 51);
+
+                // Pointers (FE7/8)
+                BattleAnimePtr = rom.u32(addr + 52);
+                MoveCostPtr = rom.u32(addr + 56);
+                MoveCostRainPtr = rom.u32(addr + 60);
+                MoveCostSnowPtr = rom.u32(addr + 64);
+                TerrainAvoidPtr = rom.u32(addr + 68);
+                TerrainDefPtr = rom.u32(addr + 72);
+                TerrainResPtr = rom.u32(addr + 76);
+                UnknownD80 = rom.u32(addr + 80);
+            }
 
             // Compute class index from address for MagicSplitUtil
             uint classPtr2 = rom.RomInfo.class_pointer;
@@ -485,6 +535,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint addr = CurrentAddr;
 
+            // Common fields (same offset for all versions)
             rom.write_u16(addr + 0, NameId);
             rom.write_u16(addr + 2, DescId);
             rom.write_u8(addr + 4, ClassNumber);
@@ -522,34 +573,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             rom.write_u8(addr + 34, (uint)(byte)(sbyte)CapHp);
             rom.write_u8(addr + 35, (uint)(byte)(sbyte)CapStr);
-            rom.write_u8(addr + 36, (uint)(byte)(sbyte)CapSkl);
-            rom.write_u8(addr + 37, (uint)(byte)(sbyte)CapSpd);
-            rom.write_u8(addr + 38, (uint)(byte)(sbyte)CapDef);
-            rom.write_u8(addr + 39, (uint)(byte)(sbyte)CapRes);
 
-            rom.write_u8(addr + 40, Ability1);
-            rom.write_u8(addr + 41, Ability2);
-            rom.write_u8(addr + 42, Ability3);
-            rom.write_u8(addr + 43, Ability4);
+            // Version-specific fields from offset 36 onward
+            if (IsFE6)
+            {
+                // FE6: ability flags at +36..+39
+                rom.write_u8(addr + 36, Ability1);
+                rom.write_u8(addr + 37, Ability2);
+                rom.write_u8(addr + 38, Ability3);
+                rom.write_u8(addr + 39, Ability4);
 
-            rom.write_u8(addr + 44, WepRankSword);
-            rom.write_u8(addr + 45, WepRankLance);
-            rom.write_u8(addr + 46, WepRankAxe);
-            rom.write_u8(addr + 47, WepRankBow);
-            rom.write_u8(addr + 48, WepRankStaff);
-            rom.write_u8(addr + 49, WepRankAnima);
-            rom.write_u8(addr + 50, WepRankLight);
-            rom.write_u8(addr + 51, WepRankDark);
+                // FE6: weapon rank levels at +40..+47
+                rom.write_u8(addr + 40, WepRankSword);
+                rom.write_u8(addr + 41, WepRankLance);
+                rom.write_u8(addr + 42, WepRankAxe);
+                rom.write_u8(addr + 43, WepRankBow);
+                rom.write_u8(addr + 44, WepRankStaff);
+                rom.write_u8(addr + 45, WepRankAnima);
+                rom.write_u8(addr + 46, WepRankLight);
+                rom.write_u8(addr + 47, WepRankDark);
 
-            rom.write_u32(addr + 52, BattleAnimePtr);
-            rom.write_u32(addr + 56, MoveCostPtr);
-            rom.write_u32(addr + 60, MoveCostRainPtr);
-            rom.write_u32(addr + 64, MoveCostSnowPtr);
-            rom.write_u32(addr + 68, TerrainAvoidPtr);
-            rom.write_u32(addr + 72, TerrainDefPtr);
-            rom.write_u32(addr + 76, TerrainResPtr);
+                // FE6: pointers at +48..+64, unknown at +68
+                rom.write_u32(addr + 48, BattleAnimePtr);
+                rom.write_u32(addr + 52, MoveCostPtr);
+                rom.write_u32(addr + 56, MoveCostRainPtr);
+                rom.write_u32(addr + 60, MoveCostSnowPtr);
+                rom.write_u32(addr + 68, UnknownD80);
+            }
+            else
+            {
+                // FE7/8: stat caps continue at b36-b39
+                rom.write_u8(addr + 36, (uint)(byte)(sbyte)CapSkl);
+                rom.write_u8(addr + 37, (uint)(byte)(sbyte)CapSpd);
+                rom.write_u8(addr + 38, (uint)(byte)(sbyte)CapDef);
+                rom.write_u8(addr + 39, (uint)(byte)(sbyte)CapRes);
 
-            rom.write_u32(addr + 80, UnknownD80);
+                // FE7/8: ability flags at +40..+43
+                rom.write_u8(addr + 40, Ability1);
+                rom.write_u8(addr + 41, Ability2);
+                rom.write_u8(addr + 42, Ability3);
+                rom.write_u8(addr + 43, Ability4);
+
+                // FE7/8: weapon rank levels at +44..+51
+                rom.write_u8(addr + 44, WepRankSword);
+                rom.write_u8(addr + 45, WepRankLance);
+                rom.write_u8(addr + 46, WepRankAxe);
+                rom.write_u8(addr + 47, WepRankBow);
+                rom.write_u8(addr + 48, WepRankStaff);
+                rom.write_u8(addr + 49, WepRankAnima);
+                rom.write_u8(addr + 50, WepRankLight);
+                rom.write_u8(addr + 51, WepRankDark);
+
+                // FE7/8: pointers and terrain
+                rom.write_u32(addr + 52, BattleAnimePtr);
+                rom.write_u32(addr + 56, MoveCostPtr);
+                rom.write_u32(addr + 60, MoveCostRainPtr);
+                rom.write_u32(addr + 64, MoveCostSnowPtr);
+                rom.write_u32(addr + 68, TerrainAvoidPtr);
+                rom.write_u32(addr + 72, TerrainDefPtr);
+                rom.write_u32(addr + 76, TerrainResPtr);
+                rom.write_u32(addr + 80, UnknownD80);
+            }
 
             // Magic split extension write-back
             if (ShowMagicExtension)
