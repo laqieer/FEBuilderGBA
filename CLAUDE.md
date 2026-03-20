@@ -175,6 +175,16 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Export all map/chapter settings to TSV
 ./FEBuilderGBA.CLI --export-map-settings --rom=rom.gba --out=maps.tsv
 
+# LZ77 compress/decompress
+./FEBuilderGBA.CLI --lz77 --compress --in=data.bin --out=compressed.bin
+./FEBuilderGBA.CLI --lz77 --decompress --in=compressed.bin --out=data.bin
+
+# Validate GBA ROM header checksum
+./FEBuilderGBA.CLI --checksum --rom=rom.gba
+
+# Fix corrupted GBA ROM header checksum
+./FEBuilderGBA.CLI --repair-header --rom=rom.gba
+
 # Compare two ROMs byte-by-byte
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba --out=diff.tsv

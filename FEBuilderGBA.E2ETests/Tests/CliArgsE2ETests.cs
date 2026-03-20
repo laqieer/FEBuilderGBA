@@ -74,6 +74,9 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--diff", stdout);
             Assert.Contains("--import-portrait-all", stdout);
             Assert.Contains("--export-map-settings", stdout);
+            Assert.Contains("--lz77", stdout);
+            Assert.Contains("--checksum", stdout);
+            Assert.Contains("--repair-header", stdout);
         }
 
         [Fact]
@@ -560,6 +563,44 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--export-map-settings --rom=test.gba", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--out", stderr);
+        }
+
+        // ================================================================ --lz77 (error paths)
+
+        [Fact]
+        public void LZ77_MissingIn_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--lz77 --compress --out=test.bin", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--in", stderr);
+        }
+
+        [Fact]
+        public void LZ77_MissingMode_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--lz77 --in=test.bin --out=test2.bin", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--compress", stderr);
+        }
+
+        // ================================================================ --checksum (error paths)
+
+        [Fact]
+        public void Checksum_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--checksum", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        // ================================================================ --repair-header (error paths)
+
+        [Fact]
+        public void RepairHeader_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--repair-header", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
         }
 
         // ================================================================ Unknown command
