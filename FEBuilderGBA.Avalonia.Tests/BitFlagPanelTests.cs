@@ -63,8 +63,9 @@ public class BitFlagPanelTests
         var bit1 = panel.FindControl<CheckBox>("Bit1");
         Assert.NotNull(bit0);
         Assert.NotNull(bit1);
-        Assert.True(bit0!.IsChecked);
-        Assert.False(bit1!.IsChecked);
+        if (bit0 is null || bit1 is null) return; // Satisfy nullable flow analysis
+        Assert.True(bit0.IsChecked);
+        Assert.False(bit1.IsChecked);
     }
 
     [AvaloniaFact]
@@ -76,8 +77,9 @@ public class BitFlagPanelTests
         var bit0 = panel.FindControl<CheckBox>("Bit0");
         Assert.NotNull(bit7);
         Assert.NotNull(bit0);
-        Assert.True(bit7!.IsChecked);
-        Assert.False(bit0!.IsChecked);
+        if (bit7 is null || bit0 is null) return; // Satisfy nullable flow analysis
+        Assert.True(bit7.IsChecked);
+        Assert.False(bit0.IsChecked);
     }
 
     [AvaloniaFact]
@@ -96,10 +98,11 @@ public class BitFlagPanelTests
         Assert.NotNull(bit1);
         Assert.NotNull(bit2);
         Assert.NotNull(bit7);
-        Assert.Equal("Alpha", bit0!.Content);
-        Assert.Equal("Beta", bit1!.Content);
-        Assert.Equal("Gamma", bit2!.Content);
-        Assert.Equal("Omega", bit7!.Content);
+        if (bit0 is null || bit1 is null || bit2 is null || bit7 is null) return; // Satisfy nullable flow analysis
+        Assert.Equal("Alpha", bit0.Content);
+        Assert.Equal("Beta", bit1.Content);
+        Assert.Equal("Gamma", bit2.Content);
+        Assert.Equal("Omega", bit7.Content);
     }
 
     [AvaloniaFact]
@@ -124,18 +127,20 @@ public class BitFlagPanelTests
         byte? lastValue = null;
         panel.ValueChanged += v => lastValue = v;
 
-        // Directly toggling a checkbox (not via panel.Value) should fire the event
+        // Programmatic IsChecked change (not via panel.Value) should fire the event
         var bit0 = panel.FindControl<CheckBox>("Bit0");
         Assert.NotNull(bit0);
-        bit0!.IsChecked = true;
+        if (bit0 is null) return; // Satisfy nullable flow analysis
+        bit0.IsChecked = true;
         Assert.NotNull(lastValue);
         Assert.Equal((byte)0x01, lastValue!.Value);
 
-        // Toggle another bit
+        // Set another bit's IsChecked programmatically
         lastValue = null;
         var bit7 = panel.FindControl<CheckBox>("Bit7");
         Assert.NotNull(bit7);
-        bit7!.IsChecked = true;
+        if (bit7 is null) return; // Satisfy nullable flow analysis
+        bit7.IsChecked = true;
         Assert.NotNull(lastValue);
         Assert.Equal((byte)0x81, lastValue!.Value); // bit0 + bit7 = 0x01 + 0x80
     }
