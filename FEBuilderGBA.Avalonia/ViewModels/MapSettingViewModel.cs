@@ -203,6 +203,105 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch { return "???"; }
         }
 
+        // ---- Reset all fields to defaults (used by FE6 guard to prevent stale UI) ----
+
+        void ResetAllFields()
+        {
+            CurrentAddr = 0;
+            DataSize = 0;
+            IsLoaded = false;
+            Name = "";
+
+            // D0: pointer
+            CpPointer = 0;
+            // W4: Object type
+            ObjectTypePLIST = 0;
+            // B6-B11: Map style PLISTs
+            PalettePLIST = 0;
+            ChipsetConfigPLIST = 0;
+            MapPointerPLIST = 0;
+            TileAnimation1PLIST = 0;
+            TileAnimation2PLIST = 0;
+            MapChangePLIST = 0;
+            // B12-B19: Map properties
+            FogLevel = 0;
+            BattlePreparation = 0;
+            ChapterTitleImage = 0;
+            ChapterTitleImage2 = 0;
+            InitialX = 0;
+            InitialY = 0;
+            Weather = 0;
+            BattleBGLookup = 0;
+            // W20: Difficulty
+            DifficultyAdjustment = 0;
+            // W22-W42: BGM settings
+            PlayerPhaseBGM = 0;
+            EnemyPhaseBGM = 0;
+            NpcPhaseBGM = 0;
+            PlayerPhaseBGM2 = 0;
+            EnemyPhaseBGM2 = 0;
+            NpcPhaseBGM2 = 0;
+            PlayerPhaseBGMFlag4 = 0;
+            EnemyPhaseBGMFlag4 = 0;
+            UnknownW38 = 0;
+            UnknownW40 = 0;
+            UnknownW42 = 0;
+            // B44: Wall HP
+            BreakableWallHP = 0;
+            // B45-B61: Rating bytes
+            RatingAEliwoodNormal = 0; RatingAEliwoodHard = 0;
+            RatingAHectorNormal = 0; RatingAHectorHard = 0;
+            RatingBEliwoodNormal = 0; RatingBEliwoodHard = 0;
+            RatingBHectorNormal = 0; RatingBHectorHard = 0;
+            RatingCEliwoodNormal = 0; RatingCEliwoodHard = 0;
+            RatingCHectorNormal = 0; RatingCHectorHard = 0;
+            RatingDEliwoodNormal = 0; RatingDEliwoodHard = 0;
+            RatingDHectorNormal = 0; RatingDHectorHard = 0;
+            UnknownB61 = 0;
+            // W62-W94: Rating words
+            RatingAEliwoodNormalW = 0; RatingAEliwoodHardW = 0;
+            RatingAHectorNormalW = 0; RatingAHectorHardW = 0;
+            RatingBEliwoodNormalW = 0; RatingBEliwoodHardW = 0;
+            RatingBHectorNormalW = 0; RatingBHectorHardW = 0;
+            RatingCEliwoodNormalW = 0; RatingCEliwoodHardW = 0;
+            RatingCHectorNormalW = 0; RatingCHectorHardW = 0;
+            RatingDEliwoodNormalW = 0; RatingDEliwoodHardW = 0;
+            RatingDHectorNormalW = 0; RatingDHectorHardW = 0;
+            UnknownW94 = 0;
+            // D96-D108: Difficulty pointers
+            DiffPtrEliwoodNormal = 0; DiffPtrEliwoodHard = 0;
+            DiffPtrHectorNormal = 0; DiffPtrHectorHard = 0;
+            // W112-W114: Map name texts
+            MapNameText1 = 0; MapNameText2 = 0;
+            // B116-B135: Event / World Map / Chapter
+            EventIdPLIST = 0; WorldMapAutoEvent = 0;
+            UnknownB118 = 0; UnknownB119 = 0; UnknownB120 = 0; UnknownB121 = 0;
+            UnknownB122 = 0; UnknownB123 = 0; UnknownB124 = 0; UnknownB125 = 0;
+            UnknownB126 = 0; UnknownB127 = 0;
+            ChapterNumber = 0;
+            UnknownB129 = 0; UnknownB130 = 0; UnknownB131 = 0;
+            UnknownB132 = 0; UnknownB133 = 0;
+            VictoryBGMEnemyCount = 0; BlackoutBeforeStart = 0;
+            // W136-W138: Clear condition texts
+            ClearConditionText = 0; DetailClearConditionText = 0;
+            // B140-B147: Display flags
+            SpecialDisplay = 0; TurnCountDisplay = 0; DefenseUnitMark = 0;
+            EscapeMarkerX = 0; EscapeMarkerY = 0;
+            UnknownB145 = 0; UnknownB146 = 0; UnknownB147 = 0;
+
+            // Notify resolved-text properties
+            OnPropertyChanged(nameof(MapNameText1Resolved));
+            OnPropertyChanged(nameof(MapNameText2Resolved));
+            OnPropertyChanged(nameof(ClearConditionTextResolved));
+            OnPropertyChanged(nameof(DetailClearConditionTextResolved));
+            OnPropertyChanged(nameof(PlayerPhaseBGMResolved));
+            OnPropertyChanged(nameof(EnemyPhaseBGMResolved));
+            OnPropertyChanged(nameof(NpcPhaseBGMResolved));
+            OnPropertyChanged(nameof(PlayerPhaseBGM2Resolved));
+            OnPropertyChanged(nameof(EnemyPhaseBGM2Resolved));
+            OnPropertyChanged(nameof(NpcPhaseBGM2Resolved));
+        }
+
         // ---- List ----
 
         public List<AddrResult> LoadMapSettingList()
@@ -226,7 +325,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // FE6 has a completely different struct layout (u8 BGM fields, 68-72 bytes).
             // Use MapSettingFE6ViewModel instead. Guard against accidental misuse.
-            if (rom.RomInfo.version == 6) return;
+            if (rom.RomInfo.version == 6)
+            {
+                Log.Notify("MapSettingViewModel.LoadMapSetting called for FE6 ROM — clearing state and returning.");
+                ResetAllFields();
+                return;
+            }
 
             uint dataSize = rom.RomInfo.map_setting_datasize;
             if (dataSize == 0) dataSize = 148;
@@ -385,7 +489,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             // FE6 has a completely different struct layout — block writes here.
-            if (rom.RomInfo.version == 6) return;
+            if (rom.RomInfo.version == 6)
+            {
+                Log.Notify("MapSettingViewModel.WriteMapSetting called for FE6 ROM — write blocked.");
+                return;
+            }
 
             uint addr = CurrentAddr;
             uint dataSize = DataSize;
