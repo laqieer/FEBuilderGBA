@@ -72,6 +72,8 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("--import-battle-anime", stdout);
             Assert.Contains("--export-battle-anime", stdout);
             Assert.Contains("--diff", stdout);
+            Assert.Contains("--import-portrait-all", stdout);
+            Assert.Contains("--export-map-settings", stdout);
         }
 
         [Fact]
@@ -522,6 +524,42 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, stderr) = AppRunner.Run(CliExe, "--diff --rom=test.gba", timeoutMs: 15_000);
             Assert.NotEqual(0, code);
             Assert.Contains("--rom2", stderr);
+        }
+
+        // ================================================================ --import-portrait-all (error paths)
+
+        [Fact]
+        public void ImportPortraitAll_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-portrait-all --dir=test", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ImportPortraitAll_MissingDir_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--import-portrait-all --rom=test.gba", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--dir", stderr);
+        }
+
+        // ================================================================ --export-map-settings (error paths)
+
+        [Fact]
+        public void ExportMapSettings_MissingRom_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-map-settings --out=test.tsv", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--rom", stderr);
+        }
+
+        [Fact]
+        public void ExportMapSettings_MissingOut_Errors()
+        {
+            var (code, _, stderr) = AppRunner.Run(CliExe, "--export-map-settings --rom=test.gba", timeoutMs: 15_000);
+            Assert.NotEqual(0, code);
+            Assert.Contains("--out", stderr);
         }
 
         // ================================================================ Unknown command

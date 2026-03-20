@@ -169,6 +169,12 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Resolve name IDs
 ./FEBuilderGBA.CLI --resolve-names --rom=rom.gba --kind=unit --ids=0,1,2,3
 
+# Batch import portraits from directory
+./FEBuilderGBA.CLI --import-portrait-all --rom=rom.gba --dir=portraits/
+
+# Export all map/chapter settings to TSV
+./FEBuilderGBA.CLI --export-map-settings --rom=rom.gba --out=maps.tsv
+
 # Compare two ROMs byte-by-byte
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba
 ./FEBuilderGBA.CLI --diff --rom=original.gba --rom2=modified.gba --out=diff.tsv

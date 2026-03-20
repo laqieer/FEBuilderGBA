@@ -143,6 +143,11 @@ namespace FEBuilderGBA.CLI
                 return RunGenerateFont(argsDic);
             }
 
+            if (argsDic.ContainsKey("--import-portrait-all"))
+            {
+                return RunImportPortraitAll(argsDic);
+            }
+
             if (argsDic.ContainsKey("--import-portrait"))
             {
                 return RunImportPortrait(argsDic);
@@ -228,6 +233,11 @@ namespace FEBuilderGBA.CLI
                 return RunSearchText(argsDic);
             }
 
+            if (argsDic.ContainsKey("--export-map-settings"))
+            {
+                return RunExportMapSettings(argsDic);
+            }
+
             if (argsDic.ContainsKey("--diff"))
             {
                 return RunDiff(argsDic);
@@ -309,6 +319,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --import-portrait        Import PNG into ROM portrait slot (requires --rom, --portrait-id, --in)");
             Console.WriteLine("    --portrait-id=<id>     Portrait table index number");
             Console.WriteLine("    --in=<path>            Input PNG file path");
+            Console.WriteLine("  --import-portrait-all    Batch import PNGs from directory (requires --rom, --dir)");
+            Console.WriteLine("    --dir=<path>           Directory with PNGs named {id}_name.png or {id}.png");
             Console.WriteLine("  --export-midi            Export song to MIDI file (requires --rom, --song-id, --out)");
             Console.WriteLine("    --song-id=<hex>        Song ID in hex (e.g., 0x1A)");
             Console.WriteLine("    --out=<path>           Output MIDI file path");
@@ -358,6 +370,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --query=<text>         Text pattern to search for (case-insensitive)");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("    --patch-name=<name>    Filter patches by name (substring match)");
+            Console.WriteLine("  --export-map-settings    Export all chapter/map settings to TSV (requires --rom, --out)");
             Console.WriteLine("  --diff                   Compare two ROMs byte-by-byte (requires --rom, --rom2)");
             Console.WriteLine("    --rom2=<path>          Second ROM to compare against");
             Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
@@ -1974,22 +1987,32 @@ namespace FEBuilderGBA.CLI
             if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
             { Console.Error.WriteLine($"Error: Portrait ID {portraitId} is out of range."); return 1; }
 
-            // Load PNG via SkiaSharp and convert to tightly packed RGBA
-            byte[] rgbaPixels;
-            int width, height;
-            using (var skBitmap = global::SkiaSharp.SKBitmap.Decode(inputPath))
-            {
-                if (skBitmap == null)
-                { Console.Error.WriteLine("Error: Failed to load image."); return 1; }
+            string err = ImportPortraitFromFile(rom, inputPath, portraitAddr);
+            if (err != null)
+            { Console.Error.WriteLine($"Error: {err}"); return 1; }
 
-                width = skBitmap.Width;
-                height = skBitmap.Height;
-                // Ensure tightly packed RGBA (no stride padding)
-                rgbaPixels = new byte[width * height * 4];
-                using var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888);
+            rom.Save(romPath, true);
+            Console.WriteLine($"Portrait {portraitId} imported from {inputPath} and saved to {romPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Shared portrait import pipeline: load PNG, quantize, encode 4bpp tiles, write to ROM.
+        /// Returns null on success, error message string on failure.
+        /// </summary>
+        static string ImportPortraitFromFile(ROM rom, string pngPath, uint portraitAddr)
+        {
+            using var skBitmap = global::SkiaSharp.SKBitmap.Decode(pngPath);
+            if (skBitmap == null) return "Failed to decode image.";
+
+            int width = skBitmap.Width;
+            int height = skBitmap.Height;
+            byte[] rgbaPixels = new byte[width * height * 4];
+            using (var converted = skBitmap.Copy(global::SkiaSharp.SKColorType.Rgba8888))
+            {
+                var span = converted.GetPixelSpan();
                 for (int y = 0; y < height; y++)
                 {
-                    var span = converted.GetPixelSpan();
                     int srcOffset = y * converted.RowBytes;
                     int dstOffset = y * width * 4;
                     for (int x = 0; x < width * 4; x++)
@@ -1997,23 +2020,17 @@ namespace FEBuilderGBA.CLI
                 }
             }
 
-            // Quantize to 16 colors using Core's DecreaseColorCore
             var quantResult = DecreaseColorCore.Quantize(rgbaPixels, width, height, 16);
-            if (quantResult == null)
-            { Console.Error.WriteLine("Error: Color quantization failed."); return 1; }
+            if (quantResult == null) return "Color quantization failed.";
 
-            // Encode as 4bpp tiles
             byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(quantResult.IndexData, width, height);
-            if (tileData == null)
-            { Console.Error.WriteLine("Error: Tile encoding failed."); return 1; }
+            if (tileData == null) return "Tile encoding failed.";
 
-            // Determine compression: FE6 always compressed, others check existing data
             uint currentFacePtr = rom.p32(portraitAddr + 0);
             bool isFE6 = rom.RomInfo.version == 6;
             bool isCompressed = isFE6 || (currentFacePtr == 0) ||
                 (U.isSafetyOffset(U.toOffset(currentFacePtr)) && LZ77.iscompress(rom.Data, U.toOffset(currentFacePtr)));
 
-            // Write tile data
             uint tileAddr;
             if (isCompressed)
             {
@@ -2021,12 +2038,11 @@ namespace FEBuilderGBA.CLI
             }
             else
             {
-                // Preserve existing header if present, otherwise use standard 4-byte header
                 byte[] existingHeader = new byte[] { 0x00, 0x04, 0x10, 0x00 };
                 if (U.isSafetyOffset(U.toOffset(currentFacePtr)))
                 {
                     uint off = U.toOffset(currentFacePtr);
-                    existingHeader[0] = (byte)rom.u8(off + 0);
+                    existingHeader[0] = (byte)rom.u8(off);
                     existingHeader[1] = (byte)rom.u8(off + 1);
                     existingHeader[2] = (byte)rom.u8(off + 2);
                     existingHeader[3] = (byte)rom.u8(off + 3);
@@ -2036,18 +2052,85 @@ namespace FEBuilderGBA.CLI
                 Array.Copy(tileData, 0, withHeader, 4, tileData.Length);
                 tileAddr = ImageImportCore.WriteRawToROM(rom, withHeader, portraitAddr + 0);
             }
-            if (tileAddr == U.NOT_FOUND)
-            { Console.Error.WriteLine("Error: No free ROM space for tile data."); return 1; }
+            if (tileAddr == U.NOT_FOUND) return "No free ROM space for tile data.";
 
-            // Write palette
             uint palAddr = ImageImportCore.WritePaletteToROM(rom, quantResult.GBAPalette, portraitAddr + 8);
-            if (palAddr == U.NOT_FOUND)
-            { Console.Error.WriteLine("Error: No free ROM space for palette."); return 1; }
+            if (palAddr == U.NOT_FOUND) return "No free ROM space for palette.";
 
-            // Save ROM
-            rom.Save(romPath, true);
-            Console.WriteLine($"Portrait {portraitId} imported from {inputPath} ({width}x{height}) and saved to {romPath}");
-            return 0;
+            return null; // success
+        }
+
+        static int RunImportPortraitAll(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            { Console.Error.WriteLine("Error: --import-portrait-all requires --rom=<rom>"); return 1; }
+            if (!argsDic.ContainsKey("--dir") || string.IsNullOrEmpty(argsDic["--dir"]))
+            { Console.Error.WriteLine("Error: --import-portrait-all requires --dir=<directory>"); return 1; }
+
+            string romPath = argsDic["--rom"];
+            string dir = argsDic["--dir"];
+
+            if (!Directory.Exists(dir))
+            { Console.Error.WriteLine($"Error: Directory not found: {dir}"); return 1; }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            { Console.Error.WriteLine("Error: ROM not loaded correctly."); return 1; }
+
+            uint portraitBase = rom.p32(U.toOffset(rom.RomInfo.portrait_pointer));
+            uint portraitDataSize = rom.RomInfo.portrait_datasize;
+
+            string[] pngFiles = Directory.GetFiles(dir, "*.png");
+            Array.Sort(pngFiles);
+
+            int imported = 0;
+            int failed = 0;
+
+            foreach (string pngPath in pngFiles)
+            {
+                string name = Path.GetFileNameWithoutExtension(pngPath);
+                // Parse portrait ID from filename: "123_Name.png" or "123.png" or "0x7B.png"
+                string idPart = name.Split('_')[0];
+                uint portraitId;
+                if (idPart.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!uint.TryParse(idPart.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out portraitId))
+                    { Console.Error.WriteLine($"  Skip {name}.png: cannot parse hex ID from filename"); failed++; continue; }
+                }
+                else
+                {
+                    if (!uint.TryParse(idPart, out portraitId))
+                    { Console.Error.WriteLine($"  Skip {name}.png: cannot parse ID from filename"); failed++; continue; }
+                }
+
+                uint portraitAddr = portraitBase + (portraitId * portraitDataSize);
+                if (!U.isSafetyOffset(portraitAddr + portraitDataSize - 1, rom))
+                { Console.Error.WriteLine($"  Skip {name}.png: portrait ID {portraitId} out of range"); failed++; continue; }
+
+                string err = ImportPortraitFromFile(rom, pngPath, portraitAddr);
+                if (err != null)
+                { Console.Error.WriteLine($"  Skip {name}.png: {err}"); failed++; continue; }
+
+                Console.WriteLine($"  Imported portrait {portraitId} from {name}.png");
+                imported++;
+            }
+
+            if (imported > 0)
+            {
+                rom.Save(romPath, true);
+                Console.WriteLine($"Batch import complete: {imported} imported, {failed} failed. Saved to {romPath}");
+            }
+            else
+            {
+                Console.WriteLine($"No portraits imported ({failed} failed).");
+            }
+
+            return failed > 0 ? 1 : 0;
         }
 
         static int RunExportMidi(Dictionary<string, string> argsDic)
@@ -3590,6 +3673,71 @@ namespace FEBuilderGBA.CLI
             }
 
             Console.WriteLine(RomDiffCore.FormatSummary(diff));
+            return 0;
+        }
+
+        static int RunExportMapSettings(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --export-map-settings requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                Console.Error.WriteLine("Error: --export-map-settings requires --out=<output.tsv>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string outputPath = argsDic["--out"];
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion)) return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                Console.Error.WriteLine("Error: ROM not loaded correctly.");
+                return 1;
+            }
+
+            Console.WriteLine($"ROM: {romPath}");
+            Console.WriteLine($"Version: {rom.RomInfo.VersionToFilename}");
+
+            var maps = MapSettingCore.MakeMapIDList();
+            if (maps.Count == 0)
+            {
+                Console.Error.WriteLine("Error: No maps found in ROM.");
+                return 1;
+            }
+
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            Console.WriteLine($"Found {maps.Count} maps (entry size: {dataSize} bytes)");
+
+            // Export as TSV: Index, Name, then raw hex bytes of the map setting struct
+            var sb = new System.Text.StringBuilder();
+            sb.Append("Index\tName\tAddress");
+            for (uint f = 0; f < dataSize; f += 4)
+                sb.Append($"\tOffset_0x{f:X02}");
+            sb.AppendLine();
+
+            foreach (var map in maps)
+            {
+                string name = map.name ?? "";
+                sb.Append($"0x{map.tag:X02}\t{name}\t0x{map.addr:X08}");
+                for (uint f = 0; f < dataSize; f += 4)
+                {
+                    uint val = rom.u32(map.addr + f);
+                    sb.Append($"\t0x{val:X08}");
+                }
+                sb.AppendLine();
+            }
+
+            File.WriteAllText(outputPath, sb.ToString(), System.Text.Encoding.UTF8);
+            Console.WriteLine($"Exported {maps.Count} map settings to: {outputPath}");
             return 0;
         }
     }
