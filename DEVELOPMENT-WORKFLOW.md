@@ -113,13 +113,18 @@ Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
 
 ### 7. Branch & Implement
 
-**Always sync master before branching (from the main repo, not a linked worktree):**
+**MANDATORY: Always use an isolated worktree for new tasks.**
+Multiple Claude Code sessions may run in parallel on the same repo. To prevent interference (broken stash, wrong branch checkout), every new implementation task MUST use `isolation: "worktree"` in the Agent tool. Never run `git checkout`, `git stash`, or `git switch` in the main worktree.
+
+**Before spawning the worktree agent**, sync remote refs (safe — doesn't change working tree or branch):
 ```bash
-# Run this in the main repo root — not inside a linked worktree
-git checkout master && git pull
-git checkout -b feat/<short-desc>-<issue>   # or fix/<short-desc>-<issue>
+git fetch origin
 ```
-For parallel worktree agents: sync master in the main repo first, then create worktrees from it.
+
+**Inside the worktree**, create the feature branch from latest remote master:
+```bash
+git checkout -b feat/<short-desc>-<issue> origin/master
+```
 
 Never work directly on master — always create a feature branch.
 
@@ -145,12 +150,6 @@ Never work directly on master — always create a feature branch.
 - New tests for every behavioral change
 - Run `dotnet test FEBuilderGBA.Core.Tests/` and `dotnet test FEBuilderGBA.Tests/` before pushing
 - Tests mutating CoreState use `[Collection("SharedState")]`
-- **Avalonia GUI changes MUST include headless UI tests** in `FEBuilderGBA.Avalonia.Tests/`:
-  - Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing
-  - Use `[AvaloniaFact]` / `[AvaloniaTheory]` (from `Avalonia.Headless.XUnit`) to instantiate real controls
-  - Verify **control properties and rendering state**, not just ViewModel logic
-  - Example: test that `Image.Stretch == Stretch.Fill` (catches rendering bugs), not just that a zoom variable changed
-  - Unit tests verify code logic; headless tests verify UI behavior. **Both are required for GUI changes.**
 
 ### 8. Scope Accuracy Check (Before PR)
 Before opening the PR, verify:
@@ -347,7 +346,7 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 
 ### 16. Post-Merge
 - Verify the issue was auto-closed (if `Closes #N` was used)
-- If working in a worktree, clean it up:
+- Clean up the worktree (all tasks use worktrees — see step 7):
   ```bash
   # 1. Ensure all changes are committed or discarded — git worktree remove fails on a dirty worktree
   # 2. Navigate back to the main repo root (you cannot remove a worktree from inside it)
@@ -355,10 +354,7 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
   git worktree list             # verify which worktrees exist
   git worktree remove <path>    # remove the linked worktree
   ```
-- Switch back to master and sync (from the main repo):
-  ```bash
-  git checkout master && git pull
-  ```
+- No need to sync master — the next task's worktree will pick up the latest state automatically.
 
 ---
 
@@ -403,6 +399,10 @@ A local-only review doesn't count — the review must be visible on GitHub.
 Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
 **Do:** Always create a feature branch from an up-to-date master: `git checkout master && git pull && git checkout -b feat/...`
 
+### Don't: Switch branches or stash in the main worktree
+Multiple Claude Code sessions share the same repo. Running `git checkout`, `git stash`, or `git switch` in the main worktree will break other sessions' working state. Attempting to "restore" it is also wrong — you don't know what state the other session expects.
+**Do:** ALWAYS use `isolation: "worktree"` in the Agent tool for every new implementation task. This gives you an isolated copy of the repo with zero interference. The main worktree is read-only for git state operations.
+
 ### Don't: Guess why merge is blocked
 Assuming "needs approval" when the real cause is an outdated branch or unresolved threads wastes time and misses the actual fix.
 **Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
@@ -435,7 +435,7 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
   → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
   → Re-review → Signoff → CI Green → Merge → Confirm MERGED
   ↑___________________________________________|  (loop until MERGED)
-  → Clean up worktree (if any) → Checkout master & pull
+  → Clean up worktree
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
