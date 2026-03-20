@@ -3202,7 +3202,13 @@ namespace FEBuilderGBA.CLI
             {
                 int section = 0;
                 if (argsDic.ContainsKey("--section") && !string.IsNullOrEmpty(argsDic["--section"]))
-                    int.TryParse(argsDic["--section"], out section);
+                {
+                    if (!int.TryParse(argsDic["--section"], out section))
+                    {
+                        Console.Error.WriteLine($"Error: Invalid --section value: {argsDic["--section"]}");
+                        return 1;
+                    }
+                }
                 if (section < 0 || section > 11)
                 {
                     Console.Error.WriteLine("Error: --section must be 0-11.");

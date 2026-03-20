@@ -6,7 +6,7 @@ namespace FEBuilderGBA.CLI
 {
     /// <summary>
     /// Minimal GIF89a animated GIF encoder.
-    /// Optimized for GBA-style 16-color palette images.
+    /// Optimized for GBA-style 16-color palette images with transparency support.
     /// </summary>
     internal static class GifEncoder
     {
@@ -19,9 +19,14 @@ namespace FEBuilderGBA.CLI
             public int DelayCs; // Delay in centiseconds (100ths of a second)
         }
 
+        // Sentinel: transparent pixels use index 0, which is distinct from any real RGB color.
+        // We use -1 as the "transparent" key in the color map to avoid conflating it with black (0x000000).
+        const int TRANSPARENT_KEY = -1;
+
         /// <summary>
         /// Encode frames as an animated GIF file.
         /// Quantizes each frame to a shared global palette (up to 256 colors).
+        /// Index 0 is reserved for transparency.
         /// </summary>
         public static void Encode(List<GifFrame> frames, string outputPath, int loop = 0)
         {
@@ -30,7 +35,6 @@ namespace FEBuilderGBA.CLI
             int width = frames[0].Width;
             int height = frames[0].Height;
 
-            // Build global palette from all frames (simple: collect unique colors, max 256)
             var palette = BuildGlobalPalette(frames, out var colorMap);
             int colorBits = GetColorBits(palette.Length / 3);
 
@@ -43,9 +47,9 @@ namespace FEBuilderGBA.CLI
             // Logical Screen Descriptor
             writer.Write((ushort)width);
             writer.Write((ushort)height);
-            byte packed = (byte)(0x80 | ((colorBits - 1) << 4) | (colorBits - 1)); // global color table flag + size
+            byte packed = (byte)(0x80 | ((colorBits - 1) << 4) | (colorBits - 1));
             writer.Write(packed);
-            writer.Write((byte)0); // background color index
+            writer.Write((byte)0); // background color index (= transparent index)
             writer.Write((byte)0); // pixel aspect ratio
 
             // Global Color Table
@@ -76,16 +80,17 @@ namespace FEBuilderGBA.CLI
             writer.Write((ushort)loop); // Loop count (0 = infinite)
             writer.Write((byte)0);    // Block terminator
 
-            // Write each frame
             foreach (var frame in frames)
             {
                 // Graphic Control Extension
                 writer.Write((byte)0x21); // Extension Introducer
                 writer.Write((byte)0xF9); // Graphic Control Label
                 writer.Write((byte)4);    // Block size
-                writer.Write((byte)0x04); // Disposal: restore to background, no transparency
+                // Packed: disposal=2 (restore to background), transparency=true
+                // Bits: reserved(3)=000, disposal(3)=010, user_input(1)=0, transparent(1)=1 → 0x09
+                writer.Write((byte)0x09);
                 writer.Write((ushort)Math.Max(1, frame.DelayCs)); // Delay
-                writer.Write((byte)0);    // Transparent color index (unused)
+                writer.Write((byte)0);    // Transparent color index = 0
                 writer.Write((byte)0);    // Block terminator
 
                 // Image Descriptor
@@ -100,7 +105,7 @@ namespace FEBuilderGBA.CLI
                 byte minCodeSize = (byte)Math.Max(2, colorBits);
                 writer.Write(minCodeSize);
 
-                byte[] indices = QuantizeFrame(frame, colorMap, palette.Length / 3);
+                byte[] indices = QuantizeFrame(frame, colorMap);
                 byte[] compressed = LzwCompress(indices, minCodeSize);
                 WriteSubBlocks(writer, compressed);
                 writer.Write((byte)0); // Block terminator
@@ -115,8 +120,8 @@ namespace FEBuilderGBA.CLI
             colorMap = new Dictionary<int, byte>();
             var palette = new List<byte>();
 
-            // Reserve index 0 for transparent/background (black)
-            colorMap[0] = 0;
+            // Index 0 = transparent (magenta placeholder, won't be visible)
+            colorMap[TRANSPARENT_KEY] = 0;
             palette.AddRange(new byte[] { 0, 0, 0 });
 
             foreach (var frame in frames)
@@ -124,7 +129,7 @@ namespace FEBuilderGBA.CLI
                 for (int i = 0; i < frame.RgbaPixels.Length; i += 4)
                 {
                     byte a = frame.RgbaPixels[i + 3];
-                    if (a < 128) continue; // Skip transparent pixels
+                    if (a < 128) continue; // Transparent pixel
 
                     int rgb = (frame.RgbaPixels[i] << 16) | (frame.RgbaPixels[i + 1] << 8) | frame.RgbaPixels[i + 2];
                     if (!colorMap.ContainsKey(rgb) && colorMap.Count < 256)
@@ -140,7 +145,7 @@ namespace FEBuilderGBA.CLI
             return palette.ToArray();
         }
 
-        static byte[] QuantizeFrame(GifFrame frame, Dictionary<int, byte> colorMap, int colorCount)
+        static byte[] QuantizeFrame(GifFrame frame, Dictionary<int, byte> colorMap)
         {
             int pixelCount = frame.Width * frame.Height;
             byte[] indices = new byte[pixelCount];
@@ -153,7 +158,7 @@ namespace FEBuilderGBA.CLI
                 byte a = frame.RgbaPixels[off + 3];
                 if (a < 128)
                 {
-                    indices[i] = 0; // Transparent → background
+                    indices[i] = 0; // Transparent
                     continue;
                 }
 
@@ -161,7 +166,7 @@ namespace FEBuilderGBA.CLI
                 if (colorMap.TryGetValue(rgb, out byte idx))
                     indices[i] = idx;
                 else
-                    indices[i] = 0; // Fallback
+                    indices[i] = 0; // Fallback to transparent
             }
 
             return indices;
@@ -179,7 +184,7 @@ namespace FEBuilderGBA.CLI
             return 8;
         }
 
-        /// <summary>GIF LZW compression.</summary>
+        /// <summary>GIF LZW compression using packed-int dictionary keys for efficiency.</summary>
         static byte[] LzwCompress(byte[] data, int minCodeSize)
         {
             int clearCode = 1 << minCodeSize;
@@ -203,13 +208,11 @@ namespace FEBuilderGBA.CLI
                 }
             }
 
-            // Initialize dictionary
-            var dict = new Dictionary<string, int>();
+            // Dictionary keyed by (prefixCode, nextByte) packed as int
+            var dict = new Dictionary<long, int>();
             void ResetDict()
             {
                 dict.Clear();
-                for (int i = 0; i < clearCode; i++)
-                    dict[((char)i).ToString()] = i;
                 nextCode = eoiCode + 1;
                 codeSize = minCodeSize + 1;
             }
@@ -225,35 +228,36 @@ namespace FEBuilderGBA.CLI
                 return bitStream.ToArray();
             }
 
-            string w = ((char)data[0]).ToString();
+            int w = data[0]; // Current prefix code (single-byte codes are their own index)
 
             for (int i = 1; i < data.Length; i++)
             {
-                string wc = w + (char)data[i];
-                if (dict.ContainsKey(wc))
+                int c = data[i];
+                long key = ((long)w << 16) | (long)c;
+
+                if (dict.TryGetValue(key, out int existingCode))
                 {
-                    w = wc;
+                    w = existingCode;
                 }
                 else
                 {
-                    WriteBits(dict[w], codeSize);
+                    WriteBits(w, codeSize);
                     if (nextCode < 4096)
                     {
-                        dict[wc] = nextCode++;
+                        dict[key] = nextCode++;
                         if (nextCode > (1 << codeSize) && codeSize < 12)
                             codeSize++;
                     }
                     else
                     {
-                        // Table full — reset
                         WriteBits(clearCode, codeSize);
                         ResetDict();
                     }
-                    w = ((char)data[i]).ToString();
+                    w = c;
                 }
             }
 
-            WriteBits(dict[w], codeSize);
+            WriteBits(w, codeSize);
             WriteBits(eoiCode, codeSize);
 
             if (bitCount > 0)

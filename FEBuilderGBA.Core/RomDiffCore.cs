@@ -32,7 +32,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Compare two byte arrays and return contiguous diff ranges.
-        /// Compares up to the shorter length, then reports any trailing extra region.
+        /// Compares up to the shorter length, then merges any trailing extra region.
         /// </summary>
         public static DiffResult Compare(byte[] rom1, byte[] rom2)
         {
@@ -45,43 +45,62 @@ namespace FEBuilderGBA
                 Rom2Size = (uint)rom2.Length,
             };
 
-            uint commonLen = (uint)Math.Min(rom1.Length, rom2.Length);
-            uint diffStart = uint.MaxValue;
+            int commonLen = Math.Min(rom1.Length, rom2.Length);
+            int diffStart = -1;
 
-            for (uint i = 0; i < commonLen; i++)
+            for (int i = 0; i < commonLen; i++)
             {
                 if (rom1[i] != rom2[i])
                 {
-                    if (diffStart == uint.MaxValue)
+                    if (diffStart < 0)
                         diffStart = i;
                 }
                 else
                 {
-                    if (diffStart != uint.MaxValue)
+                    if (diffStart >= 0)
                     {
-                        uint len = i - diffStart;
-                        result.Ranges.Add(new DiffRange { Offset = diffStart, Length = len });
+                        uint len = (uint)(i - diffStart);
+                        result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
                         result.TotalDiffBytes += len;
-                        diffStart = uint.MaxValue;
+                        diffStart = -1;
                     }
                 }
             }
 
             // Close any trailing diff within common range
-            if (diffStart != uint.MaxValue)
+            if (diffStart >= 0)
             {
-                uint len = commonLen - diffStart;
-                result.Ranges.Add(new DiffRange { Offset = diffStart, Length = len });
+                uint len = (uint)(commonLen - diffStart);
+                result.Ranges.Add(new DiffRange { Offset = (uint)diffStart, Length = len });
                 result.TotalDiffBytes += len;
             }
 
-            // If ROMs differ in size, report the extra region
+            // If ROMs differ in size, merge extra region with last range if contiguous
             if (rom1.Length != rom2.Length)
             {
-                uint extraStart = commonLen;
+                uint extraStart = (uint)commonLen;
                 uint extraLen = (uint)Math.Abs(rom1.Length - rom2.Length);
-                result.Ranges.Add(new DiffRange { Offset = extraStart, Length = extraLen });
-                result.TotalDiffBytes += extraLen;
+
+                // Merge with last range if it ends at commonLen (contiguous)
+                if (result.Ranges.Count > 0)
+                {
+                    var last = result.Ranges[result.Ranges.Count - 1];
+                    if (last.Offset + last.Length == extraStart)
+                    {
+                        last.Length += extraLen;
+                        result.TotalDiffBytes += extraLen;
+                    }
+                    else
+                    {
+                        result.Ranges.Add(new DiffRange { Offset = extraStart, Length = extraLen });
+                        result.TotalDiffBytes += extraLen;
+                    }
+                }
+                else
+                {
+                    result.Ranges.Add(new DiffRange { Offset = extraStart, Length = extraLen });
+                    result.TotalDiffBytes += extraLen;
+                }
             }
 
             return result;
@@ -126,14 +145,14 @@ namespace FEBuilderGBA
 
         static string HexPreview(byte[] data, uint offset, uint length)
         {
-            int maxPreview = 16; // Show first 16 bytes max
-            int count = (int)Math.Min(length, maxPreview);
+            int maxPreview = 16;
+            int count = (int)Math.Min(length, (uint)maxPreview);
             var sb = new StringBuilder(count * 3);
 
             for (int i = 0; i < count; i++)
             {
-                uint idx = offset + (uint)i;
-                if (idx < data.Length)
+                int idx = (int)offset + i;
+                if (idx >= 0 && idx < data.Length)
                 {
                     if (i > 0) sb.Append(' ');
                     sb.Append(data[idx].ToString("X2"));
