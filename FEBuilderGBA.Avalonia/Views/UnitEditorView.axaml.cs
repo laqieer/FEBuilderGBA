@@ -31,11 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UnitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
 
-            // Set bit flag names
-            Ability1Flags.SetBitNames(AbilityFlagNames.UnitAbility1);
-            Ability2Flags.SetBitNames(AbilityFlagNames.UnitAbility2);
-            Ability3Flags.SetBitNames(AbilityFlagNames.UnitAbility3);
-            Ability4Flags.SetBitNames(AbilityFlagNames.UnitAbility4);
+            // Ability flag names are set in LoadList() based on ROM version
 
             // Wire auto-recalculation on stat/growth/level/class changes
             WireGrowthAutoRecalc();
@@ -145,6 +141,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Show "Edit Skills" button if a skill system is installed
                 EditSkillsButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
+
+                // Set version-aware ability flag names
+                int version = CoreState.ROM?.RomInfo?.version ?? 8;
+                Ability1Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 1));
+                Ability2Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 2));
+                Ability3Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 3));
+                Ability4Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 4));
 
                 var items = _vm.LoadUnitList();
                 UnitList.SetItemsWithIcons(items, index => LoadUnitPortraitThumbnail(items, index));

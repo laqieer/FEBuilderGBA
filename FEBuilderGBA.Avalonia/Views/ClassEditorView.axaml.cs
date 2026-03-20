@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -24,9 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
 
-            // Set bit flag names for class abilities
-            Ability1Flags.SetBitNames(AbilityFlagNames.ClassAbility1);
-            Ability2Flags.SetBitNames(AbilityFlagNames.ClassAbility2);
+            // Ability flag names are set in LoadList() based on ROM version
 
             // Auto-recalculate growth sim when SimLevel or growth/base stat boxes change
             SimLevelBox.ValueChanged += OnGrowthInputChanged;
@@ -76,10 +75,45 @@ namespace FEBuilderGBA.Avalonia.Views
                     skillType == PatchDetectionService.SkillSystemType.SkillSystem ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys09x ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
+
+                // Configure version-specific UI
+                ConfigureVersionUI();
             }
             catch (Exception ex)
             {
                 Log.Error("ClassEditorView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Configure UI elements based on ROM version. FE6 has a 72-byte class struct
+        /// with different offsets and fewer fields compared to FE7/8 (84 bytes).
+        /// </summary>
+        void ConfigureVersionUI()
+        {
+            int version = CoreState.ROM?.RomInfo?.version ?? 8;
+
+            // Set version-aware ability flag names
+            Ability1Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 1));
+            Ability2Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 2));
+            Ability3Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 3));
+            Ability4Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 4));
+
+            bool isFE6 = version == 6;
+
+            // FE6 has no terrain avoid/def/res pointers and no D80
+            // These controls are in the "Pointers / Movement / Terrain" expander
+            if (TerrainRow != null) TerrainRow.IsVisible = !isFE6;
+            if (D80Row != null) D80Row.IsVisible = !isFE6;
+
+            // Update offset labels based on version
+            if (isFE6)
+            {
+                // FE6 class struct: ability at +36, weapon ranks at +40, battle anime at +48
+                if (AbilityHeaderText1 != null) AbilityHeaderText1.Text = "Ability 1 (B36):";
+                if (AbilityHeaderText2 != null) AbilityHeaderText2.Text = "Ability 2 (B37):";
+                if (AbilityHeaderText3 != null) AbilityHeaderText3.Text = "Ability 3 (B38):";
+                if (AbilityHeaderText4 != null) AbilityHeaderText4.Text = "Ability 4 (B39):";
             }
         }
 

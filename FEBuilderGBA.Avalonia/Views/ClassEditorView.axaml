@@ -200,13 +200,13 @@
         <Expander Header="Ability Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
-            <TextBlock Text="Ability 1 (B40):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock Name="AbilityHeaderText1" Text="Ability 1 (B40):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel Name="Ability1Flags" />
-            <TextBlock Text="Ability 2 (B41):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock Name="AbilityHeaderText2" Text="Ability 2 (B41):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel Name="Ability2Flags" />
-            <TextBlock Text="Ability 3 (B42):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock Name="AbilityHeaderText3" Text="Ability 3 (B42):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel Name="Ability3Flags" />
-            <TextBlock Text="Ability 4 (B43):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock Name="AbilityHeaderText4" Text="Ability 4 (B43):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel Name="Ability4Flags" />
           </StackPanel>
         </Border>
@@ -282,15 +282,25 @@
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Move Cost Snow (P64):" VerticalAlignment="Center" />
           <TextBox Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Width="120" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="1" Name="Ptr68Box" Width="120" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="Terrain Def (P72):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="4" Name="Ptr72Box" Width="120" />
+          <!-- Terrain pointers row (FE7/8 only, hidden for FE6) -->
+          <StackPanel Name="TerrainRow" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
+            <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="Ptr68Box" Width="120" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="Terrain Def (P72):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="4" Name="Ptr72Box" Width="120" />
+            </Grid>
+          </StackPanel>
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="3" Grid.Column="1" Name="Ptr76Box" Width="120" />
-          <TextBlock Grid.Row="3" Grid.Column="3" Text="??? (D80):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="3" Grid.Column="4" Name="D80Box" Width="120" />
+          <!-- D80 / Terrain Res row (FE7/8 only, hidden for FE6) -->
+          <StackPanel Name="D80Row" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
+            <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="1" Name="Ptr76Box" Width="120" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="??? (D80):" VerticalAlignment="Center" />
+              <TextBox Grid.Row="0" Grid.Column="4" Name="D80Box" Width="120" />
+            </Grid>
+          </StackPanel>
         </Grid>
         </Border>
         </Expander>
