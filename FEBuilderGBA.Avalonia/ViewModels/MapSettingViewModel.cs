@@ -328,7 +328,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom.RomInfo.version == 6)
             {
                 Log.Notify("MapSettingViewModel.LoadMapSetting called for FE6 ROM — clearing state and returning.");
-                ResetAllFields();
+                IsLoading = true;
+                try
+                {
+                    ResetAllFields();
+                }
+                finally
+                {
+                    IsLoading = false;
+                }
                 return;
             }
 
