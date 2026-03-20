@@ -4059,8 +4059,23 @@ namespace FEBuilderGBA.CLI
             byte[] fileData = File.ReadAllBytes(inPath);
             string ext = Path.GetExtension(inPath);
 
-            // Detect format: content-based first, then extension-based
+            // Detect format: content-based first, then fall back to extension-based.
+            // DetectFormat returns GbaRaw as default when content detection fails
+            // (e.g. BOM-prefixed JASC file). Fall back to extension for known palette types.
             PaletteFormat format = PaletteFormatConverter.DetectFormat(fileData, ext);
+            if (format == PaletteFormat.GbaRaw)
+            {
+                string extLower = (ext ?? "").TrimStart('.').ToLowerInvariant();
+                // Only override GbaRaw for extensions that map to a specific palette format
+                switch (extLower)
+                {
+                    case "pal": format = PaletteFormat.JascPal; break;
+                    case "act": format = PaletteFormat.AdobeAct; break;
+                    case "gpl": format = PaletteFormat.GimpGpl; break;
+                    case "txt": format = PaletteFormat.HexText; break;
+                    // For unknown extensions, keep GbaRaw (will be validated below)
+                }
+            }
 
             // Reject GbaRaw for files that don't look like raw palette data
             // (odd length, or contains non-binary content like ASCII text)
