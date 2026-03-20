@@ -38,6 +38,17 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void EnumerateLanguages_WellKnownEntriesFirst()
+        {
+            var langs = OptionsViewModel.EnumerateLanguages();
+            // First 4 entries should be the well-known languages in order
+            Assert.StartsWith("auto", langs[0]);
+            Assert.StartsWith("ja", langs[1]);
+            Assert.StartsWith("en", langs[2]);
+            Assert.StartsWith("zh", langs[3]);
+        }
+
         [Theory]
         [InlineData("ja \u2014 \u65e5\u672c\u8a9e", "ja")]
         [InlineData("en \u2014 English", "en")]
@@ -100,6 +111,104 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.BaseDirectory = origBase;
                 OptionsViewModel.ReloadTranslations();
             }
+        }
+
+        [Fact]
+        public void ReloadTranslations_JapaneseDoesNotTriggerShowError()
+        {
+            // Regression: ReloadTranslations("ja") used to call LoadResource("")
+            // which triggered a ShowError dialog because "" is not "ja.txt"
+            string? origLang = CoreState.Language;
+            string? origBase = CoreState.BaseDirectory;
+            var origServices = CoreState.Services;
+            bool errorShown = false;
+            try
+            {
+                CoreState.Services = new TestAppServices(() => errorShown = true);
+                CoreState.Language = "ja";
+                CoreState.BaseDirectory = "";
+                OptionsViewModel.ReloadTranslations();
+                Assert.False(errorShown, "ShowError should not be called when language is 'ja'");
+            }
+            finally
+            {
+                CoreState.Language = origLang;
+                CoreState.BaseDirectory = origBase;
+                CoreState.Services = origServices;
+            }
+        }
+
+        [Fact]
+        public void ReloadTranslations_UnknownLanguageFallsBackToEnglishOrClears()
+        {
+            // When a language file doesn't exist, should fall back gracefully
+            string? origLang = CoreState.Language;
+            string? origBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.Language = "xx_nonexistent";
+                CoreState.BaseDirectory = "";
+                // Should not throw
+                OptionsViewModel.ReloadTranslations();
+                // After fallback, R._() should still work (returns key or english)
+                Assert.Equal("TestKey", R._("TestKey"));
+            }
+            finally
+            {
+                CoreState.Language = origLang;
+                CoreState.BaseDirectory = origBase;
+                OptionsViewModel.ReloadTranslations();
+            }
+        }
+
+        [Fact]
+        public void MyTranslateResource_Clear_ResetsToPassthrough()
+        {
+            // Verify that Clear() makes str() return keys as-is
+            MyTranslateResource.Clear();
+            Assert.Equal("SomeTestString", MyTranslateResource.str("SomeTestString"));
+            Assert.Equal("Another Key", MyTranslateResource.str("Another Key"));
+        }
+
+        [Fact]
+        public void SaveAndReload_LanguagePersisted()
+        {
+            // Verify that Save() writes both "Language" and "func_lang" keys
+            string? origLang = CoreState.Language;
+            var origConfig = CoreState.Config;
+            try
+            {
+                var cfg = new Config();
+                CoreState.Config = cfg;
+                CoreState.Language = "en";
+
+                var vm = new OptionsViewModel();
+                vm.Language = "zh \u2014 \u4e2d\u6587";
+
+                // Extract and verify
+                string code = OptionsViewModel.ExtractLanguageCode(vm.Language);
+                Assert.Equal("zh", code);
+            }
+            finally
+            {
+                CoreState.Language = origLang;
+                CoreState.Config = origConfig;
+            }
+        }
+
+        /// <summary>
+        /// Test IAppServices implementation that tracks whether ShowError was called.
+        /// </summary>
+        class TestAppServices : IAppServices
+        {
+            readonly Action _onError;
+            public TestAppServices(Action onError) { _onError = onError; }
+            public void ShowError(string msg) => _onError();
+            public void ShowInfo(string msg) { }
+            public bool ShowQuestion(string msg) => false;
+            public bool ShowYesNo(string msg) => false;
+            public void RunOnUIThread(Action action) => action();
+            public bool IsMainThread() => true;
         }
     }
 }

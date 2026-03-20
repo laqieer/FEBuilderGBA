@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OptionsView : Window
     {
         readonly OptionsViewModel _vm = new();
+        string _originalLanguageCode = "";
 
         public OptionsView()
         {
@@ -19,6 +20,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnOpened(object? sender, EventArgs e)
         {
             _vm.Load();
+            _originalLanguageCode = OptionsViewModel.ExtractLanguageCode(_vm.Language);
 
             // Populate language combo
             LanguageCombo.ItemsSource = _vm.AvailableLanguages;
@@ -135,7 +137,18 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.SrccodeTexteditor = SrccodeTexteditorTextBox.Text ?? "";
             _vm.SrccodeDirectory = SrccodeDirectoryTextBox.Text ?? "";
 
+            string newLangCode = OptionsViewModel.ExtractLanguageCode(_vm.Language);
+            bool languageChanged = !string.Equals(_originalLanguageCode, newLangCode, StringComparison.Ordinal);
+
             _vm.Save();
+
+            if (languageChanged)
+            {
+                // Language change takes effect immediately for new UI strings,
+                // but some editors may need to be re-opened to see the change.
+                // The main window refreshes via CoreState.LanguageChanged event.
+            }
+
             Close(true);
         }
 

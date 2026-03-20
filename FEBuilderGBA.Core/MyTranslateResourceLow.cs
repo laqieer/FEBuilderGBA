@@ -30,6 +30,14 @@ namespace FEBuilderGBA
             }
             return src;
         }
+        /// <summary>
+        /// Clear all translation entries so str() returns keys as-is (built-in Japanese).
+        /// </summary>
+        public void Clear()
+        {
+            Dic = new Dictionary<string,string>();
+        }
+
         //翻訳があるかどうか取得 開発用
         public bool Exist(string src)
         {
