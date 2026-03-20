@@ -3913,40 +3913,45 @@ namespace FEBuilderGBA.CLI
             if (!File.Exists(romPath))
             { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
 
-            byte[] data = File.ReadAllBytes(romPath);
-            if (data.Length < 0xC0)
-            { Console.Error.WriteLine("Error: File too small to be a GBA ROM."); return 1; }
+            // Try to detect ROM version first — fail fast for non-ROM files
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadRom(romPath, argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null))
+            {
+                Console.Error.WriteLine($"Error: Not a recognized GBA Fire Emblem ROM: {romPath}");
+                return 1;
+            }
+
+            byte[] data = CoreState.ROM.Data;
+            long fileSize = new FileInfo(romPath).Length;
+            string version = CoreState.ROM.RomInfo?.VersionToFilename ?? "unknown";
 
             // Title and game code from header
-            string title = System.Text.Encoding.ASCII.GetString(data, 0xA0, 12).TrimEnd('\0');
-            string gameCode = System.Text.Encoding.ASCII.GetString(data, 0xAC, 4);
+            string title = (data.Length >= 0xC0)
+                ? System.Text.Encoding.ASCII.GetString(data, 0xA0, 12).TrimEnd('\0')
+                : "unknown";
+            string gameCode = (data.Length >= 0xC0)
+                ? System.Text.Encoding.ASCII.GetString(data, 0xAC, 4)
+                : "unknown";
 
             // CRC32 using existing helper
             var crc = new UPSUtilCore.CRC32();
             uint crc32 = crc.Calc(data);
 
             // Header checksum (reuse RunChecksum logic)
-            int sum = 0;
-            for (int i = 0xA0; i < 0xBD; i++)
-                sum += data[i];
-            byte expected = (byte)(-(0x19 + sum));
-            byte actual = data[0xBD];
-            string checksumStatus = (actual == expected) ? "VALID" : "INVALID";
-
-            // Try to detect ROM version
-            string version = "unknown";
-            RomLoader.InitEnvironment();
-            if (RomLoader.LoadRom(romPath, argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null))
+            byte expected = 0, actual = 0;
+            string checksumStatus = "UNKNOWN";
+            if (data.Length >= 0xC0)
             {
-                version = CoreState.ROM.RomInfo?.VersionToFilename ?? "unknown";
-            }
-            else
-            {
-                Console.Error.WriteLine($"Warning: Could not detect ROM version for {romPath}");
+                int sum = 0;
+                for (int i = 0xA0; i < 0xBD; i++)
+                    sum += data[i];
+                expected = (byte)(-(0x19 + sum));
+                actual = data[0xBD];
+                checksumStatus = (actual == expected) ? "VALID" : "INVALID";
             }
 
             Console.WriteLine($"file={romPath}");
-            Console.WriteLine($"size={data.Length}");
+            Console.WriteLine($"size={fileSize}");
             Console.WriteLine($"title={title}");
             Console.WriteLine($"game_code={gameCode}");
             Console.WriteLine($"version={version}");
@@ -3954,7 +3959,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"header_checksum=0x{actual:X02}");
             Console.WriteLine($"header_checksum_expected=0x{expected:X02}");
             Console.WriteLine($"header_checksum_status={checksumStatus}");
-            return (version == "unknown") ? 2 : 0;
+            return 0;
         }
 
         static int RunListTables(Dictionary<string, string> argsDic)
@@ -4057,9 +4062,31 @@ namespace FEBuilderGBA.CLI
             // Detect format: content-based first, then extension-based
             PaletteFormat format = PaletteFormatConverter.DetectFormat(fileData, ext);
 
+            // Reject GbaRaw for files that don't look like raw palette data
+            // (odd length, or contains non-binary content like ASCII text)
+            if (format == PaletteFormat.GbaRaw)
+            {
+                if (fileData.Length % 2 != 0 || fileData.Length == 0)
+                { Console.Error.WriteLine($"Error: Input file does not appear to be a valid palette (odd length or empty). Use a .pal, .act, .gpl, or .txt palette format."); return 1; }
+                // Check if file looks like ASCII text rather than binary palette data
+                int textChars = 0;
+                for (int i = 0; i < Math.Min(fileData.Length, 64); i++)
+                {
+                    if (fileData[i] >= 0x20 && fileData[i] <= 0x7E) textChars++;
+                }
+                if (textChars > Math.Min(fileData.Length, 64) * 3 / 4)
+                { Console.Error.WriteLine($"Error: Input file appears to be text, not raw GBA palette data. Use .pal (JASC), .gpl (GIMP), or .txt (hex) format."); return 1; }
+            }
+
             try
             {
                 byte[] gbaPalette = PaletteFormatConverter.ImportFromFormat(fileData, format);
+
+                // Validate palette size (GBA max: 256 colors = 512 bytes)
+                if (gbaPalette.Length > 512)
+                { Console.Error.WriteLine($"Error: Palette too large ({gbaPalette.Length / 2} colors). GBA palettes support at most 256 colors."); return 1; }
+                if (gbaPalette.Length == 0 || gbaPalette.Length % 2 != 0)
+                { Console.Error.WriteLine($"Error: Invalid palette data (size={gbaPalette.Length})."); return 1; }
 
                 byte[] romData = File.ReadAllBytes(romPath);
                 if (addr + gbaPalette.Length > romData.Length)
@@ -4072,7 +4099,7 @@ namespace FEBuilderGBA.CLI
                 Console.WriteLine($"Imported {colorCount} colors from {inPath} ({format}) to 0x{addr:X} in {romPath}");
                 return 0;
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is FormatException)
+            catch (Exception ex) when (ex is ArgumentException || ex is FormatException || ex is OverflowException)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
                 return 1;
