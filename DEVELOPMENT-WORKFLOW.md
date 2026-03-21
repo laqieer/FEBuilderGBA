@@ -164,6 +164,55 @@ Before opening the PR, verify:
 - [ ] Don't claim to close issues that require more work beyond this PR
 - [ ] Documentation updated: CLAUDE.md, README.md, --help text, wiki as applicable (see [CONTRIBUTING.md](CONTRIBUTING.md))
 
+### 8.5. GUI Validation via MCP (GUI feat/fix PRs)
+
+**When required:** `feat` or `fix` PRs that modify GUI files under `FEBuilderGBA.Avalonia/` or `FEBuilderGBA/` (WinForms). NOT required for `docs`, `chore`, or refactor-only changes even if they touch GUI files. NOT required for changes that only touch `FEBuilderGBA.Core/`, `FEBuilderGBA.CLI/`, `FEBuilderGBA.Tests/`, or other non-GUI projects.
+
+**If MCP computer-use is not set up locally**, this step can be skipped with a note in the PR explaining why (e.g., "MCP not available — manual testing performed instead"). The GUI Test Report section should still be present with manual test results. See CLAUDE.md Dependencies for MCP setup.
+
+**Procedure:**
+1. Build and launch the GUI app (Avalonia or WinForms) with a test ROM:
+   ```bash
+   # Avalonia (cross-platform):
+   dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
+   cd FEBuilderGBA.Avalonia && dotnet run -- --rom ../roms/FE8U.gba
+
+   # WinForms (Windows, x86):
+   msbuild /p:Configuration=Debug /p:Platform=x86 FEBuilderGBA.sln
+   ./FEBuilderGBA/bin/Debug/FEBuilderGBA.exe --rom roms/FE8U.gba
+   ```
+   > **Shell note:** The examples above run in the foreground. To background a process in Git Bash append `&`; in PowerShell use `Start-Process`.
+2. Use MCP computer-use tools to exercise the changed feature:
+   - `find_window` / `focus_window` to locate and activate the app
+   - `screenshot` to capture the current state
+   - `click` / `type_text` / `key_press` to interact with UI elements
+   - `scroll` to navigate within views
+3. Capture screenshots at key states (before/after the change works)
+4. Generate a structured test report
+
+**Test Report Format:**
+```markdown
+## GUI Test Report
+
+### Environment
+- ROM: <rom file used>
+- Editor/View: <which Avalonia view was tested>
+
+### Steps Performed
+1. <describe step taken>
+2. <describe step taken>
+
+### Test Results
+| Test | Expected | Actual | Status |
+|------|----------|--------|--------|
+| <describe test> | <expected behavior> | <observed behavior> | PASS / FAIL |
+
+### Verdict
+<PASS/FAIL with summary>
+```
+
+Include the test report in the PR body under `## GUI Test Report`.
+
 ---
 
 ## PHASE 4 — PULL REQUEST REVIEW LOOP
@@ -185,6 +234,11 @@ Ref #M (partial — <what remains>)
 <!-- For feat/fix PRs: MANDATORY — replace this comment with actual screenshot(s).
      Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
      For docs/chore PRs: This entire section may be deleted. -->
+
+## GUI Test Report
+<!-- For GUI feat/fix PRs (Avalonia or WinForms): MANDATORY — replace this comment with MCP or manual test results.
+     Use the test report format from step 8.5. If MCP was not available, include manual test results instead.
+     For non-GUI PRs or docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
 - [x] <what was tested>
@@ -213,6 +267,10 @@ EOF
   Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, relative repo paths, or blob URLs with ?raw=1. \
   Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue for feat/fix PRs. \
   For docs/chore PRs (title starts with 'docs' or 'chore'), screenshots are optional — do NOT flag their absence. \
+  GUI Test Report check: inspect the changed files list — if the PR modifies any GUI file under FEBuilderGBA.Avalonia/ or FEBuilderGBA/ (WinForms) AND the title starts with 'feat' or 'fix', verify the PR description contains a '## GUI Test Report' section with actual test results (a results table with pass/fail entries). \
+  Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. \
+  Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
+  For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -412,6 +470,10 @@ Multiple Claude Code sessions share the same repo. Running `git checkout`, `git 
 ### Don't: Guess why merge is blocked
 Assuming "needs approval" when the real cause is an outdated branch or unresolved threads wastes time and misses the actual fix.
 **Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
+
+### Don't: Skip GUI validation for "obvious" Avalonia or WinForms changes
+A style-only XAML change can still break layout. A ViewModel tweak can disconnect a binding. A WinForms designer change can misalign controls.
+**Do:** Always run MCP GUI validation for GUI feat/fix PRs (Avalonia or WinForms). The headless tests verify control properties; MCP validation verifies the user sees the right thing.
 
 ### Don't: Open a feat/fix PR without screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
