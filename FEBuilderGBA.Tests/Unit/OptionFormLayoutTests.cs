@@ -1,11 +1,11 @@
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
 using Xunit;
 
 namespace FEBuilderGBA.Tests.Unit
 {
+    [Collection("SharedState")]
     public class OptionFormLayoutTests
     {
         [Fact]
@@ -16,16 +16,7 @@ namespace FEBuilderGBA.Tests.Unit
             {
                 try
                 {
-                    // OptionForm constructor requires Program.Config to be initialized.
-                    // Program.Config has a private setter, so use reflection.
-                    if (Program.Config == null)
-                    {
-                        var prop = typeof(Program).GetProperty("Config",
-                            BindingFlags.Public | BindingFlags.Static);
-                        prop.SetValue(null, new ConfigWinForms());
-                    }
-
-                    var form = new OptionForm();
+                    using var form = new OptionForm();
                     form.PerformLayout();
 
                     // Access controls via Controls.Find (searches recursively)
@@ -47,8 +38,6 @@ namespace FEBuilderGBA.Tests.Unit
 
                     // Tab page must scroll to handle overflow
                     Assert.True(tabPagePath.AutoScroll, "tabPagePath.AutoScroll should be true");
-
-                    form.Dispose();
                 }
                 catch (Exception ex)
                 {
@@ -56,8 +45,11 @@ namespace FEBuilderGBA.Tests.Unit
                 }
             });
             thread.SetApartmentState(ApartmentState.STA);
+            thread.IsBackground = true;
             thread.Start();
-            thread.Join();
+
+            if (!thread.Join(TimeSpan.FromSeconds(30)))
+                throw new TimeoutException("STA thread did not complete within 30 seconds");
 
             if (caught != null)
                 throw caught;
