@@ -6,7 +6,8 @@ namespace FEBuilderGBA.Core.Tests
 {
     /// <summary>
     /// Tests for the dirty-tracking pattern used by ViewModelBase.
-    /// Uses a local copy of the pattern to avoid requiring Avalonia dependency.
+    /// Includes both a local copy of the pattern (for basic logic tests) and
+    /// tests against the real ViewModelBase (linked via csproj) for regression coverage.
     /// </summary>
     public class ViewModelBaseTests
     {
@@ -100,6 +101,93 @@ namespace FEBuilderGBA.Core.Tests
             vm.PropertyChanged += (_, e) => changedProp = e.PropertyName;
             vm.Name = "new";
             Assert.Equal("Name", changedProp);
+        }
+
+        /// <summary>
+        /// Regression test for #198: IsLoading guard prevents SetField from re-dirtying
+        /// during reload. MarkClean happens BEFORE the guarded reload to simulate the
+        /// "write succeeded" state, then we verify the reload doesn't re-dirty.
+        /// </summary>
+        [Fact]
+        public void WriteReloadPattern_WithIsLoadingGuard_StaysClean()
+        {
+            var vm = new TestViewModel();
+
+            // Simulate: user edits, write succeeds
+            vm.Name = "edited";
+            Assert.True(vm.IsDirty);
+            vm.MarkClean(); // write success — editor is clean
+
+            // Guarded reload: IsLoading prevents SetField from re-dirtying
+            vm.IsLoading = true;
+            vm.Name = "reloaded from ROM"; // SetField during reload
+            vm.IsLoading = false;
+
+            // Without MarkClean after reload — pure IsLoading guard must keep it clean
+            Assert.False(vm.IsDirty, "IsLoading guard must prevent SetField from re-dirtying during reload");
+        }
+
+        /// <summary>
+        /// Shows the bug from #198: without IsLoading guard, reload after write re-dirties.
+        /// </summary>
+        [Fact]
+        public void WriteReloadPattern_WithoutIsLoadingGuard_ReDirties()
+        {
+            var vm = new TestViewModel();
+            vm.Name = "edited";
+            vm.MarkClean(); // simulate write success
+
+            // Reload WITHOUT IsLoading guard (the bug)
+            vm.Name = "reloaded from ROM";
+
+            Assert.True(vm.IsDirty, "Without IsLoading guard, reload re-dirties the VM");
+        }
+
+        // --- Tests using the REAL ViewModelBase (linked from Avalonia project) ---
+
+        /// <summary>Concrete subclass of the real ViewModelBase for testing.</summary>
+        class RealTestViewModel : FEBuilderGBA.Avalonia.ViewModels.ViewModelBase
+        {
+            string _name = "";
+            public string Name
+            {
+                get => _name;
+                set => SetField(ref _name, value);
+            }
+        }
+
+        /// <summary>
+        /// Regression test for #198 using the REAL ViewModelBase implementation.
+        /// Proves that IsLoading guard prevents re-dirtying during reload.
+        /// </summary>
+        [Fact]
+        public void RealViewModelBase_WriteReloadPattern_WithIsLoadingGuard_StaysClean()
+        {
+            var vm = new RealTestViewModel();
+            vm.Name = "edited";
+            Assert.True(vm.IsDirty);
+            vm.MarkClean();
+
+            vm.IsLoading = true;
+            vm.Name = "reloaded from ROM";
+            vm.IsLoading = false;
+
+            Assert.False(vm.IsDirty, "Real ViewModelBase: IsLoading guard must prevent re-dirtying");
+        }
+
+        /// <summary>
+        /// Shows the bug from #198 using the REAL ViewModelBase.
+        /// </summary>
+        [Fact]
+        public void RealViewModelBase_WriteReloadPattern_WithoutGuard_ReDirties()
+        {
+            var vm = new RealTestViewModel();
+            vm.Name = "edited";
+            vm.MarkClean();
+
+            vm.Name = "reloaded from ROM"; // no IsLoading guard
+
+            Assert.True(vm.IsDirty, "Real ViewModelBase: unguarded reload re-dirties the VM");
         }
 
         [Fact]
