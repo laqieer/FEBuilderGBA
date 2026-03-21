@@ -6,7 +6,8 @@ namespace FEBuilderGBA.Core.Tests
 {
     /// <summary>
     /// Tests for the dirty-tracking pattern used by ViewModelBase.
-    /// Uses a local copy of the pattern to avoid requiring Avalonia dependency.
+    /// Includes both a local copy of the pattern (for basic logic tests) and
+    /// tests against the real ViewModelBase (linked via csproj) for regression coverage.
     /// </summary>
     public class ViewModelBaseTests
     {
