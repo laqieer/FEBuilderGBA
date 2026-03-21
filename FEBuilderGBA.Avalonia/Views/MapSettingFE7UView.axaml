@@ -9,7 +9,7 @@
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="4" Margin="8">
-        <TextBlock Text="Map Settings (FE7 US)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Map Settings (FE7U)" FontSize="18" FontWeight="Bold" />
         <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
 
         <!-- Section 1: CP / Pointer (D0) -->
