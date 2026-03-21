@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows.Forms;
 using Xunit;
@@ -11,7 +12,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void GitExplainLabel_DoesNotOverlap_GitPathControls()
         {
-            Exception caught = null;
+            ExceptionDispatchInfo edi = null;
             var thread = new Thread(() =>
             {
                 try
@@ -27,7 +28,13 @@ namespace FEBuilderGBA.Tests.Unit
                     // Label must be AutoSize to allow text wrapping
                     Assert.True(gitLabel.AutoSize, "X_EXPLAIN_GIT.AutoSize should be true");
 
-                    // Label bottom must not overlap git path textbox top
+                    // Force label to wrap by setting a long string (simulates translated/long text)
+                    gitLabel.Text = "If you want to use Git, please set the path to git.exe below. " +
+                        "Leave blank or enter \"git\" to use the system PATH. " +
+                        "You can download Git from https://git-scm.com/download/win if needed.";
+                    tabPagePath.PerformLayout();
+
+                    // Label bottom must not overlap git path textbox top even with wrapped text
                     Assert.True(gitLabel.Bottom <= gitTextbox.Top,
                         $"X_EXPLAIN_GIT.Bottom ({gitLabel.Bottom}) should be <= git_path_textbox.Top ({gitTextbox.Top})");
 
@@ -41,7 +48,7 @@ namespace FEBuilderGBA.Tests.Unit
                 }
                 catch (Exception ex)
                 {
-                    caught = ex;
+                    edi = ExceptionDispatchInfo.Capture(ex);
                 }
             });
             thread.SetApartmentState(ApartmentState.STA);
@@ -51,8 +58,7 @@ namespace FEBuilderGBA.Tests.Unit
             if (!thread.Join(TimeSpan.FromSeconds(30)))
                 throw new TimeoutException("STA thread did not complete within 30 seconds");
 
-            if (caught != null)
-                throw caught;
+            edi?.Throw();
         }
 
         private static T GetControl<T>(Control parent, string name) where T : Control
