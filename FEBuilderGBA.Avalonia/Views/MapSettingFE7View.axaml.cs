@@ -219,9 +219,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReadUIToVM();
                 _vm.WriteMapSetting();
                 _undoService.Commit();
-                _vm.MarkClean();
-                _vm.LoadMapSetting(_vm.CurrentAddr);
-                UpdateUI();
+                // Reload with IsLoading guard so SetField doesn't re-dirty
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadMapSetting(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+                finally
+                {
+                    _vm.IsLoading = false;
+                    _vm.MarkClean();
+                }
                 CoreState.Services?.ShowInfo("Map Setting data written.");
             }
             catch (Exception ex)

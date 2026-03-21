@@ -102,6 +102,50 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("Name", changedProp);
         }
 
+        /// <summary>
+        /// Regression test for #198: after write, reload with IsLoading guard + MarkClean
+        /// must leave IsDirty=false. Without the guard, the reload's SetField calls re-dirty.
+        /// </summary>
+        [Fact]
+        public void WriteReloadPattern_WithIsLoadingGuard_StaysClean()
+        {
+            var vm = new TestViewModel();
+
+            // Simulate: user edits, write succeeds, then reload with IsLoading guard
+            vm.Name = "edited";
+            Assert.True(vm.IsDirty);
+
+            // Simulate write success, then guarded reload (the fix from #198)
+            vm.IsLoading = true;
+            try
+            {
+                vm.Name = "reloaded from ROM"; // SetField during reload
+            }
+            finally
+            {
+                vm.IsLoading = false;
+                vm.MarkClean();
+            }
+
+            Assert.False(vm.IsDirty, "After guarded reload + MarkClean, IsDirty should be false");
+        }
+
+        /// <summary>
+        /// Shows the bug from #198: without IsLoading guard, reload after write re-dirties.
+        /// </summary>
+        [Fact]
+        public void WriteReloadPattern_WithoutIsLoadingGuard_ReDirties()
+        {
+            var vm = new TestViewModel();
+            vm.Name = "edited";
+            vm.MarkClean(); // simulate write success
+
+            // Reload WITHOUT IsLoading guard (the bug)
+            vm.Name = "reloaded from ROM";
+
+            Assert.True(vm.IsDirty, "Without IsLoading guard, reload re-dirties the VM");
+        }
+
         [Fact]
         public void MarkClean_RaisesPropertyChanged()
         {
