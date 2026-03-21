@@ -215,6 +215,116 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void MakeMapIDList_FE7U_ChapterNameUsesOffset132()
+        {
+            // FE7U (152-byte struct) reads the chapter number byte at offset 132.
+            // GetMapName uses it to build a prefix like "Ch5" (value 10 => 10/2 = 5).
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "AE7E01");
+                CoreState.ROM = rom;
+
+                uint mapPtr = rom.RomInfo.map_setting_pointer;
+                uint baseAddr = 0x200;
+                WriteU32(rom.Data, (int)mapPtr, 0x08000000 + baseAddr);
+
+                // D0: non-pointer value to force the full validation path
+                WriteU32(rom.Data, (int)baseAddr, 0x00000001);
+                // W4, B6: non-zero PLISTs
+                WriteU16(rom.Data, (int)(baseAddr + 4), 1);
+                rom.Data[baseAddr + 6] = 1;
+                // B12: weather (must be < 0xE)
+                rom.Data[baseAddr + 12] = 0x01;
+                // Map name text IDs at 0x70/0x72
+                WriteU16(rom.Data, (int)(baseAddr + 0x70), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x72), 1);
+                // FE7U clear conditions at 0x8C/0x8E
+                WriteU16(rom.Data, (int)(baseAddr + 0x8C), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x8E), 1);
+
+                // Chapter number byte at FE7U-specific offset 132 (0x84)
+                // Value 10 => Ch5 (10/2=5, even so no 'x' suffix)
+                rom.Data[baseAddr + 132] = 10;
+
+                // Ensure offset 128 has a DIFFERENT value to prove offset 132 is used
+                rom.Data[baseAddr + 128] = 20; // Would give "Ch10" if offset 128 were used
+
+                // Set up text pointer table so textmax > 0
+                WriteU32(rom.Data, (int)rom.RomInfo.text_pointer, 0x08000400);
+                WriteU32(rom.Data, 0x400, 0x08000500);
+                WriteU32(rom.Data, 0x404, 0x08000600);
+
+                var list = MapSettingCore.MakeMapIDList();
+                Assert.NotEmpty(list);
+                // The display name should contain "Ch5" (from offset 132, value 10)
+                // and NOT "Ch10" (which would come from offset 128, value 20)
+                Assert.Contains("Ch5", list[0].name);
+                Assert.DoesNotContain("Ch10", list[0].name);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void MakeMapIDList_FE7JP_ChapterNameUsesOffset128()
+        {
+            // FE7JP (148-byte struct) reads the chapter number byte at offset 128.
+            // GetMapName uses it to build a prefix like "Ch5" (value 10 => 10/2 = 5).
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "AE7J01");
+                CoreState.ROM = rom;
+
+                uint mapPtr = rom.RomInfo.map_setting_pointer;
+                uint baseAddr = 0x200;
+                WriteU32(rom.Data, (int)mapPtr, 0x08000000 + baseAddr);
+
+                // D0: non-pointer value to force the full validation path
+                WriteU32(rom.Data, (int)baseAddr, 0x00000001);
+                // W4, B6: non-zero PLISTs
+                WriteU16(rom.Data, (int)(baseAddr + 4), 1);
+                rom.Data[baseAddr + 6] = 1;
+                // B12: weather (must be < 0xE)
+                rom.Data[baseAddr + 12] = 0x01;
+                // Map name text IDs at 0x70/0x72
+                WriteU16(rom.Data, (int)(baseAddr + 0x70), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x72), 1);
+                // FE7JP clear conditions at 0x88/0x8A (148-byte layout)
+                WriteU16(rom.Data, (int)(baseAddr + 0x88), 1);
+                WriteU16(rom.Data, (int)(baseAddr + 0x8A), 1);
+
+                // Chapter number byte at FE7JP-specific offset 128 (0x80)
+                // Value 10 => Ch5 (10/2=5, even so no 'x' suffix)
+                rom.Data[baseAddr + 128] = 10;
+
+                // Ensure offset 132 has a DIFFERENT value to prove offset 128 is used
+                rom.Data[baseAddr + 132] = 20; // Would give "Ch10" if offset 132 were used
+
+                // Set up text pointer table so textmax > 0
+                WriteU32(rom.Data, (int)rom.RomInfo.text_pointer, 0x08000400);
+                WriteU32(rom.Data, 0x400, 0x08000500);
+                WriteU32(rom.Data, 0x404, 0x08000600);
+
+                var list = MapSettingCore.MakeMapIDList();
+                Assert.NotEmpty(list);
+                // The display name should contain "Ch5" (from offset 128, value 10)
+                // and NOT "Ch10" (which would come from offset 132, value 20)
+                Assert.Contains("Ch5", list[0].name);
+                Assert.DoesNotContain("Ch10", list[0].name);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);
