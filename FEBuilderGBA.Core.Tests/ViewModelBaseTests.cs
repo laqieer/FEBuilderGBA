@@ -142,6 +142,53 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(vm.IsDirty, "Without IsLoading guard, reload re-dirties the VM");
         }
 
+        // --- Tests using the REAL ViewModelBase (linked from Avalonia project) ---
+
+        /// <summary>Concrete subclass of the real ViewModelBase for testing.</summary>
+        class RealTestViewModel : FEBuilderGBA.Avalonia.ViewModels.ViewModelBase
+        {
+            string _name = "";
+            public string Name
+            {
+                get => _name;
+                set => SetField(ref _name, value);
+            }
+        }
+
+        /// <summary>
+        /// Regression test for #198 using the REAL ViewModelBase implementation.
+        /// Proves that IsLoading guard prevents re-dirtying during reload.
+        /// </summary>
+        [Fact]
+        public void RealViewModelBase_WriteReloadPattern_WithIsLoadingGuard_StaysClean()
+        {
+            var vm = new RealTestViewModel();
+            vm.Name = "edited";
+            Assert.True(vm.IsDirty);
+            vm.MarkClean();
+
+            vm.IsLoading = true;
+            vm.Name = "reloaded from ROM";
+            vm.IsLoading = false;
+
+            Assert.False(vm.IsDirty, "Real ViewModelBase: IsLoading guard must prevent re-dirtying");
+        }
+
+        /// <summary>
+        /// Shows the bug from #198 using the REAL ViewModelBase.
+        /// </summary>
+        [Fact]
+        public void RealViewModelBase_WriteReloadPattern_WithoutGuard_ReDirties()
+        {
+            var vm = new RealTestViewModel();
+            vm.Name = "edited";
+            vm.MarkClean();
+
+            vm.Name = "reloaded from ROM"; // no IsLoading guard
+
+            Assert.True(vm.IsDirty, "Real ViewModelBase: unguarded reload re-dirties the VM");
+        }
+
         [Fact]
         public void MarkClean_RaisesPropertyChanged()
         {
