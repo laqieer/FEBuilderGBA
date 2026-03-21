@@ -341,6 +341,24 @@ The app automatically selects the patch2 git source based on your **Options → 
 
 [This fork](https://github.com/laqieer/FEBuilderGBA/) is an integration of several forks of FEBuilderGBA and continues development based on it.
 
+## MCP Computer Use (Windows)
+
+An MCP (Model Context Protocol) server that gives Claude Code screenshot, mouse, and keyboard control for GUI testing. Windows-only, requires Python 3.10+.
+
+### Setup
+
+```bash
+# Create venv and install dependencies
+cd tools/mcp-computer-use
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt
+
+# Verify server starts (Ctrl+C to stop)
+.venv/Scripts/python server.py
+```
+
+The `.mcp.json` at the repo root auto-configures Claude Code to use the server. After setup, the `computer-use` tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
+
 README for Korean character table
 ===
 
