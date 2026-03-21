@@ -219,6 +219,12 @@ Event Assembler / ColorzCore:
 - **To build bundled tools locally (Windows)**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet build tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release`
 - **To build bundled tools locally (Linux/macOS)**: `git submodule update --init tools/Event-Assembler tools/ColorzCore && dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux-x64 --self-contained true -o tools/bin` (replace `linux-x64` with your RID)
 
+MCP Computer Use server (optional, Windows-only):
+- Located in `tools/mcp-computer-use/` — gives Claude Code screenshot + mouse/keyboard control for GUI testing
+- Requires Python 3.10+ and a local venv: `cd tools/mcp-computer-use && python -m venv .venv && .venv/Scripts/pip install -r requirements.txt`
+- `.mcp.json` at repo root auto-configures the server for Claude Code sessions
+- Does NOT use the MCP Python SDK — implements a minimal JSON-RPC server for fast startup (< 1 s)
+
 ## Architecture Overview
 
 ### ROM Version System
