@@ -369,6 +369,7 @@
             tabPagePath.Controls.Add(emulator);
             tabPagePath.Controls.Add(label1);
             tabPagePath.Controls.Add(X_EXPLAIN_NECESSARY_PROGRAM);
+            tabPagePath.AutoScroll = true;
             tabPagePath.Location = new System.Drawing.Point(8, 46);
             tabPagePath.Margin = new System.Windows.Forms.Padding(2);
             tabPagePath.Name = "tabPagePath";
@@ -379,9 +380,12 @@
             //
             // X_EXPLAIN_GIT
             //
+            X_EXPLAIN_GIT.AutoSize = true;
             X_EXPLAIN_GIT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             X_EXPLAIN_GIT.Location = new System.Drawing.Point(10, 840);
             X_EXPLAIN_GIT.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            X_EXPLAIN_GIT.MaximumSize = new System.Drawing.Size(1076, 0);
+            X_EXPLAIN_GIT.MinimumSize = new System.Drawing.Size(1076, 40);
             X_EXPLAIN_GIT.Name = "X_EXPLAIN_GIT";
             X_EXPLAIN_GIT.Size = new System.Drawing.Size(1096, 40);
             X_EXPLAIN_GIT.TabIndex = 72;
@@ -391,7 +395,7 @@
             // label_git_path
             //
             label_git_path.AutoSize = true;
-            label_git_path.Location = new System.Drawing.Point(14, 894);
+            label_git_path.Location = new System.Drawing.Point(14, 934);
             label_git_path.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             label_git_path.Name = "label_git_path";
             label_git_path.Size = new System.Drawing.Size(35, 32);
@@ -401,7 +405,7 @@
             // git_path_textbox
             //
             git_path_textbox.ErrorMessage = "";
-            git_path_textbox.Location = new System.Drawing.Point(304, 888);
+            git_path_textbox.Location = new System.Drawing.Point(304, 928);
             git_path_textbox.Margin = new System.Windows.Forms.Padding(2);
             git_path_textbox.Name = "git_path_textbox";
             git_path_textbox.Placeholder = "";
@@ -410,7 +414,7 @@
             //
             // git_path_button
             //
-            git_path_button.Location = new System.Drawing.Point(994, 884);
+            git_path_button.Location = new System.Drawing.Point(994, 924);
             git_path_button.Margin = new System.Windows.Forms.Padding(2);
             git_path_button.Name = "git_path_button";
             git_path_button.Size = new System.Drawing.Size(110, 38);
@@ -788,7 +792,7 @@
             // X_EXPLAIN_NECESSARY_PROGRAM
             // 
             X_EXPLAIN_NECESSARY_PROGRAM.AutoSize = true;
-            X_EXPLAIN_NECESSARY_PROGRAM.Location = new System.Drawing.Point(10, 900);
+            X_EXPLAIN_NECESSARY_PROGRAM.Location = new System.Drawing.Point(10, 980);
             X_EXPLAIN_NECESSARY_PROGRAM.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             X_EXPLAIN_NECESSARY_PROGRAM.Name = "X_EXPLAIN_NECESSARY_PROGRAM";
             X_EXPLAIN_NECESSARY_PROGRAM.Size = new System.Drawing.Size(859, 32);
