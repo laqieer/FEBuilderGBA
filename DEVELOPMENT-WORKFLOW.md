@@ -171,11 +171,17 @@ Before opening the PR, verify:
 **If MCP computer-use is not set up locally**, this step can be skipped with a note in the PR explaining why (e.g., "MCP not available — manual testing performed instead"). The GUI Test Report section should still be present with manual test results. See CLAUDE.md Dependencies for MCP setup.
 
 **Procedure:**
-1. Build and launch the Avalonia app with a test ROM:
+1. Build and launch the GUI app (Avalonia or WinForms) with a test ROM:
    ```bash
+   # Avalonia (cross-platform):
    dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
-   cd FEBuilderGBA.Avalonia && dotnet run -- --rom ../roms/FE8U.gba &
+   cd FEBuilderGBA.Avalonia && dotnet run -- --rom ../roms/FE8U.gba
+
+   # WinForms (Windows, x86):
+   msbuild /p:Configuration=Debug /p:Platform=x86 FEBuilderGBA.sln
+   ./FEBuilderGBA/bin/Debug/FEBuilderGBA.exe --rom roms/FE8U.gba
    ```
+   > **Shell note:** The examples above run in the foreground. To background a process in Git Bash append `&`; in PowerShell use `Start-Process`.
 2. Use MCP computer-use tools to exercise the changed feature:
    - `find_window` / `focus_window` to locate and activate the app
    - `screenshot` to capture the current state
