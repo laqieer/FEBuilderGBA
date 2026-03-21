@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # /// script
-# dependencies = ["mss>=9.0.0", "pyautogui>=0.9.54", "Pillow>=10.0.0", "pywin32>=306"]
+# dependencies = ["mss>=9.0.0", "pyautogui>=0.9.54", "Pillow>=10.0.0"]
 # requires-python = ">=3.10"
 # ///
 """MCP server for computer use — gives Claude Code screenshot + mouse/keyboard control.
@@ -117,6 +117,21 @@ def _type_text(text: str, interval: float = 0.02):
         _pyautogui.typewrite(text, interval=interval)
     else:
         import subprocess
+        # Save current clipboard contents
+        saved_clip = None
+        try:
+            if _HAS_WIN32:
+                import win32clipboard
+                win32clipboard.OpenClipboard()
+                try:
+                    saved_clip = win32clipboard.GetClipboardData(win32clipboard.CF_UNICODETEXT)
+                except Exception:
+                    pass
+                finally:
+                    win32clipboard.CloseClipboard()
+        except Exception:
+            pass
+        # Write text to clipboard and paste
         process = subprocess.Popen(
             ["cmd", "/c", "clip"], stdin=subprocess.PIPE
         )
@@ -125,6 +140,16 @@ def _type_text(text: str, interval: float = 0.02):
             raise RuntimeError(f"clip failed with exit code {process.returncode}")
         _pyautogui.hotkey("ctrl", "v")
         time.sleep(0.1)
+        # Restore previous clipboard contents
+        if saved_clip is not None:
+            try:
+                import win32clipboard
+                win32clipboard.OpenClipboard()
+                win32clipboard.EmptyClipboard()
+                win32clipboard.SetClipboardText(saved_clip, win32clipboard.CF_UNICODETEXT)
+                win32clipboard.CloseClipboard()
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------------------
