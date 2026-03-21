@@ -192,6 +192,10 @@ Before opening the PR, verify:
 - ROM: <rom file used>
 - Editor/View: <which Avalonia view was tested>
 
+### Steps Performed
+1. <describe step taken>
+2. <describe step taken>
+
 ### Test Results
 | Test | Expected | Actual | Status |
 |------|----------|--------|--------|
@@ -226,8 +230,8 @@ Ref #M (partial — <what remains>)
      For docs/chore PRs: This entire section may be deleted. -->
 
 ## GUI Test Report
-<!-- For Avalonia feat/fix PRs: MANDATORY — replace this comment with MCP test results.
-     Use the test report format from step 8.5.
+<!-- For Avalonia feat/fix PRs: MANDATORY — replace this comment with MCP or manual test results.
+     Use the test report format from step 8.5. If MCP was not available, include manual test results instead.
      For non-Avalonia PRs or docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
@@ -461,7 +465,7 @@ Assuming "needs approval" when the real cause is an outdated branch or unresolve
 **Do:** Diagnose systematically — check all causes in order: unresolved threads → CI status → branch up-to-date → review approvals. Use `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus,statusCheckRollup` to get the actual block reason.
 
 ### Don't: Skip GUI validation for "obvious" Avalonia changes
-A CSS-only change can still break layout. A ViewModel tweak can disconnect a binding.
+A style-only XAML change can still break layout. A ViewModel tweak can disconnect a binding.
 **Do:** Always run MCP GUI validation for Avalonia feat/fix PRs. The headless tests verify control properties; MCP validation verifies the user sees the right thing.
 
 ### Don't: Open a feat/fix PR without screenshots

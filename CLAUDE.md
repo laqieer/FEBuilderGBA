@@ -457,7 +457,7 @@ For **every** code change, follow this checklist in order before committing:
    dotnet test FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj --configuration Release --no-build
    ```
 4. **Update README and docs** to reflect the change
-4.5. **For Avalonia feat/fix changes: Run GUI validation** via MCP computer-use (see Dependencies section for setup). Launch app, exercise the feature, capture test report. Include `## GUI Test Report` in PR body.
+   - **For Avalonia feat/fix changes:** Run GUI validation via MCP computer-use (see Dependencies section for setup). Launch app, exercise the feature, capture test report. Include `## GUI Test Report` in PR body. If MCP is not available, perform manual GUI testing and note why in the PR.
 5. **Capture screenshot(s)** for `feat`/`fix` PRs proving the feature or bugfix works (save locally; attach to PR description when opening/updating the PR). Acceptable: UI screenshot, CLI/terminal output, test run output, or diff screenshot. For `docs`/`chore` PRs, screenshots are optional.
 6. **Commit and push**
 7. **Watch CI/CD** — after the push, wait for the E2E pipeline to finish, then inspect the results
