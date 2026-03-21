@@ -362,6 +362,7 @@ def _handle_tool(name: str, arguments: dict) -> list[dict]:
                         "rect": {"left": r[0], "top": r[1],
                                  "right": r[2], "bottom": r[3]},
                     })
+            return True  # continue enumeration
         _win32gui.EnumWindows(_enum, None)
         return [{"type": "text", "text": json.dumps(results, indent=2)}]
 
