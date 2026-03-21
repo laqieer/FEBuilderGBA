@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.LoadLow("fake.gba", new byte[0x200_0000], "AE7J01");
-            Assert.False(MapSettingCore.IsFE7ULayout((int)rom.RomInfo.map_setting_datasize));
+            Assert.False(MapSettingCore.IsFE7ULayout(rom.RomInfo.map_setting_datasize));
         }
 
         [Fact]
@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.LoadLow("fake.gba", new byte[0x200_0000], "AE7E01");
-            Assert.True(MapSettingCore.IsFE7ULayout((int)rom.RomInfo.map_setting_datasize));
+            Assert.True(MapSettingCore.IsFE7ULayout(rom.RomInfo.map_setting_datasize));
         }
     }
 }

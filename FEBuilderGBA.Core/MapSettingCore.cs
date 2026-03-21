@@ -13,7 +13,7 @@ namespace FEBuilderGBA
         /// Determines if the FE7 map setting struct uses the FE7U (152-byte) layout.
         /// Used to dispatch between FE7JP and FE7U editors.
         /// </summary>
-        public static bool IsFE7ULayout(int mapSettingDataSize) => mapSettingDataSize >= 152;
+        public static bool IsFE7ULayout(uint mapSettingDataSize) => mapSettingDataSize >= 152;
 
         /// <summary>
         /// Enumerate all maps from the ROM's map setting pointer table.
