@@ -25,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -34,10 +35,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapSettingFE7View.LoadList failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadMapSetting(addr);
@@ -47,6 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapSettingFE7View.OnSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -215,6 +219,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReadUIToVM();
                 _vm.WriteMapSetting();
                 _undoService.Commit();
+                _vm.MarkClean();
                 _vm.LoadMapSetting(_vm.CurrentAddr);
                 UpdateUI();
                 CoreState.Services?.ShowInfo("Map Setting data written.");
