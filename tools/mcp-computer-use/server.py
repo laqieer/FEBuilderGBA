@@ -54,7 +54,8 @@ def _ensure_deps():
     _pyautogui = _pag
     _Image = _Img
 
-    _pyautogui.FAILSAFE = False
+    import os
+    _pyautogui.FAILSAFE = os.environ.get("MCP_FAILSAFE", "0") != "0"
     _pyautogui.PAUSE = 0.05
 
     try:
@@ -72,6 +73,7 @@ def _has_win32() -> bool:
     if _HAS_WIN32 is None:
         try:
             import win32gui  # noqa: F401
+            import win32con  # noqa: F401
             _HAS_WIN32 = True
         except ImportError:
             _HAS_WIN32 = False
@@ -116,9 +118,11 @@ def _type_text(text: str, interval: float = 0.02):
     else:
         import subprocess
         process = subprocess.Popen(
-            ["clip"], stdin=subprocess.PIPE, shell=True
+            ["cmd", "/c", "clip"], stdin=subprocess.PIPE
         )
         process.communicate(text.encode("utf-16le"))
+        if process.returncode != 0:
+            raise RuntimeError(f"clip failed with exit code {process.returncode}")
         _pyautogui.hotkey("ctrl", "v")
         time.sleep(0.1)
 
