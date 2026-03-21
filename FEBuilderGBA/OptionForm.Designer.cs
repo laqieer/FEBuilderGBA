@@ -792,7 +792,7 @@
             // X_EXPLAIN_NECESSARY_PROGRAM
             // 
             X_EXPLAIN_NECESSARY_PROGRAM.AutoSize = true;
-            X_EXPLAIN_NECESSARY_PROGRAM.Location = new System.Drawing.Point(10, 900);
+            X_EXPLAIN_NECESSARY_PROGRAM.Location = new System.Drawing.Point(10, 980);
             X_EXPLAIN_NECESSARY_PROGRAM.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             X_EXPLAIN_NECESSARY_PROGRAM.Name = "X_EXPLAIN_NECESSARY_PROGRAM";
             X_EXPLAIN_NECESSARY_PROGRAM.Size = new System.Drawing.Size(859, 32);

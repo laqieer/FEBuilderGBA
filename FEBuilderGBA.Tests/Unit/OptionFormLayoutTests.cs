@@ -40,6 +40,11 @@ namespace FEBuilderGBA.Tests.Unit
                     Assert.True(gitLabel.Bottom <= gitTextbox.Top,
                         $"X_EXPLAIN_GIT.Bottom ({gitLabel.Bottom}) should be <= git_path_textbox.Top ({gitTextbox.Top})");
 
+                    // X_EXPLAIN_NECESSARY_PROGRAM must be below git controls, not between label and controls
+                    var necessaryProgramLabel = GetControl<Label>(form, "X_EXPLAIN_NECESSARY_PROGRAM");
+                    Assert.True(necessaryProgramLabel.Top >= gitTextbox.Bottom,
+                        $"X_EXPLAIN_NECESSARY_PROGRAM.Top ({necessaryProgramLabel.Top}) should be >= git_path_textbox.Bottom ({gitTextbox.Bottom})");
+
                     // Tab page must scroll to handle overflow
                     Assert.True(tabPagePath.AutoScroll, "tabPagePath.AutoScroll should be true");
 
