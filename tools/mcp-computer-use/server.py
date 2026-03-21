@@ -497,7 +497,10 @@ def main():
     stdout = sys.stdout
 
     # Redirect stderr to avoid polluting stdout (MCP protocol channel)
-    sys.stderr = open(sys.stderr.fileno(), "w", encoding="utf-8", closefd=False)
+    try:
+        sys.stderr = open(sys.stderr.fileno(), "w", encoding="utf-8", closefd=False)
+    except Exception:
+        pass  # Keep original stderr if fileno() is unavailable
 
     for raw_line in stdin:
         line = raw_line.decode("utf-8", errors="replace").strip()
