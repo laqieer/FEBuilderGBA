@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -18,6 +19,7 @@ namespace FEBuilderGBA.Tests.Unit
                 try
                 {
                     using var form = new OptionForm();
+                    form.CreateControl();
                     form.PerformLayout();
 
                     // Access controls via Controls.Find (searches recursively)
@@ -28,17 +30,28 @@ namespace FEBuilderGBA.Tests.Unit
                     // Label must be AutoSize to allow text wrapping
                     Assert.True(gitLabel.AutoSize, "X_EXPLAIN_GIT.AutoSize should be true");
 
-                    // Force label to wrap by setting a long string (simulates translated/long text)
-                    gitLabel.Text = "If you want to use Git, please set the path to git.exe below. " +
+                    // Verify that long text WOULD wrap at the label's constrained width
+                    var longText = "If you want to use Git, please set the path to git.exe below. " +
                         "Leave blank or enter \"git\" to use the system PATH. " +
                         "You can download Git from https://git-scm.com/download/win if needed.";
-                    tabPagePath.PerformLayout();
+                    var constrainedWidth = gitLabel.MaximumSize.Width > 0 ? gitLabel.MaximumSize.Width : gitLabel.Width;
+                    var singleLineSize = TextRenderer.MeasureText(longText, gitLabel.Font);
+                    var wrappedSize = TextRenderer.MeasureText(longText, gitLabel.Font,
+                        new Size(constrainedWidth, 0), TextFormatFlags.WordBreak);
+                    Assert.True(wrappedSize.Height > singleLineSize.Height,
+                        $"Long text should wrap: single-line height={singleLineSize.Height}, " +
+                        $"wrapped height={wrappedSize.Height} at width={constrainedWidth}");
 
-                    // Label bottom must not overlap git path textbox top even with wrapped text
+                    // Label bottom must not overlap git path textbox top
                     Assert.True(gitLabel.Bottom <= gitTextbox.Top,
                         $"X_EXPLAIN_GIT.Bottom ({gitLabel.Bottom}) should be <= git_path_textbox.Top ({gitTextbox.Top})");
 
-                    // X_EXPLAIN_NECESSARY_PROGRAM must be below git controls, not between label and controls
+                    // Verify there's enough gap for the wrapped text height
+                    var gap = gitTextbox.Top - gitLabel.Top;
+                    Assert.True(gap >= wrappedSize.Height,
+                        $"Gap ({gap}px) should be >= wrapped text height ({wrappedSize.Height}px)");
+
+                    // X_EXPLAIN_NECESSARY_PROGRAM must be below git controls
                     var necessaryProgramLabel = GetControl<Label>(form, "X_EXPLAIN_NECESSARY_PROGRAM");
                     Assert.True(necessaryProgramLabel.Top >= gitTextbox.Bottom,
                         $"X_EXPLAIN_NECESSARY_PROGRAM.Top ({necessaryProgramLabel.Top}) should be >= git_path_textbox.Bottom ({gitTextbox.Bottom})");

@@ -384,8 +384,8 @@
             X_EXPLAIN_GIT.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             X_EXPLAIN_GIT.Location = new System.Drawing.Point(10, 840);
             X_EXPLAIN_GIT.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            X_EXPLAIN_GIT.MaximumSize = new System.Drawing.Size(1096, 0);
-            X_EXPLAIN_GIT.MinimumSize = new System.Drawing.Size(1096, 40);
+            X_EXPLAIN_GIT.MaximumSize = new System.Drawing.Size(1076, 0);
+            X_EXPLAIN_GIT.MinimumSize = new System.Drawing.Size(1076, 40);
             X_EXPLAIN_GIT.Name = "X_EXPLAIN_GIT";
             X_EXPLAIN_GIT.Size = new System.Drawing.Size(1096, 40);
             X_EXPLAIN_GIT.TabIndex = 72;
