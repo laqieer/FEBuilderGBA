@@ -2,14 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapSettingFE7View"
-        Title="Map Settings (FE7)" Width="1773" Height="1038"
+        Title="Map Settings (FE7JP)" Width="1773" Height="1038"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="4" Margin="8">
-        <TextBlock Text="Map Settings (FE7 JP)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Map Settings (FE7JP)" FontSize="18" FontWeight="Bold" />
         <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
 
         <!-- Section 1: CP / Pointer (D0) -->

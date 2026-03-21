@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7UView.LoadList failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.LoadList failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7UView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.OnSelected failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -242,20 +242,13 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingFE7UView.Write failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.Write failed: {0}", ex.ToString());
             }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
-        private static uint ParseHexText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            text = text.Trim();
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                text = text[2..];
-            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
-        }
+        private static uint ParseHexText(string? text) => ViewHelpers.ParseHexText(text);
     }
 }
