@@ -67,30 +67,20 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Skip if implements IDataVerifiable
                 if (dataVerifiableType.IsAssignableFrom(type)) continue;
 
-                // Extra safety: skip types that have Write + LoadList + Load
-                // (in case registry enumeration missed them)
-                bool hasWrite = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                    .Any(m => m.Name.StartsWith("Write", StringComparison.Ordinal)
-                              && m.ReturnType == typeof(void)
-                              && m.GetParameters().Length == 0);
-
+                // Extra safety: skip types matching the writable triplet pattern
+                // (Write + LoadList + Load(uint)) in case registry enumeration missed them.
                 bool hasLoadList = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                     .Any(m => m.Name.StartsWith("Load", StringComparison.Ordinal)
                               && m.ReturnType == typeof(List<AddrResult>)
                               && m.GetParameters().Length == 0);
 
-                if (hasWrite && hasLoadList) continue;
+                bool hasLoadUint = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                    .Any(m => m.Name.StartsWith("Load", StringComparison.Ordinal)
+                              && m.ReturnType == typeof(void)
+                              && m.GetParameters().Length == 1
+                              && m.GetParameters()[0].ParameterType == typeof(uint));
 
-                // Also skip display-only pattern: LoadList + Load(uint) but no Write
-                if (hasLoadList)
-                {
-                    bool hasLoadUint = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(m => m.Name.StartsWith("Load", StringComparison.Ordinal)
-                                  && m.ReturnType == typeof(void)
-                                  && m.GetParameters().Length == 1
-                                  && m.GetParameters()[0].ParameterType == typeof(uint));
-                    if (hasLoadUint) continue;
-                }
+                if (hasLoadList && hasLoadUint) continue;
 
                 yield return new object[] { type.Name, type };
             }
@@ -161,11 +151,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
-            if (vm is not INotifyPropertyChanged npc)
-            {
-                _output.WriteLine($"SKIP: {vmName} does not implement INotifyPropertyChanged");
-                return;
-            }
+            // All discovered types are ViewModelBase subclasses which implement INPC.
+            var npc = (INotifyPropertyChanged)vm;
 
             // Find first settable string or uint property, excluding infrastructure
             var excludedNames = new HashSet<string>(StringComparer.Ordinal)
@@ -223,23 +210,14 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
-            var isDirtyProp = vmType.GetProperty("IsDirty",
-                BindingFlags.Public | BindingFlags.Instance);
-            if (isDirtyProp == null)
-            {
-                _output.WriteLine($"SKIP: {vmName} has no IsDirty property");
-                return;
-            }
+            // All discovered types are ViewModelBase subclasses — direct cast is safe.
+            var vmBase = (ViewModelBase)vm;
 
             // Some constructors set properties that trigger dirty (e.g., DataExportViewModel).
             // Call MarkClean() to reset, then verify IsDirty is false.
-            var markClean = vmType.GetMethod("MarkClean",
-                BindingFlags.Public | BindingFlags.Instance);
-            markClean?.Invoke(vm, null);
+            vmBase.MarkClean();
 
-            var value = isDirtyProp.GetValue(vm);
-            Assert.NotNull(value);
-            Assert.False((bool)value, $"{vmName} IsDirty should be false after MarkClean");
+            Assert.False(vmBase.IsDirty, $"{vmName} IsDirty should be false after MarkClean");
             _output.WriteLine($"OK: {vmName} IsDirty=false after MarkClean");
         }
 
