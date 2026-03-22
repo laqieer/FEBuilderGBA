@@ -37,7 +37,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// A truly blank 1x1 PNG is ~67 bytes; an 800x600 all-white PNG is typically ~2-3 KB.
         /// Real UI content should produce substantially more.
         /// </summary>
-        private const int MinNonBlankStreamLength = 100;
+        // An 800x600 all-blank PNG is ~2-3 KB. Real UI content should exceed this.
+        private const int MinNonBlankStreamLength = 3000;
 
         public VisualRenderingSweepTests(RomFixture fixture, ITestOutputHelper output)
         {
@@ -420,16 +421,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!_fixture.IsAvailable) return;
             var view = new UnitEditorView();
             using var stream = RenderToStream(view);
-            // Even an empty view should produce some PNG data (the layout itself)
-            if (stream != null)
-            {
-                _output.WriteLine($"UnitEditorView empty render: {stream.Length} bytes");
-                Assert.True(stream.Length > 0, "Empty UnitEditorView should produce some PNG data");
-            }
-            else
-            {
-                _output.WriteLine("UnitEditorView empty render returned null (needs Window parent)");
-            }
+            Assert.NotNull(stream);
+            _output.WriteLine($"UnitEditorView empty render: {stream.Length} bytes");
         }
 
         [AvaloniaFact]
@@ -438,15 +431,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!_fixture.IsAvailable) return;
             var view = new ClassEditorView();
             using var stream = RenderToStream(view);
-            if (stream != null)
-            {
-                _output.WriteLine($"ClassEditorView empty render: {stream.Length} bytes");
-                Assert.True(stream.Length > 0, "Empty ClassEditorView should produce some PNG data");
-            }
-            else
-            {
-                _output.WriteLine("ClassEditorView empty render returned null (needs Window parent)");
-            }
+            Assert.NotNull(stream);
+            _output.WriteLine($"ClassEditorView empty render: {stream.Length} bytes");
         }
 
         [AvaloniaFact]
@@ -455,15 +441,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!_fixture.IsAvailable) return;
             var view = new ItemEditorView();
             using var stream = RenderToStream(view);
-            if (stream != null)
-            {
-                _output.WriteLine($"ItemEditorView empty render: {stream.Length} bytes");
-                Assert.True(stream.Length > 0, "Empty ItemEditorView should produce some PNG data");
-            }
-            else
-            {
-                _output.WriteLine("ItemEditorView empty render returned null (needs Window parent)");
-            }
+            Assert.NotNull(stream);
+            _output.WriteLine($"ItemEditorView empty render: {stream.Length} bytes");
         }
 
         [AvaloniaFact]
@@ -472,15 +451,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!_fixture.IsAvailable) return;
             var view = new MapSettingFE6View();
             using var stream = RenderToStream(view);
-            if (stream != null)
-            {
-                _output.WriteLine($"MapSettingFE6View empty render: {stream.Length} bytes");
-                Assert.True(stream.Length > 0, "Empty MapSettingFE6View should produce some PNG data");
-            }
-            else
-            {
-                _output.WriteLine("MapSettingFE6View empty render returned null (needs Window parent)");
-            }
+            Assert.NotNull(stream);
+            _output.WriteLine($"MapSettingFE6View empty render: {stream.Length} bytes");
         }
 
         [AvaloniaFact]
@@ -489,15 +461,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!_fixture.IsAvailable) return;
             var view = new MapSettingFE7UView();
             using var stream = RenderToStream(view);
-            if (stream != null)
-            {
-                _output.WriteLine($"MapSettingFE7UView empty render: {stream.Length} bytes");
-                Assert.True(stream.Length > 0, "Empty MapSettingFE7UView should produce some PNG data");
-            }
-            else
-            {
-                _output.WriteLine("MapSettingFE7UView empty render returned null (needs Window parent)");
-            }
+            Assert.NotNull(stream);
+            _output.WriteLine($"MapSettingFE7UView empty render: {stream.Length} bytes");
         }
 
         // =============================================================
@@ -675,9 +640,17 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             _output.WriteLine($"Entry 1: {stream1.Length} bytes, Entry 2: {stream2.Length} bytes");
 
-            // Verify at least one was non-blank
-            Assert.True(stream1.Length > MinNonBlankStreamLength || stream2.Length > MinNonBlankStreamLength,
-                "At least one unit entry should render non-blank content");
+            // Both should be non-blank
+            Assert.True(stream1.Length > MinNonBlankStreamLength, "Unit entry 1 render should be non-blank");
+            Assert.True(stream2.Length > MinNonBlankStreamLength, "Unit entry 2 render should be non-blank");
+            // Compare byte content — different entries should produce different PNG output
+            var bytes1 = stream1.ToArray();
+            var bytes2 = stream2.ToArray();
+            bool differs = bytes1.Length != bytes2.Length;
+            if (!differs)
+                for (int i = 0; i < bytes1.Length; i++)
+                    if (bytes1[i] != bytes2[i]) { differs = true; break; }
+            Assert.True(differs, "Different unit entries should produce different renders");
         }
 
         [AvaloniaFact]
@@ -689,14 +662,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             var list = vm.LoadItemList();
             if (list.Count < 3) { _output.WriteLine("SKIP: fewer than 3 items"); return; }
 
-            // Render item at index 1
             vm.LoadItem(list[1].addr);
             var view1 = new ItemEditorView();
             view1.DataContext = vm;
             using var stream1 = RenderToStream(view1);
             if (stream1 == null) { _output.WriteLine("SKIP: render 1 failed"); return; }
 
-            // Render item at index 2
             var vm2 = new ItemEditorViewModel();
             vm2.LoadItem(list[2].addr);
             var view2 = new ItemEditorView();
@@ -706,8 +677,15 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             _output.WriteLine($"Entry 1: {stream1.Length} bytes, Entry 2: {stream2.Length} bytes");
 
-            Assert.True(stream1.Length > MinNonBlankStreamLength || stream2.Length > MinNonBlankStreamLength,
-                "At least one item entry should render non-blank content");
+            Assert.True(stream1.Length > MinNonBlankStreamLength, "Item entry 1 render should be non-blank");
+            Assert.True(stream2.Length > MinNonBlankStreamLength, "Item entry 2 render should be non-blank");
+            var bytes1 = stream1.ToArray();
+            var bytes2 = stream2.ToArray();
+            bool differs = bytes1.Length != bytes2.Length;
+            if (!differs)
+                for (int i = 0; i < bytes1.Length; i++)
+                    if (bytes1[i] != bytes2[i]) { differs = true; break; }
+            Assert.True(differs, "Different item entries should produce different renders");
         }
     }
 }
