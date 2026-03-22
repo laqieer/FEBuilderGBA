@@ -25,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -32,12 +33,14 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7UView.LoadList failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.LoadList failed: {0}", ex.ToString());
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -45,8 +48,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7UView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.OnSelected failed: {0}", ex.ToString());
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
@@ -221,27 +225,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReadUIToVM();
                 _vm.WriteMapSetting();
                 _undoService.Commit();
-                _vm.LoadEntry(_vm.CurrentAddr);
-                UpdateUI();
+                // Reload with IsLoading guard so SetField doesn't re-dirty
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadEntry(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+                finally
+                {
+                    _vm.IsLoading = false;
+                    _vm.MarkClean();
+                }
                 CoreState.Services?.ShowInfo("Map Setting data written.");
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingFE7UView.Write failed: {0}", ex.Message);
+                Log.Error("MapSettingFE7UView.Write failed: {0}", ex.ToString());
             }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
-        private static uint ParseHexText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            text = text.Trim();
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                text = text[2..];
-            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
-        }
+        private static uint ParseHexText(string? text) => ViewHelpers.ParseHexText(text);
     }
 }
