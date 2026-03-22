@@ -417,8 +417,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 // Write a modified value, read back, then restore
                 uint testValue = originalNameId ^ 0x0001; // flip lowest bit
-                byte origByte0 = rom.Data[unit1Addr];
-                byte origByte1 = rom.Data[unit1Addr + 1];
+                int idx = (int)unit1Addr;
+                byte origByte0 = rom.Data[idx];
+                byte origByte1 = rom.Data[idx + 1];
 
                 try
                 {
@@ -430,8 +431,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 finally
                 {
                     // Restore original bytes
-                    rom.Data[unit1Addr] = origByte0;
-                    rom.Data[unit1Addr + 1] = origByte1;
+                    rom.Data[idx] = origByte0;
+                    rom.Data[idx + 1] = origByte1;
 
                     // Verify restore
                     Assert.Equal(originalNameId, rom.u16(unit1Addr));
@@ -458,8 +459,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.NotEqual(0u, originalNameId);
 
                 uint testValue = originalNameId ^ 0x0001;
-                byte origByte0 = rom.Data[item1Addr];
-                byte origByte1 = rom.Data[item1Addr + 1];
+                int idx = (int)item1Addr;
+                byte origByte0 = rom.Data[idx];
+                byte origByte1 = rom.Data[idx + 1];
 
                 try
                 {
@@ -470,8 +472,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
                 finally
                 {
-                    rom.Data[item1Addr] = origByte0;
-                    rom.Data[item1Addr + 1] = origByte1;
+                    rom.Data[idx] = origByte0;
+                    rom.Data[idx + 1] = origByte1;
                     Assert.Equal(originalNameId, rom.u16(item1Addr));
                 }
             });
@@ -1279,8 +1281,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.TextEscape ??= new TextEscape();
                 CoreState.Undo ??= new Undo();
 
-                // Clear NameResolver cache to avoid cross-ROM contamination
+                // Clear all caches to avoid cross-ROM contamination
                 NameResolver.ClearCache();
+                try { PatchDetection.ClearAllCaches(); } catch { }
+                try { MagicSplitUtil.ClearCache(); } catch { }
 
                 // Run the test action
                 action();
@@ -1296,11 +1300,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.FETextEncoder = prevFETextEncoder;
                 CoreState.TextEscape = prevTextEscape;
                 CoreState.Undo = prevUndo;
-                if (prevBaseDirectory != null)
-                    CoreState.BaseDirectory = prevBaseDirectory;
+                CoreState.BaseDirectory = prevBaseDirectory;
 
-                // Clear NameResolver cache again to avoid leaking
+                // Clear caches to avoid cross-ROM contamination
                 NameResolver.ClearCache();
+                try { PatchDetection.ClearAllCaches(); } catch { }
+                try { MagicSplitUtil.ClearCache(); } catch { }
             }
         }
     }
