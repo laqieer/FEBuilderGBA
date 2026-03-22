@@ -16,17 +16,17 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// existing sweeps (WritableViewModelRegistry, DisplayViewModelRegistry, IDataVerifiable).
     ///
     /// These are utility VMs: tools, dialogs, error dialogs, controls, infrastructure.
-    /// ~89 ViewModels expected. Three tests per VM: constructor, PropertyChanged, IsDirty default.
+    /// Three tests per VM: constructor, PropertyChanged, IsDirty default.
     /// </summary>
     [Collection("SharedState")]
     public class UtilityViewModelSweepTests : IClassFixture<RomFixture>
     {
-        private readonly RomFixture _fixture;
         private readonly ITestOutputHelper _output;
 
         public UtilityViewModelSweepTests(RomFixture fixture, ITestOutputHelper output)
         {
-            _fixture = fixture;
+            // RomFixture ensures CoreState is initialized for VMs that reference it.
+            _ = fixture;
             _output = output;
         }
 
@@ -107,10 +107,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (var entry in types)
                 _output.WriteLine($"  - {entry[0]}");
 
-            // We expect ~89; use a generous lower bound
-            Assert.True(types.Count >= 50,
-                $"Expected >= 50 uncovered utility ViewModels, found {types.Count}. " +
-                "Discovery logic may be broken.");
+            // Discovery should produce a deterministic, duplicate-free set.
+            // Don't assert a lower bound — the count shrinks as other sweeps expand.
+            var names = types.Select(t => (string)t[0]).ToList();
+            Assert.Equal(names.Count, names.Distinct().Count());
         }
 
         /// <summary>
@@ -330,11 +330,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                     _output.WriteLine($"  - {f}");
             }
 
-            // At least 90% should instantiate successfully
-            double successRate = types.Count > 0 ? (double)succeeded / types.Count : 0;
-            Assert.True(successRate >= 0.90,
-                $"Only {succeeded}/{types.Count} ({successRate:P0}) utility VMs instantiated. " +
-                $"Expected >= 90%.");
+            // Pure reporting — per-VM failures are caught by Constructor_DoesNotThrow.
+            // No assertion here to avoid flakiness as the uncovered set evolves.
+            _output.WriteLine($"\nSuccess rate: {(types.Count > 0 ? (double)succeeded / types.Count : 0):P0}");
         }
     }
 }
