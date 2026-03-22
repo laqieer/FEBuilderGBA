@@ -36,12 +36,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// For each display VM, call LoadList and verify:
         /// - List is non-null
-        /// - If list has entries, all entries have non-null name and addr > 0
+        /// - If list has entries, data entries (addr > 0) have non-null names
+        ///   and addresses within ROM bounds. Header/menu rows with addr=0 are allowed.
         /// Skips VMs that throw due to version mismatch.
         /// </summary>
         [Theory]
         [MemberData(nameof(DisplayVMs))]
-        public void ListLoad_ReturnsNonEmptyList(Type vmType, string listMethod, string loadMethod)
+        public void ListLoad_ReturnsValidList(Type vmType, string listMethod, string loadMethod)
         {
             if (!_fixture.IsAvailable) return;
 
@@ -77,14 +78,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             // List must be non-null
             Assert.NotNull(list);
 
-            // If list has entries, validate each entry
+            // If list has entries, validate data entries (addr > 0).
+            // Entries with addr=0 are header/menu/placeholder rows — allowed.
             if (list.Count > 0)
             {
+                uint romLen = (uint)CoreState.ROM.Data.Length;
                 foreach (var entry in list)
                 {
                     Assert.NotNull(entry.name);
-                    Assert.True(entry.addr > 0,
-                        $"{vmType.Name}: entry '{entry.name}' has addr=0");
+                    if (entry.addr > 0)
+                    {
+                        Assert.True(entry.addr < romLen,
+                            $"{vmType.Name}: entry '{entry.name}' addr=0x{entry.addr:X} exceeds ROM size");
+                    }
                 }
             }
 
