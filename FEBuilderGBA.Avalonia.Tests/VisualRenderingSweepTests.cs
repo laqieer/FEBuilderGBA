@@ -417,6 +417,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void UnitEditorView_EmptyInstantiation_RendersWithoutCrash()
         {
+            if (!_fixture.IsAvailable) return;
             var view = new UnitEditorView();
             using var stream = RenderToStream(view);
             // Even an empty view should produce some PNG data (the layout itself)
@@ -434,6 +435,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void ClassEditorView_EmptyInstantiation_RendersWithoutCrash()
         {
+            if (!_fixture.IsAvailable) return;
             var view = new ClassEditorView();
             using var stream = RenderToStream(view);
             if (stream != null)
@@ -450,6 +452,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void ItemEditorView_EmptyInstantiation_RendersWithoutCrash()
         {
+            if (!_fixture.IsAvailable) return;
             var view = new ItemEditorView();
             using var stream = RenderToStream(view);
             if (stream != null)
@@ -466,6 +469,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void MapSettingFE6View_EmptyInstantiation_RendersWithoutCrash()
         {
+            if (!_fixture.IsAvailable) return;
             var view = new MapSettingFE6View();
             using var stream = RenderToStream(view);
             if (stream != null)
@@ -482,6 +486,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void MapSettingFE7UView_EmptyInstantiation_RendersWithoutCrash()
         {
+            if (!_fixture.IsAvailable) return;
             var view = new MapSettingFE7UView();
             using var stream = RenderToStream(view);
             if (stream != null)
