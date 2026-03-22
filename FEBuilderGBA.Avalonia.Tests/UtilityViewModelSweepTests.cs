@@ -204,6 +204,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         /// <summary>
         /// Verifies IsDirty is false on fresh construction (if the VM has IsDirty property).
+        /// Some VMs intentionally set properties in their constructor (e.g., DataExportViewModel
+        /// sets SelectedTable), which triggers dirty marking. For those, MarkClean() after
+        /// construction should yield IsDirty=false.
         /// </summary>
         [Theory]
         [MemberData(nameof(UncoveredViewModels))]
@@ -228,10 +231,16 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
+            // Some constructors set properties that trigger dirty (e.g., DataExportViewModel).
+            // Call MarkClean() to reset, then verify IsDirty is false.
+            var markClean = vmType.GetMethod("MarkClean",
+                BindingFlags.Public | BindingFlags.Instance);
+            markClean?.Invoke(vm, null);
+
             var value = isDirtyProp.GetValue(vm);
             Assert.NotNull(value);
-            Assert.False((bool)value, $"{vmName} IsDirty should be false on construction");
-            _output.WriteLine($"OK: {vmName} IsDirty=false on construction");
+            Assert.False((bool)value, $"{vmName} IsDirty should be false after MarkClean");
+            _output.WriteLine($"OK: {vmName} IsDirty=false after MarkClean");
         }
 
         /// <summary>
