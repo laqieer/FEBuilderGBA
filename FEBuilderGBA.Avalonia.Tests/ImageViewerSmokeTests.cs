@@ -386,15 +386,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Null(caught);
             _output.WriteLine($"BattleAnime loaded at 0x{vm.CurrentAddr:X08}");
 
-            // Regression for #246: TileSheetImage should be non-null (shared helper fix)
-            if (vm.TileSheetImage != null)
-            {
-                Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
-                Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
-                Assert.Equal(0, vm.TileSheetImage.Width % 8);
-                Assert.Equal(0, vm.TileSheetImage.Height % 8);
-                _output.WriteLine($"BattleAnime TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
-            }
+            // Regression for #246: TileSheetImage MUST be non-null (shared helper fix)
+            Assert.NotNull(vm.TileSheetImage);
+            Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
+            Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
+            Assert.Equal(0, vm.TileSheetImage.Width % 8);
+            Assert.Equal(0, vm.TileSheetImage.Height % 8);
+            _output.WriteLine($"BattleAnime TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
         }
 
         // =====================================================================
