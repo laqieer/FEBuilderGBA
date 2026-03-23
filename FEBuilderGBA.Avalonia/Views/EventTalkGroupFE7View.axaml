@@ -16,7 +16,7 @@
           <TextBlock AutomationProperties.AutomationId="EventTalkGroupFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventTalkGroupFE7_TextIdUpDown_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextIdUpDown" Minimum="0" Maximum="4294967295"
+          <NumericUpDown AutomationProperties.AutomationId="EventTalkGroupFE7_TextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextIdUpDown" Minimum="0" Maximum="4294967295"
                          Margin="0,4" />
         </Grid>
 

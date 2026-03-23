@@ -99,9 +99,9 @@ function Get-FieldName {
     if ($NameAttr) {
         $field = $NameAttr
         # Strip type suffixes
-        $suffixes = @('Box','Button','Combo','List','Control','Panel','Label','Text','Image','Flags',
+        $suffixes = @('Box','Button','Btn','Combo','ComboBox','List','Control','Panel','Label','Text','Image','Flags',
                       'Input','Check','Toggle','Expander','Tab','Scroller','Border','Display',
-                      'Viewer', 'ListView')
+                      'Viewer', 'ListView', 'UpDown')
         foreach ($s in $suffixes) {
             if ($field -ne $s -and $field.EndsWith($s)) {
                 $field = $field.Substring(0, $field.Length - $s.Length)
@@ -176,23 +176,11 @@ function Test-IsInsideTemplate {
     return $templateDepth -gt 0
 }
 
-function Test-IsNamedDynamicTextBlock {
+function Test-IsNamedTextBlock {
     param([string]$Line, [string]$FullElement)
-    # A TextBlock is "dynamic" if it has a Name and is NOT just a static label
-    # We consider it dynamic if:
-    # 1. It has a Name= or x:Name= attribute, AND
-    # 2. It has a {Binding} in Text= OR no static Text= at all (implying programmatic setting)
-    if ($FullElement -match '(?:^|\s)(?:Name|x:Name)\s*=\s*"([^"]+)"') {
-        # Has a name - check if it's dynamic
-        if ($FullElement -match 'Text\s*=\s*"\{Binding') {
-            return $true
-        }
-        # If no Text= attribute at all, it's likely set programmatically
-        if ($FullElement -notmatch '\bText\s*=\s*"[^{]') {
-            return $true
-        }
-    }
-    return $false
+    # Tag any TextBlock that has a Name= or x:Name= attribute.
+    # Named TextBlocks are accessed programmatically and need stable IDs.
+    return ($FullElement -match '(?:^|\s)(?:Name|x:Name)\s*=\s*"([^"]+)"')
 }
 
 function Process-AxamlFile {
@@ -260,7 +248,7 @@ function Process-AxamlFile {
 
         # Special handling for TextBlock - only if named and dynamic
         if (-not $controlType -and $line -match '^\s*<TextBlock[\s/>]') {
-            if (Test-IsNamedDynamicTextBlock -Line $line -FullElement $fullElement) {
+            if (Test-IsNamedTextBlock -Line $line -FullElement $fullElement) {
                 $controlType = 'TextBlock'
             }
         }
