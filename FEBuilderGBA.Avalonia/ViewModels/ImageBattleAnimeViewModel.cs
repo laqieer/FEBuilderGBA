@@ -371,6 +371,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Render the current frame and update FrameImage + FrameInfoText.
+        /// Also updates the tile sheet to match the current frame's graphics data.
         /// </summary>
         void RenderCurrentFrame()
         {
@@ -390,6 +391,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 FrameImage = null;
             }
+
+            // Update tile sheet to match current frame — clear first to avoid stale data
+            var oldSheet = TileSheetImage;
+            TileSheetImage = null;
+            TileSheetInfo = "";
+            try
+            {
+                var newSheet = BattleAnimeRendererCore.RenderFrameTileSheet(
+                    fi.GraphicsPointer, _cachedPaletteData, 16);
+                if (newSheet != null)
+                {
+                    int totalTiles = newSheet.Width / 8 * (newSheet.Height / 8);
+                    TileSheetImage = newSheet;
+                    TileSheetInfo = $"Tile sheet: {newSheet.Width}x{newSheet.Height}px ({totalTiles} tiles, frame {CurrentFrame + 1})";
+                }
+            }
+            catch (Exception ex) { Log.Error("RenderCurrentFrame tile sheet failed: " + ex.Message); }
+            if (oldSheet is IDisposable d) d.Dispose();
 
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
                 ? BattleAnimeRendererCore.SectionNames[CurrentSection]

@@ -180,6 +180,37 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Render a tile sheet from a frame's GraphicsPointer and palette data.
+        /// Decompresses the tile data from the graphics pointer and renders using the first 16 palette colors.
+        /// </summary>
+        public static IImage RenderFrameTileSheet(uint graphicsPointer, byte[] paletteData, int tilesPerRow = 32)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CoreState.ImageService == null || paletteData == null) return null;
+            if (!U.isPointer(graphicsPointer)) return null;
+
+            uint gfxOff = U.toOffset(graphicsPointer);
+            if (!U.isSafetyOffset(gfxOff, rom)) return null;
+
+            byte[] tileData = LZ77.decompress(rom.Data, gfxOff);
+            if (tileData == null || tileData.Length == 0) return null;
+
+            // Use first 16 colors (32 bytes) from palette
+            byte[] pal16;
+            if (paletteData.Length >= 32)
+            {
+                pal16 = new byte[32];
+                Array.Copy(paletteData, pal16, 32);
+            }
+            else
+            {
+                pal16 = paletteData;
+            }
+
+            return RenderTileSheet(tileData, pal16, tilesPerRow);
+        }
+
+        /// <summary>
         /// Decompress frame data from ROM, handling the special uncompressed-frame-pointer case.
         /// </summary>
         public static byte[] DecompressFrameData(ROM rom, uint frameRaw)

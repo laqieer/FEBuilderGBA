@@ -486,6 +486,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output.WriteLine($"TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
         }
 
+        [Fact]
+        public void OAMSpriteViewer_GoToFrame_UpdatesTileSheet()
+        {
+            if (!_rom.IsAvailable) return;
+
+            var vm = new OAMSpriteViewerViewModel();
+            var list = vm.LoadAnimationList();
+            if (list.Count < 2) return;
+
+            vm.LoadEntry(list[1].addr);
+            if (!vm.IsLoaded || vm.FrameCount < 2) return;
+
+            // Record tile sheet info for frame 0 (frame 1 in display)
+            string info0 = vm.TileSheetInfo;
+
+            // Navigate to frame 1 (frame 2 in display)
+            vm.GoToFrame(1);
+            string info1 = vm.TileSheetInfo;
+
+            // Tile sheet info should reflect current frame number
+            Assert.Contains("frame 1", info0);
+            Assert.Contains("frame 2", info1);
+
+            // Both should have valid tile sheets
+            Assert.NotNull(vm.TileSheetImage);
+        }
+
         // =====================================================================
         // Generic: all image ViewModels can be instantiated
         // =====================================================================

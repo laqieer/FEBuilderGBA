@@ -222,6 +222,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 FrameImage = null;
             }
 
+            // Update tile sheet to match current frame — clear first to avoid stale data
+            var oldSheet = TileSheetImage;
+            TileSheetImage = null;
+            TileSheetInfo = "";
+            try
+            {
+                var newSheet = BattleAnimeRendererCore.RenderFrameTileSheet(
+                    fi.GraphicsPointer, _cachedPaletteData, 32);
+                if (newSheet != null)
+                {
+                    TileSheetImage = newSheet;
+                    TileSheetInfo = $"Tile sheet: {newSheet.Width}x{newSheet.Height}px (frame {CurrentFrame + 1})";
+                }
+            }
+            catch (Exception ex) { Log.Error("RenderCurrentFrame tile sheet failed: " + ex.Message); }
+            if (oldSheet is IDisposable d) d.Dispose();
+
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
                 ? BattleAnimeRendererCore.SectionNames[CurrentSection]
                 : $"Section {CurrentSection}";
