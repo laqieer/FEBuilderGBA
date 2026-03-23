@@ -315,14 +315,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 translateBaseDir = AppDomain.CurrentDomain.BaseDirectory;
 
             string enFilePath = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
+            string translateDir = Path.Combine(translateBaseDir, "config", "translate");
 
-            // "ja" is the built-in language (no translation file needed).
-            // Clear the dictionary so str() returns keys as-is (all keys are Japanese).
-            // Load reverse English map first so Avalonia English keys → Japanese keys.
+            // "ja" is the built-in language — Japanese keys pass through from WinForms.
+            // However, Avalonia uses English keys (R._("Characters"), etc.) that need
+            // explicit Japanese translations from ja.txt.
             if (lang == "ja")
             {
-                MyTranslateResource.LoadReverseEnglishMap(enFilePath);
-                MyTranslateResource.Clear();
+                string jaFile = Path.Combine(translateDir, "ja.txt");
+                if (File.Exists(jaFile))
+                {
+                    // Load ja.txt so English Avalonia keys map to Japanese translations.
+                    // WinForms Japanese keys not in ja.txt will miss and pass through as-is,
+                    // which is correct — they ARE the Japanese text.
+                    MyTranslateResource.LoadResource(jaFile);
+                    // Also load reverse map so any English keys NOT in ja.txt can chain
+                    // through en.txt's English→Japanese mapping.
+                    MyTranslateResource.LoadReverseEnglishMap(enFilePath);
+                }
+                else
+                {
+                    // No ja.txt — fall back to old behavior
+                    MyTranslateResource.LoadReverseEnglishMap(enFilePath);
+                    MyTranslateResource.Clear();
+                }
                 return;
             }
 

@@ -1,0 +1,227 @@
+:Characters
+キャラクター
+
+:Items
+アイテム
+
+:Maps
+マップ
+
+:Text
+テキスト
+
+:Graphics
+グラフィック
+
+:Audio
+サウンド
+
+:Arena
+闘技場
+
+:Monsters
+魔物
+
+:Summons
+召喚
+
+:Items (Specialized)
+アイテム (特殊)
+
+:Menus
+メニュー
+
+:Credits
+スタッフロール
+
+:World Map
+ワールドマップ
+
+:Image Editors
+画像エディタ
+
+:Event Scripts
+イベントスクリプト
+
+:AI Scripts
+AIスクリプト
+
+:Map Editors
+マップエディタ
+
+:Audio (Advanced)
+サウンド (上級)
+
+:Unit/Class Specialized
+ユニット/クラス (特殊)
+
+:Text/Translation
+テキスト/翻訳
+
+:Patches
+パッチ
+
+:Skill Systems
+スキルシステム
+
+:World Map (Advanced)
+ワールドマップ (上級)
+
+:Structural Data
+構造データ
+
+:Tools
+ツール
+
+:Status Screen
+ステータス画面
+
+:Skill Systems (Extended)
+スキルシステム (拡張)
+
+:Version-Specific
+バージョン固有
+
+:Easy Mode
+簡単モード
+
+:No ROM loaded
+ROMが読み込まれていません
+
+:bytes
+バイト
+
+:Free:
+空き:
+
+:Redo is not supported.
+やり直しはサポートされていません。
+
+:View refreshed.
+表示を更新しました。
+
+:(No recent files)
+(最近のファイルはありません)
+
+:(missing)
+(見つかりません)
+
+:File not found:
+ファイルが見つかりません:
+
+:Error
+エラー
+
+:Failed to load ROM:
+ROMの読み込みに失敗しました:
+
+:Switch to _Normal Mode
+通常モードに切替(_N)
+
+:Toggle _Easy Mode
+簡単モードに切替(_E)
+
+:Switch to _Light Mode
+ライトモードに切替(_L)
+
+:Toggle _Dark Mode
+ダークモードに切替(_D)
+
+:Failed to load ROM.
+ROMの読み込みに失敗しました。
+
+:ROM saved.
+ROMを保存しました。
+
+:ROM saved as:
+ROMを別名で保存しました:
+
+:No recent ROM found.
+最近のROMが見つかりません。
+
+:Open Last ROM
+前回のROMを開く
+
+:ROM:
+ROM:
+
+:Load a ROM first before applying a UPS patch.
+UPSパッチを適用する前にROMを読み込んでください。
+
+:UPS patch failed:
+UPSパッチが失敗しました:
+
+:UPS patch applied:
+UPSパッチを適用しました:
+
+:Failed to apply UPS patch:
+UPSパッチの適用に失敗しました:
+
+:You have unsaved changes. Close without saving?
+未保存の変更があります。保存せずに閉じますか？
+
+:Unsaved Changes
+未保存の変更
+
+:editor(s) matching
+件のエディタが一致
+
+:Lint: No errors found.
+検証: エラーはありません。
+
+:Lint Results
+検証結果
+
+:issue(s) found:
+件の問題:
+
+:FEBuilderGBA
+FEBuilderGBA
+
+:Avalonia Cross-Platform Preview
+Avalonia クロスプラットフォームプレビュー
+
+:Copyright 2017- GPLv3
+Copyright 2017- GPLv3
+
+:About
+バージョン情報
+
+:No
+いいえ
+
+:configured. Set the path in Options first.
+が設定されていません。まずオプションでパスを設定してください。
+
+:External Tool
+外部ツール
+
+:Failed to run
+実行に失敗しました
+
+:Unit Editor
+ユニットエディタ
+
+:Edit Unit
+ユニット編集
+
+:Unit data written.
+ユニットデータを書き込みました。
+
+:Class Editor
+クラスエディタ
+
+:Edit Class
+クラス編集
+
+:Class data written.
+クラスデータを書き込みました。
+
+:Item Editor
+アイテムエディタ
+
+:Edit Item
+アイテム編集
+
+:Item data written.
+アイテムデータを書き込みました。

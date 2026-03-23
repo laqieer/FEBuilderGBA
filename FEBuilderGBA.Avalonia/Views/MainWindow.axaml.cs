@@ -236,8 +236,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void MainWindow_Opened(object? sender, EventArgs e)
         {
-            // Set dark mode menu label from persisted preference
+            // Apply translations loaded from config at startup
             RefreshMenuHeaders();
+            RefreshNavigationLabels();
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))

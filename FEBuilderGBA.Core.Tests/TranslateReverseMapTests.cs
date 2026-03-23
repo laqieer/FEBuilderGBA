@@ -177,5 +177,147 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void DirectLookup_ChineseMode_ReturnsChineseForAvaloniaKey()
+        {
+            // Arrange: zh.txt has direct English key → Chinese value entries
+            // (no reverse map needed for these keys)
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                // en.txt has English identity entries for Avalonia keys
+                File.WriteAllText(enFile,
+                    ":Characters\n" +
+                    "Characters\n" +
+                    "\n" +
+                    ":Items\n" +
+                    "Items\n");
+
+                // zh.txt has direct English key → Chinese translation
+                File.WriteAllText(zhFile,
+                    ":Characters\n" +
+                    "角色\n" +
+                    "\n" +
+                    ":Items\n" +
+                    "道具\n");
+
+                // Act: Load Chinese translations (direct key = English Avalonia key)
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // Assert: Direct lookup of Avalonia English key → Chinese
+                Assert.Equal("角色", MyTranslateResource.str("Characters"));
+                Assert.Equal("道具", MyTranslateResource.str("Items"));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
+        [Fact]
+        public void DirectLookup_JapaneseMode_ReturnsJapaneseForAvaloniaKey()
+        {
+            // Arrange: ja.txt has direct English key → Japanese value entries
+            string enFile = Path.GetTempFileName();
+            string jaFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(enFile,
+                    ":Characters\n" +
+                    "Characters\n" +
+                    "\n" +
+                    ":Items\n" +
+                    "Items\n");
+
+                File.WriteAllText(jaFile,
+                    ":Characters\n" +
+                    "キャラクター\n" +
+                    "\n" +
+                    ":Items\n" +
+                    "アイテム\n");
+
+                // Act: Load ja.txt (simulating Japanese mode with ja.txt)
+                MyTranslateResource.LoadResource(jaFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // Assert: Direct lookup of Avalonia English key → Japanese
+                Assert.Equal("キャラクター", MyTranslateResource.str("Characters"));
+                Assert.Equal("アイテム", MyTranslateResource.str("Items"));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(jaFile);
+            }
+        }
+
+        [Fact]
+        public void DirectLookup_ChineseMode_BothJapaneseAndEnglishKeysWork()
+        {
+            // Arrange: zh.txt has both Japanese keys (WinForms compat) and English keys (Avalonia)
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(enFile,
+                    ":書き込み\n" +
+                    "Write to ROM\n" +
+                    "\n" +
+                    ":Characters\n" +
+                    "Characters\n");
+
+                File.WriteAllText(zhFile,
+                    ":書き込み\n" +
+                    "保存\n" +
+                    "\n" +
+                    ":Characters\n" +
+                    "角色\n");
+
+                // Act
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // Assert: Both lookup paths work simultaneously
+                Assert.Equal("保存", MyTranslateResource.str("書き込み"));       // WinForms Japanese key
+                Assert.Equal("保存", MyTranslateResource.str("Write to ROM"));  // Reverse English→Japanese chain
+                Assert.Equal("角色", MyTranslateResource.str("Characters"));    // Direct Avalonia English key
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
+        [Fact]
+        public void EnglishMode_AvaloniaKeysInEnFile_ReturnsEnglish()
+        {
+            // Arrange: en.txt has identity mapping for Avalonia keys
+            string enFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(enFile,
+                    ":Characters\n" +
+                    "Characters\n" +
+                    "\n" +
+                    ":Items\n" +
+                    "Items\n");
+
+                // Act: English mode — load en.txt
+                MyTranslateResource.LoadResource(enFile);
+
+                // Assert: Avalonia English key → same English value via Dic lookup
+                Assert.Equal("Characters", MyTranslateResource.str("Characters"));
+                Assert.Equal("Items", MyTranslateResource.str("Items"));
+            }
+            finally
+            {
+                File.Delete(enFile);
+            }
+        }
+
     }
 }
