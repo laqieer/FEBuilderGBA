@@ -465,27 +465,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                 caught = ex;
             }
 
-            if (caught != null)
-            {
-                _output.WriteLine($"OAMSpriteViewer LoadEntry threw: {caught.GetType().Name}: {caught.Message}");
-                return;
-            }
+            // LoadEntry must not throw
+            Assert.Null(caught);
 
             _output.WriteLine($"OAMSpriteViewer loaded at 0x{vm.CurrentAddr:X08}, IsLoaded={vm.IsLoaded}");
 
-            // Regression for #246: TileSheetImage should now be non-null with correct fix
-            if (vm.IsLoaded && vm.TileSheetImage != null)
-            {
-                Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
-                Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
-                Assert.Equal(0, vm.TileSheetImage.Width % 8);
-                Assert.Equal(0, vm.TileSheetImage.Height % 8);
-                _output.WriteLine($"TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
-            }
-            else
-            {
-                _output.WriteLine($"TileSheetImage is null (animation may lack graphics data)");
-            }
+            // Regression for #246: TileSheetImage MUST be non-null with correct fix
+            Assert.True(vm.IsLoaded, "ViewModel should be loaded after LoadEntry");
+            Assert.NotNull(vm.TileSheetImage);
+            Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
+            Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
+            Assert.Equal(0, vm.TileSheetImage.Width % 8);
+            Assert.Equal(0, vm.TileSheetImage.Height % 8);
+            _output.WriteLine($"TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
         }
 
         // =====================================================================

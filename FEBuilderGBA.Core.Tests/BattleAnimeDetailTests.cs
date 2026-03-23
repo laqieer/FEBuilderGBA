@@ -763,6 +763,7 @@ namespace FEBuilderGBA.Core.Tests
                 // Walk the animation table looking for a valid 32-byte record
                 const uint recordSize = 32;
                 IImage result = null;
+                int validRecordCount = 0;
                 for (int i = 0; i < 512; i++)
                 {
                     uint addr = baseAddr + (uint)(i * recordSize);
@@ -774,19 +775,18 @@ namespace FEBuilderGBA.Core.Tests
                         || !U.isPointer(rom.u32(addr + 24)))
                         break;
 
+                    validRecordCount++;
                     result = BattleAnimeRendererCore.RenderAnimationTileSheet(addr, 16);
                     if (result != null) break;
                 }
 
-                // If we found a valid animation, verify the image
-                if (result != null)
-                {
-                    Assert.True(result.Width > 0, "Tile sheet width must be positive");
-                    Assert.True(result.Height > 0, "Tile sheet height must be positive");
-                    Assert.Equal(0, result.Width % 8);  // tiles are 8x8
-                    Assert.Equal(0, result.Height % 8);
-                }
-                // If no valid animation found (unusual), test passes silently
+                // ROM has animation records — at least one must produce a valid tile sheet
+                Assert.True(validRecordCount > 0, "ROM should have at least one valid animation record");
+                Assert.NotNull(result);
+                Assert.True(result.Width > 0, "Tile sheet width must be positive");
+                Assert.True(result.Height > 0, "Tile sheet height must be positive");
+                Assert.Equal(0, result.Width % 8);  // tiles are 8x8
+                Assert.Equal(0, result.Height % 8);
             }
             finally
             {
