@@ -407,7 +407,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TileSheetInfo = $"Tile sheet: {newSheet.Width}x{newSheet.Height}px ({totalTiles} tiles, frame {CurrentFrame + 1})";
                 }
             }
-            catch (Exception ex) { Log.Error("RenderCurrentFrame tile sheet failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("RenderCurrentFrame tile sheet failed: " + ex.Message); }
             if (oldSheet is IDisposable d) d.Dispose();
 
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length

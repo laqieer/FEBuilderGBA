@@ -186,8 +186,7 @@ namespace FEBuilderGBA
         public static IImage RenderFrameTileSheet(uint graphicsPointer, byte[] paletteData, int tilesPerRow = 32)
         {
             ROM rom = CoreState.ROM;
-            IImageService svc = CoreState.ImageService;
-            if (rom == null || svc == null || paletteData == null) return null;
+            if (rom == null || CoreState.ImageService == null || paletteData == null) return null;
             if (!U.isPointer(graphicsPointer)) return null;
 
             uint gfxOff = U.toOffset(graphicsPointer);
