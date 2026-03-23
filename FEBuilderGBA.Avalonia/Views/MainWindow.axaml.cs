@@ -84,6 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 RefreshMenuItemHeaders();
                 RefreshEditorButtons();
                 RefreshLabels();
+                RebuildRecentFilesMenu();
             });
         }
 
@@ -602,6 +603,8 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshMenuItemHeaders();
             RefreshEditorButtons();
             RefreshLabels();
+            _vm.UpdateFromRom();
+            StatusText.Text = _vm.StatusText;
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))
