@@ -1,5 +1,6 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+<services:TranslatedUserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="using:FEBuilderGBA.Avalonia.Services"
              x:Class="FEBuilderGBA.Avalonia.Controls.AddressListControl"
              Focusable="True">
   <Grid RowDefinitions="Auto,*,Auto,Auto">
@@ -43,4 +44,4 @@
       <TextBlock Name="CountLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
     </StackPanel>
   </Grid>
-</UserControl>
+</services:TranslatedUserControl>

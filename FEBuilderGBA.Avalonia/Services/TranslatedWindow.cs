@@ -5,7 +5,7 @@ namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
     /// Base class for Avalonia Windows that automatically translates all
-    /// hardcoded English text in the visual tree using R._().
+    /// hardcoded English text in the logical tree using R._().
     ///
     /// Subclasses inherit:
     ///   - ViewTranslationHelper creation
@@ -18,6 +18,7 @@ namespace FEBuilderGBA.Avalonia.Services
     public class TranslatedWindow : Window
     {
         private readonly ViewTranslationHelper _translator;
+        private bool _subscribed;
 
         protected TranslatedWindow()
         {
@@ -27,8 +28,13 @@ namespace FEBuilderGBA.Avalonia.Services
 
         private void OnTranslatedWindowOpened(object? sender, EventArgs e)
         {
+            Opened -= OnTranslatedWindowOpened;
             _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
+            if (!_subscribed)
+            {
+                CoreState.LanguageChanged += _translator.OnLanguageChanged;
+                _subscribed = true;
+            }
         }
 
         protected override void OnClosed(EventArgs e)

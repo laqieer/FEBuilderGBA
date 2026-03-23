@@ -1,11 +1,13 @@
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
     /// <summary>
-    /// Tests for ViewTranslationHelper — the visual-tree-walking translation engine.
+    /// Tests for ViewTranslationHelper — the logical-tree-walking translation engine.
     /// Verifies that TranslateAll() correctly finds and translates text on controls,
     /// and that OnLanguageChanged re-applies translations.
     /// </summary>
@@ -241,7 +243,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void OnLanguageChanged_ReappliesTranslations()
+        public async Task OnLanguageChanged_ReappliesTranslations()
         {
             var panel = new StackPanel();
             var tb = new TextBlock { Text = "Write" };
@@ -256,6 +258,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Since we're in test mode without real translation files loaded,
             // it should still work without errors
             helper.OnLanguageChanged();
+
+            // Flush the dispatcher so the async Post has executed
+            await Dispatcher.UIThread.InvokeAsync(() => { });
 
             // After re-apply, text should be the same (same language)
             Assert.Equal(initial, tb.Text);

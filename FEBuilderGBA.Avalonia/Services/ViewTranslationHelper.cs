@@ -8,7 +8,7 @@ using global::Avalonia.Threading;
 namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
-    /// Walks the visual/logical tree of a window or control and translates
+    /// Walks the logical tree of a window or control and translates
     /// all hardcoded English text using R._().
     ///
     /// This helper stores the original (English) text for every translatable
@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 return true;
 
             // Skip pure numeric
-            if (double.TryParse(text, out _))
+            if (double.TryParse(text, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _))
                 return true;
 
             // Skip field codes like "B0", "W2", "D0" etc (but allow words like "HP", "AI")

@@ -165,7 +165,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        R._("No texts were imported. Check the file format."), "Import", MessageBoxMode.Ok);
+                        R._("No texts were imported. Check the file format."), R._("Import"), MessageBoxMode.Ok);
                 }
             }
             catch (Exception ex)

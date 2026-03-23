@@ -6,7 +6,7 @@ namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
     /// Base class for Avalonia UserControls that automatically translates all
-    /// hardcoded English text in the visual tree using R._().
+    /// hardcoded English text in the logical tree using R._().
     ///
     /// Uses AttachedToVisualTree / DetachedFromVisualTree for proper lifecycle
     /// management (UserControls do not have Opened/Closed like Windows).
