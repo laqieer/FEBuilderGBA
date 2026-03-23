@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class HexEditorJumpView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly HexEditorJumpViewModel _vm = new();
 
         public string ViewTitle => "Hex Editor - Jump";
@@ -18,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public HexEditorJumpView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -42,5 +48,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventUnitView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventUnitViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -27,6 +29,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventUnitView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             MapListBox.ItemsSource = _mapDisplayItems;
             GroupListBox.ItemsSource = _groupDisplayItems;
             UnitListBox.ItemsSource = _unitDisplayItems;
@@ -250,6 +256,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_mapItems.Count > 0)
                 MapListBox.SelectedIndex = 0;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

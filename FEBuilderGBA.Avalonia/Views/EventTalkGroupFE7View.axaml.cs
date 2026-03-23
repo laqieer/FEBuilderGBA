@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventTalkGroupFE7View : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventTalkGroupFE7ViewModel _vm = new();
 
         public string ViewTitle => "Talk Group (FE7)";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventTalkGroupFE7View()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
@@ -68,5 +74,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

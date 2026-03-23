@@ -11,6 +11,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class DisASMDumpAllArgGrepView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly DisASMDumpAllArgGrepViewModel _vm = new();
 
         /// <summary>Cached disassembly lines to avoid re-disassembling on each search.</summary>
@@ -23,6 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public DisASMDumpAllArgGrepView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -104,5 +110,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

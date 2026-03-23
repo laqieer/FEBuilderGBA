@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventScriptView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventScriptViewModel _vm = new();
 
         public string ViewTitle => "Event Script Editor";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventScriptView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             CommandsList.ItemsSource = _vm.Commands;
         }
 
@@ -80,6 +86,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (CommandsList.ItemCount > 0)
                 CommandsList.SelectedIndex = 0;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

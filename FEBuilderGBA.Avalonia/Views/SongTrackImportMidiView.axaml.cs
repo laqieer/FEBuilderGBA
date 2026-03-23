@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class SongTrackImportMidiView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly SongTrackImportMidiViewModel _vm = new();
 
         public string ViewTitle => "MIDI Import";
@@ -17,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public SongTrackImportMidiView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -107,5 +113,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

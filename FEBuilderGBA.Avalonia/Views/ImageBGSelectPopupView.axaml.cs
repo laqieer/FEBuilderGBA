@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ImageBGSelectPopupView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly ImageBGSelectPopupViewViewModel _vm = new();
 
         public string ViewTitle => "BG Image Select";
@@ -17,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageBGSelectPopupView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Initialize();
         }
 
@@ -30,5 +36,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

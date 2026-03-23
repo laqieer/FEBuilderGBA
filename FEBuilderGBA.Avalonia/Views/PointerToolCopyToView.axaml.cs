@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class PointerToolCopyToView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly PointerToolCopyToViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Pointer Tool - Copy To";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public PointerToolCopyToView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -55,5 +61,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

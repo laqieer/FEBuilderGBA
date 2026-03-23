@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class MapChangeView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly MapChangeViewModel _vm = new();
         readonly UndoService _undoService = new();
         readonly ObservableCollection<string> _recordDisplayItems = new();
@@ -22,6 +24,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapChangeView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             RecordList.ItemsSource = _recordDisplayItems;
             RecordList.SelectionChanged += OnRecordSelected;
@@ -202,6 +208,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             EntryList.SelectFirst();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

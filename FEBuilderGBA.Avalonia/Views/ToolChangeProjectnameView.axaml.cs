@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ToolChangeProjectnameView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly ToolChangeProjectnameViewViewModel _vm = new();
         public string ViewTitle => "Change Project Name";
         public bool IsLoaded => _vm.IsLoaded;
@@ -15,6 +17,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolChangeProjectnameView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -39,5 +45,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

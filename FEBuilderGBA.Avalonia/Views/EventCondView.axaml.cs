@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventCondView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventCondViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressSlotChange;
@@ -21,6 +23,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventCondView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnMapSelected;
             SlotCombo.SelectionChanged += OnSlotChanged;
             RecordList.SelectionChanged += OnRecordSelected;
@@ -420,6 +426,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             EntryList.SelectFirst();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class UbyteBitFlagView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly UbyteBitFlagViewModel _vm = new();
         readonly CheckBox[] _bitBoxes;
 
@@ -17,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public UbyteBitFlagView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _bitBoxes = new CheckBox[] { Bit0Box, Bit1Box, Bit2Box, Bit3Box, Bit4Box, Bit5Box, Bit6Box, Bit7Box };
             foreach (var cb in _bitBoxes)
@@ -73,5 +79,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { _vm.Load(0); UpdateUI(); }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ToolProblemReportSearchSavView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly ToolProblemReportSearchSavViewModel _vm = new();
         public string ViewTitle => "No SAV file found";
         public bool IsLoaded => _vm.IsLoaded;
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolProblemReportSearchSavView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -55,5 +61,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

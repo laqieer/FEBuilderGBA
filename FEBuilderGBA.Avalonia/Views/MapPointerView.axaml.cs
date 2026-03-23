@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class MapPointerView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly MapPointerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -18,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapPointerView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             PlistTypeCombo.SelectionChanged += PlistType_Changed;
             Opened += (_, _) => InitFilter();
@@ -105,6 +111,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             EntryList.SelectFirst();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

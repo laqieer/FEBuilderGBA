@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class MoveToFreeSpaceView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly MoveToFreeSpaceViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Move to Free Space";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public MoveToFreeSpaceView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -51,5 +57,11 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

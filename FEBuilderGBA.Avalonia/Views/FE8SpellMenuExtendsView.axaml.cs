@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class FE8SpellMenuExtendsView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly FE8SpellMenuExtendsViewModel _vm = new();
 
         public string ViewTitle => "Spell Menu Extensions";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public FE8SpellMenuExtendsView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -53,5 +59,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

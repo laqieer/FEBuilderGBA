@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class DisASMView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly DisASMViewModel _vm = new();
 
         public string ViewTitle => "Disassembler";
@@ -18,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public DisASMView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoaded = true;
         }
@@ -53,5 +59,11 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

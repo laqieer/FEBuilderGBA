@@ -12,12 +12,19 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EasyModePanel : UserControl
     {
+        ViewTranslationHelper _translator;
+
         /// <summary>Category borders paired with their searchable keywords (category name + button labels).</summary>
         private List<(Border border, string keywords)>? _categories;
 
         public EasyModePanel()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
+            Unloaded += (_, _) => CoreState.LanguageChanged -= _translator.OnLanguageChanged;
             SearchBox.TextChanged += SearchBox_TextChanged;
         }
 

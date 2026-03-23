@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ItemEditorView : Window, IPickableEditor, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly ItemEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -23,6 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ItemEditorView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             ItemList.SelectedAddressChanged += OnItemSelected;
             ItemList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
@@ -358,6 +364,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             ItemList.SelectFirst();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

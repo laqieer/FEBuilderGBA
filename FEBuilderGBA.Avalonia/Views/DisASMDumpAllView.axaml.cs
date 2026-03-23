@@ -11,6 +11,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class DisASMDumpAllView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly DisASMDumpAllViewModel _vm = new();
 
         public string ViewTitle => "Disassembly Dump All";
@@ -20,6 +22,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public DisASMDumpAllView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -67,5 +73,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

@@ -14,12 +14,18 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class DataExportView : Window
     {
+        ViewTranslationHelper _translator;
+
         readonly DataExportViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public DataExportView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
         }
 
@@ -265,6 +271,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 _vm.StatusMessage = $"Import failed: {ex.Message}";
             }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

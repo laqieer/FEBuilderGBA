@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class DumpStructSelectToTextDialogView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly DumpStructSelectToTextDialogViewModel _vm = new();
 
         public string ViewTitle => "Dump Struct to Text";
@@ -19,6 +21,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public DumpStructSelectToTextDialogView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Load("dump.txt", "(No content loaded yet.)");
             UpdateUI();
         }
@@ -64,5 +70,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class UwordBitFlagView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly UwordBitFlagViewModel _vm = new();
         readonly CheckBox[] _bitBoxes;
 
@@ -17,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public UwordBitFlagView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _bitBoxes = new CheckBox[]
             {
@@ -98,5 +104,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { _vm.Load(0); UpdateUI(); }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

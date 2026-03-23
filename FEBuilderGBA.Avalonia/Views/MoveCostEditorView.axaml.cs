@@ -11,6 +11,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class MoveCostEditorView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly MoveCostEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
         readonly NumericUpDown[] _nudFields = new NumericUpDown[MoveCostEditorViewModel.TerrainCount];
@@ -24,6 +26,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public MoveCostEditorView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             BuildTerrainGrid();
             ClassList.SelectedAddressChanged += OnClassSelected;
             WriteButton.Click += OnWriteClick;
@@ -219,6 +225,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             ClassList.SelectFirst();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

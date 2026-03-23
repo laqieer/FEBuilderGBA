@@ -3,6 +3,8 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
 
+using FEBuilderGBA.Avalonia.Services;
+
 namespace FEBuilderGBA.Avalonia.Views
 {
     /// <summary>
@@ -11,6 +13,8 @@ namespace FEBuilderGBA.Avalonia.Views
     /// </summary>
     public partial class ScriptCommandPickerView : Window
     {
+        ViewTranslationHelper _translator;
+
         readonly EventScript.EventScriptType _scriptType;
         EventScript.Script? _selectedScript;
 
@@ -25,6 +29,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _scriptType = scriptType;
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
 
             Title = scriptType switch
             {
@@ -124,6 +132,12 @@ namespace FEBuilderGBA.Avalonia.Views
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             Close(null);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

@@ -23,6 +23,8 @@ namespace FEBuilderGBA.Avalonia.Controls
 
     public partial class AddressListControl : UserControl
     {
+        ViewTranslationHelper _translator;
+
         readonly ObservableCollection<AddressListItem> _displayItems = new();
         List<AddrResult> _items = new();
         // Maps each display index to its corresponding index in _items.
@@ -54,6 +56,11 @@ namespace FEBuilderGBA.Avalonia.Controls
         public AddressListControl()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
+            Unloaded += (_, _) => CoreState.LanguageChanged -= _translator.OnLanguageChanged;
             AddressList.ItemsSource = _displayItems;
             AddressList.DoubleTapped += AddressList_DoubleTapped;
             AddressList.KeyDown += AddressList_KeyDown;

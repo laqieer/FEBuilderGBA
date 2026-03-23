@@ -7,6 +7,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class SystemHoverColorViewerView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly SystemHoverColorViewerViewModel _vm = new();
 
         public string ViewTitle => "System Area Color Viewer";
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public SystemHoverColorViewerView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             FilterCombo.ItemsSource = _vm.FilterNames;
             FilterCombo.SelectedIndex = 0;
             FilterCombo.SelectionChanged += FilterCombo_SelectionChanged;
@@ -55,5 +61,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

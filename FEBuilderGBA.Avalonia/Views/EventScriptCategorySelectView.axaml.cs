@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventScriptCategorySelectView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventScriptCategorySelectViewModel _vm = new();
 
         public string ViewTitle => "Event Script Category Select";
@@ -17,6 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventScriptCategorySelectView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Load();
             CategoryList.ItemsSource = _vm.Categories;
             if (_vm.Categories.Count > 0)
@@ -36,5 +42,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { if (_vm.Categories.Count > 0) CategoryList.SelectedIndex = 0; }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

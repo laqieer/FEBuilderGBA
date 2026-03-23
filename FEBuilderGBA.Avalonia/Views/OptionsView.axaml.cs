@@ -2,19 +2,31 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class OptionsView : Window
     {
+        ViewTranslationHelper _translator;
         readonly OptionsViewModel _vm = new();
         string _originalLanguageCode = "";
 
         public OptionsView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             Opened += OnOpened;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
 
         void OnOpened(object? sender, EventArgs e)

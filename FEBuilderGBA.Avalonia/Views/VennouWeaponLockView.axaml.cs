@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class VennouWeaponLockView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly VennouWeaponLockViewModel _vm = new();
         readonly UndoService _undoService = new();
         uint _baseAddr;
@@ -18,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public VennouWeaponLockView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
         }
 
@@ -69,6 +75,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Weapon lock data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("VennouWeaponLockView.Write: {0}", ex.Message); }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

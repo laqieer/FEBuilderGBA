@@ -11,6 +11,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventScriptPopupView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventScriptPopupViewModel _vm = new();
 
         public string ViewTitle => _vm.ScriptType switch
@@ -28,6 +30,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.ScriptType = scriptType;
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             Title = ViewTitle;
             _vm.Load();
             CommandsList.ItemsSource = _vm.Commands;
@@ -173,6 +179,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     StatusLabel.Text = "Invalid or null pointer.";
                 }
             }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

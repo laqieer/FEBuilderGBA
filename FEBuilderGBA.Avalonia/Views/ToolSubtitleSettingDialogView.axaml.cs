@@ -9,6 +9,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ToolSubtitleSettingDialogView : Window, IEditorView
     {
+        ViewTranslationHelper _translator;
+
         readonly ToolSubtitleSettingDialogViewViewModel _vm = new();
         public string ViewTitle => "Subtitle Settings";
         public bool IsLoaded => _vm.IsLoaded;
@@ -16,6 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolSubtitleSettingDialogView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -81,5 +87,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
+        }
     }
 }

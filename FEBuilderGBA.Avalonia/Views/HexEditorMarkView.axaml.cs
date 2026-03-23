@@ -10,6 +10,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class HexEditorMarkView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly HexEditorMarkViewModel _vm = new();
 
         public string ViewTitle => "Marked Addresses";
@@ -19,6 +21,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public HexEditorMarkView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
             AddressList.DoubleTapped += AddressList_DoubleTapped;
@@ -56,6 +62,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.Marks.Count > 0)
                 AddressList.SelectedIndex = 0;
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }

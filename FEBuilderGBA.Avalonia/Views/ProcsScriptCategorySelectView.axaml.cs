@@ -11,6 +11,8 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class ProcsScriptCategorySelectView : Window, IEditorView, IDataVerifiableView
     {
+        ViewTranslationHelper _translator;
+
         readonly EventScriptPopupViewModel _vm = new()
         {
             ScriptType = EventScript.EventScriptType.Procs
@@ -23,6 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public ProcsScriptCategorySelectView()
         {
             InitializeComponent();
+            // Translation support
+            _translator = new ViewTranslationHelper(this);
+            _translator.TranslateAll();
+            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Load();
             CommandsList.ItemsSource = _vm.Commands;
         }
@@ -168,6 +174,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     StatusLabel.Text = "Invalid or null pointer.";
                 }
             }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            base.OnClosed(e);
         }
     }
 }
