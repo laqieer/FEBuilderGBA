@@ -19758,3 +19758,108 @@ sav
 
 :↑ Newest
 ↑ Newest
+
+:Search...
+Search...
+
+:Search editors...
+Search editors...
+
+:Filter patches by name, tag, or author...
+Filter patches by name, tag, or author...
+
+:Enter text here...
+Enter text here...
+
+:Enter search pattern...
+Enter search pattern...
+
+:0x08XXXXXX or hex offset
+0x08XXXXXX or hex offset
+
+:0x Address
+0x Address
+
+:Filter commands...
+Filter commands...
+
+:Enter filter keywords...
+Enter filter keywords...
+
+:Search in text content...
+Search in text content...
+
+:Reason for hiding
+Reason for hiding
+
+:Enter animation name
+Enter animation name
+
+:Enter ARM/Thumb ASM code here...
+Enter ARM/Thumb ASM code here...
+
+:Enter new project name
+Enter new project name
+
+:Enter subtitle text...
+Enter subtitle text...
+
+:Enter reference text...
+Enter reference text...
+
+:Select source image...
+Select source image...
+
+:Open ROM
+Open ROM
+
+:Save ROM
+Save ROM
+
+:Open Patch
+Open Patch
+
+:Export Image
+Export Image
+
+:Import Image
+Import Image
+
+:Export Palette
+Export Palette
+
+:Import Palette
+Import Palette
+
+:GBA ROM Files
+GBA ROM Files
+
+:All Files
+All Files
+
+:UPS Patch Files
+UPS Patch Files
+
+:PNG Image
+PNG Image
+
+:Image Files
+Image Files
+
+:Adobe ACT (Photoshop)
+Adobe ACT (Photoshop)
+
+:All Palette Files
+All Palette Files
+
+:GBA Raw Palette
+GBA Raw Palette
+
+:GIMP GPL Palette
+GIMP GPL Palette
+
+:Hex Text Palette
+Hex Text Palette
+
+:JASC-PAL (Aseprite/GIMP)
+JASC-PAL (Aseprite/GIMP)

@@ -7,20 +7,21 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 {
     /// <summary>
     /// Helper for file open/save dialogs using Avalonia 11 StorageProvider API.
+    /// All user-visible strings are wrapped with R._() for i18n.
     /// </summary>
     public static class FileDialogHelper
     {
-        static readonly FilePickerFileType GbaFileType = new("GBA ROM Files")
+        static FilePickerFileType MakeGbaFileType() => new(R._("GBA ROM Files"))
         {
             Patterns = new[] { "*.gba" },
         };
 
-        static readonly FilePickerFileType AllFileType = new("All Files")
+        static FilePickerFileType MakeAllFileType() => new(R._("All Files"))
         {
             Patterns = new[] { "*" },
         };
 
-        static readonly FilePickerFileType UpsFileType = new("UPS Patch Files")
+        static FilePickerFileType MakeUpsFileType() => new(R._("UPS Patch Files"))
         {
             Patterns = new[] { "*.ups" },
         };
@@ -30,9 +31,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Open ROM",
+                Title = R._("Open ROM"),
                 AllowMultiple = false,
-                FileTypeFilter = new[] { GbaFileType, AllFileType },
+                FileTypeFilter = new[] { MakeGbaFileType(), MakeAllFileType() },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
@@ -43,9 +44,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Save ROM",
+                Title = R._("Save ROM"),
                 SuggestedFileName = suggestedName ?? "rom.gba",
-                FileTypeChoices = new[] { GbaFileType, AllFileType },
+                FileTypeChoices = new[] { MakeGbaFileType(), MakeAllFileType() },
             });
 
             return file?.TryGetLocalPath();
@@ -56,15 +57,15 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Open Patch",
+                Title = R._("Open Patch"),
                 AllowMultiple = false,
-                FileTypeFilter = new[] { UpsFileType, AllFileType },
+                FileTypeFilter = new[] { MakeUpsFileType(), MakeAllFileType() },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
-        static readonly FilePickerFileType PngFileType = new("PNG Image")
+        static FilePickerFileType MakePngFileType() => new(R._("PNG Image"))
         {
             Patterns = new[] { "*.png" },
         };
@@ -74,15 +75,15 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export Image",
+                Title = R._("Export Image"),
                 SuggestedFileName = suggestedName ?? "image.png",
-                FileTypeChoices = new[] { PngFileType },
+                FileTypeChoices = new[] { MakePngFileType() },
             });
 
             return file?.TryGetLocalPath();
         }
 
-        static readonly FilePickerFileType ImageFileType = new("Image Files")
+        static FilePickerFileType MakeImageFileType() => new(R._("Image Files"))
         {
             Patterns = new[] { "*.png", "*.bmp" },
         };
@@ -92,9 +93,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Import Image",
+                Title = R._("Import Image"),
                 AllowMultiple = false,
-                FileTypeFilter = new[] { ImageFileType, AllFileType },
+                FileTypeFilter = new[] { MakeImageFileType(), MakeAllFileType() },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
@@ -108,38 +109,38 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             {
                 Title = title,
                 AllowMultiple = false,
-                FileTypeFilter = new[] { fileType, AllFileType },
+                FileTypeFilter = new[] { fileType, MakeAllFileType() },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
-        static readonly FilePickerFileType JascPalFileType = new("JASC-PAL (Aseprite/GIMP)")
+        static FilePickerFileType MakeJascPalFileType() => new(R._("JASC-PAL (Aseprite/GIMP)"))
         {
             Patterns = new[] { "*.pal" },
         };
 
-        static readonly FilePickerFileType GbaRawPalFileType = new("GBA Raw Palette")
+        static FilePickerFileType MakeGbaRawPalFileType() => new(R._("GBA Raw Palette"))
         {
             Patterns = new[] { "*.gbapal" },
         };
 
-        static readonly FilePickerFileType AdobeActFileType = new("Adobe ACT (Photoshop)")
+        static FilePickerFileType MakeAdobeActFileType() => new(R._("Adobe ACT (Photoshop)"))
         {
             Patterns = new[] { "*.act" },
         };
 
-        static readonly FilePickerFileType GimpGplFileType = new("GIMP GPL Palette")
+        static FilePickerFileType MakeGimpGplFileType() => new(R._("GIMP GPL Palette"))
         {
             Patterns = new[] { "*.gpl" },
         };
 
-        static readonly FilePickerFileType HexTextPalFileType = new("Hex Text Palette")
+        static FilePickerFileType MakeHexTextPalFileType() => new(R._("Hex Text Palette"))
         {
             Patterns = new[] { "*.txt" },
         };
 
-        static readonly FilePickerFileType AnyPaletteFileType = new("All Palette Files")
+        static FilePickerFileType MakeAnyPaletteFileType() => new(R._("All Palette Files"))
         {
             Patterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" },
         };
@@ -149,9 +150,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export Palette",
+                Title = R._("Export Palette"),
                 SuggestedFileName = suggestedName ?? "palette.pal",
-                FileTypeChoices = new[] { JascPalFileType, GbaRawPalFileType, AdobeActFileType, GimpGplFileType, HexTextPalFileType },
+                FileTypeChoices = new[] { MakeJascPalFileType(), MakeGbaRawPalFileType(), MakeAdobeActFileType(), MakeGimpGplFileType(), MakeHexTextPalFileType() },
             });
 
             return file?.TryGetLocalPath();
@@ -162,9 +163,9 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Import Palette",
+                Title = R._("Import Palette"),
                 AllowMultiple = false,
-                FileTypeFilter = new[] { AnyPaletteFileType, JascPalFileType, GbaRawPalFileType, AdobeActFileType, GimpGplFileType, HexTextPalFileType, AllFileType },
+                FileTypeFilter = new[] { MakeAnyPaletteFileType(), MakeJascPalFileType(), MakeGbaRawPalFileType(), MakeAdobeActFileType(), MakeGimpGplFileType(), MakeHexTextPalFileType(), MakeAllFileType() },
             });
 
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;

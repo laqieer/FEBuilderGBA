@@ -19756,3 +19756,108 @@ sav
 
 :↑ Newest
 ↑ 最新
+
+:Search...
+搜索...
+
+:Search editors...
+搜索编辑器...
+
+:Filter patches by name, tag, or author...
+按名称、标签或作者筛选补丁...
+
+:Enter text here...
+在此输入文本...
+
+:Enter search pattern...
+输入搜索模式...
+
+:0x08XXXXXX or hex offset
+0x08XXXXXX 或十六进制偏移
+
+:0x Address
+0x 地址
+
+:Filter commands...
+筛选命令...
+
+:Enter filter keywords...
+输入筛选关键词...
+
+:Search in text content...
+在文本内容中搜索...
+
+:Reason for hiding
+隐藏原因
+
+:Enter animation name
+输入动画名称
+
+:Enter ARM/Thumb ASM code here...
+在此输入 ARM/Thumb 汇编代码...
+
+:Enter new project name
+输入新项目名称
+
+:Enter subtitle text...
+输入字幕文本...
+
+:Enter reference text...
+输入参考文本...
+
+:Select source image...
+选择源图像...
+
+:Open ROM
+打开 ROM
+
+:Save ROM
+保存 ROM
+
+:Open Patch
+打开补丁
+
+:Export Image
+导出图像
+
+:Import Image
+导入图像
+
+:Export Palette
+导出调色板
+
+:Import Palette
+导入调色板
+
+:GBA ROM Files
+GBA ROM 文件
+
+:All Files
+所有文件
+
+:UPS Patch Files
+UPS 补丁文件
+
+:PNG Image
+PNG 图像
+
+:Image Files
+图像文件
+
+:Adobe ACT (Photoshop)
+Adobe ACT (Photoshop)
+
+:All Palette Files
+所有调色板文件
+
+:GBA Raw Palette
+GBA 原始调色板
+
+:GIMP GPL Palette
+GIMP GPL 调色板
+
+:Hex Text Palette
+十六进制文本调色板
+
+:JASC-PAL (Aseprite/GIMP)
+JASC-PAL (Aseprite/GIMP)
