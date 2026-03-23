@@ -310,29 +310,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
             }
 
-            // "ja" is the built-in language (no translation file needed).
-            // Clear the dictionary so str() returns keys as-is (all keys are Japanese).
-            if (lang == "ja")
-            {
-                MyTranslateResource.Clear();
-                return;
-            }
-
             string translateBaseDir = CoreState.BaseDirectory;
             if (string.IsNullOrEmpty(translateBaseDir))
                 translateBaseDir = AppDomain.CurrentDomain.BaseDirectory;
 
+            string enFilePath = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
+
+            // "ja" is the built-in language (no translation file needed).
+            // Clear the dictionary so str() returns keys as-is (all keys are Japanese).
+            // Load reverse English map first so Avalonia English keys → Japanese keys.
+            if (lang == "ja")
+            {
+                MyTranslateResource.LoadReverseEnglishMap(enFilePath);
+                MyTranslateResource.Clear();
+                return;
+            }
+
+            // English mode: load en.txt translations directly — no reverse map needed
+            // because English Avalonia keys pass through and match en.txt values.
+            if (lang == "en")
+            {
+                string enTranslateFile = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
+                if (File.Exists(enTranslateFile))
+                    MyTranslateResource.LoadResource(enTranslateFile);
+                else
+                    MyTranslateResource.Clear();
+                return;
+            }
+
+            // Non-English, non-Japanese language (zh, etc.):
+            // Load target language file, then load reverse English→Japanese map
+            // so Avalonia English keys can chain: English → Japanese → target.
             string translateFile = Path.Combine(translateBaseDir, "config", "translate", lang + ".txt");
             if (File.Exists(translateFile))
             {
                 MyTranslateResource.LoadResource(translateFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFilePath);
             }
             else
             {
                 // Requested language file not found — fall back to English
-                string enFile = Path.Combine(translateBaseDir, "config", "translate", "en.txt");
-                if (File.Exists(enFile))
-                    MyTranslateResource.LoadResource(enFile);
+                if (File.Exists(enFilePath))
+                    MyTranslateResource.LoadResource(enFilePath);
                 else
                     MyTranslateResource.Clear(); // no translation files at all
             }

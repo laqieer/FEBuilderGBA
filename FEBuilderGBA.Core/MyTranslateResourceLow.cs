@@ -19,23 +19,71 @@ namespace FEBuilderGBA
     public class MyTranslateResourceLow
     {
         Dictionary<string,string> Dic = new Dictionary<string,string>();
+        Dictionary<string,string> ReverseEnglishMap = new Dictionary<string,string>();
 
         //翻訳文字列の取得
         public string str(string src)
         {
             string dest;
+            // 1. Direct lookup (Japanese keys — WinForms backward compat)
             if (Dic.TryGetValue(src, out dest))
             {
                 return dest;
             }
+            // 2. Reverse chain: English key → Japanese key → target translation
+            string japaneseKey;
+            if (ReverseEnglishMap.TryGetValue(src, out japaneseKey))
+            {
+                if (Dic.TryGetValue(japaneseKey, out dest))
+                    return dest;
+                // For Japanese mode (Dic cleared): return the Japanese key itself
+                return japaneseKey;
+            }
+            // 3. Pass-through
             return src;
         }
         /// <summary>
         /// Clear all translation entries so str() returns keys as-is (built-in Japanese).
+        /// Keep ReverseEnglishMap — Japanese mode needs it to map English→Japanese.
         /// </summary>
         public void Clear()
         {
             Dic = new Dictionary<string,string>();
+        }
+
+        /// <summary>
+        /// Load a reverse English→Japanese lookup map from an English translation file.
+        /// This maps English translation values back to their Japanese keys,
+        /// enabling Avalonia (which uses English keys in R._()) to find translations
+        /// in non-English target language files.
+        /// </summary>
+        public void LoadReverseEnglishMap(string enFilePath)
+        {
+            ReverseEnglishMap = new Dictionary<string,string>();
+            if (!File.Exists(enFilePath)) return;
+
+            using (StreamReader reader = File.OpenText(enFilePath))
+            {
+                string src = null;
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    if (line.Length <= 0) { src = null; continue; }
+                    if (src == null)
+                    {
+                        if (line[0] != ':') continue;
+                        src = line.Substring(1).Replace("\\r\\n", "\r\n");
+                    }
+                    else
+                    {
+                        string englishValue = line.Replace("\\r\\n", "\r\n");
+                        // Map English value → Japanese key (for reverse lookup)
+                        if (!string.IsNullOrEmpty(englishValue))
+                            ReverseEnglishMap[englishValue] = src;
+                        src = null; // after reading translation line, reset src for next pair
+                    }
+                }
+            }
         }
 
         //翻訳があるかどうか取得 開発用

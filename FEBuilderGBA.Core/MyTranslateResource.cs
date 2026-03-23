@@ -68,5 +68,14 @@ namespace FEBuilderGBA
         {
             Resource.Clear();
         }
+
+        /// <summary>
+        /// Load a reverse English→Japanese lookup map so that Avalonia English keys
+        /// can be resolved to Japanese keys, then to the target language translation.
+        /// </summary>
+        public static void LoadReverseEnglishMap(string enFilePath)
+        {
+            Resource.LoadReverseEnglishMap(enFilePath);
+        }
     }
 }
