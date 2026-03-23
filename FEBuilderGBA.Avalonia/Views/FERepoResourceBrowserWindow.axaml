@@ -18,9 +18,9 @@
                 Margin="8" Spacing="8">
       <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
                  HorizontalAlignment="Left" Width="500" />
-      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_InsertButton_Button" Content="Insert" IsEnabled="{Binding CanInsert}"
+      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_Insert_Button" Content="Insert" IsEnabled="{Binding CanInsert}"
               Click="InsertButton_Click" Width="80" />
-      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CancelButton_Button" Content="Cancel" Click="CancelButton_Click" Width="80" />
+      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_Cancel_Button" Content="Cancel" Click="CancelButton_Click" Width="80" />
     </StackPanel>
 
     <!-- Main content: categories | files + preview -->

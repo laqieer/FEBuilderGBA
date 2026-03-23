@@ -46,11 +46,6 @@ $customControlTypes = @(
     'controls:BitFlagPanel', 'controls:AddressListControl', 'controls:GbaImageControl'
 )
 
-# Editor name prefix overrides (when AutomationId prefix differs from filename)
-$editorNameOverrides = @{
-    "ErorrUnknownROM" = "ErrorUnknownROM"
-}
-
 $totalErrors = 0
 $totalWarnings = 0
 $totalIds = 0
@@ -63,10 +58,6 @@ function Get-EditorName {
     $name = $fileName
     if ($fileName -match '^(.+)(View|Window)$') {
         $name = $Matches[1]
-    }
-    # Apply prefix overrides (e.g., misspelled filenames where AutomationIds use the correct spelling)
-    if ($editorNameOverrides.ContainsKey($name)) {
-        return $editorNameOverrides[$name]
     }
     return $name
 }
@@ -241,9 +232,9 @@ $fileStats.GetEnumerator() | Sort-Object { $_.Value.Ids } -Descending | Select-O
 }
 
 # Exit code
-if ($totalErrors -gt 0) {
+if ($totalErrors -gt 0 -or $totalWarnings -gt 0) {
     Write-Host ""
-    Write-Host "VALIDATION FAILED: $totalErrors error(s) found" -ForegroundColor Red
+    Write-Host "VALIDATION FAILED: $totalErrors error(s), $totalWarnings missing ID warning(s)" -ForegroundColor Red
     exit 1
 } else {
     Write-Host ""

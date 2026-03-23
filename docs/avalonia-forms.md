@@ -78,7 +78,6 @@ The main application window and supporting startup/settings views.
 | 5 | OpenLastSelectedFileView | OpenLastSelectedFileViewModel | Recently opened file picker |
 | 6 | LogViewerView | LogViewerViewModel | Application log viewer |
 | 7 | ErrorUnknownROMView | ErrorUnknownROMViewModel | Unknown ROM detection dialog |
-| 8 | ErorrUnknownROMView | ErorrUnknownROMViewModel | Legacy unknown ROM dialog (typo preserved) |
 
 ## 2. Unit & Class Editors
 
@@ -650,4 +649,3 @@ through their parent editors:
 | NotifyWriteView | Notification overlay |
 | PatchUninstallDialogView | Dialog variant of PatchFormUninstallDialogView |
 | SkillSystemsCSkillRechainView | CSkill rechain sub-editor |
-| ErorrUnknownROMView | Legacy dialog (typo preserved from WinForms) |
