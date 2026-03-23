@@ -90,7 +90,8 @@ function Get-FieldName {
         [string]$ControlType,   # e.g. Button, TextBox
         [string]$ClickHandler,  # value of Click= handler
         [string]$Content,       # value of Content= or Text= for buttons
-        [string]$Header         # value of Header= for Expanders/TabItems
+        [string]$Header,        # value of Header= for Expanders/TabItems
+        [string]$ItemsSource    # value of ItemsSource binding property name
     )
 
     # Priority 1: From Name/x:Name - strip common suffixes
@@ -130,6 +131,11 @@ function Get-FieldName {
     if ($Content) {
         $field = $Content -replace '[^a-zA-Z0-9]', ''
         if ($field) { return $field }
+    }
+
+    # Priority 4: From ItemsSource binding for unnamed ItemsControl/ListBox
+    if ($ItemsSource) {
+        return $ItemsSource
     }
 
     return $null
@@ -258,11 +264,9 @@ function Process-AxamlFile {
             }
         }
 
-        # Also check for ItemsControl (used for WarningsList etc.)
+        # Also check for ItemsControl (used for WarningsList etc.) — named or unnamed
         if (-not $controlType -and $line -match '^\s*<ItemsControl[\s/>]') {
-            if ($fullElement -match '(?:^|\s)(?:Name|x:Name)\s*=\s*"([^"]+)"') {
-                $controlType = 'ItemsControl'
-            }
+            $controlType = 'ItemsControl'
         }
 
         if ($controlType) {
@@ -290,9 +294,16 @@ function Process-AxamlFile {
                 $headerAttr = $Matches[1]
             }
 
+            # Extract ItemsSource binding property name
+            $itemsSourceAttr = $null
+            if ($fullElement -match 'ItemsSource\s*=\s*"\{Binding\s+([^,}\s]+)') {
+                $itemsSourceAttr = $Matches[1]
+            }
+
             # Get field name
             $fieldName = Get-FieldName -NameAttr $nameAttr -ControlType $controlType `
-                -ClickHandler $clickHandler -Content $contentAttr -Header $headerAttr
+                -ClickHandler $clickHandler -Content $contentAttr -Header $headerAttr `
+                -ItemsSource $itemsSourceAttr
 
             # If no field name could be derived, use sequential fallback
             if (-not $fieldName) {

@@ -244,9 +244,9 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 
 ### Avalonia UI Automation Testing
 
-All 362 Avalonia `.axaml` files (361 views + 1 dialog) have `AutomationProperties.AutomationId` attributes on every interactive control, enabling reliable UI automation testing with tools like Appium, FlaUI, or MCP Computer Use.
+All 361 Avalonia `.axaml` files (360 views + 1 dialog) have `AutomationProperties.AutomationId` attributes on every interactive control, enabling reliable UI automation testing with tools like Appium, FlaUI, or MCP Computer Use.
 
-**2,551 unique AutomationIds** follow the naming convention `{EditorName}_{FieldName}_{ControlType}`:
+**3,132 unique AutomationIds** follow the naming convention `{EditorName}_{FieldName}_{ControlType}`:
 
 | Suffix | Control Types |
 |--------|--------------|
