@@ -39,6 +39,15 @@ namespace FEBuilderGBA
                 // For Japanese mode (Dic cleared): return the Japanese key itself
                 return japaneseKey;
             }
+            // 2b. Retry with TrimEnd — en.txt values may have trailing whitespace
+            //     that Avalonia keys won't have.
+            string trimmed = src.TrimEnd();
+            if (trimmed != src && ReverseEnglishMap.TryGetValue(trimmed, out japaneseKey))
+            {
+                if (Dic.TryGetValue(japaneseKey, out dest))
+                    return dest;
+                return japaneseKey;
+            }
             // 3. Pass-through
             return src;
         }
@@ -76,7 +85,7 @@ namespace FEBuilderGBA
                     }
                     else
                     {
-                        string englishValue = line.Replace("\\r\\n", "\r\n");
+                        string englishValue = line.Replace("\\r\\n", "\r\n").TrimEnd();
                         // Map English value → Japanese key (for reverse lookup)
                         if (!string.IsNullOrEmpty(englishValue))
                             ReverseEnglishMap[englishValue] = src;

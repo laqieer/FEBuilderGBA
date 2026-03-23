@@ -326,8 +326,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // English mode: load en.txt translations directly — no reverse map needed
-            // because English Avalonia keys pass through and match en.txt values.
+            // English mode: en.txt maps Japanese→English for WinForms compat;
+            // Avalonia English keys work by pass-through (not found in Dic, returned as-is).
             if (lang == "en")
             {
                 string enTranslateFile = Path.Combine(translateBaseDir, "config", "translate", "en.txt");

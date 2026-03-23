@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Core.Tests
             _origServices = CoreState.Services;
             // Provide a headless IAppServices so LoadResource won't crash on missing services
             if (CoreState.Services == null)
-                CoreState.Services = new StubAppServices();
+                CoreState.Services = new HeadlessAppServices();
         }
 
         public void Dispose()
@@ -177,15 +177,5 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        /// <summary>Minimal IAppServices stub for tests.</summary>
-        class StubAppServices : IAppServices
-        {
-            public void ShowError(string msg) { }
-            public void ShowInfo(string msg) { }
-            public bool ShowQuestion(string msg) => false;
-            public bool ShowYesNo(string msg) => false;
-            public void RunOnUIThread(Action action) => action();
-            public bool IsMainThread() => true;
-        }
     }
 }
