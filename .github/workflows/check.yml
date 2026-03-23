@@ -32,6 +32,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Validate Avalonia AutomationIds
+      shell: pwsh
+      run: scripts/validate-automation-ids.ps1
+
     - name: Init build-required submodules
       run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
 

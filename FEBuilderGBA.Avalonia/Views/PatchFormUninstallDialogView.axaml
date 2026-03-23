@@ -15,7 +15,7 @@
                    TextWrapping="Wrap" VerticalAlignment="Center" Height="79" />
         <Button AutomationProperties.AutomationId="PatchFormUninstallDialog_SelectOriginal_Button" Grid.Column="1" Content="Select file" Width="130" Height="31"
                 Click="SelectOriginal_Click" />
-        <TextBox AutomationProperties.AutomationId="PatchFormUninstallDialog_TextBox1_Input" Grid.Column="2" Text="{Binding OriginalFilename}"
+        <TextBox AutomationProperties.AutomationId="PatchFormUninstallDialog_OriginalRomPath_Input" Grid.Column="2" Text="{Binding OriginalFilename}"
                  Height="25" Margin="8,0,0,0" />
       </Grid>
       <!-- Warning text -->

@@ -38,12 +38,18 @@ $interactiveControlTypes = @(
     'TextBox', 'NumericUpDown', 'ComboBox', 'Button',
     'ListBox', 'ListView', 'CheckBox', 'ToggleButton',
     'Expander', 'TabControl', 'TabItem', 'RadioButton',
-    'Slider', 'ToggleSwitch'
+    'Slider', 'ToggleSwitch',
+    'MenuItem', 'ItemsControl', 'Image'
 )
 
 $customControlTypes = @(
     'controls:BitFlagPanel', 'controls:AddressListControl', 'controls:GbaImageControl'
 )
+
+# Editor name prefix overrides (when AutomationId prefix differs from filename)
+$editorNameOverrides = @{
+    "ErorrUnknownROM" = "ErrorUnknownROM"
+}
 
 $totalErrors = 0
 $totalWarnings = 0
@@ -54,10 +60,15 @@ $fileStats = @{}
 function Get-EditorName {
     param([string]$FilePath)
     $fileName = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
+    $name = $fileName
     if ($fileName -match '^(.+)(View|Window)$') {
-        return $Matches[1]
+        $name = $Matches[1]
     }
-    return $fileName
+    # Apply prefix overrides (e.g., misspelled filenames where AutomationIds use the correct spelling)
+    if ($editorNameOverrides.ContainsKey($name)) {
+        return $editorNameOverrides[$name]
+    }
+    return $name
 }
 
 function Test-IsInsideTemplate {
@@ -127,6 +138,20 @@ foreach ($file in $allAxamlFiles) {
             if ($line -match "^\s*<$escapedCT[\s/>]") {
                 $isInteractive = $true
                 break
+            }
+        }
+
+        # Named TextBlock elements (with Name= attribute) are also interactive/dynamic
+        if (-not $isInteractive -and $line -match '^\s*<TextBlock[\s]' ) {
+            # Build full element to check for Name attribute
+            $tbElement = $line
+            $tj = $i + 1
+            while ($tj -lt $lines.Count -and $tbElement -notmatch '(?:/>|(?<!=)>)\s*$') {
+                $tbElement += "`n" + $lines[$tj]
+                $tj++
+            }
+            if ($tbElement -match '\bName\s*=\s*"[^"]+"') {
+                $isInteractive = $true
             }
         }
 

@@ -39,7 +39,7 @@
       <!-- Right: files + preview -->
       <Grid Grid.Column="1" RowDefinitions="*,*">
         <!-- File list -->
-        <ListBox AutomationProperties.AutomationId="FERepoResourceBrowser_ListBox1_List" Grid.Row="0" ItemsSource="{Binding ResourceFiles}"
+        <ListBox AutomationProperties.AutomationId="FERepoResourceBrowser_ResourceFiles_List" Grid.Row="0" ItemsSource="{Binding ResourceFiles}"
                  SelectedItem="{Binding SelectedFile}"
                  Margin="4">
           <ListBox.ItemTemplate>
@@ -51,7 +51,7 @@
 
         <!-- Preview -->
         <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" Margin="4" CornerRadius="4">
-          <Image AutomationProperties.AutomationId="FERepoResourceBrowser_Image1_Image" Source="{Binding PreviewImage}"
+          <Image AutomationProperties.AutomationId="FERepoResourceBrowser_Preview_Image" Source="{Binding PreviewImage}"
                  Stretch="Uniform"
                  Margin="8" />
         </Border>

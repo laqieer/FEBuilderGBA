@@ -20,7 +20,7 @@
     <!-- Section 2: One picture import (WinForms label2 at 12,217) -->
     <TextBlock Text="One Picture Import" FontWeight="Bold" Margin="0,20,0,6" />
     <!-- Button 3: Import as one picture (WinForms button3 1052x55) -->
-    <Button AutomationProperties.AutomationId="MapStyleEditorImportImageOption_ePicture_Button" Content="Import as one picture (auto-generate map_config from this image)" Height="55"
+    <Button AutomationProperties.AutomationId="MapStyleEditorImportImageOption_OnePicture_Button" Content="Import as one picture (auto-generate map_config from this image)" Height="55"
             HorizontalAlignment="Stretch" Click="OnePicture_Click" />
   </StackPanel>
   </ScrollViewer>

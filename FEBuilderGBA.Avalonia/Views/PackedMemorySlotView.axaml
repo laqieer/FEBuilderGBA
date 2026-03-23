@@ -19,13 +19,13 @@
     <!-- Main panel: A = B + C combo boxes (WinForms panel8 674x82) -->
     <Border BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10">
       <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_ACombo_Combo" Name="AComboBox" Width="181" />
+        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_A_Combo" Name="AComboBox" Width="181" />
         <TextBlock Text="=" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
                    Margin="4,0,4,0" />
-        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_BCombo_Combo" Name="BComboBox" Width="181" />
+        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_B_Combo" Name="BComboBox" Width="181" />
         <TextBlock Text=" + " FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
                    Margin="4,0,4,0" />
-        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_CCombo_Combo" Name="CComboBox" Width="181" />
+        <ComboBox AutomationProperties.AutomationId="PackedMemorySlot_C_Combo" Name="CComboBox" Width="181" />
       </StackPanel>
     </Border>
   </DockPanel>
