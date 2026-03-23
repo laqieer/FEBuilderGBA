@@ -15,7 +15,7 @@
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Zoom:" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomInBtn_Button" Name="ZoomInBtn" Content="+" Width="30" />
-          <TextBlock Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapEditor_Zoom_Label" Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
         </StackPanel>
       </StackPanel>
@@ -25,7 +25,7 @@
               Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
         <StackPanel Spacing="4">
           <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
-          <TextBlock Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
+          <TextBlock AutomationProperties.AutomationId="MapEditor_TileInfo_Label" Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
                      Text="No tile selected" />
           <StackPanel Orientation="Horizontal" Spacing="8" Name="TileEditPanel" IsVisible="false">
             <TextBlock Text="Tile ID (hex):" VerticalAlignment="Center" />

@@ -135,7 +135,7 @@
         </Border>
 
         <!-- No details message -->
-        <TextBlock Name="NoAnimeDetailsLabel" IsVisible="False"
+        <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_NoAnimeDetails_Label" Name="NoAnimeDetailsLabel" IsVisible="False"
                    Text="No animation data found for this ID (ID=0 or invalid pointer chain)."
                    FontStyle="Italic" Foreground="Gray" Margin="0,8,0,0" />
 
@@ -143,7 +143,7 @@
         <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Animation Table Summary" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock Name="AnimeCountLabel" Text="Total animations: --" />
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_AnimeCount_Label" Name="AnimeCountLabel" Text="Total animations: --" />
           </StackPanel>
         </Border>
 

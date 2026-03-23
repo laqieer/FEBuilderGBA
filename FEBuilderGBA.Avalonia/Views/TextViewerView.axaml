@@ -24,7 +24,7 @@
           <TextBlock AutomationProperties.AutomationId="TextViewer_SearchResult_Label" Name="SearchResultLabel" VerticalAlignment="Center" Foreground="Gray" Margin="8,0,0,0" />
         </StackPanel>
 
-        <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
+        <TextBlock AutomationProperties.AutomationId="TextViewer_TextId_Label" Name="TextIdLabel" Text="ID:" FontSize="14" />
 
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <SelectableTextBlock Name="DecodedTextBlock" TextWrapping="Wrap" FontSize="14" />

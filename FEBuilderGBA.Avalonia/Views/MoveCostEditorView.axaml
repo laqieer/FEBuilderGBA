@@ -24,7 +24,7 @@
 
         <Button AutomationProperties.AutomationId="MoveCostEditor_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,4,0,4" />
 
-        <TextBlock Name="CostTypeLabel" Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
+        <TextBlock AutomationProperties.AutomationId="MoveCostEditor_CostType_Label" Name="CostTypeLabel" Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
 
         <!-- 5 columns of terrain costs, 13 rows each -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">

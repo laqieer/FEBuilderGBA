@@ -64,7 +64,7 @@
         <TextBlock DockPanel.Dock="Top" Text="Conflicts (resolve each: Mine or Theirs)"
                    FontWeight="SemiBold" Margin="8,4,0,8" />
         <ScrollViewer>
-          <ItemsControl ItemsSource="{Binding ConflictItems}">
+          <ItemsControl AutomationProperties.AutomationId="ToolThreeMarge_ConflictItems_List" ItemsSource="{Binding ConflictItems}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="vm:ConflictItemViewModel">
                 <Border BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="8,6" Margin="0,0,0,2">

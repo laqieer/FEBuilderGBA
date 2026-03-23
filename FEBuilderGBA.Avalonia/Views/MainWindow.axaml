@@ -59,10 +59,10 @@
     <Border DockPanel.Dock="Bottom" Background="{DynamicResource StatusBarBackgroundBrush}" Padding="8,4" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,1,0,0">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <TextBlock Name="RomSizeLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
-          <TextBlock Name="VersionDetectionLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="Main_RomSize_Label" Name="RomSizeLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="Main_VersionDetection_Label" Name="VersionDetectionLabel" Text="" Foreground="Gray" Margin="8,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Name="StatusText" Text="No ROM loaded" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Tag="NoRomLoaded" />
+        <TextBlock AutomationProperties.AutomationId="Main_Status_Label" Name="StatusText" Text="No ROM loaded" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Tag="NoRomLoaded" />
       </DockPanel>
     </Border>
 
@@ -85,16 +85,16 @@
       <StackPanel Margin="16" Spacing="16">
         <!-- Title -->
         <TextBlock Text="FEBuilderGBA" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
-        <TextBlock Name="VersionLabel" Text="Cross-Platform Preview (Avalonia)" FontSize="14"
+        <TextBlock AutomationProperties.AutomationId="Main_Version_Label" Name="VersionLabel" Text="Cross-Platform Preview (Avalonia)" FontSize="14"
                    HorizontalAlignment="Center" Foreground="Gray" />
 
         <!-- No ROM placeholder -->
-        <TextBlock Name="NoRomLabel" Text="Open a ROM file to begin editing."
+        <TextBlock AutomationProperties.AutomationId="Main_NoRom_Label" Name="NoRomLabel" Text="Open a ROM file to begin editing."
                    FontSize="14" HorizontalAlignment="Center" Margin="0,20,0,0" />
 
         <!-- Search/Filter (visible when ROM loaded) -->
         <DockPanel Name="SearchPanel" IsVisible="False" Margin="0,0,0,4">
-          <TextBlock Name="FilterLabel" Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
+          <TextBlock AutomationProperties.AutomationId="Main_Filter_Label" Name="FilterLabel" Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
           <Button AutomationProperties.AutomationId="Main_ClearFilter_Button" Name="ClearFilterButton" Content="Clear" Click="ClearFilter_Click" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,4" />
           <TextBox AutomationProperties.AutomationId="Main_FilterText_Input" Name="FilterTextBox" Watermark="Type to filter editors..." />
         </DockPanel>

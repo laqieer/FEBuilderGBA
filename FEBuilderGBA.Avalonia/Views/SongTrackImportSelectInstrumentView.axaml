@@ -30,7 +30,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Current Instrument Set" FontSize="14" FontWeight="SemiBold" />
-            <TextBlock Name="InstrumentInfoLabel" Text="No song selected" FontFamily="Consolas,Courier New,monospace" />
+            <TextBlock AutomationProperties.AutomationId="SongTrackImportSelectInstrument_InstrumentInfo_Label" Name="InstrumentInfoLabel" Text="No song selected" FontFamily="Consolas,Courier New,monospace" />
           </StackPanel>
         </Border>
 

@@ -107,41 +107,41 @@
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword (B20):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepSword_Input" FormatString="0" Name="WepSwordBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepSwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepSwordRank_Label" Name="WepSwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance (B21):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepLance_Input" FormatString="0" Name="WepLanceBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepLanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepLanceRank_Label" Name="WepLanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Axe (B22):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepAxe_Input" FormatString="0" Name="WepAxeBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepAxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepAxeRank_Label" Name="WepAxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Bow (B23):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepBow_Input" FormatString="0" Name="WepBowBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepBowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepBowRank_Label" Name="WepBowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Staff (B24):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepStaff_Input" FormatString="0" Name="WepStaffBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepStaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepStaffRank_Label" Name="WepStaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock Grid.Row="2" Grid.Column="3" Text="Anima (B25):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepAnima_Input" FormatString="0" Name="WepAnimaBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepAnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepAnimaRank_Label" Name="WepAnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="130,170" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Light (B26):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WepLight_Input" FormatString="0" Name="WepLightBox" Minimum="0" Maximum="255" Width="120" />
-                <TextBlock Name="WepLightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="ClassEditor_WepLightRank_Label" Name="WepLightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
               </StackPanel>
             </Grid>
           </StackPanel>
@@ -200,13 +200,13 @@
         <Expander AutomationProperties.AutomationId="ClassEditor_AbilityFlags_Expander" Header="Ability Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
-            <TextBlock Name="AbilityHeaderText1" Text="Ability 1 (B40):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_AbilityHeaderText1_Label" Name="AbilityHeaderText1" Text="Ability 1 (B40):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel AutomationProperties.AutomationId="ClassEditor_Ability1_Check" Name="Ability1Flags" />
-            <TextBlock Name="AbilityHeaderText2" Text="Ability 2 (B41):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_AbilityHeaderText2_Label" Name="AbilityHeaderText2" Text="Ability 2 (B41):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel AutomationProperties.AutomationId="ClassEditor_Ability2_Check" Name="Ability2Flags" />
-            <TextBlock Name="AbilityHeaderText3" Text="Ability 3 (B42):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_AbilityHeaderText3_Label" Name="AbilityHeaderText3" Text="Ability 3 (B42):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel AutomationProperties.AutomationId="ClassEditor_Ability3_Check" Name="Ability3Flags" />
-            <TextBlock Name="AbilityHeaderText4" Text="Ability 4 (B43):" FontWeight="SemiBold" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_AbilityHeaderText4_Label" Name="AbilityHeaderText4" Text="Ability 4 (B43):" FontWeight="SemiBold" Margin="0,2" />
             <controls:BitFlagPanel AutomationProperties.AutomationId="ClassEditor_Ability4_Check" Name="Ability4Flags" />
           </StackPanel>
         </Border>
@@ -219,45 +219,45 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword (B44):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B44_Input" FormatString="0" Name="B44Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B44RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B44Rank_Label" Name="B44RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance (B45):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B45_Input" FormatString="0" Name="B45Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B45RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B45Rank_Label" Name="B45RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Axe (B46):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B46_Input" FormatString="0" Name="B46Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B46RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B46Rank_Label" Name="B46RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Bow (B47):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B47_Input" FormatString="0" Name="B47Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B47RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B47Rank_Label" Name="B47RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Staff (B48):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B48_Input" FormatString="0" Name="B48Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B48RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B48Rank_Label" Name="B48RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Anima (B49):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B49_Input" FormatString="0" Name="B49Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B49RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B49Rank_Label" Name="B49RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Light (B50):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B50_Input" FormatString="0" Name="B50Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B50RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B50Rank_Label" Name="B50RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Dark (B51):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="3" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_B51_Input" FormatString="0" Name="B51Box" Minimum="0" Maximum="255" Width="120" />
-            <TextBlock Name="B51RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ClassEditor_B51Rank_Label" Name="B51RankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" />
           </StackPanel>
         </Grid>
         </Border>

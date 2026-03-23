@@ -18,7 +18,7 @@
                      Minimum="1" Maximum="65535" Value="1" />
     </StackPanel>
     <!-- Error label (WinForms ERROR_WIDTH 275x36) -->
-    <TextBlock x:Name="ErrorLabel"
+    <TextBlock AutomationProperties.AutomationId="MapEditorMarSizeDialog_Error_Label" x:Name="ErrorLabel"
                Text="Data size mismatch.&#x0a;(DataCount/2) % Width != 0"
                Foreground="Red" TextWrapping="Wrap" Height="36"
                Margin="2,12,0,20" IsVisible="False" />

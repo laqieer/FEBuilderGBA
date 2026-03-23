@@ -17,7 +17,7 @@
       <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
         <TextBlock AutomationProperties.AutomationId="VennouWeaponLock_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="1" Grid.Column="0" Name="FieldLabelText" Text="Lock Type / ID:" VerticalAlignment="Center" Margin="0,4" />
+        <TextBlock AutomationProperties.AutomationId="VennouWeaponLock_FieldLabel_Label" Grid.Row="1" Grid.Column="0" Name="FieldLabelText" Text="Lock Type / ID:" VerticalAlignment="Center" Margin="0,4" />
         <NumericUpDown AutomationProperties.AutomationId="VennouWeaponLock_LockType_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="LockTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Linked Name:" VerticalAlignment="Center" Margin="0,4" />
         <TextBlock AutomationProperties.AutomationId="VennouWeaponLock_LinkedName_Label" Grid.Row="2" Grid.Column="1" Name="LinkedNameLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />

@@ -41,7 +41,7 @@
         <!-- Track list -->
         <Separator Margin="0,8" />
         <TextBlock Text="Tracks" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
+        <TextBlock AutomationProperties.AutomationId="SongTrack_TrackSummary_Label" Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
 
         <ListBox AutomationProperties.AutomationId="SongTrack_TrackList_List" Name="TrackListBox" MinHeight="60" MaxHeight="400">
           <ListBox.ItemTemplate>

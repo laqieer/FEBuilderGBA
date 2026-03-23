@@ -37,7 +37,7 @@
               VerticalAlignment="Top" Name="RecentFilesBorder">
         <StackPanel Spacing="6">
           <TextBlock Text="Recent Files" FontSize="16" FontWeight="SemiBold" />
-          <TextBlock Name="NoRecentFilesLabel" Text="No recent files" Foreground="Gray" FontSize="12"
+          <TextBlock AutomationProperties.AutomationId="Welcome_NoRecentFiles_Label" Name="NoRecentFilesLabel" Text="No recent files" Foreground="Gray" FontSize="12"
                      IsVisible="True" />
           <ItemsControl AutomationProperties.AutomationId="Welcome_RecentFiles_List" Name="RecentFilesList">
             <ItemsControl.ItemTemplate>

@@ -8,11 +8,11 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,14,12,12">
     <!-- Error message header (WinForms Error_MessageLabel 244x28 14pt bold) -->
-    <TextBlock DockPanel.Dock="Top" Name="ErrorMessageLabel"
+    <TextBlock AutomationProperties.AutomationId="TextBadCharPopup_ErrorMessage_Label" DockPanel.Dock="Top" Name="ErrorMessageLabel"
                Text="Bad Character Detected" FontSize="14" FontWeight="Bold"
                Margin="0,0,0,12" />
     <!-- Explanation text (WinForms label1 645x270 multiline) -->
-    <TextBlock DockPanel.Dock="Top" Name="ExplanationLabel" TextWrapping="Wrap"
+    <TextBlock AutomationProperties.AutomationId="TextBadCharPopup_Explanation_Label" DockPanel.Dock="Top" Name="ExplanationLabel" TextWrapping="Wrap"
                Height="270" Margin="0,0,0,12"
                Text="Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue." />
     <!-- 3 action buttons (WinForms button1 274x35, button2 265x35, button3 257x35) -->

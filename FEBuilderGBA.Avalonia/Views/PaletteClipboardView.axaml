@@ -20,7 +20,7 @@
     <StackPanel Spacing="8">
       <TextBlock Text="Clipboard Contents:" FontWeight="SemiBold" />
       <Border Background="{DynamicResource SubtlePanelBackgroundBrush}" BorderBrush="{DynamicResource SubtlePanelBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12" MinHeight="60">
-        <TextBlock Name="ClipboardStatusLabel" Text="[No palette data in clipboard]" Foreground="Gray" />
+        <TextBlock AutomationProperties.AutomationId="PaletteClipboard_ClipboardStatus_Label" Name="ClipboardStatusLabel" Text="[No palette data in clipboard]" Foreground="Gray" />
       </Border>
     </StackPanel>
   </DockPanel>

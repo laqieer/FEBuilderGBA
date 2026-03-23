@@ -39,52 +39,52 @@
                      FontWeight="SemiBold" />
 
           <!-- Editable fields -->
-          <TextBlock Grid.Row="3" Grid.Column="0" Name="LblB0" Text="Type:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB0_Label" Grid.Row="3" Grid.Column="0" Name="LblB0" Text="Type:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_CondType_Input" Grid.Row="3" Grid.Column="1" Name="CondTypeBox"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Name="LblB1" Text="Sub-type:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB1_Label" Grid.Row="4" Grid.Column="0" Name="LblB1" Text="Sub-type:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_SubType_Input" Grid.Row="4" Grid.Column="1" Name="SubTypeBox"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Name="LblB2B3" Text="Flag ID:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB2B3_Label" Grid.Row="5" Grid.Column="0" Name="LblB2B3" Text="Flag ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_FlagId_Input" Grid.Row="5" Grid.Column="1" Name="FlagIdBox"
                          Minimum="0" Maximum="65535" FormatString="X4" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Name="LblB4B7" Text="Event Pointer:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB4B7_Label" Grid.Row="6" Grid.Column="0" Name="LblB4B7" Text="Event Pointer:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_EventPtr_Input" Grid.Row="6" Grid.Column="1" Name="EventPtrBox"
                          Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Name="LblB8" Text="B8:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB8_Label" Grid.Row="7" Grid.Column="0" Name="LblB8" Text="B8:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB8_Input" Grid.Row="7" Grid.Column="1" Name="ExtraB8Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Name="LblB9" Text="B9:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB9_Label" Grid.Row="8" Grid.Column="0" Name="LblB9" Text="B9:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB9_Input" Grid.Row="8" Grid.Column="1" Name="ExtraB9Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Name="LblB10" Text="B10:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB10_Label" Grid.Row="9" Grid.Column="0" Name="LblB10" Text="B10:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB10_Input" Grid.Row="9" Grid.Column="1" Name="ExtraB10Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Name="LblB11" Text="B11:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB11_Label" Grid.Row="10" Grid.Column="0" Name="LblB11" Text="B11:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB11_Input" Grid.Row="10" Grid.Column="1" Name="ExtraB11Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
           <!-- FE7 extended fields (rows 12-15) -->
-          <TextBlock Grid.Row="11" Grid.Column="0" Name="LblB12" Text="B12:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB12_Label" Grid.Row="11" Grid.Column="0" Name="LblB12" Text="B12:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB12_Input" Grid.Row="11" Grid.Column="1" Name="ExtraB12Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Name="LblB13" Text="B13:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB13_Label" Grid.Row="12" Grid.Column="0" Name="LblB13" Text="B13:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB13_Input" Grid.Row="12" Grid.Column="1" Name="ExtraB13Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Name="LblB14" Text="B14:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB14_Label" Grid.Row="13" Grid.Column="0" Name="LblB14" Text="B14:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB14_Input" Grid.Row="13" Grid.Column="1" Name="ExtraB14Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="14" Grid.Column="0" Name="LblB15" Text="B15:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventCond_LblB15_Label" Grid.Row="14" Grid.Column="0" Name="LblB15" Text="B15:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB15_Input" Grid.Row="14" Grid.Column="1" Name="ExtraB15Box"
                          Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" />
         </Grid>

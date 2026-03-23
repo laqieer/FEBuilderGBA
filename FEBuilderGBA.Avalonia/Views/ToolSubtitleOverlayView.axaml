@@ -17,7 +17,7 @@
                Watermark="Enter subtitle text..." />
       <TextBlock Text="Preview:" FontWeight="SemiBold" Margin="0,8,0,0" />
       <Border BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource SubtitleOverlayBackgroundBrush}" Height="200">
-        <TextBlock Name="PreviewTextBlock" Text="" Foreground="{DynamicResource SubtitleOverlayForegroundBrush}"
+        <TextBlock AutomationProperties.AutomationId="ToolSubtitleOverlay_PreviewTextBlock_Label" Name="PreviewTextBlock" Text="" Foreground="{DynamicResource SubtitleOverlayForegroundBrush}"
                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
                    Margin="0,0,0,20" FontSize="16" />
       </Border>

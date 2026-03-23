@@ -8,11 +8,11 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12,9,12,12">
     <!-- Header label (WinForms label1 285x26) -->
-    <TextBlock DockPanel.Dock="Top" Name="HeaderLabel"
+    <TextBlock AutomationProperties.AutomationId="MapPointerNewPLISTPopup_Header_Label" DockPanel.Dock="Top" Name="HeaderLabel"
                Text="Enter the PLIST number for the new map pointer entry."
                FontWeight="SemiBold" Margin="0,0,0,8" />
     <!-- Explanation text (WinForms PLIST_EXPLAIN multi-line) -->
-    <TextBlock DockPanel.Dock="Top" Name="ExplainLabel" TextWrapping="Wrap"
+    <TextBlock AutomationProperties.AutomationId="MapPointerNewPLISTPopup_Explain_Label" DockPanel.Dock="Top" Name="ExplainLabel" TextWrapping="Wrap"
                Margin="0,0,0,8"
                Text="PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data." />
     <!-- Extend button (WinForms PLISTExtendsButton 430x32) -->

@@ -10,7 +10,7 @@
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="OP Class Demo (FE7) Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="UnavailableLabel" Text="" Foreground="Orange" />
+        <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_Unavailable_Label" Name="UnavailableLabel" Text="" Foreground="Orange" />
 
         <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />

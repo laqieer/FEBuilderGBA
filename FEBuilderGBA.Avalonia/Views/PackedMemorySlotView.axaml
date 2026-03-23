@@ -10,7 +10,7 @@
     <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE 676x40 + ApplyButton 181x40) -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
       <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40">
-        <TextBlock Name="MESSAGE" Text="Packed Memory Slot"
+        <TextBlock AutomationProperties.AutomationId="PackedMemorySlot_MESSAGE_Label" Name="MESSAGE" Text="Packed Memory Slot"
                    HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
       <Button AutomationProperties.AutomationId="PackedMemorySlot_Apply_Button" Grid.Column="1" Name="ApplyButton" Content="Apply" Width="181" Height="40"

@@ -122,30 +122,30 @@
           <Grid ColumnDefinitions="Auto,120,Auto,16,Auto,120,Auto,16,Auto,120,Auto" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepSword_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="2" Name="SwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_SwordRank_Label" Grid.Row="0" Grid.Column="2" Name="SwordRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
             <TextBlock Grid.Row="0" Grid.Column="4" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepLance_Input" FormatString="0" Grid.Row="0" Grid.Column="5" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="6" Name="LanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_LanceRank_Label" Grid.Row="0" Grid.Column="6" Name="LanceRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
             <TextBlock Grid.Row="0" Grid.Column="8" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepAxe_Input" FormatString="0" Grid.Row="0" Grid.Column="9" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="0" Grid.Column="10" Name="AxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_AxeRank_Label" Grid.Row="0" Grid.Column="10" Name="AxeRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepBow_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="2" Name="BowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_BowRank_Label" Grid.Row="1" Grid.Column="2" Name="BowRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
             <TextBlock Grid.Row="1" Grid.Column="4" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepStaff_Input" FormatString="0" Grid.Row="1" Grid.Column="5" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="6" Name="StaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_StaffRank_Label" Grid.Row="1" Grid.Column="6" Name="StaffRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
             <TextBlock Grid.Row="1" Grid.Column="8" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepAnima_Input" FormatString="0" Grid.Row="1" Grid.Column="9" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="1" Grid.Column="10" Name="AnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_AnimaRank_Label" Grid.Row="1" Grid.Column="10" Name="AnimaRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepLight_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="2" Grid.Column="2" Name="LightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_LightRank_Label" Grid.Row="2" Grid.Column="2" Name="LightRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
             <TextBlock Grid.Row="2" Grid.Column="4" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="UnitEditor_WepDark_Input" FormatString="0" Grid.Row="2" Grid.Column="5" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
-            <TextBlock Grid.Row="2" Grid.Column="6" Name="DarkRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitEditor_DarkRank_Label" Grid.Row="2" Grid.Column="6" Name="DarkRankText" Text="-" FontWeight="Bold" FontSize="14" MinWidth="20" VerticalAlignment="Center" Margin="4,2,0,2" />
           </Grid>
         </Border>
         </Expander>

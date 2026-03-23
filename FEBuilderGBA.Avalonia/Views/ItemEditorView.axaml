@@ -141,8 +141,8 @@
         </Expander>
 
         <!-- Null pointer warnings -->
-        <TextBlock Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
-        <TextBlock Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
+        <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocStatBonusesWarning_Label" Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
+        <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocEffectivenessWarning_Label" Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
 
         <!-- Stat bonus preview -->
         <Border Name="BonusPreviewBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">

@@ -11,7 +11,7 @@
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="4" Margin="8">
         <TextBlock Text="OAM Sprite Viewer" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="StatusLabel" Text="Select an animation to view OAM sprites."
+        <TextBlock AutomationProperties.AutomationId="OAMSpriteViewer_Status_Label" Name="StatusLabel" Text="Select an animation to view OAM sprites."
                    Foreground="Gray" Margin="0,0,0,8" TextWrapping="Wrap" />
 
         <!-- Section selector -->
