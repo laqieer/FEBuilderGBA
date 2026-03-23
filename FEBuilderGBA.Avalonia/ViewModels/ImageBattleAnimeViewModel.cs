@@ -392,39 +392,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 FrameImage = null;
             }
 
-            // Update tile sheet to match current frame's graphics
+            // Update tile sheet to match current frame — clear first to avoid stale data
+            var oldSheet = TileSheetImage;
+            TileSheetImage = null;
+            TileSheetInfo = "";
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom != null && U.isPointer(fi.GraphicsPointer))
+                var newSheet = BattleAnimeRendererCore.RenderFrameTileSheet(
+                    fi.GraphicsPointer, _cachedPaletteData, 16);
+                if (newSheet != null)
                 {
-                    uint gfxOff = U.toOffset(fi.GraphicsPointer);
-                    if (U.isSafetyOffset(gfxOff, rom))
-                    {
-                        byte[] tileData = LZ77.decompress(rom.Data, gfxOff);
-                        if (tileData != null && tileData.Length > 0 && _cachedPaletteData != null)
-                        {
-                            // Use first 16 colors (32 bytes) from cached palette
-                            byte[] pal16 = _cachedPaletteData.Length >= 32
-                                ? new byte[32]
-                                : _cachedPaletteData;
-                            if (_cachedPaletteData.Length >= 32)
-                                Array.Copy(_cachedPaletteData, pal16, 32);
-
-                            TileSheetImage = BattleAnimeRendererCore.RenderTileSheet(tileData, pal16, 16);
-                            if (TileSheetImage != null)
-                            {
-                                int tileCount = tileData.Length / 32;
-                                TileSheetInfo = $"{TileSheetImage.Width}x{TileSheetImage.Height} px, {tileCount} tiles (frame {CurrentFrame + 1})";
-                            }
-                        }
-                    }
+                    int totalTiles = newSheet.Width / 8 * (newSheet.Height / 8);
+                    TileSheetImage = newSheet;
+                    TileSheetInfo = $"Tile sheet: {newSheet.Width}x{newSheet.Height}px ({totalTiles} tiles, frame {CurrentFrame + 1})";
                 }
             }
-            catch
-            {
-                // Keep existing tile sheet on error
-            }
+            catch { }
+            if (oldSheet is IDisposable d) d.Dispose();
 
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
                 ? BattleAnimeRendererCore.SectionNames[CurrentSection]
