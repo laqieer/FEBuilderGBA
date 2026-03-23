@@ -319,15 +319,17 @@ function Process-AxamlFile {
             $suffix = Get-ControlSuffix -ControlType $controlType
             $automationId = "${editorName}_${fieldName}${suffix}"
 
-            # Ensure uniqueness — insert counter before suffix to preserve valid suffix
+            # Ensure uniqueness — keep incrementing counter until we find an unused ID
             if ($usedIds.ContainsKey($automationId)) {
-                $usedIds[$automationId]++
-                $counter = $usedIds[$automationId]
-                # Insert counter before the suffix: "Editor_Field_Button" -> "Editor_Field2_Button"
-                $automationId = "${editorName}_${fieldName}${counter}${suffix}"
-            } else {
-                $usedIds[$automationId] = 1
+                $counter = 2
+                $candidateId = "${editorName}_${fieldName}${counter}${suffix}"
+                while ($usedIds.ContainsKey($candidateId)) {
+                    $counter++
+                    $candidateId = "${editorName}_${fieldName}${counter}${suffix}"
+                }
+                $automationId = $candidateId
             }
+            $usedIds[$automationId] = 1
 
             # Insert AutomationProperties.AutomationId attribute
             # Find the right place to insert - after the opening tag name and before the first attribute or >
