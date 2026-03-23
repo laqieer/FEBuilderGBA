@@ -5,7 +5,7 @@
         Title="Skill Config (SkillSystem)" Width="1194" Height="897"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SkillConfigSkillSystem_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,15 +13,15 @@
 
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SkillConfigSkillSystem_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text Detail:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="SkillConfigSkillSystem_TextDetail_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Configures skill text details for the SkillSystem patch." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+        <Button AutomationProperties.AutomationId="SkillConfigSkillSystem_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

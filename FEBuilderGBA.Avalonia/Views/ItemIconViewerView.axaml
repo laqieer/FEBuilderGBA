@@ -5,24 +5,24 @@
         Title="Item/Weapon Icon Viewer" Width="749" Height="358"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ItemIconViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item/Weapon Icon Viewer" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemIconViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImgPtrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemIconViewer_ImgPtr_Label" Grid.Row="1" Grid.Column="1" Name="ImgPtrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="PalPtrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemIconViewer_PalPtr_Label" Grid.Row="2" Grid.Column="1" Name="PalPtrLabel" VerticalAlignment="Center" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Content="Export PNG" Click="ExportPng_Click" />
-          <Button Content="Export PAL" Click="ExportPal_Click" />
-          <Button Content="Import PNG" Click="ImportPng_Click" />
+          <Button AutomationProperties.AutomationId="ItemIconViewer_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
+          <Button AutomationProperties.AutomationId="ItemIconViewer_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
+          <Button AutomationProperties.AutomationId="ItemIconViewer_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
         </StackPanel>
-        <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
+        <controls:GbaImageControl AutomationProperties.AutomationId="ItemIconViewer_Image_Image" Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

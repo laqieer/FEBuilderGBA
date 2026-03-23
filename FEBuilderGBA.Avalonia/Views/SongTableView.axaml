@@ -5,7 +5,7 @@
         Title="Song Table Editor" Width="1505" Height="809"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="SongList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SongTable_Song_List" Grid.Column="0" Name="SongList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,26 +13,26 @@
 
         <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongTable_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Song Header Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="HeaderBox" Width="200" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="SongTable_Header_Input" Grid.Row="1" Grid.Column="1" Name="HeaderBox" Width="200" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Priority (PlayerType):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="PlayerTypeBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTable_PlayerType_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="PlayerTypeBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Track Count:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="TrackCountLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongTable_TrackCount_Label" Grid.Row="3" Grid.Column="1" Name="TrackCountLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Header Priority:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="HeaderPriorityLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongTable_HeaderPriority_Label" Grid.Row="4" Grid.Column="1" Name="HeaderPriorityLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Header Reverb:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="HeaderReverbLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongTable_HeaderReverb_Label" Grid.Row="5" Grid.Column="1" Name="HeaderReverbLabel" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SongTable_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

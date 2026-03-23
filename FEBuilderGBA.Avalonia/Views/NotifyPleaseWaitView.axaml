@@ -28,7 +28,7 @@
                Margin="0,0,0,12" />
 
     <!-- Cancel button -->
-    <Button Grid.Row="3" Content="Cancel"
+    <Button AutomationProperties.AutomationId="NotifyPleaseWait_Cancel_Button" Grid.Row="3" Content="Cancel"
             HorizontalAlignment="Right"
             IsVisible="{Binding IsCancelVisible}"
             Click="Cancel_Click"

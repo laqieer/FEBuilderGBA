@@ -12,14 +12,14 @@
                  Text="Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data." />
     </Border>
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
-      <Button Content="Swap" Width="80" Click="Swap_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+      <Button AutomationProperties.AutomationId="PaletteSwap_Swap_Button" Content="Swap" Width="80" Click="Swap_Click" />
+      <Button AutomationProperties.AutomationId="PaletteSwap_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
     <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
       <TextBlock Text="Source Palette:" VerticalAlignment="Center" Grid.Row="0" Grid.Column="0" Margin="0,0,8,8" />
-      <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="SourceInput" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
+      <NumericUpDown AutomationProperties.AutomationId="PaletteSwap_Source_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="SourceInput" Minimum="0" Maximum="255" Value="0" Margin="0,0,0,8" />
       <TextBlock Text="Destination Palette:" VerticalAlignment="Center" Grid.Row="1" Grid.Column="0" Margin="0,0,8,0" />
-      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DestInput" Minimum="0" Maximum="255" Value="0" />
+      <NumericUpDown AutomationProperties.AutomationId="PaletteSwap_Dest_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DestInput" Minimum="0" Maximum="255" Value="0" />
     </Grid>
   </DockPanel>
   </ScrollViewer>

@@ -5,7 +5,7 @@
         Title="Instrument Selection" Width="767" Height="400"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SongTrackImportSelectInstrument_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,7 +13,7 @@
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SongTrackImportSelectInstrument_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
 
         <!-- Instrument set info -->
@@ -30,7 +30,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Current Instrument Set" FontSize="14" FontWeight="SemiBold" />
-            <TextBlock Name="InstrumentInfoLabel" Text="No song selected" FontFamily="Consolas,Courier New,monospace" />
+            <TextBlock AutomationProperties.AutomationId="SongTrackImportSelectInstrument_InstrumentInfo_Label" Name="InstrumentInfoLabel" Text="No song selected" FontFamily="Consolas,Courier New,monospace" />
           </StackPanel>
         </Border>
 

@@ -7,10 +7,10 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Palette Error Display" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="ErrorPaletteShow_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <ScrollViewer>
-      <TextBlock Name="MessageText" TextWrapping="Wrap" Text="{Binding PaletteInfo}" />
+      <TextBlock AutomationProperties.AutomationId="ErrorPaletteShow_Message_Label" Name="MessageText" TextWrapping="Wrap" Text="{Binding PaletteInfo}" />
     </ScrollViewer>
   </DockPanel>
 </Window>

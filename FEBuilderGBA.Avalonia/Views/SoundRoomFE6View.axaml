@@ -5,7 +5,7 @@
         Title="Sound Room (FE6)" Width="1285" Height="811"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SoundRoomFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,22 +13,22 @@
 
         <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SoundRoomFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="BGM ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="BgmIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomFE6_BgmId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="BgmIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song Name (Text ID):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="SongNameBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="2" Name="SongNamePreview" VerticalAlignment="Center" Margin="8,2,0,2" TextWrapping="Wrap" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomFE6_SongName_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="SongNameBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SoundRoomFE6_SongNamePreview_Label" Grid.Row="2" Grid.Column="2" Name="SongNamePreview" VerticalAlignment="Center" Margin="8,2,0,2" TextWrapping="Wrap" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Description (Text ID):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="3" Grid.Column="2" Name="DescriptionPreview" VerticalAlignment="Center" Margin="8,2,0,2" TextWrapping="Wrap" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomFE6_Description_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SoundRoomFE6_DescriptionPreview_Label" Grid.Row="3" Grid.Column="2" Name="DescriptionPreview" VerticalAlignment="Center" Margin="8,2,0,2" TextWrapping="Wrap" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SoundRoomFE6_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

@@ -8,10 +8,10 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Select Event Script Category" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+      <Button AutomationProperties.AutomationId="EventScriptCategorySelect_OK_Button" Content="OK" Width="80" Click="OK_Click" />
+      <Button AutomationProperties.AutomationId="EventScriptCategorySelect_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
-    <ListBox Name="CategoryList" />
+    <ListBox AutomationProperties.AutomationId="EventScriptCategorySelect_Category_List" Name="CategoryList" />
   </DockPanel>
   </ScrollViewer>
 </Window>

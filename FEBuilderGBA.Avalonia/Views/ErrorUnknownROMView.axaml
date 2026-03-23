@@ -20,25 +20,25 @@
                  TextWrapping="Wrap" Margin="4" VerticalAlignment="Center" />
     </Border>
     <!-- Cancel button -->
-    <Button Content="Cancel" Height="66" HorizontalAlignment="Stretch"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_Cancel_Button" Content="Cancel" Height="66" HorizontalAlignment="Stretch"
             Click="Cancel_Click" Margin="0,0,0,15" />
     <!-- FE8U button -->
-    <Button Content="Load as FE8U (Sacred Stones - US)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_FE8U_Button" Content="Load as FE8U (Sacred Stones - US)" Height="66"
             HorizontalAlignment="Stretch" Click="FE8U_Click" Margin="0,0,0,6" />
     <!-- FE8J button -->
-    <Button Content="Load as FE8J (Sacred Stones - Japan)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_FE8J_Button" Content="Load as FE8J (Sacred Stones - Japan)" Height="66"
             HorizontalAlignment="Stretch" Click="FE8J_Click" Margin="0,0,0,6" />
     <!-- FE7U button -->
-    <Button Content="Load as FE7U (Blazing Blade - US)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_FE7U_Button" Content="Load as FE7U (Blazing Blade - US)" Height="66"
             HorizontalAlignment="Stretch" Click="FE7U_Click" Margin="0,0,0,6" />
     <!-- FE7J button -->
-    <Button Content="Load as FE7J (Blazing Blade - Japan)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_FE7J_Button" Content="Load as FE7J (Blazing Blade - Japan)" Height="66"
             HorizontalAlignment="Stretch" Click="FE7J_Click" Margin="0,0,0,6" />
     <!-- FE6 button -->
-    <Button Content="Load as FE6 (Binding Blade - Japan)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_FE6_Button" Content="Load as FE6 (Binding Blade - Japan)" Height="66"
             HorizontalAlignment="Stretch" Click="FE6_Click" Margin="0,0,0,6" />
     <!-- FE0 / Unknown button -->
-    <Button Content="Load as Other (Unknown)" Height="66"
+    <Button AutomationProperties.AutomationId="ErrorUnknownROM_Unknown_Button" Content="Load as Other (Unknown)" Height="66"
             HorizontalAlignment="Stretch" Click="Unknown_Click" />
   </StackPanel>
   </ScrollViewer>

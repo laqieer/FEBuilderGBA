@@ -5,7 +5,7 @@
         Title="Tile Animation Type 2" Width="1238" Height="926"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation2_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,26 +13,26 @@
 
         <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapTileAnimation2_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Palette Data Pointer:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="PaletteDataPointerBox" Width="160" Margin="0,4,0,0" />
+          <TextBox AutomationProperties.AutomationId="MapTileAnimation2_PaletteDataPointer_Input" Grid.Row="1" Grid.Column="1" Name="PaletteDataPointerBox" Width="160" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation Interval:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_AnimInterval_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Data Count:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_DataCount_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Start Palette Index:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="StartPaletteIndexBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_StartPaletteIndex_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="StartPaletteIndexBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown7Box" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_Unknown7_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown7Box" Minimum="0" Maximum="255" Margin="0,4,0,0" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="MapTileAnimation2_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

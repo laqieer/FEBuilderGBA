@@ -5,7 +5,7 @@
         Title="Song Track Editor" Width="1093" Height="650"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SongTrack_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,36 +14,36 @@
         <!-- Header fields -->
         <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongTrack_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Track Count:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TrackCountBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrack_TrackCount_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TrackCountBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="NumBlks:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NumBlksBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrack_NumBlks_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NumBlksBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Priority:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="PriorityBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrack_Priority_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="PriorityBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Reverb:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="ReverbBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrack_Reverb_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="ReverbBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Instrument Set:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="InstrumentAddrBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrack_InstrumentAddr_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="InstrumentAddrBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
-          <Button Content="Export MIDI" Click="ExportMidi_Click" />
-          <Button Content="Import MIDI" Click="ImportMidi_Click" />
+          <Button AutomationProperties.AutomationId="SongTrack_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SongTrack_ExportMidi_Button" Content="Export MIDI" Click="ExportMidi_Click" />
+          <Button AutomationProperties.AutomationId="SongTrack_ImportMidi_Button" Content="Import MIDI" Click="ImportMidi_Click" />
         </StackPanel>
 
         <!-- Track list -->
         <Separator Margin="0,8" />
         <TextBlock Text="Tracks" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
+        <TextBlock AutomationProperties.AutomationId="SongTrack_TrackSummary_Label" Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
 
-        <ListBox Name="TrackListBox" MinHeight="60" MaxHeight="400">
+        <ListBox AutomationProperties.AutomationId="SongTrack_TrackList_List" Name="TrackListBox" MinHeight="60" MaxHeight="400">
           <ListBox.ItemTemplate>
             <DataTemplate>
               <Grid ColumnDefinitions="60,100,Auto,Auto" Margin="2">

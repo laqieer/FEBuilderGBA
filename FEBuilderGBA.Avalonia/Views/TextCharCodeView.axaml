@@ -12,11 +12,11 @@
     <!-- Editor panel with semantic field labels -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,8">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Char Code (ASCII):" VerticalAlignment="Center" Margin="0,2" />
-      <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="CharCodeBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <NumericUpDown AutomationProperties.AutomationId="TextCharCode_CharCode_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="CharCodeBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Terminator (FFFF):" VerticalAlignment="Center" Margin="0,2" />
-      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="TerminatorBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
+      <NumericUpDown AutomationProperties.AutomationId="TextCharCode_Terminator_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TerminatorBox" Minimum="0" Maximum="65535" Width="120" Margin="0,2" />
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Character Display:" VerticalAlignment="Center" Margin="0,2" />
-      <TextBlock Grid.Row="2" Grid.Column="1" Name="CharDisplayLabel" VerticalAlignment="Center" Margin="0,2" />
+      <TextBlock AutomationProperties.AutomationId="TextCharCode_CharDisplay_Label" Grid.Row="2" Grid.Column="1" Name="CharDisplayLabel" VerticalAlignment="Center" Margin="0,2" />
     </Grid>
 
     <!-- Font glyph preview panels -->
@@ -24,25 +24,25 @@
       <StackPanel Spacing="4">
         <TextBlock Text="Item Font" FontWeight="SemiBold" />
         <Border Background="{DynamicResource CharCodeHeaderBrush}" Padding="4" CornerRadius="2">
-          <Image Name="ItemFontImage" Width="64" Height="64" Stretch="Uniform"
+          <Image AutomationProperties.AutomationId="TextCharCode_ItemFont_Image" Name="ItemFontImage" Width="64" Height="64" Stretch="Uniform"
                  RenderOptions.BitmapInterpolationMode="None" />
         </Border>
-        <TextBlock Name="ItemFontWidthLabel" Foreground="Gray" FontSize="11" />
+        <TextBlock AutomationProperties.AutomationId="TextCharCode_ItemFontWidth_Label" Name="ItemFontWidthLabel" Foreground="Gray" FontSize="11" />
       </StackPanel>
       <StackPanel Spacing="4">
         <TextBlock Text="Serif Font" FontWeight="SemiBold" />
         <Border Background="{DynamicResource CharCodeCellBrush}" Padding="4" CornerRadius="2">
-          <Image Name="SerifFontImage" Width="64" Height="64" Stretch="Uniform"
+          <Image AutomationProperties.AutomationId="TextCharCode_SerifFont_Image" Name="SerifFontImage" Width="64" Height="64" Stretch="Uniform"
                  RenderOptions.BitmapInterpolationMode="None" />
         </Border>
-        <TextBlock Name="SerifFontWidthLabel" Foreground="Gray" FontSize="11" />
+        <TextBlock AutomationProperties.AutomationId="TextCharCode_SerifFontWidth_Label" Name="SerifFontWidthLabel" Foreground="Gray" FontSize="11" />
       </StackPanel>
     </StackPanel>
 
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="TextCharCode_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
-    <ListBox Name="CharCodeList" />
+    <ListBox AutomationProperties.AutomationId="TextCharCode_CharCode_List" Name="CharCodeList" />
   </DockPanel>
   </ScrollViewer>
 </Window>

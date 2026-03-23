@@ -7,58 +7,58 @@
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Configuration (FE8N)" FontSize="18" FontWeight="Bold" />
     <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock TextWrapping="Wrap" Name="StatusText"
+      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8NSkill_Status_Label" TextWrapping="Wrap" Name="StatusText"
                  Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
     </Border>
 
     <Grid ColumnDefinitions="180,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8NSkill_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Icon:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="65535" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_Icon_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_Description_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
       <TextBlock Grid.Row="3" Grid.Column="0" Text="Condition Unit 1:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ConditionUnit1Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionUnit1_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ConditionUnit1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="4" Grid.Column="0" Text="Condition Unit 2:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="ConditionUnit2Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionUnit2_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="ConditionUnit2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="5" Grid.Column="0" Text="Condition Unit 3:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="ConditionUnit3Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionUnit3_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="ConditionUnit3Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="6" Grid.Column="0" Text="Condition Unit 4:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="ConditionUnit4Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionUnit4_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="ConditionUnit4Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="7" Grid.Column="0" Text="Condition Class 1:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="ConditionClass1Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionClass1_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="ConditionClass1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="8" Grid.Column="0" Text="Condition Class 2:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="ConditionClass2Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionClass2_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="ConditionClass2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="9" Grid.Column="0" Text="Condition Class 3:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="ConditionClass3Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionClass3_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="ConditionClass3Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="10" Grid.Column="0" Text="Condition Class 4:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="ConditionClass4Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionClass4_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="ConditionClass4Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="11" Grid.Column="0" Text="Condition Item 1:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="ConditionItem1Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionItem1_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="ConditionItem1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="12" Grid.Column="0" Text="Condition Item 2:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="ConditionItem2Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionItem2_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="ConditionItem2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="13" Grid.Column="0" Text="Condition Item 3:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="ConditionItem3Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionItem3_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="ConditionItem3Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="14" Grid.Column="0" Text="Condition Item 4:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="ConditionItem4Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_ConditionItem4_Input" FormatString="0" Grid.Row="14" Grid.Column="1" Name="ConditionItem4Box" Minimum="0" Maximum="255" Margin="0,4" />
     </Grid>
 
-    <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
+    <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
   </ScrollViewer>
 </Window>

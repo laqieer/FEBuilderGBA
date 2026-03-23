@@ -5,7 +5,7 @@
         Title="Boss BGM Editor" Width="1392" Height="722"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SoundBossBGMViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,33 +13,33 @@
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SoundBossBGMViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
-            <Button Content="Jump" Click="JumpToUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
-            <Button Content="Pick..." Click="PickUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick unit from editor" />
+            <NumericUpDown AutomationProperties.AutomationId="SoundBossBGMViewer_UnitId_Input" FormatString="0" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
+            <Button AutomationProperties.AutomationId="SoundBossBGMViewer_JumpToUnit_Button" Content="Jump" Click="JumpToUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="SoundBossBGMViewer_PickUnit_Button" Content="Pick..." Click="PickUnit_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick unit from editor" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundBossBGMViewer_Unknown1_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundBossBGMViewer_Unknown2_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown 3:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundBossBGMViewer_Unknown3_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
-            <Button Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="SoundBossBGMViewer_SongId_Input" FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
+            <Button AutomationProperties.AutomationId="SoundBossBGMViewer_JumpToSong_Button" Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SoundBossBGMViewer_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

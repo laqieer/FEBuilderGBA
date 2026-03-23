@@ -5,7 +5,7 @@
         Title="AI Steal Item Logic" Width="800" Height="400"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="AIStealItem_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,18 +13,18 @@
 
         <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="AIStealItem_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Item:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIStealItem_Item_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unused 1:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unused1Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIStealItem_Unused1_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unused1Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+        <Button AutomationProperties.AutomationId="AIStealItem_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

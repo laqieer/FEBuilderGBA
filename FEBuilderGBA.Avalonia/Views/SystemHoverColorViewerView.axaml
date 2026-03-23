@@ -8,15 +8,15 @@
     <DockPanel Grid.Column="0" Margin="4">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="4,4,4,8">
         <TextBlock Text="Filter:" VerticalAlignment="Center" />
-        <ComboBox Name="FilterCombo" Width="170" SelectedIndex="0" />
+        <ComboBox AutomationProperties.AutomationId="SystemHoverColorViewer_Filter_Combo" Name="FilterCombo" Width="170" SelectedIndex="0" />
       </StackPanel>
-      <controls:AddressListControl Name="EntryList" />
+      <controls:AddressListControl AutomationProperties.AutomationId="SystemHoverColorViewer_Entry_List" Name="EntryList" />
     </DockPanel>
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="System Area Gradation Color Viewer" FontSize="18" FontWeight="Bold" />
         <TextBlock Text="GBA 15-bit color palette entries for move/attack/staff range display." Foreground="Gray" TextWrapping="Wrap" />
-        <TextBox Name="StatusLabel" IsReadOnly="True" AcceptsReturn="True"
+        <TextBox AutomationProperties.AutomationId="SystemHoverColorViewer_Status_Input" Name="StatusLabel" IsReadOnly="True" AcceptsReturn="True"
                  FontFamily="Consolas, Courier New, monospace" FontSize="13"
                  MinHeight="100" TextWrapping="Wrap" Margin="0,16,0,0" />
       </StackPanel>

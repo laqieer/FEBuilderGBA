@@ -9,11 +9,11 @@
     <!-- Label (WinForms label1 "値:" at 14,18 size 30x18) -->
     <TextBlock DockPanel.Dock="Top" Text="Value:" Margin="0,0,0,4" />
     <!-- RunButton (WinForms RunButton at 655,501 size 235x34) -->
-    <Button DockPanel.Dock="Bottom" Name="RunButton" Content="Batch Address Convert"
+    <Button AutomationProperties.AutomationId="PointerToolBatchInput_Run_Button" DockPanel.Dock="Bottom" Name="RunButton" Content="Batch Address Convert"
             Width="235" Height="34" HorizontalAlignment="Right"
             Margin="0,6,0,0" Click="OK_Click" />
     <!-- TextData (WinForms TextData 877x455 Multiline) -->
-    <TextBox Name="BatchInputTextBox" AcceptsReturn="True"
+    <TextBox AutomationProperties.AutomationId="PointerToolBatchInput_BatchInputText_Input" Name="BatchInputTextBox" AcceptsReturn="True"
              FontFamily="Consolas, Courier New, monospace"
              Watermark="0x08000000&#x0a;0x08000004&#x0a;..." />
   </DockPanel>

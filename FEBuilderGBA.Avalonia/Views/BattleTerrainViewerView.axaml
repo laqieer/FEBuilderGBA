@@ -5,54 +5,54 @@
         Title="Battle Terrain Editor" Width="1251" Height="811"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="BattleTerrainViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Terrain Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="BattleTerrainViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Terrain Name:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="TerrainNameLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="BattleTerrainViewer_TerrainName_Label" Grid.Row="1" Grid.Column="1" Name="TerrainNameLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Char 0:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="B0Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B0_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="B0Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Name Char 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="B1Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B1_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="B1Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Name Char 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="B2Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B2_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="B2Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Name Char 3:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B3_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Name Char 4:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="B4Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B4_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="B4Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Name Char 5:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="B5Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B5_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="B5Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Name Char 6:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B6_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Name Char 7:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B7_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Name Char 8:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="B8Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B8_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="B8Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Name Char 9:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="B9Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B9_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="B9Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Name Char 10:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="B10Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B10_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="B10Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="13" Grid.Column="0" Text="Name Char 11:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="B11Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="BattleTerrainViewer_B11_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="B11Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="14" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="14" Grid.Column="1" Name="ImgPtrBox" Width="120" />
+          <TextBox AutomationProperties.AutomationId="BattleTerrainViewer_ImgPtr_Input" Grid.Row="14" Grid.Column="1" Name="ImgPtrBox" Width="120" />
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="15" Grid.Column="1" Name="PalPtrBox" Width="120" />
+          <TextBox AutomationProperties.AutomationId="BattleTerrainViewer_PalPtr_Input" Grid.Row="15" Grid.Column="1" Name="PalPtrBox" Width="120" />
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Unknown (D20):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="16" Grid.Column="1" Name="D20Box" Width="120" />
+          <TextBox AutomationProperties.AutomationId="BattleTerrainViewer_D20_Input" Grid.Row="16" Grid.Column="1" Name="D20Box" Width="120" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
-          <Button Content="Export PNG" Click="ExportPng_Click" />
-          <Button Content="Import PNG" Click="ImportPng_Click" />
-          <Button Content="Export PAL" Click="ExportPal_Click" />
-          <Button Content="Import PAL" Click="ImportPal_Click" />
+          <Button AutomationProperties.AutomationId="BattleTerrainViewer_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="BattleTerrainViewer_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
+          <Button AutomationProperties.AutomationId="BattleTerrainViewer_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
+          <Button AutomationProperties.AutomationId="BattleTerrainViewer_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
+          <Button AutomationProperties.AutomationId="BattleTerrainViewer_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
         </StackPanel>
-        <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
+        <controls:GbaImageControl AutomationProperties.AutomationId="BattleTerrainViewer_Image_Image" Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

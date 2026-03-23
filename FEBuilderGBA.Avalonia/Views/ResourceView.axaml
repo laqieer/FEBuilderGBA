@@ -11,19 +11,19 @@
 
       <Separator Margin="0,8" />
       <TextBlock Text="ROM Information" FontSize="16" FontWeight="SemiBold" />
-      <TextBox Name="RomInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
+      <TextBox AutomationProperties.AutomationId="Resource_RomInfoText_Input" Name="RomInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
                FontFamily="Consolas, Courier New, monospace" FontSize="13"
                Text="{Binding RomInfoText}" MinHeight="160" />
 
       <Separator Margin="0,8" />
       <TextBlock Text="ROM Data Sections" FontSize="16" FontWeight="SemiBold" />
-      <TextBox Name="RomSectionTextBox" IsReadOnly="True" AcceptsReturn="True"
+      <TextBox AutomationProperties.AutomationId="Resource_RomSectionText_Input" Name="RomSectionTextBox" IsReadOnly="True" AcceptsReturn="True"
                FontFamily="Consolas, Courier New, monospace" FontSize="13"
                Text="{Binding RomSectionText}" MinHeight="120" />
 
       <Separator Margin="0,8" />
       <TextBlock Text="Configuration" FontSize="16" FontWeight="SemiBold" />
-      <TextBox Name="ConfigInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
+      <TextBox AutomationProperties.AutomationId="Resource_ConfigInfoText_Input" Name="ConfigInfoTextBox" IsReadOnly="True" AcceptsReturn="True"
                FontFamily="Consolas, Courier New, monospace" FontSize="13"
                Text="{Binding ConfigInfoText}" MinHeight="80" />
     </StackPanel>

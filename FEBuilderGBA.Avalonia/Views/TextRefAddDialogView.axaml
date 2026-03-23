@@ -8,14 +8,14 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Add Text Reference" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+      <Button AutomationProperties.AutomationId="TextRefAddDialog_OK_Button" Content="OK" Width="80" Click="OK_Click" />
+      <Button AutomationProperties.AutomationId="TextRefAddDialog_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
     <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,0,8,8" />
-      <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="RefIdInput" Minimum="0" Maximum="65535" Value="0" Margin="0,0,0,8" />
+      <NumericUpDown AutomationProperties.AutomationId="TextRefAddDialog_RefId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="RefIdInput" Minimum="0" Maximum="65535" Value="0" Margin="0,0,0,8" />
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Reference Text:" VerticalAlignment="Center" Margin="0,0,8,0" />
-      <TextBox Grid.Row="1" Grid.Column="1" Name="RefTextInput" Watermark="Enter reference text..." />
+      <TextBox AutomationProperties.AutomationId="TextRefAddDialog_RefText_Input" Grid.Row="1" Grid.Column="1" Name="RefTextInput" Watermark="Enter reference text..." />
     </Grid>
   </DockPanel>
   </ScrollViewer>

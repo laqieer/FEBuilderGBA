@@ -19,9 +19,9 @@
                  Text="{Binding MessageText}" />
       <!-- Buttons row -->
       <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="35,12,0,0">
-        <Button Content="Update" Height="50" Width="435"
+        <Button AutomationProperties.AutomationId="ToolClickWriteFloatControlPanelButton_Update_Button" Content="Update" Height="50" Width="435"
                 Click="Update_Click" />
-        <Button Content="Insert New" Height="50" Width="223"
+        <Button AutomationProperties.AutomationId="ToolClickWriteFloatControlPanelButton_New_Button" Content="Insert New" Height="50" Width="223"
                 Margin="35,0,0,0" Click="New_Click" />
       </StackPanel>
     </Grid>

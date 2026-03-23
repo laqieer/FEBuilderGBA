@@ -5,7 +5,7 @@
         Title="Battle Animation Editor" Width="900" Height="600"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ImageBattleAnime_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,23 +14,23 @@
         <Grid ColumnDefinitions="180,200,20,180,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <!-- Row 1: B0 Weapon Type, B1 Special -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon Type (B0):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageBattleAnime_WeaponType_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Special (B1):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="SpecialBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageBattleAnime_Special_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="SpecialBox" Minimum="0" Maximum="255" />
 
           <!-- Row 2: W2 Animation Number -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation # (W2):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimationNumberBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageBattleAnime_AnimationNumber_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimationNumberBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Resolved:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="2" Grid.Column="4" Name="WeaponTypeNameLabel" VerticalAlignment="Center"
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_WeaponTypeName_Label" Grid.Row="2" Grid.Column="4" Name="WeaponTypeNameLabel" VerticalAlignment="Center"
                      FontStyle="Italic" Foreground="Gray" />
 
           <!-- Row 3: Write button -->
-          <Button Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
+          <Button AutomationProperties.AutomationId="ImageBattleAnime_Write_Button" Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
 
         <!-- Animation Details Panel -->
@@ -42,39 +42,39 @@
             <Grid ColumnDefinitions="150,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <!-- Row 0: Animation name -->
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="0" Grid.Column="1" Name="AnimeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_AnimeName_Label" Grid.Row="0" Grid.Column="1" Name="AnimeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" />
 
               <!-- Row 1: Data address -->
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Address:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="1" Grid.Column="1" Name="AnimeDataAddrLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_AnimeDataAddr_Label" Grid.Row="1" Grid.Column="1" Name="AnimeDataAddrLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 2: Section pointer -->
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Section Ptr:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="2" Grid.Column="1" Name="SectionPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_SectionPointer_Label" Grid.Row="2" Grid.Column="1" Name="SectionPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 3: Frame pointer -->
               <TextBlock Grid.Row="3" Grid.Column="0" Text="Frame Ptr:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="3" Grid.Column="1" Name="FramePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_FramePointer_Label" Grid.Row="3" Grid.Column="1" Name="FramePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 4: OAM R-to-L pointer -->
               <TextBlock Grid.Row="4" Grid.Column="0" Text="OAM (R→L) Ptr:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="4" Grid.Column="1" Name="OamRtLPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_OamRtLPointer_Label" Grid.Row="4" Grid.Column="1" Name="OamRtLPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 5: OAM L-to-R pointer -->
               <TextBlock Grid.Row="5" Grid.Column="0" Text="OAM (L→R) Ptr:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="5" Grid.Column="1" Name="OamLtRPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_OamLtRPointer_Label" Grid.Row="5" Grid.Column="1" Name="OamLtRPointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 6: Palette pointer -->
               <TextBlock Grid.Row="6" Grid.Column="0" Text="Palette Ptr:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="6" Grid.Column="1" Name="PalettePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_PalettePointer_Label" Grid.Row="6" Grid.Column="1" Name="PalettePointerLabel" FontFamily="Consolas" VerticalAlignment="Center" />
 
               <!-- Row 7: Frame LZ77 info -->
               <TextBlock Grid.Row="7" Grid.Column="0" Text="Frame Data:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="7" Grid.Column="1" Name="FrameLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_FrameLZ77_Label" Grid.Row="7" Grid.Column="1" Name="FrameLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
 
               <!-- Row 8: OAM LZ77 info -->
               <TextBlock Grid.Row="8" Grid.Column="0" Text="OAM Data:" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="8" Grid.Column="1" Name="OamLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_OamLZ77_Label" Grid.Row="8" Grid.Column="1" Name="OamLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
             </Grid>
           </StackPanel>
         </Border>
@@ -84,12 +84,12 @@
                 BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
           <StackPanel Spacing="6">
             <TextBlock Text="Sprite Tile Sheet" FontSize="14" FontWeight="SemiBold" />
-            <TextBlock Name="TileSheetInfoLabel" Foreground="DarkGreen" />
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_TileSheetInfo_Label" Name="TileSheetInfoLabel" Foreground="DarkGreen" />
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           MaxHeight="400">
-              <controls:GbaImageControl Name="TileSheetImage" />
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleAnime_TileSheet_Image" Name="TileSheetImage" />
             </ScrollViewer>
-            <Button Name="ExportTileSheetButton" Content="Export Tile Sheet PNG..."
+            <Button AutomationProperties.AutomationId="ImageBattleAnime_ExportTileSheet_Button" Name="ExportTileSheetButton" Content="Export Tile Sheet PNG..."
                     Click="ExportTileSheet_Click" HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
@@ -103,39 +103,39 @@
             <Grid ColumnDefinitions="100,200,20,80,80" RowDefinitions="Auto,Auto">
               <!-- Row 0: Section selector -->
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Section:" VerticalAlignment="Center" />
-              <ComboBox Grid.Row="0" Grid.Column="1" Name="SectionCombo"
+              <ComboBox AutomationProperties.AutomationId="ImageBattleAnime_Section_Combo" Grid.Row="0" Grid.Column="1" Name="SectionCombo"
                         SelectionChanged="SectionCombo_SelectionChanged" />
 
               <!-- Row 1: Frame navigation -->
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Frame:" VerticalAlignment="Center" Margin="0,4,0,0" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="FrameUpDown"
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleAnime_FrameUpDown_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="FrameUpDown"
                              Minimum="0" Maximum="0" Value="0"
                              ValueChanged="FrameUpDown_ValueChanged" Margin="0,4,0,0" />
-              <Button Grid.Row="1" Grid.Column="3" Content="Prev" Name="PrevFrameBtn"
+              <Button AutomationProperties.AutomationId="ImageBattleAnime_PrevFrameBtn_Button" Grid.Row="1" Grid.Column="3" Content="Prev" Name="PrevFrameBtn"
                       Click="PrevFrame_Click" Margin="0,4,0,0" />
-              <Button Grid.Row="1" Grid.Column="4" Content="Next" Name="NextFrameBtn"
+              <Button AutomationProperties.AutomationId="ImageBattleAnime_NextFrameBtn_Button" Grid.Row="1" Grid.Column="4" Content="Next" Name="NextFrameBtn"
                       Click="NextFrame_Click" Margin="4,4,0,0" />
             </Grid>
 
             <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
-              <Button Name="PlayStopBtn" Content="Play" Click="PlayStop_Click" MinWidth="60" />
+              <Button AutomationProperties.AutomationId="ImageBattleAnime_PlayStopBtn_Button" Name="PlayStopBtn" Content="Play" Click="PlayStop_Click" MinWidth="60" />
               <TextBlock Text="Speed:" VerticalAlignment="Center" Margin="8,0,0,0" />
-              <Slider Name="SpeedSlider" Minimum="1" Maximum="10" Value="5" Width="100"
+              <Slider AutomationProperties.AutomationId="ImageBattleAnime_SpeedSlider_Input" Name="SpeedSlider" Minimum="1" Maximum="10" Value="5" Width="100"
                       VerticalAlignment="Center" />
             </StackPanel>
 
-            <TextBlock Name="FrameInfoLabel" Foreground="DarkSlateBlue" FontFamily="Consolas"
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_FrameInfo_Label" Name="FrameInfoLabel" Foreground="DarkSlateBlue" FontFamily="Consolas"
                        TextWrapping="Wrap" />
 
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           MaxHeight="400">
-              <controls:GbaImageControl Name="FrameImageControl" />
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleAnime_FrameImage_Image" Name="FrameImageControl" />
             </ScrollViewer>
           </StackPanel>
         </Border>
 
         <!-- No details message -->
-        <TextBlock Name="NoAnimeDetailsLabel" IsVisible="False"
+        <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_NoAnimeDetails_Label" Name="NoAnimeDetailsLabel" IsVisible="False"
                    Text="No animation data found for this ID (ID=0 or invalid pointer chain)."
                    FontStyle="Italic" Foreground="Gray" Margin="0,8,0,0" />
 
@@ -143,7 +143,7 @@
         <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Animation Table Summary" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock Name="AnimeCountLabel" Text="Total animations: --" />
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_AnimeCount_Label" Name="AnimeCountLabel" Text="Total animations: --" />
           </StackPanel>
         </Border>
 

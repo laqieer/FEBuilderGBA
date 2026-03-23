@@ -11,12 +11,12 @@
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
                 Margin="8,4,8,0" Spacing="8">
       <TextBlock Text="Address:" VerticalAlignment="Center" />
-      <NumericUpDown FormatString="0" Value="{Binding ReadStartAddress}" Minimum="0"
+      <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown1_Input" FormatString="0" Value="{Binding ReadStartAddress}" Minimum="0"
                      Width="130" Height="25" />
       <TextBlock Text="Count:" VerticalAlignment="Center" />
-      <NumericUpDown FormatString="0" Value="{Binding ReadCount}" Minimum="1" Maximum="256"
+      <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown2_Input" FormatString="0" Value="{Binding ReadCount}" Minimum="1" Maximum="256"
                      Width="78" Height="25" />
-      <Button Content="Reload" Width="112" Height="30" Click="Reload_Click" />
+      <Button AutomationProperties.AutomationId="SMEPromoList_Reload_Button" Content="Reload" Width="112" Height="30" Click="Reload_Click" />
     </StackPanel>
 
     <Grid ColumnDefinitions="245,*">
@@ -24,9 +24,9 @@
       <DockPanel Grid.Column="0" Margin="4">
         <TextBlock DockPanel.Dock="Top" Text="Name" FontWeight="Bold"
                    Height="26" VerticalAlignment="Center" />
-        <Button DockPanel.Dock="Bottom" Content="Expand List" Height="30"
+        <Button AutomationProperties.AutomationId="SMEPromoList_ExpandList_Button" DockPanel.Dock="Bottom" Content="Expand List" Height="30"
                 HorizontalAlignment="Stretch" Margin="0,4,0,0" />
-        <ListBox ItemsSource="{Binding AddressList}"
+        <ListBox AutomationProperties.AutomationId="SMEPromoList_ListBox1_List" ItemsSource="{Binding AddressList}"
                  SelectedIndex="{Binding SelectedIndex}" />
       </DockPanel>
 
@@ -36,14 +36,14 @@
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
                     Spacing="8" Margin="0,0,0,4">
           <TextBlock Text="Address:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Value="{Binding CurrentAddress}" Minimum="0"
+          <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown3_Input" FormatString="0" Value="{Binding CurrentAddress}" Minimum="0"
                          Width="130" Height="25" />
           <TextBlock Text="Size:" VerticalAlignment="Center" />
-          <TextBox Text="{Binding BlockSize}" IsReadOnly="True"
+          <TextBox AutomationProperties.AutomationId="SMEPromoList_TextBox1_Input" Text="{Binding BlockSize}" IsReadOnly="True"
                    Width="82" Height="25" />
-          <TextBox Text="{Binding SelectAddress}" IsReadOnly="True"
+          <TextBox AutomationProperties.AutomationId="SMEPromoList_TextBox2_Input" Text="{Binding SelectAddress}" IsReadOnly="True"
                    Width="150" Height="25" />
-          <Button Content="Write" Width="168" Height="30" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SMEPromoList_Write_Button" Content="Write" Width="168" Height="30" Click="Write_Click" />
         </StackPanel>
 
         <!-- Class editor fields -->
@@ -52,18 +52,18 @@
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Base Class" Width="146" Height="30"
                        VerticalAlignment="Center" FontWeight="Bold" />
-            <NumericUpDown FormatString="0" Value="{Binding B0}" Minimum="0" Maximum="255"
+            <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown4_Input" FormatString="0" Value="{Binding B0}" Minimum="0" Maximum="255"
                            Width="72" Height="25" />
-            <TextBox Text="{Binding ClassName0}" IsReadOnly="True"
+            <TextBox AutomationProperties.AutomationId="SMEPromoList_TextBox3_Input" Text="{Binding ClassName0}" IsReadOnly="True"
                      Width="174" Height="25" />
           </StackPanel>
           <!-- Promo Class row -->
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Promo Class" Width="146" Height="30"
                        VerticalAlignment="Center" FontWeight="Bold" />
-            <NumericUpDown FormatString="0" Value="{Binding B1}" Minimum="0" Maximum="255"
+            <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown5_Input" FormatString="0" Value="{Binding B1}" Minimum="0" Maximum="255"
                            Width="72" Height="25" />
-            <TextBox Text="{Binding ClassName1}" IsReadOnly="True"
+            <TextBox AutomationProperties.AutomationId="SMEPromoList_TextBox4_Input" Text="{Binding ClassName1}" IsReadOnly="True"
                      Width="174" Height="25" />
           </StackPanel>
         </StackPanel>

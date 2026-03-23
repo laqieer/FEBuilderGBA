@@ -16,16 +16,16 @@
     <!-- Right side: Info + buttons -->
     <StackPanel Grid.Column="1" Spacing="6">
       <!-- Info textbox (WinForms Info 629x117 readonly multiline) -->
-      <TextBox Name="InfoTextBox" Height="117" IsReadOnly="True" AcceptsReturn="True"
+      <TextBox AutomationProperties.AutomationId="ToolUndoPopupDialog_InfoText_Input" Name="InfoTextBox" Height="117" IsReadOnly="True" AcceptsReturn="True"
                Text="{Binding InfoText}" FontFamily="Consolas, Courier New, monospace" />
       <!-- TestPlay button (WinForms TestPlayButton 629x41) -->
-      <Button Name="TestPlayButton" Content="Test Play in Emulator" Height="41"
+      <Button AutomationProperties.AutomationId="ToolUndoPopupDialog_TestPlay_Button" Name="TestPlayButton" Content="Test Play in Emulator" Height="41"
               HorizontalAlignment="Stretch" Click="TestPlay_Click" />
       <!-- RunUndo button (WinForms RunUndoButton 629x36) -->
-      <Button Name="RunUndoButton" Content="Revert to This Version" Height="36"
+      <Button AutomationProperties.AutomationId="ToolUndoPopupDialog_RunUndo_Button" Name="RunUndoButton" Content="Revert to This Version" Height="36"
               HorizontalAlignment="Stretch" Click="RunUndo_Click" />
       <!-- Cancel button (WinForms MyCancelButton 629x35) -->
-      <Button Name="MyCancelButton" Content="Cancel" Height="35"
+      <Button AutomationProperties.AutomationId="ToolUndoPopupDialog_MyCancel_Button" Name="MyCancelButton" Content="Cancel" Height="35"
               HorizontalAlignment="Stretch" Click="Cancel_Click" />
     </StackPanel>
   </Grid>

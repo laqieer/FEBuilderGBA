@@ -10,19 +10,19 @@
     <!-- Table selection -->
     <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
       <TextBlock Text="Table:" VerticalAlignment="Center" />
-      <ComboBox Name="TableCombo" Width="300"
+      <ComboBox AutomationProperties.AutomationId="DataExport_Table_Combo" Name="TableCombo" Width="300"
                 ItemsSource="{Binding TableNames}"
                 SelectedItem="{Binding SelectedTable}" />
     </StackPanel>
 
     <!-- Action buttons -->
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-      <Button Content="Export TSV..." Click="Export_Click" />
-      <Button Content="Import TSV..." Click="Import_Click" />
+      <Button AutomationProperties.AutomationId="DataExport_Export_Button" Content="Export TSV..." Click="Export_Click" />
+      <Button AutomationProperties.AutomationId="DataExport_Import_Button" Content="Import TSV..." Click="Import_Click" />
     </StackPanel>
 
     <!-- Status -->
-    <TextBlock Grid.Row="2" Name="StatusText" Text="{Binding StatusMessage}"
+    <TextBlock AutomationProperties.AutomationId="DataExport_Status_Label" Grid.Row="2" Name="StatusText" Text="{Binding StatusMessage}"
                Margin="0,12,0,0" TextWrapping="Wrap" />
   </Grid>
   </ScrollViewer>

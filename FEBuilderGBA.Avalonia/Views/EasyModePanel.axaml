@@ -9,7 +9,7 @@
                  FontSize="13" HorizontalAlignment="Center" Foreground="Gray" Margin="0,0,0,8"
                  TextWrapping="Wrap" TextAlignment="Center" />
       <!-- Search/Filter -->
-      <TextBox Name="SearchBox" Watermark="Search editors..." Margin="0,0,0,4"
+      <TextBox AutomationProperties.AutomationId="EasyModePanel_Search_Input" Name="SearchBox" Watermark="Search editors..." Margin="0,0,0,4"
                HorizontalAlignment="Center" MinWidth="300" MaxWidth="500" />
 
       <!-- Characters -->
@@ -19,10 +19,10 @@
           <TextBlock Text="Edit playable and enemy unit stats, class data, and support relationships."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Edit Units" Click="EasyOpenUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Edit Classes" Click="EasyOpenClasses_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Support Units" Click="EasyOpenSupportUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Support Talk" Click="EasyOpenSupportTalk_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenUnits_Button" Content="Edit Units" Click="EasyOpenUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenClasses_Button" Content="Edit Classes" Click="EasyOpenClasses_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenSupportUnits_Button" Content="Support Units" Click="EasyOpenSupportUnits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenSupportTalk_Button" Content="Support Talk" Click="EasyOpenSupportTalk_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -34,10 +34,10 @@
           <TextBlock Text="Edit weapons, items, their effects, shops, and promotions."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Edit Items" Click="EasyOpenItems_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Weapon Effect" Click="EasyOpenWeaponEffect_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Shops" Click="EasyOpenShop_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Promotions" Click="EasyOpenPromotion_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenItems_Button" Content="Edit Items" Click="EasyOpenItems_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenWeaponEffect_Button" Content="Weapon Effect" Click="EasyOpenWeaponEffect_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenShop_Button" Content="Shops" Click="EasyOpenShop_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenPromotion_Button" Content="Promotions" Click="EasyOpenPromotion_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -49,10 +49,10 @@
           <TextBlock Text="Configure chapter settings, map layouts, terrain, and movement costs."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Map Settings" Click="EasyOpenMapSettings_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Map Editor" Click="EasyOpenMapEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Terrain Names" Click="EasyOpenTerrainNames_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Move Costs" Click="EasyOpenMoveCost_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenMapSettings_Button" Content="Map Settings" Click="EasyOpenMapSettings_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenMapEditor_Button" Content="Map Editor" Click="EasyOpenMapEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenTerrainNames_Button" Content="Terrain Names" Click="EasyOpenTerrainNames_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenMoveCost_Button" Content="Move Costs" Click="EasyOpenMoveCost_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -64,9 +64,9 @@
           <TextBlock Text="Edit event scripts that control story scenes, cutscenes, and gameplay triggers."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Event Scripts" Click="EasyOpenEventScript_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Event Conditions" Click="EasyOpenEventCond_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Event Units" Click="EasyOpenEventUnit_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenEventScript_Button" Content="Event Scripts" Click="EasyOpenEventScript_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenEventCond_Button" Content="Event Conditions" Click="EasyOpenEventCond_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenEventUnit_Button" Content="Event Units" Click="EasyOpenEventUnit_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -78,11 +78,11 @@
           <TextBlock Text="Edit character portraits, battle animations, CGs, and sprite graphics."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Portraits" Click="EasyOpenPortraits_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Battle Animations" Click="EasyOpenBattleAnime_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="CG Viewer" Click="EasyOpenBigCG_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Image Viewer" Click="EasyOpenImageViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="OAM Sprite Viewer" Click="EasyOpenOAMSpriteViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenPortraits_Button" Content="Portraits" Click="EasyOpenPortraits_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenBattleAnime_Button" Content="Battle Animations" Click="EasyOpenBattleAnime_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenBigCG_Button" Content="CG Viewer" Click="EasyOpenBigCG_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenImageViewer_Button" Content="Image Viewer" Click="EasyOpenImageViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenOAMSpriteViewer_Button" Content="OAM Sprite Viewer" Click="EasyOpenOAMSpriteViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -94,9 +94,9 @@
           <TextBlock Text="Manage background music, sound effects, and the in-game sound room."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Song Table" Click="EasyOpenSongTable_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Song Tracks" Click="EasyOpenSongTrack_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Sound Room" Click="EasyOpenSoundRoom_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenSongTable_Button" Content="Song Table" Click="EasyOpenSongTable_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenSongTrack_Button" Content="Song Tracks" Click="EasyOpenSongTrack_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenSoundRoom_Button" Content="Sound Room" Click="EasyOpenSoundRoom_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -108,9 +108,9 @@
           <TextBlock Text="Edit in-game dialogue, menus, and all text strings in the ROM."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Text Editor" Click="EasyOpenTextViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Export Text (TSV)" Click="EasyExportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Import Text (TSV)" Click="EasyImportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenTextViewer_Button" Content="Text Editor" Click="EasyOpenTextViewer_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyExportText_Button" Content="Export Text (TSV)" Click="EasyExportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyImportText_Button" Content="Import Text (TSV)" Click="EasyImportText_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>
@@ -122,10 +122,10 @@
           <TextBlock Text="Advanced utilities: hex editing, patching, ROM diagnostics, and more."
                      FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           <WrapPanel Orientation="Horizontal">
-            <Button Content="Hex Editor" Click="EasyOpenHexEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Patch Manager" Click="EasyOpenPatchManager_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Lint Check" Click="EasyOpenLint_Click" Margin="4" MinWidth="120" Padding="12,8" />
-            <Button Content="Pointer Tool" Click="EasyOpenPointerTool_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenHexEditor_Button" Content="Hex Editor" Click="EasyOpenHexEditor_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenPatchManager_Button" Content="Patch Manager" Click="EasyOpenPatchManager_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenLint_Button" Content="Lint Check" Click="EasyOpenLint_Click" Margin="4" MinWidth="120" Padding="12,8" />
+            <Button AutomationProperties.AutomationId="EasyModePanel_EasyOpenPointerTool_Button" Content="Pointer Tool" Click="EasyOpenPointerTool_Click" Margin="4" MinWidth="120" Padding="12,8" />
           </WrapPanel>
         </StackPanel>
       </Border>

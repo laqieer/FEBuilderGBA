@@ -10,9 +10,9 @@
   <StackPanel Margin="22,31,15,15">
     <TextBlock TextWrapping="Wrap" Height="36"
                Text="{Binding MessageText}" />
-    <Button Content="Automatically configure with Init Wizard" Height="37"
+    <Button AutomationProperties.AutomationId="ToolEmulatorSetupMessage_UseInitWizard_Button" Content="Automatically configure with Init Wizard" Height="37"
             HorizontalAlignment="Stretch" Margin="0,27,0,0" Click="UseInitWizard_Click" />
-    <Button Content="Manually configure from Options screen" Height="37"
+    <Button AutomationProperties.AutomationId="ToolEmulatorSetupMessage_ManualSetup_Button" Content="Manually configure from Options screen" Height="37"
             HorizontalAlignment="Stretch" Margin="0,16,0,0" Click="ManualSetup_Click" />
   </StackPanel>
   </ScrollViewer>

@@ -14,7 +14,7 @@
                    HorizontalAlignment="Center" />
         <TextBlock Text="Avalonia Cross-Platform Edition" FontSize="16"
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
-        <TextBlock Name="VersionText" Text="{Binding VersionInfo}" FontSize="12"
+        <TextBlock AutomationProperties.AutomationId="Welcome_Version_Label" Name="VersionText" Text="{Binding VersionInfo}" FontSize="12"
                    Foreground="Gray" HorizontalAlignment="Center" Margin="0,4,0,0" />
       </StackPanel>
     </Border>
@@ -22,13 +22,13 @@
     <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
       <!-- Action Buttons -->
       <StackPanel Grid.Column="0" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,16,0">
-        <Button Name="OpenLastROMButton" Content="Open Last ROM" MinWidth="200" MaxWidth="400" Height="47"
+        <Button AutomationProperties.AutomationId="Welcome_OpenLastROM_Button" Name="OpenLastROMButton" Content="Open Last ROM" MinWidth="200" MaxWidth="400" Height="47"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenLastROM_Click" />
-        <Button Name="OpenROMButton" Content="Open ROM" MinWidth="200" MaxWidth="400" Height="50"
+        <Button AutomationProperties.AutomationId="Welcome_OpenROM_Button" Name="OpenROMButton" Content="Open ROM" MinWidth="200" MaxWidth="400" Height="50"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OpenROM_Click" />
-        <Button Name="UpdateCheckButton" Content="Check for Updates" MinWidth="200" MaxWidth="400" Height="47"
+        <Button AutomationProperties.AutomationId="Welcome_UpdateCheck_Button" Name="UpdateCheckButton" Content="Check for Updates" MinWidth="200" MaxWidth="400" Height="47"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="UpdateCheck_Click" />
-        <Button Name="ManButton" Content="Online Manual" MinWidth="200" MaxWidth="400" Height="47"
+        <Button AutomationProperties.AutomationId="Welcome_Man_Button" Name="ManButton" Content="Online Manual" MinWidth="200" MaxWidth="400" Height="47"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="Manual_Click" />
       </StackPanel>
 
@@ -37,9 +37,9 @@
               VerticalAlignment="Top" Name="RecentFilesBorder">
         <StackPanel Spacing="6">
           <TextBlock Text="Recent Files" FontSize="16" FontWeight="SemiBold" />
-          <TextBlock Name="NoRecentFilesLabel" Text="No recent files" Foreground="Gray" FontSize="12"
+          <TextBlock AutomationProperties.AutomationId="Welcome_NoRecentFiles_Label" Name="NoRecentFilesLabel" Text="No recent files" Foreground="Gray" FontSize="12"
                      IsVisible="True" />
-          <ItemsControl Name="RecentFilesList">
+          <ItemsControl AutomationProperties.AutomationId="Welcome_RecentFiles_List" Name="RecentFilesList">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
                 <Button Content="{Binding Display}" Click="RecentFile_Click" Tag="{Binding Index}"

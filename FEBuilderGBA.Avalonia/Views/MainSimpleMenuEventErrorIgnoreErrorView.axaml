@@ -11,17 +11,17 @@
     <!-- Question label -->
     <TextBlock Text="Do you want to hide this error?" Margin="0,0,0,14" />
     <!-- Error details textbox (readonly, multiline) -->
-    <TextBox IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+    <TextBox AutomationProperties.AutomationId="MainSimpleMenuEventErrorIgnoreError_ErrorText_Input" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
              Text="{Binding ErrorText}" Height="121" />
     <!-- Reason label -->
     <TextBlock Text="Reason for hiding:" Margin="0,19,0,8" />
     <!-- Comment textbox -->
-    <TextBox Text="{Binding Comment}" Watermark="Reason for hiding" Height="25" />
+    <TextBox AutomationProperties.AutomationId="MainSimpleMenuEventErrorIgnoreError_Comment_Input" Text="{Binding Comment}" Watermark="Reason for hiding" Height="25" />
     <!-- Buttons -->
     <Grid ColumnDefinitions="188,*,213" Margin="0,24,0,0">
-      <Button Grid.Column="0" Content="Cancel" Height="45"
+      <Button AutomationProperties.AutomationId="MainSimpleMenuEventErrorIgnoreError_Cancel_Button" Grid.Column="0" Content="Cancel" Height="45"
               HorizontalAlignment="Stretch" Click="Cancel_Click" />
-      <Button Grid.Column="2" Content="Hide this error" Height="45"
+      <Button AutomationProperties.AutomationId="MainSimpleMenuEventErrorIgnoreError_OK_Button" Grid.Column="2" Content="Hide this error" Height="45"
               HorizontalAlignment="Stretch" Click="OK_Click" />
     </Grid>
   </StackPanel>

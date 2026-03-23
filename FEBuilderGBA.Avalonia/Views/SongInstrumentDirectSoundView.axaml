@@ -5,7 +5,7 @@
         Title="Direct Sound Instruments" Width="879" Height="327"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SongInstrumentDirectSound_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,23 +13,23 @@
 
         <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongInstrumentDirectSound_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Header:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="HeaderBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongInstrumentDirectSound_Header_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="HeaderBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Frequency Hz*1024:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="FrequencyBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongInstrumentDirectSound_Frequency_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="FrequencyBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Loop Start Byte:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="LoopStartBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongInstrumentDirectSound_LoopStart_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="LoopStartBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Length Byte:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="LengthBox" Minimum="0" Maximum="4294967295" IsReadOnly="True" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongInstrumentDirectSound_Length_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="LengthBox" Minimum="0" Maximum="4294967295" IsReadOnly="True" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SongInstrumentDirectSound_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

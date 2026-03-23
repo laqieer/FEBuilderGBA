@@ -8,54 +8,54 @@
         ShowInTaskbar="False"
         SizeToContent="Height">
   <Grid RowDefinitions="*,Auto" Margin="16">
-    <TabControl Grid.Row="0">
+    <TabControl AutomationProperties.AutomationId="Options_TabControl1_TabControl" Grid.Row="0">
       <!-- General Tab -->
-      <TabItem Header="General">
+      <TabItem AutomationProperties.AutomationId="Options_General_Tab" Header="General">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
           <StackPanel Spacing="12">
             <!-- Language -->
             <StackPanel Spacing="4">
               <TextBlock Text="Language" FontWeight="SemiBold" />
-              <ComboBox Name="LanguageCombo" HorizontalAlignment="Stretch" />
+              <ComboBox AutomationProperties.AutomationId="Options_Language_Combo" Name="LanguageCombo" HorizontalAlignment="Stretch" />
             </StackPanel>
 
             <!-- Git Path -->
             <StackPanel Spacing="4">
               <TextBlock Text="Git Executable Path" FontWeight="SemiBold" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="GitPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GitPathTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_GitPathText_Input" Name="GitPathTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GitPathTextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
             <!-- Auto-Backup -->
-            <CheckBox Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
+            <CheckBox AutomationProperties.AutomationId="Options_AutoBackupCheck_Check" Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
 
             <!-- Submodule Remote URLs -->
-            <Expander Header="Submodule Remote URLs (advanced)" Margin="0,12,0,0" IsExpanded="False">
+            <Expander AutomationProperties.AutomationId="Options_SubmoduleRemoteURLsadvanced_Expander" Header="Submodule Remote URLs (advanced)" Margin="0,12,0,0" IsExpanded="False">
               <StackPanel Spacing="4" Margin="8,4,0,0">
                 <TextBlock Text="Leave blank for defaults. Set custom URLs for forks/mirrors." FontSize="11" Foreground="Gray" />
                 <TextBlock Text="Patch2 Remote URL" Margin="0,4,0,0" />
-                <TextBox Name="Patch2UrlTextBox" Watermark="https://github.com/laqieer/FEBuilderGBA-patch2.git" />
+                <TextBox AutomationProperties.AutomationId="Options_Patch2UrlText_Input" Name="Patch2UrlTextBox" Watermark="https://github.com/laqieer/FEBuilderGBA-patch2.git" />
                 <TextBlock Text="FE-Repo Remote URL" Margin="0,4,0,0" />
-                <TextBox Name="FERepoUrlTextBox" Watermark="https://github.com/Klokinator/FE-Repo" />
+                <TextBox AutomationProperties.AutomationId="Options_FERepoUrlText_Input" Name="FERepoUrlTextBox" Watermark="https://github.com/Klokinator/FE-Repo" />
                 <TextBlock Text="FE-Repo-Music Remote URL" Margin="0,4,0,0" />
-                <TextBox Name="FERepoMusicUrlTextBox" Watermark="https://github.com/laqieer/FE-Repo-Music-No-Preview" />
+                <TextBox AutomationProperties.AutomationId="Options_FERepoMusicUrlText_Input" Name="FERepoMusicUrlTextBox" Watermark="https://github.com/laqieer/FE-Repo-Music-No-Preview" />
               </StackPanel>
             </Expander>
 
             <!-- Auto-Save -->
-            <CheckBox Name="AutoSaveCheckBox" Content="Enable auto-save (saves to .autosave.gba sidecar file)" Margin="0,8,0,0" />
+            <CheckBox AutomationProperties.AutomationId="Options_AutoSaveCheck_Check" Name="AutoSaveCheckBox" Content="Enable auto-save (saves to .autosave.gba sidecar file)" Margin="0,8,0,0" />
             <StackPanel Orientation="Horizontal" Margin="24,4,0,0">
               <TextBlock Text="Interval (minutes):" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <NumericUpDown Name="AutoSaveIntervalBox" Minimum="1" Maximum="60" Value="5" Width="100" />
+              <NumericUpDown AutomationProperties.AutomationId="Options_AutoSaveInterval_Input" Name="AutoSaveIntervalBox" Minimum="1" Maximum="60" Value="5" Width="100" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
 
       <!-- External Tools Tab -->
-      <TabItem Header="External Tools">
+      <TabItem AutomationProperties.AutomationId="Options_ExternalTools_Tab" Header="External Tools">
         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,8,0,0">
           <StackPanel Spacing="16">
 
@@ -64,13 +64,13 @@
               <TextBlock Text="Emulation" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Emulator" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="EmulatorTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EmulatorTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_EmulatorText_Input" Name="EmulatorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile2_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EmulatorTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Emulator 2" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Emulator2TextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Emulator2TextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Emulator2Text_Input" Name="Emulator2TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile3_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Emulator2TextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -79,8 +79,8 @@
               <TextBlock Text="Editors" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Binary Editor" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="BinaryEditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="BinaryEditorTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_BinaryEditorText_Input" Name="BinaryEditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile4_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="BinaryEditorTextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -89,18 +89,18 @@
               <TextBlock Text="Custom Programs" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Program 1" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Program1TextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program1TextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Program1Text_Input" Name="Program1TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile5_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program1TextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Program 2" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Program2TextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program2TextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Program2Text_Input" Name="Program2TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile6_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program2TextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Program 3" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Program3TextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program3TextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Program3Text_Input" Name="Program3TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile7_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Program3TextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -109,28 +109,28 @@
               <TextBlock Text="Audio Tools" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Sappy (Sound Editor)" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="SappyTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SappyTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_SappyText_Input" Name="SappyTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile8_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SappyTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="mid2agb" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Mid2agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Mid2agbTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Mid2agbText_Input" Name="Mid2agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile9_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Mid2agbTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="gba_mus_riper" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="GbaMusRiperTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GbaMusRiperTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_GbaMusRiperText_Input" Name="GbaMusRiperTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile10_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GbaMusRiperTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="SoX (Sound eXchange)" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="SoxTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SoxTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_SoxText_Input" Name="SoxTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile11_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SoxTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="midfix4agb" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Midfix4agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Midfix4agbTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Midfix4agbText_Input" Name="Midfix4agbTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile12_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Midfix4agbTextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -139,35 +139,35 @@
               <TextBlock Text="Development Tools" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Event Assembler" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="EventAssemblerTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EventAssemblerTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_EventAssemblerText_Input" Name="EventAssemblerTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile13_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="EventAssemblerTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="DevkitPro ARM EABI" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="DevkitproEabiTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="DevkitproEabiTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_DevkitproEabiText_Input" Name="DevkitproEabiTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile14_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="DevkitproEabiTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="GoldRoad ASM" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="GoldroadAsmTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GoldroadAsmTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_GoldroadAsmText_Input" Name="GoldroadAsmTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile15_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="GoldroadAsmTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="CFLAGS" Margin="0,4,0,0" />
-              <TextBox Name="CflagsTextBox" />
+              <TextBox AutomationProperties.AutomationId="Options_CflagsText_Input" Name="CflagsTextBox" />
               <TextBlock Text="RetDec Decompiler" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="RetdecTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="RetdecTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_RetdecText_Input" Name="RetdecTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile16_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="RetdecTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Python 3" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="Python3TextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Python3TextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_Python3Text_Input" Name="Python3TextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile17_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="Python3TextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="FECLIB" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="FeclibTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="FeclibTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_FeclibText_Input" Name="FeclibTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile18_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="FeclibTextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -176,13 +176,13 @@
               <TextBlock Text="Source Code" FontWeight="Bold" Margin="0,0,0,4" />
               <TextBlock Text="Text Editor" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="SrccodeTexteditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SrccodeTexteditorTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_SrccodeTexteditorText_Input" Name="SrccodeTexteditorTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFile19_Button" Grid.Column="1" Content="Browse..." Click="BrowseFile_Click" Tag="SrccodeTexteditorTextBox" Padding="12,6" />
               </Grid>
               <TextBlock Text="Source Directory" Margin="0,4,0,0" />
               <Grid ColumnDefinitions="*,Auto">
-                <TextBox Name="SrccodeDirectoryTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                <Button Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="SrccodeDirectoryTextBox" Padding="12,6" />
+                <TextBox AutomationProperties.AutomationId="Options_SrccodeDirectoryText_Input" Name="SrccodeDirectoryTextBox" Grid.Column="0" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="Options_BrowseFolder_Button" Grid.Column="1" Content="Browse..." Click="BrowseFolder_Click" Tag="SrccodeDirectoryTextBox" Padding="12,6" />
               </Grid>
             </StackPanel>
 
@@ -193,8 +193,8 @@
 
     <!-- OK / Cancel -->
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-      <Button Name="OkButton" Content="OK" Width="80" Click="OkButton_Click" />
-      <Button Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
+      <Button AutomationProperties.AutomationId="Options_Ok_Button" Name="OkButton" Content="OK" Width="80" Click="OkButton_Click" />
+      <Button AutomationProperties.AutomationId="Options_Cancel_Button" Name="CancelButton" Content="Cancel" Width="80" Click="CancelButton_Click" />
     </StackPanel>
   </Grid>
 </Window>

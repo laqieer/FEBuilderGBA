@@ -5,7 +5,7 @@
         Title="Custom Battle Animation" Width="1314" Height="521"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="UnitCustomBattleAnime_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,20 +13,20 @@
 
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="UnitCustomBattleAnime_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon Type:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="UnitCustomBattleAnime_WeaponType_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Special:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="SpecialBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="UnitCustomBattleAnime_Special_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="SpecialBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Animation Number:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="AnimeNumberBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="UnitCustomBattleAnime_AnimeNumber_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="AnimeNumberBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="UnitCustomBattleAnime_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

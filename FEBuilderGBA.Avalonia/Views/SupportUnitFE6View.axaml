@@ -5,109 +5,109 @@
         Title="Support Units (FE6)" Width="1234" Height="750"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SupportUnitFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Support Units (FE6)" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="AddrLabel" FontSize="12" Foreground="Gray" />
+        <TextBlock AutomationProperties.AutomationId="SupportUnitFE6_Addr_Label" Name="AddrLabel" FontSize="12" Foreground="Gray" />
 
         <!-- Partner Unit IDs (10 slots) -->
         <TextBlock Text="Support Partners" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Partner 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="Partner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Partner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="Partner 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="3" Name="Partner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="Partner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Partner 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Partner3Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner3Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Partner3Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="Partner 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="Partner4Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner4Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="Partner4Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Partner 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Partner5Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner5Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Partner5Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="Partner 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="3" Name="Partner6Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner6Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="3" Name="Partner6Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Partner 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Partner7Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner7Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Partner7Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="Partner 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="3" Name="Partner8Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner8Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="3" Name="Partner8Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Partner 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Partner9Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner9Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Partner9Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="Partner 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="3" Name="Partner10Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner10Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="3" Name="Partner10Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Initial Values (10 slots) -->
         <TextBlock Text="Initial Values" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Initial Value 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="InitialValue1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="InitialValue1Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="Initial Value 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="3" Name="InitialValue2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="InitialValue2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Initial Value 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="InitialValue3Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue3Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="InitialValue3Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="Initial Value 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="InitialValue4Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue4Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="InitialValue4Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Initial Value 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="InitialValue5Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue5Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="InitialValue5Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="Initial Value 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="3" Name="InitialValue6Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue6Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="3" Name="InitialValue6Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Initial Value 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="InitialValue7Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue7Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="InitialValue7Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="Initial Value 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="3" Name="InitialValue8Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue8Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="3" Name="InitialValue8Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Initial Value 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="InitialValue9Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue9Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="InitialValue9Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="Initial Value 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="3" Name="InitialValue10Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_InitialValue10Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="3" Name="InitialValue10Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Growth Rates (10 slots) -->
         <TextBlock Text="Growth Rates" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Growth Rate 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowthRate1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowthRate1Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="Growth Rate 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="3" Name="GrowthRate2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="GrowthRate2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Growth Rate 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowthRate3Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate3Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowthRate3Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="1" Grid.Column="2" Text="Growth Rate 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowthRate4Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate4Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowthRate4Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Growth Rate 5:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowthRate5Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate5Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowthRate5Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="2" Grid.Column="2" Text="Growth Rate 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="3" Name="GrowthRate6Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate6Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="3" Name="GrowthRate6Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Growth Rate 7:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="GrowthRate7Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate7Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="GrowthRate7Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="3" Grid.Column="2" Text="Growth Rate 8:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="3" Name="GrowthRate8Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate8Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="3" Name="GrowthRate8Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Growth Rate 9:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="GrowthRate9Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate9Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="GrowthRate9Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="2" Text="Growth Rate 10:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="3" Name="GrowthRate10Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_GrowthRate10Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="3" Name="GrowthRate10Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
         <!-- Partner Count / Separator -->
         <TextBlock Text="Partner Count / Separator" FontWeight="SemiBold" Margin="0,8,0,0" />
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Partner Count:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="PartnerCountNud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_PartnerCountNud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="PartnerCountNud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock Grid.Row="0" Grid.Column="2" Text="Separator:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="3" Name="SeparatorNud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_SeparatorNud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="SeparatorNud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
+        <Button AutomationProperties.AutomationId="SupportUnitFE6_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

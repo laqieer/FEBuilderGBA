@@ -5,18 +5,18 @@
         Title="Visual Map Editor" Width="1100" Height="750"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="MapEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="4">
       <!-- Info panel -->
       <StackPanel Grid.Row="0" Spacing="4" Margin="8,4,8,4">
         <TextBlock Text="Visual Map Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="MapInfoLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
+        <TextBlock AutomationProperties.AutomationId="MapEditor_MapInfo_Label" Name="MapInfoLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Zoom:" VerticalAlignment="Center" />
-          <Button Name="ZoomInBtn" Content="+" Width="30" />
-          <TextBlock Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
-          <Button Name="ZoomOutBtn" Content="-" Width="30" />
+          <Button AutomationProperties.AutomationId="MapEditor_ZoomInBtn_Button" Name="ZoomInBtn" Content="+" Width="30" />
+          <TextBlock AutomationProperties.AutomationId="MapEditor_Zoom_Label" Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
         </StackPanel>
       </StackPanel>
 
@@ -25,13 +25,13 @@
               Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
         <StackPanel Spacing="4">
           <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
-          <TextBlock Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
+          <TextBlock AutomationProperties.AutomationId="MapEditor_TileInfo_Label" Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
                      Text="No tile selected" />
           <StackPanel Orientation="Horizontal" Spacing="8" Name="TileEditPanel" IsVisible="false">
             <TextBlock Text="Tile ID (hex):" VerticalAlignment="Center" />
-            <TextBox Name="TileIdTextBox" Width="80" FontFamily="Consolas,Courier New,monospace" />
-            <Button Name="WriteTileBtn" Content="Write Tile" />
-            <Button Name="RefreshMapBtn" Content="Refresh Map" />
+            <TextBox AutomationProperties.AutomationId="MapEditor_TileIdText_Input" Name="TileIdTextBox" Width="80" FontFamily="Consolas,Courier New,monospace" />
+            <Button AutomationProperties.AutomationId="MapEditor_WriteTileBtn_Button" Name="WriteTileBtn" Content="Write Tile" />
+            <Button AutomationProperties.AutomationId="MapEditor_RefreshMapBtn_Button" Name="RefreshMapBtn" Content="Refresh Map" />
           </StackPanel>
         </StackPanel>
       </Border>
@@ -39,7 +39,7 @@
       <!-- Map image in scrollable area -->
       <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-          <controls:GbaImageControl Name="MapImageControl" />
+          <controls:GbaImageControl AutomationProperties.AutomationId="MapEditor_MapImage_Image" Name="MapImageControl" />
         </ScrollViewer>
       </Border>
     </Grid>

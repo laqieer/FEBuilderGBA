@@ -5,7 +5,7 @@
         Title="Move Data (FE7)" Width="1503" Height="523"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="EventMoveDataFE7_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,17 +13,17 @@
 
         <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventMoveDataFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Move Direction:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
+          <NumericUpDown AutomationProperties.AutomationId="EventMoveDataFE7_MoveDirectionUpDown_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change"
                    FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4" />
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
+        <Button AutomationProperties.AutomationId="EventMoveDataFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

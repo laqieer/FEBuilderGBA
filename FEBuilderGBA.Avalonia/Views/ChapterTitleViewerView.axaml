@@ -5,27 +5,27 @@
         Title="Chapter Title Editor" Width="1224" Height="564"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ChapterTitleViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Chapter Title Editor" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ChapterTitleViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Save Image Ptr:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="SaveImgBox" Width="120" />
+          <TextBox AutomationProperties.AutomationId="ChapterTitleViewer_SaveImg_Input" Grid.Row="1" Grid.Column="1" Name="SaveImgBox" Width="120" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Chapter Image Ptr:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="1" Name="ChapterImgBox" Width="120" />
+          <TextBox AutomationProperties.AutomationId="ChapterTitleViewer_ChapterImg_Input" Grid.Row="2" Grid.Column="1" Name="ChapterImgBox" Width="120" />
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Title Image Ptr:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="3" Grid.Column="1" Name="TitleImgBox" Width="120" />
+          <TextBox AutomationProperties.AutomationId="ChapterTitleViewer_TitleImg_Input" Grid.Row="3" Grid.Column="1" Name="TitleImgBox" Width="120" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
-          <Button Content="Export PNG" Click="ExportPng_Click" />
-          <Button Content="Export PAL" Click="ExportPal_Click" />
-          <Button Content="Import PNG" Click="ImportPng_Click" />
+          <Button AutomationProperties.AutomationId="ChapterTitleViewer_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ChapterTitleViewer_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
+          <Button AutomationProperties.AutomationId="ChapterTitleViewer_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
+          <Button AutomationProperties.AutomationId="ChapterTitleViewer_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
         </StackPanel>
-        <controls:GbaImageControl Name="ImageDisplay" Margin="0,8,0,0" />
+        <controls:GbaImageControl AutomationProperties.AutomationId="ChapterTitleViewer_Image_Image" Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -5,7 +5,7 @@
         Title="Path Movement Editor" Width="1229" Height="822"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapPathMoveEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,23 +13,23 @@
 
         <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapPathMoveEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Elapsed Time:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ElapsedTimeBox" Minimum="0" Maximum="4294967295" Width="200" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPathMoveEditor_ElapsedTime_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ElapsedTimeBox" Minimum="0" Maximum="4294967295" Width="200" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Coordinate X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPathMoveEditor_CoordinateX_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="CoordinateXBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Coordinate Y:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPathMoveEditor_CoordinateY_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="CoordinateYBox" Minimum="0" Maximum="65535" Width="150" HorizontalAlignment="Left" Margin="0,2" />
         </Grid>
 
         <TextBlock TextWrapping="Wrap" Foreground="Gray" Margin="0,8,0,0"
                    Text="Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be &lt;= 4095, otherwise instant movement occurs." />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="WorldMapPathMoveEditor_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

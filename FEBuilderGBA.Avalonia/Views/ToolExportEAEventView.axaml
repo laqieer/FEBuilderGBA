@@ -12,7 +12,7 @@
         <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="0,0,0,1">
           <TextBlock Text="Map Name" Margin="4" FontWeight="Bold" />
         </Border>
-        <ListBox ItemsSource="{Binding MapList}"
+        <ListBox AutomationProperties.AutomationId="ToolExportEAEvent_ListBox1_List" ItemsSource="{Binding MapList}"
                  SelectedIndex="{Binding SelectedMapIndex}" />
       </DockPanel>
     </Border>
@@ -24,19 +24,19 @@
         <TextBlock Text="Export events in EA format." />
 
         <!-- AddEndGuards checkbox (WinForms addEndGuardsCheckBox, Checked=true by default) -->
-        <CheckBox Content="Add EndGuards on export"
+        <CheckBox AutomationProperties.AutomationId="ToolExportEAEvent_AddEndGuardsonexport_Check" Content="Add EndGuards on export"
                   IsChecked="{Binding AddEndGuards}" />
 
         <!-- Export Events button (WinForms ExportEAButton) -->
-        <Button Content="Export Events in EA format" Height="35"
+        <Button AutomationProperties.AutomationId="ToolExportEAEvent_ExportEvents_Button" Content="Export Events in EA format" Height="35"
                 HorizontalAlignment="Stretch" Click="ExportEvents_Click" />
 
         <!-- Export World Map Events button (WinForms ExportWMAPEventEAButton) -->
-        <Button Content="Export World Map Events in EA format" Height="35"
+        <Button AutomationProperties.AutomationId="ToolExportEAEvent_ExportWMapEvents_Button" Content="Export World Map Events in EA format" Height="35"
                 HorizontalAlignment="Stretch" Click="ExportWMapEvents_Click" />
 
         <!-- Export World Map Events (selected) button (WinForms ExportWMAPEvent2EAButton) -->
-        <Button Content="Export World Map Events (selected) in EA format" Height="35"
+        <Button AutomationProperties.AutomationId="ToolExportEAEvent_ExportWMapEvents2_Button" Content="Export World Map Events (selected) in EA format" Height="35"
                 HorizontalAlignment="Stretch" Click="ExportWMapEvents2_Click" />
 
         <!-- Note about EA version -->
@@ -47,7 +47,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Data" FontWeight="Bold" />
-            <Button Content="Export Main Tables" Height="35"
+            <Button AutomationProperties.AutomationId="ToolExportEAEvent_ExportMainTable_Button" Content="Export Main Tables" Height="35"
                     HorizontalAlignment="Stretch" Click="ExportMainTable_Click" />
             <TextBlock TextWrapping="Wrap" Text="Dumps unit, class, item, and other tables." />
           </StackPanel>
@@ -57,7 +57,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,8,0,0">
           <StackPanel Spacing="4">
             <TextBlock Text="Undo Buffer" FontWeight="Bold" />
-            <Button Content="Export Undo Buffer" Height="35"
+            <Button AutomationProperties.AutomationId="ToolExportEAEvent_ExportUndoData_Button" Content="Export Undo Buffer" Height="35"
                     HorizontalAlignment="Stretch" Click="ExportUndoData_Click" />
             <TextBlock TextWrapping="Wrap" Text="Export changes made to the ROM in this session." />
           </StackPanel>

@@ -12,11 +12,11 @@
       <TextBlock Grid.Column="0" Text="The following error has occurred."
                  Foreground="Red" FontWeight="Bold" FontSize="14"
                  VerticalAlignment="Center" Margin="12,0,0,0" />
-      <Button Grid.Column="1" Name="MyCloseButton" Content="Close" Width="123" Height="43"
+      <Button AutomationProperties.AutomationId="ErrorLongMessageDialog_Close_Button" Grid.Column="1" Name="MyCloseButton" Content="Close" Width="123" Height="43"
               Click="Close_Click" />
     </Grid>
     <!-- Error message (WinForms ErrorMessage RichTextBoxEx Fill) -->
-    <TextBox Name="ErrorMessage" AcceptsReturn="True" IsReadOnly="True"
+    <TextBox AutomationProperties.AutomationId="ErrorLongMessageDialog_ErrorText_Input" Name="ErrorMessage" AcceptsReturn="True" IsReadOnly="True"
              TextWrapping="Wrap" FontFamily="Consolas, Courier New, monospace"
              Text="{Binding LongMessage}" />
   </DockPanel>

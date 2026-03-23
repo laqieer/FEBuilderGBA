@@ -5,46 +5,46 @@
         Title="Support Talk (FE6)" Width="1279" Height="600"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SupportTalkFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Support Talk (FE6)" FontSize="18" FontWeight="Bold" />
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SupportTalkFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Support Partner 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="SupportPartner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_SupportPartner1Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="SupportPartner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Support Partner 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="SupportPartner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_SupportPartner2Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="SupportPartner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="C Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="TextCNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
-            <Button Content="Jump" Click="JumpToTextC_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_TextCNud_Input" FormatString="0" Name="TextCNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <Button AutomationProperties.AutomationId="SupportTalkFE6_JumpToTextC_Button" Content="Jump" Click="JumpToTextC_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="B Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="TextBNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
-            <Button Content="Jump" Click="JumpToTextB_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_TextBNud_Input" FormatString="0" Name="TextBNud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <Button AutomationProperties.AutomationId="SupportTalkFE6_JumpToTextB_Button" Content="Jump" Click="JumpToTextB_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="A Support Text:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="TextANud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
-            <Button Content="Jump" Click="JumpToTextA_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_TextANud_Input" FormatString="0" Name="TextANud" Minimum="0" Maximum="65535" Margin="0,2" Width="140" />
+            <Button AutomationProperties.AutomationId="SupportTalkFE6_JumpToTextA_Button" Content="Jump" Click="JumpToTextA_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Padding 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="Padding1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_Padding1Nud_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="Padding1Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Padding 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="Padding2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE6_Padding2Nud_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="Padding2Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
+        <Button AutomationProperties.AutomationId="SupportTalkFE6_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -16,27 +16,27 @@
       <Grid DockPanel.Dock="Bottom" ColumnDefinitions="208,*,58" Margin="0,8,0,0">
         <TextBlock Grid.Column="0" Text="Vanilla ROM" FontWeight="Bold"
                    Height="26" VerticalAlignment="Center" />
-        <TextBox Grid.Column="1" Text="{Binding OriginalFilename}"
+        <TextBox AutomationProperties.AutomationId="ToolDiffDebugSelect_TextBox1_Input" Grid.Column="1" Text="{Binding OriginalFilename}"
                  Height="25" Margin="4,0,4,0" />
-        <Button Grid.Column="2" Content="..." Width="58" Height="36"
+        <Button AutomationProperties.AutomationId="ToolDiffDebugSelect_BrowseOriginal_Button" Grid.Column="2" Content="..." Width="58" Height="36"
                 Click="BrowseOriginal_Click" />
       </Grid>
       <!-- Prefix filter row -->
       <Grid DockPanel.Dock="Bottom" ColumnDefinitions="208,*" Margin="0,4,0,0">
         <TextBlock Grid.Column="0" Text="Search prefix" FontWeight="Bold"
                    Height="26" VerticalAlignment="Center" />
-        <TextBox Grid.Column="1" Text="{Binding PrefixFilter}"
+        <TextBox AutomationProperties.AutomationId="ToolDiffDebugSelect_TextBox2_Input" Grid.Column="1" Text="{Binding PrefixFilter}"
                  Height="25" Margin="4,0,0,0" />
       </Grid>
       <!-- Add backup directory button -->
-      <Button DockPanel.Dock="Bottom" Content="Add backup ROM location"
+      <Button AutomationProperties.AutomationId="ToolDiffDebugSelect_BrowseOriginal2_Button" DockPanel.Dock="Bottom" Content="Add backup ROM location"
               Height="29" HorizontalAlignment="Stretch" Margin="0,4,0,0"
               Click="BrowseOriginal_Click" />
       <!-- Backup list with side labels -->
       <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
         <TextBlock Grid.Column="0" Text="↑ Newest" VerticalAlignment="Top"
                    Margin="0,4,4,0" FontSize="11" />
-        <ListBox Grid.Column="1" ItemsSource="{Binding BackupList}"
+        <ListBox AutomationProperties.AutomationId="ToolDiffDebugSelect_ListBox1_List" Grid.Column="1" ItemsSource="{Binding BackupList}"
                  SelectedIndex="{Binding SelectedIndex}">
           <ListBox.ItemTemplate>
             <DataTemplate>
@@ -54,20 +54,20 @@
       <!-- Selected ROM info -->
       <TextBlock DockPanel.Dock="Top" Text="Selected ROM Info"
                  FontWeight="Bold" Height="27" VerticalAlignment="Center" />
-      <TextBox DockPanel.Dock="Top" Text="{Binding SelectedFileInfo}"
+      <TextBox AutomationProperties.AutomationId="ToolDiffDebugSelect_TextBox3_Input" DockPanel.Dock="Top" Text="{Binding SelectedFileInfo}"
                IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                Height="214" Margin="0,4,0,0" />
       <!-- Test play button -->
-      <Button DockPanel.Dock="Top" Height="80" HorizontalAlignment="Stretch"
+      <Button AutomationProperties.AutomationId="ToolDiffDebugSelect_TestPlay_Button" DockPanel.Dock="Top" Height="80" HorizontalAlignment="Stretch"
               Margin="0,8,0,0" Content="Test play selected ROM in emulator"
               Click="TestPlay_Click" />
       <!-- Compare button -->
-      <Button DockPanel.Dock="Top" Height="93" HorizontalAlignment="Stretch"
+      <Button AutomationProperties.AutomationId="ToolDiffDebugSelect_Compare_Button" DockPanel.Dock="Top" Height="93" HorizontalAlignment="Stretch"
               Margin="0,8,0,0"
               Content="Use this ROM as the last stable baseline and get differences"
               Click="Compare_Click" />
       <!-- Instructions area -->
-      <TextBox IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+      <TextBox AutomationProperties.AutomationId="ToolDiffDebugSelect_TextBox4_Input" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                Margin="0,8,0,0" Text="{Binding InstructionsText}" />
     </DockPanel>
   </Grid>

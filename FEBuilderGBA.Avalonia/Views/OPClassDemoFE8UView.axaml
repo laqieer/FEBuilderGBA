@@ -5,49 +5,49 @@
         Title="OP Class Demo (FE8U) Editor" Width="1579" Height="898"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="OPClassDemoFE8U_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="OP Class Demo (FE8U) Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Name="UnavailableLabel" Text="" Foreground="Orange" />
+        <TextBlock AutomationProperties.AutomationId="OPClassDemoFE8U_Unavailable_Label" Name="UnavailableLabel" Text="" Foreground="Orange" />
 
         <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="OPClassDemoFE8U_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Display Weapon:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DisplayWeapon_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_ClassId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="AllyEnemyColorBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_AllyEnemyColor_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="AllyEnemyColorBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Battle Anime:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_BattleAnime_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Terrain Left:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="TerrainLeftBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_TerrainLeft_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="TerrainLeftBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Terrain Right:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="TerrainRightBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_TerrainRight_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="TerrainRightBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Magic Effect:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="8" Grid.Column="1" Name="MagicEffectBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_MagicEffect_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="MagicEffectBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Anime Type:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="AnimeTypeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_AnimeType_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="AnimeTypeBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Anime Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="AnimePtrBox" Minimum="0" Maximum="4294967295" />
+          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_AnimePtr_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="AnimePtrBox" Minimum="0" Maximum="4294967295" />
         </Grid>
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="OPClassDemoFE8U_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

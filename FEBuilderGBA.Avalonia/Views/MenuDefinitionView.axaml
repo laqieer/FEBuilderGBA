@@ -5,7 +5,7 @@
         Title="Menu Definition Editor" Width="1257" Height="604"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="MenuDefinition_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,47 +13,47 @@
 
         <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MenuDefinition_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="X Position:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuDefinition_PosX_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Y Position:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuDefinition_PosY_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="PosYBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Width:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuDefinition_Width_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Height:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuDefinition_Height_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Style Data:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="5" Grid.Column="1" Name="StyleDataBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_StyleData_Input" Grid.Row="5" Grid.Column="1" Name="StyleDataBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Menu Command Ptr:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="6" Grid.Column="1" Name="MenuCommandPtrBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_MenuCommandPtr_Input" Grid.Row="6" Grid.Column="1" Name="MenuCommandPtrBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="OnInit Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="7" Grid.Column="1" Name="OnInitBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_OnInit_Input" Grid.Row="7" Grid.Column="1" Name="OnInitBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="OnEnd Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="8" Grid.Column="1" Name="OnEndBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_OnEnd_Input" Grid.Row="8" Grid.Column="1" Name="OnEndBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="9" Grid.Column="1" Name="UnknownBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_Unknown_Input" Grid.Row="9" Grid.Column="1" Name="UnknownBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="On B Press Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="10" Grid.Column="1" Name="OnBPressBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_OnBPress_Input" Grid.Row="10" Grid.Column="1" Name="OnBPressBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="On R Press Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="11" Grid.Column="1" Name="OnRPressBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_OnRPress_Input" Grid.Row="11" Grid.Column="1" Name="OnRPressBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="On HelpBox Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="12" Grid.Column="1" Name="OnHelpBoxBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuDefinition_OnHelpBox_Input" Grid.Row="12" Grid.Column="1" Name="OnHelpBoxBox" Width="200" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="MenuDefinition_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

@@ -9,8 +9,8 @@
 
     <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Reload" Width="80" Click="Reload_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="ToolWorkSupport_Reload_Button" Content="Reload" Width="80" Click="Reload_Click" />
+      <Button AutomationProperties.AutomationId="ToolWorkSupport_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
 
     <ScrollViewer>
@@ -21,13 +21,13 @@
             <TextBlock Text="Project Information" FontWeight="SemiBold" FontSize="14" />
             <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
-              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name}" IsReadOnly="True" Margin="0,0,0,4" />
+              <TextBox AutomationProperties.AutomationId="ToolWorkSupport_TextBox1_Input" Grid.Row="0" Grid.Column="1" Text="{Binding Name}" IsReadOnly="True" Margin="0,0,0,4" />
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Author:" VerticalAlignment="Center" />
-              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Author}" IsReadOnly="True" Margin="0,0,0,4" />
+              <TextBox AutomationProperties.AutomationId="ToolWorkSupport_TextBox2_Input" Grid.Row="1" Grid.Column="1" Text="{Binding Author}" IsReadOnly="True" Margin="0,0,0,4" />
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Version:" VerticalAlignment="Center" />
-              <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Version}" IsReadOnly="True" Margin="0,0,0,4" />
+              <TextBox AutomationProperties.AutomationId="ToolWorkSupport_TextBox3_Input" Grid.Row="2" Grid.Column="1" Text="{Binding Version}" IsReadOnly="True" Margin="0,0,0,4" />
               <TextBlock Grid.Row="3" Grid.Column="0" Text="Community:" VerticalAlignment="Center" />
-              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding CommunityUrl}" IsReadOnly="True" />
+              <TextBox AutomationProperties.AutomationId="ToolWorkSupport_TextBox4_Input" Grid.Row="3" Grid.Column="1" Text="{Binding CommunityUrl}" IsReadOnly="True" />
             </Grid>
           </StackPanel>
         </Border>
@@ -37,10 +37,10 @@
           <StackPanel Spacing="6">
             <TextBlock Text="Actions" FontWeight="SemiBold" FontSize="14" />
             <WrapPanel Orientation="Horizontal">
-              <Button Content="Check Update" Width="120" Margin="0,0,8,4" Click="Update_Click" />
-              <Button Content="Open Community" Width="130" Margin="0,0,8,4" Click="Community_Click" />
-              <Button Content="Open Info File" Width="120" Margin="0,0,8,4" Click="OpenInfo_Click" />
-              <Button Content="Show All Works" Width="120" Margin="0,0,8,4" Click="ShowAllWorks_Click" />
+              <Button AutomationProperties.AutomationId="ToolWorkSupport_Update_Button" Content="Check Update" Width="120" Margin="0,0,8,4" Click="Update_Click" />
+              <Button AutomationProperties.AutomationId="ToolWorkSupport_Community_Button" Content="Open Community" Width="130" Margin="0,0,8,4" Click="Community_Click" />
+              <Button AutomationProperties.AutomationId="ToolWorkSupport_OpenInfo_Button" Content="Open Info File" Width="120" Margin="0,0,8,4" Click="OpenInfo_Click" />
+              <Button AutomationProperties.AutomationId="ToolWorkSupport_ShowAllWorks_Button" Content="Show All Works" Width="120" Margin="0,0,8,4" Click="ShowAllWorks_Click" />
             </WrapPanel>
           </StackPanel>
         </Border>
@@ -49,7 +49,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12">
           <StackPanel Spacing="6">
             <TextBlock Text="Status" FontWeight="SemiBold" FontSize="14" />
-            <TextBox Text="{Binding InfoText}" IsReadOnly="True" AcceptsReturn="True" Height="80" />
+            <TextBox AutomationProperties.AutomationId="ToolWorkSupport_TextBox5_Input" Text="{Binding InfoText}" IsReadOnly="True" AcceptsReturn="True" Height="80" />
             <TextBlock Text="{Binding AutoFeedbackStatus}" Foreground="Gray" />
           </StackPanel>
         </Border>

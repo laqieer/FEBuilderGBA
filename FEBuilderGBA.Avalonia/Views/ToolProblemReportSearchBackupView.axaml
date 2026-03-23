@@ -18,9 +18,9 @@
         <TextBlock Text="backup.7z" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <TextBox Grid.Column="1" Text="{Binding BackupFilename}"
+      <TextBox AutomationProperties.AutomationId="ToolProblemReportSearchBackup_TextBox1_Input" Grid.Column="1" Text="{Binding BackupFilename}"
                Width="537" Height="25" Margin="17,0,8,0" />
-      <Button Grid.Column="2" Content="Browse..." Width="130" Height="31"
+      <Button AutomationProperties.AutomationId="ToolProblemReportSearchBackup_Browse_Button" Grid.Column="2" Content="Browse..." Width="130" Height="31"
               Click="Browse_Click" />
     </Grid>
   </StackPanel>
