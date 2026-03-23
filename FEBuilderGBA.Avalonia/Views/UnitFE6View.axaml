@@ -6,7 +6,7 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <!-- Address List -->
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="UnitFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <!-- Editor Panel -->
     <ScrollViewer Grid.Column="1" Margin="4">
@@ -16,7 +16,7 @@
         <!-- Address -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
-          <TextBlock Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="UnitFE6_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- Identity Section with Portrait -->
@@ -26,30 +26,30 @@
             <!-- Fields -->
             <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
-              <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="6" Text="Desc ID:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="DescIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_DescId_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="DescIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_ClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_PortraitId_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_MapFace_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="MapFaceBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="3" Text="Affinity:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="AffinityBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Affinity_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="AffinityBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="2" Grid.Column="6" Text="Sort:" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_SortOrder_Input" FormatString="0" Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
             <!-- Portrait Image -->
             <Border Grid.Column="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
                     Margin="8,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
-              <controls:GbaImageControl Name="PortraitImage" />
+              <controls:GbaImageControl AutomationProperties.AutomationId="UnitFE6_Portrait_Image" Name="PortraitImage" />
             </Border>
           </Grid>
         </Border>
@@ -59,25 +59,25 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="LV:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Level_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="LevelBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_HP_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="HPBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Str_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="StrBox" Minimum="-128" Maximum="127" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Skl_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="SklBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Spd_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="SpdBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="6" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="DefBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Def_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="DefBox" Minimum="-128" Maximum="127" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ResBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Res_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ResBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="2" Grid.Column="3" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="LckBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Lck_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="LckBox" Minimum="-128" Maximum="127" Margin="0,2" />
             <TextBlock Grid.Row="2" Grid.Column="6" Text="Con:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="-128" Maximum="127" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Con_Input" FormatString="0" Grid.Row="2" Grid.Column="7" Name="ConBox" Minimum="-128" Maximum="127" Margin="0,2" />
           </Grid>
         </Border>
 
@@ -86,23 +86,23 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepSword_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLance_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAxe_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepBow_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepStaff_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="6" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAnima_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLight_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="2" Grid.Column="3" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepDark_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
@@ -111,21 +111,21 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="HP:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowHP_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowHPBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Str:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowStr_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="GrowStrBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Skl:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="GrowSklBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowSkl_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="GrowSklBox" Minimum="0" Maximum="255" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Spd:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowSpdBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowSpd_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowSpdBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Def:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowDef_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="6" Text="Res:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="GrowResBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowRes_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="GrowResBox" Minimum="0" Maximum="255" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Lck:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_GrowLck_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowLckBox" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
@@ -134,14 +134,14 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Byte1:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Ability1_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Ability1Box" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Byte2:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Ability2_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="Ability2Box" Minimum="0" Maximum="255" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Byte3:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Ability3_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Ability3Box" Minimum="0" Maximum="255" Margin="0,2" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Byte4:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Ability4_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="Ability4Box" Minimum="0" Maximum="255" Margin="0,2" />
           </Grid>
         </Border>
 
@@ -151,30 +151,30 @@
           <StackPanel Spacing="4">
             <Grid ColumnDefinitions="Auto,180" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Support Ptr:" VerticalAlignment="Center" Margin="0,2,8,2" />
-              <TextBox Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Margin="0,2" />
+              <TextBox AutomationProperties.AutomationId="UnitFE6_SupportPtr_Input" Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Margin="0,2" />
             </Grid>
 
             <!-- Unknown bytes 35-39 -->
             <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Lower Class Anim Color" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk35_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Upper Class Anim Color" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="Unk36Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk36_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="Unk36Box" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="6" Text="??" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="7" Name="Unk37Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk37_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="Unk37Box" Minimum="0" Maximum="255" Margin="0,2" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="??" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Unk38Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk38_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Unk38Box" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="??" VerticalAlignment="Center" Margin="0,2" />
-              <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk39_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
           </StackPanel>
         </Border>
 
         <!-- Buttons -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-          <Button Content="Write" Click="Write_Click" Name="WriteButton" />
-          <Button Content="Undo" Click="Undo_Click" Name="UndoButton" />
+          <Button AutomationProperties.AutomationId="UnitFE6_Write_Button" Content="Write" Click="Write_Click" Name="WriteButton" />
+          <Button AutomationProperties.AutomationId="UnitFE6_Undo_Button" Content="Undo" Click="Undo_Click" Name="UndoButton" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

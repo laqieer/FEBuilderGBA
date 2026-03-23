@@ -19,13 +19,13 @@
           <TextBlock Text="Vanilla ROM" HorizontalAlignment="Center"
                      VerticalAlignment="Center" />
         </Border>
-        <TextBox Grid.Column="1" Text="{Binding OriginalFilename}"
+        <TextBox AutomationProperties.AutomationId="ToolWorkSupport_SelectUPS_TextBox1_Input" Grid.Column="1" Text="{Binding OriginalFilename}"
                  Height="25" Margin="8,0,8,0" />
-        <Button Grid.Column="2" Content="Select File" Width="130" Height="31"
+        <Button AutomationProperties.AutomationId="ToolWorkSupport_SelectUPS_Browse_Button" Grid.Column="2" Content="Select File" Width="130" Height="31"
                 Click="Browse_Click" />
       </Grid>
       <!-- Apply button -->
-      <Button Content="Open UPS Patch" Height="32"
+      <Button AutomationProperties.AutomationId="ToolWorkSupport_SelectUPS_ApplyUPS_Button" Content="Open UPS Patch" Height="32"
               HorizontalAlignment="Stretch" Margin="0,16,0,0"
               Click="ApplyUPS_Click" />
     </StackPanel>

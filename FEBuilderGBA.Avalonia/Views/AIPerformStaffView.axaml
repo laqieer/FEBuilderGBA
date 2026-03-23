@@ -5,7 +5,7 @@
         Title="AI Staff Performance" Width="800" Height="500"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="AIPerformStaff_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,21 +13,21 @@
 
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="AIPerformStaff_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Item (Staff):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIPerformStaff_Item_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unused:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="65535" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIPerformStaff_Unused2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unused2Box" Minimum="0" Maximum="65535" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="ASM Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="AsmPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIPerformStaff_AsmPointer_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="AsmPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
         </Grid>
 
         <TextBlock Text="Specifies the function that determines whether AI will use a staff." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+        <Button AutomationProperties.AutomationId="AIPerformStaff_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

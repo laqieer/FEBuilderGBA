@@ -5,7 +5,7 @@
         Title="Ending Event Editor" Width="1200" Height="773"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ED_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,25 +13,25 @@
 
         <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ED_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ED_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Condition:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ConditionBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ED_Condition_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ConditionBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ED_Unknown2_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ED_Unknown3_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
         </Grid>
 
         <TextBlock Text="Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed" FontSize="12" Foreground="Gray" />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ED_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

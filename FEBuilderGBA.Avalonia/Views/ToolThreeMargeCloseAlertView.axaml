@@ -10,11 +10,11 @@
   <StackPanel Margin="13">
     <TextBlock TextWrapping="Wrap" Height="140"
                Text="{Binding AlertMessage}" />
-    <Button Content="Continue merging without closing." Height="42"
+    <Button AutomationProperties.AutomationId="ToolThreeMargeCloseAlert_Cancel_Button" Content="Continue merging without closing." Height="42"
             HorizontalAlignment="Stretch" Margin="0,3,0,0" Click="Cancel_Click" />
-    <Button Content="Abort merge. Cancel all merge changes." Height="42"
+    <Button AutomationProperties.AutomationId="ToolThreeMargeCloseAlert_No_Button" Content="Abort merge. Cancel all merge changes." Height="42"
             HorizontalAlignment="Stretch" Margin="0,17,0,0" Click="No_Click" />
-    <Button Content="Force close with current results." Height="42"
+    <Button AutomationProperties.AutomationId="ToolThreeMargeCloseAlert_Yes_Button" Content="Force close with current results." Height="42"
             HorizontalAlignment="Stretch" Margin="0,39,0,0" Click="Yes_Click" />
   </StackPanel>
   </ScrollViewer>

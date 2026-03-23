@@ -8,10 +8,10 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="ASM Code Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Compile" Click="Compile_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="ToolASMEdit_Compile_Button" Content="Compile" Click="Compile_Click" />
+      <Button AutomationProperties.AutomationId="ToolASMEdit_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
-    <TextBox Name="AsmCodeTextBox" AcceptsReturn="True"
+    <TextBox AutomationProperties.AutomationId="ToolASMEdit_AsmCodeText_Input" Name="AsmCodeTextBox" AcceptsReturn="True"
              FontFamily="Consolas, Courier New, monospace"
              Watermark="Enter ARM/Thumb ASM code here..." />
   </DockPanel>

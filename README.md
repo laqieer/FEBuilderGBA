@@ -242,6 +242,39 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 
 **Without ROMs:** 30 passed, 112 skipped. **With all 5 ROMs:** 142 passed, 0 skipped.
 
+### Avalonia UI Automation Testing
+
+All 362 Avalonia `.axaml` files (361 views + 1 dialog) have `AutomationProperties.AutomationId` attributes on every interactive control, enabling reliable UI automation testing with tools like Appium, FlaUI, or MCP Computer Use.
+
+**2,551 unique AutomationIds** follow the naming convention `{EditorName}_{FieldName}_{ControlType}`:
+
+| Suffix | Control Types |
+|--------|--------------|
+| `_Input` | TextBox, NumericUpDown, Slider |
+| `_Combo` | ComboBox |
+| `_Button` | Button, MenuItem |
+| `_List` | ListBox, ListView, ItemsControl |
+| `_Check` | CheckBox, ToggleButton, RadioButton, BitFlagPanel |
+| `_Expander` | Expander |
+| `_TabControl` / `_Tab` | TabControl, TabItem |
+| `_Image` | Image, GbaImageControl |
+| `_Label` | TextBlock (dynamic/bound only) |
+
+**Exempt files** (no AutomationIds — reusable controls instantiated multiple times):
+- `Controls/BitFlagPanel.axaml`, `Controls/AddressListControl.axaml`, `Controls/GbaImageControl.axaml`, `App.axaml`
+
+**Scripts:**
+- `scripts/add-automation-ids.ps1` — adds/refreshes AutomationIds across all .axaml files
+- `scripts/validate-automation-ids.ps1` — validates coverage, naming, and uniqueness (exit 0 = pass, 1 = fail)
+
+**Tests** (`FEBuilderGBA.Avalonia.Tests/AutomationIdTests.cs`):
+- Per-editor assertions (UnitEditor, ClassEditor, ItemEditor, MessageBox)
+- Naming convention compliance (>99% threshold)
+- No duplicate IDs within any single view
+- Minimum coverage threshold (>2000 IDs, >90% view coverage)
+- Static .axaml source file checks (>95% files have IDs)
+- Exempt file verification (reusable controls have no IDs)
+
 ### Running E2E Tests Locally
 
 **Prerequisites:**  Build the main app first.

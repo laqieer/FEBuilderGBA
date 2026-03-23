@@ -8,50 +8,50 @@
   <DockPanel>
     <!-- Menu Bar -->
     <Menu DockPanel.Dock="Top">
-      <MenuItem Header="_File" Name="FileMenu">
-        <MenuItem Header="_Open ROM..." Click="OpenRom_Click" InputGesture="Ctrl+O" Name="OpenRomMenuItem" />
-        <MenuItem Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
-        <MenuItem Header="_Recent Files" Name="RecentFilesMenuItem" />
+      <MenuItem AutomationProperties.AutomationId="Main_FileMenu_Button" Header="_File" Name="FileMenu">
+        <MenuItem AutomationProperties.AutomationId="Main_OpenRomMenuItem_Button" Header="_Open ROM..." Click="OpenRom_Click" InputGesture="Ctrl+O" Name="OpenRomMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_OpenLastRomMenuItem_Button" Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_RecentFilesMenuItem_Button" Header="_Recent Files" Name="RecentFilesMenuItem" />
         <Separator />
-        <MenuItem Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" InputGesture="Ctrl+S" />
-        <MenuItem Header="Save _As..." Click="SaveAsRom_Click" Name="SaveAsMenuItem" IsEnabled="False" />
+        <MenuItem AutomationProperties.AutomationId="Main_SaveMenuItem_Button" Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" InputGesture="Ctrl+S" />
+        <MenuItem AutomationProperties.AutomationId="Main_SaveAsMenuItem_Button" Header="Save _As..." Click="SaveAsRom_Click" Name="SaveAsMenuItem" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="E_xit" Click="Exit_Click" Name="ExitMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_ExitMenuItem_Button" Header="E_xit" Click="Exit_Click" Name="ExitMenuItem" />
       </MenuItem>
-      <MenuItem Header="_Edit" Name="EditMenu">
-        <MenuItem Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" InputGesture="Ctrl+Z" />
+      <MenuItem AutomationProperties.AutomationId="Main_EditMenu_Button" Header="_Edit" Name="EditMenu">
+        <MenuItem AutomationProperties.AutomationId="Main_UndoMenuItem_Button" Header="_Undo" Name="UndoMenuItem" IsEnabled="False" Click="Undo_Click" InputGesture="Ctrl+Z" />
         <Separator />
-        <MenuItem Header="Re_fresh" Name="RefreshMenuItem" Click="Refresh_Click" InputGesture="F5" />
+        <MenuItem AutomationProperties.AutomationId="Main_RefreshMenuItem_Button" Header="Re_fresh" Name="RefreshMenuItem" Click="Refresh_Click" InputGesture="F5" />
       </MenuItem>
-      <MenuItem Header="_View" Name="ViewMenu">
-        <MenuItem Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
-        <MenuItem Header="_Collapse All Sections" Click="CollapseAll_Click" Name="CollapseAllMenuItem" />
-        <MenuItem Header="_Expand All Sections" Click="ExpandAll_Click" Name="ExpandAllMenuItem" />
+      <MenuItem AutomationProperties.AutomationId="Main_ViewMenu_Button" Header="_View" Name="ViewMenu">
+        <MenuItem AutomationProperties.AutomationId="Main_EasyModeMenuItem_Button" Header="Toggle _Easy Mode" Click="ToggleEasyMode_Click" Name="EasyModeMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_CollapseAllMenuItem_Button" Header="_Collapse All Sections" Click="CollapseAll_Click" Name="CollapseAllMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_ExpandAllMenuItem_Button" Header="_Expand All Sections" Click="ExpandAll_Click" Name="ExpandAllMenuItem" />
         <Separator />
-        <MenuItem Header="Toggle _Dark Mode" Click="ToggleDarkMode_Click" Name="DarkModeMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_DarkModeMenuItem_Button" Header="Toggle _Dark Mode" Click="ToggleDarkMode_Click" Name="DarkModeMenuItem" />
       </MenuItem>
-      <MenuItem Header="_Tools" Name="ToolsMenu">
-        <MenuItem Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
-        <MenuItem Header="_Data Export/Import..." Click="DataExport_Click" Name="DataExportMenuItem" IsEnabled="False" />
+      <MenuItem AutomationProperties.AutomationId="Main_ToolsMenu_Button" Header="_Tools" Name="ToolsMenu">
+        <MenuItem AutomationProperties.AutomationId="Main_LintMenuItem_Button" Header="_Lint Check" Click="Lint_Click" Name="LintMenuItem" IsEnabled="False" />
+        <MenuItem AutomationProperties.AutomationId="Main_DataExportMenuItem_Button" Header="_Data Export/Import..." Click="DataExport_Click" Name="DataExportMenuItem" IsEnabled="False" />
         <Separator />
-        <MenuItem Header="_External Tools" Name="ExternalToolsMenuItem">
-          <MenuItem Header="Run _Emulator..." Click="RunEmulator_Click" Name="RunEmulatorMenuItem" />
-          <MenuItem Header="Run Emulator _2..." Click="RunEmulator2_Click" Name="RunEmulator2MenuItem" />
-          <MenuItem Header="Run _Binary Editor..." Click="RunBinaryEditor_Click" Name="RunBinaryEditorMenuItem" />
-          <MenuItem Header="Run _Sappy..." Click="RunSappy_Click" Name="RunSappyMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_ExternalToolsMenuItem_Button" Header="_External Tools" Name="ExternalToolsMenuItem">
+          <MenuItem AutomationProperties.AutomationId="Main_RunEmulatorMenuItem_Button" Header="Run _Emulator..." Click="RunEmulator_Click" Name="RunEmulatorMenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunEmulator2MenuItem_Button" Header="Run Emulator _2..." Click="RunEmulator2_Click" Name="RunEmulator2MenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunBinaryEditorMenuItem_Button" Header="Run _Binary Editor..." Click="RunBinaryEditor_Click" Name="RunBinaryEditorMenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunSappyMenuItem_Button" Header="Run _Sappy..." Click="RunSappy_Click" Name="RunSappyMenuItem" />
           <Separator />
-          <MenuItem Header="Run Program _1..." Click="RunProgram1_Click" Name="RunProgram1MenuItem" />
-          <MenuItem Header="Run Program _2..." Click="RunProgram2_Click" Name="RunProgram2MenuItem" />
-          <MenuItem Header="Run Program _3..." Click="RunProgram3_Click" Name="RunProgram3MenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunProgram1MenuItem_Button" Header="Run Program _1..." Click="RunProgram1_Click" Name="RunProgram1MenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunProgram2MenuItem_Button" Header="Run Program _2..." Click="RunProgram2_Click" Name="RunProgram2MenuItem" />
+          <MenuItem AutomationProperties.AutomationId="Main_RunProgram3MenuItem_Button" Header="Run Program _3..." Click="RunProgram3_Click" Name="RunProgram3MenuItem" />
         </MenuItem>
         <Separator />
-        <MenuItem Header="_Options..." Click="Options_Click" Name="OptionsMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_OptionsMenuItem_Button" Header="_Options..." Click="Options_Click" Name="OptionsMenuItem" />
       </MenuItem>
-      <MenuItem Header="_Help" Name="HelpMenu">
-        <MenuItem Header="_Online Manual" Click="OnlineManual_Click" Name="OnlineManualMenuItem" />
-        <MenuItem Header="_GitHub Discussions" Click="Discussions_Click" Name="DiscussionsMenuItem" />
+      <MenuItem AutomationProperties.AutomationId="Main_HelpMenu_Button" Header="_Help" Name="HelpMenu">
+        <MenuItem AutomationProperties.AutomationId="Main_OnlineManualMenuItem_Button" Header="_Online Manual" Click="OnlineManual_Click" Name="OnlineManualMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_DiscussionsMenuItem_Button" Header="_GitHub Discussions" Click="Discussions_Click" Name="DiscussionsMenuItem" />
         <Separator />
-        <MenuItem Header="_About" Click="About_Click" Name="AboutMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_AboutMenuItem_Button" Header="_About" Click="About_Click" Name="AboutMenuItem" />
       </MenuItem>
     </Menu>
 
@@ -69,7 +69,7 @@
     <!-- Toolbar with Easy Mode toggle -->
     <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBackgroundBrush}" Padding="8,4" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
       <DockPanel>
-        <ToggleButton Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
+        <ToggleButton AutomationProperties.AutomationId="Main_EasyMode_Check" Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
                       DockPanel.Dock="Right" Padding="12,4" Margin="4,0" FontSize="12" />
         <Panel /> <!-- fill remaining space -->
       </DockPanel>
@@ -95,418 +95,418 @@
         <!-- Search/Filter (visible when ROM loaded) -->
         <DockPanel Name="SearchPanel" IsVisible="False" Margin="0,0,0,4">
           <TextBlock Name="FilterLabel" Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
-          <Button Name="ClearFilterButton" Content="Clear" Click="ClearFilter_Click" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,4" />
-          <TextBox Name="FilterTextBox" Watermark="Type to filter editors..." />
+          <Button AutomationProperties.AutomationId="Main_ClearFilter_Button" Name="ClearFilterButton" Content="Clear" Click="ClearFilter_Click" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,4" />
+          <TextBox AutomationProperties.AutomationId="Main_FilterText_Input" Name="FilterTextBox" Watermark="Type to filter editors..." />
         </DockPanel>
 
         <!-- Match count label -->
-        <TextBlock Name="FilterMatchLabel" IsVisible="False" Foreground="Gray" FontSize="12" Margin="0,0,0,4" />
+        <TextBlock AutomationProperties.AutomationId="Main_FilterMatch_Label" Name="FilterMatchLabel" IsVisible="False" Foreground="Gray" FontSize="12" Margin="0,0,0,4" />
 
         <!-- Editor Buttons Grid (visible when ROM loaded) -->
         <StackPanel Name="EditorPanel" IsVisible="False" Spacing="4">
 
           <!-- Units & Classes -->
-          <Expander Header="Characters" IsExpanded="True" Name="CharactersExpander">
+          <Expander AutomationProperties.AutomationId="Main_Characters_Expander" Header="Characters" IsExpanded="True" Name="CharactersExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="UnitsButton" Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassesButton" Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupportUnitsButton" Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupportAttributeButton" Content="Support Attribute" Click="OpenSupportAttribute_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupportTalkButton" Content="Support Talk" Click="OpenSupportTalk_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Units_Button" Name="UnitsButton" Content="Units" Click="OpenUnits_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Classes_Button" Name="ClassesButton" Content="Classes" Click="OpenClasses_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupportUnits_Button" Name="SupportUnitsButton" Content="Support Units" Click="OpenSupportUnits_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupportAttribute_Button" Name="SupportAttributeButton" Content="Support Attribute" Click="OpenSupportAttribute_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupportTalk_Button" Name="SupportTalkButton" Content="Support Talk" Click="OpenSupportTalk_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Items -->
-          <Expander Header="Items" IsExpanded="True" Name="ItemsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Items_Expander" Header="Items" IsExpanded="True" Name="ItemsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="ItemsButton" Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
-              <Button Name="CCBranchButton" Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
-              <Button Name="WeaponEffectButton" Content="Weapon Effect" Click="OpenItemWeaponEffect_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatBonusesButton" Content="Stat Bonuses" Click="OpenItemStatBonuses_Click" Margin="4" MinWidth="100" />
-              <Button Name="EffectivenessButton" Content="Effectiveness" Click="OpenItemEffectiveness_Click" Margin="4" MinWidth="100" />
-              <Button Name="PromotionButton" Content="Promotion" Click="OpenItemPromotion_Click" Margin="4" MinWidth="100" />
-              <Button Name="ShopButton" Content="Shop" Click="OpenItemShop_Click" Margin="4" MinWidth="100" />
-              <Button Name="WeaponTriangleButton" Content="Weapon Triangle" Click="OpenItemWeaponTriangle_Click" Margin="4" MinWidth="100" />
-              <Button Name="UsagePointerButton" Content="Usage Pointer" Click="OpenItemUsagePointer_Click" Margin="4" MinWidth="100" />
-              <Button Name="EffectPointerButton" Content="Effect Pointer" Click="OpenItemEffectPointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Items_Button" Name="ItemsButton" Content="Items" Click="OpenItems_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CCBranch_Button" Name="CCBranchButton" Content="CC Branch" Click="OpenCCBranch_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WeaponEffect_Button" Name="WeaponEffectButton" Content="Weapon Effect" Click="OpenItemWeaponEffect_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatBonuses_Button" Name="StatBonusesButton" Content="Stat Bonuses" Click="OpenItemStatBonuses_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Effectiveness_Button" Name="EffectivenessButton" Content="Effectiveness" Click="OpenItemEffectiveness_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Promotion_Button" Name="PromotionButton" Content="Promotion" Click="OpenItemPromotion_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Shop_Button" Name="ShopButton" Content="Shop" Click="OpenItemShop_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WeaponTriangle_Button" Name="WeaponTriangleButton" Content="Weapon Triangle" Click="OpenItemWeaponTriangle_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UsagePointer_Button" Name="UsagePointerButton" Content="Usage Pointer" Click="OpenItemUsagePointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EffectPointer_Button" Name="EffectPointerButton" Content="Effect Pointer" Click="OpenItemEffectPointer_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Maps -->
-          <Expander Header="Maps" IsExpanded="True" Name="MapsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Maps_Expander" Header="Maps" IsExpanded="True" Name="MapsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="MapSettingsButton" Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
-              <Button Name="TerrainNamesButton" Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
-              <Button Name="MoveCostButton" Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
-              <Button Name="EventConditionsButton" Content="Event Conditions" Click="OpenEventCond_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapChangesButton" Content="Map Changes" Click="OpenMapChange_Click" Margin="4" MinWidth="100" />
-              <Button Name="ExitPointsButton" Content="Exit Points" Click="OpenMapExitPoint_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapPointersButton" Content="Map Pointers" Click="OpenMapPointer_Click" Margin="4" MinWidth="100" />
-              <Button Name="TileAnimationButton" Content="Tile Animation" Click="OpenMapTileAnimation_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettings_Button" Name="MapSettingsButton" Content="Map Settings" Click="OpenMapSettings_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainNames_Button" Name="TerrainNamesButton" Content="Terrain Names" Click="OpenTerrainNames_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MoveCost_Button" Name="MoveCostButton" Content="Move Cost" Click="OpenMoveCost_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventConditions_Button" Name="EventConditionsButton" Content="Event Conditions" Click="OpenEventCond_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapChanges_Button" Name="MapChangesButton" Content="Map Changes" Click="OpenMapChange_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ExitPoints_Button" Name="ExitPointsButton" Content="Exit Points" Click="OpenMapExitPoint_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapPointers_Button" Name="MapPointersButton" Content="Map Pointers" Click="OpenMapPointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TileAnimation_Button" Name="TileAnimationButton" Content="Tile Animation" Click="OpenMapTileAnimation_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Text -->
-          <Expander Header="Text" IsExpanded="True" Name="TextExpander">
+          <Expander AutomationProperties.AutomationId="Main_Text_Expander" Header="Text" IsExpanded="True" Name="TextExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="TextViewerButton" Content="Text Viewer" Click="OpenTextViewer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TextViewer_Button" Name="TextViewerButton" Content="Text Viewer" Click="OpenTextViewer_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Graphics -->
-          <Expander Header="Graphics" IsExpanded="True" Name="GraphicsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Graphics_Expander" Header="Graphics" IsExpanded="True" Name="GraphicsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="PortraitsButton" Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
-              <Button Name="SystemIconsButton" Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
-              <Button Name="ItemIconsButton" Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
-              <Button Name="HoverColorsButton" Content="Hover Colors" Click="OpenSystemHoverColor_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleBGButton" Content="Battle BG" Click="OpenBattleBG_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleTerrainButton" Content="Battle Terrain" Click="OpenBattleTerrain_Click" Margin="4" MinWidth="100" />
-              <Button Name="ChapterTitleButton" Content="Chapter Title" Click="OpenChapterTitle_Click" Margin="4" MinWidth="100" />
-              <Button Name="CGViewerButton" Content="CG Viewer" Click="OpenBigCG_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPClassDemoButton" Content="OP Class Demo" Click="OpenOPClassDemo_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPClassFontButton" Content="OP Class Font" Click="OpenOPClassFont_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPPrologueButton" Content="OP Prologue" Click="OpenOPPrologue_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Portraits_Button" Name="PortraitsButton" Content="Portraits" Click="OpenPortraits_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SystemIcons_Button" Name="SystemIconsButton" Content="System Icons" Click="OpenSystemIcon_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ItemIcons_Button" Name="ItemIconsButton" Content="Item Icons" Click="OpenItemIcon_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_HoverColors_Button" Name="HoverColorsButton" Content="Hover Colors" Click="OpenSystemHoverColor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleBG_Button" Name="BattleBGButton" Content="Battle BG" Click="OpenBattleBG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleTerrain_Button" Name="BattleTerrainButton" Content="Battle Terrain" Click="OpenBattleTerrain_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ChapterTitle_Button" Name="ChapterTitleButton" Content="Chapter Title" Click="OpenChapterTitle_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CGViewer_Button" Name="CGViewerButton" Content="CG Viewer" Click="OpenBigCG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPClassDemo_Button" Name="OPClassDemoButton" Content="OP Class Demo" Click="OpenOPClassDemo_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPClassFont_Button" Name="OPClassFontButton" Content="OP Class Font" Click="OpenOPClassFont_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPPrologue_Button" Name="OPPrologueButton" Content="OP Prologue" Click="OpenOPPrologue_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Audio -->
-          <Expander Header="Audio" IsExpanded="True" Name="AudioExpander">
+          <Expander AutomationProperties.AutomationId="Main_Audio_Expander" Header="Audio" IsExpanded="True" Name="AudioExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="SongTableButton" Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
-              <Button Name="BossBGMButton" Content="Boss BGM" Click="OpenSoundBossBGM_Click" Margin="4" MinWidth="100" />
-              <Button Name="FootstepsButton" Content="Footsteps" Click="OpenSoundFootSteps_Click" Margin="4" MinWidth="100" />
-              <Button Name="SoundRoomButton" Content="Sound Room" Click="OpenSoundRoom_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SongTable_Button" Name="SongTableButton" Content="Song Table" Click="OpenSongTable_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BossBGM_Button" Name="BossBGMButton" Content="Boss BGM" Click="OpenSoundBossBGM_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Footsteps_Button" Name="FootstepsButton" Content="Footsteps" Click="OpenSoundFootSteps_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SoundRoom_Button" Name="SoundRoomButton" Content="Sound Room" Click="OpenSoundRoom_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Arena -->
-          <Expander Header="Arena" IsExpanded="True" Name="ArenaExpander">
+          <Expander AutomationProperties.AutomationId="Main_Arena_Expander" Header="Arena" IsExpanded="True" Name="ArenaExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="ArenaClassButton" Content="Arena Class" Click="OpenArenaClass_Click" Margin="4" MinWidth="100" />
-              <Button Name="ArenaEnemyWeaponButton" Content="Arena Enemy Weapon" Click="OpenArenaEnemyWeapon_Click" Margin="4" MinWidth="100" />
-              <Button Name="LinkArenaDenyButton" Content="Link Arena Deny" Click="OpenLinkArenaDenyUnit_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ArenaClass_Button" Name="ArenaClassButton" Content="Arena Class" Click="OpenArenaClass_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ArenaEnemyWeapon_Button" Name="ArenaEnemyWeaponButton" Content="Arena Enemy Weapon" Click="OpenArenaEnemyWeapon_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_LinkArenaDeny_Button" Name="LinkArenaDenyButton" Content="Link Arena Deny" Click="OpenLinkArenaDenyUnit_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Monsters -->
-          <Expander Header="Monsters" IsExpanded="True" Name="MonstersExpander">
+          <Expander AutomationProperties.AutomationId="Main_Monsters_Expander" Header="Monsters" IsExpanded="True" Name="MonstersExpander">
             <WrapPanel Name="MonstersPanel" Orientation="Horizontal">
-              <Button Name="MonsterProbabilityButton" Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
-              <Button Name="MonsterItemsButton" Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapProbabilityButton" Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MonsterProbability_Button" Name="MonsterProbabilityButton" Content="Monster Probability" Click="OpenMonsterProbability_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MonsterItems_Button" Name="MonsterItemsButton" Content="Monster Items" Click="OpenMonsterItem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapProbability_Button" Name="WMapProbabilityButton" Content="WMap Probability" Click="OpenMonsterWMapProbability_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Summons -->
-          <Expander Header="Summons" IsExpanded="True" Name="SummonsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Summons_Expander" Header="Summons" IsExpanded="True" Name="SummonsExpander">
             <WrapPanel Name="SummonsPanel" Orientation="Horizontal">
-              <Button Name="SummonUnitButton" Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
-              <Button Name="DemonKingButton" Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SummonUnit_Button" Name="SummonUnitButton" Content="Summon Unit" Click="OpenSummonUnit_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_DemonKing_Button" Name="DemonKingButton" Content="Demon King" Click="OpenSummonsDemonKing_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Items (Specialized) -->
-          <Expander Header="Items (Specialized)" IsExpanded="True" Name="ItemsSpecializedExpander">
+          <Expander AutomationProperties.AutomationId="Main_ItemsSpecialized_Expander" Header="Items (Specialized)" IsExpanded="True" Name="ItemsSpecializedExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="StatBonusesSkillButton" Content="Stat Bonuses (Skill)" Click="OpenItemStatBonusesSkillSystems_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatBonusesVennoButton" Content="Stat Bonuses (Venno)" Click="OpenItemStatBonusesVenno_Click" Margin="4" MinWidth="100" />
-              <Button Name="EffectivenessReworkButton" Content="Effectiveness (Rework)" Click="OpenItemEffectivenessSkillSystemsRework_Click" Margin="4" MinWidth="100" />
-              <Button Name="RandomChestButton" Content="Random Chest" Click="OpenItemRandomChest_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatBonusesSkill_Button" Name="StatBonusesSkillButton" Content="Stat Bonuses (Skill)" Click="OpenItemStatBonusesSkillSystems_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatBonusesVenno_Button" Name="StatBonusesVennoButton" Content="Stat Bonuses (Venno)" Click="OpenItemStatBonusesVenno_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EffectivenessRework_Button" Name="EffectivenessReworkButton" Content="Effectiveness (Rework)" Click="OpenItemEffectivenessSkillSystemsRework_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_RandomChest_Button" Name="RandomChestButton" Content="Random Chest" Click="OpenItemRandomChest_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Menus -->
-          <Expander Header="Menus" IsExpanded="True" Name="MenusExpander">
+          <Expander AutomationProperties.AutomationId="Main_Menus_Expander" Header="Menus" IsExpanded="True" Name="MenusExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="MenuDefinitionButton" Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
-              <Button Name="MenuCommandButton" Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
-              <Button Name="SplitMenuExtButton" Content="Split Menu Ext" Click="OpenMenuExtendSplitMenu_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MenuDefinition_Button" Name="MenuDefinitionButton" Content="Menu Definition" Click="OpenMenuDefinition_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MenuCommand_Button" Name="MenuCommandButton" Content="Menu Command" Click="OpenMenuCommand_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SplitMenuExt_Button" Name="SplitMenuExtButton" Content="Split Menu Ext" Click="OpenMenuExtendSplitMenu_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Credits -->
-          <Expander Header="Credits" IsExpanded="True" Name="CreditsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Credits_Expander" Header="Credits" IsExpanded="True" Name="CreditsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="EndingEventsButton" Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
-              <Button Name="StaffRollButton" Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
-              <Button Name="EDFE6Button" Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="EDFE7Button" Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="SensekiCommentButton" Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EndingEvents_Button" Name="EndingEventsButton" Content="Ending Events" Click="OpenED_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StaffRoll_Button" Name="StaffRollButton" Content="Staff Roll" Click="OpenEDStaffRoll_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EDFE6_Button" Name="EDFE6Button" Content="ED (FE6)" Click="OpenEDFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EDFE7_Button" Name="EDFE7Button" Content="ED (FE7)" Click="OpenEDFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SensekiComment_Button" Name="SensekiCommentButton" Content="Senseki Comment" Click="OpenEDSensekiComment_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- World Map -->
-          <Expander Header="World Map" IsExpanded="True" Name="WorldMapExpander">
+          <Expander AutomationProperties.AutomationId="Main_WorldMap_Expander" Header="World Map" IsExpanded="True" Name="WorldMapExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="MapPointsButton" Content="Map Points" Click="OpenWorldMapPoint_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapBGMButton" Content="Map BGM" Click="OpenWorldMapBGM_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapEventsButton" Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapPoints_Button" Name="MapPointsButton" Content="Map Points" Click="OpenWorldMapPoint_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapBGM_Button" Name="MapBGMButton" Content="Map BGM" Click="OpenWorldMapBGM_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapEvents_Button" Name="MapEventsButton" Content="Map Events" Click="OpenWorldMapEventPointer_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Image Editors -->
-          <Expander Header="Image Editors" IsExpanded="True" Name="ImageEditorsExpander">
+          <Expander AutomationProperties.AutomationId="Main_ImageEditors_Expander" Header="Image Editors" IsExpanded="True" Name="ImageEditorsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="PortraitEditorButton" Content="Portrait Editor" Click="OpenImagePortrait_Click" Margin="4" MinWidth="100" />
-              <Button Name="PortraitFE6Button" Content="Portrait (FE6)" Click="OpenImagePortraitFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="PortraitImportButton" Content="Portrait Import" Click="OpenImagePortraitImporter_Click" Margin="4" MinWidth="100" />
-              <Button Name="BGEditorButton" Content="BG Editor" Click="OpenImageBG_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleAnimButton" Content="Battle Anim" Click="OpenImageBattleAnime_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleAnimPalButton" Content="Battle Anim Pal" Click="OpenImageBattleAnimePallet_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleBGEditButton" Content="Battle BG Edit" Click="OpenImageBattleBG_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleScreenButton" Content="Battle Screen" Click="OpenImageBattleScreen_Click" Margin="4" MinWidth="100" />
-              <Button Name="CGEditorButton" Content="CG Editor" Click="OpenImageCG_Click" Margin="4" MinWidth="100" />
-              <Button Name="CGFE7UButton" Content="CG (FE7U)" Click="OpenImageCGFE7U_Click" Margin="4" MinWidth="100" />
-              <Button Name="ImgUnitPaletteButton" Content="Unit Palette" Click="OpenImageUnitPalette_Click" Margin="4" MinWidth="100" />
-              <Button Name="WaitIconButton" Content="Wait Icon" Click="OpenImageUnitWaitIcon_Click" Margin="4" MinWidth="100" />
-              <Button Name="MoveIconButton" Content="Move Icon" Click="OpenImageUnitMoveIcon_Click" Margin="4" MinWidth="100" />
-              <Button Name="SystemAreaButton" Content="System Area" Click="OpenImageSystemArea_Click" Margin="4" MinWidth="100" />
-              <Button Name="GenericEnemyButton" Content="Generic Enemy" Click="OpenImageGenericEnemyPortrait_Click" Margin="4" MinWidth="100" />
-              <Button Name="ROMAnimeButton" Content="ROM Anime" Click="OpenImageRomAnime_Click" Margin="4" MinWidth="100" />
-              <Button Name="TSAEditorButton" Content="TSA Editor" Click="OpenImageTSAEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="TSAAnimeButton" Content="TSA Anime" Click="OpenImageTSAAnime_Click" Margin="4" MinWidth="100" />
-              <Button Name="TSAAnime2Button" Content="TSA Anime 2" Click="OpenImageTSAAnime2_Click" Margin="4" MinWidth="100" />
-              <Button Name="PaletteButton" Content="Palette" Click="OpenImagePallet_Click" Margin="4" MinWidth="100" />
-              <Button Name="MagicFEditorButton" Content="Magic FEditor" Click="OpenImageMagicFEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="CSACreatorButton" Content="CSA Creator" Click="OpenImageMagicCSACreator_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapActionAnimButton" Content="Map Action Anim" Click="OpenImageMapActionAnimation_Click" Margin="4" MinWidth="100" />
-              <Button Name="ColorReduceButton" Content="Color Reduce" Click="OpenDecreaseColorTSATool_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PortraitEditor_Button" Name="PortraitEditorButton" Content="Portrait Editor" Click="OpenImagePortrait_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PortraitFE6_Button" Name="PortraitFE6Button" Content="Portrait (FE6)" Click="OpenImagePortraitFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PortraitImport_Button" Name="PortraitImportButton" Content="Portrait Import" Click="OpenImagePortraitImporter_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BGEditor_Button" Name="BGEditorButton" Content="BG Editor" Click="OpenImageBG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleAnim_Button" Name="BattleAnimButton" Content="Battle Anim" Click="OpenImageBattleAnime_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleAnimPal_Button" Name="BattleAnimPalButton" Content="Battle Anim Pal" Click="OpenImageBattleAnimePallet_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleBGEdit_Button" Name="BattleBGEditButton" Content="Battle BG Edit" Click="OpenImageBattleBG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleScreen_Button" Name="BattleScreenButton" Content="Battle Screen" Click="OpenImageBattleScreen_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CGEditor_Button" Name="CGEditorButton" Content="CG Editor" Click="OpenImageCG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CGFE7U_Button" Name="CGFE7UButton" Content="CG (FE7U)" Click="OpenImageCGFE7U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ImgUnitPalette_Button" Name="ImgUnitPaletteButton" Content="Unit Palette" Click="OpenImageUnitPalette_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WaitIcon_Button" Name="WaitIconButton" Content="Wait Icon" Click="OpenImageUnitWaitIcon_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MoveIcon_Button" Name="MoveIconButton" Content="Move Icon" Click="OpenImageUnitMoveIcon_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SystemArea_Button" Name="SystemAreaButton" Content="System Area" Click="OpenImageSystemArea_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_GenericEnemy_Button" Name="GenericEnemyButton" Content="Generic Enemy" Click="OpenImageGenericEnemyPortrait_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ROMAnime_Button" Name="ROMAnimeButton" Content="ROM Anime" Click="OpenImageRomAnime_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TSAEditor_Button" Name="TSAEditorButton" Content="TSA Editor" Click="OpenImageTSAEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TSAAnime_Button" Name="TSAAnimeButton" Content="TSA Anime" Click="OpenImageTSAAnime_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TSAAnime2_Button" Name="TSAAnime2Button" Content="TSA Anime 2" Click="OpenImageTSAAnime2_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Palette_Button" Name="PaletteButton" Content="Palette" Click="OpenImagePallet_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MagicFEditor_Button" Name="MagicFEditorButton" Content="Magic FEditor" Click="OpenImageMagicFEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CSACreator_Button" Name="CSACreatorButton" Content="CSA Creator" Click="OpenImageMagicCSACreator_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapActionAnim_Button" Name="MapActionAnimButton" Content="Map Action Anim" Click="OpenImageMapActionAnimation_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ColorReduce_Button" Name="ColorReduceButton" Content="Color Reduce" Click="OpenDecreaseColorTSATool_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Event Script Editors -->
-          <Expander Header="Event Scripts" IsExpanded="True" Name="EventScriptsExpander">
+          <Expander AutomationProperties.AutomationId="Main_EventScripts_Expander" Header="Event Scripts" IsExpanded="True" Name="EventScriptsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="EventScriptButton" Content="Event Script" Click="OpenEventScript_Click" Margin="4" MinWidth="100" />
-              <Button Name="EventUnitButton" Content="Event Unit" Click="OpenEventUnit_Click" Margin="4" MinWidth="100" />
-              <Button Name="EventUnitFE6Button" Content="Event Unit (FE6)" Click="OpenEventUnitFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="EventUnitFE7Button" Content="Event Unit (FE7)" Click="OpenEventUnitFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="UnitColorButton" Content="Unit Color" Click="OpenEventUnitColor_Click" Margin="4" MinWidth="100" />
-              <Button Name="ItemDropButton" Content="Item Drop" Click="OpenEventUnitItemDrop_Click" Margin="4" MinWidth="100" />
-              <Button Name="NewAllocButton" Content="New Alloc" Click="OpenEventUnitNewAlloc_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleTalkButton" Content="Battle Talk" Click="OpenEventBattleTalk_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleTalkFE6Button" Content="Battle Talk (FE6)" Click="OpenEventBattleTalkFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleTalkFE7Button" Content="Battle Talk (FE7)" Click="OpenEventBattleTalkFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="BattleDataFE7Button" Content="Battle Data (FE7)" Click="OpenEventBattleDataFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="HaikuButton" Content="Haiku" Click="OpenEventHaiku_Click" Margin="4" MinWidth="100" />
-              <Button Name="HaikuFE6Button" Content="Haiku (FE6)" Click="OpenEventHaikuFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="HaikuFE7Button" Content="Haiku (FE7)" Click="OpenEventHaikuFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapChangeEvtButton" Content="Map Change Evt" Click="OpenEventMapChange_Click" Margin="4" MinWidth="100" />
-              <Button Name="ForceSortieButton" Content="Force Sortie" Click="OpenEventForceSortie_Click" Margin="4" MinWidth="100" />
-              <Button Name="ForceSortieFE7Button" Content="Force Sortie (FE7)" Click="OpenEventForceSortieFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="FuncPointerButton" Content="Func Pointer" Click="OpenEventFunctionPointer_Click" Margin="4" MinWidth="100" />
-              <Button Name="FuncPtrFE7Button" Content="Func Ptr (FE7)" Click="OpenEventFunctionPointerFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="EventAssemblerButton" Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
-              <Button Name="ProcsScriptButton" Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
-              <Button Name="TemplatesButton" Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template1Button" Content="Template 1" Click="OpenEventTemplate1_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template2Button" Content="Template 2" Click="OpenEventTemplate2_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template3Button" Content="Template 3" Click="OpenEventTemplate3_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template4Button" Content="Template 4" Click="OpenEventTemplate4_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template5Button" Content="Template 5" Click="OpenEventTemplate5_Click" Margin="4" MinWidth="100" />
-              <Button Name="Template6Button" Content="Template 6" Click="OpenEventTemplate6_Click" Margin="4" MinWidth="100" />
-              <Button Name="FinalSerifFE7Button" Content="Final Serif (FE7)" Click="OpenEventFinalSerifFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="MoveDataFE7Button" Content="Move Data (FE7)" Click="OpenEventMoveDataFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="TalkGroupFE7Button" Content="Talk Group (FE7)" Click="OpenEventTalkGroupFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventScript_Button" Name="EventScriptButton" Content="Event Script" Click="OpenEventScript_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventUnit_Button" Name="EventUnitButton" Content="Event Unit" Click="OpenEventUnit_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventUnitFE6_Button" Name="EventUnitFE6Button" Content="Event Unit (FE6)" Click="OpenEventUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventUnitFE7_Button" Name="EventUnitFE7Button" Content="Event Unit (FE7)" Click="OpenEventUnitFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitColor_Button" Name="UnitColorButton" Content="Unit Color" Click="OpenEventUnitColor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ItemDrop_Button" Name="ItemDropButton" Content="Item Drop" Click="OpenEventUnitItemDrop_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_NewAlloc_Button" Name="NewAllocButton" Content="New Alloc" Click="OpenEventUnitNewAlloc_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleTalk_Button" Name="BattleTalkButton" Content="Battle Talk" Click="OpenEventBattleTalk_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleTalkFE6_Button" Name="BattleTalkFE6Button" Content="Battle Talk (FE6)" Click="OpenEventBattleTalkFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleTalkFE7_Button" Name="BattleTalkFE7Button" Content="Battle Talk (FE7)" Click="OpenEventBattleTalkFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BattleDataFE7_Button" Name="BattleDataFE7Button" Content="Battle Data (FE7)" Click="OpenEventBattleDataFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Haiku_Button" Name="HaikuButton" Content="Haiku" Click="OpenEventHaiku_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_HaikuFE6_Button" Name="HaikuFE6Button" Content="Haiku (FE6)" Click="OpenEventHaikuFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_HaikuFE7_Button" Name="HaikuFE7Button" Content="Haiku (FE7)" Click="OpenEventHaikuFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapChangeEvt_Button" Name="MapChangeEvtButton" Content="Map Change Evt" Click="OpenEventMapChange_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ForceSortie_Button" Name="ForceSortieButton" Content="Force Sortie" Click="OpenEventForceSortie_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ForceSortieFE7_Button" Name="ForceSortieFE7Button" Content="Force Sortie (FE7)" Click="OpenEventForceSortieFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FuncPointer_Button" Name="FuncPointerButton" Content="Func Pointer" Click="OpenEventFunctionPointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FuncPtrFE7_Button" Name="FuncPtrFE7Button" Content="Func Ptr (FE7)" Click="OpenEventFunctionPointerFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EventAssembler_Button" Name="EventAssemblerButton" Content="Event Assembler" Click="OpenEventAssembler_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ProcsScript_Button" Name="ProcsScriptButton" Content="Procs Script" Click="OpenProcsScript_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Templates_Button" Name="TemplatesButton" Content="Templates" Click="OpenEventScriptTemplate_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template1_Button" Name="Template1Button" Content="Template 1" Click="OpenEventTemplate1_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template2_Button" Name="Template2Button" Content="Template 2" Click="OpenEventTemplate2_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template3_Button" Name="Template3Button" Content="Template 3" Click="OpenEventTemplate3_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template4_Button" Name="Template4Button" Content="Template 4" Click="OpenEventTemplate4_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template5_Button" Name="Template5Button" Content="Template 5" Click="OpenEventTemplate5_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Template6_Button" Name="Template6Button" Content="Template 6" Click="OpenEventTemplate6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FinalSerifFE7_Button" Name="FinalSerifFE7Button" Content="Final Serif (FE7)" Click="OpenEventFinalSerifFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MoveDataFE7_Button" Name="MoveDataFE7Button" Content="Move Data (FE7)" Click="OpenEventMoveDataFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TalkGroupFE7_Button" Name="TalkGroupFE7Button" Content="Talk Group (FE7)" Click="OpenEventTalkGroupFE7_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- AI Script Editors -->
-          <Expander Header="AI Scripts" IsExpanded="True" Name="AIScriptsExpander">
+          <Expander AutomationProperties.AutomationId="Main_AIScripts_Expander" Header="AI Scripts" IsExpanded="True" Name="AIScriptsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="AIScriptButton" Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIASMCallButton" Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
-              <Button Name="AICoordinateButton" Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIRangeButton" Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIMapSettingButton" Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIItemButton" Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIStaffButton" Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIStealButton" Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
-              <Button Name="AITargetButton" Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
-              <Button Name="AITilesButton" Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
-              <Button Name="AIUnitsButton" Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
-              <Button Name="AOERangeButton" Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIScript_Button" Name="AIScriptButton" Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIASMCall_Button" Name="AIASMCallButton" Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AICoordinate_Button" Name="AICoordinateButton" Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIRange_Button" Name="AIRangeButton" Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIMapSetting_Button" Name="AIMapSettingButton" Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIItem_Button" Name="AIItemButton" Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIStaff_Button" Name="AIStaffButton" Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AISteal_Button" Name="AIStealButton" Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AITarget_Button" Name="AITargetButton" Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AITiles_Button" Name="AITilesButton" Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AIUnits_Button" Name="AIUnitsButton" Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AOERange_Button" Name="AOERangeButton" Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Map Editors (Advanced) -->
-          <Expander Header="Map Editors" IsExpanded="True" Name="MapEditorsExpander">
+          <Expander AutomationProperties.AutomationId="Main_MapEditors_Expander" Header="Map Editors" IsExpanded="True" Name="MapEditorsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="MapEditorButton" Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapSettingsFE6Button" Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapSettingsFE7Button" Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="MapSettingsFE7UButton" Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
-              <Button Name="DifficultyButton" Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
-              <Button Name="StyleEditorButton" Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="TerrainBGButton" Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
-              <Button Name="TerrainFloorButton" Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
-              <Button Name="MiniMapButton" Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
-              <Button Name="TileAnim1Button" Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
-              <Button Name="TileAnim2Button" Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
-              <Button Name="LoadFunctionButton" Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
-              <Button Name="TerrainEngButton" Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapEditor_Button" Name="MapEditorButton" Content="Map Editor" Click="OpenMapEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE6_Button" Name="MapSettingsFE6Button" Content="Map Settings (FE6)" Click="OpenMapSettingFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7_Button" Name="MapSettingsFE7Button" Content="Map Settings (FE7)" Click="OpenMapSettingFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapSettingsFE7U_Button" Name="MapSettingsFE7UButton" Content="Map Settings (FE7U)" Click="OpenMapSettingFE7U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Difficulty_Button" Name="DifficultyButton" Content="Difficulty" Click="OpenMapSettingDifficulty_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StyleEditor_Button" Name="StyleEditorButton" Content="Style Editor" Click="OpenMapStyleEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainBG_Button" Name="TerrainBGButton" Content="Terrain BG" Click="OpenMapTerrainBGLookup_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainFloor_Button" Name="TerrainFloorButton" Content="Terrain Floor" Click="OpenMapTerrainFloorLookup_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MiniMap_Button" Name="MiniMapButton" Content="Mini Map" Click="OpenMapMiniMapTerrainImage_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TileAnim1_Button" Name="TileAnim1Button" Content="Tile Anim 1" Click="OpenMapTileAnimation1_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TileAnim2_Button" Name="TileAnim2Button" Content="Tile Anim 2" Click="OpenMapTileAnimation2_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_LoadFunction_Button" Name="LoadFunctionButton" Content="Load Function" Click="OpenMapLoadFunction_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TerrainEng_Button" Name="TerrainEngButton" Content="Terrain Eng" Click="OpenMapTerrainNameEng_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Audio (Advanced) -->
-          <Expander Header="Audio (Advanced)" IsExpanded="True" Name="AudioAdvancedExpander">
+          <Expander AutomationProperties.AutomationId="Main_AudioAdvanced_Expander" Header="Audio (Advanced)" IsExpanded="True" Name="AudioAdvancedExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="SongTrackButton" Content="Song Track" Click="OpenSongTrack_Click" Margin="4" MinWidth="100" />
-              <Button Name="InstrumentButton" Content="Instrument" Click="OpenSongInstrument_Click" Margin="4" MinWidth="100" />
-              <Button Name="DirectSoundButton" Content="Direct Sound" Click="OpenSongInstrumentDirectSound_Click" Margin="4" MinWidth="100" />
-              <Button Name="WaveImportButton" Content="Wave Import" Click="OpenSongInstrumentImportWave_Click" Margin="4" MinWidth="100" />
-              <Button Name="MIDIImportButton" Content="MIDI Import" Click="OpenSongTrackImportMidi_Click" Margin="4" MinWidth="100" />
-              <Button Name="SongExchangeButton" Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
-              <Button Name="SoundRoomFE6Button" Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="SoundRoomCGButton" Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
-              <Button Name="ChangeTrackButton" Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
-              <Button Name="AllChangeTrackButton" Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
-              <Button Name="SelectInstrumentButton" Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
-              <Button Name="ImportWaveButton" Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SongTrack_Button" Name="SongTrackButton" Content="Song Track" Click="OpenSongTrack_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Instrument_Button" Name="InstrumentButton" Content="Instrument" Click="OpenSongInstrument_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_DirectSound_Button" Name="DirectSoundButton" Content="Direct Sound" Click="OpenSongInstrumentDirectSound_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WaveImport_Button" Name="WaveImportButton" Content="Wave Import" Click="OpenSongInstrumentImportWave_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MIDIImport_Button" Name="MIDIImportButton" Content="MIDI Import" Click="OpenSongTrackImportMidi_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SongExchange_Button" Name="SongExchangeButton" Content="Song Exchange" Click="OpenSongExchange_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SoundRoomFE6_Button" Name="SoundRoomFE6Button" Content="Sound Room (FE6)" Click="OpenSoundRoomFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SoundRoomCG_Button" Name="SoundRoomCGButton" Content="Sound Room CG" Click="OpenSoundRoomCG_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ChangeTrack_Button" Name="ChangeTrackButton" Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AllChangeTrack_Button" Name="AllChangeTrackButton" Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SelectInstrument_Button" Name="SelectInstrumentButton" Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ImportWave_Button" Name="ImportWaveButton" Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Unit/Class Specialized -->
-          <Expander Header="Unit/Class Specialized" IsExpanded="True" Name="UnitClassSpecializedExpander">
+          <Expander AutomationProperties.AutomationId="Main_UnitClassSpecialized_Expander" Header="Unit/Class Specialized" IsExpanded="True" Name="UnitClassSpecializedExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="UnitFE6Button" Content="Unit (FE6)" Click="OpenUnitFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="ActionPointerButton" Content="Action Pointer" Click="OpenUnitActionPointer_Click" Margin="4" MinWidth="100" />
-              <Button Name="CustomAnimButton" Content="Custom Anim" Click="OpenUnitCustomBattleAnime_Click" Margin="4" MinWidth="100" />
-              <Button Name="HeightButton" Content="Height" Click="OpenUnitIncreaseHeight_Click" Margin="4" MinWidth="100" />
-              <Button Name="UnitPaletteButton" Content="Unit Palette" Click="OpenUnitPalette_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassFE6Button" Content="Class (FE6)" Click="OpenClassFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassOPDemoButton" Content="Class OP Demo" Click="OpenClassOPDemo_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassOPFontButton" Content="Class OP Font" Click="OpenClassOPFont_Click" Margin="4" MinWidth="100" />
-              <Button Name="ExtraUnitButton" Content="Extra Unit" Click="OpenExtraUnit_Click" Margin="4" MinWidth="100" />
-              <Button Name="ExtraFE8UButton" Content="Extra (FE8U)" Click="OpenExtraUnitFE8U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitFE6_Button" Name="UnitFE6Button" Content="Unit (FE6)" Click="OpenUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ActionPointer_Button" Name="ActionPointerButton" Content="Action Pointer" Click="OpenUnitActionPointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CustomAnim_Button" Name="CustomAnimButton" Content="Custom Anim" Click="OpenUnitCustomBattleAnime_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Height_Button" Name="HeightButton" Content="Height" Click="OpenUnitIncreaseHeight_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitPalette_Button" Name="UnitPaletteButton" Content="Unit Palette" Click="OpenUnitPalette_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ClassFE6_Button" Name="ClassFE6Button" Content="Class (FE6)" Click="OpenClassFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ClassOPDemo_Button" Name="ClassOPDemoButton" Content="Class OP Demo" Click="OpenClassOPDemo_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ClassOPFont_Button" Name="ClassOPFontButton" Content="Class OP Font" Click="OpenClassOPFont_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ExtraUnit_Button" Name="ExtraUnitButton" Content="Extra Unit" Click="OpenExtraUnit_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ExtraFE8U_Button" Name="ExtraFE8UButton" Content="Extra (FE8U)" Click="OpenExtraUnitFE8U_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Text/Translation -->
-          <Expander Header="Text/Translation" IsExpanded="True" Name="TextTranslationExpander">
+          <Expander AutomationProperties.AutomationId="Main_TextTranslation_Expander" Header="Text/Translation" IsExpanded="True" Name="TextTranslationExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="TextEditorButton" Content="Text Editor" Click="OpenTextMain_Click" Margin="4" MinWidth="100" />
-              <Button Name="OtherTextButton" Content="Other Text" Click="OpenOtherText_Click" Margin="4" MinWidth="100" />
-              <Button Name="CStringButton" Content="C-String" Click="OpenCString_Click" Margin="4" MinWidth="100" />
-              <Button Name="FontEditorButton" Content="Font Editor" Click="OpenFontEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="FontZHButton" Content="Font ZH" Click="OpenFontZH_Click" Margin="4" MinWidth="100" />
-              <Button Name="DevTranslateButton" Content="Dev Translate" Click="OpenDevTranslate_Click" Margin="4" MinWidth="100" />
-              <Button Name="ROMTranslateButton" Content="ROM Translate" Click="OpenToolTranslateROM_Click" Margin="4" MinWidth="100" />
-              <Button Name="TextEscapeButton" Content="Text Escape" Click="OpenTextEscapeEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TextEditor_Button" Name="TextEditorButton" Content="Text Editor" Click="OpenTextMain_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OtherText_Button" Name="OtherTextButton" Content="Other Text" Click="OpenOtherText_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CString_Button" Name="CStringButton" Content="C-String" Click="OpenCString_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FontEditor_Button" Name="FontEditorButton" Content="Font Editor" Click="OpenFontEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FontZH_Button" Name="FontZHButton" Content="Font ZH" Click="OpenFontZH_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_DevTranslate_Button" Name="DevTranslateButton" Content="Dev Translate" Click="OpenDevTranslate_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ROMTranslate_Button" Name="ROMTranslateButton" Content="ROM Translate" Click="OpenToolTranslateROM_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TextEscape_Button" Name="TextEscapeButton" Content="Text Escape" Click="OpenTextEscapeEditor_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Patch/Mod Management -->
-          <Expander Header="Patches" IsExpanded="True" Name="PatchesExpander">
+          <Expander AutomationProperties.AutomationId="Main_Patches_Expander" Header="Patches" IsExpanded="True" Name="PatchesExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="PatchManagerButton" Content="Patch Manager" Click="OpenPatchManager_Click" Margin="4" MinWidth="100" />
-              <Button Name="CustomBuildButton" Content="Custom Build" Click="OpenToolCustomBuild_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PatchManager_Button" Name="PatchManagerButton" Content="Patch Manager" Click="OpenPatchManager_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_CustomBuild_Button" Name="CustomBuildButton" Content="Custom Build" Click="OpenToolCustomBuild_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Skill Systems -->
-          <Expander Header="Skill Systems" IsExpanded="True" Name="SkillsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Skills_Expander" Header="Skill Systems" IsExpanded="True" Name="SkillsExpander">
             <WrapPanel Name="SkillsPanel" Orientation="Horizontal">
-              <Button Name="SkillUnitButton" Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
-              <Button Name="SkillClassButton" Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
-              <Button Name="SkillConfigButton" Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SkillUnit_Button" Name="SkillUnitButton" Content="Skill Unit" Click="OpenSkillAssignmentUnitSkillSystem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SkillClass_Button" Name="SkillClassButton" Content="Skill Class" Click="OpenSkillAssignmentClassSkillSystem_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SkillConfig_Button" Name="SkillConfigButton" Content="Skill Config" Click="OpenSkillConfigSkillSystem_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- World Map (Advanced) -->
-          <Expander Header="World Map (Advanced)" IsExpanded="True" Name="WorldMapAdvancedExpander">
+          <Expander AutomationProperties.AutomationId="Main_WorldMapAdvanced_Expander" Header="World Map (Advanced)" IsExpanded="True" Name="WorldMapAdvancedExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="MapPathsButton" Content="Map Paths" Click="OpenWorldMapPath_Click" Margin="4" MinWidth="100" />
-              <Button Name="PathEditorButton" Content="Path Editor" Click="OpenWorldMapPathEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapImageButton" Content="Map Image" Click="OpenWorldMapImage_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapImageFE6Button" Content="Map Image (FE6)" Click="OpenWorldMapImageFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapImageFE7Button" Content="Map Image (FE7)" Click="OpenWorldMapImageFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapEventsFE6Button" Content="Events (FE6)" Click="OpenWorldMapEventPointerFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="WMapEventsFE7Button" Content="Events (FE7)" Click="OpenWorldMapEventPointerFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MapPaths_Button" Name="MapPathsButton" Content="Map Paths" Click="OpenWorldMapPath_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PathEditor_Button" Name="PathEditorButton" Content="Path Editor" Click="OpenWorldMapPathEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapImage_Button" Name="WMapImageButton" Content="Map Image" Click="OpenWorldMapImage_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapImageFE6_Button" Name="WMapImageFE6Button" Content="Map Image (FE6)" Click="OpenWorldMapImageFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapImageFE7_Button" Name="WMapImageFE7Button" Content="Map Image (FE7)" Click="OpenWorldMapImageFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapEventsFE6_Button" Name="WMapEventsFE6Button" Content="Events (FE6)" Click="OpenWorldMapEventPointerFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WMapEventsFE7_Button" Name="WMapEventsFE7Button" Content="Events (FE7)" Click="OpenWorldMapEventPointerFE7_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Structural Data -->
-          <Expander Header="Structural Data" IsExpanded="True" Name="StructuralDataExpander">
+          <Expander AutomationProperties.AutomationId="Main_StructuralData_Expander" Header="Structural Data" IsExpanded="True" Name="StructuralDataExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="Cmd85PointerButton" Content="Cmd85 Pointer" Click="OpenCommand85Pointer_Click" Margin="4" MinWidth="100" />
-              <Button Name="SpellMenuExtButton" Content="Spell Menu Ext" Click="OpenFE8SpellMenuExtends_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatusOptionButton" Content="Status Option" Click="OpenStatusOption_Click" Margin="4" MinWidth="100" />
-              <Button Name="OAMSpriteButton" Content="OAM Sprite" Click="OpenOAMSP_Click" Margin="4" MinWidth="100" />
-              <Button Name="StructDumpButton" Content="Struct Dump" Click="OpenDumpStructSelectDialog_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Cmd85Pointer_Button" Name="Cmd85PointerButton" Content="Cmd85 Pointer" Click="OpenCommand85Pointer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SpellMenuExt_Button" Name="SpellMenuExtButton" Content="Spell Menu Ext" Click="OpenFE8SpellMenuExtends_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatusOption_Button" Name="StatusOptionButton" Content="Status Option" Click="OpenStatusOption_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OAMSprite_Button" Name="OAMSpriteButton" Content="OAM Sprite" Click="OpenOAMSP_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StructDump_Button" Name="StructDumpButton" Content="Struct Dump" Click="OpenDumpStructSelectDialog_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Tools -->
-          <Expander Header="Tools" IsExpanded="True" Name="ToolsExpander">
+          <Expander AutomationProperties.AutomationId="Main_Tools_Expander" Header="Tools" IsExpanded="True" Name="ToolsExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="RunLintButton" Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
-              <Button Name="UndoHistoryButton" Content="Undo History" Click="OpenToolUndo_Click" Margin="4" MinWidth="100" />
-              <Button Name="FELintGUIButton" Content="FELint GUI" Click="OpenToolFELint_Click" Margin="4" MinWidth="100" />
-              <Button Name="ROMRebuildButton" Content="ROM Rebuild" Click="OpenToolROMRebuild_Click" Margin="4" MinWidth="100" />
-              <Button Name="LZ77ToolButton" Content="LZ77 Tool" Click="OpenToolLZ77_Click" Margin="4" MinWidth="100" />
-              <Button Name="ROMDiffButton" Content="ROM Diff" Click="OpenToolDiff_Click" Margin="4" MinWidth="100" />
-              <Button Name="UPSCreateButton" Content="UPS Create" Click="OpenToolUPSPatchSimple_Click" Margin="4" MinWidth="100" />
-              <Button Name="UPSApplyButton" Content="UPS Apply" Click="OpenToolUPSOpenSimple_Click" Margin="4" MinWidth="100" />
-              <Button Name="FlagNamesButton" Content="Flag Names" Click="OpenToolFlagName_Click" Margin="4" MinWidth="100" />
-              <Button Name="FlagUsageButton" Content="Flag Usage" Click="OpenToolUseFlag_Click" Margin="4" MinWidth="100" />
-              <Button Name="TalkGroupsButton" Content="Talk Groups" Click="OpenToolUnitTalkGroup_Click" Margin="4" MinWidth="100" />
-              <Button Name="ASMInsertButton" Content="ASM Insert" Click="OpenToolASMInsert_Click" Margin="4" MinWidth="100" />
-              <Button Name="HexEditorButton" Content="Hex Editor" Click="OpenHexEditor_Click" Margin="4" MinWidth="100" />
-              <Button Name="DisassemblerButton" Content="Disassembler" Click="OpenDisASM_Click" Margin="4" MinWidth="100" />
-              <Button Name="LogViewerButton" Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
-              <Button Name="GrowSimButton" Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
-              <Button Name="OptionsButton" Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
-              <Button Name="PointerToolButton" Content="Pointer Tool" Click="OpenPointerTool_Click" Margin="4" MinWidth="100" />
-              <Button Name="FreeSpaceButton" Content="Free Space" Click="OpenMoveToFreeSpace_Click" Margin="4" MinWidth="100" />
-              <Button Name="GraphicsToolButton" Content="Graphics Tool" Click="OpenGraphicsTool_Click" Margin="4" MinWidth="100" />
-              <Button Name="BGMMuteButton" Content="BGM Mute" Click="OpenToolBGMMuteDialog_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_RunLint_Button" Name="RunLintButton" Content="Run Lint" Click="Lint_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UndoHistory_Button" Name="UndoHistoryButton" Content="Undo History" Click="OpenToolUndo_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FELintGUI_Button" Name="FELintGUIButton" Content="FELint GUI" Click="OpenToolFELint_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ROMRebuild_Button" Name="ROMRebuildButton" Content="ROM Rebuild" Click="OpenToolROMRebuild_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_LZ77Tool_Button" Name="LZ77ToolButton" Content="LZ77 Tool" Click="OpenToolLZ77_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ROMDiff_Button" Name="ROMDiffButton" Content="ROM Diff" Click="OpenToolDiff_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UPSCreate_Button" Name="UPSCreateButton" Content="UPS Create" Click="OpenToolUPSPatchSimple_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UPSApply_Button" Name="UPSApplyButton" Content="UPS Apply" Click="OpenToolUPSOpenSimple_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FlagNames_Button" Name="FlagNamesButton" Content="Flag Names" Click="OpenToolFlagName_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FlagUsage_Button" Name="FlagUsageButton" Content="Flag Usage" Click="OpenToolUseFlag_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_TalkGroups_Button" Name="TalkGroupsButton" Content="Talk Groups" Click="OpenToolUnitTalkGroup_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ASMInsert_Button" Name="ASMInsertButton" Content="ASM Insert" Click="OpenToolASMInsert_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_HexEditor_Button" Name="HexEditorButton" Content="Hex Editor" Click="OpenHexEditor_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Disassembler_Button" Name="DisassemblerButton" Content="Disassembler" Click="OpenDisASM_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_LogViewer_Button" Name="LogViewerButton" Content="Log Viewer" Click="OpenLogViewer_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_GrowSim_Button" Name="GrowSimButton" Content="Grow Sim" Click="OpenGrowSimulator_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_Options_Button" Name="OptionsButton" Content="Options" Click="OpenOptions_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_PointerTool_Button" Name="PointerToolButton" Content="Pointer Tool" Click="OpenPointerTool_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_FreeSpace_Button" Name="FreeSpaceButton" Content="Free Space" Click="OpenMoveToFreeSpace_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_GraphicsTool_Button" Name="GraphicsToolButton" Content="Graphics Tool" Click="OpenGraphicsTool_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_BGMMute_Button" Name="BGMMuteButton" Content="BGM Mute" Click="OpenToolBGMMuteDialog_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Status Screen -->
-          <Expander Header="Status Screen" IsExpanded="True" Name="StatusScreenExpander">
+          <Expander AutomationProperties.AutomationId="Main_StatusScreen_Expander" Header="Status Screen" IsExpanded="True" Name="StatusScreenExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="StatusParamButton" Content="Status Param" Click="OpenStatusParam_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatusRMenuButton" Content="Status R-Menu" Click="OpenStatusRMenu_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatusUnitsButton" Content="Status Units" Click="OpenStatusUnitsMenu_Click" Margin="4" MinWidth="100" />
-              <Button Name="StatusOptionsButton" Content="Status Options" Click="OpenStatusOptionOrder_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatusParam_Button" Name="StatusParamButton" Content="Status Param" Click="OpenStatusParam_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatusRMenu_Button" Name="StatusRMenuButton" Content="Status R-Menu" Click="OpenStatusRMenu_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatusUnits_Button" Name="StatusUnitsButton" Content="Status Units" Click="OpenStatusUnitsMenu_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_StatusOptions_Button" Name="StatusOptionsButton" Content="Status Options" Click="OpenStatusOptionOrder_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Skill Systems (Extended) -->
-          <Expander Header="Skill Systems (Extended)" IsExpanded="True" Name="SkillsExtExpander">
+          <Expander AutomationProperties.AutomationId="Main_SkillsExt_Expander" Header="Skill Systems (Extended)" IsExpanded="True" Name="SkillsExtExpander">
             <WrapPanel Name="SkillsExtPanel" Orientation="Horizontal">
-              <Button Name="UnitCSkillSysButton" Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassCSkillSysButton" Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
-              <Button Name="UnitFE8NButton" Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />
-              <Button Name="ConfigFE8NButton" Content="Config FE8N" Click="OpenSkillConfigFE8N_Click" Margin="4" MinWidth="100" />
-              <Button Name="ConfigFE8Nv2Button" Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
-              <Button Name="ConfigFE8Nv3Button" Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
-              <Button Name="ConfigCSkill09xButton" Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
-              <Button Name="EffReworkButton" Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitCSkillSys_Button" Name="UnitCSkillSysButton" Content="Unit CSkillSys" Click="OpenSkillAssignmentUnitCSkillSys_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ClassCSkillSys_Button" Name="ClassCSkillSysButton" Content="Class CSkillSys" Click="OpenSkillAssignmentClassCSkillSys_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitFE8N_Button" Name="UnitFE8NButton" Content="Unit FE8N" Click="OpenSkillAssignmentUnitFE8N_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ConfigFE8N_Button" Name="ConfigFE8NButton" Content="Config FE8N" Click="OpenSkillConfigFE8N_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ConfigFE8Nv2_Button" Name="ConfigFE8Nv2Button" Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ConfigFE8Nv3_Button" Name="ConfigFE8Nv3Button" Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ConfigCSkill09x_Button" Name="ConfigCSkill09xButton" Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_EffRework_Button" Name="EffReworkButton" Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 
           <!-- Version-Specific Editors -->
-          <Expander Header="Version-Specific" IsExpanded="True" Name="VersionSpecificExpander">
+          <Expander AutomationProperties.AutomationId="Main_VersionSpecific_Expander" Header="Version-Specific" IsExpanded="True" Name="VersionSpecificExpander">
             <WrapPanel Orientation="Horizontal">
-              <Button Name="ItemsFE6Button" Content="Items (FE6)" Click="OpenItemFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="MoveCostFE6Button" Content="Move Cost (FE6)" Click="OpenMoveCostFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupportFE6Button" Content="Support (FE6)" Click="OpenSupportUnitFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupTalkFE6Button" Content="Sup Talk (FE6)" Click="OpenSupportTalkFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="SupTalkFE7Button" Content="Sup Talk (FE7)" Click="OpenSupportTalkFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="UnitsFE7Button" Content="Units (FE7)" Click="OpenUnitFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPDemoFE7Button" Content="OP Demo (FE7)" Click="OpenOPClassDemoFE7_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPDemoFE7UButton" Content="OP Demo (FE7U)" Click="OpenOPClassDemoFE7U_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPDemoFE8UButton" Content="OP Demo (FE8U)" Click="OpenOPClassDemoFE8U_Click" Margin="4" MinWidth="100" />
-              <Button Name="OPFontFE8UButton" Content="OP Font (FE8U)" Click="OpenOPClassFontFE8U_Click" Margin="4" MinWidth="100" />
-              <Button Name="AlphaNameButton" Content="Alpha Name" Click="OpenOPClassAlphaName_Click" Margin="4" MinWidth="100" />
-              <Button Name="AlphaFE6Button" Content="Alpha (FE6)" Click="OpenOPClassAlphaNameFE6_Click" Margin="4" MinWidth="100" />
-              <Button Name="ClassListButton" Content="Class List" Click="OpenSomeClassList_Click" Margin="4" MinWidth="100" />
-              <Button Name="WeaponLockButton" Content="Weapon Lock" Click="OpenVennouWeaponLock_Click" Margin="4" MinWidth="100" />
-              <Button Name="ShortTextButton" Content="Short Text" Click="OpenUnitsShortText_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ItemsFE6_Button" Name="ItemsFE6Button" Content="Items (FE6)" Click="OpenItemFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_MoveCostFE6_Button" Name="MoveCostFE6Button" Content="Move Cost (FE6)" Click="OpenMoveCostFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupportFE6_Button" Name="SupportFE6Button" Content="Support (FE6)" Click="OpenSupportUnitFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupTalkFE6_Button" Name="SupTalkFE6Button" Content="Sup Talk (FE6)" Click="OpenSupportTalkFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_SupTalkFE7_Button" Name="SupTalkFE7Button" Content="Sup Talk (FE7)" Click="OpenSupportTalkFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_UnitsFE7_Button" Name="UnitsFE7Button" Content="Units (FE7)" Click="OpenUnitFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPDemoFE7_Button" Name="OPDemoFE7Button" Content="OP Demo (FE7)" Click="OpenOPClassDemoFE7_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPDemoFE7U_Button" Name="OPDemoFE7UButton" Content="OP Demo (FE7U)" Click="OpenOPClassDemoFE7U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPDemoFE8U_Button" Name="OPDemoFE8UButton" Content="OP Demo (FE8U)" Click="OpenOPClassDemoFE8U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_OPFontFE8U_Button" Name="OPFontFE8UButton" Content="OP Font (FE8U)" Click="OpenOPClassFontFE8U_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AlphaName_Button" Name="AlphaNameButton" Content="Alpha Name" Click="OpenOPClassAlphaName_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_AlphaFE6_Button" Name="AlphaFE6Button" Content="Alpha (FE6)" Click="OpenOPClassAlphaNameFE6_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ClassList_Button" Name="ClassListButton" Content="Class List" Click="OpenSomeClassList_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_WeaponLock_Button" Name="WeaponLockButton" Content="Weapon Lock" Click="OpenVennouWeaponLock_Click" Margin="4" MinWidth="100" />
+              <Button AutomationProperties.AutomationId="Main_ShortText_Button" Name="ShortTextButton" Content="Short Text" Click="OpenUnitsShortText_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 

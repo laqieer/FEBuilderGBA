@@ -10,20 +10,20 @@
     <!-- Current name row (WinForms label1 95x18 + CurrentName 599x25) -->
     <Grid ColumnDefinitions="Auto,8,*">
       <TextBlock Grid.Column="0" Text="Current Name:" VerticalAlignment="Center" Width="95" />
-      <TextBox Grid.Column="2" Text="{Binding CurrentName}" IsReadOnly="True" />
+      <TextBox AutomationProperties.AutomationId="ToolChangeProjectname_TextBox1_Input" Grid.Column="2" Text="{Binding CurrentName}" IsReadOnly="True" />
     </Grid>
     <!-- New name row (WinForms label2 + NewName TextBoxEx editable) -->
     <Grid ColumnDefinitions="Auto,8,*">
       <TextBlock Grid.Column="0" Text="New Name:" VerticalAlignment="Center" Width="95" />
-      <TextBox Grid.Column="2" Text="{Binding NewName}" Watermark="Enter new project name" />
+      <TextBox AutomationProperties.AutomationId="ToolChangeProjectname_TextBox2_Input" Grid.Column="2" Text="{Binding NewName}" Watermark="Enter new project name" />
     </Grid>
     <!-- Change button (WinForms ChangeButton 344x42 right-aligned) -->
-    <Button Content="Change Project Name" Width="344" Height="42"
+    <Button AutomationProperties.AutomationId="ToolChangeProjectname_OK_Button" Content="Change Project Name" Width="344" Height="42"
             HorizontalAlignment="Right" Click="OK_Click" />
     <!-- Status message -->
     <TextBlock Text="{Binding StatusMessage}" Foreground="Red" />
     <!-- Help text (WinForms textBox1 readonly multiline) -->
-    <TextBox Height="88" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+    <TextBox AutomationProperties.AutomationId="ToolChangeProjectname_TextBox3_Input" Height="88" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
              Text="{Binding HelpText}" />
   </StackPanel>
   </ScrollViewer>

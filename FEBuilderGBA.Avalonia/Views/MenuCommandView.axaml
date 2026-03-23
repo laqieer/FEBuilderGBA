@@ -5,7 +5,7 @@
         Title="Menu Command Editor" Width="1238" Height="604"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="MenuCommand_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,41 +13,41 @@
 
         <Grid ColumnDefinitions="220,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MenuCommand_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Japanese Name Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="JpNamePtrBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_JpNamePtr_Input" Grid.Row="1" Grid.Column="1" Name="JpNamePtrBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuCommand_NameTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MenuCommand_HelpTextId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Color/ID (u32@8):" VerticalAlignment="Center" />
-          <TextBox Grid.Row="4" Grid.Column="1" Name="ColorIdBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_ColorId_Input" Grid.Row="4" Grid.Column="1" Name="ColorIdBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Usability Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="5" Grid.Column="1" Name="UsabilityBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_Usability_Input" Grid.Row="5" Grid.Column="1" Name="UsabilityBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Draw Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="6" Grid.Column="1" Name="DrawBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_Draw_Input" Grid.Row="6" Grid.Column="1" Name="DrawBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Effect Routine:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="7" Grid.Column="1" Name="EffectBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_Effect_Input" Grid.Row="7" Grid.Column="1" Name="EffectBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Per-Turn Callback:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="8" Grid.Column="1" Name="PerTurnBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_PerTurn_Input" Grid.Row="8" Grid.Column="1" Name="PerTurnBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Cursor Select Action:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="9" Grid.Column="1" Name="CursorSelBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_CursorSel_Input" Grid.Row="9" Grid.Column="1" Name="CursorSelBox" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Cancel Action:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="10" Grid.Column="1" Name="CancelBox" Width="200" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MenuCommand_Cancel_Input" Grid.Row="10" Grid.Column="1" Name="CancelBox" Width="200" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="MenuCommand_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

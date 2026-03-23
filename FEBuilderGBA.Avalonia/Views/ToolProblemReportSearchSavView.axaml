@@ -18,9 +18,9 @@
         <TextBlock Text="sav" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <TextBox Grid.Column="1" Text="{Binding SavFilename}"
+      <TextBox AutomationProperties.AutomationId="ToolProblemReportSearchSav_TextBox1_Input" Grid.Column="1" Text="{Binding SavFilename}"
                Width="542" Height="25" Margin="17,0,8,0" />
-      <Button Grid.Column="2" Content="Browse..." Width="130" Height="31"
+      <Button AutomationProperties.AutomationId="ToolProblemReportSearchSav_Browse_Button" Grid.Column="2" Content="Browse..." Width="130" Height="31"
               Click="Browse_Click" />
     </Grid>
   </StackPanel>

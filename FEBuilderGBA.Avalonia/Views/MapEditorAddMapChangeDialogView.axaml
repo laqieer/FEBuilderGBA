@@ -13,19 +13,19 @@
                FontSize="14" FontWeight="Bold" TextWrapping="Wrap"
                Margin="70,0,0,15" Height="58" />
     <!-- New button (WinForms MyNewButton 787x42) -->
-    <Button Content="Assign new map change" Height="42"
+    <Button AutomationProperties.AutomationId="MapEditorAddMapChangeDialog_New_Button" Content="Assign new map change" Height="42"
             HorizontalAlignment="Stretch" Click="New_Click" />
     <!-- Instruction text between buttons (WinForms label2 786x95) -->
     <TextBlock Text="Assign a new map change ID. A new PLIST entry will be allocated automatically."
                TextWrapping="Wrap" Height="95" Margin="0,7,0,0" />
     <!-- Edit button (WinForms EditButton 787x42) -->
-    <Button Content="Open map change settings" Height="42"
+    <Button AutomationProperties.AutomationId="MapEditorAddMapChangeDialog_Edit_Button" Content="Open map change settings" Height="42"
             HorizontalAlignment="Stretch" Click="Edit_Click" />
     <!-- Instruction text (WinForms label1 786x95) -->
     <TextBlock Text="Open the map change configuration screen to edit existing map change entries."
                TextWrapping="Wrap" Height="95" Margin="0,7,0,0" />
     <!-- Cancel button (WinForms MyCancelButton 787x42) -->
-    <Button Content="Cancel" Height="42"
+    <Button AutomationProperties.AutomationId="MapEditorAddMapChangeDialog_Cancel_Button" Content="Cancel" Height="42"
             HorizontalAlignment="Stretch" Click="Cancel_Click" />
   </StackPanel>
   </ScrollViewer>

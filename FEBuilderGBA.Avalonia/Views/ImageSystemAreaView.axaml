@@ -5,7 +5,7 @@
         Title="System Area Graphics" Width="1238" Height="604"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ImageSystemArea_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,21 +14,21 @@
         <Grid ColumnDefinitions="180,200,20,180,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageSystemArea_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <!-- Row 1: GBA Color raw value -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="GBA Color (W0):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GBAColorBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageSystemArea_GBAColor_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GBAColorBox" Minimum="0" Maximum="65535" />
 
           <!-- Row 2: R / G -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="R:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ColorR" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageSystemArea_ColorR_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ColorR" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="G:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="ColorG" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageSystemArea_ColorG_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="ColorG" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
 
           <!-- Row 3: B -->
           <TextBlock Grid.Row="3" Grid.Column="0" Text="B:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="ColorB" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageSystemArea_ColorB_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ColorB" Minimum="0" Maximum="255" Increment="8" IsReadOnly="True" />
 
           <!-- Row 4: Color preview -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" />
@@ -36,7 +36,7 @@
                   BorderBrush="Gray" BorderThickness="1" Margin="0,4,0,4" />
 
           <!-- Row 5: Write button -->
-          <Button Grid.Row="5" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
+          <Button AutomationProperties.AutomationId="ImageSystemArea_Write_Button" Grid.Row="5" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

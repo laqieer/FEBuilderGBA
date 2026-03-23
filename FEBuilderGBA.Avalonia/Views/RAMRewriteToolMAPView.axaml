@@ -7,19 +7,19 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="RAM Rewrite Tool (MAP)" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Write" Click="Write_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="RAMRewriteToolMAP_Write_Button" Content="Write" Click="Write_Click" />
+      <Button AutomationProperties.AutomationId="RAMRewriteToolMAP_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <ScrollViewer>
       <StackPanel Spacing="8">
         <TextBlock Text="Rewrite RAM values for map data in a running emulator." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,8" />
         <Grid RowDefinitions="Auto,8,Auto,8,Auto" ColumnDefinitions="Auto,8,*">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Map ID:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="0" Grid.Column="2" Name="MapIdTextBox" Watermark="e.g. 0x01" />
+          <TextBox AutomationProperties.AutomationId="RAMRewriteToolMAP_MapIdText_Input" Grid.Row="0" Grid.Column="2" Name="MapIdTextBox" Watermark="e.g. 0x01" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="2" Grid.Column="2" Name="AddressTextBox" Watermark="e.g. 0x02000000" />
+          <TextBox AutomationProperties.AutomationId="RAMRewriteToolMAP_AddressText_Input" Grid.Row="2" Grid.Column="2" Name="AddressTextBox" Watermark="e.g. 0x02000000" />
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Value:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="4" Grid.Column="2" Name="ValueTextBox" Watermark="e.g. 0xFF" />
+          <TextBox AutomationProperties.AutomationId="RAMRewriteToolMAP_ValueText_Input" Grid.Row="4" Grid.Column="2" Name="ValueTextBox" Watermark="e.g. 0xFF" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

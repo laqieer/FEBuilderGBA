@@ -5,7 +5,7 @@
         Title="Sound Room Editor" Width="1275" Height="817"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SoundRoomViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,26 +13,26 @@
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SoundRoomViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
-            <Button Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_SongId_Input" FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
+            <Button AutomationProperties.AutomationId="SoundRoomViewer_JumpToSong_Button" Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song Length:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_Raw4_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Display Cond ASM:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Raw8Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_Raw8_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Raw8Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_TextId_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SoundRoomViewer_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

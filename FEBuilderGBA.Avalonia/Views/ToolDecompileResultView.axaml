@@ -7,11 +7,11 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Decompile Result" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Copy to Clipboard" Click="CopyToClipboard_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="ToolDecompileResult_CopyToClipboard_Button" Content="Copy to Clipboard" Click="CopyToClipboard_Click" />
+      <Button AutomationProperties.AutomationId="ToolDecompileResult_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <ScrollViewer>
-      <TextBox Name="DecompiledCodeTextBox" IsReadOnly="True" AcceptsReturn="True"
+      <TextBox AutomationProperties.AutomationId="ToolDecompileResult_DecompiledCodeText_Input" Name="DecompiledCodeTextBox" IsReadOnly="True" AcceptsReturn="True"
                FontFamily="Consolas, Courier New, monospace" />
     </ScrollViewer>
   </DockPanel>

@@ -5,7 +5,7 @@
         Title="AI Map Settings" Width="800" Height="500"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="AIMapSetting_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,22 +13,22 @@
 
         <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="AIMapSetting_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Trait 1 (flags):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Trait1Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIMapSetting_Trait1_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Trait1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Trait 2 (flags):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Trait2Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIMapSetting_Trait2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Trait2Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Trait 3 (flags):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Trait3Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIMapSetting_Trait3_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Trait3Box" Minimum="0" Maximum="255" Margin="0,4" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Trait 4 (flags):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Trait4Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="AIMapSetting_Trait4_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Trait4Box" Minimum="0" Maximum="255" Margin="0,4" />
         </Grid>
 
-        <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+        <Button AutomationProperties.AutomationId="AIMapSetting_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

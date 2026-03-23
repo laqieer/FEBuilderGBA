@@ -7,15 +7,15 @@
   <Grid ColumnDefinitions="250,*">
     <!-- Address List with icon preview -->
     <Grid Grid.Column="0" RowDefinitions="*,Auto">
-      <controls:AddressListControl Grid.Row="0" Name="ItemList" Margin="4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ItemEditor_Item_List" Grid.Row="0" Name="ItemList" Margin="4" />
       <!-- Selected item icon preview -->
       <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
               HorizontalAlignment="Center" Margin="4,2,4,4" Padding="4"
               CornerRadius="4" BorderBrush="Gray" BorderThickness="1"
               Name="ListPreviewBorder" IsVisible="False">
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <controls:GbaImageControl Name="ListPreviewImage" />
-          <TextBlock Name="ListPreviewName" VerticalAlignment="Center"
+          <controls:GbaImageControl AutomationProperties.AutomationId="ItemEditor_ListPreview_Image" Name="ListPreviewImage" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_ListPreviewName_Label" Name="ListPreviewName" VerticalAlignment="Center"
                      FontWeight="SemiBold" FontSize="12" />
         </StackPanel>
       </Border>
@@ -28,114 +28,114 @@
         <!-- Address -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
-          <TextBlock Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- Basic Info -->
-        <Expander Header="Basic Info" IsExpanded="True" Margin="0,4,0,2">
+        <Expander AutomationProperties.AutomationId="ItemEditor_BasicInfo_Expander" Header="Basic Info" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
         <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
                      ToolTip.Tip="Text ID for this item's display name" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Desc ID (W2):" VerticalAlignment="Center"
                      ToolTip.Tip="Text ID for the item description" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DescId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Use Desc (W4):" VerticalAlignment="Center"
                      ToolTip.Tip="Text ID for the item usage description" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_UseDescId_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Item # (B6):" VerticalAlignment="Center"
                      ToolTip.Tip="Internal item number (unique ID)" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ItemNumberBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_ItemNumber_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ItemNumberBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Type (B7):" VerticalAlignment="Center"
                      ToolTip.Tip="Weapon type (Sword, Lance, Axe, etc.)" />
-          <ComboBox Grid.Row="2" Grid.Column="4" Name="WeaponTypeCombo" Width="200" />
+          <ComboBox AutomationProperties.AutomationId="ItemEditor_WeaponType_Combo" Grid.Row="2" Grid.Column="4" Name="WeaponTypeCombo" Width="200" />
         </Grid>
         </Border>
         </Expander>
 
         <!-- Stats / Bonuses -->
-        <Expander Header="Stats / Bonuses" IsExpanded="True" Margin="0,4,0,2">
+        <Expander AutomationProperties.AutomationId="ItemEditor_StatsBonuses_Expander" Header="Stats / Bonuses" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
         <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Stat Bonus (P12):" VerticalAlignment="Center"
                      ToolTip.Tip="Pointer to stat bonuses when equipped" />
           <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <TextBox Name="StatBonusesPtrBox" Width="120" />
-            <Button Content="Jump" Click="JumpToStatBonuses_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ItemEditor_StatBonusesPtr_Input" Name="StatBonusesPtrBox" Width="120" />
+            <Button AutomationProperties.AutomationId="ItemEditor_JumpToStatBonuses_Button" Content="Jump" Click="JumpToStatBonuses_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Effective (P16):" VerticalAlignment="Center"
                      ToolTip.Tip="Pointer to effectiveness list (bonus vs. classes)" />
           <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
-            <TextBox Name="EffectivenessPtrBox" Width="120" />
-            <Button Content="Jump" Click="JumpToEffectiveness_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ItemEditor_EffectivenessPtr_Input" Name="EffectivenessPtrBox" Width="120" />
+            <Button AutomationProperties.AutomationId="ItemEditor_JumpToEffectiveness_Button" Content="Jump" Click="JumpToEffectiveness_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center"
                      ToolTip.Tip="Number of uses before the item breaks" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Uses_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center"
                      ToolTip.Tip="Attack power" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Might_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center"
                      ToolTip.Tip="Hit rate bonus" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Hit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center"
                      ToolTip.Tip="Item weight (reduces attack speed)" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Weight_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center"
                      ToolTip.Tip="Critical hit rate bonus" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Crit_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center"
                      ToolTip.Tip="Attack range (encoded as min-max)" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Range_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center"
                      ToolTip.Tip="Base item price" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Price_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="4" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_WeaponRank_Input" FormatString="0" Grid.Row="4" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Buy Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_ShopBuyPrice_Label" Grid.Row="5" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
           <TextBlock Grid.Row="5" Grid.Column="3" Text="Sell Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="5" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_ShopSellPrice_Label" Grid.Row="5" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
         </Border>
         </Expander>
 
         <!-- Weapon Properties -->
-        <Expander Header="Weapon Properties" IsExpanded="True" Margin="0,4,0,2">
+        <Expander AutomationProperties.AutomationId="ItemEditor_WeaponProperties_Expander" Header="Weapon Properties" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
         <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Icon_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center"
                      ToolTip.Tip="Effect when using the item" />
-          <NumericUpDown FormatString="0" Grid.Row="0" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_UsageEffect_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center"
                      ToolTip.Tip="Special effect applied on hit" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DamageEffect_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Wep Exp (B32):" VerticalAlignment="Center"
                      ToolTip.Tip="Weapon experience gained per use" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="WeaponExpBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_WeaponExp_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="WeaponExpBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Unk33 (B33):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unk33Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk33_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unk33Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Unk34 (B34):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="4" Name="Unk34Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk34_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="Unk34Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk35_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Forge Price:" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="3" Grid.Column="4" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_ShopForgePrice_Label" Grid.Row="3" Grid.Column="4" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
         </Grid>
         </Border>
         </Expander>
@@ -149,15 +149,15 @@
           <StackPanel Spacing="2">
             <TextBlock Text="Stat Bonuses Preview" FontWeight="Bold" />
             <WrapPanel>
-              <TextBlock Name="BonusHPLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusStrLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusSklLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusSpdLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusDefLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusResLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusLckLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusMoveLabel" Margin="0,0,12,0" />
-              <TextBlock Name="BonusConLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusHP_Label" Name="BonusHPLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusStr_Label" Name="BonusStrLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusSkl_Label" Name="BonusSklLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusSpd_Label" Name="BonusSpdLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusDef_Label" Name="BonusDefLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusRes_Label" Name="BonusResLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusLck_Label" Name="BonusLckLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusMove_Label" Name="BonusMoveLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusCon_Label" Name="BonusConLabel" Margin="0,0,12,0" />
             </WrapPanel>
           </StackPanel>
         </Border>
@@ -166,7 +166,7 @@
         <Border Name="EffectiveClassBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">
           <StackPanel Spacing="2">
             <TextBlock Text="Effective Against" FontWeight="Bold" />
-            <ItemsControl Name="EffectiveClassListBox">
+            <ItemsControl AutomationProperties.AutomationId="ItemEditor_EffectiveClassList_List" Name="EffectiveClassListBox">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding}" FontSize="12" Margin="0,1" />
@@ -177,17 +177,17 @@
         </Border>
 
         <!-- Trait Flags (BitFlagPanels) -->
-        <Expander Header="Trait Flags" IsExpanded="True" Margin="0,4,0,2">
+        <Expander AutomationProperties.AutomationId="ItemEditor_TraitFlags_Expander" Header="Trait Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <TextBlock Text="Trait 1 (B8):" FontWeight="SemiBold" Margin="0,2" />
-            <controls:BitFlagPanel Name="Trait1Flags" />
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait1_Check" Name="Trait1Flags" />
             <TextBlock Text="Trait 2 (B9):" FontWeight="SemiBold" Margin="0,2" />
-            <controls:BitFlagPanel Name="Trait2Flags" />
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait2_Check" Name="Trait2Flags" />
             <TextBlock Text="Trait 3 (B10):" FontWeight="SemiBold" Margin="0,2" />
-            <controls:BitFlagPanel Name="Trait3Flags" />
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait3_Check" Name="Trait3Flags" />
             <TextBlock Text="Trait 4 (B11):" FontWeight="SemiBold" Margin="0,2" />
-            <controls:BitFlagPanel Name="Trait4Flags" />
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait4_Check" Name="Trait4Flags" />
           </StackPanel>
         </Border>
         </Expander>
@@ -198,7 +198,7 @@
                 Background="{DynamicResource AccentOverlayBrush}" Margin="0,8,0,0">
           <StackPanel Spacing="2">
             <TextBlock Text="Warnings" FontWeight="Bold" Foreground="DarkOrange" />
-            <ItemsControl Name="WarningsList">
+            <ItemsControl AutomationProperties.AutomationId="ItemEditor_Warnings_List" Name="WarningsList">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <TextBlock Text="{Binding}" Foreground="DarkOrange" FontSize="12" />
@@ -209,14 +209,14 @@
         </Border>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ItemEditor_Write_Button" Content="Write" Click="Write_Click" />
           <Border Width="1" Background="Gray" Margin="4,2" />
-          <Button Content="Export TSV" Click="ExportTSV_Click" FontSize="11" Padding="8,4"
+          <Button AutomationProperties.AutomationId="ItemEditor_ExportTSV_Button" Content="Export TSV" Click="ExportTSV_Click" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Export all items to a TSV file" />
-          <Button Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
+          <Button AutomationProperties.AutomationId="ItemEditor_ImportTSV_Button" Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Import items from a TSV file" />
           <Border Width="1" Background="Gray" Margin="4,2" />
-          <Button Content="Edit Skill Config" Click="EditSkillConfig_Click" Name="EditSkillConfigButton"
+          <Button AutomationProperties.AutomationId="ItemEditor_EditSkillConfig_Button" Content="Edit Skill Config" Click="EditSkillConfig_Click" Name="EditSkillConfigButton"
                   IsVisible="False" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Open skill configuration editor" />
         </StackPanel>

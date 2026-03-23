@@ -5,7 +5,7 @@
         Title="Demon King Summon Editor" Width="1237" Height="700"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SummonsDemonKingViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,59 +13,59 @@
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="SummonsDemonKingViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_ClassId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Commander:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_Unknown1_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Level/Growth:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B3_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="B3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Coordinates:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_W4_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="W4Box" Minimum="0" Maximum="65535" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Special:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B6_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="B6Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Padding (B7):" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B7_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="B7Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="AI Pointer:" VerticalAlignment="Center" />
-          <TextBox Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="SummonsDemonKingViewer_P8_Input" Grid.Row="8" Grid.Column="1" Name="P8Box" Width="120" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="9" Grid.Column="1" Name="B12Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B12_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="B12Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="10" Grid.Column="1" Name="B13Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B13_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="B13Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="11" Grid.Column="1" Name="B14Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B14_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="B14Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="12" Grid.Column="1" Name="B15Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B15_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="B15Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="13" Grid.Column="0" Text="AI 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="13" Grid.Column="1" Name="B16Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B16_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="B16Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="14" Grid.Column="0" Text="AI 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="14" Grid.Column="1" Name="B17Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B17_Input" FormatString="0" Grid.Row="14" Grid.Column="1" Name="B17Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="15" Grid.Column="0" Text="Target/Recovery AI:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="15" Grid.Column="1" Name="B18Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B18_Input" FormatString="0" Grid.Row="15" Grid.Column="1" Name="B18Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Retreat AI:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="16" Grid.Column="1" Name="B19Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonsDemonKingViewer_B19_Input" FormatString="0" Grid.Row="16" Grid.Column="1" Name="B19Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SummonsDemonKingViewer_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

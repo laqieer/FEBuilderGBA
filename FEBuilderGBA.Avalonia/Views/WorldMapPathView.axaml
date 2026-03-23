@@ -5,7 +5,7 @@
         Title="World Map Paths" Width="1284" Height="787"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapPath_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="6" Margin="8">
@@ -13,31 +13,31 @@
 
         <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapPath_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Path Data Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBox Grid.Row="1" Grid.Column="1" Name="PathDataPointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="WorldMapPath_PathDataPointer_Input" Grid.Row="1" Grid.Column="1" Name="PathDataPointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Start Base Point ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="StartBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPath_StartBasePointId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="StartBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="End Base Point ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="EndBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPath_EndBasePointId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="EndBasePointIdBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Padding (B6):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="Padding6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPath_Padding6_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Padding6Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Padding (B7):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="Padding7Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapPath_Padding7_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Padding7Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Path Move Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBox Grid.Row="6" Grid.Column="1" Name="PathMovePointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="WorldMapPath_PathMovePointer_Input" Grid.Row="6" Grid.Column="1" Name="PathMovePointerBox" Width="150" HorizontalAlignment="Left" Margin="0,2" />
         </Grid>
 
         <TextBlock Text="(NULL path move pointer = straight line between nodes)" Foreground="Gray" Margin="0,4,0,0" />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Content="Write" Name="WriteBtn" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="WorldMapPath_WriteBtn_Button" Content="Write" Name="WriteBtn" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

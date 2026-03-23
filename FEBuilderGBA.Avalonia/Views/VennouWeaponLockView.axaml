@@ -7,7 +7,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <Grid ColumnDefinitions="245,*">
     <!-- Left: Address list -->
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="VennouWeaponLock_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <!-- Right: Editor area -->
     <StackPanel Grid.Column="1" Spacing="12" Margin="16" VerticalAlignment="Top">
@@ -16,16 +16,16 @@
 
       <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="VennouWeaponLock_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         <TextBlock Grid.Row="1" Grid.Column="0" Name="FieldLabelText" Text="Lock Type / ID:" VerticalAlignment="Center" Margin="0,4" />
-        <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="LockTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+        <NumericUpDown AutomationProperties.AutomationId="VennouWeaponLock_LockType_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="LockTypeBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Linked Name:" VerticalAlignment="Center" Margin="0,4" />
-        <TextBlock Grid.Row="2" Grid.Column="1" Name="LinkedNameLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
+        <TextBlock AutomationProperties.AutomationId="VennouWeaponLock_LinkedName_Label" Grid.Row="2" Grid.Column="1" Name="LinkedNameLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />
-        <TextBox Grid.Row="3" Grid.Column="1" Name="ExplanationBox" IsReadOnly="True" Width="400" Height="80"
+        <TextBox AutomationProperties.AutomationId="VennouWeaponLock_Explanation_Input" Grid.Row="3" Grid.Column="1" Name="ExplanationBox" IsReadOnly="True" Width="400" Height="80"
                  TextWrapping="Wrap" AcceptsReturn="True" Margin="0,2" Grid.ColumnSpan="2" />
       </Grid>
-      <Button Content="Write" Click="Write_Click" Width="168" Height="30" />
+      <Button AutomationProperties.AutomationId="VennouWeaponLock_Write_Button" Content="Write" Click="Write_Click" Width="168" Height="30" />
     </StackPanel>
   </Grid>
   </ScrollViewer>

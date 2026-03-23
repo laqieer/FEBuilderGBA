@@ -11,16 +11,16 @@
     <!-- Section 1: Map chip import (WinForms label1 at 12,36) -->
     <TextBlock Text="Map Chip Import" FontWeight="Bold" Margin="0,0,0,6" />
     <!-- Button 1: Import image with palette (WinForms button1 1052x55) -->
-    <Button Content="Import image with palette (recommended)" Height="55"
+    <Button AutomationProperties.AutomationId="MapStyleEditorImportImageOption_WithPalette_Button" Content="Import image with palette (recommended)" Height="55"
             HorizontalAlignment="Stretch" Click="WithPalette_Click" />
     <!-- Button 2: Import image only (WinForms button2 1052x55) -->
-    <Button Content="Import image only (do not import palette)" Height="55"
+    <Button AutomationProperties.AutomationId="MapStyleEditorImportImageOption_ImageOnly_Button" Content="Import image only (do not import palette)" Height="55"
             HorizontalAlignment="Stretch" Margin="0,19,0,0"
             Click="ImageOnly_Click" />
     <!-- Section 2: One picture import (WinForms label2 at 12,217) -->
     <TextBlock Text="One Picture Import" FontWeight="Bold" Margin="0,20,0,6" />
     <!-- Button 3: Import as one picture (WinForms button3 1052x55) -->
-    <Button Content="Import as one picture (auto-generate map_config from this image)" Height="55"
+    <Button AutomationProperties.AutomationId="MapStyleEditorImportImageOption_ePicture_Button" Content="Import as one picture (auto-generate map_config from this image)" Height="55"
             HorizontalAlignment="Stretch" Click="OnePicture_Click" />
   </StackPanel>
   </ScrollViewer>

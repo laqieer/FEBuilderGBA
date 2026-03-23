@@ -6,7 +6,7 @@
         SizeToContent="WidthAndHeight">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel Margin="12">
-    <TextBox Name="VersionTextBox"
+    <TextBox AutomationProperties.AutomationId="Version_VersionText_Input" Name="VersionTextBox"
              IsReadOnly="True"
              AcceptsReturn="True"
              TextWrapping="Wrap"

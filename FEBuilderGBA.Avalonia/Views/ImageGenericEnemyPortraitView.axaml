@@ -5,7 +5,7 @@
         Title="Generic Enemy Portraits" Width="800" Height="400"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,11 +14,11 @@
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 1: Image Pointer (D0) -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="ImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImageGenericEnemyPortrait_ImagePtr_Label" Grid.Row="1" Grid.Column="1" Name="ImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

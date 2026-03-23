@@ -18,7 +18,7 @@
             <TextBlock Text="Hard Boost" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown FormatString="0" x:Name="HardBoostInput" Width="76" Height="25"
+          <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficultyDialog_HardBoost_Input" FormatString="0" x:Name="HardBoostInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
         <!-- Normal Penalty (WinForms J_NormalPenalty 311x32 + NormalPenalty 76x25) -->
@@ -27,7 +27,7 @@
             <TextBlock Text="Normal Mode Penalty" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown FormatString="0" x:Name="NormalPenaltyInput" Width="76" Height="25"
+          <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficultyDialog_NormalPenalty_Input" FormatString="0" x:Name="NormalPenaltyInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
         <!-- Easy Penalty (WinForms J_EasyPenalty 311x32 + EasyPenalty 76x25) -->
@@ -36,7 +36,7 @@
             <TextBlock Text="Easy Mode Penalty" HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
           </Border>
-          <NumericUpDown FormatString="0" x:Name="EasyPenaltyInput" Width="76" Height="25"
+          <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficultyDialog_EasyPenalty_Input" FormatString="0" x:Name="EasyPenaltyInput" Width="76" Height="25"
                          Minimum="0" Maximum="15" Value="0" />
         </StackPanel>
       </StackPanel>
@@ -47,15 +47,15 @@
         <TextBlock Text="Difficulty Value" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <NumericUpDown FormatString="0" x:Name="DifficultyValueInput" Width="95" Height="25"
+      <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficultyDialog_DifficultyValue_Input" FormatString="0" x:Name="DifficultyValueInput" Width="95" Height="25"
                      Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
     <!-- Help text (WinForms textBox1 527x121 ReadOnly) -->
-    <TextBox IsReadOnly="True" Height="121" TextWrapping="Wrap"
+    <TextBox AutomationProperties.AutomationId="MapSettingDifficultyDialog_TextBox1_Input" IsReadOnly="True" Height="121" TextWrapping="Wrap"
              Text="Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes"
              Margin="0,0,0,10" />
     <!-- OK button (WinForms OKButton 272x43 right-aligned) -->
-    <Button Content="Apply" Width="272" Height="43"
+    <Button AutomationProperties.AutomationId="MapSettingDifficultyDialog_OK_Button" Content="Apply" Width="272" Height="43"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>

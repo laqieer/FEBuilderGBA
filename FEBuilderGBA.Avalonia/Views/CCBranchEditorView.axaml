@@ -5,7 +5,7 @@
         Title="CC Branch Editor" Width="1264" Height="684"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="BranchList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="CCBranchEditor_Branch_List" Grid.Column="0" Name="BranchList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,24 +13,24 @@
 
         <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Promotion Class 1:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="Promo1Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="1" Grid.Column="2" Name="Promo1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="CCBranchEditor_Promo1_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Promo1Box" Minimum="0" Maximum="255" />
+          <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Promo1Name_Label" Grid.Row="1" Grid.Column="2" Name="Promo1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Promotion Class 2:" VerticalAlignment="Center" />
-          <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="Promo2Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="2" Grid.Column="2" Name="Promo2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="CCBranchEditor_Promo2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Promo2Box" Minimum="0" Maximum="255" />
+          <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Promo2Name_Label" Grid.Row="2" Grid.Column="2" Name="Promo2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="CCBranchEditor_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
 
         <Separator Margin="0,8" />
         <TextBlock Text="Upstream Chain (classes that promote to this one):" FontWeight="SemiBold" />
-        <TextBlock Name="UpstreamLabel" TextWrapping="Wrap" Foreground="Gray" />
+        <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Upstream_Label" Name="UpstreamLabel" TextWrapping="Wrap" Foreground="Gray" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

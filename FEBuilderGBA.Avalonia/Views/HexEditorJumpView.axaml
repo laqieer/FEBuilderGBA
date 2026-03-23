@@ -16,10 +16,10 @@
                        FilterMode="None" />
     </StackPanel>
     <!-- Little Endian checkbox -->
-    <CheckBox x:Name="LittleEndianCheckBox" Content="Force Little Endian"
+    <CheckBox AutomationProperties.AutomationId="HexEditorJump_LittleEndianCheck_Check" x:Name="LittleEndianCheckBox" Content="Force Little Endian"
               Margin="3,0,0,15" />
     <!-- OK button -->
-    <Button Content="Jump" Width="158" Height="39"
+    <Button AutomationProperties.AutomationId="HexEditorJump_OK_Button" Content="Jump" Width="158" Height="39"
             HorizontalAlignment="Right" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>

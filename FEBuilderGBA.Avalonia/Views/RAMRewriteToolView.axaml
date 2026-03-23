@@ -8,7 +8,7 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="RAM Rewrite Tool" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="RAMRewriteTool_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <StackPanel Spacing="12">
       <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="{DynamicResource EmulatorWarningBackgroundBrush}">
@@ -22,9 +22,9 @@
       </Border>
       <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="Auto,8,*" IsEnabled="False">
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-        <TextBox Grid.Row="0" Grid.Column="2" Name="AddressTextBox" Watermark="e.g. 0x02000000" />
+        <TextBox AutomationProperties.AutomationId="RAMRewriteTool_AddressText_Input" Grid.Row="0" Grid.Column="2" Name="AddressTextBox" Watermark="e.g. 0x02000000" />
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Value:" VerticalAlignment="Center" />
-        <TextBox Grid.Row="2" Grid.Column="2" Name="ValueTextBox" Watermark="e.g. 0xFF" />
+        <TextBox AutomationProperties.AutomationId="RAMRewriteTool_ValueText_Input" Grid.Row="2" Grid.Column="2" Name="ValueTextBox" Watermark="e.g. 0xFF" />
       </Grid>
     </StackPanel>
   </DockPanel>

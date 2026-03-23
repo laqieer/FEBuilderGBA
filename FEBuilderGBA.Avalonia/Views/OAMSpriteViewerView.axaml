@@ -6,7 +6,7 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <!-- Address list -->
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="OAMSpriteViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="4" Margin="8">
@@ -17,7 +17,7 @@
         <!-- Section selector -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4">
           <TextBlock Text="Section:" VerticalAlignment="Center" FontWeight="SemiBold" />
-          <ComboBox Name="SectionCombo" Width="280" />
+          <ComboBox AutomationProperties.AutomationId="OAMSpriteViewer_Section_Combo" Name="SectionCombo" Width="280" />
         </StackPanel>
 
         <!-- Frame navigation -->
@@ -27,11 +27,11 @@
           <StackPanel Spacing="4">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="Frame:" VerticalAlignment="Center" FontWeight="SemiBold" />
-              <NumericUpDown FormatString="0" Name="FrameUpDown" Minimum="0" Maximum="0" Value="0" Width="100" />
-              <Button Content="Prev" Click="PrevFrame_Click" Padding="8,4" />
-              <Button Content="Next" Click="NextFrame_Click" Padding="8,4" />
+              <NumericUpDown AutomationProperties.AutomationId="OAMSpriteViewer_FrameUpDown_Input" FormatString="0" Name="FrameUpDown" Minimum="0" Maximum="0" Value="0" Width="100" />
+              <Button AutomationProperties.AutomationId="OAMSpriteViewer_PrevFrame_Button" Content="Prev" Click="PrevFrame_Click" Padding="8,4" />
+              <Button AutomationProperties.AutomationId="OAMSpriteViewer_NextFrame_Button" Content="Next" Click="NextFrame_Click" Padding="8,4" />
             </StackPanel>
-            <TextBlock Name="FrameInfoLabel" FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
+            <TextBlock AutomationProperties.AutomationId="OAMSpriteViewer_FrameInfo_Label" Name="FrameInfoLabel" FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
 
@@ -39,20 +39,20 @@
         <TextBlock Text="Rendered Frame:" FontWeight="SemiBold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="4"
                 Background="#20000000" MinHeight="160" MinWidth="240">
-          <controls:GbaImageControl Name="FrameImageControl" />
+          <controls:GbaImageControl AutomationProperties.AutomationId="OAMSpriteViewer_FrameImage_Image" Name="FrameImageControl" />
         </Border>
 
         <!-- Tile sheet reference -->
         <TextBlock Text="Tile Sheet (Reference):" FontWeight="SemiBold" Margin="0,12,0,2" />
-        <TextBlock Name="TileSheetInfoLabel" FontSize="12" Foreground="Gray" />
+        <TextBlock AutomationProperties.AutomationId="OAMSpriteViewer_TileSheetInfo_Label" Name="TileSheetInfoLabel" FontSize="12" Foreground="Gray" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="4"
                 Background="#20000000" Name="TileSheetPanel" IsVisible="False">
-          <controls:GbaImageControl Name="TileSheetImage" />
+          <controls:GbaImageControl AutomationProperties.AutomationId="OAMSpriteViewer_TileSheet_Image" Name="TileSheetImage" />
         </Border>
 
         <!-- Export -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-          <Button Content="Export Frame PNG" Click="ExportFrame_Click" Padding="8,4" />
+          <Button AutomationProperties.AutomationId="OAMSpriteViewer_ExportFrame_Button" Content="Export Frame PNG" Click="ExportFrame_Click" Padding="8,4" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

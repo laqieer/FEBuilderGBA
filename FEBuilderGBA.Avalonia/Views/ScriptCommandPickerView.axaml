@@ -7,15 +7,15 @@
   <DockPanel Margin="12">
     <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
-      <Button Name="SelectButton" Content="Select" Width="80" Click="Select_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+      <Button AutomationProperties.AutomationId="ScriptCommandPicker_Select_Button" Name="SelectButton" Content="Select" Width="80" Click="Select_Click" />
+      <Button AutomationProperties.AutomationId="ScriptCommandPicker_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
 
     <!-- Info panel at bottom -->
     <Border DockPanel.Dock="Bottom" Background="#10808080" CornerRadius="4" Padding="8" Margin="0,8,0,0"
             MinHeight="60" MaxHeight="120">
       <ScrollViewer>
-        <TextBlock Name="InfoLabel" TextWrapping="Wrap" FontSize="12" />
+        <TextBlock AutomationProperties.AutomationId="ScriptCommandPicker_Info_Label" Name="InfoLabel" TextWrapping="Wrap" FontSize="12" />
       </ScrollViewer>
     </Border>
 
@@ -24,7 +24,7 @@
       <!-- Left: Category list -->
       <DockPanel Grid.Column="0">
         <TextBlock DockPanel.Dock="Top" Text="Categories" FontWeight="SemiBold" Margin="0,0,0,4" />
-        <ListBox Name="CategoryList" SelectionMode="Single"
+        <ListBox AutomationProperties.AutomationId="ScriptCommandPicker_Category_List" Name="CategoryList" SelectionMode="Single"
                  SelectionChanged="CategoryList_SelectionChanged" />
       </DockPanel>
 
@@ -32,9 +32,9 @@
 
       <!-- Right: Filter + Script commands list -->
       <DockPanel Grid.Column="2">
-        <TextBox Name="FilterBox" DockPanel.Dock="Top" Watermark="Filter commands..."
+        <TextBox AutomationProperties.AutomationId="ScriptCommandPicker_Filter_Input" Name="FilterBox" DockPanel.Dock="Top" Watermark="Filter commands..."
                  Margin="0,0,0,4" />
-        <ListBox Name="ScriptList" FontFamily="Consolas" FontSize="12"
+        <ListBox AutomationProperties.AutomationId="ScriptCommandPicker_Script_List" Name="ScriptList" FontFamily="Consolas" FontSize="12"
                  SelectionMode="Single"
                  SelectionChanged="ScriptList_SelectionChanged" />
       </DockPanel>

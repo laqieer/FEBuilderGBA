@@ -5,7 +5,7 @@
         Title="Stat Bonuses (Venno)" Width="1291" Height="587"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ItemStatBonusesVenno_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -13,7 +13,7 @@
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemStatBonusesVenno_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
 
         <!-- Stat Bonuses Row -->
@@ -29,15 +29,15 @@
           <TextBlock Grid.Row="0" Grid.Column="7" Text="Move" Width="70" Margin="2" HorizontalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="8" Text="Con" Width="70" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="5" Name="ResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="6" Name="LuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="7" Name="MoveBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="8" Name="ConBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_HP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="HPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Str_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="StrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Skill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="SkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Speed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="SpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Def_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="DefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Res_Input" FormatString="0" Grid.Row="1" Grid.Column="5" Name="ResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Luck_Input" FormatString="0" Grid.Row="1" Grid.Column="6" Name="LuckBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Move_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="MoveBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_Con_Input" FormatString="0" Grid.Row="1" Grid.Column="8" Name="ConBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
         </Grid>
 
         <!-- Growth Rate Bonuses Row -->
@@ -50,16 +50,16 @@
           <TextBlock Grid.Row="0" Grid.Column="4" Text="Defense" Width="70" Margin="2" HorizontalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="5" Text="Resistance" Width="70" Margin="2" HorizontalAlignment="Center" />
 
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="5" Name="GrowResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowHP_Input" FormatString="0" Grid.Row="1" Grid.Column="0" Name="GrowHPBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowStr_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowStrBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="2" Name="GrowSkillBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowSpeed_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowSpeedBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowDef_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="GrowDefBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemStatBonusesVenno_GrowRes_Input" FormatString="0" Grid.Row="1" Grid.Column="5" Name="GrowResBox" Minimum="-128" Maximum="127" Width="70" Margin="2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ItemStatBonusesVenno_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

@@ -13,19 +13,19 @@
 
     <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Personal Skill:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="PersonalSkillBox" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_PersonalSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="PersonalSkillBox" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="2" Grid.Column="0" Text="Skill Set 1:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="SkillSet1Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_SkillSet1_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="SkillSet1Box" Minimum="0" Maximum="255" Margin="0,4" />
 
       <TextBlock Grid.Row="3" Grid.Column="0" Text="Skill Set 2:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="SkillSet2Box" Minimum="0" Maximum="255" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_SkillSet2_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="SkillSet2Box" Minimum="0" Maximum="255" Margin="0,4" />
     </Grid>
 
-    <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
+    <Button AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
   </ScrollViewer>
 </Window>

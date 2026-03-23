@@ -5,23 +5,23 @@
         Title="Text Editor" Width="1166" Height="930"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="300,*">
-    <controls:AddressListControl Grid.Column="0" Name="TextList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="TextViewer_Text_List" Grid.Column="0" Name="TextList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Text Editor" FontSize="18" FontWeight="Bold" />
 
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button Name="ExportButton" Content="Export All Texts (TSV)" Click="OnExportClick" />
-          <Button Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
+          <Button AutomationProperties.AutomationId="TextViewer_Export_Button" Name="ExportButton" Content="Export All Texts (TSV)" Click="OnExportClick" />
+          <Button AutomationProperties.AutomationId="TextViewer_Import_Button" Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
         </StackPanel>
 
         <!-- Content search -->
         <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBox Name="ContentSearchBox" Watermark="Search in text content..." Width="300" />
-          <Button Content="Search Content" Click="OnSearchContentClick" />
-          <Button Content="Show All" Click="OnShowAllClick" />
-          <TextBlock Name="SearchResultLabel" VerticalAlignment="Center" Foreground="Gray" Margin="8,0,0,0" />
+          <TextBox AutomationProperties.AutomationId="TextViewer_ContentSearch_Input" Name="ContentSearchBox" Watermark="Search in text content..." Width="300" />
+          <Button AutomationProperties.AutomationId="TextViewer_SearchContentClick_Button" Content="Search Content" Click="OnSearchContentClick" />
+          <Button AutomationProperties.AutomationId="TextViewer_ShowAllClick_Button" Content="Show All" Click="OnShowAllClick" />
+          <TextBlock AutomationProperties.AutomationId="TextViewer_SearchResult_Label" Name="SearchResultLabel" VerticalAlignment="Center" Foreground="Gray" Margin="8,0,0,0" />
         </StackPanel>
 
         <TextBlock Name="TextIdLabel" Text="ID:" FontSize="14" />
@@ -31,21 +31,21 @@
         </Border>
 
         <TextBlock Text="Edit Text:" FontWeight="SemiBold" Margin="0,12,0,4" />
-        <TextBox Name="EditTextBox" AcceptsReturn="True" TextWrapping="Wrap"
+        <TextBox AutomationProperties.AutomationId="TextViewer_EditText_Input" Name="EditTextBox" AcceptsReturn="True" TextWrapping="Wrap"
                  MinHeight="100" MaxHeight="300" />
 
         <!-- Length validation warning -->
-        <TextBlock Name="LengthWarningLabel" Margin="0,4,0,0" FontSize="12" />
+        <TextBlock AutomationProperties.AutomationId="TextViewer_LengthWarning_Label" Name="LengthWarningLabel" Margin="0,4,0,0" FontSize="12" />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Name="WriteTextButton" Content="Write Text" />
-          <TextBlock Name="WriteStatusLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <Button AutomationProperties.AutomationId="TextViewer_WriteText_Button" Name="WriteTextButton" Content="Write Text" />
+          <TextBlock AutomationProperties.AutomationId="TextViewer_WriteStatus_Label" Name="WriteStatusLabel" VerticalAlignment="Center" Foreground="Gray" />
         </StackPanel>
 
         <!-- Cross-references -->
         <TextBlock Text="Cross-References:" FontWeight="SemiBold" Margin="0,16,0,4" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" MinHeight="40">
-          <ItemsControl Name="CrossRefList">
+          <ItemsControl AutomationProperties.AutomationId="TextViewer_CrossRef_List" Name="CrossRefList">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
                 <TextBlock Text="{Binding}" FontSize="12" Margin="0,1" />

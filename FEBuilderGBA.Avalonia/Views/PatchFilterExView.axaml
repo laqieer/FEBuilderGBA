@@ -8,12 +8,12 @@
   <DockPanel Margin="16">
     <TextBlock DockPanel.Dock="Top" Text="Patch Filter" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="OK" Width="80" Click="OK_Click" />
-      <Button Content="Cancel" Width="80" Click="Cancel_Click" />
+      <Button AutomationProperties.AutomationId="PatchFilterEx_OK_Button" Content="OK" Width="80" Click="OK_Click" />
+      <Button AutomationProperties.AutomationId="PatchFilterEx_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
     <StackPanel Spacing="8">
       <TextBlock Text="Filter text:" />
-      <TextBox Name="FilterTextBox" Text="{Binding FilterText}" Watermark="Enter filter keywords..." />
+      <TextBox AutomationProperties.AutomationId="PatchFilterEx_FilterText_Input" Name="FilterTextBox" Text="{Binding FilterText}" Watermark="Enter filter keywords..." />
     </StackPanel>
   </DockPanel>
   </ScrollViewer>

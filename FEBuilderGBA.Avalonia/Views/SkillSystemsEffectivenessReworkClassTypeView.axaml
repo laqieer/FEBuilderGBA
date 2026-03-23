@@ -13,13 +13,13 @@
 
     <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto" IsVisible="False" Name="FieldsPanel">
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <TextBlock AutomationProperties.AutomationId="SkillSystemsEffectivenessReworkClassType_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Class Type:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassTypeBox" Minimum="0" Maximum="65535" Margin="0,4" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillSystemsEffectivenessReworkClassType_ClassType_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassTypeBox" Minimum="0" Maximum="65535" Margin="0,4" />
     </Grid>
 
-    <Button Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
+    <Button AutomationProperties.AutomationId="SkillSystemsEffectivenessReworkClassType_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
   </StackPanel>
   </ScrollViewer>
 </Window>

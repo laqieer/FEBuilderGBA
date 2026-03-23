@@ -17,11 +17,11 @@
                Text="Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue." />
     <!-- 3 action buttons (WinForms button1 274x35, button2 265x35, button3 257x35) -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="6">
-      <Button Name="Button1" Content="Give Up" Width="274" Height="35"
+      <Button AutomationProperties.AutomationId="TextBadCharPopup_Button1_Button" Name="Button1" Content="Give Up" Width="274" Height="35"
               Click="GiveUp_Click" />
-      <Button Name="Button2" Content="Anti-Huffman" Width="265" Height="35"
+      <Button AutomationProperties.AutomationId="TextBadCharPopup_Button2_Button" Name="Button2" Content="Anti-Huffman" Width="265" Height="35"
               Click="AntiHuffman_Click" />
-      <Button Name="Button3" Content="Encoding Table" Width="257" Height="35"
+      <Button AutomationProperties.AutomationId="TextBadCharPopup_Button3_Button" Name="Button3" Content="Encoding Table" Width="257" Height="35"
               Click="EncodingTable_Click" />
     </StackPanel>
   </DockPanel>

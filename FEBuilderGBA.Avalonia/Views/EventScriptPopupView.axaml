@@ -10,15 +10,15 @@
     <!-- Address input bar -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
       <TextBlock Text="Address:" VerticalAlignment="Center" />
-      <TextBox Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
+      <TextBox AutomationProperties.AutomationId="EventScriptPopup_Address_Input" Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
                FontFamily="Consolas" FontSize="13" />
-      <Button Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
-      <TextBlock Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" />
+      <Button AutomationProperties.AutomationId="EventScriptPopup_Disassemble_Button" Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
+      <TextBlock AutomationProperties.AutomationId="EventScriptPopup_Status_Label" Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" />
     </StackPanel>
 
     <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="EventScriptPopup_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
 
     <!-- Main content: split between command list and parameter editor -->
@@ -26,7 +26,7 @@
       <!-- Left: Disassembled commands list -->
       <DockPanel Grid.Column="0">
         <TextBlock DockPanel.Dock="Top" Text="Commands" FontWeight="SemiBold" Margin="0,0,0,4" />
-        <ListBox Name="CommandsList" FontFamily="Consolas" FontSize="12"
+        <ListBox AutomationProperties.AutomationId="EventScriptPopup_Commands_List" Name="CommandsList" FontFamily="Consolas" FontSize="12"
                  SelectionMode="Single" SelectionChanged="CommandsList_SelectionChanged" />
       </DockPanel>
 
@@ -44,9 +44,9 @@
 
         <!-- Write button at bottom -->
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button Name="WriteButton" Content="Write to ROM" Click="Write_Click" IsEnabled="False"
+          <Button AutomationProperties.AutomationId="EventScriptPopup_Write_Button" Name="WriteButton" Content="Write to ROM" Click="Write_Click" IsEnabled="False"
                   Background="{DynamicResource ScriptCategoryButtonBrush}" Foreground="White" Padding="16,6" />
-          <Button Name="RefreshButton" Content="Refresh" Click="Refresh_Click" IsEnabled="False"
+          <Button AutomationProperties.AutomationId="EventScriptPopup_Refresh_Button" Name="RefreshButton" Content="Refresh" Click="Refresh_Click" IsEnabled="False"
                   Padding="16,6" />
         </StackPanel>
 

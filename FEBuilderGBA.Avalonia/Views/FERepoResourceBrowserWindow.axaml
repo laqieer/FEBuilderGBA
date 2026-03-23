@@ -18,9 +18,9 @@
                 Margin="8" Spacing="8">
       <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
                  HorizontalAlignment="Left" Width="500" />
-      <Button Content="Insert" IsEnabled="{Binding CanInsert}"
+      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_InsertButton_Button" Content="Insert" IsEnabled="{Binding CanInsert}"
               Click="InsertButton_Click" Width="80" />
-      <Button Content="Cancel" Click="CancelButton_Click" Width="80" />
+      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CancelButton_Button" Content="Cancel" Click="CancelButton_Click" Width="80" />
     </StackPanel>
 
     <!-- Main content: categories | files + preview -->
@@ -39,7 +39,7 @@
       <!-- Right: files + preview -->
       <Grid Grid.Column="1" RowDefinitions="*,*">
         <!-- File list -->
-        <ListBox Grid.Row="0" ItemsSource="{Binding ResourceFiles}"
+        <ListBox AutomationProperties.AutomationId="FERepoResourceBrowser_ListBox1_List" Grid.Row="0" ItemsSource="{Binding ResourceFiles}"
                  SelectedItem="{Binding SelectedFile}"
                  Margin="4">
           <ListBox.ItemTemplate>
@@ -51,7 +51,7 @@
 
         <!-- Preview -->
         <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}" Margin="4" CornerRadius="4">
-          <Image Source="{Binding PreviewImage}"
+          <Image AutomationProperties.AutomationId="FERepoResourceBrowser_Image1_Image" Source="{Binding PreviewImage}"
                  Stretch="Uniform"
                  Margin="8" />
         </Border>

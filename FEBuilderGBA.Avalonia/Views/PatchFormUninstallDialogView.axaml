@@ -13,16 +13,16 @@
       <Grid Grid.Row="0" ColumnDefinitions="196,130,*">
         <TextBlock Grid.Column="0" Text="ROM without patch"
                    TextWrapping="Wrap" VerticalAlignment="Center" Height="79" />
-        <Button Grid.Column="1" Content="Select file" Width="130" Height="31"
+        <Button AutomationProperties.AutomationId="PatchFormUninstallDialog_SelectOriginal_Button" Grid.Column="1" Content="Select file" Width="130" Height="31"
                 Click="SelectOriginal_Click" />
-        <TextBox Grid.Column="2" Text="{Binding OriginalFilename}"
+        <TextBox AutomationProperties.AutomationId="PatchFormUninstallDialog_TextBox1_Input" Grid.Column="2" Text="{Binding OriginalFilename}"
                  Height="25" Margin="8,0,0,0" />
       </Grid>
       <!-- Warning text -->
       <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="196,12,0,0"
                  Text="Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand." />
       <!-- Uninstall button -->
-      <Button Grid.Row="2" Content="Uninstall" Height="32"
+      <Button AutomationProperties.AutomationId="PatchFormUninstallDialog_Yes_Button" Grid.Row="2" Content="Uninstall" Height="32"
               HorizontalAlignment="Stretch" Margin="196,8,0,0"
               Click="Yes_Click" />
     </Grid>

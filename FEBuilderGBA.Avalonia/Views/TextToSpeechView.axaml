@@ -11,11 +11,11 @@
     <StackPanel DockPanel.Dock="Bottom" Spacing="8" Margin="0,8,0,0">
       <TextBlock Name="StatusLabel" Text="Ready" Foreground="Gray" />
       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-        <Button Content="Speak" Width="80" Click="Speak_Click" />
-        <Button Content="Close" Width="80" Click="Close_Click" />
+        <Button AutomationProperties.AutomationId="TextToSpeech_Speak_Button" Content="Speak" Width="80" Click="Speak_Click" />
+        <Button AutomationProperties.AutomationId="TextToSpeech_Close_Button" Content="Close" Width="80" Click="Close_Click" />
       </StackPanel>
     </StackPanel>
-    <TextBox Name="InputTextBox" AcceptsReturn="True" Watermark="Enter text here..." />
+    <TextBox AutomationProperties.AutomationId="TextToSpeech_InputText_Input" Name="InputTextBox" AcceptsReturn="True" Watermark="Enter text here..." />
   </DockPanel>
   </ScrollViewer>
 </Window>

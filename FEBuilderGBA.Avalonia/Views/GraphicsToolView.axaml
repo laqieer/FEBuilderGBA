@@ -26,32 +26,32 @@
       </Grid.RowDefinitions>
 
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Image Address:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <TextBox Grid.Row="0" Grid.Column="1" x:Name="ImageAddrBox" Watermark="0x08000000"
+      <TextBox AutomationProperties.AutomationId="GraphicsTool_ImageAddr_Input" Grid.Row="0" Grid.Column="1" x:Name="ImageAddrBox" Watermark="0x08000000"
                Text="{Binding ImageAddressText}" Margin="0,0,16,4" />
       <TextBlock Grid.Row="0" Grid.Column="2" Text="Palette Address:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <TextBox Grid.Row="0" Grid.Column="3" x:Name="PaletteAddrBox" Watermark="0x08000000"
+      <TextBox AutomationProperties.AutomationId="GraphicsTool_PaletteAddr_Input" Grid.Row="0" Grid.Column="3" x:Name="PaletteAddrBox" Watermark="0x08000000"
                Text="{Binding PaletteAddressText}" Margin="0,0,0,4" />
 
       <TextBlock Grid.Row="1" Grid.Column="0" Text="Tiles X:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="TilesXBox" Value="{Binding TileCountX}"
+      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesX_Input" Grid.Row="1" Grid.Column="1" x:Name="TilesXBox" Value="{Binding TileCountX}"
                      Minimum="1" Maximum="64" FormatString="0" Margin="0,0,16,4" />
       <TextBlock Grid.Row="1" Grid.Column="2" Text="Tiles Y:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <NumericUpDown Grid.Row="1" Grid.Column="3" x:Name="TilesYBox" Value="{Binding TileCountY}"
+      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesY_Input" Grid.Row="1" Grid.Column="3" x:Name="TilesYBox" Value="{Binding TileCountY}"
                      Minimum="1" Maximum="64" FormatString="0" Margin="0,0,0,4" />
 
       <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
-        <CheckBox x:Name="Is4bppCheck" Content="4bpp" IsChecked="{Binding Is4bpp}" />
-        <CheckBox x:Name="CompressedCheck" Content="LZ77 Compressed" IsChecked="{Binding IsCompressed}" />
+        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Is4bpp_Check" x:Name="Is4bppCheck" Content="4bpp" IsChecked="{Binding Is4bpp}" />
+        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Compressed_Check" x:Name="CompressedCheck" Content="LZ77 Compressed" IsChecked="{Binding IsCompressed}" />
         <TextBlock Text="Zoom:" VerticalAlignment="Center" />
-        <NumericUpDown x:Name="ZoomBox" Value="{Binding Zoom}" Minimum="1" Maximum="8"
+        <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_Zoom_Input" x:Name="ZoomBox" Value="{Binding Zoom}" Minimum="1" Maximum="8"
                        FormatString="0" Width="80" />
       </StackPanel>
     </Grid>
 
     <!-- Buttons -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-      <Button Content="Draw" Width="80" Click="Draw_Click" />
-      <Button Content="Close" Width="80" Click="Close_Click" />
+      <Button AutomationProperties.AutomationId="GraphicsTool_Draw_Button" Content="Draw" Width="80" Click="Draw_Click" />
+      <Button AutomationProperties.AutomationId="GraphicsTool_Close_Button" Content="Close" Width="80" Click="Close_Click" />
       <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
     </StackPanel>
 
@@ -61,7 +61,7 @@
     <!-- Image display -->
     <Border Background="{DynamicResource SubtlePanelBackgroundBrush}" BorderBrush="{DynamicResource SubtlePanelBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="4"
             MinHeight="128" MinWidth="128">
-      <controls:GbaImageControl x:Name="ImageDisplay" />
+      <controls:GbaImageControl AutomationProperties.AutomationId="GraphicsTool_Image_Image" x:Name="ImageDisplay" />
     </Border>
   </DockPanel>
   </ScrollViewer>

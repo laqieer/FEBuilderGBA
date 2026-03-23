@@ -5,7 +5,7 @@
         Title="Instrument Editor" Width="1151" Height="757"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="280,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="SongInstrument_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,13 +14,13 @@
         <!-- Common header -->
         <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongInstrument_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Header Byte:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="HeaderByteBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="SongInstrument_HeaderByte_Input" Grid.Row="1" Grid.Column="1" Name="HeaderByteBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="TypeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="SongInstrument_TypeName_Label" Grid.Row="2" Grid.Column="1" Name="TypeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
 
         <Separator Margin="0,4" />
@@ -30,19 +30,19 @@
           <TextBlock Text="Wave Pointer + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
           <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Wave Pointer:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="WavePtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_WavePtr_Input" Grid.Row="0" Grid.Column="1" Name="WavePtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="DS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Attack_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="DS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Decay_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="DS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Sustain_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="DS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Release_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="DS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -51,25 +51,25 @@
           <TextBlock Text="Square Wave Parameters + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
           <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sweep:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="SweepBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_Sweep_Input" Grid.Row="0" Grid.Column="1" Name="SweepBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Duty / Length:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="DutyLenBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DutyLen_Input" Grid.Row="1" Grid.Column="1" Name="DutyLenBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Envelope Step:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="2" Grid.Column="1" Name="EnvStepBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_EnvStep_Input" Grid.Row="2" Grid.Column="1" Name="EnvStepBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="SQ_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Attack_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="SQ_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="SQ_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Decay_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="SQ_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="5" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="5" Grid.Column="1" Name="SQ_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Sustain_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="SQ_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="6" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="SQ_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Release_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="SQ_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -78,19 +78,19 @@
           <TextBlock Text="Noise Parameters + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
           <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Period:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="PeriodBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_Period_Input" Grid.Row="0" Grid.Column="1" Name="PeriodBox" Minimum="0" Maximum="255" FormatString="X2" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="NS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Attack_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="2" Grid.Column="1" Name="NS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Decay_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="3" Grid.Column="1" Name="NS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Sustain_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown FormatString="0" Grid.Row="4" Grid.Column="1" Name="NS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Release_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -99,10 +99,10 @@
           <TextBlock Text="Multi Sample Pointers" FontWeight="SemiBold" Margin="0,4,0,0" />
           <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Key Map Pointer:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="KeyMapPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_KeyMapPtr_Input" Grid.Row="0" Grid.Column="1" Name="KeyMapPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Sub-Instrument Ptr:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" Name="MS_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_MS_SubInstrPtr_Input" Grid.Row="1" Grid.Column="1" Name="MS_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -111,7 +111,7 @@
           <TextBlock Text="Drum Part Pointer" FontWeight="SemiBold" Margin="0,4,0,0" />
           <Grid ColumnDefinitions="160,200" RowDefinitions="Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sub-Instrument Ptr:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown Grid.Row="0" Grid.Column="1" Name="DR_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DR_SubInstrPtr_Input" Grid.Row="0" Grid.Column="1" Name="DR_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="X8" VerticalAlignment="Center" Margin="0,2" />
           </Grid>
         </StackPanel>
 
@@ -121,7 +121,7 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SongInstrument_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

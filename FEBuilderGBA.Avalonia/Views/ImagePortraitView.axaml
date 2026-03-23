@@ -5,124 +5,124 @@
         Title="Portrait Image Editor" Width="900" Height="700"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="ImagePortrait_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Portrait Image Editor" FontSize="18" FontWeight="Bold" />
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-          <Button Content="Import PNG" Click="ImportPng_Click" />
-          <Button Content="FE-Repo" Click="FERepoButton_Click" />
-          <Button Content="Export Face" Click="ExportPng_Click" />
-          <Button Content="Export Mini" Click="ExportMini_Click" />
-          <Button Content="Export Sheet" Click="ExportSheet_Click" />
-          <Button Content="Export PAL" Click="ExportPal_Click" />
-          <Button Content="Import PAL" Click="ImportPal_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_FERepoButton_Button" Content="FE-Repo" Click="FERepoButton_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ExportPng_Button" Content="Export Face" Click="ExportPng_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ExportMini_Button" Content="Export Mini" Click="ExportMini_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ExportSheet_Button" Content="Export Sheet" Click="ExportSheet_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
         </StackPanel>
 
         <!-- Main face + mini portrait side by side -->
         <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
           <StackPanel Spacing="4">
             <TextBlock Text="Unit Face (96x80)" FontWeight="SemiBold" />
-            <controls:GbaImageControl Name="PortraitImage" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_Portrait_Image" Name="PortraitImage" />
           </StackPanel>
           <StackPanel Spacing="4">
             <TextBlock Text="Map Face (32x32)" FontWeight="SemiBold" />
-            <controls:GbaImageControl Name="MiniPortraitImage" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_MiniPortrait_Image" Name="MiniPortraitImage" />
           </StackPanel>
           <StackPanel Spacing="4">
             <TextBlock Text="Class Card" FontWeight="SemiBold" />
-            <controls:GbaImageControl Name="ClassCardImage" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_ClassCard_Image" Name="ClassCardImage" />
           </StackPanel>
         </StackPanel>
 
         <!-- Frame selector -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
           <TextBlock Text="Show Frame:" VerticalAlignment="Center" FontWeight="SemiBold" />
-          <NumericUpDown FormatString="0" Name="ShowFrameSelector" Minimum="0" Maximum="9" Value="0"
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_ShowFrameSelector_Input" FormatString="0" Name="ShowFrameSelector" Minimum="0" Maximum="9" Value="0"
                          Increment="1" Width="80" ValueChanged="ShowFrame_ValueChanged" />
-          <TextBlock Name="ShowFrameLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_ShowFrame_Label" Name="ShowFrameLabel" VerticalAlignment="Center" Foreground="Gray" />
         </StackPanel>
 
         <!-- Mouth and eye frame strips -->
         <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
           <StackPanel Spacing="4">
             <TextBlock Text="Mouth Frames (32x16 x6)" FontWeight="SemiBold" />
-            <controls:GbaImageControl Name="MouthStripImage" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_MouthStrip_Image" Name="MouthStripImage" />
           </StackPanel>
           <StackPanel Spacing="4">
             <TextBlock Text="Eye Frames (32x16 x2)" FontWeight="SemiBold" />
-            <controls:GbaImageControl Name="EyeStripImage" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_EyeStrip_Image" Name="EyeStripImage" />
           </StackPanel>
         </StackPanel>
 
         <Grid ColumnDefinitions="160,200,Auto,60,Auto,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 1: Unit Face (D0) -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Face:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="PortraitImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_PortraitImagePtr_Label" Grid.Row="1" Grid.Column="1" Name="PortraitImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 2: Map Face (D4) -->
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="MiniPortraitPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_MiniPortraitPtr_Label" Grid.Row="2" Grid.Column="1" Name="MiniPortraitPtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 3: Palette (D8) -->
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_PalettePtr_Label" Grid.Row="3" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 4: Mouth Frames (D12) -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Mouth Frames:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Name="MouthFramesPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_MouthFramesPtr_Label" Grid.Row="4" Grid.Column="1" Name="MouthFramesPtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 5: Class Card (D16) -->
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Class Card:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Name="ClassCardPtrLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_ClassCardPtr_Label" Grid.Row="5" Grid.Column="1" Name="ClassCardPtrLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 6: Mouth Coord (editable) -->
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MouthX_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
                          Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <TextBlock Grid.Row="6" Grid.Column="2" Text="Mouth Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="6" Grid.Column="3" Name="MouthYInput" Minimum="0" Maximum="255"
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MouthY_Input" FormatString="0" Grid.Row="6" Grid.Column="3" Name="MouthYInput" Minimum="0" Maximum="255"
                          Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <!-- Row 7: Eye Coord (editable) -->
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Eye X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="1" Name="EyeXInput" Minimum="0" Maximum="255"
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_EyeX_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="EyeXInput" Minimum="0" Maximum="255"
                          Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <TextBlock Grid.Row="7" Grid.Column="2" Text="Eye Y:" VerticalAlignment="Center" Margin="8,2,0,2" />
-          <NumericUpDown FormatString="0" Grid.Row="7" Grid.Column="3" Name="EyeYInput" Minimum="0" Maximum="255"
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_EyeY_Input" FormatString="0" Grid.Row="7" Grid.Column="3" Name="EyeYInput" Minimum="0" Maximum="255"
                          Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
           <!-- Write Positions button -->
-          <Button Grid.Row="7" Grid.Column="4" Grid.ColumnSpan="2" Content="Write Positions"
+          <Button AutomationProperties.AutomationId="ImagePortrait_WritePositions_Button" Grid.Row="7" Grid.Column="4" Grid.ColumnSpan="2" Content="Write Positions"
                   Click="WritePositions_Click" Margin="8,2,0,2" VerticalAlignment="Center" />
 
           <!-- Row 8: Status (B24) -->
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Status:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="8" Grid.Column="1" Name="StatusLabel" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_Status_Label" Grid.Row="8" Grid.Column="1" Name="StatusLabel" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 9: Unused25 (B25) -->
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Unused (B25):" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="9" Grid.Column="1" Name="Unused25Label" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused25_Label" Grid.Row="9" Grid.Column="1" Name="Unused25Label" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 10: Unused26 (B26) -->
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Unused (B26):" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="10" Grid.Column="1" Name="Unused26Label" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused26_Label" Grid.Row="10" Grid.Column="1" Name="Unused26Label" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 11: Unused27 (B27) -->
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Unused (B27):" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock Grid.Row="11" Grid.Column="1" Name="Unused27Label" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused27_Label" Grid.Row="11" Grid.Column="1" Name="Unused27Label" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

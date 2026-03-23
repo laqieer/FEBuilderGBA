@@ -13,7 +13,7 @@
         <TextBlock Name="MESSAGE" Text="Short Bit Flags (16-bit)"
                    HorizontalAlignment="Center" VerticalAlignment="Center" />
       </Border>
-      <Button Grid.Column="1" Name="ApplyButton" Content="Apply" Width="181" Height="40"
+      <Button AutomationProperties.AutomationId="UshortBitFlag_Apply_Button" Grid.Column="1" Name="ApplyButton" Content="Apply" Width="181" Height="40"
               Margin="8,0,0,0" Click="OK_Click" />
     </Grid>
     <!-- Main panel: Two side-by-side GroupBoxes (WinForms J_40 333x316 + J_41 333x316) -->
@@ -25,16 +25,16 @@
           <StackPanel Spacing="2">
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
               <TextBlock Text="Low byte:" VerticalAlignment="Center" />
-              <NumericUpDown FormatString="0" Name="B40" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+              <NumericUpDown AutomationProperties.AutomationId="UshortBitFlag_B40_Input" FormatString="0" Name="B40" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
             </StackPanel>
-            <CheckBox Name="Bit0Box"  Content="Bit 0  (0x01)" />
-            <CheckBox Name="Bit1Box"  Content="Bit 1  (0x02)" />
-            <CheckBox Name="Bit2Box"  Content="Bit 2  (0x04)" />
-            <CheckBox Name="Bit3Box"  Content="Bit 3  (0x08)" />
-            <CheckBox Name="Bit4Box"  Content="Bit 4  (0x10)" />
-            <CheckBox Name="Bit5Box"  Content="Bit 5  (0x20)" />
-            <CheckBox Name="Bit6Box"  Content="Bit 6  (0x40)" />
-            <CheckBox Name="Bit7Box"  Content="Bit 7  (0x80)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit0_Check" Name="Bit0Box"  Content="Bit 0  (0x01)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit1_Check" Name="Bit1Box"  Content="Bit 1  (0x02)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit2_Check" Name="Bit2Box"  Content="Bit 2  (0x04)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit3_Check" Name="Bit3Box"  Content="Bit 3  (0x08)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit4_Check" Name="Bit4Box"  Content="Bit 4  (0x10)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit5_Check" Name="Bit5Box"  Content="Bit 5  (0x20)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit6_Check" Name="Bit6Box"  Content="Bit 6  (0x40)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit7_Check" Name="Bit7Box"  Content="Bit 7  (0x80)" />
           </StackPanel>
         </Border>
         <!-- Right column: bits 8-15 -->
@@ -43,16 +43,16 @@
           <StackPanel Spacing="2">
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,4">
               <TextBlock Text="High byte:" VerticalAlignment="Center" />
-              <NumericUpDown FormatString="0" Name="B41" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
+              <NumericUpDown AutomationProperties.AutomationId="UshortBitFlag_B41_Input" FormatString="0" Name="B41" Width="80" Height="25" Minimum="0" Maximum="255" Value="0" />
             </StackPanel>
-            <CheckBox Name="Bit8Box"  Content="Bit 8  (0x01)" />
-            <CheckBox Name="Bit9Box"  Content="Bit 9  (0x02)" />
-            <CheckBox Name="Bit10Box" Content="Bit 10 (0x04)" />
-            <CheckBox Name="Bit11Box" Content="Bit 11 (0x08)" />
-            <CheckBox Name="Bit12Box" Content="Bit 12 (0x10)" />
-            <CheckBox Name="Bit13Box" Content="Bit 13 (0x20)" />
-            <CheckBox Name="Bit14Box" Content="Bit 14 (0x40)" />
-            <CheckBox Name="Bit15Box" Content="Bit 15 (0x80)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit8_Check" Name="Bit8Box"  Content="Bit 8  (0x01)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit9_Check" Name="Bit9Box"  Content="Bit 9  (0x02)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit10_Check" Name="Bit10Box" Content="Bit 10 (0x04)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit11_Check" Name="Bit11Box" Content="Bit 11 (0x08)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit12_Check" Name="Bit12Box" Content="Bit 12 (0x10)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit13_Check" Name="Bit13Box" Content="Bit 13 (0x20)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit14_Check" Name="Bit14Box" Content="Bit 14 (0x40)" />
+            <CheckBox AutomationProperties.AutomationId="UshortBitFlag_Bit15_Check" Name="Bit15Box" Content="Bit 15 (0x80)" />
           </StackPanel>
         </Border>
       </Grid>

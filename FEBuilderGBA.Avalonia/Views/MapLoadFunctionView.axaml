@@ -5,7 +5,7 @@
         Title="Map Load Functions" Width="1253" Height="790"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="MapLoadFunction_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -14,16 +14,16 @@
 
         <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto" Margin="0,8,0,0">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapLoadFunction_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown FormatString="0" Grid.Row="1" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="MapLoadFunction_Pointer_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Info:" VerticalAlignment="Center" Margin="0,4" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Name="PointerInfoLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
+          <TextBlock AutomationProperties.AutomationId="MapLoadFunction_PointerInfo_Label" Grid.Row="2" Grid.Column="1" Name="PointerInfoLabel" VerticalAlignment="Center" Grid.ColumnSpan="2" />
         </Grid>
 
-        <Button Content="Write" Click="Write_Click" Width="168" Height="30" Margin="0,8,0,0" />
+        <Button AutomationProperties.AutomationId="MapLoadFunction_Write_Button" Content="Write" Click="Write_Click" Width="168" Height="30" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

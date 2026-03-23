@@ -20,9 +20,9 @@
     <!-- Buttons -->
     <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                 Orientation="Horizontal" Margin="0,8,0,0">
-      <Button Content="Close" Width="317" Height="42"
+      <Button AutomationProperties.AutomationId="ToolWorkSupport_UpdateQuestionDialog_Cancel_Button" Content="Close" Width="317" Height="42"
               Click="Cancel_Click" />
-      <Button Content="Force Update" Width="450" Height="42"
+      <Button AutomationProperties.AutomationId="ToolWorkSupport_UpdateQuestionDialog_ForceUpdate_Button" Content="Force Update" Width="450" Height="42"
               Margin="20,0,0,0" Click="ForceUpdate_Click" />
     </StackPanel>
   </Grid>
