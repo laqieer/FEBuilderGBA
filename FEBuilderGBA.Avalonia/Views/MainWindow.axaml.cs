@@ -81,6 +81,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Refresh menu headers and navigation labels
                 RefreshMenuHeaders();
                 RefreshNavigationLabels();
+                RefreshMenuItemHeaders();
+                RefreshEditorButtons();
+                RefreshLabels();
             });
         }
 
@@ -182,6 +185,363 @@ namespace FEBuilderGBA.Avalonia.Views
             if (EasyModeToggle != null) EasyModeToggle.Content = R._("Easy Mode");
         }
 
+        /// <summary>
+        /// Refresh all menu item headers (File, Edit, View, Tools, Help menus and sub-items) via R._().
+        /// </summary>
+        void RefreshMenuItemHeaders()
+        {
+            // Top-level menus
+            if (FileMenu != null) FileMenu.Header = R._("_File");
+            if (EditMenu != null) EditMenu.Header = R._("_Edit");
+            if (ViewMenu != null) ViewMenu.Header = R._("_View");
+            if (ToolsMenu != null) ToolsMenu.Header = R._("_Tools");
+            if (HelpMenu != null) HelpMenu.Header = R._("_Help");
+
+            // File sub-items
+            if (OpenRomMenuItem != null) OpenRomMenuItem.Header = R._("_Open ROM...");
+            if (OpenLastRomMenuItem != null) OpenLastRomMenuItem.Header = R._("Open _Last ROM");
+            if (RecentFilesMenuItem != null) RecentFilesMenuItem.Header = R._("_Recent Files");
+            if (SaveMenuItem != null) SaveMenuItem.Header = R._("_Save ROM");
+            if (SaveAsMenuItem != null) SaveAsMenuItem.Header = R._("Save _As...");
+            if (ExitMenuItem != null) ExitMenuItem.Header = R._("E_xit");
+
+            // Edit sub-items
+            if (UndoMenuItem != null) UndoMenuItem.Header = R._("_Undo");
+            if (RefreshMenuItem != null) RefreshMenuItem.Header = R._("Re_fresh");
+
+            // View sub-items (EasyModeMenuItem / DarkModeMenuItem handled by RefreshMenuHeaders)
+            if (CollapseAllMenuItem != null) CollapseAllMenuItem.Header = R._("_Collapse All Sections");
+            if (ExpandAllMenuItem != null) ExpandAllMenuItem.Header = R._("_Expand All Sections");
+
+            // Tools sub-items
+            if (LintMenuItem != null) LintMenuItem.Header = R._("_Lint Check");
+            if (DataExportMenuItem != null) DataExportMenuItem.Header = R._("_Data Export/Import...");
+            if (ExternalToolsMenuItem != null) ExternalToolsMenuItem.Header = R._("_External Tools");
+            if (RunEmulatorMenuItem != null) RunEmulatorMenuItem.Header = R._("Run _Emulator...");
+            if (RunEmulator2MenuItem != null) RunEmulator2MenuItem.Header = R._("Run Emulator _2...");
+            if (RunBinaryEditorMenuItem != null) RunBinaryEditorMenuItem.Header = R._("Run _Binary Editor...");
+            if (RunSappyMenuItem != null) RunSappyMenuItem.Header = R._("Run _Sappy...");
+            if (RunProgram1MenuItem != null) RunProgram1MenuItem.Header = R._("Run Program _1...");
+            if (RunProgram2MenuItem != null) RunProgram2MenuItem.Header = R._("Run Program _2...");
+            if (RunProgram3MenuItem != null) RunProgram3MenuItem.Header = R._("Run Program _3...");
+            if (OptionsMenuItem != null) OptionsMenuItem.Header = R._("_Options...");
+
+            // Help sub-items
+            if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");
+            if (DiscussionsMenuItem != null) DiscussionsMenuItem.Header = R._("_GitHub Discussions");
+            if (AboutMenuItem != null) AboutMenuItem.Header = R._("_About");
+        }
+
+        /// <summary>
+        /// Refresh all editor button Content strings via R._().
+        /// </summary>
+        void RefreshEditorButtons()
+        {
+            // Characters
+            if (UnitsButton != null) UnitsButton.Content = R._("Units");
+            if (ClassesButton != null) ClassesButton.Content = R._("Classes");
+            if (SupportUnitsButton != null) SupportUnitsButton.Content = R._("Support Units");
+            if (SupportAttributeButton != null) SupportAttributeButton.Content = R._("Support Attribute");
+            if (SupportTalkButton != null) SupportTalkButton.Content = R._("Support Talk");
+
+            // Items
+            if (ItemsButton != null) ItemsButton.Content = R._("Items");
+            if (CCBranchButton != null) CCBranchButton.Content = R._("CC Branch");
+            if (WeaponEffectButton != null) WeaponEffectButton.Content = R._("Weapon Effect");
+            if (StatBonusesButton != null) StatBonusesButton.Content = R._("Stat Bonuses");
+            if (EffectivenessButton != null) EffectivenessButton.Content = R._("Effectiveness");
+            if (PromotionButton != null) PromotionButton.Content = R._("Promotion");
+            if (ShopButton != null) ShopButton.Content = R._("Shop");
+            if (WeaponTriangleButton != null) WeaponTriangleButton.Content = R._("Weapon Triangle");
+            if (UsagePointerButton != null) UsagePointerButton.Content = R._("Usage Pointer");
+            if (EffectPointerButton != null) EffectPointerButton.Content = R._("Effect Pointer");
+
+            // Maps
+            if (MapSettingsButton != null) MapSettingsButton.Content = R._("Map Settings");
+            if (TerrainNamesButton != null) TerrainNamesButton.Content = R._("Terrain Names");
+            if (MoveCostButton != null) MoveCostButton.Content = R._("Move Cost");
+            if (EventConditionsButton != null) EventConditionsButton.Content = R._("Event Conditions");
+            if (MapChangesButton != null) MapChangesButton.Content = R._("Map Changes");
+            if (ExitPointsButton != null) ExitPointsButton.Content = R._("Exit Points");
+            if (MapPointersButton != null) MapPointersButton.Content = R._("Map Pointers");
+            if (TileAnimationButton != null) TileAnimationButton.Content = R._("Tile Animation");
+
+            // Text
+            if (TextViewerButton != null) TextViewerButton.Content = R._("Text Viewer");
+
+            // Graphics
+            if (PortraitsButton != null) PortraitsButton.Content = R._("Portraits");
+            if (SystemIconsButton != null) SystemIconsButton.Content = R._("System Icons");
+            if (ItemIconsButton != null) ItemIconsButton.Content = R._("Item Icons");
+            if (HoverColorsButton != null) HoverColorsButton.Content = R._("Hover Colors");
+            if (BattleBGButton != null) BattleBGButton.Content = R._("Battle BG");
+            if (BattleTerrainButton != null) BattleTerrainButton.Content = R._("Battle Terrain");
+            if (ChapterTitleButton != null) ChapterTitleButton.Content = R._("Chapter Title");
+            if (CGViewerButton != null) CGViewerButton.Content = R._("CG Viewer");
+            if (OPClassDemoButton != null) OPClassDemoButton.Content = R._("OP Class Demo");
+            if (OPClassFontButton != null) OPClassFontButton.Content = R._("OP Class Font");
+            if (OPPrologueButton != null) OPPrologueButton.Content = R._("OP Prologue");
+
+            // Audio
+            if (SongTableButton != null) SongTableButton.Content = R._("Song Table");
+            if (BossBGMButton != null) BossBGMButton.Content = R._("Boss BGM");
+            if (FootstepsButton != null) FootstepsButton.Content = R._("Footsteps");
+            if (SoundRoomButton != null) SoundRoomButton.Content = R._("Sound Room");
+
+            // Arena
+            if (ArenaClassButton != null) ArenaClassButton.Content = R._("Arena Class");
+            if (ArenaEnemyWeaponButton != null) ArenaEnemyWeaponButton.Content = R._("Arena Enemy Weapon");
+            if (LinkArenaDenyButton != null) LinkArenaDenyButton.Content = R._("Link Arena Deny");
+
+            // Monsters
+            if (MonsterProbabilityButton != null) MonsterProbabilityButton.Content = R._("Monster Probability");
+            if (MonsterItemsButton != null) MonsterItemsButton.Content = R._("Monster Items");
+            if (WMapProbabilityButton != null) WMapProbabilityButton.Content = R._("WMap Probability");
+
+            // Summons
+            if (SummonUnitButton != null) SummonUnitButton.Content = R._("Summon Unit");
+            if (DemonKingButton != null) DemonKingButton.Content = R._("Demon King");
+
+            // Items (Specialized)
+            if (StatBonusesSkillButton != null) StatBonusesSkillButton.Content = R._("Stat Bonuses (Skill)");
+            if (StatBonusesVennoButton != null) StatBonusesVennoButton.Content = R._("Stat Bonuses (Venno)");
+            if (EffectivenessReworkButton != null) EffectivenessReworkButton.Content = R._("Effectiveness (Rework)");
+            if (RandomChestButton != null) RandomChestButton.Content = R._("Random Chest");
+
+            // Menus
+            if (MenuDefinitionButton != null) MenuDefinitionButton.Content = R._("Menu Definition");
+            if (MenuCommandButton != null) MenuCommandButton.Content = R._("Menu Command");
+            if (SplitMenuExtButton != null) SplitMenuExtButton.Content = R._("Split Menu Ext");
+
+            // Credits
+            if (EndingEventsButton != null) EndingEventsButton.Content = R._("Ending Events");
+            if (StaffRollButton != null) StaffRollButton.Content = R._("Staff Roll");
+            if (EDFE6Button != null) EDFE6Button.Content = R._("ED (FE6)");
+            if (EDFE7Button != null) EDFE7Button.Content = R._("ED (FE7)");
+            if (SensekiCommentButton != null) SensekiCommentButton.Content = R._("Senseki Comment");
+
+            // World Map
+            if (MapPointsButton != null) MapPointsButton.Content = R._("Map Points");
+            if (MapBGMButton != null) MapBGMButton.Content = R._("Map BGM");
+            if (MapEventsButton != null) MapEventsButton.Content = R._("Map Events");
+
+            // Image Editors
+            if (PortraitEditorButton != null) PortraitEditorButton.Content = R._("Portrait Editor");
+            if (PortraitFE6Button != null) PortraitFE6Button.Content = R._("Portrait (FE6)");
+            if (PortraitImportButton != null) PortraitImportButton.Content = R._("Portrait Import");
+            if (BGEditorButton != null) BGEditorButton.Content = R._("BG Editor");
+            if (BattleAnimButton != null) BattleAnimButton.Content = R._("Battle Anim");
+            if (BattleAnimPalButton != null) BattleAnimPalButton.Content = R._("Battle Anim Pal");
+            if (BattleBGEditButton != null) BattleBGEditButton.Content = R._("Battle BG Edit");
+            if (BattleScreenButton != null) BattleScreenButton.Content = R._("Battle Screen");
+            if (CGEditorButton != null) CGEditorButton.Content = R._("CG Editor");
+            if (CGFE7UButton != null) CGFE7UButton.Content = R._("CG (FE7U)");
+            if (ImgUnitPaletteButton != null) ImgUnitPaletteButton.Content = R._("Unit Palette");
+            if (WaitIconButton != null) WaitIconButton.Content = R._("Wait Icon");
+            if (MoveIconButton != null) MoveIconButton.Content = R._("Move Icon");
+            if (SystemAreaButton != null) SystemAreaButton.Content = R._("System Area");
+            if (GenericEnemyButton != null) GenericEnemyButton.Content = R._("Generic Enemy");
+            if (ROMAnimeButton != null) ROMAnimeButton.Content = R._("ROM Anime");
+            if (TSAEditorButton != null) TSAEditorButton.Content = R._("TSA Editor");
+            if (TSAAnimeButton != null) TSAAnimeButton.Content = R._("TSA Anime");
+            if (TSAAnime2Button != null) TSAAnime2Button.Content = R._("TSA Anime 2");
+            if (PaletteButton != null) PaletteButton.Content = R._("Palette");
+            if (MagicFEditorButton != null) MagicFEditorButton.Content = R._("Magic FEditor");
+            if (CSACreatorButton != null) CSACreatorButton.Content = R._("CSA Creator");
+            if (MapActionAnimButton != null) MapActionAnimButton.Content = R._("Map Action Anim");
+            if (ColorReduceButton != null) ColorReduceButton.Content = R._("Color Reduce");
+
+            // Event Scripts
+            if (EventScriptButton != null) EventScriptButton.Content = R._("Event Script");
+            if (EventUnitButton != null) EventUnitButton.Content = R._("Event Unit");
+            if (EventUnitFE6Button != null) EventUnitFE6Button.Content = R._("Event Unit (FE6)");
+            if (EventUnitFE7Button != null) EventUnitFE7Button.Content = R._("Event Unit (FE7)");
+            if (UnitColorButton != null) UnitColorButton.Content = R._("Unit Color");
+            if (ItemDropButton != null) ItemDropButton.Content = R._("Item Drop");
+            if (NewAllocButton != null) NewAllocButton.Content = R._("New Alloc");
+            if (BattleTalkButton != null) BattleTalkButton.Content = R._("Battle Talk");
+            if (BattleTalkFE6Button != null) BattleTalkFE6Button.Content = R._("Battle Talk (FE6)");
+            if (BattleTalkFE7Button != null) BattleTalkFE7Button.Content = R._("Battle Talk (FE7)");
+            if (BattleDataFE7Button != null) BattleDataFE7Button.Content = R._("Battle Data (FE7)");
+            if (HaikuButton != null) HaikuButton.Content = R._("Haiku");
+            if (HaikuFE6Button != null) HaikuFE6Button.Content = R._("Haiku (FE6)");
+            if (HaikuFE7Button != null) HaikuFE7Button.Content = R._("Haiku (FE7)");
+            if (MapChangeEvtButton != null) MapChangeEvtButton.Content = R._("Map Change Evt");
+            if (ForceSortieButton != null) ForceSortieButton.Content = R._("Force Sortie");
+            if (ForceSortieFE7Button != null) ForceSortieFE7Button.Content = R._("Force Sortie (FE7)");
+            if (FuncPointerButton != null) FuncPointerButton.Content = R._("Func Pointer");
+            if (FuncPtrFE7Button != null) FuncPtrFE7Button.Content = R._("Func Ptr (FE7)");
+            if (EventAssemblerButton != null) EventAssemblerButton.Content = R._("Event Assembler");
+            if (ProcsScriptButton != null) ProcsScriptButton.Content = R._("Procs Script");
+            if (TemplatesButton != null) TemplatesButton.Content = R._("Templates");
+            if (Template1Button != null) Template1Button.Content = R._("Template 1");
+            if (Template2Button != null) Template2Button.Content = R._("Template 2");
+            if (Template3Button != null) Template3Button.Content = R._("Template 3");
+            if (Template4Button != null) Template4Button.Content = R._("Template 4");
+            if (Template5Button != null) Template5Button.Content = R._("Template 5");
+            if (Template6Button != null) Template6Button.Content = R._("Template 6");
+            if (FinalSerifFE7Button != null) FinalSerifFE7Button.Content = R._("Final Serif (FE7)");
+            if (MoveDataFE7Button != null) MoveDataFE7Button.Content = R._("Move Data (FE7)");
+            if (TalkGroupFE7Button != null) TalkGroupFE7Button.Content = R._("Talk Group (FE7)");
+
+            // AI Scripts
+            if (AIScriptButton != null) AIScriptButton.Content = R._("AI Script");
+            if (AIASMCallButton != null) AIASMCallButton.Content = R._("AI ASM Call");
+            if (AICoordinateButton != null) AICoordinateButton.Content = R._("AI Coordinate");
+            if (AIRangeButton != null) AIRangeButton.Content = R._("AI Range");
+            if (AIMapSettingButton != null) AIMapSettingButton.Content = R._("AI Map Setting");
+            if (AIItemButton != null) AIItemButton.Content = R._("AI Item");
+            if (AIStaffButton != null) AIStaffButton.Content = R._("AI Staff");
+            if (AIStealButton != null) AIStealButton.Content = R._("AI Steal");
+            if (AITargetButton != null) AITargetButton.Content = R._("AI Target");
+            if (AITilesButton != null) AITilesButton.Content = R._("AI Tiles");
+            if (AIUnitsButton != null) AIUnitsButton.Content = R._("AI Units");
+            if (AOERangeButton != null) AOERangeButton.Content = R._("AOE Range");
+
+            // Map Editors
+            if (MapEditorButton != null) MapEditorButton.Content = R._("Map Editor");
+            if (MapSettingsFE6Button != null) MapSettingsFE6Button.Content = R._("Map Settings (FE6)");
+            if (MapSettingsFE7Button != null) MapSettingsFE7Button.Content = R._("Map Settings (FE7)");
+            if (MapSettingsFE7UButton != null) MapSettingsFE7UButton.Content = R._("Map Settings (FE7U)");
+            if (DifficultyButton != null) DifficultyButton.Content = R._("Difficulty");
+            if (StyleEditorButton != null) StyleEditorButton.Content = R._("Style Editor");
+            if (TerrainBGButton != null) TerrainBGButton.Content = R._("Terrain BG");
+            if (TerrainFloorButton != null) TerrainFloorButton.Content = R._("Terrain Floor");
+            if (MiniMapButton != null) MiniMapButton.Content = R._("Mini Map");
+            if (TileAnim1Button != null) TileAnim1Button.Content = R._("Tile Anim 1");
+            if (TileAnim2Button != null) TileAnim2Button.Content = R._("Tile Anim 2");
+            if (LoadFunctionButton != null) LoadFunctionButton.Content = R._("Load Function");
+            if (TerrainEngButton != null) TerrainEngButton.Content = R._("Terrain Eng");
+
+            // Audio (Advanced)
+            if (SongTrackButton != null) SongTrackButton.Content = R._("Song Track");
+            if (InstrumentButton != null) InstrumentButton.Content = R._("Instrument");
+            if (DirectSoundButton != null) DirectSoundButton.Content = R._("Direct Sound");
+            if (WaveImportButton != null) WaveImportButton.Content = R._("Wave Import");
+            if (MIDIImportButton != null) MIDIImportButton.Content = R._("MIDI Import");
+            if (SongExchangeButton != null) SongExchangeButton.Content = R._("Song Exchange");
+            if (SoundRoomFE6Button != null) SoundRoomFE6Button.Content = R._("Sound Room (FE6)");
+            if (SoundRoomCGButton != null) SoundRoomCGButton.Content = R._("Sound Room CG");
+            if (ChangeTrackButton != null) ChangeTrackButton.Content = R._("Change Track");
+            if (AllChangeTrackButton != null) AllChangeTrackButton.Content = R._("All Change Track");
+            if (SelectInstrumentButton != null) SelectInstrumentButton.Content = R._("Select Instrument");
+            if (ImportWaveButton != null) ImportWaveButton.Content = R._("Import Wave");
+
+            // Unit/Class Specialized
+            if (UnitFE6Button != null) UnitFE6Button.Content = R._("Unit (FE6)");
+            if (ActionPointerButton != null) ActionPointerButton.Content = R._("Action Pointer");
+            if (CustomAnimButton != null) CustomAnimButton.Content = R._("Custom Anim");
+            if (HeightButton != null) HeightButton.Content = R._("Height");
+            if (UnitPaletteButton != null) UnitPaletteButton.Content = R._("Unit Palette");
+            if (ClassFE6Button != null) ClassFE6Button.Content = R._("Class (FE6)");
+            if (ClassOPDemoButton != null) ClassOPDemoButton.Content = R._("Class OP Demo");
+            if (ClassOPFontButton != null) ClassOPFontButton.Content = R._("Class OP Font");
+            if (ExtraUnitButton != null) ExtraUnitButton.Content = R._("Extra Unit");
+            if (ExtraFE8UButton != null) ExtraFE8UButton.Content = R._("Extra (FE8U)");
+
+            // Text/Translation
+            if (TextEditorButton != null) TextEditorButton.Content = R._("Text Editor");
+            if (OtherTextButton != null) OtherTextButton.Content = R._("Other Text");
+            if (CStringButton != null) CStringButton.Content = R._("C-String");
+            if (FontEditorButton != null) FontEditorButton.Content = R._("Font Editor");
+            if (FontZHButton != null) FontZHButton.Content = R._("Font ZH");
+            if (DevTranslateButton != null) DevTranslateButton.Content = R._("Dev Translate");
+            if (ROMTranslateButton != null) ROMTranslateButton.Content = R._("ROM Translate");
+            if (TextEscapeButton != null) TextEscapeButton.Content = R._("Text Escape");
+
+            // Patches
+            if (PatchManagerButton != null) PatchManagerButton.Content = R._("Patch Manager");
+            if (CustomBuildButton != null) CustomBuildButton.Content = R._("Custom Build");
+
+            // Skills
+            if (SkillUnitButton != null) SkillUnitButton.Content = R._("Skill Unit");
+            if (SkillClassButton != null) SkillClassButton.Content = R._("Skill Class");
+            if (SkillConfigButton != null) SkillConfigButton.Content = R._("Skill Config");
+
+            // World Map (Advanced)
+            if (MapPathsButton != null) MapPathsButton.Content = R._("Map Paths");
+            if (PathEditorButton != null) PathEditorButton.Content = R._("Path Editor");
+            if (WMapImageButton != null) WMapImageButton.Content = R._("Map Image");
+            if (WMapImageFE6Button != null) WMapImageFE6Button.Content = R._("Map Image (FE6)");
+            if (WMapImageFE7Button != null) WMapImageFE7Button.Content = R._("Map Image (FE7)");
+            if (WMapEventsFE6Button != null) WMapEventsFE6Button.Content = R._("Events (FE6)");
+            if (WMapEventsFE7Button != null) WMapEventsFE7Button.Content = R._("Events (FE7)");
+
+            // Structural Data
+            if (Cmd85PointerButton != null) Cmd85PointerButton.Content = R._("Cmd85 Pointer");
+            if (SpellMenuExtButton != null) SpellMenuExtButton.Content = R._("Spell Menu Ext");
+            if (StatusOptionButton != null) StatusOptionButton.Content = R._("Status Option");
+            if (OAMSpriteButton != null) OAMSpriteButton.Content = R._("OAM Sprite");
+            if (StructDumpButton != null) StructDumpButton.Content = R._("Struct Dump");
+
+            // Tools
+            if (RunLintButton != null) RunLintButton.Content = R._("Run Lint");
+            if (UndoHistoryButton != null) UndoHistoryButton.Content = R._("Undo History");
+            if (FELintGUIButton != null) FELintGUIButton.Content = R._("FELint GUI");
+            if (ROMRebuildButton != null) ROMRebuildButton.Content = R._("ROM Rebuild");
+            if (LZ77ToolButton != null) LZ77ToolButton.Content = R._("LZ77 Tool");
+            if (ROMDiffButton != null) ROMDiffButton.Content = R._("ROM Diff");
+            if (UPSCreateButton != null) UPSCreateButton.Content = R._("UPS Create");
+            if (UPSApplyButton != null) UPSApplyButton.Content = R._("UPS Apply");
+            if (FlagNamesButton != null) FlagNamesButton.Content = R._("Flag Names");
+            if (FlagUsageButton != null) FlagUsageButton.Content = R._("Flag Usage");
+            if (TalkGroupsButton != null) TalkGroupsButton.Content = R._("Talk Groups");
+            if (ASMInsertButton != null) ASMInsertButton.Content = R._("ASM Insert");
+            if (HexEditorButton != null) HexEditorButton.Content = R._("Hex Editor");
+            if (DisassemblerButton != null) DisassemblerButton.Content = R._("Disassembler");
+            if (LogViewerButton != null) LogViewerButton.Content = R._("Log Viewer");
+            if (GrowSimButton != null) GrowSimButton.Content = R._("Grow Sim");
+            if (OptionsButton != null) OptionsButton.Content = R._("Options");
+            if (PointerToolButton != null) PointerToolButton.Content = R._("Pointer Tool");
+            if (FreeSpaceButton != null) FreeSpaceButton.Content = R._("Free Space");
+            if (GraphicsToolButton != null) GraphicsToolButton.Content = R._("Graphics Tool");
+            if (BGMMuteButton != null) BGMMuteButton.Content = R._("BGM Mute");
+
+            // Status Screen
+            if (StatusParamButton != null) StatusParamButton.Content = R._("Status Param");
+            if (StatusRMenuButton != null) StatusRMenuButton.Content = R._("Status R-Menu");
+            if (StatusUnitsButton != null) StatusUnitsButton.Content = R._("Status Units");
+            if (StatusOptionsButton != null) StatusOptionsButton.Content = R._("Status Options");
+
+            // Skill Systems (Extended)
+            if (UnitCSkillSysButton != null) UnitCSkillSysButton.Content = R._("Unit CSkillSys");
+            if (ClassCSkillSysButton != null) ClassCSkillSysButton.Content = R._("Class CSkillSys");
+            if (UnitFE8NButton != null) UnitFE8NButton.Content = R._("Unit FE8N");
+            if (ConfigFE8NButton != null) ConfigFE8NButton.Content = R._("Config FE8N");
+            if (ConfigFE8Nv2Button != null) ConfigFE8Nv2Button.Content = R._("Config FE8N v2");
+            if (ConfigFE8Nv3Button != null) ConfigFE8Nv3Button.Content = R._("Config FE8N v3");
+            if (ConfigCSkill09xButton != null) ConfigCSkill09xButton.Content = R._("Config CSkill09x");
+            if (EffReworkButton != null) EffReworkButton.Content = R._("Eff Rework");
+
+            // Version-Specific
+            if (ItemsFE6Button != null) ItemsFE6Button.Content = R._("Items (FE6)");
+            if (MoveCostFE6Button != null) MoveCostFE6Button.Content = R._("Move Cost (FE6)");
+            if (SupportFE6Button != null) SupportFE6Button.Content = R._("Support (FE6)");
+            if (SupTalkFE6Button != null) SupTalkFE6Button.Content = R._("Sup Talk (FE6)");
+            if (SupTalkFE7Button != null) SupTalkFE7Button.Content = R._("Sup Talk (FE7)");
+            if (UnitsFE7Button != null) UnitsFE7Button.Content = R._("Units (FE7)");
+            if (OPDemoFE7Button != null) OPDemoFE7Button.Content = R._("OP Demo (FE7)");
+            if (OPDemoFE7UButton != null) OPDemoFE7UButton.Content = R._("OP Demo (FE7U)");
+            if (OPDemoFE8UButton != null) OPDemoFE8UButton.Content = R._("OP Demo (FE8U)");
+            if (OPFontFE8UButton != null) OPFontFE8UButton.Content = R._("OP Font (FE8U)");
+            if (AlphaNameButton != null) AlphaNameButton.Content = R._("Alpha Name");
+            if (AlphaFE6Button != null) AlphaFE6Button.Content = R._("Alpha (FE6)");
+            if (ClassListButton != null) ClassListButton.Content = R._("Class List");
+            if (WeaponLockButton != null) WeaponLockButton.Content = R._("Weapon Lock");
+            if (ShortTextButton != null) ShortTextButton.Content = R._("Short Text");
+        }
+
+        /// <summary>
+        /// Refresh miscellaneous labels and text blocks via R._().
+        /// </summary>
+        void RefreshLabels()
+        {
+            if (FilterLabel != null) FilterLabel.Text = R._("Filter:");
+            if (ClearFilterButton != null) ClearFilterButton.Content = R._("Clear");
+            if (NoRomLabel != null) NoRomLabel.Text = R._("Open a ROM file to begin editing.");
+            if (FilterTextBox != null) FilterTextBox.Watermark = R._("Type to filter editors...");
+        }
+
         void OnDragOver(object? sender, DragEventArgs e)
         {
             e.DragEffects = e.Data.Contains(DataFormats.Files)
@@ -239,6 +599,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // Apply translations loaded from config at startup
             RefreshMenuHeaders();
             RefreshNavigationLabels();
+            RefreshMenuItemHeaders();
+            RefreshEditorButtons();
+            RefreshLabels();
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))

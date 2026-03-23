@@ -14142,3 +14142,807 @@ Edit Item
 
 :Item data written.
 Item data written.
+
+:_File
+_File
+
+:_Open ROM...
+_Open ROM...
+
+:Open _Last ROM
+Open _Last ROM
+
+:_Recent Files
+_Recent Files
+
+:_Save ROM
+_Save ROM
+
+:Save _As...
+Save _As...
+
+:E_xit
+E_xit
+
+:_Edit
+_Edit
+
+:_Undo
+_Undo
+
+:Re_fresh
+Re_fresh
+
+:_View
+_View
+
+:_Collapse All Sections
+_Collapse All Sections
+
+:_Expand All Sections
+_Expand All Sections
+
+:_Tools
+_Tools
+
+:_Lint Check
+_Lint Check
+
+:_Data Export/Import...
+_Data Export/Import...
+
+:_External Tools
+_External Tools
+
+:Run _Emulator...
+Run _Emulator...
+
+:Run Emulator _2...
+Run Emulator _2...
+
+:Run _Binary Editor...
+Run _Binary Editor...
+
+:Run _Sappy...
+Run _Sappy...
+
+:Run Program _1...
+Run Program _1...
+
+:Run Program _2...
+Run Program _2...
+
+:Run Program _3...
+Run Program _3...
+
+:_Options...
+_Options...
+
+:_Help
+_Help
+
+:_Online Manual
+_Online Manual
+
+:_GitHub Discussions
+_GitHub Discussions
+
+:_About
+_About
+
+:Units
+Units
+
+:Classes
+Classes
+
+:Support Units
+Support Units
+
+:Support Attribute
+Support Attribute
+
+:Support Talk
+Support Talk
+
+:CC Branch
+CC Branch
+
+:Weapon Effect
+Weapon Effect
+
+:Stat Bonuses
+Stat Bonuses
+
+:Effectiveness
+Effectiveness
+
+:Promotion
+Promotion
+
+:Shop
+Shop
+
+:Weapon Triangle
+Weapon Triangle
+
+:Usage Pointer
+Usage Pointer
+
+:Effect Pointer
+Effect Pointer
+
+:Map Settings
+Map Settings
+
+:Terrain Names
+Terrain Names
+
+:Move Cost
+Move Cost
+
+:Event Conditions
+Event Conditions
+
+:Map Changes
+Map Changes
+
+:Exit Points
+Exit Points
+
+:Map Pointers
+Map Pointers
+
+:Tile Animation
+Tile Animation
+
+:Text Viewer
+Text Viewer
+
+:Portraits
+Portraits
+
+:System Icons
+System Icons
+
+:Item Icons
+Item Icons
+
+:Hover Colors
+Hover Colors
+
+:Battle BG
+Battle BG
+
+:Battle Terrain
+Battle Terrain
+
+:Chapter Title
+Chapter Title
+
+:CG Viewer
+CG Viewer
+
+:OP Class Demo
+OP Class Demo
+
+:OP Class Font
+OP Class Font
+
+:OP Prologue
+OP Prologue
+
+:Song Table
+Song Table
+
+:Boss BGM
+Boss BGM
+
+:Footsteps
+Footsteps
+
+:Sound Room
+Sound Room
+
+:Arena Class
+Arena Class
+
+:Arena Enemy Weapon
+Arena Enemy Weapon
+
+:Link Arena Deny
+Link Arena Deny
+
+:Monster Probability
+Monster Probability
+
+:Monster Items
+Monster Items
+
+:WMap Probability
+WMap Probability
+
+:Summon Unit
+Summon Unit
+
+:Demon King
+Demon King
+
+:Stat Bonuses (Skill)
+Stat Bonuses (Skill)
+
+:Stat Bonuses (Venno)
+Stat Bonuses (Venno)
+
+:Effectiveness (Rework)
+Effectiveness (Rework)
+
+:Random Chest
+Random Chest
+
+:Menu Definition
+Menu Definition
+
+:Menu Command
+Menu Command
+
+:Split Menu Ext
+Split Menu Ext
+
+:Ending Events
+Ending Events
+
+:Staff Roll
+Staff Roll
+
+:ED (FE6)
+ED (FE6)
+
+:ED (FE7)
+ED (FE7)
+
+:Senseki Comment
+Senseki Comment
+
+:Map Points
+Map Points
+
+:Map BGM
+Map BGM
+
+:Map Events
+Map Events
+
+:Portrait Editor
+Portrait Editor
+
+:Portrait (FE6)
+Portrait (FE6)
+
+:Portrait Import
+Portrait Import
+
+:BG Editor
+BG Editor
+
+:Battle Anim
+Battle Anim
+
+:Battle Anim Pal
+Battle Anim Pal
+
+:Battle BG Edit
+Battle BG Edit
+
+:Battle Screen
+Battle Screen
+
+:CG Editor
+CG Editor
+
+:CG (FE7U)
+CG (FE7U)
+
+:Unit Palette
+Unit Palette
+
+:Wait Icon
+Wait Icon
+
+:Move Icon
+Move Icon
+
+:System Area
+System Area
+
+:Generic Enemy
+Generic Enemy
+
+:ROM Anime
+ROM Anime
+
+:TSA Editor
+TSA Editor
+
+:TSA Anime
+TSA Anime
+
+:TSA Anime 2
+TSA Anime 2
+
+:Palette
+Palette
+
+:Magic FEditor
+Magic FEditor
+
+:CSA Creator
+CSA Creator
+
+:Map Action Anim
+Map Action Anim
+
+:Color Reduce
+Color Reduce
+
+:Event Script
+Event Script
+
+:Event Unit
+Event Unit
+
+:Event Unit (FE6)
+Event Unit (FE6)
+
+:Event Unit (FE7)
+Event Unit (FE7)
+
+:Unit Color
+Unit Color
+
+:Item Drop
+Item Drop
+
+:New Alloc
+New Alloc
+
+:Battle Talk
+Battle Talk
+
+:Battle Talk (FE6)
+Battle Talk (FE6)
+
+:Battle Talk (FE7)
+Battle Talk (FE7)
+
+:Battle Data (FE7)
+Battle Data (FE7)
+
+:Haiku
+Haiku
+
+:Haiku (FE6)
+Haiku (FE6)
+
+:Haiku (FE7)
+Haiku (FE7)
+
+:Map Change Evt
+Map Change Evt
+
+:Force Sortie
+Force Sortie
+
+:Force Sortie (FE7)
+Force Sortie (FE7)
+
+:Func Pointer
+Func Pointer
+
+:Func Ptr (FE7)
+Func Ptr (FE7)
+
+:Event Assembler
+Event Assembler
+
+:Procs Script
+Procs Script
+
+:Templates
+Templates
+
+:Template 1
+Template 1
+
+:Template 2
+Template 2
+
+:Template 3
+Template 3
+
+:Template 4
+Template 4
+
+:Template 5
+Template 5
+
+:Template 6
+Template 6
+
+:Final Serif (FE7)
+Final Serif (FE7)
+
+:Move Data (FE7)
+Move Data (FE7)
+
+:Talk Group (FE7)
+Talk Group (FE7)
+
+:AI Script
+AI Script
+
+:AI ASM Call
+AI ASM Call
+
+:AI Coordinate
+AI Coordinate
+
+:AI Range
+AI Range
+
+:AI Map Setting
+AI Map Setting
+
+:AI Item
+AI Item
+
+:AI Staff
+AI Staff
+
+:AI Steal
+AI Steal
+
+:AI Target
+AI Target
+
+:AI Tiles
+AI Tiles
+
+:AI Units
+AI Units
+
+:AOE Range
+AOE Range
+
+:Map Editor
+Map Editor
+
+:Map Settings (FE6)
+Map Settings (FE6)
+
+:Map Settings (FE7)
+Map Settings (FE7)
+
+:Map Settings (FE7U)
+Map Settings (FE7U)
+
+:Difficulty
+Difficulty
+
+:Style Editor
+Style Editor
+
+:Terrain BG
+Terrain BG
+
+:Terrain Floor
+Terrain Floor
+
+:Mini Map
+Mini Map
+
+:Tile Anim 1
+Tile Anim 1
+
+:Tile Anim 2
+Tile Anim 2
+
+:Load Function
+Load Function
+
+:Terrain Eng
+Terrain Eng
+
+:Song Track
+Song Track
+
+:Instrument
+Instrument
+
+:Direct Sound
+Direct Sound
+
+:Wave Import
+Wave Import
+
+:MIDI Import
+MIDI Import
+
+:Song Exchange
+Song Exchange
+
+:Sound Room (FE6)
+Sound Room (FE6)
+
+:Sound Room CG
+Sound Room CG
+
+:Change Track
+Change Track
+
+:All Change Track
+All Change Track
+
+:Select Instrument
+Select Instrument
+
+:Import Wave
+Import Wave
+
+:Unit (FE6)
+Unit (FE6)
+
+:Action Pointer
+Action Pointer
+
+:Custom Anim
+Custom Anim
+
+:Height
+Height
+
+:Class (FE6)
+Class (FE6)
+
+:Class OP Demo
+Class OP Demo
+
+:Class OP Font
+Class OP Font
+
+:Extra Unit
+Extra Unit
+
+:Extra (FE8U)
+Extra (FE8U)
+
+:Text Editor
+Text Editor
+
+:Other Text
+Other Text
+
+:C-String
+C-String
+
+:Font Editor
+Font Editor
+
+:Font ZH
+Font ZH
+
+:Dev Translate
+Dev Translate
+
+:ROM Translate
+ROM Translate
+
+:Text Escape
+Text Escape
+
+:Patch Manager
+Patch Manager
+
+:Custom Build
+Custom Build
+
+:Skill Unit
+Skill Unit
+
+:Skill Class
+Skill Class
+
+:Skill Config
+Skill Config
+
+:Map Paths
+Map Paths
+
+:Path Editor
+Path Editor
+
+:Map Image
+Map Image
+
+:Map Image (FE6)
+Map Image (FE6)
+
+:Map Image (FE7)
+Map Image (FE7)
+
+:Events (FE6)
+Events (FE6)
+
+:Events (FE7)
+Events (FE7)
+
+:Cmd85 Pointer
+Cmd85 Pointer
+
+:Spell Menu Ext
+Spell Menu Ext
+
+:Status Option
+Status Option
+
+:OAM Sprite
+OAM Sprite
+
+:Struct Dump
+Struct Dump
+
+:Run Lint
+Run Lint
+
+:Undo History
+Undo History
+
+:FELint GUI
+FELint GUI
+
+:ROM Rebuild
+ROM Rebuild
+
+:LZ77 Tool
+LZ77 Tool
+
+:ROM Diff
+ROM Diff
+
+:UPS Create
+UPS Create
+
+:UPS Apply
+UPS Apply
+
+:Flag Names
+Flag Names
+
+:Flag Usage
+Flag Usage
+
+:Talk Groups
+Talk Groups
+
+:ASM Insert
+ASM Insert
+
+:Hex Editor
+Hex Editor
+
+:Disassembler
+Disassembler
+
+:Log Viewer
+Log Viewer
+
+:Grow Sim
+Grow Sim
+
+:Options
+Options
+
+:Pointer Tool
+Pointer Tool
+
+:Free Space
+Free Space
+
+:Graphics Tool
+Graphics Tool
+
+:BGM Mute
+BGM Mute
+
+:Status Param
+Status Param
+
+:Status R-Menu
+Status R-Menu
+
+:Status Units
+Status Units
+
+:Status Options
+Status Options
+
+:Unit CSkillSys
+Unit CSkillSys
+
+:Class CSkillSys
+Class CSkillSys
+
+:Unit FE8N
+Unit FE8N
+
+:Config FE8N
+Config FE8N
+
+:Config FE8N v2
+Config FE8N v2
+
+:Config FE8N v3
+Config FE8N v3
+
+:Config CSkill09x
+Config CSkill09x
+
+:Eff Rework
+Eff Rework
+
+:Items (FE6)
+Items (FE6)
+
+:Move Cost (FE6)
+Move Cost (FE6)
+
+:Support (FE6)
+Support (FE6)
+
+:Sup Talk (FE6)
+Sup Talk (FE6)
+
+:Sup Talk (FE7)
+Sup Talk (FE7)
+
+:Units (FE7)
+Units (FE7)
+
+:OP Demo (FE7)
+OP Demo (FE7)
+
+:OP Demo (FE7U)
+OP Demo (FE7U)
+
+:OP Demo (FE8U)
+OP Demo (FE8U)
+
+:OP Font (FE8U)
+OP Font (FE8U)
+
+:Alpha Name
+Alpha Name
+
+:Alpha (FE6)
+Alpha (FE6)
+
+:Class List
+Class List
+
+:Weapon Lock
+Weapon Lock
+
+:Short Text
+Short Text
+
+:Filter:
+Filter:
+
+:Clear
+Clear
+
+:Open a ROM file to begin editing.
+Open a ROM file to begin editing.
+
+:Type to filter editors...
+Type to filter editors...

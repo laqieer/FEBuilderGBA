@@ -14142,3 +14142,807 @@ Avalonia 跨平台预览
 
 :Item data written.
 道具数据已写入。
+
+:_File
+文件(_F)
+
+:_Open ROM...
+打开ROM...(_O)
+
+:Open _Last ROM
+打开上次的ROM(_L)
+
+:_Recent Files
+最近的文件(_R)
+
+:_Save ROM
+保存ROM(_S)
+
+:Save _As...
+另存为...(_A)
+
+:E_xit
+退出(_X)
+
+:_Edit
+编辑(_E)
+
+:_Undo
+撤销(_U)
+
+:Re_fresh
+刷新(_F)
+
+:_View
+视图(_V)
+
+:_Collapse All Sections
+折叠所有分区(_C)
+
+:_Expand All Sections
+展开所有分区(_E)
+
+:_Tools
+工具(_T)
+
+:_Lint Check
+检查(_L)
+
+:_Data Export/Import...
+数据导出/导入...(_D)
+
+:_External Tools
+外部工具(_E)
+
+:Run _Emulator...
+运行模拟器...(_E)
+
+:Run Emulator _2...
+运行模拟器2...(_2)
+
+:Run _Binary Editor...
+运行二进制编辑器...(_B)
+
+:Run _Sappy...
+运行Sappy...(_S)
+
+:Run Program _1...
+运行程序1...(_1)
+
+:Run Program _2...
+运行程序2...(_2)
+
+:Run Program _3...
+运行程序3...(_3)
+
+:_Options...
+设置...(_O)
+
+:_Help
+帮助(_H)
+
+:_Online Manual
+在线手册(_O)
+
+:_GitHub Discussions
+GitHub讨论(_G)
+
+:_About
+关于(_A)
+
+:Units
+单位
+
+:Classes
+职业
+
+:Support Units
+支援单位
+
+:Support Attribute
+支援属性
+
+:Support Talk
+支援对话
+
+:CC Branch
+转职分支
+
+:Weapon Effect
+武器效果
+
+:Stat Bonuses
+能力加成
+
+:Effectiveness
+特效
+
+:Promotion
+升级
+
+:Shop
+商店
+
+:Weapon Triangle
+武器相克
+
+:Usage Pointer
+使用指针
+
+:Effect Pointer
+效果指针
+
+:Map Settings
+地图设置
+
+:Terrain Names
+地形名称
+
+:Move Cost
+移动消耗
+
+:Event Conditions
+事件条件
+
+:Map Changes
+地图变更
+
+:Exit Points
+出口点
+
+:Map Pointers
+地图指针
+
+:Tile Animation
+图块动画
+
+:Text Viewer
+文本查看器
+
+:Portraits
+头像
+
+:System Icons
+系统图标
+
+:Item Icons
+道具图标
+
+:Hover Colors
+悬停颜色
+
+:Battle BG
+战斗背景
+
+:Battle Terrain
+战斗地形
+
+:Chapter Title
+章节标题
+
+:CG Viewer
+CG查看器
+
+:OP Class Demo
+OP职业演示
+
+:OP Class Font
+OP职业字体
+
+:OP Prologue
+OP序章
+
+:Song Table
+音乐列表
+
+:Boss BGM
+Boss BGM
+
+:Footsteps
+脚步声
+
+:Sound Room
+音乐室
+
+:Arena Class
+竞技场职业
+
+:Arena Enemy Weapon
+竞技场敌方武器
+
+:Link Arena Deny
+通信竞技场禁止
+
+:Monster Probability
+怪物概率
+
+:Monster Items
+怪物道具
+
+:WMap Probability
+世界地图概率
+
+:Summon Unit
+召唤单位
+
+:Demon King
+魔王
+
+:Stat Bonuses (Skill)
+能力加成（技能）
+
+:Stat Bonuses (Venno)
+能力加成（Venno）
+
+:Effectiveness (Rework)
+特效（重制）
+
+:Random Chest
+随机宝箱
+
+:Menu Definition
+菜单定义
+
+:Menu Command
+菜单命令
+
+:Split Menu Ext
+分割菜单扩展
+
+:Ending Events
+结局事件
+
+:Staff Roll
+制作人员名单
+
+:ED (FE6)
+结局（FE6）
+
+:ED (FE7)
+结局（FE7）
+
+:Senseki Comment
+战绩评语
+
+:Map Points
+地图据点
+
+:Map BGM
+地图BGM
+
+:Map Events
+地图事件
+
+:Portrait Editor
+头像编辑器
+
+:Portrait (FE6)
+头像（FE6）
+
+:Portrait Import
+头像导入
+
+:BG Editor
+背景编辑器
+
+:Battle Anim
+战斗动画
+
+:Battle Anim Pal
+战斗动画调色板
+
+:Battle BG Edit
+战斗背景编辑
+
+:Battle Screen
+战斗画面
+
+:CG Editor
+CG编辑器
+
+:CG (FE7U)
+CG（FE7U）
+
+:Unit Palette
+单位调色板
+
+:Wait Icon
+等待图标
+
+:Move Icon
+移动图标
+
+:System Area
+系统区域
+
+:Generic Enemy
+通用敌人
+
+:ROM Anime
+ROM动画
+
+:TSA Editor
+TSA编辑器
+
+:TSA Anime
+TSA动画
+
+:TSA Anime 2
+TSA动画2
+
+:Palette
+调色板
+
+:Magic FEditor
+魔法FEditor
+
+:CSA Creator
+CSA创建器
+
+:Map Action Anim
+地图动作动画
+
+:Color Reduce
+减色工具
+
+:Event Script
+事件脚本
+
+:Event Unit
+事件单位
+
+:Event Unit (FE6)
+事件单位（FE6）
+
+:Event Unit (FE7)
+事件单位（FE7）
+
+:Unit Color
+单位颜色
+
+:Item Drop
+道具掉落
+
+:New Alloc
+新分配
+
+:Battle Talk
+战斗对话
+
+:Battle Talk (FE6)
+战斗对话（FE6）
+
+:Battle Talk (FE7)
+战斗对话（FE7）
+
+:Battle Data (FE7)
+战斗数据（FE7）
+
+:Haiku
+俳句
+
+:Haiku (FE6)
+俳句（FE6）
+
+:Haiku (FE7)
+俳句（FE7）
+
+:Map Change Evt
+地图变更事件
+
+:Force Sortie
+强制出击
+
+:Force Sortie (FE7)
+强制出击（FE7）
+
+:Func Pointer
+函数指针
+
+:Func Ptr (FE7)
+函数指针（FE7）
+
+:Event Assembler
+事件汇编器
+
+:Procs Script
+Procs脚本
+
+:Templates
+模板
+
+:Template 1
+模板1
+
+:Template 2
+模板2
+
+:Template 3
+模板3
+
+:Template 4
+模板4
+
+:Template 5
+模板5
+
+:Template 6
+模板6
+
+:Final Serif (FE7)
+最终台词（FE7）
+
+:Move Data (FE7)
+移动数据（FE7）
+
+:Talk Group (FE7)
+对话组（FE7）
+
+:AI Script
+AI脚本
+
+:AI ASM Call
+AI ASM调用
+
+:AI Coordinate
+AI坐标
+
+:AI Range
+AI范围
+
+:AI Map Setting
+AI地图设置
+
+:AI Item
+AI道具
+
+:AI Staff
+AI杖
+
+:AI Steal
+AI盗取
+
+:AI Target
+AI目标
+
+:AI Tiles
+AI地块
+
+:AI Units
+AI单位
+
+:AOE Range
+AOE范围
+
+:Map Editor
+地图编辑器
+
+:Map Settings (FE6)
+地图设置（FE6）
+
+:Map Settings (FE7)
+地图设置（FE7）
+
+:Map Settings (FE7U)
+地图设置（FE7U）
+
+:Difficulty
+难度
+
+:Style Editor
+样式编辑器
+
+:Terrain BG
+地形背景
+
+:Terrain Floor
+地形地面
+
+:Mini Map
+迷你地图
+
+:Tile Anim 1
+图块动画1
+
+:Tile Anim 2
+图块动画2
+
+:Load Function
+加载函数
+
+:Terrain Eng
+英文地形
+
+:Song Track
+音轨
+
+:Instrument
+乐器
+
+:Direct Sound
+直接音源
+
+:Wave Import
+波形导入
+
+:MIDI Import
+MIDI导入
+
+:Song Exchange
+曲目交换
+
+:Sound Room (FE6)
+音乐室（FE6）
+
+:Sound Room CG
+音乐室CG
+
+:Change Track
+变更音轨
+
+:All Change Track
+全部变更音轨
+
+:Select Instrument
+选择乐器
+
+:Import Wave
+导入波形
+
+:Unit (FE6)
+单位（FE6）
+
+:Action Pointer
+行动指针
+
+:Custom Anim
+自定义动画
+
+:Height
+高度
+
+:Class (FE6)
+职业（FE6）
+
+:Class OP Demo
+职业OP演示
+
+:Class OP Font
+职业OP字体
+
+:Extra Unit
+额外单位
+
+:Extra (FE8U)
+额外（FE8U）
+
+:Text Editor
+文本编辑器
+
+:Other Text
+其他文本
+
+:C-String
+C字符串
+
+:Font Editor
+字体编辑器
+
+:Font ZH
+中文字体
+
+:Dev Translate
+开发翻译
+
+:ROM Translate
+ROM翻译
+
+:Text Escape
+文本转义
+
+:Patch Manager
+补丁管理器
+
+:Custom Build
+自定义构建
+
+:Skill Unit
+技能单位
+
+:Skill Class
+技能职业
+
+:Skill Config
+技能设置
+
+:Map Paths
+地图路径
+
+:Path Editor
+路径编辑器
+
+:Map Image
+地图图片
+
+:Map Image (FE6)
+地图图片（FE6）
+
+:Map Image (FE7)
+地图图片（FE7）
+
+:Events (FE6)
+事件（FE6）
+
+:Events (FE7)
+事件（FE7）
+
+:Cmd85 Pointer
+Cmd85指针
+
+:Spell Menu Ext
+魔法菜单扩展
+
+:Status Option
+状态选项
+
+:OAM Sprite
+OAM精灵
+
+:Struct Dump
+结构导出
+
+:Run Lint
+运行检查
+
+:Undo History
+撤销历史
+
+:FELint GUI
+FELint界面
+
+:ROM Rebuild
+ROM重建
+
+:LZ77 Tool
+LZ77工具
+
+:ROM Diff
+ROM差异比较
+
+:UPS Create
+创建UPS
+
+:UPS Apply
+应用UPS
+
+:Flag Names
+标志名称
+
+:Flag Usage
+标志使用
+
+:Talk Groups
+对话组
+
+:ASM Insert
+ASM插入
+
+:Hex Editor
+十六进制编辑器
+
+:Disassembler
+反汇编器
+
+:Log Viewer
+日志查看器
+
+:Grow Sim
+成长模拟
+
+:Options
+设置
+
+:Pointer Tool
+指针工具
+
+:Free Space
+空闲空间
+
+:Graphics Tool
+图形工具
+
+:BGM Mute
+BGM静音
+
+:Status Param
+状态参数
+
+:Status R-Menu
+状态R菜单
+
+:Status Units
+状态单位
+
+:Status Options
+状态选项
+
+:Unit CSkillSys
+单位CSkillSys
+
+:Class CSkillSys
+职业CSkillSys
+
+:Unit FE8N
+单位FE8N
+
+:Config FE8N
+设置FE8N
+
+:Config FE8N v2
+设置FE8N v2
+
+:Config FE8N v3
+设置FE8N v3
+
+:Config CSkill09x
+设置CSkill09x
+
+:Eff Rework
+特效重制
+
+:Items (FE6)
+道具（FE6）
+
+:Move Cost (FE6)
+移动消耗（FE6）
+
+:Support (FE6)
+支援（FE6）
+
+:Sup Talk (FE6)
+支援对话（FE6）
+
+:Sup Talk (FE7)
+支援对话（FE7）
+
+:Units (FE7)
+单位（FE7）
+
+:OP Demo (FE7)
+OP演示（FE7）
+
+:OP Demo (FE7U)
+OP演示（FE7U）
+
+:OP Demo (FE8U)
+OP演示（FE8U）
+
+:OP Font (FE8U)
+OP字体（FE8U）
+
+:Alpha Name
+字母名称
+
+:Alpha (FE6)
+字母（FE6）
+
+:Class List
+职业列表
+
+:Weapon Lock
+武器锁定
+
+:Short Text
+短文本
+
+:Filter:
+筛选:
+
+:Clear
+清除
+
+:Open a ROM file to begin editing.
+打开ROM文件以开始编辑。
+
+:Type to filter editors...
+输入以筛选编辑器...
