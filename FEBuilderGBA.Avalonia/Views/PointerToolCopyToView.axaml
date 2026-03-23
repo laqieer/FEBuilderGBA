@@ -21,7 +21,7 @@
             HorizontalAlignment="Left" Click="CopyLittleEndian_Click" />
     <Button AutomationProperties.AutomationId="PointerToolCopyTo_Hex_Button" Name="HexButton" Content="Copy as Hex" Width="404" Height="44"
             HorizontalAlignment="Left" Click="HexButton_Click" />
-    <Button AutomationProperties.AutomationId="PointerToolCopyTo_CopyNoDollGBARadBreakPoint_Button" Name="CopyNoDollGBARadBreakPoint" Content="Copy (No $ / GBA / Rad / BreakPoint)" Width="404" Height="44"
+    <Button AutomationProperties.AutomationId="PointerToolCopyTo_CopyNoDollarGBARadBreakPoint_Button" Name="CopyNoDollGBARadBreakPoint" Content="Copy (No $ / GBA / Rad / BreakPoint)" Width="404" Height="44"
             HorizontalAlignment="Left" Click="CopyNoDoll_Click" />
   </StackPanel>
   </ScrollViewer>

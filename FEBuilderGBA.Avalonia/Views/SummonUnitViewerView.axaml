@@ -19,7 +19,7 @@
           <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Summoned Unit:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_Unknown_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="UnknownBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_SummonedUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="UnknownBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
