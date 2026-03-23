@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MenuDefinitionView : Window, IEditorView, IDataVerifiableView
+    public partial class MenuDefinitionView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly MenuDefinitionViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -20,10 +18,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public MenuDefinitionView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -110,12 +104,6 @@ namespace FEBuilderGBA.Avalonia.Views
             text = text.Trim();
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

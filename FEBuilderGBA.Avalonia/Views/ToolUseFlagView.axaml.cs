@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUseFlagView : Window, IEditorView
+    public partial class ToolUseFlagView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolUseFlagViewModel _vm = new();
 
         public string ViewTitle => "Flag Usage Viewer";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolUseFlagView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -59,11 +53,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

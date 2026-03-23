@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyPleaseWaitView : Window
+    public partial class NotifyPleaseWaitView : TranslatedWindow
     {
-        ViewTranslationHelper _translator;
-
         bool _forceClosing;
 
         /// <summary>Raised when the user clicks Cancel.</summary>
@@ -21,10 +19,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public NotifyPleaseWaitView(NotifyPleaseWaitViewModel vm)
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = vm;
         }
 
@@ -55,12 +49,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             base.OnClosing(e);
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

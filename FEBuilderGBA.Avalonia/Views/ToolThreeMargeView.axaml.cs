@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolThreeMargeView : Window, IEditorView
+    public partial class ToolThreeMargeView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolThreeMargeViewViewModel _vm = new();
         public string ViewTitle => "Three-Way Merge";
         public bool IsLoaded => _vm.IsLoaded;
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolThreeMargeView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -65,11 +59,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

@@ -262,9 +262,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void AllViews_HaveTranslationHelper()
+        public void AllViews_InheritTranslatedWindow()
         {
-            // Verify that the ViewTranslationHelper field exists on a sample of views
+            // Verify that views inherit from TranslatedWindow base class
             var viewTypes = new[]
             {
                 typeof(FEBuilderGBA.Avalonia.Views.UnitEditorView),
@@ -274,12 +274,44 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             foreach (var vt in viewTypes)
             {
-                var field = vt.GetField("_translator",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                Assert.True(field != null,
-                    $"{vt.Name} should have a _translator field for ViewTranslationHelper");
-                Assert.Equal(typeof(ViewTranslationHelper), field.FieldType);
+                Assert.True(typeof(TranslatedWindow).IsAssignableFrom(vt),
+                    $"{vt.Name} should inherit from TranslatedWindow");
             }
+        }
+
+        [AvaloniaFact]
+        public void EasyModePanel_InheritsTranslatedUserControl()
+        {
+            Assert.True(typeof(TranslatedUserControl).IsAssignableFrom(
+                typeof(FEBuilderGBA.Avalonia.Views.EasyModePanel)),
+                "EasyModePanel should inherit from TranslatedUserControl");
+        }
+
+        [AvaloniaFact]
+        public void TranslateAll_TranslatesTextBoxWatermark()
+        {
+            var panel = new StackPanel();
+            var tb = new TextBox { Watermark = "Search..." };
+            panel.Children.Add(tb);
+
+            var helper = new ViewTranslationHelper(panel);
+            helper.TranslateAll();
+
+            string expected = R._("Search...");
+            Assert.Equal(expected, tb.Watermark);
+        }
+
+        [AvaloniaFact]
+        public void TranslateAll_SkipsEmptyWatermark()
+        {
+            var panel = new StackPanel();
+            var tb = new TextBox { Watermark = "" };
+            panel.Children.Add(tb);
+
+            var helper = new ViewTranslationHelper(panel);
+            helper.TranslateAll();
+
+            Assert.Equal("", tb.Watermark);
         }
     }
 }

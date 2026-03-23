@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIASMCoordinateView : Window, IEditorView
+    public partial class AIASMCoordinateView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly AIASMCoordinateViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public AIASMCoordinateView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
@@ -97,11 +91,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

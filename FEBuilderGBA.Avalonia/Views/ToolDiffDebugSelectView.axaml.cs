@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDiffDebugSelectView : Window, IEditorView
+    public partial class ToolDiffDebugSelectView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolDiffDebugSelectViewModel _vm = new();
         public string ViewTitle => "Comparison Debug Tool";
         public bool IsLoaded => _vm.IsLoaded;
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolDiffDebugSelectView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -114,11 +108,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

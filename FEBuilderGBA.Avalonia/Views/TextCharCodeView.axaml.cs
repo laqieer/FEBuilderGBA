@@ -8,10 +8,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextCharCodeView : Window, IEditorView, IDataVerifiableView
+    public partial class TextCharCodeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TextCharCodeViewModel _vm = new();
 
         public string ViewTitle => "Text Character Code";
@@ -21,10 +19,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextCharCodeView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             CharCodeList.ItemsSource = _vm.CharCodes;
             CharCodeList.SelectionChanged += CharCodeList_SelectionChanged;
             _vm.Initialize();
@@ -135,12 +129,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             imageControl.Source = bitmap;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

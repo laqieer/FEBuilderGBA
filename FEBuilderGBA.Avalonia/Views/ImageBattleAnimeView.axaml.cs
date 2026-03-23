@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleAnimeView : Window, IEditorView
+    public partial class ImageBattleAnimeView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ImageBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressFrameEvents;
@@ -23,10 +21,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageBattleAnimeView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
             Closed += (_, _) => StopAnimation();
@@ -291,11 +285,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

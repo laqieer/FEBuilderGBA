@@ -7,28 +7,16 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OptionsView : Window
+    public partial class OptionsView : TranslatedWindow
     {
-        ViewTranslationHelper _translator;
         readonly OptionsViewModel _vm = new();
         string _originalLanguageCode = "";
 
         public OptionsView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             Opened += OnOpened;
         }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
-
         void OnOpened(object? sender, EventArgs e)
         {
             _vm.Load();
@@ -78,11 +66,11 @@ namespace FEBuilderGBA.Avalonia.Views
             var target = this.FindControl<TextBox>(targetName);
             if (target == null) return;
 
-            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var allFiles = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType(R._("Executables")) { Patterns = new[] { "*.exe", "*" } };
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Select File",
+                Title = R._("Select File"),
                 AllowMultiple = false,
                 FileTypeFilter = new[] { exeFiles, allFiles },
             });
@@ -103,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
-                Title = "Select Directory",
+                Title = R._("Select Directory"),
                 AllowMultiple = false,
             });
             if (folders.Count > 0)

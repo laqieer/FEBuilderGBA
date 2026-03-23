@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextToSpeechView : Window, IEditorView, IDataVerifiableView
+    public partial class TextToSpeechView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TextToSpeechViewModel _vm = new();
 
         public string ViewTitle => "Text to Speech";
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextToSpeechView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Initialize();
         }
 
@@ -37,11 +31,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

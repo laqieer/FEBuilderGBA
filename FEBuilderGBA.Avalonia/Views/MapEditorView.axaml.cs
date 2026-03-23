@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapEditorView : Window, IEditorView
+    public partial class MapEditorView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly MapEditorViewModel _vm = new();
         readonly UndoService _undo = new();
         int _zoom = 1;
@@ -22,10 +20,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapEditorView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
             ZoomInBtn.Click += OnZoomIn;
@@ -198,11 +192,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

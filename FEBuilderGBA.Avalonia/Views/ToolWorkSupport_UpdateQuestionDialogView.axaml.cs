@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolWorkSupport_UpdateQuestionDialogView : Window, IEditorView
+    public partial class ToolWorkSupport_UpdateQuestionDialogView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolWorkSupport_UpdateQuestionDialogViewModel _vm = new();
         public string ViewTitle => "Current version is the latest";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,10 +15,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolWorkSupport_UpdateQuestionDialogView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -39,11 +33,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

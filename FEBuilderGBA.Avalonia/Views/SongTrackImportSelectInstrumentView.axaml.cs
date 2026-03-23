@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportSelectInstrumentView : Window, IEditorView
+    public partial class SongTrackImportSelectInstrumentView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly SongTrackImportSelectInstrumentViewModel _vm = new();
 
         public string ViewTitle => "Instrument Selection";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public SongTrackImportSelectInstrumentView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -60,11 +54,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

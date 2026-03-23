@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SMEPromoListView : Window, IEditorView
+    public partial class SMEPromoListView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly SMEPromoListViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "SME Promo List";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public SMEPromoListView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -57,12 +51,6 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.AddressList.Count > 0)
                 _vm.SelectedIndex = 0;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EmulatorMemoryView : Window, IEditorView
+    public partial class EmulatorMemoryView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly EmulatorMemoryViewModel _vm = new();
         public string ViewTitle => "Emulator Memory";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,10 +15,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public EmulatorMemoryView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Initialize();
         }
 
@@ -28,11 +22,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

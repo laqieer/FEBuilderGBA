@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventBattleTalkFE6View : Window, IEditorView
+    public partial class EventBattleTalkFE6View : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly EventBattleTalkFE6ViewModel _vm = new();
 
         public string ViewTitle => "Battle Dialogue (FE6)";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventBattleTalkFE6View()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -59,11 +53,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

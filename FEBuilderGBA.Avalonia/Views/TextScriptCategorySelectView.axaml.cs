@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextScriptCategorySelectView : Window, IEditorView, IDataVerifiableView
+    public partial class TextScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TextScriptCategorySelectViewModel _vm = new();
 
         public string ViewTitle => "Text Script Category Select";
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextScriptCategorySelectView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Load();
             CategoryList.ItemsSource = _vm.Categories;
             if (_vm.Categories.Count > 0)
@@ -39,11 +33,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { if (_vm.Categories.Count > 0) CategoryList.SelectedIndex = 0; }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

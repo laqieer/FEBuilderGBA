@@ -12,20 +12,14 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DataExportView : Window
+    public partial class DataExportView : TranslatedWindow
     {
-        ViewTranslationHelper _translator;
-
         readonly DataExportViewModel _vm = new();
         readonly UndoService _undoService = new();
 
         public DataExportView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
         }
 
@@ -49,12 +43,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
             var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export TSV",
+                Title = R._("Export TSV"),
                 SuggestedFileName = $"{_vm.SelectedTable}.tsv",
                 FileTypeChoices = new[]
                 {
-                    new FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    new FilePickerFileType(R._("TSV Files")) { Patterns = new[] { "*.tsv" } },
+                    new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } }
                 }
             });
 
@@ -178,12 +172,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Import TSV",
+                Title = R._("Import TSV"),
                 AllowMultiple = false,
                 FileTypeFilter = new[]
                 {
-                    new FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } },
-                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } }
+                    new FilePickerFileType(R._("TSV Files")) { Patterns = new[] { "*.tsv" } },
+                    new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } }
                 }
             });
 
@@ -271,12 +265,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 _vm.StatusMessage = $"Import failed: {ex.Message}";
             }
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

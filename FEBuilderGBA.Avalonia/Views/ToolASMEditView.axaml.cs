@@ -10,10 +10,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolASMEditView : Window, IEditorView
+    public partial class ToolASMEditView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolASMEditViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "ASM Edit";
@@ -22,10 +20,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolASMEditView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -200,11 +194,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TerrainNameEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class TerrainNameEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TerrainNameEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -20,10 +18,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TerrainNameEditorView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             TerrainList.SelectedAddressChanged += OnTerrainSelected;
             Opened += (_, _) => LoadList();
         }
@@ -87,12 +81,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             TerrainList.SelectFirst();
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

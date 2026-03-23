@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveCostFE6View : Window, IEditorView, IDataVerifiableView
+    public partial class MoveCostFE6View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly MoveCostFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressEvents;
@@ -21,10 +19,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public MoveCostFE6View()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             CostTypeCombo.SelectionChanged += OnCostTypeChanged;
             Opened += (_, _) => LoadList();
@@ -130,11 +124,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

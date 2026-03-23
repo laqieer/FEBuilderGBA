@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorView : Window, IEditorView
+    public partial class HexEditorView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly HexEditorViewModel _vm = new();
 
         public string ViewTitle => "Hex Editor";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public HexEditorView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             Opened += (_, _) => { _vm.RefreshDisplay(); UpdateUI(); };
         }
@@ -68,12 +62,6 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.PageDown();
             UpdateUI();
             AddressBox.Text = $"0x{_vm.BaseAddress:X08}";
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

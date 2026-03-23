@@ -10,10 +10,8 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WelcomeView : Window, IEditorView, IDataVerifiableView
+    public partial class WelcomeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly WelcomeViewModel _vm = new();
         public string ViewTitle => "Welcome";
         public bool IsLoaded => _vm.IsLoaded;
@@ -25,10 +23,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public WelcomeView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
             LoadRecentFiles();
@@ -138,12 +132,6 @@ namespace FEBuilderGBA.Avalonia.Views
             public string Display { get; set; } = "";
             public int Index { get; set; }
             public override string ToString() => Display;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PointerToolView : Window, IEditorView
+    public partial class PointerToolView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly PointerToolViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Pointer Tool";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public PointerToolView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -65,11 +59,5 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

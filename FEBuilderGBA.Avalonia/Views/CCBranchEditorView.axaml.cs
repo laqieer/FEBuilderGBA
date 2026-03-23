@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class CCBranchEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class CCBranchEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly CCBranchEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -20,10 +18,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public CCBranchEditorView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             BranchList.SelectedAddressChanged += OnBranchSelected;
             Opened += (_, _) => LoadList();
         }
@@ -92,12 +86,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             BranchList.SelectFirst();
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

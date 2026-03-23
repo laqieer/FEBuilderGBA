@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class RAMRewriteToolMAPView : Window, IEditorView
+    public partial class RAMRewriteToolMAPView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly RAMRewriteToolMAPViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "RAM Rewrite Tool (MAP)";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public RAMRewriteToolMAPView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -42,11 +36,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

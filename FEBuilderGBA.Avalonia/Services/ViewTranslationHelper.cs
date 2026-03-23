@@ -14,13 +14,13 @@ namespace FEBuilderGBA.Avalonia.Services
     /// This helper stores the original (English) text for every translatable
     /// control so it can re-translate when the language changes at runtime.
     ///
-    /// Usage in any Window/UserControl code-behind:
+    /// Prefer using TranslatedWindow / TranslatedUserControl base classes
+    /// which wire this helper automatically. For manual usage:
     ///   _translator = new ViewTranslationHelper(this);
-    ///   // In constructor or Opened handler — after InitializeComponent():
+    ///   // On Opened / AttachedToVisualTree:
     ///   _translator.TranslateAll();
-    ///   // Subscribe to language changes:
     ///   CoreState.LanguageChanged += _translator.OnLanguageChanged;
-    ///   // Unsubscribe in OnClosed:
+    ///   // On Closed / DetachedFromVisualTree:
     ///   CoreState.LanguageChanged -= _translator.OnLanguageChanged;
     /// </summary>
     public sealed class ViewTranslationHelper
@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         readonly List<TranslationEntry> _entries = new();
 
-        enum PropKind { Text, Header, Content, Title }
+        enum PropKind { Text, Header, Content, Title, Watermark }
 
         readonly record struct TranslationEntry(Control Control, PropKind Kind, string OriginalText);
 
@@ -167,6 +167,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 _entries.Add(new TranslationEntry(control, PropKind.Content, lblContent));
             }
 
+            // Check TextBox.Watermark (placeholder text)
+            if (control is TextBox textBox && IsTranslatable(textBox.Watermark ?? ""))
+            {
+                _entries.Add(new TranslationEntry(control, PropKind.Watermark, textBox.Watermark!));
+            }
+
             // Recurse into logical children
             foreach (var child in control.GetLogicalChildren())
             {
@@ -207,6 +213,10 @@ namespace FEBuilderGBA.Avalonia.Services
                     case PropKind.Title:
                         if (entry.Control is Window win)
                             win.Title = translated;
+                        break;
+                    case PropKind.Watermark:
+                        if (entry.Control is TextBox textBox)
+                            textBox.Watermark = translated;
                         break;
                 }
             }

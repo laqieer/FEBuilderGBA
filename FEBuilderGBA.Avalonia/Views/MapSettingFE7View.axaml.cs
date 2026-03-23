@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapSettingFE7View : Window, IEditorView, IDataVerifiableView
+    public partial class MapSettingFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly MapSettingFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -20,10 +18,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public MapSettingFE7View()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWriteClick;
             Opened += (_, _) => LoadList();
@@ -250,11 +244,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem() => EntryList.SelectFirst();
 
         private static uint ParseHexText(string? text) => ViewHelpers.ParseHexText(text);
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

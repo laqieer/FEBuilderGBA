@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SkillConfigFE8NSkillView : Window, IEditorView, IDataVerifiableView
+    public partial class SkillConfigFE8NSkillView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly SkillConfigFE8NSkillViewViewModel _vm = new();
         readonly UndoService _undoService = new();
         public string ViewTitle => "Skill Configuration (FE8N)";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public SkillConfigFE8NSkillView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             WriteButton.Click += OnWrite;
             Opened += (_, _) => _vm.Initialize();
         }
@@ -60,11 +54,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
         public ViewModelBase? DataViewModel => _vm;
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextRefAddDialogView : Window, IEditorView, IDataVerifiableView
+    public partial class TextRefAddDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TextRefAddDialogViewModel _vm = new();
 
         public string ViewTitle => "Add Text Reference";
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextRefAddDialogView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             _vm.Initialize();
         }
 
@@ -37,11 +31,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

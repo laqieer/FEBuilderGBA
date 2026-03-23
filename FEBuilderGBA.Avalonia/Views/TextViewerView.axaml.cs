@@ -11,10 +11,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class TextViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly TextViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -28,10 +26,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public TextViewerView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
             EditTextBox.TextChanged += OnEditTextChanged;
@@ -180,11 +174,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var tsvType = new FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var tsvType = new FilePickerFileType(R._("TSV Files")) { Patterns = new[] { "*.tsv" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = "Export Texts",
+                    Title = R._("Export Texts"),
                     SuggestedFileName = "texts.tsv",
                     FileTypeChoices = new[] { tsvType, allType },
                 });
@@ -192,7 +186,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (path == null) return;
 
                 int count = _vm.ExportAllTexts(path);
-                await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
             {
@@ -212,11 +206,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (count > 0)
                 {
                     LoadList(); // Refresh the list to show updated texts
-                    await MessageBoxWindow.Show(this, $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
                 }
                 else
                 {
-                    await MessageBoxWindow.Show(this, "No texts were imported. Check the file format.", "Import", MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("No texts were imported. Check the file format."), "Import", MessageBoxMode.Ok);
                 }
             }
             catch (Exception ex)
@@ -283,11 +277,5 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

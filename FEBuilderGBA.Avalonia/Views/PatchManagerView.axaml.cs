@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchManagerView : Window, IEditorView
+    public partial class PatchManagerView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly PatchManagerViewModel _vm = new();
 
         public string ViewTitle => "Patch Manager";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public PatchManagerView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             Opened += (_, _) => LoadPatches();
             PatchListBox.SelectionChanged += OnPatchSelected;
             SearchBox.TextChanged += OnSearchTextChanged;
@@ -146,12 +140,6 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (PatchListBox.ItemCount > 0)
                 PatchListBox.SelectedIndex = 0;
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
         }
     }
 }

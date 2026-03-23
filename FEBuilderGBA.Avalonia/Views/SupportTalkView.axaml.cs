@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportTalkView : Window, IEditorView, IDataVerifiableView
+    public partial class SupportTalkView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly SupportTalkViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public SupportTalkView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
             Opened += (_, _) => LoadList();
@@ -138,11 +132,5 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public ViewModelBase? DataViewModel => _vm;
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

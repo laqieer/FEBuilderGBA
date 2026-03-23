@@ -8,10 +8,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class GraphicsToolPatchMakerView : Window, IEditorView, IDataVerifiableView
+    public partial class GraphicsToolPatchMakerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly GraphicsToolPatchMakerViewViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -22,10 +20,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public GraphicsToolPatchMakerView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -68,12 +62,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = "Save Graphics Patch",
+                    Title = R._("Save Graphics Patch"),
                     SuggestedFileName = "graphics_patch.txt",
                     FileTypeChoices = new[]
                     {
-                        new FilePickerFileType("Text Patch File") { Patterns = new[] { "*.txt" } },
-                        new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                        new FilePickerFileType(R._("Text Patch File")) { Patterns = new[] { "*.txt" } },
+                        new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } },
                     },
                 });
 
@@ -93,11 +87,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

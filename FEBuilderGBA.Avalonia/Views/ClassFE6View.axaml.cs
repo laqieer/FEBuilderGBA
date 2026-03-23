@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassFE6View : Window, IPickableEditor, IDataVerifiableView
+    public partial class ClassFE6View : TranslatedWindow, IPickableEditor, IDataVerifiableView
     {
-        ViewTranslationHelper _translator;
-
         readonly ClassFE6ViewModel _vm = new();
 
         public string ViewTitle => "Class Editor (FE6)";
@@ -20,10 +18,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ClassFE6View()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             EntryList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
             Opened += (_, _) => LoadList();
@@ -88,11 +82,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void EnablePickMode() => EntryList.EnablePickMode();
 
         public ViewModelBase? DataViewModel => _vm;
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

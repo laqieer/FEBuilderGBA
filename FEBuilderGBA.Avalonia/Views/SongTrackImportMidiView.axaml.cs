@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportMidiView : Window, IEditorView
+    public partial class SongTrackImportMidiView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly SongTrackImportMidiViewModel _vm = new();
 
         public string ViewTitle => "MIDI Import";
@@ -19,10 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public SongTrackImportMidiView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -62,11 +56,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "Select MIDI File",
+                    Title = R._("Select MIDI File"),
                     AllowMultiple = false,
                     FileTypeFilter = new[] { midiType, allType },
                 });
@@ -113,11 +107,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

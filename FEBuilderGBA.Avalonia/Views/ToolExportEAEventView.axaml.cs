@@ -11,24 +11,18 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolExportEAEventView : Window, IEditorView
+    public partial class ToolExportEAEventView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolExportEAEventViewViewModel _vm = new();
         public string ViewTitle => "Export EA Event";
         public bool IsLoaded => _vm.IsLoaded;
 
-        static readonly FilePickerFileType EaFileType = new("EA Event Files") { Patterns = new[] { "*.event" } };
-        static readonly FilePickerFileType AllFileType = new("All Files") { Patterns = new[] { "*" } };
+        static FilePickerFileType EaFileType => new(R._("EA Event Files")) { Patterns = new[] { "*.event" } };
+        static FilePickerFileType AllFileType => new(R._("All Files")) { Patterns = new[] { "*" } };
 
         public ToolExportEAEventView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -56,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                Title = "Export EA Event",
+                Title = R._("Export EA Event"),
                 SuggestedFileName = suggestedName,
                 FileTypeChoices = new[] { EaFileType, AllFileType },
             });
@@ -385,11 +379,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

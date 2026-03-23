@@ -7,10 +7,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolProblemReportSearchBackupView : Window, IEditorView
+    public partial class ToolProblemReportSearchBackupView : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly ToolProblemReportSearchBackupViewModel _vm = new();
         public string ViewTitle => "No past backups found";
         public bool IsLoaded => _vm.IsLoaded;
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolProblemReportSearchBackupView()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             DataContext = _vm;
             _vm.Initialize();
         }
@@ -31,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var dlg = new OpenFileDialog();
-                dlg.Title = "Select Backup File";
+                dlg.Title = R._("Select Backup File");
                 dlg.Filters?.Add(new FileDialogFilter { Name = "Backup Files", Extensions = { "7z", "gba" } });
                 var result = await dlg.ShowAsync(this);
                 if (result != null && result.Length > 0)
@@ -61,11 +55,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }

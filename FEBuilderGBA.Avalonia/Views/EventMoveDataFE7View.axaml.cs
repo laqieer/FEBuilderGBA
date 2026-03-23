@@ -6,10 +6,8 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventMoveDataFE7View : Window, IEditorView
+    public partial class EventMoveDataFE7View : TranslatedWindow, IEditorView
     {
-        ViewTranslationHelper _translator;
-
         readonly EventMoveDataFE7ViewModel _vm = new();
 
         public string ViewTitle => "Move Data (FE7)";
@@ -18,10 +16,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventMoveDataFE7View()
         {
             InitializeComponent();
-            // Translation support
-            _translator = new ViewTranslationHelper(this);
-            _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
@@ -74,11 +68,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        protected override void OnClosed(EventArgs e)
-        {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
-            base.OnClosed(e);
-        }
     }
 }
