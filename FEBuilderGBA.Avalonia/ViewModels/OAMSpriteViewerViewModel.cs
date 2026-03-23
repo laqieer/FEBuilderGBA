@@ -222,6 +222,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 FrameImage = null;
             }
 
+            // Update tile sheet to match current frame's graphics
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom != null && U.isPointer(fi.GraphicsPointer))
+                {
+                    uint gfxOff = U.toOffset(fi.GraphicsPointer);
+                    if (U.isSafetyOffset(gfxOff, rom))
+                    {
+                        byte[] tileData = LZ77.decompress(rom.Data, gfxOff);
+                        if (tileData != null && tileData.Length > 0 && _cachedPaletteData != null)
+                        {
+                            // Use first 16 colors (32 bytes) from cached palette
+                            byte[] pal16 = _cachedPaletteData.Length >= 32
+                                ? new byte[32]
+                                : _cachedPaletteData;
+                            if (_cachedPaletteData.Length >= 32)
+                                Array.Copy(_cachedPaletteData, pal16, 32);
+
+                            TileSheetImage = BattleAnimeRendererCore.RenderTileSheet(tileData, pal16, 32);
+                            if (TileSheetImage != null)
+                                TileSheetInfo = $"Tile sheet: {TileSheetImage.Width}x{TileSheetImage.Height}px (frame {CurrentFrame + 1})";
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Keep existing tile sheet on error
+            }
+
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
                 ? BattleAnimeRendererCore.SectionNames[CurrentSection]
                 : $"Section {CurrentSection}";

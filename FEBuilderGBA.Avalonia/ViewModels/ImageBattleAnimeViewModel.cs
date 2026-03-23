@@ -371,6 +371,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Render the current frame and update FrameImage + FrameInfoText.
+        /// Also updates the tile sheet to match the current frame's graphics data.
         /// </summary>
         void RenderCurrentFrame()
         {
@@ -389,6 +390,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch
             {
                 FrameImage = null;
+            }
+
+            // Update tile sheet to match current frame's graphics
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom != null && U.isPointer(fi.GraphicsPointer))
+                {
+                    uint gfxOff = U.toOffset(fi.GraphicsPointer);
+                    if (U.isSafetyOffset(gfxOff, rom))
+                    {
+                        byte[] tileData = LZ77.decompress(rom.Data, gfxOff);
+                        if (tileData != null && tileData.Length > 0 && _cachedPaletteData != null)
+                        {
+                            // Use first 16 colors (32 bytes) from cached palette
+                            byte[] pal16 = _cachedPaletteData.Length >= 32
+                                ? new byte[32]
+                                : _cachedPaletteData;
+                            if (_cachedPaletteData.Length >= 32)
+                                Array.Copy(_cachedPaletteData, pal16, 32);
+
+                            TileSheetImage = BattleAnimeRendererCore.RenderTileSheet(tileData, pal16, 16);
+                            if (TileSheetImage != null)
+                            {
+                                int tileCount = tileData.Length / 32;
+                                TileSheetInfo = $"{TileSheetImage.Width}x{TileSheetImage.Height} px, {tileCount} tiles (frame {CurrentFrame + 1})";
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Keep existing tile sheet on error
             }
 
             string sectionName = CurrentSection < BattleAnimeRendererCore.SectionNames.Length
