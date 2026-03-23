@@ -38,7 +38,7 @@ $interactiveControls = @(
     'TextBox', 'NumericUpDown', 'ComboBox', 'Button',
     'ListBox', 'ListView', 'CheckBox', 'ToggleButton',
     'Expander', 'TabControl', 'TabItem', 'RadioButton',
-    'Image', 'Slider', 'ToggleSwitch', 'MenuItem'
+    'Image', 'Slider', 'ToggleSwitch', 'MenuItem', 'AutoCompleteBox'
 )
 
 # Custom controls that should get AutomationIds when used as host elements
@@ -68,6 +68,7 @@ $controlSuffixMap = @{
     'ToggleSwitch'  = '_Check'
     'MenuItem'      = '_Button'
     'ItemsControl'  = '_List'
+    'AutoCompleteBox' = '_Input'
     'controls:BitFlagPanel'       = '_Check'
     'controls:AddressListControl' = '_List'
     'controls:GbaImageControl'    = '_Image'

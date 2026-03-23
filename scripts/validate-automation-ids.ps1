@@ -39,7 +39,7 @@ $interactiveControlTypes = @(
     'ListBox', 'ListView', 'CheckBox', 'ToggleButton',
     'Expander', 'TabControl', 'TabItem', 'RadioButton',
     'Slider', 'ToggleSwitch',
-    'MenuItem', 'ItemsControl', 'Image'
+    'MenuItem', 'ItemsControl', 'Image', 'AutoCompleteBox'
 )
 
 $customControlTypes = @(

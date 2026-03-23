@@ -12,7 +12,7 @@
     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,20">
       <TextBlock Text="Search:" Width="99" Height="18"
                  VerticalAlignment="Center" />
-      <AutoCompleteBox x:Name="AddrComboBox" Width="337" Height="26"
+      <AutoCompleteBox AutomationProperties.AutomationId="HexEditorSearch_Addr_Input" x:Name="AddrComboBox" Width="337" Height="26"
                        FilterMode="None" />
     </StackPanel>
     <!-- Reverse search checkbox -->
