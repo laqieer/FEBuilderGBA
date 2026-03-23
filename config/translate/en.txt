@@ -13914,3 +13914,231 @@ Set the source to get release versions
 
 :0=言語に基づいて自動決定
 0=Automatically determine based on language
+
+:Characters
+Characters
+
+:Items
+Items
+
+:Maps
+Maps
+
+:Text
+Text
+
+:Graphics
+Graphics
+
+:Audio
+Audio
+
+:Arena
+Arena
+
+:Monsters
+Monsters
+
+:Summons
+Summons
+
+:Items (Specialized)
+Items (Specialized)
+
+:Menus
+Menus
+
+:Credits
+Credits
+
+:World Map
+World Map
+
+:Image Editors
+Image Editors
+
+:Event Scripts
+Event Scripts
+
+:AI Scripts
+AI Scripts
+
+:Map Editors
+Map Editors
+
+:Audio (Advanced)
+Audio (Advanced)
+
+:Unit/Class Specialized
+Unit/Class Specialized
+
+:Text/Translation
+Text/Translation
+
+:Patches
+Patches
+
+:Skill Systems
+Skill Systems
+
+:World Map (Advanced)
+World Map (Advanced)
+
+:Structural Data
+Structural Data
+
+:Tools
+Tools
+
+:Status Screen
+Status Screen
+
+:Skill Systems (Extended)
+Skill Systems (Extended)
+
+:Version-Specific
+Version-Specific
+
+:Easy Mode
+Easy Mode
+
+:No ROM loaded
+No ROM loaded
+
+:bytes
+bytes
+
+:Free:
+Free:
+
+:Redo is not supported.
+Redo is not supported.
+
+:View refreshed.
+View refreshed.
+
+:(No recent files)
+(No recent files)
+
+:(missing)
+(missing)
+
+:File not found:
+File not found:
+
+:Error
+Error
+
+:Failed to load ROM:
+Failed to load ROM:
+
+:Switch to _Normal Mode
+Switch to _Normal Mode
+
+:Toggle _Easy Mode
+Toggle _Easy Mode
+
+:Switch to _Light Mode
+Switch to _Light Mode
+
+:Toggle _Dark Mode
+Toggle _Dark Mode
+
+:Failed to load ROM.
+Failed to load ROM.
+
+:ROM saved.
+ROM saved.
+
+:ROM saved as:
+ROM saved as:
+
+:No recent ROM found.
+No recent ROM found.
+
+:Open Last ROM
+Open Last ROM
+
+:ROM:
+ROM:
+
+:Load a ROM first before applying a UPS patch.
+Load a ROM first before applying a UPS patch.
+
+:UPS patch failed:
+UPS patch failed:
+
+:UPS patch applied:
+UPS patch applied:
+
+:Failed to apply UPS patch:
+Failed to apply UPS patch:
+
+:You have unsaved changes. Close without saving?
+You have unsaved changes. Close without saving?
+
+:Unsaved Changes
+Unsaved Changes
+
+:editor(s) matching
+editor(s) matching
+
+:Lint: No errors found.
+Lint: No errors found.
+
+:Lint Results
+Lint Results
+
+:issue(s) found:
+issue(s) found:
+
+:FEBuilderGBA
+FEBuilderGBA
+
+:Avalonia Cross-Platform Preview
+Avalonia Cross-Platform Preview
+
+:Copyright 2017- GPLv3
+Copyright 2017- GPLv3
+
+:About
+About
+
+:No
+No
+
+:configured. Set the path in Options first.
+configured. Set the path in Options first.
+
+:External Tool
+External Tool
+
+:Failed to run
+Failed to run
+
+:Unit Editor
+Unit Editor
+
+:Edit Unit
+Edit Unit
+
+:Unit data written.
+Unit data written.
+
+:Class Editor
+Class Editor
+
+:Edit Class
+Edit Class
+
+:Class data written.
+Class data written.
+
+:Item Editor
+Item Editor
+
+:Edit Item
+Edit Item
+
+:Item data written.
+Item data written.

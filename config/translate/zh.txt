@@ -13914,3 +13914,231 @@ This is the destination which you will go to when ChapterID is completed.\r\nDif
 
 :0=言語に基づいて自動決定
 0=根据语言自动决定
+
+:Characters
+角色
+
+:Items
+道具
+
+:Maps
+地图
+
+:Text
+文本
+
+:Graphics
+图形
+
+:Audio
+音频
+
+:Arena
+竞技场
+
+:Monsters
+魔物
+
+:Summons
+召唤
+
+:Items (Specialized)
+道具 (特殊)
+
+:Menus
+菜单
+
+:Credits
+制作人员
+
+:World Map
+世界地图
+
+:Image Editors
+图像编辑器
+
+:Event Scripts
+事件脚本
+
+:AI Scripts
+AI脚本
+
+:Map Editors
+地图编辑器
+
+:Audio (Advanced)
+音频 (高级)
+
+:Unit/Class Specialized
+单位/职业 (特殊)
+
+:Text/Translation
+文本/翻译
+
+:Patches
+补丁
+
+:Skill Systems
+技能系统
+
+:World Map (Advanced)
+世界地图 (高级)
+
+:Structural Data
+结构数据
+
+:Tools
+工具
+
+:Status Screen
+状态画面
+
+:Skill Systems (Extended)
+技能系统 (扩展)
+
+:Version-Specific
+版本特定
+
+:Easy Mode
+简单模式
+
+:No ROM loaded
+未加载ROM
+
+:bytes
+字节
+
+:Free:
+可用空间:
+
+:Redo is not supported.
+不支持重做。
+
+:View refreshed.
+视图已刷新。
+
+:(No recent files)
+(没有最近文件)
+
+:(missing)
+(缺失)
+
+:File not found:
+文件未找到:
+
+:Error
+错误
+
+:Failed to load ROM:
+加载ROM失败:
+
+:Switch to _Normal Mode
+切换到普通模式(_N)
+
+:Toggle _Easy Mode
+切换简单模式(_E)
+
+:Switch to _Light Mode
+切换到亮色模式(_L)
+
+:Toggle _Dark Mode
+切换暗色模式(_D)
+
+:Failed to load ROM.
+加载ROM失败。
+
+:ROM saved.
+ROM已保存。
+
+:ROM saved as:
+ROM另存为:
+
+:No recent ROM found.
+未找到最近的ROM。
+
+:Open Last ROM
+打开上一个ROM
+
+:ROM:
+ROM:
+
+:Load a ROM first before applying a UPS patch.
+请先加载ROM再应用UPS补丁。
+
+:UPS patch failed:
+UPS补丁失败:
+
+:UPS patch applied:
+UPS补丁已应用:
+
+:Failed to apply UPS patch:
+应用UPS补丁失败:
+
+:You have unsaved changes. Close without saving?
+有未保存的更改。是否不保存就关闭？
+
+:Unsaved Changes
+未保存的更改
+
+:editor(s) matching
+个编辑器匹配
+
+:Lint: No errors found.
+检查: 未发现错误。
+
+:Lint Results
+检查结果
+
+:issue(s) found:
+个问题:
+
+:FEBuilderGBA
+FEBuilderGBA
+
+:Avalonia Cross-Platform Preview
+Avalonia 跨平台预览
+
+:Copyright 2017- GPLv3
+版权所有 2017- GPLv3
+
+:About
+关于
+
+:No
+否
+
+:configured. Set the path in Options first.
+未配置。请先在选项中设置路径。
+
+:External Tool
+外部工具
+
+:Failed to run
+运行失败
+
+:Unit Editor
+单位编辑器
+
+:Edit Unit
+编辑单位
+
+:Unit data written.
+单位数据已写入。
+
+:Class Editor
+职业编辑器
+
+:Edit Class
+编辑职业
+
+:Class data written.
+职业数据已写入。
+
+:Item Editor
+道具编辑器
+
+:Edit Item
+编辑道具
+
+:Item data written.
+道具数据已写入。
