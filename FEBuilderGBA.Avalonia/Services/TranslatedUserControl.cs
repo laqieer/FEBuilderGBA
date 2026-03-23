@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Services
     public class TranslatedUserControl : UserControl
     {
         private readonly ViewTranslationHelper _translator;
+        private bool _subscribed;
 
         protected TranslatedUserControl()
         {
@@ -27,12 +28,20 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             base.OnAttachedToVisualTree(e);
             _translator.TranslateAll();
-            CoreState.LanguageChanged += _translator.OnLanguageChanged;
+            if (!_subscribed)
+            {
+                CoreState.LanguageChanged += _translator.OnLanguageChanged;
+                _subscribed = true;
+            }
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            if (_subscribed)
+            {
+                CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+                _subscribed = false;
+            }
             base.OnDetachedFromVisualTree(e);
         }
     }

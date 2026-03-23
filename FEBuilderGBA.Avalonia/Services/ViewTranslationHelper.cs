@@ -33,6 +33,11 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         readonly List<TranslationEntry> _entries = new();
 
+        /// <summary>
+        /// Coalesces multiple rapid LanguageChanged notifications into a single UI post.
+        /// </summary>
+        bool _pendingApply;
+
         enum PropKind { Text, Header, Content, Title, Watermark }
 
         readonly record struct TranslationEntry(Control Control, PropKind Kind, string OriginalText);
@@ -50,7 +55,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 return true;
 
             // Skip binding expressions
-            if (text.StartsWith("{"))
+            if (text.StartsWith("{Binding") || text.StartsWith("{x:") ||
+                text.StartsWith("{DynamicResource") || text.StartsWith("{StaticResource"))
                 return true;
 
             // Skip hex addresses
@@ -104,10 +110,18 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Re-apply translations (call from LanguageChanged handler).
+        /// Coalesces multiple rapid calls into a single dispatcher post.
         /// </summary>
         public void OnLanguageChanged()
         {
-            Dispatcher.UIThread.Post(ApplyTranslations);
+            if (_pendingApply)
+                return;
+            _pendingApply = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                _pendingApply = false;
+                ApplyTranslations();
+            });
         }
 
         void ScanControl(Control control)

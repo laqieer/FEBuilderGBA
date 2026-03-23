@@ -11,19 +11,32 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     /// </summary>
     public static class FileDialogHelper
     {
+        // Reuse static pattern arrays to avoid repeated allocations
+        static readonly string[] GbaPatterns = new[] { "*.gba" };
+        static readonly string[] AllPatterns = new[] { "*" };
+        static readonly string[] UpsPatterns = new[] { "*.ups" };
+        static readonly string[] PngPatterns = new[] { "*.png" };
+        static readonly string[] ImagePatterns = new[] { "*.png", "*.bmp" };
+        static readonly string[] PalPatterns = new[] { "*.pal" };
+        static readonly string[] GbapalPatterns = new[] { "*.gbapal" };
+        static readonly string[] ActPatterns = new[] { "*.act" };
+        static readonly string[] GplPatterns = new[] { "*.gpl" };
+        static readonly string[] TxtPatterns = new[] { "*.txt" };
+        static readonly string[] AllPalettePatterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" };
+
         static FilePickerFileType MakeGbaFileType() => new(R._("GBA ROM Files"))
         {
-            Patterns = new[] { "*.gba" },
+            Patterns = GbaPatterns,
         };
 
         static FilePickerFileType MakeAllFileType() => new(R._("All Files"))
         {
-            Patterns = new[] { "*" },
+            Patterns = AllPatterns,
         };
 
         static FilePickerFileType MakeUpsFileType() => new(R._("UPS Patch Files"))
         {
-            Patterns = new[] { "*.ups" },
+            Patterns = UpsPatterns,
         };
 
         /// <summary>Open a GBA ROM file.</summary>
@@ -67,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         static FilePickerFileType MakePngFileType() => new(R._("PNG Image"))
         {
-            Patterns = new[] { "*.png" },
+            Patterns = PngPatterns,
         };
 
         /// <summary>Save a PNG image file.</summary>
@@ -85,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         static FilePickerFileType MakeImageFileType() => new(R._("Image Files"))
         {
-            Patterns = new[] { "*.png", "*.bmp" },
+            Patterns = ImagePatterns,
         };
 
         /// <summary>Open an image file (PNG, BMP) for import.</summary>
@@ -117,32 +130,32 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         static FilePickerFileType MakeJascPalFileType() => new(R._("JASC-PAL (Aseprite/GIMP)"))
         {
-            Patterns = new[] { "*.pal" },
+            Patterns = PalPatterns,
         };
 
         static FilePickerFileType MakeGbaRawPalFileType() => new(R._("GBA Raw Palette"))
         {
-            Patterns = new[] { "*.gbapal" },
+            Patterns = GbapalPatterns,
         };
 
         static FilePickerFileType MakeAdobeActFileType() => new(R._("Adobe ACT (Photoshop)"))
         {
-            Patterns = new[] { "*.act" },
+            Patterns = ActPatterns,
         };
 
         static FilePickerFileType MakeGimpGplFileType() => new(R._("GIMP GPL Palette"))
         {
-            Patterns = new[] { "*.gpl" },
+            Patterns = GplPatterns,
         };
 
         static FilePickerFileType MakeHexTextPalFileType() => new(R._("Hex Text Palette"))
         {
-            Patterns = new[] { "*.txt" },
+            Patterns = TxtPatterns,
         };
 
         static FilePickerFileType MakeAnyPaletteFileType() => new(R._("All Palette Files"))
         {
-            Patterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" },
+            Patterns = AllPalettePatterns,
         };
 
         /// <summary>Save a palette file with multi-format choices.</summary>

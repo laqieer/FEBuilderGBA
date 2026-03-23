@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Threading;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -29,17 +30,24 @@ namespace FEBuilderGBA.Avalonia.Services
         private void OnTranslatedWindowOpened(object? sender, EventArgs e)
         {
             Opened -= OnTranslatedWindowOpened;
-            _translator.TranslateAll();
-            if (!_subscribed)
+            Dispatcher.UIThread.Post(() =>
             {
-                CoreState.LanguageChanged += _translator.OnLanguageChanged;
-                _subscribed = true;
-            }
+                _translator.TranslateAll();
+                if (!_subscribed)
+                {
+                    CoreState.LanguageChanged += _translator.OnLanguageChanged;
+                    _subscribed = true;
+                }
+            });
         }
 
         protected override void OnClosed(EventArgs e)
         {
-            CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+            if (_subscribed)
+            {
+                CoreState.LanguageChanged -= _translator.OnLanguageChanged;
+                _subscribed = false;
+            }
             base.OnClosed(e);
         }
     }
