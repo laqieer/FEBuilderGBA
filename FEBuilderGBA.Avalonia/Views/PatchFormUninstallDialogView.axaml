@@ -22,7 +22,7 @@
       <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="196,12,0,0"
                  Text="Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand." />
       <!-- Uninstall button -->
-      <Button AutomationProperties.AutomationId="PatchFormUninstallDialog_Yes_Button" Grid.Row="2" Content="Uninstall" Height="32"
+      <Button AutomationProperties.AutomationId="PatchFormUninstallDialog_Uninstall_Button" Grid.Row="2" Content="Uninstall" Height="32"
               HorizontalAlignment="Stretch" Margin="196,8,0,0"
               Click="Yes_Click" />
     </Grid>

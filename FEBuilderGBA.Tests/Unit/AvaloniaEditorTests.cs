@@ -2308,11 +2308,13 @@ namespace FEBuilderGBA.Tests.Unit
         public void UnitEditorView_HasCollapsibleExpanders()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
-            Assert.Contains("<Expander Header=\"Identity\"", src);
-            Assert.Contains("<Expander Header=\"Base Stats\"", src);
-            Assert.Contains("<Expander Header=\"Weapon Levels\"", src);
-            Assert.Contains("<Expander Header=\"Growth Rates", src);
-            Assert.Contains("<Expander Header=\"Ability Flags\"", src);
+            // Use line-based checks so attribute order (e.g. AutomationProperties before Header) doesn't matter
+            var lines = src.Split('\n');
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Identity\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Base Stats\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Weapon Levels\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Growth Rates"));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Ability Flags\""));
         }
 
         [Fact]
@@ -2334,12 +2336,13 @@ namespace FEBuilderGBA.Tests.Unit
         public void ClassEditorView_HasCollapsibleExpanders()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
-            Assert.Contains("<Expander Header=\"Identity", src);
-            Assert.Contains("<Expander Header=\"Base Stats\"", src);
-            Assert.Contains("<Expander Header=\"Weapon Levels\"", src);
-            Assert.Contains("<Expander Header=\"Growth Rates\"", src);
-            Assert.Contains("<Expander Header=\"Ability Flags\"", src);
-            Assert.Contains("<Expander Header=\"Growth Caps", src);
+            var lines = src.Split('\n');
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Identity"));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Base Stats\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Weapon Levels\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Growth Rates\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Ability Flags\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Growth Caps"));
         }
 
         [Fact]
@@ -2360,10 +2363,11 @@ namespace FEBuilderGBA.Tests.Unit
         public void ItemEditorView_HasCollapsibleExpanders()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEditorView.axaml"));
-            Assert.Contains("<Expander Header=\"Basic Info\"", src);
-            Assert.Contains("<Expander Header=\"Stats / Bonuses\"", src);
-            Assert.Contains("<Expander Header=\"Weapon Properties\"", src);
-            Assert.Contains("<Expander Header=\"Trait Flags\"", src);
+            var lines = src.Split('\n');
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Basic Info\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Stats / Bonuses\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Weapon Properties\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Trait Flags\""));
         }
 
         [Fact]
