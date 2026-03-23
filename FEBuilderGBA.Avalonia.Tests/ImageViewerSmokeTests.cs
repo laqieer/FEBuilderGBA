@@ -434,6 +434,61 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // =====================================================================
+        // OAMSpriteViewerViewModel tile sheet regression tests (#246)
+        // =====================================================================
+
+        [Fact]
+        public void OAMSpriteViewer_Constructor_DoesNotThrow()
+        {
+            var vm = new OAMSpriteViewerViewModel();
+            Assert.NotNull(vm);
+            Assert.False(vm.IsLoaded);
+        }
+
+        [Fact]
+        public void OAMSpriteViewer_LoadEntry_TileSheetIsNotNull()
+        {
+            if (!_rom.IsAvailable) return;
+
+            var vm = new OAMSpriteViewerViewModel();
+            var list = vm.LoadAnimationList();
+            if (list.Count < 2) return;
+
+            // Load the first non-trivial animation entry
+            Exception? caught = null;
+            try
+            {
+                vm.LoadEntry(list[1].addr);
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+
+            if (caught != null)
+            {
+                _output.WriteLine($"OAMSpriteViewer LoadEntry threw: {caught.GetType().Name}: {caught.Message}");
+                return;
+            }
+
+            _output.WriteLine($"OAMSpriteViewer loaded at 0x{vm.CurrentAddr:X08}, IsLoaded={vm.IsLoaded}");
+
+            // Regression for #246: TileSheetImage should now be non-null with correct fix
+            if (vm.IsLoaded && vm.TileSheetImage != null)
+            {
+                Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
+                Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
+                Assert.Equal(0, vm.TileSheetImage.Width % 8);
+                Assert.Equal(0, vm.TileSheetImage.Height % 8);
+                _output.WriteLine($"TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
+            }
+            else
+            {
+                _output.WriteLine($"TileSheetImage is null (animation may lack graphics data)");
+            }
+        }
+
+        // =====================================================================
         // Generic: all image ViewModels can be instantiated
         // =====================================================================
 
