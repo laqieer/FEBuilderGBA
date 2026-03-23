@@ -119,7 +119,9 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Read a battle animation record and render its tile sheet.
-        /// Reads palette from offset 28, decompresses frame data from offset 16.
+        /// Reads LZ77-compressed palette from offset 28, decompresses frame command
+        /// stream from offset 16, then extracts the actual graphics tile data from
+        /// the first 0x86 frame command's GraphicsPointer.
         /// </summary>
         /// <param name="animeRecordAddr">Address of the 32-byte animation data record in ROM.</param>
         /// <param name="tilesPerRow">Tiles per row in the output sheet.</param>
@@ -133,13 +135,13 @@ namespace FEBuilderGBA
             uint frameRaw = rom.u32(animeRecordAddr + 16);
             uint paletteRaw = rom.u32(animeRecordAddr + 28);
 
-            // Read palette (raw 16-color GBA palette = 32 bytes)
+            // Decompress palette (LZ77-compressed)
             byte[] gbaPalette;
             if (U.isPointer(paletteRaw))
             {
                 uint palOff = U.toOffset(paletteRaw);
                 if (!U.isSafetyOffset(palOff, rom)) return null;
-                gbaPalette = ImageUtilCore.GetPalette(palOff, 16);
+                gbaPalette = ImageUtilCore.GetCompressedPalette(palOff, 16);
             }
             else
             {
@@ -147,14 +149,28 @@ namespace FEBuilderGBA
             }
             if (gbaPalette == null) return null;
 
-            // Decompress frame/sheet data (LZ77)
+            // Decompress frame command stream
+            byte[] frameData = DecompressFrameData(rom, frameRaw);
+            if (frameData == null || frameData.Length == 0) return null;
+
+            // Find the first 0x86 frame command with a valid graphics pointer
             byte[] tileData = null;
-            if (U.isPointer(frameRaw))
+            for (uint n = 0; n + 11 < (uint)frameData.Length; n += 4)
             {
-                uint frameOff = U.toOffset(frameRaw);
-                if (U.isSafetyOffset(frameOff, rom))
+                if (frameData[n + 3] == 0x86)
                 {
-                    tileData = LZ77.decompress(rom.Data, frameOff);
+                    uint gfxPtr = U.u32(frameData, n + 4);
+                    if (U.isPointer(gfxPtr))
+                    {
+                        uint gfxOff = U.toOffset(gfxPtr);
+                        if (U.isSafetyOffset(gfxOff, rom))
+                        {
+                            tileData = LZ77.decompress(rom.Data, gfxOff);
+                            if (tileData != null && tileData.Length > 0)
+                                break;
+                        }
+                    }
+                    n += 8; // skip the 8 extra bytes (gfx ptr + oam offset)
                 }
             }
 

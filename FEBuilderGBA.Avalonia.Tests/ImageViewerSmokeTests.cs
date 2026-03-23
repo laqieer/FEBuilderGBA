@@ -383,10 +383,16 @@ namespace FEBuilderGBA.Avalonia.Tests
                 caught = ex;
             }
 
-            if (caught != null)
-                _output.WriteLine($"BattleAnime LoadEntry threw: {caught.GetType().Name}: {caught.Message}");
-            else
-                _output.WriteLine($"BattleAnime loaded at 0x{vm.CurrentAddr:X08}");
+            Assert.Null(caught);
+            _output.WriteLine($"BattleAnime loaded at 0x{vm.CurrentAddr:X08}");
+
+            // Regression for #246: TileSheetImage MUST be non-null (shared helper fix)
+            Assert.NotNull(vm.TileSheetImage);
+            Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
+            Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
+            Assert.Equal(0, vm.TileSheetImage.Width % 8);
+            Assert.Equal(0, vm.TileSheetImage.Height % 8);
+            _output.WriteLine($"BattleAnime TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
         }
 
         // =====================================================================
@@ -431,6 +437,53 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var vm = new ImagePortraitFE6ViewModel();
             Assert.NotNull(vm);
+        }
+
+        // =====================================================================
+        // OAMSpriteViewerViewModel tile sheet regression tests (#246)
+        // =====================================================================
+
+        [Fact]
+        public void OAMSpriteViewer_Constructor_DoesNotThrow()
+        {
+            var vm = new OAMSpriteViewerViewModel();
+            Assert.NotNull(vm);
+            Assert.False(vm.IsLoaded);
+        }
+
+        [Fact]
+        public void OAMSpriteViewer_LoadEntry_TileSheetIsNotNull()
+        {
+            if (!_rom.IsAvailable) return;
+
+            var vm = new OAMSpriteViewerViewModel();
+            var list = vm.LoadAnimationList();
+            if (list.Count < 2) return;
+
+            // Load the first non-trivial animation entry
+            Exception? caught = null;
+            try
+            {
+                vm.LoadEntry(list[1].addr);
+            }
+            catch (Exception ex)
+            {
+                caught = ex;
+            }
+
+            // LoadEntry must not throw
+            Assert.Null(caught);
+
+            _output.WriteLine($"OAMSpriteViewer loaded at 0x{vm.CurrentAddr:X08}, IsLoaded={vm.IsLoaded}");
+
+            // Regression for #246: TileSheetImage MUST be non-null with correct fix
+            Assert.True(vm.IsLoaded, "ViewModel should be loaded after LoadEntry");
+            Assert.NotNull(vm.TileSheetImage);
+            Assert.True(vm.TileSheetImage.Width > 0, "TileSheet width must be positive");
+            Assert.True(vm.TileSheetImage.Height > 0, "TileSheet height must be positive");
+            Assert.Equal(0, vm.TileSheetImage.Width % 8);
+            Assert.Equal(0, vm.TileSheetImage.Height % 8);
+            _output.WriteLine($"TileSheet: {vm.TileSheetImage.Width}x{vm.TileSheetImage.Height}px");
         }
 
         // =====================================================================
