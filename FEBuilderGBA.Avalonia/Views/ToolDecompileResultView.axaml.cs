@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDecompileResultView : Window, IEditorView
+    public partial class ToolDecompileResultView : TranslatedWindow, IEditorView
     {
         readonly ToolDecompileResultViewViewModel _vm = new();
         public string ViewTitle => "Decompile Result";

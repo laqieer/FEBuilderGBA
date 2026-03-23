@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyWriteView : Window, IEditorView
+    public partial class NotifyWriteView : TranslatedWindow, IEditorView
     {
         readonly NotifyWriteViewModel _vm = new();
 

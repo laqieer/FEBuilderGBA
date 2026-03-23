@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PaletteChangeColorsView : Window, IEditorView, IDataVerifiableView
+    public partial class PaletteChangeColorsView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly PaletteChangeColorsViewViewModel _vm = new();
         readonly UndoService _undoService = new();

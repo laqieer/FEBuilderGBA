@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OAMSpriteViewerView : Window, IEditorView
+    public partial class OAMSpriteViewerView : TranslatedWindow, IEditorView
     {
         readonly OAMSpriteViewerViewModel _vm = new();
         bool _suppressFrameEvents;

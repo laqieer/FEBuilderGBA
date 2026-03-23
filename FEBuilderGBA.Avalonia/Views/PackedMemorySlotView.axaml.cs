@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PackedMemorySlotView : Window, IEditorView
+    public partial class PackedMemorySlotView : TranslatedWindow, IEditorView
     {
         readonly PackedMemorySlotViewModel _vm = new();
         public string ViewTitle => "Packed Memory Slot";

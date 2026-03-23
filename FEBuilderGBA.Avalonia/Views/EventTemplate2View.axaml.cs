@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventTemplate2View : Window, IEditorView
+    public partial class EventTemplate2View : TranslatedWindow, IEditorView
     {
         readonly EventTemplate2ViewModel _vm = new();
 

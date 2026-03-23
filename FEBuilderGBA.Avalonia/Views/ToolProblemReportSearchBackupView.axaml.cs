@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolProblemReportSearchBackupView : Window, IEditorView
+    public partial class ToolProblemReportSearchBackupView : TranslatedWindow, IEditorView
     {
         readonly ToolProblemReportSearchBackupViewModel _vm = new();
         public string ViewTitle => "No past backups found";
@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var dlg = new OpenFileDialog();
-                dlg.Title = "Select Backup File";
+                dlg.Title = R._("Select Backup File");
                 dlg.Filters?.Add(new FileDialogFilter { Name = "Backup Files", Extensions = { "7z", "gba" } });
                 var result = await dlg.ShowAsync(this);
                 if (result != null && result.Length > 0)

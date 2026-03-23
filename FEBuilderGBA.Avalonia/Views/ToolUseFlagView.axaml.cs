@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUseFlagView : Window, IEditorView
+    public partial class ToolUseFlagView : TranslatedWindow, IEditorView
     {
         readonly ToolUseFlagViewModel _vm = new();
 

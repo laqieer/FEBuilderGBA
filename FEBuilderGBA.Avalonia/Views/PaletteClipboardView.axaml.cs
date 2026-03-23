@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PaletteClipboardView : Window, IEditorView, IDataVerifiableView
+    public partial class PaletteClipboardView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly PaletteClipboardViewViewModel _vm = new();
         readonly UndoService _undoService = new();

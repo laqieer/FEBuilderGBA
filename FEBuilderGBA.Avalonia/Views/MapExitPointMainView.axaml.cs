@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapExitPointMainView : Window, IEditorView
+    public partial class MapExitPointMainView : TranslatedWindow, IEditorView
     {
         readonly MapExitPointMainViewModel _vm = new();
 

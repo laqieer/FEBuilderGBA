@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MainSimpleMenuImageSubView : Window, IEditorView
+    public partial class MainSimpleMenuImageSubView : TranslatedWindow, IEditorView
     {
         readonly MainSimpleMenuImageSubViewModel _vm = new();
 

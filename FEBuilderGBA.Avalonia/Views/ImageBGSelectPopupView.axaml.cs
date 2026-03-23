@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBGSelectPopupView : Window, IEditorView, IDataVerifiableView
+    public partial class ImageBGSelectPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ImageBGSelectPopupViewViewModel _vm = new();
 

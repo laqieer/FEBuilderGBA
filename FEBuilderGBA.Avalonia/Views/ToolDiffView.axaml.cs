@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDiffView : Window, IEditorView
+    public partial class ToolDiffView : TranslatedWindow, IEditorView
     {
         readonly ToolDiffViewModel _vm = new();
 

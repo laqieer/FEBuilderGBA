@@ -5,7 +5,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolInitWizardView : Window, IEditorView, IDataVerifiableView
+    public partial class ToolInitWizardView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ToolInitWizardViewModel _vm = new();
         public string ViewTitle => "Setup Wizard";

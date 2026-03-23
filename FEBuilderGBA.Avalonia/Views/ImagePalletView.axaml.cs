@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePalletView : Window, IEditorView
+    public partial class ImagePalletView : TranslatedWindow, IEditorView
     {
         readonly ImagePalletViewModel _vm = new();
 

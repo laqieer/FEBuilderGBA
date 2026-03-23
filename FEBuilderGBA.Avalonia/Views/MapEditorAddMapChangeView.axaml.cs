@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapEditorAddMapChangeView : Window, IEditorView
+    public partial class MapEditorAddMapChangeView : TranslatedWindow, IEditorView
     {
         readonly MapEditorAddMapChangeViewModel _vm = new();
 

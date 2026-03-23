@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolEmulatorSetupMessageView : Window, IEditorView
+    public partial class ToolEmulatorSetupMessageView : TranslatedWindow, IEditorView
     {
         readonly ToolEmulatorSetupMessageViewModel _vm = new();
         public string ViewTitle => "Emulator is not configured";

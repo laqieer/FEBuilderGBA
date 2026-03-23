@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventUnitView : Window, IEditorView
+    public partial class EventUnitView : TranslatedWindow, IEditorView
     {
         readonly EventUnitViewModel _vm = new();
         readonly UndoService _undoService = new();

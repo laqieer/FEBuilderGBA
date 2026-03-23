@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapChangeView : Window, IEditorView, IDataVerifiableView
+    public partial class MapChangeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapChangeViewModel _vm = new();
         readonly UndoService _undoService = new();

@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SystemIconViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class SystemIconViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SystemIconViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

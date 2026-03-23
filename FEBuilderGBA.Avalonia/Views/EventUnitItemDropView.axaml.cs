@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventUnitItemDropView : Window, IEditorView
+    public partial class EventUnitItemDropView : TranslatedWindow, IEditorView
     {
         readonly EventUnitItemDropViewModel _vm = new();
 

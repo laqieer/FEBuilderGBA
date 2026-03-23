@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PointerToolBatchInputView : Window, IEditorView
+    public partial class PointerToolBatchInputView : TranslatedWindow, IEditorView
     {
         readonly PointerToolBatchInputViewModel _vm = new();
         readonly UndoService _undoService = new();

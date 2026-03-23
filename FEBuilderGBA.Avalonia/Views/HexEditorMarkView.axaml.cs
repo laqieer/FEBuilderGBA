@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorMarkView : Window, IEditorView, IDataVerifiableView
+    public partial class HexEditorMarkView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly HexEditorMarkViewModel _vm = new();
 

@@ -14946,3 +14946,4918 @@ OP字体（FE8U）
 
 :Type to filter editors...
 输入以筛选编辑器...
+
+# ========================================================
+# Avalonia UI strings — Chinese translations
+# ========================================================
+
+:(NULL path move pointer = straight line between nodes)
+(空路径移动指针 = 节点间的直线)
+
+:(select a command)
+(选择一个命令)
+
+:* Wildcards: use '??' for any single byte (e.g. FF ?? 00)
+* 通配符: 使用 '??' 匹配任意单字节 (例如 FF ?? 00)
+
+:--- Growth Simulator ---
+--- 成长模拟器 ---
+
+:10-Split Image:
+10分割图像:
+
+:12-byte records: title index, chapter index, text IDs, flags, unit/class.
+12字节记录: 标题索引、章节索引、文本ID、标志、单位/职业。
+
+:4-byte aligned
+4字节对齐
+
+:?? (B119):
+?? (B119):
+
+:?? (B120):
+?? (B120):
+
+:?? (B121):
+?? (B121):
+
+:?? (B122):
+?? (B122):
+
+:?? (B123):
+?? (B123):
+
+:?? (B124):
+?? (B124):
+
+:?? (B125):
+?? (B125):
+
+:?? (B126):
+?? (B126):
+
+:?? (B127):
+?? (B127):
+
+:?? (B129):
+?? (B129):
+
+:?? (B130):
+?? (B130):
+
+:?? (B131):
+?? (B131):
+
+:?? (B132):
+?? (B132):
+
+:?? (B133):
+?? (B133):
+
+:??? (D80):
+??? (D80):
+
+:A Support Song:
+A支援曲目:
+
+:A Support Text:
+A支援文本:
+
+:AI 1:
+AI 1:
+
+:AI 2:
+AI 2:
+
+:AI ASM Call Talk
+AI ASM调用对话
+
+:AI Coordinate Editor
+AI坐标编辑器
+
+:AI Item Performance
+AI物品执行
+
+:AI Map Settings
+AI地图设置
+
+:AI Pointer:
+AI指针:
+
+:AI Range Editor
+AI范围编辑器
+
+:AI Script Editor
+AI脚本编辑器
+
+:AI Staff Performance
+AI杖执行
+
+:AI Steal Item Logic
+AI偷取物品逻辑
+
+:AI Targeting
+AI目标选定
+
+:AI Tiles Evaluation
+AI地格评估
+
+:AI Units Evaluation
+AI单位评估
+
+:AI1 Primary:
+AI1 主要:
+
+:AI2 Secondary:
+AI2 次要:
+
+:AI3 Target/Recovery:
+AI3 目标/恢复:
+
+:AI4 Retreat:
+AI4 撤退:
+
+:ASM Code Editor
+ASM代码编辑器
+
+:ASM Insertion Tool
+ASM插入工具
+
+:ASM Pointer:
+ASM指针:
+
+:Ability 1 (B40):
+能力1 (B40):
+
+:Ability 1:
+能力1:
+
+:Ability 2 (B41):
+能力2 (B41):
+
+:Ability 2:
+能力2:
+
+:Ability 3 (B42):
+能力3 (B42):
+
+:Ability 3:
+能力3:
+
+:Ability 4 (B43):
+能力4 (B43):
+
+:Ability 4:
+能力4:
+
+:Ability Flags
+能力标志
+
+:Ability Flags:
+能力标志:
+
+:Abort merge. Cancel all merge changes.
+中止合并。取消所有合并更改。
+
+:About Instrument Selection
+关于乐器选择
+
+:Actions
+操作
+
+:Add EndGuards on export
+导出时添加EndGuards
+
+:Add Map Change
+添加地图变更
+
+:Add Text Reference
+添加文本引用
+
+:Add backup ROM location
+添加备份ROM位置
+
+:Address Range
+地址范围
+
+:Address:
+地址:
+
+:Advanced Class 1:
+上级职业1:
+
+:Advanced Class 2:
+上级职业2:
+
+:Advanced Class 3:
+上级职业3:
+
+:Advanced Class 4:
+上级职业4:
+
+:Advanced utilities: hex editing, patching, ROM diagnostics, and more.
+高级工具: 十六进制编辑、补丁、ROM诊断等。
+
+:Affinity Type:
+相性类型:
+
+:Affinity:
+相性:
+
+:Ally/Enemy Color:
+友方/敌方颜色:
+
+:Alpha Name:
+字母名称:
+
+:Always Accessible:
+始终可访问:
+
+:Anim Type:
+动画类型:
+
+:Anima (B25):
+理 (B25):
+
+:Anima (B49):
+理 (B49):
+
+:Anima:
+理:
+
+:Animation # (W2):
+动画# (W2):
+
+:Animation Creator
+动画创建器
+
+:Animation Data Details
+动画数据详情
+
+:Animation Frame Viewer
+动画帧查看器
+
+:Animation Interval:
+动画间隔:
+
+:Animation Name:
+动画名称:
+
+:Animation Number:
+动画编号:
+
+:Animation Pointer:
+动画指针:
+
+:Animation Ptr (D0):
+动画指针 (D0):
+
+:Animation Table Summary
+动画表摘要
+
+:Animation preview area
+动画预览区域
+
+:Anime Pointer:
+动画指针:
+
+:Anime Type:
+动画类型:
+
+:Anti-Huffman
+反霍夫曼
+
+:Append
+追加
+
+:Append Map Style
+追加地图样式
+
+:Area of Effect Range
+效果范围
+
+:Arena Class Editor
+竞技场职业编辑器
+
+:Arena Enemy Weapon Editor
+竞技场敌方武器编辑器
+
+:Armory Pointer:
+武器商店指针:
+
+:Asset Rating
+资产评价
+
+:Assign a new map change ID. A new PLIST entry will be allocated automatically.
+分配一个新的地图变更ID。将自动分配一个新的PLIST条目。
+
+:Assign new map change
+分配新地图变更
+
+:Assigns a skill to each class via the SkillSystem patch.
+通过SkillSystem补丁为每个职业分配技能。
+
+:Assigns a skill to each unit via the SkillSystem patch.
+通过SkillSystem补丁为每个单位分配技能。
+
+:Attack Bonus:
+攻击加成:
+
+:Attack:
+攻击:
+
+:Audio Tools
+音频工具
+
+:Author:
+作者:
+
+:Auto Tracking
+自动追踪
+
+:Auto-backup ROM before saving
+保存前自动备份ROM
+
+:Automatically configure with Init Wizard
+使用初始化向导自动配置
+
+:Avalonia Cross-Platform Edition
+Avalonia跨平台版
+
+:Avoid Bonus:
+回避加成:
+
+:Axe (B22):
+斧 (B22):
+
+:Axe (B46):
+斧 (B46):
+
+:Axe:
+斧:
+
+:B Support Song:
+B支援曲目:
+
+:B Support Text:
+B支援文本:
+
+:B10:
+B10:
+
+:B10: Tile animation 2 (PLIST)
+B10: Tile animation 2 (PLIST)
+
+:B116: Event ID (PLIST)
+B116: Event ID (PLIST)
+
+:B117: World map auto event
+B117: World map auto event
+
+:B118: ??
+B118: ??
+
+:B11:
+B11:
+
+:B11: Map change (PLIST)
+B11: Map change (PLIST)
+
+:B120: Event ID (PLIST)
+B120: Event ID (PLIST)
+
+:B121: World map auto event
+B121: World map auto event
+
+:B126: Fortune portrait
+B126: Fortune portrait
+
+:B127: Fortune fee
+B127: Fortune fee
+
+:B128: Chapter number
+B128: Chapter number
+
+:B129: Prep screen Ch no. 1
+B129: Prep screen Ch no. 1
+
+:B12:
+B12:
+
+:B12: Fog level
+B12: Fog level
+
+:B130: Fortune portrait
+B130: Fortune portrait
+
+:B130: Transporter Eliwood X
+B130: Transporter Eliwood X
+
+:B131: Fortune fee
+B131: Fortune fee
+
+:B131: Transporter Hector X
+B131: Transporter Hector X
+
+:B132: Prep screen Ch no. 1
+B132: Prep screen Ch no. 1
+
+:B132: Transporter Eliwood Y
+B132: Transporter Eliwood Y
+
+:B133: Prep screen Ch no. 2
+B133: Prep screen Ch no. 2
+
+:B133: Transporter Hector Y
+B133: Transporter Hector Y
+
+:B134: Enemies for victory BGM
+B134: Enemies for victory BGM
+
+:B134: Transporter Eliwood X
+B134: Transporter Eliwood X
+
+:B134: Victory BGM enemy count
+B134: Victory BGM enemy count
+
+:B135: Blackout before start
+B135: Blackout before start
+
+:B135: Transporter Hector X
+B135: Transporter Hector X
+
+:B136: Transporter Eliwood Y
+B136: Transporter Eliwood Y
+
+:B137: Transporter Hector Y
+B137: Transporter Hector Y
+
+:B138: Victory BGM enemy count
+B138: Victory BGM enemy count
+
+:B139: Darken before start
+B139: Darken before start
+
+:B13:
+B13:
+
+:B13: Battle preparation
+B13: Battle preparation
+
+:B13: Battle preparation (X)
+B13: Battle preparation (X)
+
+:B140: Special display
+B140: Special display
+
+:B141: Turn count display
+B141: Turn count display
+
+:B142: Defense unit mark
+B142: Defense unit mark
+
+:B143: Escape marker X
+B143: Escape marker X
+
+:B144: Escape marker Y
+B144: Escape marker Y
+
+:B144: Special display
+B144: Special display
+
+:B145: ??
+B145: ??
+
+:B145: Turn count display
+B145: Turn count display
+
+:B146: ??
+B146: ??
+
+:B146: Defense unit mark
+B146: Defense unit mark
+
+:B147: ??
+B147: ??
+
+:B147: Escape marker X
+B147: Escape marker X
+
+:B148: Escape marker Y
+B148: Escape marker Y
+
+:B149: ??
+B149: ??
+
+:B14:
+B14:
+
+:B14: Chapter title image
+B14: Chapter title image
+
+:B150: ??
+B150: ??
+
+:B151: ??
+B151: ??
+
+:B15:
+B15:
+
+:B15: Chapter title image 2
+B15: Chapter title image 2
+
+:B15: Chapter title image 2 (X)
+B15: Chapter title image 2 (X)
+
+:B16: Initial X coordinate
+B16: Initial X coordinate
+
+:B16: Padding
+B16: Padding
+
+:B17: Initial Y coordinate
+B17: Initial Y coordinate
+
+:B17: Padding
+B17: Padding
+
+:B18: Weather
+B18: Weather
+
+:B19: Battle BG
+B19: Battle BG
+
+:B19: Battle BG lookup
+B19: Battle BG lookup
+
+:B44: Breakable wall HP
+B44: Breakable wall HP
+
+:B45: A Eliwood Normal
+B45: A Eliwood Normal
+
+:B46: A Eliwood Hard
+B46: A Eliwood Hard
+
+:B47: A Hector Normal
+B47: A Hector Normal
+
+:B48: A Hector Hard
+B48: A Hector Hard
+
+:B49: B Eliwood Normal
+B49: B Eliwood Normal
+
+:B50: B Eliwood Hard
+B50: B Eliwood Hard
+
+:B51: B Hector Normal
+B51: B Hector Normal
+
+:B52: B Hector Hard
+B52: B Hector Hard
+
+:B53: C Eliwood Normal
+B53: C Eliwood Normal
+
+:B54: C Eliwood Hard
+B54: C Eliwood Hard
+
+:B55: C Hector Normal
+B55: C Hector Normal
+
+:B56: C Hector Hard
+B56: C Hector Hard
+
+:B57: D Eliwood Normal
+B57: D Eliwood Normal
+
+:B58: D Eliwood Hard
+B58: D Eliwood Hard
+
+:B59: D Hector Normal
+B59: D Hector Normal
+
+:B60: D Hector Hard
+B60: D Hector Hard
+
+:B61: ??
+B61: ??
+
+:B61: Unknown
+B61: Unknown
+
+:B6: Palette (PLIST)
+B6: Palette (PLIST)
+
+:B7: Chipset config (PLIST)
+B7: Chipset config (PLIST)
+
+:B8:
+B8:
+
+:B8: Map pointer (PLIST)
+B8: Map pointer (PLIST)
+
+:B9:
+B9:
+
+:B9: Tile animation 1 (PLIST)
+B9: Tile animation 1 (PLIST)
+
+:B:
+B:
+
+:BG Image Select
+BG图像选择
+
+:BGM / Music
+BGM / 音乐
+
+:BGM ID:
+BGM ID:
+
+:Background Image Editor
+背景图像编辑器
+
+:Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+
+:Backup History (newest on top)
+备份历史(最新在上)
+
+:Bad Character Detected
+检测到无效字符
+
+:Base Class
+基础职业
+
+:Base Class 1:
+基础职业1:
+
+:Base Class 2 (trainee only):
+基础职业2(仅实习生):
+
+:Base Point ID:
+基础据点ID:
+
+:Base Stats
+基础属性
+
+:Base Stats:
+基础属性:
+
+:Base Weapon Levels (B20-B26):
+基础武器等级 (B20-B26):
+
+:Basic Info
+基本信息
+
+:Batch
+批量
+
+:Batch Address Convert
+批量地址转换
+
+:Battle Animation Editor
+战斗动画编辑器
+
+:Battle Anime (P52):
+战斗动画 (P52):
+
+:Battle Anime:
+战斗动画:
+
+:Battle BG:
+战斗背景:
+
+:Battle Background Editor
+战斗背景编辑器
+
+:Battle Dialogue (FE6)
+战斗对话(FE6)
+
+:Battle Dialogue (FE7)
+战斗对话(FE7)
+
+:Battle Dialogue Editor
+战斗对话编辑器
+
+:Battle Screen Layout
+战斗画面布局
+
+:Battle Talk (Main)
+战斗对话(主)
+
+:Battle Terrain Editor
+战斗地形编辑器
+
+:Big CG Editor
+大CG编辑器
+
+:Binary Editor
+二进制编辑器
+
+:Bit 0
+Bit 0
+
+:Bit 0  (0x01)
+Bit 0  (0x01)
+
+:Bit 0 (0x01)
+Bit 0 (0x01)
+
+:Bit 1
+Bit 1
+
+:Bit 1  (0x02)
+Bit 1  (0x02)
+
+:Bit 1 (0x02)
+Bit 1 (0x02)
+
+:Bit 10 (0x04)
+Bit 10 (0x04)
+
+:Bit 11 (0x08)
+Bit 11 (0x08)
+
+:Bit 12 (0x10)
+Bit 12 (0x10)
+
+:Bit 13 (0x20)
+Bit 13 (0x20)
+
+:Bit 14 (0x40)
+Bit 14 (0x40)
+
+:Bit 15 (0x80)
+Bit 15 (0x80)
+
+:Bit 16 (0x01)
+Bit 16 (0x01)
+
+:Bit 17 (0x02)
+Bit 17 (0x02)
+
+:Bit 18 (0x04)
+Bit 18 (0x04)
+
+:Bit 19 (0x08)
+Bit 19 (0x08)
+
+:Bit 2
+Bit 2
+
+:Bit 2  (0x04)
+Bit 2  (0x04)
+
+:Bit 2 (0x04)
+Bit 2 (0x04)
+
+:Bit 20 (0x10)
+Bit 20 (0x10)
+
+:Bit 21 (0x20)
+Bit 21 (0x20)
+
+:Bit 22 (0x40)
+Bit 22 (0x40)
+
+:Bit 23 (0x80)
+Bit 23 (0x80)
+
+:Bit 24 (0x01)
+Bit 24 (0x01)
+
+:Bit 25 (0x02)
+Bit 25 (0x02)
+
+:Bit 26 (0x04)
+Bit 26 (0x04)
+
+:Bit 27 (0x08)
+Bit 27 (0x08)
+
+:Bit 28 (0x10)
+Bit 28 (0x10)
+
+:Bit 29 (0x20)
+Bit 29 (0x20)
+
+:Bit 3
+Bit 3
+
+:Bit 3  (0x08)
+Bit 3  (0x08)
+
+:Bit 3 (0x08)
+Bit 3 (0x08)
+
+:Bit 30 (0x40)
+Bit 30 (0x40)
+
+:Bit 31 (0x80)
+Bit 31 (0x80)
+
+:Bit 4
+Bit 4
+
+:Bit 4  (0x10)
+Bit 4  (0x10)
+
+:Bit 4 (0x10)
+Bit 4 (0x10)
+
+:Bit 5
+Bit 5
+
+:Bit 5  (0x20)
+Bit 5  (0x20)
+
+:Bit 5 (0x20)
+Bit 5 (0x20)
+
+:Bit 6
+Bit 6
+
+:Bit 6  (0x40)
+Bit 6  (0x40)
+
+:Bit 6 (0x40)
+Bit 6 (0x40)
+
+:Bit 7
+Bit 7
+
+:Bit 7  (0x80)
+Bit 7  (0x80)
+
+:Bit 7 (0x80)
+Bit 7 (0x80)
+
+:Bit 8  (0x01)
+Bit 8  (0x01)
+
+:Bit 9  (0x02)
+Bit 9  (0x02)
+
+:Bitmap:
+位图:
+
+:Bonus:
+加成:
+
+:Boss BGM Editor
+Boss BGM编辑器
+
+:Bot
+下方
+
+:Both (same):
+两者(相同):
+
+:Bow (B23):
+弓 (B23):
+
+:Bow (B47):
+弓 (B47):
+
+:Bow:
+弓:
+
+:Breakable Wall HP / Difficulty Ratings
+破坏墙HP / 难度评价
+
+:Breakable Wall HP / Unknowns
+破坏墙HP / 未知项
+
+:Browse MIDI File...
+浏览MIDI文件...
+
+:Browse...
+浏览...
+
+:Build (B10):
+体格 (B10):
+
+:Bulk Track Change
+批量音轨变更
+
+:Buy Price:
+买入价格:
+
+:Byte 0:
+Byte 0:
+
+:Byte 1:
+Byte 1:
+
+:Byte 2:
+Byte 2:
+
+:Byte 3:
+Byte 3:
+
+:Byte 4:
+Byte 4:
+
+:Byte Bit Flags (8-bit)
+字节位标志(8位)
+
+:Byte1:
+Byte1:
+
+:Byte2:
+Byte2:
+
+:Byte3:
+Byte3:
+
+:Byte4:
+Byte4:
+
+:C Support Song:
+C支援曲目:
+
+:C Support Text:
+C支援文本:
+
+:C-Skill Rechain
+C-Skill重链
+
+:C-String Editor
+C字符串编辑器
+
+:CC Branch Editor
+分支转职编辑器
+
+:CFLAGS
+CFLAGS
+
+:CG Editor (FE7U)
+CG编辑器(FE7U)
+
+:CG Image Editor
+CG图像编辑器
+
+:CG:
+CG:
+
+:CON:
+体格:
+
+:CP / Pointer
+CP / 指针
+
+:CSA Magic Creator
+CSA魔法创建器
+
+:Calculate Growth
+计算成长
+
+:Cancel Action:
+取消动作:
+
+:Categories
+分类
+
+:Center X:
+中心X:
+
+:Center Y:
+中心Y:
+
+:Change ID:
+变更ID:
+
+:Change Pointer:
+变更指针:
+
+:Change Records
+变更记录
+
+:Changed bytes:
+已更改字节:
+
+:Chapter / Transporter / Victory
+章节 / 运输 / 胜利
+
+:Chapter ID 1:
+章节ID 1:
+
+:Chapter ID 2:
+章节ID 2:
+
+:Chapter ID:
+章节ID:
+
+:Chapter Image Ptr:
+章节图像指针:
+
+:Chapter Index:
+章节索引:
+
+:Chapter Title Editor
+章节标题编辑器
+
+:Chapter Title FE7 Editor
+章节标题FE7编辑器
+
+:Chapter Title Text IDs
+章节标题文本ID
+
+:Chapter number (B128):
+章节编号 (B128):
+
+:Char Code (ASCII):
+字符编码(ASCII):
+
+:Character Code Table
+字符编码表
+
+:Character Display:
+字符显示:
+
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+
+:Check Update
+检查更新
+
+:Checks if a unit is within the range from (X1,Y1) to (X2,Y2).
+检查单位是否在(X1,Y1)到(X2,Y2)的范围内。
+
+:Class # (B4):
+职业# (B4):
+
+:Class Card
+职业卡
+
+:Class Card:
+职业卡:
+
+:Class Editor (FE6)
+职业编辑器(FE6)
+
+:Class ID (u8):
+职业ID (u8):
+
+:Class ID 1:
+Class ID 1:
+
+:Class ID 2:
+Class ID 2:
+
+:Class ID 3:
+Class ID 3:
+
+:Class ID 4:
+Class ID 4:
+
+:Class ID 5:
+Class ID 5:
+
+:Class ID:
+职业ID:
+
+:Class List Editor
+职业列表编辑器
+
+:Class Name:
+职业名称:
+
+:Class Skill Pointer:
+职业技能指针:
+
+:Class Skill:
+职业技能:
+
+:Class Type:
+职业类型:
+
+:Class:
+职业:
+
+:Clear Condition (display only)
+过关条件(仅显示)
+
+:Clear Conditions
+过关条件
+
+:Clipboard Contents:
+剪贴板内容:
+
+:Color Grid (16 colors):
+颜色网格(16色):
+
+:Color/ID (u32@8):
+颜色/ID (u32@8):
+
+:Color:
+颜色:
+
+:Columns:
+列数:
+
+:Command 0x85 Pointer
+Command 0x85指针
+
+:Commander:
+指挥官:
+
+:Commands
+命令
+
+:Common editing tasks organized by category. Click any button to open its editor.
+按分类整理的常用编辑任务。点击任意按钮打开对应编辑器。
+
+:Community:
+社区:
+
+:Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+
+:Compare two ROMs and generate a patch of changed regions
+比较两个ROM并生成已更改区域的补丁
+
+:Compile
+编译
+
+:Composite Skill Pointer:
+复合技能指针:
+
+:Con
+体格
+
+:Con (B18):
+体格 (B18):
+
+:Con:
+体格:
+
+:Condition Class 1:
+Condition Class 1:
+
+:Condition Class 2:
+Condition Class 2:
+
+:Condition Class 3:
+Condition Class 3:
+
+:Condition Class 4:
+Condition Class 4:
+
+:Condition Item 1:
+Condition Item 1:
+
+:Condition Item 2:
+Condition Item 2:
+
+:Condition Item 3:
+Condition Item 3:
+
+:Condition Item 4:
+Condition Item 4:
+
+:Condition Slot
+条件槽
+
+:Condition Unit 1:
+Condition Unit 1:
+
+:Condition Unit 2:
+Condition Unit 2:
+
+:Condition Unit 3:
+Condition Unit 3:
+
+:Condition Unit 4:
+Condition Unit 4:
+
+:Condition:
+条件:
+
+:Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed
+条件: 00=死亡, 01=受伤/离开, 02=受伤/留下
+
+:Config Pointer:
+配置指针:
+
+:Configuration
+配置
+
+:Configure chapter settings, map layouts, terrain, and movement costs.
+配置章节设置、地图布局、地形和移动消耗。
+
+:Configures enemy AI to trigger a talk event (like FE7 Farina).
+配置敌方AI以触发对话事件(如FE7的法琳娜)。
+
+:Configures skill text details for the SkillSystem patch.
+配置SkillSystem补丁的技能文本详情。
+
+:Conflict bytes:
+冲突字节:
+
+:Conflicts (resolve each: Mine or Theirs)
+冲突(逐一选择: 我方或对方)
+
+:Content Type
+内容类型
+
+:Continue merging without closing.
+继续合并而不关闭。
+
+:Conversation Text 1:
+Conversation Text 1:
+
+:Conversation Text 2:
+Conversation Text 2:
+
+:Conversation Text 3:
+Conversation Text 3:
+
+:Coord Count:
+坐标数量:
+
+:Coord Pointer:
+坐标指针:
+
+:Coordinate X:
+坐标X:
+
+:Coordinate Y:
+坐标Y:
+
+:Coordinates:
+坐标:
+
+:Copy (No $ / GBA / Rad / BreakPoint)
+复制(无$/GBA/Rad/断点)
+
+:Copy Address
+复制地址
+
+:Copy Current
+复制当前
+
+:Copy Hex Data
+复制十六进制数据
+
+:Copy Name
+复制名称
+
+:Copy as Hex
+复制为十六进制
+
+:Copy as Little Endian
+复制为小端序
+
+:Cost Type:
+消费类型:
+
+:Count:
+数量:
+
+:Counter Damage Warning:
+反击伤害警告:
+
+:Crit (B24):
+必杀 (B24):
+
+:Crit Avoid Bonus:
+必杀回避加成:
+
+:Crit Bonus:
+必杀加成:
+
+:Cross-Platform Preview (Avalonia)
+跨平台预览(Avalonia)
+
+:Cross-References:
+交叉引用:
+
+:Current Address:
+当前地址:
+
+:Current Instrument Set
+当前乐器集
+
+:Current Name:
+当前名称:
+
+:Current Turn Priority:
+当前回合优先级:
+
+:Cursor Select Action:
+光标选择动作:
+
+:Custom Battle Animation
+自定义战斗动画
+
+:Custom Build Tool
+自定义构建工具
+
+:Custom Programs
+自定义程序
+
+:D Rating
+D评价
+
+:D0: CP
+D0: CP
+
+:DEF Growth:
+防御成长:
+
+:DEF:
+防御:
+
+:Damage Effect:
+伤害效果:
+
+:Dark (B51):
+暗 (B51):
+
+:Dark:
+暗:
+
+:Data Address&#x0a;(if pointer)
+Data Address&#x0a;(if pointer)
+
+:Data Address:
+数据地址:
+
+:Data Count:
+数据数量:
+
+:Data Pointer:
+数据指针:
+
+:Data Size:
+数据大小:
+
+:Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+
+:Decay:
+衰减:
+
+:Decoded:
+已解码:
+
+:Decompile Result
+反编译结果
+
+:Def (B15):
+防御 (B15):
+
+:Def (B31):
+防御 (B31):
+
+:Def (b38):
+防御 (b38):
+
+:Def:
+防御:
+
+:Default Text ID:
+默认文本ID:
+
+:Default Value:
+默认值:
+
+:Defense Bonus:
+防御加成:
+
+:Defense:
+防御:
+
+:Demon King Summon Editor
+魔王召唤编辑器
+
+:Desc ID (W2):
+说明ID (W2):
+
+:Desc ID:
+说明ID:
+
+:Description (Text ID):
+Description (Text ID):
+
+:Description Text ID:
+描述文本ID:
+
+:Description:
+描述:
+
+:Destination Palette:
+目标调色板:
+
+:Developer Translation Tool
+开发者翻译工具
+
+:Development Tools
+开发工具
+
+:DevkitPro ARM EABI
+DevkitPro ARM EABI
+
+:Difficulty Pointers (D96-D108)
+难度指针(D96-D108)
+
+:Difficulty Ratings
+难度评价
+
+:Difficulty Settings
+难度设置
+
+:Difficulty Value
+难度值
+
+:Direct Injection Notify
+直接注入通知
+
+:Direct Sound Instruments
+直接音源乐器
+
+:Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change
+Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change
+
+:Directory:
+目录:
+
+:DisASM
+反汇编
+
+:Disassemble
+反汇编
+
+:Disassembled Script
+反汇编脚本
+
+:Disassembly Argument Grep
+反汇编参数搜索
+
+:Disassembly Dump All
+反汇编全部转储
+
+:Display Cond ASM:
+显示条件ASM:
+
+:Display Flags (B140-B147)
+显示标志(B140-B147)
+
+:Display Flags (B144-B151)
+显示标志(B144-B151)
+
+:Display Weapon:
+显示武器:
+
+:Dmg Effect (B31):
+伤害效果 (B31):
+
+:Do you want to append a new map style entry? This will add a new tileset configuration at the end of the list.
+是否要追加新的地图样式条目？这将在列表末尾添加新的图块集配置。
+
+:Do you want to create additional map changes?
+是否要创建额外的地图变更？
+
+:Do you want to hide this error?
+是否要隐藏此错误？
+
+:Double-click or press Enter to select
+双击或按回车选择
+
+:Down RMenuPointer:
+下方R菜单指针:
+
+:Draw
+绘制
+
+:Draw Routine:
+绘制例程:
+
+:Drop Rate:
+掉落率:
+
+:Drum Part Pointer
+鼓声部指针
+
+:Dump Struct to Text
+转储结构为文本
+
+:Dumps unit, class, item, and other tables.
+转储单位、职业、物品和其他表。
+
+:Duty / Length:
+占空比 / 长度:
+
+:ED Senseki Comment
+ED战绩评论
+
+:Edit Classes
+编辑职业
+
+:Edit Items
+编辑物品
+
+:Edit Skill Config
+编辑技能配置
+
+:Edit Skills
+编辑技能
+
+:Edit Text:
+编辑文本:
+
+:Edit Units
+编辑单位
+
+:Edit character portraits, battle animations, CGs, and sprite graphics.
+编辑角色头像、战斗动画、CG和精灵图形。
+
+:Edit event scripts that control story scenes, cutscenes, and gameplay triggers.
+编辑控制剧情场景、过场动画和游戏触发器的事件脚本。
+
+:Edit in-game dialogue, menus, and all text strings in the ROM.
+编辑游戏中的对话、菜单和ROM中的所有文本字符串。
+
+:Edit playable and enemy unit stats, class data, and support relationships.
+编辑可操作和敌方单位属性、职业数据和支援关系。
+
+:Edit weapons, items, their effects, shops, and promotions.
+编辑武器、物品、效果、商店和转职。
+
+:Editors
+编辑器
+
+:Effect ID:
+效果ID:
+
+:Effect Pointer:
+效果指针:
+
+:Effect Routine:
+效果例程:
+
+:Effective (P16):
+特效 (P16):
+
+:Effective Against
+特效对象
+
+:Effectiveness (Skill Systems Rework)
+特效(技能系统重制)
+
+:Effectiveness Rework - Class Type
+特效重制 - 职业类型
+
+:Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be &lt;= 4095, otherwise instant movement occurs.
+Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be &lt;= 4095, otherwise instant movement occurs.
+
+:Elapsed Time:
+经过时间:
+
+:Eliwood Hard (D100):
+Eliwood Hard (D100):
+
+:Eliwood Normal (D96):
+Eliwood Normal (D96):
+
+:Emulation
+模拟
+
+:Emulator Memory
+模拟器内存
+
+:Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+
+:Enable auto-save (saves to .autosave.gba sidecar file)
+启用自动保存(保存到.autosave.gba附属文件)
+
+:Encoding Table
+编码表
+
+:End Base Point ID:
+终点据点ID:
+
+:End X:
+终点X:
+
+:End Y:
+终点Y:
+
+:Ending Event Editor
+结局事件编辑器
+
+:Enemy Class Priority:
+敌方职业优先级:
+
+:Enemy Distance Priority:
+敌方距离优先级:
+
+:Enemy Remaining HP Priority:
+敌方剩余HP优先级:
+
+:English Name Pointer:
+英文名称指针:
+
+:Enter or paste text to have it read aloud using the system TTS engine.
+Enter or paste text to have it read aloud using the system TTS engine.
+
+:Enter the PLIST number for the new map pointer entry.
+Enter the PLIST number for the new map pointer entry.
+
+:Envelope Step:
+包络步进:
+
+:Error Report
+错误报告
+
+:Event / Fortune Teller
+事件 / 占卜师
+
+:Event / World Map (B116-B135)
+事件 / 世界地图(B116-B135)
+
+:Event Branch Flag:
+事件分支标志:
+
+:Event Command Function Pointer Table
+事件命令函数指针表
+
+:Event Command Function Pointer Table (FE7)
+事件命令函数指针表(FE7)
+
+:Event Command Function Pointer:
+事件命令函数指针:
+
+:Event Condition Editor
+事件条件编辑器
+
+:Event Conditions (Main)
+事件条件(主)
+
+:Event Error Display
+事件错误显示
+
+:Event Pointer (FE6)
+事件指针(FE6)
+
+:Event Pointer (FE7)
+事件指针(FE7)
+
+:Event Pointer (u32@0):
+事件指针 (u32@0):
+
+:Event Pointer:
+事件指针:
+
+:Event Script (Main)
+事件脚本(主)
+
+:Event Script Editor
+事件脚本编辑器
+
+:Event Script Inner Control
+事件脚本内部控件
+
+:Event Template 1
+事件模板1
+
+:Event Template 2
+事件模板2
+
+:Event Template 3
+事件模板3
+
+:Event Template 4
+事件模板4
+
+:Event Template 5
+事件模板5
+
+:Event Template 6
+事件模板6
+
+:Event Template Implementation
+事件模板实现
+
+:Event Unit Placement (FE8)
+事件单位配置(FE8)
+
+:Event Units
+事件单位
+
+:Events
+事件
+
+:Exit Pointer:
+出口指针:
+
+:Expand List
+扩展列表
+
+:Experience Rating
+经验评价
+
+:Export All Texts (TSV)
+导出全部文本(TSV)
+
+:Export Events in EA format
+导出EA格式事件
+
+:Export Face
+导出头像
+
+:Export Frame PNG
+导出帧PNG
+
+:Export MIDI
+导出MIDI
+
+:Export Main Tables
+导出主表
+
+:Export Mini
+导出迷你头像
+
+:Export PAL
+导出调色板
+
+:Export PNG
+导出PNG
+
+:Export Sheet
+导出表格
+
+:Export TSV
+导出TSV
+
+:Export TSV...
+导出TSV...
+
+:Export Text (TSV)
+导出文本(TSV)
+
+:Export Tile Sheet PNG...
+导出图块表PNG...
+
+:Export Undo Buffer
+导出撤销缓冲区
+
+:Export World Map Events (selected) in EA format
+导出世界地图事件(选中)EA格式
+
+:Export World Map Events in EA format
+导出世界地图事件EA格式
+
+:Export changes made to the ROM in this session.
+导出本次会话对ROM所做的更改。
+
+:Export events in EA format.
+导出EA格式事件。
+
+:Extend PLIST Range
+扩展PLIST范围
+
+:External Tools
+外部工具
+
+:Extra Unit (FE8U)
+额外单位(FE8U)
+
+:Extra Unit Editor
+额外单位编辑器
+
+:Eye Frames (32x16 x2)
+眼睛帧(32x16 x2)
+
+:Eye X:
+眼睛X:
+
+:Eye Y:
+眼睛Y:
+
+:FE-Repo
+FE-Repo
+
+:FE-Repo Remote URL
+FE-Repo远程URL
+
+:FE-Repo-Music Remote URL
+FE-Repo-Music远程URL
+
+:FECLIB
+FECLIB
+
+:File name:
+文件名:
+
+:Filter text:
+筛选文本:
+
+:Find
+查找
+
+:First Reference
+首次引用
+
+:First byte = type (0-3), rest = unit/class IDs. Null-terminated.
+第一字节 = 类型(0-3), 其余 = 单位/职业ID。以Null结尾。
+
+:Flag 1:
+标志1:
+
+:Flag 2:
+标志2:
+
+:Flag ID:
+标志ID:
+
+:Flag Name Editor
+标志名称编辑器
+
+:Flag Usage Viewer
+标志使用查看器
+
+:Font Editor (Chinese)
+字体编辑器(中文)
+
+:Footstep Sounds Editor
+脚步声编辑器
+
+:For import, use Run > Event Assembler Add.
+导入请使用 运行 > 事件汇编器添加。
+
+:Force Little Endian
+强制小端序
+
+:Force Sortie Editor
+强制出击编辑器
+
+:Force Update
+强制更新
+
+:Force close with current results.
+强制以当前结果关闭。
+
+:Forge Price:
+锻造价格:
+
+:Frame Count:
+帧数:
+
+:Frame Data:
+帧数据:
+
+:Frame Ptr:
+帧指针:
+
+:Frame:
+帧:
+
+:Free Map Type:
+空闲地图类型:
+
+:Free Space Address:
+空闲空间地址:
+
+:Frequency Hz*1024:
+频率Hz*1024:
+
+:From Unit:
+从单位:
+
+:Function Pointer:
+函数指针:
+
+:Function pointers called when entering each map chapter.
+进入每个地图章节时调用的函数指针。
+
+:Function pointers for item usability checks
+物品可用性检查的函数指针
+
+:G:
+G:
+
+:GBA 15-bit color palette entries for move/attack/staff range display.
+用于移动/攻击/杖范围显示的GBA 15位颜色调色板条目。
+
+:GBA Color (W0):
+GBA Color (W0):
+
+:General
+通用
+
+:Generate Patch
+生成补丁
+
+:Generic Enemy Portraits
+通用敌方头像
+
+:Getter Routine:
+获取例程:
+
+:Git Executable Path
+Git可执行文件路径
+
+:Give Up
+放弃
+
+:Go
+前往
+
+:GoldRoad ASM
+GoldRoad ASM
+
+:Growth Caps / Promotion Bonuses
+成长上限 / 转职加成
+
+:Growth Rate 10:
+Growth Rate 10:
+
+:Growth Rate 1:
+Growth Rate 1:
+
+:Growth Rate 2:
+Growth Rate 2:
+
+:Growth Rate 3:
+Growth Rate 3:
+
+:Growth Rate 4:
+Growth Rate 4:
+
+:Growth Rate 5:
+Growth Rate 5:
+
+:Growth Rate 6:
+Growth Rate 6:
+
+:Growth Rate 7:
+Growth Rate 7:
+
+:Growth Rate 8:
+Growth Rate 8:
+
+:Growth Rate 9:
+Growth Rate 9:
+
+:Growth Rate Bonuses
+成长率加成
+
+:Growth Rates (%)
+成长率(%)
+
+:Growth Rates (%):
+成长率(%):
+
+:Growth Simulator
+成长模拟器
+
+:HP
+HP
+
+:HP (B11):
+HP (B11):
+
+:HP (B27):
+HP (B27):
+
+:HP (b34):
+HP (b34):
+
+:HP Cap (B19):
+HP上限 (B19):
+
+:HP Growth:
+HP成长:
+
+:HP:
+HP:
+
+:Haiku Event Editor
+俳句事件编辑器
+
+:Hard Boost
+困难加成
+
+:Header Byte:
+头部字节:
+
+:Header Priority:
+头部优先级:
+
+:Header Reverb:
+头部混响:
+
+:Header:
+头部:
+
+:Hector Hard (D108):
+Hector Hard (D108):
+
+:Hector Normal (D104):
+Hector Normal (D104):
+
+:Height:
+高度:
+
+:Held Item Skill Pointer:
+持有物品技能指针:
+
+:Help Text ID:
+帮助文本ID:
+
+:Hex:
+十六进制:
+
+:Hide this error
+隐藏此错误
+
+:High byte:
+高字节:
+
+:Hit (B22):
+命中 (B22):
+
+:Hit Bonus:
+命中加成:
+
+:Hit Color:
+命中颜色:
+
+:ID Text:
+ID文本:
+
+:ID:
+ID:
+
+:IDA MAP
+IDA MAP
+
+:Icon (B29):
+图标 (B29):
+
+:Icon ID:
+图标ID:
+
+:Icon Index:
+图标索引:
+
+:Icon:
+图标:
+
+:Id 0:
+Id 0:
+
+:Id 10:
+Id 10:
+
+:Id 11:
+Id 11:
+
+:Id 1:
+Id 1:
+
+:Id 2:
+Id 2:
+
+:Id 3:
+Id 3:
+
+:Id 4:
+Id 4:
+
+:Id 5:
+Id 5:
+
+:Id 6:
+Id 6:
+
+:Id 7:
+Id 7:
+
+:Id 8:
+Id 8:
+
+:Id 9:
+Id 9:
+
+:Identifier:
+标识符:
+
+:Identity
+身份
+
+:Identity / Misc
+身份 / 杂项
+
+:Image (D0):
+图像 (D0):
+
+:Image Address:
+图像地址:
+
+:Image Form Reference
+图像表单引用
+
+:Image Pointer:
+图像指针:
+
+:Image Source:
+图像来源:
+
+:Image Sub-Menu
+图像子菜单
+
+:Image Type:
+图像类型:
+
+:Image Viewer
+图像查看器
+
+:Import MIDI
+导入MIDI
+
+:Import PAL
+导入调色板
+
+:Import PNG
+导入PNG
+
+:Import TSV
+导入TSV
+
+:Import TSV...
+导入TSV...
+
+:Import Text (TSV)
+导入文本(TSV)
+
+:Import Texts (TSV)
+导入文本(TSV)
+
+:Import as one picture (auto-generate map_config from this image)
+作为单张图片导入(从此图像自动生成map_config)
+
+:Import image only (do not import palette)
+仅导入图像(不导入调色板)
+
+:Import image with palette (recommended)
+导入图像和调色板(推荐)
+
+:Import to ROM (Experimental)
+导入到ROM(实验性)
+
+:Indent:
+缩进:
+
+:Info:
+信息:
+
+:Initial Configuration
+初始配置
+
+:Initial Value 10:
+Initial Value 10:
+
+:Initial Value 1:
+Initial Value 1:
+
+:Initial Value 2:
+Initial Value 2:
+
+:Initial Value 3:
+Initial Value 3:
+
+:Initial Value 4:
+Initial Value 4:
+
+:Initial Value 5:
+Initial Value 5:
+
+:Initial Value 6:
+Initial Value 6:
+
+:Initial Value 7:
+Initial Value 7:
+
+:Initial Value 8:
+Initial Value 8:
+
+:Initial Value 9:
+Initial Value 9:
+
+:Initial Values
+初始值
+
+:Insert Command...
+插入命令...
+
+:Insert New
+插入新项
+
+:Install Anyway
+仍然安装
+
+:Install Patch
+安装补丁
+
+:Instrument Editor
+乐器编辑器
+
+:Instrument Selection
+乐器选择
+
+:Instrument Set:
+乐器集:
+
+:Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
+Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
+
+:Interpolated Picture Box
+插值图片框
+
+:Interval (minutes):
+间隔(分钟):
+
+:Item # (B6):
+物品# (B6):
+
+:Item (Staff):
+物品(杖):
+
+:Item 1:
+物品1:
+
+:Item 2:
+物品2:
+
+:Item 3:
+物品3:
+
+:Item 4:
+物品4:
+
+:Item Editor (FE6)
+物品编辑器(FE6)
+
+:Item Effect Pointer Editor
+物品效果指针编辑器
+
+:Item Effectiveness (Main)
+物品特效(主)
+
+:Item Effectiveness Editor
+物品特效编辑器
+
+:Item ID:
+物品ID:
+
+:Item Name Text ID:
+物品名称文本ID:
+
+:Item Promotion Editor
+物品转职编辑器
+
+:Item Shop Editor
+物品商店编辑器
+
+:Item Stat Bonuses Editor
+物品属性加成编辑器
+
+:Item Usage Pointer Editor
+物品使用指针编辑器
+
+:Item Weapon Effect Editor
+物品武器效果编辑器
+
+:Item/Weapon Icon Viewer
+物品/武器图标查看器
+
+:Item:
+物品:
+
+:Japanese Name Length:
+日文名称长度:
+
+:Japanese Name Pointer:
+日文名称指针:
+
+:Jump To
+跳转到
+
+:Key Map Pointer:
+键位地图指针:
+
+:LCK Growth:
+幸运成长:
+
+:LCK:
+幸运:
+
+:LV:
+等级:
+
+:LZ77 Compressed
+LZ77已压缩
+
+:LZ77 Compression Tool
+LZ77压缩工具
+
+:Lance (B21):
+枪 (B21):
+
+:Lance (B45):
+枪 (B45):
+
+:Lance:
+枪:
+
+:Lck (B33):
+幸运 (B33):
+
+:Lck:
+幸运:
+
+:Leader Unit ID:
+队长单位ID:
+
+:Leave blank for defaults. Set custom URLs for forks/mirrors.
+留空使用默认值。为分支/镜像设置自定义URL。
+
+:Left RMenuPointer:
+左方R菜单指针:
+
+:Length Byte:
+长度字节:
+
+:Length:
+长度:
+
+:Lethal Damage Priority:
+致命伤害优先级:
+
+:Level/Growth:
+等级/成长:
+
+:Level:
+等级:
+
+:Light (B26):
+光 (B26):
+
+:Light (B50):
+光 (B50):
+
+:Light:
+光:
+
+:Link Arena Deny Unit Editor
+连接竞技场禁止单位编辑器
+
+:Linked Name:
+关联名称:
+
+:Lint Check
+检查错误
+
+:Lists all character codes in the ROM's text encoding table.
+列出ROM文本编码表中的所有字符编码。
+
+:Load
+加载
+
+:Load as FE6 (Binding Blade - Japan)
+加载为FE6(封印之剑 - 日版)
+
+:Load as FE7J (Blazing Blade - Japan)
+加载为FE7J(烈火之剑 - 日版)
+
+:Load as FE7U (Blazing Blade - US)
+加载为FE7U(烈火之剑 - 美版)
+
+:Load as FE8J (Sacred Stones - Japan)
+加载为FE8J(圣魔之光石 - 日版)
+
+:Load as FE8U (Sacred Stones - US)
+加载为FE8U(圣魔之光石 - 美版)
+
+:Load as Other (Unknown)
+加载为其他(未知)
+
+:Lock Type / ID:
+锁定类型 / ID:
+
+:Loop Routine:
+循环例程:
+
+:Loop Start Byte:
+循环起始字节:
+
+:Low byte:
+低字节:
+
+:Lower Class Anim Color
+下级职业动画颜色
+
+:Lower Class Anime:
+下级职业动画:
+
+:Lower Class Palette:
+下级职业调色板:
+
+:Luck:
+幸运:
+
+:MIDI File Metadata
+MIDI文件元数据
+
+:MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results.
+MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results.
+
+:Magic Effect Editor (FEditor)
+魔法效果编辑器(FEditor)
+
+:Magic Effect:
+魔法效果:
+
+:Magic/??
+魔法/??
+
+:Main Portrait
+主头像
+
+:Manage background music, sound effects, and the in-game sound room.
+管理背景音乐、音效和游戏内音乐鉴赏室。
+
+:Mant Animation
+Mant动画
+
+:Manually configure from Options screen
+从选项画面手动配置
+
+:Map Action Animation
+地图动作动画
+
+:Map Change (Main)
+地图变更(主)
+
+:Map Change Editor
+地图变更编辑器
+
+:Map Change Event Editor
+地图变更事件编辑器
+
+:Map Chip Import
+地图块导入
+
+:Map Data Pointer:
+地图数据指针:
+
+:Map Effect Pointer:
+地图效果指针:
+
+:Map Exit Point (Main)
+地图出口点(主)
+
+:Map Exit Point Editor
+地图出口点编辑器
+
+:Map Face (32x32)
+地图头像(32x32)
+
+:Map Face:
+地图头像:
+
+:Map ID:
+地图ID:
+
+:Map Load Functions (FE8)
+地图加载函数(FE8)
+
+:Map Name Text IDs
+地图名称文本ID
+
+:Map Picture Box
+地图图片框
+
+:Map Pointer
+地图指针
+
+:Map Pointer (Main)
+地图指针(主)
+
+:Map Pointer Editor
+地图指针编辑器
+
+:Map Pointer:
+地图指针:
+
+:Map Properties
+地图属性
+
+:Map Resize
+地图缩放
+
+:Map Setting Difficulty Extra
+地图设置难度额外
+
+:Map Settings (FE7JP)
+地图设置(FE7JP)
+
+:Map Settings (Main)
+地图设置(主)
+
+:Map Style / PLIST
+地图样式 / PLIST
+
+:Map Style Editor
+地图样式编辑器
+
+:Map Tile Animation Editor
+地图图块动画编辑器
+
+:Map Tile Animation Type 1
+地图图块动画类型1
+
+:Map Tile Animation Type 2 (Palette)
+地图图块动画类型2(调色板)
+
+:Map Tile Data Pointer:
+地图图块数据指针:
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+将每个单位索引映射到说明文本ID(每条目2字节)。
+
+:Marked Addresses
+已标记地址
+
+:Match Method
+匹配方法
+
+:Max Value:
+最大值:
+
+:Menu Command Editor
+菜单命令编辑器
+
+:Menu Command Ptr:
+菜单命令指针:
+
+:Menu Definition Editor
+菜单定义编辑器
+
+:Merge Statistics
+合并统计
+
+:Might (B21):
+威力 (B21):
+
+:Min Value:
+最小值:
+
+:Mine:
+我方:
+
+:Mini Portrait
+迷你头像
+
+:Mini-Map Terrain
+Mini-Map Terrain
+
+:Modified ROM:
+修改后ROM:
+
+:Monster Item Editor
+魔物物品编辑器
+
+:Monster Probability Editor
+魔物概率编辑器
+
+:Motion:
+运动:
+
+:Mouth Coord:
+嘴部坐标:
+
+:Mouth Frames (32x16 x6)
+嘴部帧(32x16 x6)
+
+:Mouth Frames:
+嘴部帧:
+
+:Mouth X:
+嘴部X:
+
+:Mouth Y:
+嘴部Y:
+
+:Mouth:
+嘴部:
+
+:Mov (B17):
+移动 (B17):
+
+:Move
+移动
+
+:Move Cost (FE6) Editor
+移动消耗(FE6)编辑器
+
+:Move Cost (P56):
+移动消耗 (P56):
+
+:Move Cost Editor
+移动消耗编辑器
+
+:Move Cost Rain (P60):
+雨天移动消耗 (P60):
+
+:Move Cost Snow (P64):
+雪天移动消耗 (P64):
+
+:Move Costs
+移动消耗
+
+:Move Direction:
+移动方向:
+
+:Move to Free Space
+移到空闲空间
+
+:Move:
+移动:
+
+:Multi Sample Pointers
+多采样指针
+
+:Music
+音乐
+
+:My ROM:
+我的ROM:
+
+:My changes:
+我方更改:
+
+:Name Char 0:
+Name Char 0:
+
+:Name Char 10:
+Name Char 10:
+
+:Name Char 11:
+Name Char 11:
+
+:Name Char 1:
+Name Char 1:
+
+:Name Char 2:
+Name Char 2:
+
+:Name Char 3:
+Name Char 3:
+
+:Name Char 4:
+Name Char 4:
+
+:Name Char 5:
+Name Char 5:
+
+:Name Char 6:
+Name Char 6:
+
+:Name Char 7:
+Name Char 7:
+
+:Name Char 8:
+Name Char 8:
+
+:Name Char 9:
+Name Char 9:
+
+:Name ID (W0):
+名称ID (W0):
+
+:Name ID:
+名称ID:
+
+:Name Pointer:
+名称指针:
+
+:Name Text ID:
+名称文本ID:
+
+:Name:
+名称:
+
+:New Name:
+新名称:
+
+:New PLIST Popup
+新建PLIST弹窗
+
+:Next Node (Eirika 2nd):
+Next Node (Eirika 2nd):
+
+:Next Node (Eirika):
+Next Node (Eirika):
+
+:Next Node (Ephraim 2nd):
+Next Node (Ephraim 2nd):
+
+:Next Node (Ephraim):
+Next Node (Ephraim):
+
+:No animation data found for this ID (ID=0 or invalid pointer chain).
+未找到此ID的动画数据(ID=0或无效的指针链)。
+
+:No file selected
+未选择文件
+
+:No recent files
+无最近文件
+
+:No song selected
+未选择曲目
+
+:No tile selected
+未选择图块
+
+:No$GBA SYM
+No$GBA SYM
+
+:Noise Parameters + ADSR
+噪声参数 + ADSR
+
+:Normal Mode Penalty
+普通模式减益
+
+:Not Yet Implemented
+尚未实现
+
+:Note
+注意
+
+:Null-terminated list of class IDs (1 byte per entry).
+以Null结尾的职业ID列表(每条目1字节)。
+
+:NumBlks:
+块数:
+
+:OAM (L→R) Ptr:
+OAM (左→右) 指针:
+
+:OAM (R→L) Ptr:
+OAM (右→左) 指针:
+
+:OAM Data:
+OAM数据:
+
+:OAM Sprite Editor
+OAM精灵图编辑器
+
+:OAM Sprite Viewer
+OAM精灵查看器
+
+:OBJ Tile Pointer:
+OBJ图块指针:
+
+:OK
+确定
+
+:OP Class Alpha Name (FE6 Extra)
+OP职业字母名(FE6 额外)
+
+:OP Class Alpha Name (FE6) Editor
+OP职业字母名(FE6)编辑器
+
+:OP Class Alpha Name Editor
+OP职业字母名编辑器
+
+:OP Class Demo (FE7) Editor
+OP职业演示(FE7)编辑器
+
+:OP Class Demo (FE7U) Editor
+OP职业演示(FE7U)编辑器
+
+:OP Class Demo (FE8U) Editor
+OP职业演示(FE8U)编辑器
+
+:OP Class Demo Editor
+OP职业演示编辑器
+
+:OP Class Font (FE8U) Editor
+OP职业字体(FE8U)编辑器
+
+:OP Class Font Editor
+OP职业字体编辑器
+
+:OP Prologue Editor
+OP序章编辑器
+
+:Older ↓
+旧的 ↓
+
+:On B Press Routine:
+B键按下例程:
+
+:On HelpBox Routine:
+帮助框例程:
+
+:On R Press Routine:
+R键按下例程:
+
+:On/Off Text 1:
+On/Off Text 1:
+
+:On/Off Text 2:
+On/Off Text 2:
+
+:OnEnd Routine:
+结束例程:
+
+:OnInit Routine:
+初始化例程:
+
+:One Picture Import
+单图导入
+
+:Open Community
+打开社区
+
+:Open Info File
+打开信息文件
+
+:Open Last Selected File
+打开上次选择的文件
+
+:Open map change settings
+打开地图变更设置
+
+:Open the map change configuration screen to edit existing map change entries.
+打开地图变更配置画面以编辑现有地图变更条目。
+
+:Option ID (u8@0):
+选项ID (u8@0):
+
+:Option Type:
+选项类型:
+
+:Order:
+顺序:
+
+:Orig:
+原始:
+
+:Original ROM:
+原始ROM:
+
+:Other ROM Ref
+其他ROM引用
+
+:Other ROM&#x0a;Data Address
+Other ROM&#x0a;Data Address
+
+:Other Text Strings
+其他文本字符串
+
+:Override
+覆盖
+
+:Overriding map style data may cause visual artifacts. Are you sure?
+覆盖地图样式数据可能导致视觉异常。确定吗？
+
+:PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+
+:PLIST ID:
+PLIST ID:
+
+:Packed Memory Slot
+打包内存槽
+
+:Padding
+填充
+
+:Padding (B25):
+Padding (B25):
+
+:Padding (B26):
+Padding (B26):
+
+:Padding (B27):
+Padding (B27):
+
+:Padding (B6):
+Padding (B6):
+
+:Padding (B7):
+Padding (B7):
+
+:Padding 1 (W4):
+Padding 1 (W4):
+
+:Padding 1:
+Padding 1:
+
+:Padding 2 (W6):
+Padding 2 (W6):
+
+:Padding 2:
+Padding 2:
+
+:Padding:
+Padding:
+
+:Page Down
+下一页
+
+:Page Up
+上一页
+
+:Palette (D8):
+调色板 (D8):
+
+:Palette / Custom Animation:
+调色板 / 自定义动画:
+
+:Palette Address:
+调色板地址:
+
+:Palette Change Colors
+调色板颜色更改
+
+:Palette Clipboard
+调色板剪贴板
+
+:Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+
+:Palette Data Pointer:
+调色板数据指针:
+
+:Palette Error Display
+调色板错误显示
+
+:Palette ID:
+调色板ID:
+
+:Palette Mismatch
+调色板不匹配
+
+:Palette Pointer:
+调色板指针:
+
+:Palette Ptr (P12):
+调色板指针 (P12):
+
+:Palette Ptr:
+调色板指针:
+
+:Palette Swap
+调色板交换
+
+:Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+
+:Palette Transparency Error
+调色板透明度错误
+
+:Palette:
+调色板:
+
+:Parameters
+参数
+
+:Partner 10:
+Partner 10:
+
+:Partner 1:
+Partner 1:
+
+:Partner 2:
+Partner 2:
+
+:Partner 3:
+Partner 3:
+
+:Partner 4:
+Partner 4:
+
+:Partner 5:
+Partner 5:
+
+:Partner 6:
+Partner 6:
+
+:Partner 7:
+Partner 7:
+
+:Partner 8:
+Partner 8:
+
+:Partner 9:
+Partner 9:
+
+:Partner Count / Separator
+搭档数量 / 分隔符
+
+:Partner Count:
+搭档数量:
+
+:Paste
+粘贴
+
+:Patch Details
+补丁详情
+
+:Patch Filter
+补丁筛选
+
+:Patch Review
+补丁审查
+
+:Patch Uninstall
+补丁卸载
+
+:Patch2 Remote URL
+Patch2 Remote URL
+
+:Path Data Pointer:
+路径数据指针:
+
+:Path Move Pointer:
+路径移动指针:
+
+:Path Movement Editor
+路径移动编辑器
+
+:Pattern:
+模式:
+
+:Penalty:
+减益:
+
+:Per-Turn Callback:
+每回合回调:
+
+:Period:
+周期:
+
+:Personal Skill:
+个人技能:
+
+:Pick...
+选取...
+
+:Platform Notice
+平台通知
+
+:Play
+播放
+
+:Play all tracks
+播放所有音轨
+
+:Play only this track
+仅播放此音轨
+
+:Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+
+:Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+
+:Pointers (D96-D108)
+指针(D96-D108)
+
+:Pointers / Movement / Terrain
+指针 / 移动 / 地形
+
+:Portrait (W8):
+头像 (W8):
+
+:Portrait Editor (FE6)
+头像编辑器(FE6)
+
+:Portrait Image Editor
+头像图像编辑器
+
+:Portrait Import Wizard
+头像导入向导
+
+:Portrait:
+头像:
+
+:Post-Clear Icon:
+通关后图标:
+
+:Pre-Clear Icon:
+通关前图标:
+
+:Preparation shop item list
+准备商店物品列表
+
+:Prev
+上一个
+
+:Preview:
+预览:
+
+:Price (W26):
+价格 (W26):
+
+:Priority (PlayerType):
+优先级(玩家类型):
+
+:Priority:
+优先级:
+
+:Probability %:
+概率%:
+
+:Probability 1:
+Probability 1:
+
+:Probability 2:
+Probability 2:
+
+:Probability 3:
+Probability 3:
+
+:Probability 4:
+Probability 4:
+
+:Probability 5:
+Probability 5:
+
+:Problem Reporter
+问题报告器
+
+:Procs Script Editor
+Procs脚本编辑器
+
+:Project Information
+项目信息
+
+:Promo Class
+转职职业
+
+:Promo Lv (B5):
+转职等级 (B5):
+
+:Promotion Class 1:
+转职职业1:
+
+:Promotion Class 2:
+转职职业2:
+
+:Promotion target class per source class
+每个源职业的转职目标职业
+
+:Promotions
+转职
+
+:Ptr@
+指针@
+
+:Python 3
+Python 3
+
+:Quantity/Uses:
+数量/使用次数:
+
+:R:
+R:
+
+:RAM Rewrite Tool
+RAM重写工具
+
+:RAM Rewrite Tool (MAP)
+RAM重写工具(地图)
+
+:RAM rewriting requires Windows P/Invoke to access emulator process memory and is not available in the cross-platform Avalonia version.
+RAM rewriting requires Windows P/Invoke to access emulator process memory and is not available in the cross-platform Avalonia version.
+
+:RES Growth:
+魔防成长:
+
+:RES:
+魔防:
+
+:RMenu Text ID:
+RMenu Text ID:
+
+:ROM Animation Viewer
+ROM动画查看器
+
+:ROM Data Sections
+ROM数据段
+
+:ROM Diff Tool
+ROM差异工具
+
+:ROM Information
+ROM信息
+
+:ROM Rebuild Tool
+ROM重建工具
+
+:ROM Translation Tool
+ROM翻译工具
+
+:ROM and Configuration Information
+ROM和配置信息
+
+:ROM without patch
+未打补丁的ROM
+
+:Random Chest Items
+Random Chest Items
+
+:Range (B25):
+射程 (B25):
+
+:Rank (B28):
+等级 (B28):
+
+:Raw Bytes:
+原始字节:
+
+:Raw Hex:
+原始十六进制:
+
+:Ready
+就绪
+
+:Reason for hiding:
+隐藏原因:
+
+:Recent Files
+最近的文件
+
+:Record Address:
+记录地址:
+
+:Record Size:
+记录大小:
+
+:Records
+记录
+
+:Recover ROM Header
+恢复ROM头部
+
+:Reference Data:
+引用数据:
+
+:Reference Text:
+引用文本:
+
+:Refresh
+刷新
+
+:Refresh Map
+刷新地图
+
+:Regions:
+区域:
+
+:Release:
+发布:
+
+:Rendered Frame:
+渲染帧:
+
+:Res (B16):
+魔防 (B16):
+
+:Res (B32):
+魔防 (B32):
+
+:Res (b39):
+魔防 (b39):
+
+:Res:
+魔防:
+
+:Reserved (0x06):
+保留 (0x06):
+
+:Reserved (B1-B3):
+Reserved (B1-B3):
+
+:Resistance
+魔防
+
+:Resistance:
+魔防:
+
+:Resolved Name:
+解析名称:
+
+:Resolved:
+已解析:
+
+:Resources
+资源
+
+:RetDec Decompiler
+RetDec反编译器
+
+:Retreat AI:
+撤退AI:
+
+:Reverb:
+混响:
+
+:Reverse search
+反向搜索
+
+:Revert to This Version
+恢复到此版本
+
+:Rewrite RAM values for map data in a running emulator.
+在运行中的模拟器中重写地图数据的RAM值。
+
+:Right RMenuPointer:
+右方R菜单指针:
+
+:Rows:
+行数:
+
+:Run Dump
+执行转储
+
+:SKL Growth:
+技术成长:
+
+:SKL:
+技术:
+
+:SPD Growth:
+速度成长:
+
+:SPD:
+速度:
+
+:STR Growth:
+力量成长:
+
+:STR:
+力量:
+
+:Sappy (Sound Editor)
+Sappy(声音编辑器)
+
+:Save Image Ptr:
+保存图像指针:
+
+:Save Merged ROM
+保存合并的ROM
+
+:Save Patch File
+保存补丁文件
+
+:Save to File...
+保存到文件...
+
+:Script Template Browser
+脚本模板浏览器
+
+:Search Content
+搜索内容
+
+:Search disassembly output by argument pattern.
+按参数模式搜索反汇编输出。
+
+:Search prefix
+搜索前缀
+
+:Search:
+搜索:
+
+:Secret Shop Pointer:
+秘密商店指针:
+
+:Section Ptr:
+段指针:
+
+:Section:
+段:
+
+:Select Category...
+选择分类...
+
+:Select Event Script Category
+选择事件脚本分类
+
+:Select Text Script Category
+选择文本脚本分类
+
+:Select an animation to view OAM sprites.
+选择动画查看OAM精灵图。
+
+:Select an output format and run the disassembly dump.
+选择输出格式并运行反汇编转储。
+
+:Select file
+选择文件
+
+:Selected ROM Info
+选中ROM信息
+
+:Selected Record
+选中记录
+
+:Selection Text 1:
+Selection Text 1:
+
+:Selection Text 2:
+Selection Text 2:
+
+:Self Remaining HP Warning:
+自身剩余HP警告:
+
+:Sell Price:
+卖出价格:
+
+:Separator 1:
+Separator 1:
+
+:Separator 2:
+Separator 2:
+
+:Separator:
+分隔符:
+
+:Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+
+:Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
+设置盗贼AI尝试偷取物品的优先级。列表顶部的物品具有最高优先级。
+
+:Setup Steps
+设置步骤
+
+:Setup Wizard
+设置向导
+
+:Ship Setting:
+船只设置:
+
+:Shops
+商店
+
+:Short Bit Flags (16-bit)
+Short Bit Flags (16-bit)
+
+:Show All
+显示全部
+
+:Show All Works
+显示所有工作
+
+:Show Frame:
+显示帧:
+
+:Show Subtitles
+显示字幕
+
+:Show subtitle window even when there are no subtitles
+即使没有字幕也显示字幕窗口
+
+:Sim Level:
+模拟等级:
+
+:Simple Menu (Easy Mode)
+Simple Menu (Easy Mode)
+
+:Simulate to LV:
+Simulate to LV:
+
+:Size:
+大小:
+
+:Skill Assignment (Class)
+技能分配(职业)
+
+:Skill Assignment (Unit)
+技能分配(单位)
+
+:Skill Assignment - Class (CSkillSys)
+技能分配 - 职业(CSkillSys)
+
+:Skill Assignment - Unit (CSkillSys)
+技能分配 - 单位(CSkillSys)
+
+:Skill Assignment - Unit (FE8N)
+技能分配 - 单位(FE8N)
+
+:Skill Config (SkillSystem)
+技能配置(SkillSystem)
+
+:Skill Configuration (CSkillSys 0.9.x)
+技能配置(CSkillSys 0.9.x)
+
+:Skill Configuration (FE8N v2)
+技能配置(FE8N v2)
+
+:Skill Configuration (FE8N v3)
+技能配置(FE8N v3)
+
+:Skill Configuration (FE8N)
+技能配置(FE8N)
+
+:Skill Name:
+技能名称:
+
+:Skill Set 1:
+Skill Set 1:
+
+:Skill Set 2:
+Skill Set 2:
+
+:Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+
+:Skill:
+技能:
+
+:Skip
+跳过
+
+:Skl (B13):
+技术 (B13):
+
+:Skl (B29):
+技术 (B29):
+
+:Skl (b36):
+技术 (b36):
+
+:Skl:
+技术:
+
+:Slide Search
+滑动搜索
+
+:SoX (Sound eXchange)
+SoX(声音转换器)
+
+:Song Exchange Tool
+曲目交换工具
+
+:Song Header Pointer:
+曲目头部指针:
+
+:Song ID 1 (u16@0):
+曲目ID 1 (u16@0):
+
+:Song ID 2 (u16@2):
+曲目ID 2 (u16@2):
+
+:Song ID:
+歌曲ID:
+
+:Song Length:
+曲目长度:
+
+:Song Name (Text ID):
+曲目名称(文本ID):
+
+:Song Table (Main)
+曲目表(主)
+
+:Song Table Editor
+歌曲表编辑器
+
+:Song Tracks
+曲目音轨
+
+:Sort Order:
+排序:
+
+:Sort:
+排序:
+
+:Source Code
+源代码
+
+:Source Directory
+源代码目录
+
+:Source Palette:
+源调色板:
+
+:Spd (B14):
+速度 (B14):
+
+:Spd (B30):
+速度 (B30):
+
+:Spd (b37):
+速度 (b37):
+
+:Spd:
+速度:
+
+:Speak
+朗读
+
+:Special (B1):
+Special (B1):
+
+:Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0.
+指定范围攻击的范围掩码。中心点是攻击爆发点。将被攻击的图块设为1，其余设为0。
+
+:Specifies the function that determines whether AI will use a staff.
+指定决定AI是否使用杖的函数。
+
+:Specifies the function that determines whether AI will use an item.
+指定决定AI是否使用物品的函数。
+
+:Speed
+速度
+
+:Speed:
+速度:
+
+:Spell Menu Extensions
+魔法菜单扩展
+
+:Split Menu Definition
+分割菜单定义
+
+:Sprite Tile Sheet
+精灵图块表
+
+:Squad:
+小队:
+
+:Square Wave Parameters + ADSR
+方波参数 + ADSR
+
+:Staff (B24):
+杖 (B24):
+
+:Staff (B48):
+杖 (B48):
+
+:Staff Roll Editor
+制作人员编辑器
+
+:Staff:
+杖:
+
+:Start Base Point ID:
+起点据点ID:
+
+:Start Palette Index:
+起始调色板索引:
+
+:Start X:
+起点X:
+
+:Start Y:
+起点Y:
+
+:Stat Bonus (P12):
+属性加成 (P12):
+
+:Stat Bonuses (Skill Systems)
+属性加成(技能系统)
+
+:Stat Bonuses Preview
+属性加成预览
+
+:State:
+状态:
+
+:Stats / Bonuses
+属性 / 加成
+
+:Status
+状态
+
+:Status Option Order Editor
+状态选项排序编辑器
+
+:Status Parameters Editor
+状态参数编辑器
+
+:Status R-Menu Editor
+状态R菜单编辑器
+
+:Status Screen Options
+状态画面选项
+
+:Status Units Menu Editor
+状态单位菜单编辑器
+
+:Status:
+状态:
+
+:StatusMenuTextStruct:
+状态菜单文本结构:
+
+:Step 1: Select your clean Fire Emblem GBA ROM file.
+第一步: 选择您的干净Fire Emblem GBA ROM文件。
+
+:Step 2: Choose your preferred language for the editor interface.
+第二步: 选择您首选的编辑器界面语言。
+
+:Step 3: Configure paths for external tools (emulators, assemblers).
+第三步: 配置外部工具路径(模拟器、汇编器)。
+
+:Step 4: Review settings and begin editing.
+第四步: 检查设置并开始编辑。
+
+:Str (B12):
+力量 (B12):
+
+:Str (B28):
+力量 (B28):
+
+:Str (b35):
+力量 (b35):
+
+:Str/Mag
+力/魔
+
+:Str/Mag:
+力量/魔力:
+
+:Str:
+力量:
+
+:Strategy Rating
+战略评价
+
+:String 0:
+String 0:
+
+:String 1:
+String 1:
+
+:String 2:
+String 2:
+
+:String 3:
+String 3:
+
+:String 4:
+String 4:
+
+:String 5:
+String 5:
+
+:String 6:
+String 6:
+
+:String 7:
+String 7:
+
+:String Pointer:
+字符串指针:
+
+:String Text:
+字符串文本:
+
+:Struct Dump Selector
+结构转储选择器
+
+:Style Data:
+样式数据:
+
+:Style:
+样式:
+
+:Sub-Instrument Ptr:
+子乐器指针:
+
+:Sub-type:
+子类型:
+
+:Submodule Remote URLs (advanced)
+子模块远程URL(高级)
+
+:Subtitle Overlay
+字幕叠加
+
+:Subtitle Text:
+字幕文本:
+
+:Summon Unit Editor
+召唤单位编辑器
+
+:Summoned Unit:
+召唤的单位:
+
+:Summoner:
+召唤者:
+
+:Support &amp; Other
+Support &amp; Other
+
+:Support / Talk:
+支援 / 对话:
+
+:Support Attribute Editor
+支援属性编辑器
+
+:Support Class:
+支援职业:
+
+:Support Data Ptr:
+支援数据指针:
+
+:Support Partner 1:
+Support Partner 1:
+
+:Support Partner 2:
+Support Partner 2:
+
+:Support Partners
+支援搭档
+
+:Support Ptr:
+Support Ptr:
+
+:Support Talk (FE6)
+支援对话(FE6)
+
+:Support Talk (FE7)
+支援对话(FE7)
+
+:Support Unit Editor
+支援单位编辑器
+
+:Support Units (FE6)
+支援单位(FE6)
+
+:Surround Warning:
+包围警告:
+
+:Sustain:
+延音:
+
+:Swap
+交换
+
+:Sweep:
+扫频:
+
+:Sword (B20):
+剑 (B20):
+
+:Sword (B44):
+剑 (B44):
+
+:Sword:
+剑:
+
+:System Area Gradation Color Viewer
+系统区域渐变颜色查看器
+
+:System Area Graphics
+系统区域图形
+
+:System Icon Viewer
+系统图标查看器
+
+:TSA (D4):
+TSA (D4):
+
+:TSA Animation Editor
+TSA动画编辑器
+
+:TSA Animation Editor v2
+TSA动画编辑器v2
+
+:TSA Error
+TSA错误
+
+:TSA Pointer:
+TSA指针:
+
+:TSA Tile Editor
+TSA图块编辑器
+
+:TSA w/ Header (P8):
+带头部TSA (P8):
+
+:TSA:
+TSA:
+
+:Table Pointer:
+表指针:
+
+:Table:
+表:
+
+:Tags:
+标签:
+
+:Talk Group Editor
+对话组编辑器
+
+:Talk Group:
+对话组:
+
+:Target Class ID:
+目标职业ID:
+
+:Target/Recovery AI:
+目标/恢复AI:
+
+:Template ROM FROM
+模板ROM 来源
+
+:Template ROM TO
+模板ROM 目标
+
+:Terminator (FFFF):
+终止符 (FFFF):
+
+:Terrain Avoid (P68):
+地形回避 (P68):
+
+:Terrain BG Lookup
+地形BG查询
+
+:Terrain BG Lookup Table
+地形BG查询表
+
+:Terrain Battle Floor:
+地形战斗地板:
+
+:Terrain Def (P72):
+地形防御 (P72):
+
+:Terrain Floor Lookup
+地形地板查询
+
+:Terrain Floor Lookup Table
+地形地板查询表
+
+:Terrain Left:
+地形左侧:
+
+:Terrain Move Costs (51 entries):
+地形移动消耗(51条目):
+
+:Terrain Move Costs (65 terrains: 0x00 - 0x40):
+地形移动消耗(65种地形: 0x00 - 0x40):
+
+:Terrain Name (English)
+地形名称(英文)
+
+:Terrain Name Editor
+地形名称编辑器
+
+:Terrain Name Text ID:
+地形名称文本ID:
+
+:Terrain Name:
+地形名称:
+
+:Terrain Res (P76):
+地形魔防 (P76):
+
+:Terrain Right:
+地形右侧:
+
+:Test Play in Emulator
+在模拟器中测试游玩
+
+:Test play selected ROM in emulator
+在模拟器中测试游玩选中的ROM
+
+:Text Detail:
+文本详情:
+
+:Text Dictionary
+文本字典
+
+:Text Escape Sequences
+文本转义序列
+
+:Text ID (TID):
+文本ID (TID):
+
+:Text ID 1:
+Text ID 1:
+
+:Text ID 2:
+Text ID 2:
+
+:Text ID:
+文本ID:
+
+:The following error has occurred.
+The following error has occurred.
+
+:The latest EA may not dump extended area data. In that case, use EA ver9.
+The latest EA may not dump extended area data. In that case, use EA ver9.
+
+:Their ROM:
+对方ROM:
+
+:Their changes:
+对方更改:
+
+:Theirs
+对方
+
+:Theirs:
+对方:
+
+:This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+
+:This tool relocates data to free ROM space.
+此工具将数据重新定位到空闲ROM空间。
+
+:This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes.
+This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes.
+
+:Three-Way ROM Merge
+三路ROM合并
+
+:Tile Data Ptr:
+图块数据指针:
+
+:Tile Editor (click on map to select)
+图块编辑器(点击地图选择)
+
+:Tile ID (hex):
+图块ID(十六进制):
+
+:Tile Offset:
+图块偏移:
+
+:Tile Override Warning
+图块覆盖警告
+
+:Tile Sheet (Reference):
+Tile Sheet (Reference):
+
+:Tile:
+图块:
+
+:Tiles X:
+Tiles X:
+
+:Tiles Y:
+Tiles Y:
+
+:Tileset Append
+Tileset Append
+
+:Title Image Ptr:
+标题图像指针:
+
+:Title Index:
+标题索引:
+
+:To Unit:
+到单位:
+
+:Top
+顶部
+
+:Total animations: --
+总动画数: --
+
+:Track Change
+音轨变更
+
+:Track Count:
+音轨数量:
+
+:Trainee Class (trainee only):
+实习生职业(仅实习生):
+
+:Trait 1 (B8):
+Trait 1 (B8):
+
+:Trait 1 (flags):
+Trait 1 (flags):
+
+:Trait 2 (B9):
+Trait 2 (B9):
+
+:Trait 2 (flags):
+Trait 2 (flags):
+
+:Trait 3 (B10):
+Trait 3 (B10):
+
+:Trait 3 (flags):
+Trait 3 (flags):
+
+:Trait 4 (B11):
+Trait 4 (B11):
+
+:Trait 4 (flags):
+Trait 4 (flags):
+
+:Trait Flags
+特性标志
+
+:Type (B7):
+Type (B7):
+
+:Type Name:
+类型名称:
+
+:Type:
+类型:
+
+:UPS Patch Applier
+UPS补丁应用
+
+:UPS Patch Creator
+UPS补丁创建
+
+:Undo
+撤销
+
+:Undo Buffer
+撤销缓冲区
+
+:Undo History Viewer
+撤销历史查看器
+
+:Unit Action Pointers
+单位动作指针
+
+:Unit Allocation Editor
+单位分配编辑器
+
+:Unit Color Assignment
+单位颜色分配
+
+:Unit Data Pointer:
+单位数据指针:
+
+:Unit Editor (FE6)
+单位编辑器(FE6)
+
+:Unit Editor (Main)
+单位编辑器(主)
+
+:Unit Face (96x80)
+单位头像(96x80)
+
+:Unit Face:
+单位头像:
+
+:Unit Groups
+单位组
+
+:Unit Growth:
+单位成长:
+
+:Unit Height Adjustment
+单位高度调整
+
+:Unit ID:
+单位ID:
+
+:Unit Info Pointer:
+单位信息指针:
+
+:Unit Info:
+单位信息:
+
+:Unit Item Drop Editor
+单位物品掉落编辑器
+
+:Unit List Pointer:
+单位列表指针:
+
+:Unit Move Icon
+单位移动图标
+
+:Unit Palette Assignment
+单位调色板分配
+
+:Unit Palette Editor
+单位调色板编辑器
+
+:Unit Simulation Control
+单位模拟控制
+
+:Unit Skill Pointer:
+单位技能指针:
+
+:Unit Skill:
+单位技能:
+
+:Unit Wait Icon
+单位等待图标
+
+:Unit/Class Pointer:
+单位/职业指针:
+
+:Unit:
+单位:
+
+:Units (FE7) Editor
+单位(FE7)编辑器
+
+:Units Short Text Editor
+单位短文本编辑器
+
+:Unk33 (B33):
+Unk33 (B33):
+
+:Unk34 (B34):
+Unk34 (B34):
+
+:Unk35 (B35):
+Unk35 (B35):
+
+:Unknown (0x02):
+Unknown (0x02):
+
+:Unknown (0x03):
+Unknown (0x03):
+
+:Unknown (0x07):
+Unknown (0x07):
+
+:Unknown (0x12):
+Unknown (0x12):
+
+:Unknown (D20):
+Unknown (D20):
+
+:Unknown (byte 1):
+Unknown (byte 1):
+
+:Unknown (byte 10):
+Unknown (byte 10):
+
+:Unknown (byte 11):
+Unknown (byte 11):
+
+:Unknown (byte 15):
+Unknown (byte 15):
+
+:Unknown (byte 3):
+Unknown (byte 3):
+
+:Unknown (byte 9):
+Unknown (byte 9):
+
+:Unknown (bytes 6-7):
+Unknown (bytes 6-7):
+
+:Unknown (offset 4):
+Unknown (offset 4):
+
+:Unknown 0 (W0):
+Unknown 0 (W0):
+
+:Unknown 10:
+Unknown 10:
+
+:Unknown 11:
+Unknown 11:
+
+:Unknown 12:
+Unknown 12:
+
+:Unknown 13:
+Unknown 13:
+
+:Unknown 14:
+Unknown 14:
+
+:Unknown 15:
+Unknown 15:
+
+:Unknown 16:
+Unknown 16:
+
+:Unknown 17:
+Unknown 17:
+
+:Unknown 18:
+Unknown 18:
+
+:Unknown 19:
+Unknown 19:
+
+:Unknown 1:
+未知1:
+
+:Unknown 2 (W2):
+Unknown 2 (W2):
+
+:Unknown 2:
+未知2:
+
+:Unknown 39:
+Unknown 39:
+
+:Unknown 3:
+Unknown 3:
+
+:Unknown 4 (W4):
+Unknown 4 (W4):
+
+:Unknown 49:
+Unknown 49:
+
+:Unknown 50:
+Unknown 50:
+
+:Unknown 51:
+Unknown 51:
+
+:Unknown 6 (W6):
+Unknown 6 (W6):
+
+:Unknown 7:
+Unknown 7:
+
+:Unknown 8:
+Unknown 8:
+
+:Unknown 9:
+Unknown 9:
+
+:Unknown Fields:
+未知字段:
+
+:Unknown ROM Version
+未知ROM版本
+
+:Unknown Routine:
+Unknown Routine:
+
+:Unknown instrument type. Raw 12-byte data is shown in the header byte field.
+Unknown instrument type. Raw 12-byte data is shown in the header byte field.
+
+:Unmet Dependencies
+未满足依赖
+
+:Unused (B14):
+Unused (B14):
+
+:Unused (B15):
+Unused (B15):
+
+:Unused (B25):
+Unused (B25):
+
+:Unused (B26):
+Unused (B26):
+
+:Unused (B27):
+Unused (B27):
+
+:Unused 1:
+未使用1:
+
+:Unused 2:
+未使用2:
+
+:Unused 3:
+未使用3:
+
+:Unused:
+未使用:
+
+:Up RMenuPointer:
+上方R菜单指针:
+
+:Update Checker
+更新检查器
+
+:Upper Class Anim Color
+上级职业动画颜色
+
+:Upper Class Anime:
+上级职业动画:
+
+:Upper Class Palette:
+上级职业调色板:
+
+:Upstream Chain (classes that promote to this one):
+Upstream Chain (classes that promote to this one):
+
+:Usability Pointer:
+可用性指针:
+
+:Usability Routine:
+可用性例程:
+
+:Use ASM Map for search
+使用ASM Map搜索
+
+:Use Desc (W4):
+使用说明 (W4):
+
+:Use Effect (B30):
+使用效果 (B30):
+
+:Use this ROM as the last stable baseline and get differences
+使用此ROM作为最后的稳定基线并获取差异
+
+:Uses (B20):
+使用次数 (B20):
+
+:Value:
+值:
+
+:Vanilla ROM
+原版ROM
+
+:Vendor Pointer:
+贩卖商指针:
+
+:Version:
+版本:
+
+:View tile graphics from ROM. Enter addresses and click Draw.
+从ROM查看图块图形。输入地址并点击绘制。
+
+:Visual Map Editor
+可视化地图编辑器
+
+:W112: Eliwood title text
+W112: Eliwood title text
+
+:W112: Map name 1
+W112: Map name 1
+
+:W114: Hector title text
+W114: Hector title text
+
+:W114: Map name 2
+W114: Map name 2
+
+:W114: Map name 2 (X)
+W114: Map name 2 (X)
+
+:W116: Eliwood title text 2
+W116: Eliwood title text 2
+
+:W118: Fortune text (opening)
+W118: Fortune text (opening)
+
+:W118: Hector title text 2
+W118: Hector title text 2
+
+:W120: Fortune text (Eliwood)
+W120: Fortune text (Eliwood)
+
+:W122: Fortune text (Hector)
+W122: Fortune text (Hector)
+
+:W122: Fortune text (opening)
+W122: Fortune text (opening)
+
+:W124: Fortune text (Eliwood)
+W124: Fortune text (Eliwood)
+
+:W124: Fortune text (confirm)
+W124: Fortune text (confirm)
+
+:W126: Fortune text (Hector)
+W126: Fortune text (Hector)
+
+:W128: Fortune text (confirm)
+W128: Fortune text (confirm)
+
+:W136: Clear condition (display only)
+W136: Clear condition (display only)
+
+:W136: Clear condition text
+W136: Clear condition text
+
+:W138: Detail clear condition
+W138: Detail clear condition
+
+:W138: Detail clear condition (display only)
+W138: Detail clear condition (display only)
+
+:W140: Clear condition text
+W140: Clear condition text
+
+:W142: Detail clear condition
+W142: Detail clear condition
+
+:W20: Difficulty adjustment
+W20: Difficulty adjustment
+
+:W22: Player phase BGM
+W22: Player phase BGM
+
+:W24: Enemy phase BGM
+W24: Enemy phase BGM
+
+:W26: NPC phase BGM
+W26: NPC phase BGM
+
+:W28: Player phase BGM 2
+W28: Player phase BGM 2
+
+:W28: Player phase BGM 2 (X)
+W28: Player phase BGM 2 (X)
+
+:W30: Enemy phase BGM 2
+W30: Enemy phase BGM 2
+
+:W30: Enemy phase BGM 2 (X)
+W30: Enemy phase BGM 2 (X)
+
+:W32: NPC phase BGM 2
+W32: NPC phase BGM 2
+
+:W32: NPC phase BGM 2 (X)
+W32: NPC phase BGM 2 (X)
+
+:W34: Player phase BGM flag 4
+W34: Player phase BGM flag 4
+
+:W36: Enemy phase BGM flag 4
+W36: Enemy phase BGM flag 4
+
+:W38: ???
+W38: ???
+
+:W38: Prologue BGM (Common)
+W38: Prologue BGM (Common)
+
+:W40: ???
+W40: ???
+
+:W40: Prologue BGM (Eliwood)
+W40: Prologue BGM (Eliwood)
+
+:W42: ???
+W42: ???
+
+:W42: Prologue BGM (Hector)
+W42: Prologue BGM (Hector)
+
+:W4: Object type (PLIST)
+W4: Object type (PLIST)
+
+:W62: A Eliwood Normal
+W62: A Eliwood Normal
+
+:W64: A Eliwood Hard
+W64: A Eliwood Hard
+
+:W66: A Hector Normal
+W66: A Hector Normal
+
+:W68: A Hector Hard
+W68: A Hector Hard
+
+:W70: B Eliwood Normal
+W70: B Eliwood Normal
+
+:W72: B Eliwood Hard
+W72: B Eliwood Hard
+
+:W74: B Hector Normal
+W74: B Hector Normal
+
+:W76: B Hector Hard
+W76: B Hector Hard
+
+:W78: C Eliwood Normal
+W78: C Eliwood Normal
+
+:W80: C Eliwood Hard
+W80: C Eliwood Hard
+
+:W82: C Hector Normal
+W82: C Hector Normal
+
+:W84: C Hector Hard
+W84: C Hector Hard
+
+:W86: D Eliwood Normal
+W86: D Eliwood Normal
+
+:W88: D Eliwood Hard
+W88: D Eliwood Hard
+
+:W90: D Hector Normal
+W90: D Hector Normal
+
+:W92: D Hector Hard
+W92: D Hector Hard
+
+:W94: ??
+W94: ??
+
+:W94: Unknown
+W94: Unknown
+
+:Wait Icon (B6):
+等待图标 (B6):
+
+:Walk Spd (B7):
+行走速度 (B7):
+
+:Warning Level
+警告等级
+
+:Warning: Effectiveness pointer is null (P16=0). Consider allocating.
+警告: 特效指针为空 (P16=0)。请考虑分配空间。
+
+:Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
+警告: 属性加成指针为空 (P12=0)。请考虑分配空间。
+
+:Warnings
+警告
+
+:Wave Pointer + ADSR
+波形指针 + ADSR
+
+:Wave Pointer:
+波形指针:
+
+:Wave Track Import
+波形音轨导入
+
+:Weapon ID:
+武器ID:
+
+:Weapon Item Skill Pointer:
+武器物品技能指针:
+
+:Weapon Levels
+武器等级
+
+:Weapon Lock (Vennou) Editor
+武器锁定(Vennou)编辑器
+
+:Weapon Properties
+武器属性
+
+:Weapon Rank Levels (B44-B51)
+武器等级 (B44-B51)
+
+:Weapon Ranks:
+武器等级:
+
+:Weapon Triangle Editor
+武器三角编辑器
+
+:Weapon Type (B0):
+武器类型 (B0):
+
+:Weapon Type 1:
+武器类型1:
+
+:Weapon Type 2:
+武器类型2:
+
+:Weapon Type:
+武器类型:
+
+:Weapon effectiveness 2x/3x class list (FE8 only)
+武器特效2x/3x职业列表(仅FE8)
+
+:Weapon triangle bonus/penalty data
+武器三角加成/减益数据
+
+:Weight (B23):
+重量 (B23):
+
+:Wep Exp (B32):
+武器经验 (B32):
+
+:What Is
+这是什么
+
+:Width:
+宽度:
+
+:Word Bit Flags (32-bit)
+字位标志(32位)
+
+:Work Support
+工作支持
+
+:World Map BGM Editor
+世界地图BGM编辑器
+
+:World Map Event Editor
+世界地图事件编辑器
+
+:World Map Image (FE6)
+世界地图图像(FE6)
+
+:World Map Image (FE7)
+世界地图图像(FE7)
+
+:World Map Monster Editor
+世界地图魔物编辑器
+
+:World Map Paths
+世界地图路径
+
+:World Map Point Editor
+世界地图据点编辑器
+
+:Write Notification
+写入通知
+
+:Write Pointer
+写入指针
+
+:Write Positions
+写入位置
+
+:Write Record
+写入记录
+
+:Write Text
+写入文本
+
+:Write Tile
+写入图块
+
+:X Position:
+X坐标:
+
+:X1:
+X1:
+
+:X2:
+X2:
+
+:X:
+X:
+
+:Y Position:
+Y坐标:
+
+:Y1:
+Y1:
+
+:Y2:
+Y2:
+
+:Y:
+Y:
+
+:Yes Text ID:
+是文本ID:
+
+:You can change these settings later from the Options menu.
+您可以稍后从选项菜单更改这些设置。
+
+:Zoom:
+缩放:
+
+:[No palette data in clipboard]
+[剪贴板中无调色板数据]
+
+:[Palette color grid - 16 color slots]
+[调色板颜色网格 - 16个颜色槽]
+
+:backup.7z
+backup.7z
+
+:gba_mus_riper
+gba_mus_riper
+
+:mid2agb
+mid2agb
+
+:midfix4agb
+midfix4agb
+
+:sav
+sav
+
+:↑ Newest
+↑ 最新
+
+:Search...
+搜索...
+
+:Search editors...
+搜索编辑器...
+
+:Filter patches by name, tag, or author...
+按名称、标签或作者筛选补丁...
+
+:Enter text here...
+在此输入文本...
+
+:Enter search pattern...
+输入搜索模式...
+
+:0x08XXXXXX or hex offset
+0x08XXXXXX 或十六进制偏移
+
+:0x Address
+0x 地址
+
+:Filter commands...
+筛选命令...
+
+:Enter filter keywords...
+输入筛选关键词...
+
+:Search in text content...
+在文本内容中搜索...
+
+:Reason for hiding
+隐藏原因
+
+:Enter animation name
+输入动画名称
+
+:Enter ARM/Thumb ASM code here...
+在此输入 ARM/Thumb 汇编代码...
+
+:Enter new project name
+输入新项目名称
+
+:Enter subtitle text...
+输入字幕文本...
+
+:Enter reference text...
+输入参考文本...
+
+:Select source image...
+选择源图像...
+
+:Open ROM
+打开 ROM
+
+:Save ROM
+保存 ROM
+
+:Open Patch
+打开补丁
+
+:Export Image
+导出图像
+
+:Import Image
+导入图像
+
+:Export Palette
+导出调色板
+
+:Import Palette
+导入调色板
+
+:GBA ROM Files
+GBA ROM 文件
+
+:All Files
+所有文件
+
+:UPS Patch Files
+UPS 补丁文件
+
+:PNG Image
+PNG 图像
+
+:Image Files
+图像文件
+
+:Adobe ACT (Photoshop)
+Adobe ACT (Photoshop)
+
+:All Palette Files
+所有调色板文件
+
+:GBA Raw Palette
+GBA 原始调色板
+
+:GIMP GPL Palette
+GIMP GPL 调色板
+
+:Hex Text Palette
+十六进制文本调色板
+
+:JASC-PAL (Aseprite/GIMP)
+JASC-PAL (Aseprite/GIMP)

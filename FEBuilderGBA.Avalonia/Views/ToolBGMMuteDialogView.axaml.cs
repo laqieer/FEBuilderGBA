@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolBGMMuteDialogView : Window, IEditorView
+    public partial class ToolBGMMuteDialogView : TranslatedWindow, IEditorView
     {
         readonly ToolBGMMuteDialogViewModel _vm = new();
         public string ViewTitle => "BGM Mute Settings";

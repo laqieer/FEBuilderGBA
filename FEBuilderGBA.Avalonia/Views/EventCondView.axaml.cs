@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventCondView : Window, IEditorView, IDataVerifiableView
+    public partial class EventCondView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventCondViewModel _vm = new();
         readonly UndoService _undoService = new();

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageMagicFEditorView : Window, IEditorView
+    public partial class ImageMagicFEditorView : TranslatedWindow, IEditorView
     {
         readonly ImageMagicFEditorViewModel _vm = new();
 

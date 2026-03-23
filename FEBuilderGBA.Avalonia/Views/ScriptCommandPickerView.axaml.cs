@@ -3,13 +3,15 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
 
+using FEBuilderGBA.Avalonia.Services;
+
 namespace FEBuilderGBA.Avalonia.Views
 {
     /// <summary>
     /// Modal dialog for picking a script command from categories.
     /// Works for Event, Procs, and AI script types.
     /// </summary>
-    public partial class ScriptCommandPickerView : Window
+    public partial class ScriptCommandPickerView : TranslatedWindow
     {
         readonly EventScript.EventScriptType _scriptType;
         EventScript.Script? _selectedScript;

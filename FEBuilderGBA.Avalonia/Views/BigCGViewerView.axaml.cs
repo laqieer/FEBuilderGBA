@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BigCGViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class BigCGViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly BigCGViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

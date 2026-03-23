@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HowDoYouLikePatch2View : Window, IEditorView
+    public partial class HowDoYouLikePatch2View : TranslatedWindow, IEditorView
     {
         readonly HowDoYouLikePatch2ViewModel _vm = new();
         public string ViewTitle => "Patch Feedback (Extended)";

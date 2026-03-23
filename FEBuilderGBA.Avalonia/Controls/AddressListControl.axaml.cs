@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         public Bitmap? Icon { get; set; }
     }
 
-    public partial class AddressListControl : UserControl
+    public partial class AddressListControl : TranslatedUserControl
     {
         readonly ObservableCollection<AddressListItem> _displayItems = new();
         List<AddrResult> _items = new();

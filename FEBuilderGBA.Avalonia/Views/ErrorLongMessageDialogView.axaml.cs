@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorLongMessageDialogView : Window, IEditorView
+    public partial class ErrorLongMessageDialogView : TranslatedWindow, IEditorView
     {
         readonly ErrorLongMessageDialogViewModel _vm = new();
         public string ViewTitle => "Error Details";

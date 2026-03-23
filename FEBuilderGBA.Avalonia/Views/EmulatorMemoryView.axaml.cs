@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EmulatorMemoryView : Window, IEditorView
+    public partial class EmulatorMemoryView : TranslatedWindow, IEditorView
     {
         readonly EmulatorMemoryViewModel _vm = new();
         public string ViewTitle => "Emulator Memory";

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundRoomCGView : Window, IEditorView
+    public partial class SoundRoomCGView : TranslatedWindow, IEditorView
     {
         readonly SoundRoomCGViewModel _vm = new();
         readonly UndoService _undoService = new();

@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportMidiView : Window, IEditorView
+    public partial class SongTrackImportMidiView : TranslatedWindow, IEditorView
     {
         readonly SongTrackImportMidiViewModel _vm = new();
 
@@ -56,11 +56,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "Select MIDI File",
+                    Title = R._("Select MIDI File"),
                     AllowMultiple = false,
                     FileTypeFilter = new[] { midiType, allType },
                 });

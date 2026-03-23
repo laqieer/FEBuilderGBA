@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageUnitWaitIconView : Window, IEditorView
+    public partial class ImageUnitWaitIconView : TranslatedWindow, IEditorView
     {
         readonly ImageUnitWaitIconViewModel _vm = new();
 

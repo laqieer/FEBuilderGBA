@@ -10,7 +10,7 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EasyModePanel : UserControl
+    public partial class EasyModePanel : TranslatedUserControl
     {
         /// <summary>Category borders paired with their searchable keywords (category name + button labels).</summary>
         private List<(Border border, string keywords)>? _categories;
@@ -115,11 +115,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 var topLevel = TopLevel.GetTopLevel(this);
                 if (topLevel == null) return;
 
-                var tsvType = new global::Avalonia.Platform.Storage.FilePickerFileType("TSV Files") { Patterns = new[] { "*.tsv" } };
-                var allType = new global::Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var tsvType = new global::Avalonia.Platform.Storage.FilePickerFileType(R._("TSV Files")) { Patterns = new[] { "*.tsv" } };
+                var allType = new global::Avalonia.Platform.Storage.FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var file = await topLevel.StorageProvider.SaveFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerSaveOptions
                 {
-                    Title = "Export Texts",
+                    Title = R._("Export Texts"),
                     SuggestedFileName = "texts.tsv",
                     FileTypeChoices = new[] { tsvType, allType },
                 });
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 int count = vm.ExportAllTexts(path);
                 var ownerWindow = topLevel as Window ?? new Window();
                 await MessageBoxWindow.Show(ownerWindow,
-                    $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok);
+                    $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
             {
@@ -160,12 +160,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (count > 0)
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok);
+                        $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
                 }
                 else
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        "No texts were imported. Check the file format.", "Import", MessageBoxMode.Ok);
+                        R._("No texts were imported. Check the file format."), R._("Import"), MessageBoxMode.Ok);
                 }
             }
             catch (Exception ex)

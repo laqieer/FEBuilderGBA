@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MantAnimationView : Window, IEditorView
+    public partial class MantAnimationView : TranslatedWindow, IEditorView
     {
         readonly MantAnimationViewModel _vm = new();
 

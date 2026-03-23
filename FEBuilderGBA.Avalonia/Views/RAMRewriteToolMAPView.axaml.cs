@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class RAMRewriteToolMAPView : Window, IEditorView
+    public partial class RAMRewriteToolMAPView : TranslatedWindow, IEditorView
     {
         readonly RAMRewriteToolMAPViewViewModel _vm = new();
         readonly UndoService _undoService = new();

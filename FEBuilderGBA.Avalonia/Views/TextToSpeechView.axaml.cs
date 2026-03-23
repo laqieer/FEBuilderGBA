@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextToSpeechView : Window, IEditorView, IDataVerifiableView
+    public partial class TextToSpeechView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextToSpeechViewModel _vm = new();
 

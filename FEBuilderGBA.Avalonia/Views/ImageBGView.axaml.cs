@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBGView : Window, IEditorView
+    public partial class ImageBGView : TranslatedWindow, IEditorView
     {
         readonly ImageBGViewModel _vm = new();
 

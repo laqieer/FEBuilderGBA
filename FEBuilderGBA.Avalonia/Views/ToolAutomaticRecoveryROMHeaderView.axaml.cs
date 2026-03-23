@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolAutomaticRecoveryROMHeaderView : Window, IEditorView
+    public partial class ToolAutomaticRecoveryROMHeaderView : TranslatedWindow, IEditorView
     {
         readonly ToolAutomaticRecoveryROMHeaderViewViewModel _vm = new();
         readonly UndoService _undoService = new();

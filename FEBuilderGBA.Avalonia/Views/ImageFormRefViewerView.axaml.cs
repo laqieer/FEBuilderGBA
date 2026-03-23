@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageFormRefViewerView : Window, IEditorView
+    public partial class ImageFormRefViewerView : TranslatedWindow, IEditorView
     {
         readonly ImageFormRefViewerViewModel _vm = new();
 

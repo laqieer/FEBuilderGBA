@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DumpStructSelectDialogView : Window, IEditorView
+    public partial class DumpStructSelectDialogView : TranslatedWindow, IEditorView
     {
         readonly DumpStructSelectDialogViewModel _vm = new();
 

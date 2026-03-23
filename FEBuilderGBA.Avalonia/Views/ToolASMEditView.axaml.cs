@@ -10,7 +10,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolASMEditView : Window, IEditorView
+    public partial class ToolASMEditView : TranslatedWindow, IEditorView
     {
         readonly ToolASMEditViewViewModel _vm = new();
         readonly UndoService _undoService = new();

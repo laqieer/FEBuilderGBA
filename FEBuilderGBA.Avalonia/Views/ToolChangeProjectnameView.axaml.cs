@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolChangeProjectnameView : Window, IEditorView
+    public partial class ToolChangeProjectnameView : TranslatedWindow, IEditorView
     {
         readonly ToolChangeProjectnameViewViewModel _vm = new();
         public string ViewTitle => "Change Project Name";

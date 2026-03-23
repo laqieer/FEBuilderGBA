@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageCGView : Window, IEditorView
+    public partial class ImageCGView : TranslatedWindow, IEditorView
     {
         readonly ImageCGViewModel _vm = new();
 

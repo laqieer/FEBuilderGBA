@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolAnimationCreatorView : Window, IEditorView
+    public partial class ToolAnimationCreatorView : TranslatedWindow, IEditorView
     {
         readonly ToolAnimationCreatorViewViewModel _vm = new();
         public string ViewTitle => "Animation Creator";

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDSensekiCommentView : Window, IEditorView, IDataVerifiableView
+    public partial class EDSensekiCommentView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EDSensekiCommentViewModel _vm = new();
         readonly UndoService _undoService = new();

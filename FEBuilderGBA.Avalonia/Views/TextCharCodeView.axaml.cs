@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextCharCodeView : Window, IEditorView, IDataVerifiableView
+    public partial class TextCharCodeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextCharCodeViewModel _vm = new();
 

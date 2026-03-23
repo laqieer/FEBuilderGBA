@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorPaletteMissMatchView : Window, IEditorView
+    public partial class ErrorPaletteMissMatchView : TranslatedWindow, IEditorView
     {
         readonly ErrorPaletteMissMatchViewModel _vm = new();
         public string ViewTitle => "Palette Mismatch Error";

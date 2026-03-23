@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MenuCommandView : Window, IEditorView, IDataVerifiableView
+    public partial class MenuCommandView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MenuCommandViewModel _vm = new();
         readonly UndoService _undoService = new();

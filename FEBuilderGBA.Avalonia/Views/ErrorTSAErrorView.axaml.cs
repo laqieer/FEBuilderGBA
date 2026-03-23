@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorTSAErrorView : Window, IEditorView
+    public partial class ErrorTSAErrorView : TranslatedWindow, IEditorView
     {
         readonly ErrorTSAErrorViewModel _vm = new();
         public string ViewTitle => "TSA Error";

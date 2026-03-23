@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextRefAddDialogView : Window, IEditorView, IDataVerifiableView
+    public partial class TextRefAddDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextRefAddDialogViewModel _vm = new();
 

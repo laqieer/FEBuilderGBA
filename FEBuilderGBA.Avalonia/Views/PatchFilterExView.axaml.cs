@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchFilterExView : Window, IEditorView
+    public partial class PatchFilterExView : TranslatedWindow, IEditorView
     {
         readonly PatchFilterExViewModel _vm = new();
         public string ViewTitle => "Patch Filter";

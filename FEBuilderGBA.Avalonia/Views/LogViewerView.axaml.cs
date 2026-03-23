@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class LogViewerView : Window, IEditorView
+    public partial class LogViewerView : TranslatedWindow, IEditorView
     {
         readonly LogViewerViewModel _vm = new();
 

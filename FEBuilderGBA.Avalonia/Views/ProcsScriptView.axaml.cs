@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ProcsScriptView : Window, IEditorView
+    public partial class ProcsScriptView : TranslatedWindow, IEditorView
     {
         readonly ProcsScriptViewModel _vm = new();
 

@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleBGView : Window, IEditorView
+    public partial class ImageBattleBGView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleBGViewModel _vm = new();
         readonly UndoService _undoService = new();

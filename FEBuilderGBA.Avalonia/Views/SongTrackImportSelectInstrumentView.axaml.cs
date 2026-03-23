@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackImportSelectInstrumentView : Window, IEditorView
+    public partial class SongTrackImportSelectInstrumentView : TranslatedWindow, IEditorView
     {
         readonly SongTrackImportSelectInstrumentViewModel _vm = new();
 

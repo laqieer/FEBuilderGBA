@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchFormUninstallDialogView : Window, IEditorView
+    public partial class PatchFormUninstallDialogView : TranslatedWindow, IEditorView
     {
         readonly PatchFormUninstallDialogViewModel _vm = new();
         public string ViewTitle => "Patch Uninstallation";

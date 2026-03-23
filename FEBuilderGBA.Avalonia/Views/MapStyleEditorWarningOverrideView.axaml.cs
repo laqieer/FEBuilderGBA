@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapStyleEditorWarningOverrideView : Window, IEditorView, IDataVerifiableView
+    public partial class MapStyleEditorWarningOverrideView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapStyleEditorWarningOverrideViewModel _vm = new();
 

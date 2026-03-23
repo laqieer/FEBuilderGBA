@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DecreaseColorTSAToolView : Window, IEditorView
+    public partial class DecreaseColorTSAToolView : TranslatedWindow, IEditorView
     {
         readonly DecreaseColorTSAToolViewModel _vm = new();
 

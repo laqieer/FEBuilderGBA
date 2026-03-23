@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EDStaffRollView : Window, IEditorView, IDataVerifiableView
+    public partial class EDStaffRollView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EDStaffRollViewModel _vm = new();
         readonly UndoService _undoService = new();

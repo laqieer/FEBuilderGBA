@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTableView : Window, IPickableEditor, IDataVerifiableView
+    public partial class SongTableView : TranslatedWindow, IPickableEditor, IDataVerifiableView
     {
         readonly SongTableViewModel _vm = new();
         readonly UndoService _undoService = new();

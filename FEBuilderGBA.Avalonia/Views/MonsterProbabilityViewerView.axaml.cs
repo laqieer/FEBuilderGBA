@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MonsterProbabilityViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class MonsterProbabilityViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MonsterProbabilityViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongInstrumentView : Window, IEditorView
+    public partial class SongInstrumentView : TranslatedWindow, IEditorView
     {
         readonly SongInstrumentViewModel _vm = new();
         readonly UndoService _undoService = new();

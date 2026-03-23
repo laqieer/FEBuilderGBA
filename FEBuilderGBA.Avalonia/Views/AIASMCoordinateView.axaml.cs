@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIASMCoordinateView : Window, IEditorView
+    public partial class AIASMCoordinateView : TranslatedWindow, IEditorView
     {
         readonly AIASMCoordinateViewModel _vm = new();
         readonly UndoService _undoService = new();

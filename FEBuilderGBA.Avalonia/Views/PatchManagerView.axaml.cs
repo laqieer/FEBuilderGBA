@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PatchManagerView : Window, IEditorView
+    public partial class PatchManagerView : TranslatedWindow, IEditorView
     {
         readonly PatchManagerViewModel _vm = new();
 

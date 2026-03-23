@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUnitTalkGroupView : Window, IEditorView
+    public partial class ToolUnitTalkGroupView : TranslatedWindow, IEditorView
     {
         readonly ToolUnitTalkGroupViewModel _vm = new();
 

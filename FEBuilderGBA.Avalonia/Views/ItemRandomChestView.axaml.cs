@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemRandomChestView : Window, IEditorView, IDataVerifiableView
+    public partial class ItemRandomChestView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemRandomChestViewModel _vm = new();

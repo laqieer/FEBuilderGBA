@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class GrowSimulatorView : Window, IEditorView
+    public partial class GrowSimulatorView : TranslatedWindow, IEditorView
     {
         readonly GrowSimulatorViewModel _vm = new();
 

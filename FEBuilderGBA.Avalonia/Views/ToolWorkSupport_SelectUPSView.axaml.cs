@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolWorkSupport_SelectUPSView : Window, IEditorView
+    public partial class ToolWorkSupport_SelectUPSView : TranslatedWindow, IEditorView
     {
         readonly ToolWorkSupport_SelectUPSViewModel _vm = new();
         public string ViewTitle => "Open UPS";

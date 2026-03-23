@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolSubtitleOverlayView : Window, IEditorView
+    public partial class ToolSubtitleOverlayView : TranslatedWindow, IEditorView
     {
         readonly ToolSubtitleOverlayViewViewModel _vm = new();
         public string ViewTitle => "Subtitle Overlay";

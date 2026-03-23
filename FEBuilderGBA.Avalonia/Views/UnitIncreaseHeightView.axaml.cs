@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitIncreaseHeightView : Window, IEditorView
+    public partial class UnitIncreaseHeightView : TranslatedWindow, IEditorView
     {
         readonly UnitIncreaseHeightViewModel _vm = new();
 

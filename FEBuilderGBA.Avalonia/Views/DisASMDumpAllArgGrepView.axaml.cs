@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DisASMDumpAllArgGrepView : Window, IEditorView, IDataVerifiableView
+    public partial class DisASMDumpAllArgGrepView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly DisASMDumpAllArgGrepViewModel _vm = new();
 

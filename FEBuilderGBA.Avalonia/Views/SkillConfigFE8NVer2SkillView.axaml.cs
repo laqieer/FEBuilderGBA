@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SkillConfigFE8NVer2SkillView : Window, IEditorView, IDataVerifiableView
+    public partial class SkillConfigFE8NVer2SkillView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SkillConfigFE8NVer2SkillViewViewModel _vm = new();
         readonly UndoService _undoService = new();

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextScriptCategorySelectView : Window, IEditorView, IDataVerifiableView
+    public partial class TextScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextScriptCategorySelectViewModel _vm = new();
 

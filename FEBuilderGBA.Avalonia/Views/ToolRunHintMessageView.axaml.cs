@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolRunHintMessageView : Window, IEditorView
+    public partial class ToolRunHintMessageView : TranslatedWindow, IEditorView
     {
         readonly ToolRunHintMessageViewModel _vm = new();
         public string ViewTitle => "Test Run";

@@ -5,7 +5,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ResourceView : Window, IEditorView, IDataVerifiableView
+    public partial class ResourceView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ResourceViewModel _vm = new();
         public string ViewTitle => "Resources";

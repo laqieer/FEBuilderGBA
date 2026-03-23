@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolROMRebuildView : Window, IEditorView
+    public partial class ToolROMRebuildView : TranslatedWindow, IEditorView
     {
         readonly ToolROMRebuildViewModel _vm = new();
 

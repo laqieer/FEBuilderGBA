@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolThreeMargeCloseAlertView : Window, IEditorView
+    public partial class ToolThreeMargeCloseAlertView : TranslatedWindow, IEditorView
     {
         readonly ToolThreeMargeCloseAlertViewModel _vm = new();
         public string ViewTitle => "Do you want to close the comparison tool?";

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MonsterItemViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class MonsterItemViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MonsterItemViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

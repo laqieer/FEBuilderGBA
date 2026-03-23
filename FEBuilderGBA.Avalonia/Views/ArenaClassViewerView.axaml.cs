@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ArenaClassViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class ArenaClassViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ArenaClassViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

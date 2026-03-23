@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapStyleEditorAppendPopupView : Window, IEditorView, IDataVerifiableView
+    public partial class MapStyleEditorAppendPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapStyleEditorAppendPopupViewModel _vm = new();
 

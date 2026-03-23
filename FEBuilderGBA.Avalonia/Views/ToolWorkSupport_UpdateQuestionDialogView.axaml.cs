@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolWorkSupport_UpdateQuestionDialogView : Window, IEditorView
+    public partial class ToolWorkSupport_UpdateQuestionDialogView : TranslatedWindow, IEditorView
     {
         readonly ToolWorkSupport_UpdateQuestionDialogViewModel _vm = new();
         public string ViewTitle => "Current version is the latest";

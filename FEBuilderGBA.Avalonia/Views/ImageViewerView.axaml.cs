@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageViewerView : Window, IDataVerifiableView
+    public partial class ImageViewerView : TranslatedWindow, IDataVerifiableView
     {
         readonly ImageViewerViewModel _vm = new();
         byte[]? _palette;

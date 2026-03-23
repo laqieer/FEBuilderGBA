@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUPSPatchSimpleView : Window, IEditorView
+    public partial class ToolUPSPatchSimpleView : TranslatedWindow, IEditorView
     {
         readonly ToolUPSPatchSimpleViewModel _vm = new();
 

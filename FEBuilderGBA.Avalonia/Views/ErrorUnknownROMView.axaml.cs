@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorUnknownROMView : Window, IEditorView
+    public partial class ErrorUnknownROMView : TranslatedWindow, IEditorView
     {
         readonly ErrorUnknownROMViewModel _vm = new();
         public string ViewTitle => "Unknown ROM Version";

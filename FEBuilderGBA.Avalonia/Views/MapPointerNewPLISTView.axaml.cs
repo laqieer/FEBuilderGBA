@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapPointerNewPLISTView : Window, IEditorView
+    public partial class MapPointerNewPLISTView : TranslatedWindow, IEditorView
     {
         readonly MapPointerNewPLISTViewModel _vm = new();
 

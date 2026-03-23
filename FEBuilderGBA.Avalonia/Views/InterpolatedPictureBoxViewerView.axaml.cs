@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class InterpolatedPictureBoxViewerView : Window, IEditorView
+    public partial class InterpolatedPictureBoxViewerView : TranslatedWindow, IEditorView
     {
         readonly InterpolatedPictureBoxViewerViewModel _vm = new();
 

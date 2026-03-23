@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongInstrumentImportWaveView : Window, IEditorView
+    public partial class SongInstrumentImportWaveView : TranslatedWindow, IEditorView
     {
         readonly SongInstrumentImportWaveViewModel _vm = new();
 

@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleAnimeView : Window, IEditorView
+    public partial class ImageBattleAnimeView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleAnimeViewModel _vm = new();
         readonly UndoService _undoService = new();

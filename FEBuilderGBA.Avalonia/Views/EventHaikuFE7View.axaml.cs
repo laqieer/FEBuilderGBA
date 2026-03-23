@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventHaikuFE7View : Window, IEditorView
+    public partial class EventHaikuFE7View : TranslatedWindow, IEditorView
     {
         readonly EventHaikuFE7ViewModel _vm = new();
 

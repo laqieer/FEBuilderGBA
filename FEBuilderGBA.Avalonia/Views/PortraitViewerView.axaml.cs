@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class PortraitViewerView : Window, IPickableEditor, IDataVerifiableView
+    public partial class PortraitViewerView : TranslatedWindow, IPickableEditor, IDataVerifiableView
     {
         readonly PortraitViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

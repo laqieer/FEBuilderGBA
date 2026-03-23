@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemIconViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class ItemIconViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemIconViewerViewModel _vm = new();

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OpenLastSelectedFileView : Window, IEditorView
+    public partial class OpenLastSelectedFileView : TranslatedWindow, IEditorView
     {
         readonly OpenLastSelectedFileViewModel _vm = new();
 

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class RAMRewriteToolView : Window, IEditorView
+    public partial class RAMRewriteToolView : TranslatedWindow, IEditorView
     {
         readonly RAMRewriteToolViewViewModel _vm = new();
         public string ViewTitle => "RAM Rewrite Tool";

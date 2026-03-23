@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEffectivenessViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class ItemEffectivenessViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemEffectivenessViewerViewModel _vm = new();

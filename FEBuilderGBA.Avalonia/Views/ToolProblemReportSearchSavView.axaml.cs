@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolProblemReportSearchSavView : Window, IEditorView
+    public partial class ToolProblemReportSearchSavView : TranslatedWindow, IEditorView
     {
         readonly ToolProblemReportSearchSavViewModel _vm = new();
         public string ViewTitle => "No SAV file found";
@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var dlg = new OpenFileDialog();
-                dlg.Title = "Select SAV File";
+                dlg.Title = R._("Select SAV File");
                 dlg.Filters?.Add(new FileDialogFilter { Name = "SAV Files", Extensions = { "sav" } });
                 var result = await dlg.ShowAsync(this);
                 if (result != null && result.Length > 0)

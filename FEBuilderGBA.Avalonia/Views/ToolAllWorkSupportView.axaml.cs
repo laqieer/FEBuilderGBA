@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolAllWorkSupportView : Window, IEditorView
+    public partial class ToolAllWorkSupportView : TranslatedWindow, IEditorView
     {
         readonly ToolAllWorkSupportViewModel _vm = new();
 

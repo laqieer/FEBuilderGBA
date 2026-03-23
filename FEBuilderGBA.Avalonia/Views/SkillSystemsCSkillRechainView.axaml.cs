@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SkillSystemsCSkillRechainView : Window, IEditorView
+    public partial class SkillSystemsCSkillRechainView : TranslatedWindow, IEditorView
     {
         readonly SkillSystemsCSkillRechainViewModel _vm = new();
 

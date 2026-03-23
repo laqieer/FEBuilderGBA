@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class VennouWeaponLockView : Window, IEditorView, IDataVerifiableView
+    public partial class VennouWeaponLockView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly VennouWeaponLockViewModel _vm = new();
         readonly UndoService _undoService = new();

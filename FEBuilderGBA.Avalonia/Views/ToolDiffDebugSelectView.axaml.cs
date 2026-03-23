@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolDiffDebugSelectView : Window, IEditorView
+    public partial class ToolDiffDebugSelectView : TranslatedWindow, IEditorView
     {
         readonly ToolDiffDebugSelectViewModel _vm = new();
         public string ViewTitle => "Comparison Debug Tool";

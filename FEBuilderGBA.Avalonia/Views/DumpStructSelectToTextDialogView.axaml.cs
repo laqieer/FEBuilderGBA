@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class DumpStructSelectToTextDialogView : Window, IEditorView, IDataVerifiableView
+    public partial class DumpStructSelectToTextDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly DumpStructSelectToTextDialogViewModel _vm = new();
 
@@ -33,11 +33,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var txtType = new FilePickerFileType("Text Files") { Patterns = new[] { "*.txt" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var txtType = new FilePickerFileType(R._("Text Files")) { Patterns = new[] { "*.txt" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = "Save Text Dump",
+                    Title = R._("Save Text Dump"),
                     SuggestedFileName = _vm.FileName,
                     FileTypeChoices = new[] { txtType, allType },
                 });

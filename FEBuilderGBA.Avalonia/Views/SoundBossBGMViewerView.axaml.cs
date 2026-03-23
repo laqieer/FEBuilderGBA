@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SoundBossBGMViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class SoundBossBGMViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SoundBossBGMViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

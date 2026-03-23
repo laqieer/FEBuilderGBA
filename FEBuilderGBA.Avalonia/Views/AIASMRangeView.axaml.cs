@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIASMRangeView : Window, IEditorView
+    public partial class AIASMRangeView : TranslatedWindow, IEditorView
     {
         readonly AIASMRangeViewModel _vm = new();
         readonly UndoService _undoService = new();

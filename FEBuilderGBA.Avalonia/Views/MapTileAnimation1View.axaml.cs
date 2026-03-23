@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTileAnimation1View : Window, IEditorView, IDataVerifiableView
+    public partial class MapTileAnimation1View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapTileAnimation1ViewModel _vm = new();
         readonly UndoService _undoService = new();

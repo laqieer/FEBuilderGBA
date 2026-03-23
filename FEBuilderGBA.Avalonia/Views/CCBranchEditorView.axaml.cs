@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class CCBranchEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class CCBranchEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly CCBranchEditorViewModel _vm = new();
         readonly UndoService _undoService = new();

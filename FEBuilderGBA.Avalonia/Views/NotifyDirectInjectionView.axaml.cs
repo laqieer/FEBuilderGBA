@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyDirectInjectionView : Window, IEditorView
+    public partial class NotifyDirectInjectionView : TranslatedWindow, IEditorView
     {
         readonly NotifyDirectInjectionViewModel _vm = new();
 

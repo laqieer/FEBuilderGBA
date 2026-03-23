@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class CStringView : Window, IEditorView
+    public partial class CStringView : TranslatedWindow, IEditorView
     {
         readonly CStringViewModel _vm = new();
 

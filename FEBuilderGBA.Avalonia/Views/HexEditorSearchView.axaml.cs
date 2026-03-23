@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorSearchView : Window, IEditorView, IDataVerifiableView
+    public partial class HexEditorSearchView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly HexEditorSearchViewModel _vm = new();
 

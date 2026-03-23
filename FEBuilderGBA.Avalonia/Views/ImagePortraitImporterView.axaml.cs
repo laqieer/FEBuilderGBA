@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImagePortraitImporterView : Window, IEditorView
+    public partial class ImagePortraitImporterView : TranslatedWindow, IEditorView
     {
         readonly ImagePortraitImporterViewModel _vm = new();
 

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WorldMapEventPointerView : Window, IEditorView, IDataVerifiableView
+    public partial class WorldMapEventPointerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly WorldMapEventPointerViewModel _vm = new();
         readonly UndoService _undoService = new();

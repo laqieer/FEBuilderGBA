@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MainSimpleMenuEventErrorIgnoreErrorView : Window, IEditorView
+    public partial class MainSimpleMenuEventErrorIgnoreErrorView : TranslatedWindow, IEditorView
     {
         readonly MainSimpleMenuEventErrorIgnoreErrorViewModel _vm = new();
         public string ViewTitle => "Hide this error";

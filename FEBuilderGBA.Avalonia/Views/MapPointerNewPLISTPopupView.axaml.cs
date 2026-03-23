@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapPointerNewPLISTPopupView : Window, IEditorView, IDataVerifiableView
+    public partial class MapPointerNewPLISTPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapPointerNewPLISTPopupViewModel _vm = new();
 

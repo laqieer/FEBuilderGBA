@@ -5,7 +5,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SystemHoverColorViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class SystemHoverColorViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SystemHoverColorViewerViewModel _vm = new();
 

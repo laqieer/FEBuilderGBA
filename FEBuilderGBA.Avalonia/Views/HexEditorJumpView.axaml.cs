@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class HexEditorJumpView : Window, IEditorView, IDataVerifiableView
+    public partial class HexEditorJumpView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly HexEditorJumpViewModel _vm = new();
 

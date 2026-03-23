@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleAnimePalletView : Window, IEditorView
+    public partial class ImageBattleAnimePalletView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleAnimePalletViewModel _vm = new();
 

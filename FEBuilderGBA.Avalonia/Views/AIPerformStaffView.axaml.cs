@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIPerformStaffView : Window, IEditorView
+    public partial class AIPerformStaffView : TranslatedWindow, IEditorView
     {
         readonly AIPerformStaffViewModel _vm = new();
         readonly UndoService _undoService = new();

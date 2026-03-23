@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUndoView : Window, IEditorView
+    public partial class ToolUndoView : TranslatedWindow, IEditorView
     {
         readonly ToolUndoViewModel _vm = new();
 

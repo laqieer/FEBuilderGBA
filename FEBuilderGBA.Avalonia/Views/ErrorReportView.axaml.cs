@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorReportView : Window, IEditorView
+    public partial class ErrorReportView : TranslatedWindow, IEditorView
     {
         readonly ErrorReportViewModel _vm = new();
         public string ViewTitle => "Error Report";

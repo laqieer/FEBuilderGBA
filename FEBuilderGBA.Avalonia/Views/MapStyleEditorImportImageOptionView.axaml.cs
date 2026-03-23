@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapStyleEditorImportImageOptionView : Window, IEditorView, IDataVerifiableView
+    public partial class MapStyleEditorImportImageOptionView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapStyleEditorImportImageOptionViewModel _vm = new();
 

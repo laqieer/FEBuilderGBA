@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIStealItemView : Window, IEditorView
+    public partial class AIStealItemView : TranslatedWindow, IEditorView
     {
         readonly AIStealItemViewModel _vm = new();
         readonly UndoService _undoService = new();

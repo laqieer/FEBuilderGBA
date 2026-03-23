@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class FE8SpellMenuExtendsView : Window, IEditorView
+    public partial class FE8SpellMenuExtendsView : TranslatedWindow, IEditorView
     {
         readonly FE8SpellMenuExtendsViewModel _vm = new();
 

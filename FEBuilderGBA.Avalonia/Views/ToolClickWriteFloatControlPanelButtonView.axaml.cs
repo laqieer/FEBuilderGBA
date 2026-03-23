@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolClickWriteFloatControlPanelButtonView : Window, IEditorView
+    public partial class ToolClickWriteFloatControlPanelButtonView : TranslatedWindow, IEditorView
     {
         readonly ToolClickWriteFloatControlPanelButtonViewModel _vm = new();
         public string ViewTitle => "Which button would you click?";

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassFE6View : Window, IPickableEditor, IDataVerifiableView
+    public partial class ClassFE6View : TranslatedWindow, IPickableEditor, IDataVerifiableView
     {
         readonly ClassFE6ViewModel _vm = new();
 

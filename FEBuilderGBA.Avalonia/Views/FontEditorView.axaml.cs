@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class FontEditorView : Window, IEditorView
+    public partial class FontEditorView : TranslatedWindow, IEditorView
     {
         readonly FontEditorViewModel _vm = new();
 

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemWeaponTriangleViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class ItemWeaponTriangleViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemWeaponTriangleViewerViewModel _vm = new();

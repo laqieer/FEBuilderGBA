@@ -319,5 +319,65 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void AvaloniaViewStrings_ChineseMode_TranslatesCommonLabels()
+        {
+            // Arrange: Simulate the Avalonia translation entries that were added to en.txt and zh.txt
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                // en.txt: self-referencing entries for Avalonia-only strings
+                File.WriteAllText(enFile,
+                    ":Address:\n" +
+                    "Address:\n" +
+                    "\n" +
+                    ":Write\n" +
+                    "Write\n" +
+                    "\n" +
+                    ":Close\n" +
+                    "Close\n" +
+                    "\n" +
+                    ":Cancel\n" +
+                    "Cancel\n" +
+                    "\n" +
+                    ":Unit Editor\n" +
+                    "Unit Editor\n");
+
+                // zh.txt: Chinese translations for the same keys
+                File.WriteAllText(zhFile,
+                    ":Address:\n" +
+                    "\u5730\u5740:\n" +
+                    "\n" +
+                    ":Write\n" +
+                    "\u5199\u5165\n" +
+                    "\n" +
+                    ":Close\n" +
+                    "\u5173\u95ed\n" +
+                    "\n" +
+                    ":Cancel\n" +
+                    "\u53d6\u6d88\n" +
+                    "\n" +
+                    ":Unit Editor\n" +
+                    "\u5355\u4f4d\u7f16\u8f91\u5668\n");
+
+                // Act: Load Chinese mode
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // Assert: Avalonia English keys translate to Chinese
+                Assert.Equal("\u5730\u5740:", MyTranslateResource.str("Address:"));
+                Assert.Equal("\u5199\u5165", MyTranslateResource.str("Write"));
+                Assert.Equal("\u5173\u95ed", MyTranslateResource.str("Close"));
+                Assert.Equal("\u53d6\u6d88", MyTranslateResource.str("Cancel"));
+                Assert.Equal("\u5355\u4f4d\u7f16\u8f91\u5668", MyTranslateResource.str("Unit Editor"));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
     }
 }

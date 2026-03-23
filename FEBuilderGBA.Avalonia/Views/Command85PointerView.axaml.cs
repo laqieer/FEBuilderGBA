@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class Command85PointerView : Window, IEditorView
+    public partial class Command85PointerView : TranslatedWindow, IEditorView
     {
         readonly Command85PointerViewModel _vm = new();
 

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextBadCharPopupView : Window, IEditorView, IDataVerifiableView
+    public partial class TextBadCharPopupView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextBadCharPopupViewModel _vm = new();
 

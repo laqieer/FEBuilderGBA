@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolThreeMargeView : Window, IEditorView
+    public partial class ToolThreeMargeView : TranslatedWindow, IEditorView
     {
         readonly ToolThreeMargeViewViewModel _vm = new();
         public string ViewTitle => "Three-Way Merge";

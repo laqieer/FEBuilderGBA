@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapMiniMapTerrainImageView : Window, IEditorView
+    public partial class MapMiniMapTerrainImageView : TranslatedWindow, IEditorView
     {
         readonly MapMiniMapTerrainImageViewModel _vm = new();
 

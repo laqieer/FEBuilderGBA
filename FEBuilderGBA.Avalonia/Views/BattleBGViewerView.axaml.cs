@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class BattleBGViewerView : Window, IEditorView, IDataVerifiableView
+    public partial class BattleBGViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly BattleBGViewerViewModel _vm = new();
         readonly UndoService _undoService = new();

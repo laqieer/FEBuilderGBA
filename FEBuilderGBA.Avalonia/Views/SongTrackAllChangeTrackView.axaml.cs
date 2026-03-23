@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackAllChangeTrackView : Window, IEditorView
+    public partial class SongTrackAllChangeTrackView : TranslatedWindow, IEditorView
     {
         readonly SongTrackAllChangeTrackViewModel _vm = new();
 

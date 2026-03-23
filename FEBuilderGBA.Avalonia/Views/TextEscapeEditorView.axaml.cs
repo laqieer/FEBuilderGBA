@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class TextEscapeEditorView : Window, IEditorView
+    public partial class TextEscapeEditorView : TranslatedWindow, IEditorView
     {
         readonly TextEscapeEditorViewModel _vm = new();
 

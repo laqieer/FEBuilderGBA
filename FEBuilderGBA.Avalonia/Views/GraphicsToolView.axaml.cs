@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class GraphicsToolView : Window, IEditorView, IDataVerifiableView
+    public partial class GraphicsToolView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly GraphicsToolViewViewModel _vm = new();
 

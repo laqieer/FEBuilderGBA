@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolSubtitleSettingDialogView : Window, IEditorView
+    public partial class ToolSubtitleSettingDialogView : TranslatedWindow, IEditorView
     {
         readonly ToolSubtitleSettingDialogViewViewModel _vm = new();
         public string ViewTitle => "Subtitle Settings";
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var dlg = new OpenFileDialog();
-                dlg.Title = "Select Translation Data File";
+                dlg.Title = R._("Select Translation Data File");
                 var result = await dlg.ShowAsync(this);
                 if (result != null && result.Length > 0)
                     _vm.TranslateDataFilename = result[0];

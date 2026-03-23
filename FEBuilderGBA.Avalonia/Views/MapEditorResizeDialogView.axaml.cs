@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapEditorResizeDialogView : Window, IEditorView, IDataVerifiableView
+    public partial class MapEditorResizeDialogView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapEditorResizeDialogViewModel _vm = new();
 

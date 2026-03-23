@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTableMainView : Window, IEditorView
+    public partial class SongTableMainView : TranslatedWindow, IEditorView
     {
         readonly SongTableMainViewModel _vm = new();
 

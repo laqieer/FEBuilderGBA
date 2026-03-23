@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MapTerrainNameView : Window, IEditorView, IDataVerifiableView
+    public partial class MapTerrainNameView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapTerrainNameViewModel _vm = new();
         readonly UndoService _undoService = new();

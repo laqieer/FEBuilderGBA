@@ -2,11 +2,12 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class OptionsView : Window
+    public partial class OptionsView : TranslatedWindow
     {
         readonly OptionsViewModel _vm = new();
         string _originalLanguageCode = "";
@@ -16,7 +17,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             Opened += OnOpened;
         }
-
         void OnOpened(object? sender, EventArgs e)
         {
             _vm.Load();
@@ -66,11 +66,11 @@ namespace FEBuilderGBA.Avalonia.Views
             var target = this.FindControl<TextBox>(targetName);
             if (target == null) return;
 
-            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var allFiles = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType(R._("Executables")) { Patterns = new[] { "*.exe", "*" } };
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Select File",
+                Title = R._("Select File"),
                 AllowMultiple = false,
                 FileTypeFilter = new[] { exeFiles, allFiles },
             });
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
-                Title = "Select Directory",
+                Title = R._("Select Directory"),
                 AllowMultiple = false,
             });
             if (folders.Count > 0)

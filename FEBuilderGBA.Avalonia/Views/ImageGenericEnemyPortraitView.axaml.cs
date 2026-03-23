@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageGenericEnemyPortraitView : Window, IEditorView
+    public partial class ImageGenericEnemyPortraitView : TranslatedWindow, IEditorView
     {
         readonly ImageGenericEnemyPortraitViewModel _vm = new();
 

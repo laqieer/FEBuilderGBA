@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ProcsScriptCategorySelectView : Window, IEditorView, IDataVerifiableView
+    public partial class ProcsScriptCategorySelectView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventScriptPopupViewModel _vm = new()
         {

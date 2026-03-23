@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageBattleScreenView : Window, IEditorView
+    public partial class ImageBattleScreenView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleScreenViewModel _vm = new();
 

@@ -10,7 +10,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolWorkSupportView : Window, IEditorView
+    public partial class ToolWorkSupportView : TranslatedWindow, IEditorView
     {
         readonly ToolWorkSupportViewModel _vm = new();
         public string ViewTitle => "Work Support";

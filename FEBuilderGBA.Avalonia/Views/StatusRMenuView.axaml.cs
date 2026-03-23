@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class StatusRMenuView : Window, IEditorView, IDataVerifiableView
+    public partial class StatusRMenuView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly StatusRMenuViewModel _vm = new();
         readonly UndoService _undoService = new();

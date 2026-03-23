@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UbyteBitFlagView : Window, IEditorView
+    public partial class UbyteBitFlagView : TranslatedWindow, IEditorView
     {
         readonly UbyteBitFlagViewModel _vm = new();
         readonly CheckBox[] _bitBoxes;

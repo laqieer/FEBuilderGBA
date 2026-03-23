@@ -14946,3 +14946,4920 @@ Open a ROM file to begin editing.
 
 :Type to filter editors...
 Type to filter editors...
+
+# ========================================================
+# Avalonia UI strings (auto-generated for translation support)
+# These entries enable the reverse English→Japanese lookup
+# for Avalonia views that use English text as R._() keys.
+# ========================================================
+
+:(NULL path move pointer = straight line between nodes)
+(NULL path move pointer = straight line between nodes)
+
+:(select a command)
+(select a command)
+
+:* Wildcards: use '??' for any single byte (e.g. FF ?? 00)
+* Wildcards: use '??' for any single byte (e.g. FF ?? 00)
+
+:--- Growth Simulator ---
+--- Growth Simulator ---
+
+:10-Split Image:
+10-Split Image:
+
+:12-byte records: title index, chapter index, text IDs, flags, unit/class.
+12-byte records: title index, chapter index, text IDs, flags, unit/class.
+
+:4-byte aligned
+4-byte aligned
+
+:?? (B119):
+?? (B119):
+
+:?? (B120):
+?? (B120):
+
+:?? (B121):
+?? (B121):
+
+:?? (B122):
+?? (B122):
+
+:?? (B123):
+?? (B123):
+
+:?? (B124):
+?? (B124):
+
+:?? (B125):
+?? (B125):
+
+:?? (B126):
+?? (B126):
+
+:?? (B127):
+?? (B127):
+
+:?? (B129):
+?? (B129):
+
+:?? (B130):
+?? (B130):
+
+:?? (B131):
+?? (B131):
+
+:?? (B132):
+?? (B132):
+
+:?? (B133):
+?? (B133):
+
+:??? (D80):
+??? (D80):
+
+:A Support Song:
+A Support Song:
+
+:A Support Text:
+A Support Text:
+
+:AI 1:
+AI 1:
+
+:AI 2:
+AI 2:
+
+:AI ASM Call Talk
+AI ASM Call Talk
+
+:AI Coordinate Editor
+AI Coordinate Editor
+
+:AI Item Performance
+AI Item Performance
+
+:AI Map Settings
+AI Map Settings
+
+:AI Pointer:
+AI Pointer:
+
+:AI Range Editor
+AI Range Editor
+
+:AI Script Editor
+AI Script Editor
+
+:AI Staff Performance
+AI Staff Performance
+
+:AI Steal Item Logic
+AI Steal Item Logic
+
+:AI Targeting
+AI Targeting
+
+:AI Tiles Evaluation
+AI Tiles Evaluation
+
+:AI Units Evaluation
+AI Units Evaluation
+
+:AI1 Primary:
+AI1 Primary:
+
+:AI2 Secondary:
+AI2 Secondary:
+
+:AI3 Target/Recovery:
+AI3 Target/Recovery:
+
+:AI4 Retreat:
+AI4 Retreat:
+
+:ASM Code Editor
+ASM Code Editor
+
+:ASM Insertion Tool
+ASM Insertion Tool
+
+:ASM Pointer:
+ASM Pointer:
+
+:Ability 1 (B40):
+Ability 1 (B40):
+
+:Ability 1:
+Ability 1:
+
+:Ability 2 (B41):
+Ability 2 (B41):
+
+:Ability 2:
+Ability 2:
+
+:Ability 3 (B42):
+Ability 3 (B42):
+
+:Ability 3:
+Ability 3:
+
+:Ability 4 (B43):
+Ability 4 (B43):
+
+:Ability 4:
+Ability 4:
+
+:Ability Flags
+Ability Flags
+
+:Ability Flags:
+Ability Flags:
+
+:Abort merge. Cancel all merge changes.
+Abort merge. Cancel all merge changes.
+
+:About Instrument Selection
+About Instrument Selection
+
+:Actions
+Actions
+
+:Add EndGuards on export
+Add EndGuards on export
+
+:Add Map Change
+Add Map Change
+
+:Add Text Reference
+Add Text Reference
+
+:Add backup ROM location
+Add backup ROM location
+
+:Address Range
+Address Range
+
+:Address:
+Address:
+
+:Advanced Class 1:
+Advanced Class 1:
+
+:Advanced Class 2:
+Advanced Class 2:
+
+:Advanced Class 3:
+Advanced Class 3:
+
+:Advanced Class 4:
+Advanced Class 4:
+
+:Advanced utilities: hex editing, patching, ROM diagnostics, and more.
+Advanced utilities: hex editing, patching, ROM diagnostics, and more.
+
+:Affinity Type:
+Affinity Type:
+
+:Affinity:
+Affinity:
+
+:Ally/Enemy Color:
+Ally/Enemy Color:
+
+:Alpha Name:
+Alpha Name:
+
+:Always Accessible:
+Always Accessible:
+
+:Anim Type:
+Anim Type:
+
+:Anima (B25):
+Anima (B25):
+
+:Anima (B49):
+Anima (B49):
+
+:Anima:
+Anima:
+
+:Animation # (W2):
+Animation # (W2):
+
+:Animation Creator
+Animation Creator
+
+:Animation Data Details
+Animation Data Details
+
+:Animation Frame Viewer
+Animation Frame Viewer
+
+:Animation Interval:
+Animation Interval:
+
+:Animation Name:
+Animation Name:
+
+:Animation Number:
+Animation Number:
+
+:Animation Pointer:
+Animation Pointer:
+
+:Animation Ptr (D0):
+Animation Ptr (D0):
+
+:Animation Table Summary
+Animation Table Summary
+
+:Animation preview area
+Animation preview area
+
+:Anime Pointer:
+Anime Pointer:
+
+:Anime Type:
+Anime Type:
+
+:Anti-Huffman
+Anti-Huffman
+
+:Append
+Append
+
+:Append Map Style
+Append Map Style
+
+:Area of Effect Range
+Area of Effect Range
+
+:Arena Class Editor
+Arena Class Editor
+
+:Arena Enemy Weapon Editor
+Arena Enemy Weapon Editor
+
+:Armory Pointer:
+Armory Pointer:
+
+:Asset Rating
+Asset Rating
+
+:Assign a new map change ID. A new PLIST entry will be allocated automatically.
+Assign a new map change ID. A new PLIST entry will be allocated automatically.
+
+:Assign new map change
+Assign new map change
+
+:Assigns a skill to each class via the SkillSystem patch.
+Assigns a skill to each class via the SkillSystem patch.
+
+:Assigns a skill to each unit via the SkillSystem patch.
+Assigns a skill to each unit via the SkillSystem patch.
+
+:Attack Bonus:
+Attack Bonus:
+
+:Attack:
+Attack:
+
+:Audio Tools
+Audio Tools
+
+:Author:
+Author:
+
+:Auto Tracking
+Auto Tracking
+
+:Auto-backup ROM before saving
+Auto-backup ROM before saving
+
+:Automatically configure with Init Wizard
+Automatically configure with Init Wizard
+
+:Avalonia Cross-Platform Edition
+Avalonia Cross-Platform Edition
+
+:Avoid Bonus:
+Avoid Bonus:
+
+:Axe (B22):
+Axe (B22):
+
+:Axe (B46):
+Axe (B46):
+
+:Axe:
+Axe:
+
+:B Support Song:
+B Support Song:
+
+:B Support Text:
+B Support Text:
+
+:B10:
+B10:
+
+:B10: Tile animation 2 (PLIST)
+B10: Tile animation 2 (PLIST)
+
+:B116: Event ID (PLIST)
+B116: Event ID (PLIST)
+
+:B117: World map auto event
+B117: World map auto event
+
+:B118: ??
+B118: ??
+
+:B11:
+B11:
+
+:B11: Map change (PLIST)
+B11: Map change (PLIST)
+
+:B120: Event ID (PLIST)
+B120: Event ID (PLIST)
+
+:B121: World map auto event
+B121: World map auto event
+
+:B126: Fortune portrait
+B126: Fortune portrait
+
+:B127: Fortune fee
+B127: Fortune fee
+
+:B128: Chapter number
+B128: Chapter number
+
+:B129: Prep screen Ch no. 1
+B129: Prep screen Ch no. 1
+
+:B12:
+B12:
+
+:B12: Fog level
+B12: Fog level
+
+:B130: Fortune portrait
+B130: Fortune portrait
+
+:B130: Transporter Eliwood X
+B130: Transporter Eliwood X
+
+:B131: Fortune fee
+B131: Fortune fee
+
+:B131: Transporter Hector X
+B131: Transporter Hector X
+
+:B132: Prep screen Ch no. 1
+B132: Prep screen Ch no. 1
+
+:B132: Transporter Eliwood Y
+B132: Transporter Eliwood Y
+
+:B133: Prep screen Ch no. 2
+B133: Prep screen Ch no. 2
+
+:B133: Transporter Hector Y
+B133: Transporter Hector Y
+
+:B134: Enemies for victory BGM
+B134: Enemies for victory BGM
+
+:B134: Transporter Eliwood X
+B134: Transporter Eliwood X
+
+:B134: Victory BGM enemy count
+B134: Victory BGM enemy count
+
+:B135: Blackout before start
+B135: Blackout before start
+
+:B135: Transporter Hector X
+B135: Transporter Hector X
+
+:B136: Transporter Eliwood Y
+B136: Transporter Eliwood Y
+
+:B137: Transporter Hector Y
+B137: Transporter Hector Y
+
+:B138: Victory BGM enemy count
+B138: Victory BGM enemy count
+
+:B139: Darken before start
+B139: Darken before start
+
+:B13:
+B13:
+
+:B13: Battle preparation
+B13: Battle preparation
+
+:B13: Battle preparation (X)
+B13: Battle preparation (X)
+
+:B140: Special display
+B140: Special display
+
+:B141: Turn count display
+B141: Turn count display
+
+:B142: Defense unit mark
+B142: Defense unit mark
+
+:B143: Escape marker X
+B143: Escape marker X
+
+:B144: Escape marker Y
+B144: Escape marker Y
+
+:B144: Special display
+B144: Special display
+
+:B145: ??
+B145: ??
+
+:B145: Turn count display
+B145: Turn count display
+
+:B146: ??
+B146: ??
+
+:B146: Defense unit mark
+B146: Defense unit mark
+
+:B147: ??
+B147: ??
+
+:B147: Escape marker X
+B147: Escape marker X
+
+:B148: Escape marker Y
+B148: Escape marker Y
+
+:B149: ??
+B149: ??
+
+:B14:
+B14:
+
+:B14: Chapter title image
+B14: Chapter title image
+
+:B150: ??
+B150: ??
+
+:B151: ??
+B151: ??
+
+:B15:
+B15:
+
+:B15: Chapter title image 2
+B15: Chapter title image 2
+
+:B15: Chapter title image 2 (X)
+B15: Chapter title image 2 (X)
+
+:B16: Initial X coordinate
+B16: Initial X coordinate
+
+:B16: Padding
+B16: Padding
+
+:B17: Initial Y coordinate
+B17: Initial Y coordinate
+
+:B17: Padding
+B17: Padding
+
+:B18: Weather
+B18: Weather
+
+:B19: Battle BG
+B19: Battle BG
+
+:B19: Battle BG lookup
+B19: Battle BG lookup
+
+:B44: Breakable wall HP
+B44: Breakable wall HP
+
+:B45: A Eliwood Normal
+B45: A Eliwood Normal
+
+:B46: A Eliwood Hard
+B46: A Eliwood Hard
+
+:B47: A Hector Normal
+B47: A Hector Normal
+
+:B48: A Hector Hard
+B48: A Hector Hard
+
+:B49: B Eliwood Normal
+B49: B Eliwood Normal
+
+:B50: B Eliwood Hard
+B50: B Eliwood Hard
+
+:B51: B Hector Normal
+B51: B Hector Normal
+
+:B52: B Hector Hard
+B52: B Hector Hard
+
+:B53: C Eliwood Normal
+B53: C Eliwood Normal
+
+:B54: C Eliwood Hard
+B54: C Eliwood Hard
+
+:B55: C Hector Normal
+B55: C Hector Normal
+
+:B56: C Hector Hard
+B56: C Hector Hard
+
+:B57: D Eliwood Normal
+B57: D Eliwood Normal
+
+:B58: D Eliwood Hard
+B58: D Eliwood Hard
+
+:B59: D Hector Normal
+B59: D Hector Normal
+
+:B60: D Hector Hard
+B60: D Hector Hard
+
+:B61: ??
+B61: ??
+
+:B61: Unknown
+B61: Unknown
+
+:B6: Palette (PLIST)
+B6: Palette (PLIST)
+
+:B7: Chipset config (PLIST)
+B7: Chipset config (PLIST)
+
+:B8:
+B8:
+
+:B8: Map pointer (PLIST)
+B8: Map pointer (PLIST)
+
+:B9:
+B9:
+
+:B9: Tile animation 1 (PLIST)
+B9: Tile animation 1 (PLIST)
+
+:B:
+B:
+
+:BG Image Select
+BG Image Select
+
+:BGM / Music
+BGM / Music
+
+:BGM ID:
+BGM ID:
+
+:Background Image Editor
+Background Image Editor
+
+:Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+
+:Backup History (newest on top)
+Backup History (newest on top)
+
+:Bad Character Detected
+Bad Character Detected
+
+:Base Class
+Base Class
+
+:Base Class 1:
+Base Class 1:
+
+:Base Class 2 (trainee only):
+Base Class 2 (trainee only):
+
+:Base Point ID:
+Base Point ID:
+
+:Base Stats
+Base Stats
+
+:Base Stats:
+Base Stats:
+
+:Base Weapon Levels (B20-B26):
+Base Weapon Levels (B20-B26):
+
+:Basic Info
+Basic Info
+
+:Batch
+Batch
+
+:Batch Address Convert
+Batch Address Convert
+
+:Battle Animation Editor
+Battle Animation Editor
+
+:Battle Anime (P52):
+Battle Anime (P52):
+
+:Battle Anime:
+Battle Anime:
+
+:Battle BG:
+Battle BG:
+
+:Battle Background Editor
+Battle Background Editor
+
+:Battle Dialogue (FE6)
+Battle Dialogue (FE6)
+
+:Battle Dialogue (FE7)
+Battle Dialogue (FE7)
+
+:Battle Dialogue Editor
+Battle Dialogue Editor
+
+:Battle Screen Layout
+Battle Screen Layout
+
+:Battle Talk (Main)
+Battle Talk (Main)
+
+:Battle Terrain Editor
+Battle Terrain Editor
+
+:Big CG Editor
+Big CG Editor
+
+:Binary Editor
+Binary Editor
+
+:Bit 0
+Bit 0
+
+:Bit 0  (0x01)
+Bit 0  (0x01)
+
+:Bit 0 (0x01)
+Bit 0 (0x01)
+
+:Bit 1
+Bit 1
+
+:Bit 1  (0x02)
+Bit 1  (0x02)
+
+:Bit 1 (0x02)
+Bit 1 (0x02)
+
+:Bit 10 (0x04)
+Bit 10 (0x04)
+
+:Bit 11 (0x08)
+Bit 11 (0x08)
+
+:Bit 12 (0x10)
+Bit 12 (0x10)
+
+:Bit 13 (0x20)
+Bit 13 (0x20)
+
+:Bit 14 (0x40)
+Bit 14 (0x40)
+
+:Bit 15 (0x80)
+Bit 15 (0x80)
+
+:Bit 16 (0x01)
+Bit 16 (0x01)
+
+:Bit 17 (0x02)
+Bit 17 (0x02)
+
+:Bit 18 (0x04)
+Bit 18 (0x04)
+
+:Bit 19 (0x08)
+Bit 19 (0x08)
+
+:Bit 2
+Bit 2
+
+:Bit 2  (0x04)
+Bit 2  (0x04)
+
+:Bit 2 (0x04)
+Bit 2 (0x04)
+
+:Bit 20 (0x10)
+Bit 20 (0x10)
+
+:Bit 21 (0x20)
+Bit 21 (0x20)
+
+:Bit 22 (0x40)
+Bit 22 (0x40)
+
+:Bit 23 (0x80)
+Bit 23 (0x80)
+
+:Bit 24 (0x01)
+Bit 24 (0x01)
+
+:Bit 25 (0x02)
+Bit 25 (0x02)
+
+:Bit 26 (0x04)
+Bit 26 (0x04)
+
+:Bit 27 (0x08)
+Bit 27 (0x08)
+
+:Bit 28 (0x10)
+Bit 28 (0x10)
+
+:Bit 29 (0x20)
+Bit 29 (0x20)
+
+:Bit 3
+Bit 3
+
+:Bit 3  (0x08)
+Bit 3  (0x08)
+
+:Bit 3 (0x08)
+Bit 3 (0x08)
+
+:Bit 30 (0x40)
+Bit 30 (0x40)
+
+:Bit 31 (0x80)
+Bit 31 (0x80)
+
+:Bit 4
+Bit 4
+
+:Bit 4  (0x10)
+Bit 4  (0x10)
+
+:Bit 4 (0x10)
+Bit 4 (0x10)
+
+:Bit 5
+Bit 5
+
+:Bit 5  (0x20)
+Bit 5  (0x20)
+
+:Bit 5 (0x20)
+Bit 5 (0x20)
+
+:Bit 6
+Bit 6
+
+:Bit 6  (0x40)
+Bit 6  (0x40)
+
+:Bit 6 (0x40)
+Bit 6 (0x40)
+
+:Bit 7
+Bit 7
+
+:Bit 7  (0x80)
+Bit 7  (0x80)
+
+:Bit 7 (0x80)
+Bit 7 (0x80)
+
+:Bit 8  (0x01)
+Bit 8  (0x01)
+
+:Bit 9  (0x02)
+Bit 9  (0x02)
+
+:Bitmap:
+Bitmap:
+
+:Bonus:
+Bonus:
+
+:Boss BGM Editor
+Boss BGM Editor
+
+:Bot
+Bot
+
+:Both (same):
+Both (same):
+
+:Bow (B23):
+Bow (B23):
+
+:Bow (B47):
+Bow (B47):
+
+:Bow:
+Bow:
+
+:Breakable Wall HP / Difficulty Ratings
+Breakable Wall HP / Difficulty Ratings
+
+:Breakable Wall HP / Unknowns
+Breakable Wall HP / Unknowns
+
+:Browse MIDI File...
+Browse MIDI File...
+
+:Browse...
+Browse...
+
+:Build (B10):
+Build (B10):
+
+:Bulk Track Change
+Bulk Track Change
+
+:Buy Price:
+Buy Price:
+
+:Byte 0:
+Byte 0:
+
+:Byte 1:
+Byte 1:
+
+:Byte 2:
+Byte 2:
+
+:Byte 3:
+Byte 3:
+
+:Byte 4:
+Byte 4:
+
+:Byte Bit Flags (8-bit)
+Byte Bit Flags (8-bit)
+
+:Byte1:
+Byte1:
+
+:Byte2:
+Byte2:
+
+:Byte3:
+Byte3:
+
+:Byte4:
+Byte4:
+
+:C Support Song:
+C Support Song:
+
+:C Support Text:
+C Support Text:
+
+:C-Skill Rechain
+C-Skill Rechain
+
+:C-String Editor
+C-String Editor
+
+:CC Branch Editor
+CC Branch Editor
+
+:CFLAGS
+CFLAGS
+
+:CG Editor (FE7U)
+CG Editor (FE7U)
+
+:CG Image Editor
+CG Image Editor
+
+:CG:
+CG:
+
+:CON:
+CON:
+
+:CP / Pointer
+CP / Pointer
+
+:CSA Magic Creator
+CSA Magic Creator
+
+:Calculate Growth
+Calculate Growth
+
+:Cancel Action:
+Cancel Action:
+
+:Categories
+Categories
+
+:Center X:
+Center X:
+
+:Center Y:
+Center Y:
+
+:Change ID:
+Change ID:
+
+:Change Pointer:
+Change Pointer:
+
+:Change Records
+Change Records
+
+:Changed bytes:
+Changed bytes:
+
+:Chapter / Transporter / Victory
+Chapter / Transporter / Victory
+
+:Chapter ID 1:
+Chapter ID 1:
+
+:Chapter ID 2:
+Chapter ID 2:
+
+:Chapter ID:
+Chapter ID:
+
+:Chapter Image Ptr:
+Chapter Image Ptr:
+
+:Chapter Index:
+Chapter Index:
+
+:Chapter Title Editor
+Chapter Title Editor
+
+:Chapter Title FE7 Editor
+Chapter Title FE7 Editor
+
+:Chapter Title Text IDs
+Chapter Title Text IDs
+
+:Chapter number (B128):
+Chapter number (B128):
+
+:Char Code (ASCII):
+Char Code (ASCII):
+
+:Character Code Table
+Character Code Table
+
+:Character Display:
+Character Display:
+
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+
+:Check Update
+Check Update
+
+:Checks if a unit is within the range from (X1,Y1) to (X2,Y2).
+Checks if a unit is within the range from (X1,Y1) to (X2,Y2).
+
+:Class # (B4):
+Class # (B4):
+
+:Class Card
+Class Card
+
+:Class Card:
+Class Card:
+
+:Class Editor (FE6)
+Class Editor (FE6)
+
+:Class ID (u8):
+Class ID (u8):
+
+:Class ID 1:
+Class ID 1:
+
+:Class ID 2:
+Class ID 2:
+
+:Class ID 3:
+Class ID 3:
+
+:Class ID 4:
+Class ID 4:
+
+:Class ID 5:
+Class ID 5:
+
+:Class ID:
+Class ID:
+
+:Class List Editor
+Class List Editor
+
+:Class Name:
+Class Name:
+
+:Class Skill Pointer:
+Class Skill Pointer:
+
+:Class Skill:
+Class Skill:
+
+:Class Type:
+Class Type:
+
+:Class:
+Class:
+
+:Clear Condition (display only)
+Clear Condition (display only)
+
+:Clear Conditions
+Clear Conditions
+
+:Clipboard Contents:
+Clipboard Contents:
+
+:Color Grid (16 colors):
+Color Grid (16 colors):
+
+:Color/ID (u32@8):
+Color/ID (u32@8):
+
+:Color:
+Color:
+
+:Columns:
+Columns:
+
+:Command 0x85 Pointer
+Command 0x85 Pointer
+
+:Commander:
+Commander:
+
+:Commands
+Commands
+
+:Common editing tasks organized by category. Click any button to open its editor.
+Common editing tasks organized by category. Click any button to open its editor.
+
+:Community:
+Community:
+
+:Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+
+:Compare two ROMs and generate a patch of changed regions
+Compare two ROMs and generate a patch of changed regions
+
+:Compile
+Compile
+
+:Composite Skill Pointer:
+Composite Skill Pointer:
+
+:Con
+Con
+
+:Con (B18):
+Con (B18):
+
+:Con:
+Con:
+
+:Condition Class 1:
+Condition Class 1:
+
+:Condition Class 2:
+Condition Class 2:
+
+:Condition Class 3:
+Condition Class 3:
+
+:Condition Class 4:
+Condition Class 4:
+
+:Condition Item 1:
+Condition Item 1:
+
+:Condition Item 2:
+Condition Item 2:
+
+:Condition Item 3:
+Condition Item 3:
+
+:Condition Item 4:
+Condition Item 4:
+
+:Condition Slot
+Condition Slot
+
+:Condition Unit 1:
+Condition Unit 1:
+
+:Condition Unit 2:
+Condition Unit 2:
+
+:Condition Unit 3:
+Condition Unit 3:
+
+:Condition Unit 4:
+Condition Unit 4:
+
+:Condition:
+Condition:
+
+:Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed
+Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed
+
+:Config Pointer:
+Config Pointer:
+
+:Configuration
+Configuration
+
+:Configure chapter settings, map layouts, terrain, and movement costs.
+Configure chapter settings, map layouts, terrain, and movement costs.
+
+:Configures enemy AI to trigger a talk event (like FE7 Farina).
+Configures enemy AI to trigger a talk event (like FE7 Farina).
+
+:Configures skill text details for the SkillSystem patch.
+Configures skill text details for the SkillSystem patch.
+
+:Conflict bytes:
+Conflict bytes:
+
+:Conflicts (resolve each: Mine or Theirs)
+Conflicts (resolve each: Mine or Theirs)
+
+:Content Type
+Content Type
+
+:Continue merging without closing.
+Continue merging without closing.
+
+:Conversation Text 1:
+Conversation Text 1:
+
+:Conversation Text 2:
+Conversation Text 2:
+
+:Conversation Text 3:
+Conversation Text 3:
+
+:Coord Count:
+Coord Count:
+
+:Coord Pointer:
+Coord Pointer:
+
+:Coordinate X:
+Coordinate X:
+
+:Coordinate Y:
+Coordinate Y:
+
+:Coordinates:
+Coordinates:
+
+:Copy (No $ / GBA / Rad / BreakPoint)
+Copy (No $ / GBA / Rad / BreakPoint)
+
+:Copy Address
+Copy Address
+
+:Copy Current
+Copy Current
+
+:Copy Hex Data
+Copy Hex Data
+
+:Copy Name
+Copy Name
+
+:Copy as Hex
+Copy as Hex
+
+:Copy as Little Endian
+Copy as Little Endian
+
+:Cost Type:
+Cost Type:
+
+:Count:
+Count:
+
+:Counter Damage Warning:
+Counter Damage Warning:
+
+:Crit (B24):
+Crit (B24):
+
+:Crit Avoid Bonus:
+Crit Avoid Bonus:
+
+:Crit Bonus:
+Crit Bonus:
+
+:Cross-Platform Preview (Avalonia)
+Cross-Platform Preview (Avalonia)
+
+:Cross-References:
+Cross-References:
+
+:Current Address:
+Current Address:
+
+:Current Instrument Set
+Current Instrument Set
+
+:Current Name:
+Current Name:
+
+:Current Turn Priority:
+Current Turn Priority:
+
+:Cursor Select Action:
+Cursor Select Action:
+
+:Custom Battle Animation
+Custom Battle Animation
+
+:Custom Build Tool
+Custom Build Tool
+
+:Custom Programs
+Custom Programs
+
+:D Rating
+D Rating
+
+:D0: CP
+D0: CP
+
+:DEF Growth:
+DEF Growth:
+
+:DEF:
+DEF:
+
+:Damage Effect:
+Damage Effect:
+
+:Dark (B51):
+Dark (B51):
+
+:Dark:
+Dark:
+
+:Data Address&#x0a;(if pointer)
+Data Address&#x0a;(if pointer)
+
+:Data Address:
+Data Address:
+
+:Data Count:
+Data Count:
+
+:Data Pointer:
+Data Pointer:
+
+:Data Size:
+Data Size:
+
+:Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+
+:Decay:
+Decay:
+
+:Decoded:
+Decoded:
+
+:Decompile Result
+Decompile Result
+
+:Def (B15):
+Def (B15):
+
+:Def (B31):
+Def (B31):
+
+:Def (b38):
+Def (b38):
+
+:Def:
+Def:
+
+:Default Text ID:
+Default Text ID:
+
+:Default Value:
+Default Value:
+
+:Defense Bonus:
+Defense Bonus:
+
+:Defense:
+Defense:
+
+:Demon King Summon Editor
+Demon King Summon Editor
+
+:Desc ID (W2):
+Desc ID (W2):
+
+:Desc ID:
+Desc ID:
+
+:Description (Text ID):
+Description (Text ID):
+
+:Description Text ID:
+Description Text ID:
+
+:Description:
+Description:
+
+:Destination Palette:
+Destination Palette:
+
+:Developer Translation Tool
+Developer Translation Tool
+
+:Development Tools
+Development Tools
+
+:DevkitPro ARM EABI
+DevkitPro ARM EABI
+
+:Difficulty Pointers (D96-D108)
+Difficulty Pointers (D96-D108)
+
+:Difficulty Ratings
+Difficulty Ratings
+
+:Difficulty Settings
+Difficulty Settings
+
+:Difficulty Value
+Difficulty Value
+
+:Direct Injection Notify
+Direct Injection Notify
+
+:Direct Sound Instruments
+Direct Sound Instruments
+
+:Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change
+Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change
+
+:Directory:
+Directory:
+
+:DisASM
+DisASM
+
+:Disassemble
+Disassemble
+
+:Disassembled Script
+Disassembled Script
+
+:Disassembly Argument Grep
+Disassembly Argument Grep
+
+:Disassembly Dump All
+Disassembly Dump All
+
+:Display Cond ASM:
+Display Cond ASM:
+
+:Display Flags (B140-B147)
+Display Flags (B140-B147)
+
+:Display Flags (B144-B151)
+Display Flags (B144-B151)
+
+:Display Weapon:
+Display Weapon:
+
+:Dmg Effect (B31):
+Dmg Effect (B31):
+
+:Do you want to append a new map style entry? This will add a new tileset configuration at the end of the list.
+Do you want to append a new map style entry? This will add a new tileset configuration at the end of the list.
+
+:Do you want to create additional map changes?
+Do you want to create additional map changes?
+
+:Do you want to hide this error?
+Do you want to hide this error?
+
+:Double-click or press Enter to select
+Double-click or press Enter to select
+
+:Down RMenuPointer:
+Down RMenuPointer:
+
+:Draw
+Draw
+
+:Draw Routine:
+Draw Routine:
+
+:Drop Rate:
+Drop Rate:
+
+:Drum Part Pointer
+Drum Part Pointer
+
+:Dump Struct to Text
+Dump Struct to Text
+
+:Dumps unit, class, item, and other tables.
+Dumps unit, class, item, and other tables.
+
+:Duty / Length:
+Duty / Length:
+
+:ED Senseki Comment
+ED Senseki Comment
+
+:Edit Classes
+Edit Classes
+
+:Edit Items
+Edit Items
+
+:Edit Skill Config
+Edit Skill Config
+
+:Edit Skills
+Edit Skills
+
+:Edit Text:
+Edit Text:
+
+:Edit Units
+Edit Units
+
+:Edit character portraits, battle animations, CGs, and sprite graphics.
+Edit character portraits, battle animations, CGs, and sprite graphics.
+
+:Edit event scripts that control story scenes, cutscenes, and gameplay triggers.
+Edit event scripts that control story scenes, cutscenes, and gameplay triggers.
+
+:Edit in-game dialogue, menus, and all text strings in the ROM.
+Edit in-game dialogue, menus, and all text strings in the ROM.
+
+:Edit playable and enemy unit stats, class data, and support relationships.
+Edit playable and enemy unit stats, class data, and support relationships.
+
+:Edit weapons, items, their effects, shops, and promotions.
+Edit weapons, items, their effects, shops, and promotions.
+
+:Editors
+Editors
+
+:Effect ID:
+Effect ID:
+
+:Effect Pointer:
+Effect Pointer:
+
+:Effect Routine:
+Effect Routine:
+
+:Effective (P16):
+Effective (P16):
+
+:Effective Against
+Effective Against
+
+:Effectiveness (Skill Systems Rework)
+Effectiveness (Skill Systems Rework)
+
+:Effectiveness Rework - Class Type
+Effectiveness Rework - Class Type
+
+:Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be &lt;= 4095, otherwise instant movement occurs.
+Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be &lt;= 4095, otherwise instant movement occurs.
+
+:Elapsed Time:
+Elapsed Time:
+
+:Eliwood Hard (D100):
+Eliwood Hard (D100):
+
+:Eliwood Normal (D96):
+Eliwood Normal (D96):
+
+:Emulation
+Emulation
+
+:Emulator Memory
+Emulator Memory
+
+:Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+
+:Enable auto-save (saves to .autosave.gba sidecar file)
+Enable auto-save (saves to .autosave.gba sidecar file)
+
+:Encoding Table
+Encoding Table
+
+:End Base Point ID:
+End Base Point ID:
+
+:End X:
+End X:
+
+:End Y:
+End Y:
+
+:Ending Event Editor
+Ending Event Editor
+
+:Enemy Class Priority:
+Enemy Class Priority:
+
+:Enemy Distance Priority:
+Enemy Distance Priority:
+
+:Enemy Remaining HP Priority:
+Enemy Remaining HP Priority:
+
+:English Name Pointer:
+English Name Pointer:
+
+:Enter or paste text to have it read aloud using the system TTS engine.
+Enter or paste text to have it read aloud using the system TTS engine.
+
+:Enter the PLIST number for the new map pointer entry.
+Enter the PLIST number for the new map pointer entry.
+
+:Envelope Step:
+Envelope Step:
+
+:Error Report
+Error Report
+
+:Event / Fortune Teller
+Event / Fortune Teller
+
+:Event / World Map (B116-B135)
+Event / World Map (B116-B135)
+
+:Event Branch Flag:
+Event Branch Flag:
+
+:Event Command Function Pointer Table
+Event Command Function Pointer Table
+
+:Event Command Function Pointer Table (FE7)
+Event Command Function Pointer Table (FE7)
+
+:Event Command Function Pointer:
+Event Command Function Pointer:
+
+:Event Condition Editor
+Event Condition Editor
+
+:Event Conditions (Main)
+Event Conditions (Main)
+
+:Event Error Display
+Event Error Display
+
+:Event Pointer (FE6)
+Event Pointer (FE6)
+
+:Event Pointer (FE7)
+Event Pointer (FE7)
+
+:Event Pointer (u32@0):
+Event Pointer (u32@0):
+
+:Event Pointer:
+Event Pointer:
+
+:Event Script (Main)
+Event Script (Main)
+
+:Event Script Editor
+Event Script Editor
+
+:Event Script Inner Control
+Event Script Inner Control
+
+:Event Template 1
+Event Template 1
+
+:Event Template 2
+Event Template 2
+
+:Event Template 3
+Event Template 3
+
+:Event Template 4
+Event Template 4
+
+:Event Template 5
+Event Template 5
+
+:Event Template 6
+Event Template 6
+
+:Event Template Implementation
+Event Template Implementation
+
+:Event Unit Placement (FE8)
+Event Unit Placement (FE8)
+
+:Event Units
+Event Units
+
+:Events
+Events
+
+:Exit Pointer:
+Exit Pointer:
+
+:Expand List
+Expand List
+
+:Experience Rating
+Experience Rating
+
+:Export All Texts (TSV)
+Export All Texts (TSV)
+
+:Export Events in EA format
+Export Events in EA format
+
+:Export Face
+Export Face
+
+:Export Frame PNG
+Export Frame PNG
+
+:Export MIDI
+Export MIDI
+
+:Export Main Tables
+Export Main Tables
+
+:Export Mini
+Export Mini
+
+:Export PAL
+Export PAL
+
+:Export PNG
+Export PNG
+
+:Export Sheet
+Export Sheet
+
+:Export TSV
+Export TSV
+
+:Export TSV...
+Export TSV...
+
+:Export Text (TSV)
+Export Text (TSV)
+
+:Export Tile Sheet PNG...
+Export Tile Sheet PNG...
+
+:Export Undo Buffer
+Export Undo Buffer
+
+:Export World Map Events (selected) in EA format
+Export World Map Events (selected) in EA format
+
+:Export World Map Events in EA format
+Export World Map Events in EA format
+
+:Export changes made to the ROM in this session.
+Export changes made to the ROM in this session.
+
+:Export events in EA format.
+Export events in EA format.
+
+:Extend PLIST Range
+Extend PLIST Range
+
+:External Tools
+External Tools
+
+:Extra Unit (FE8U)
+Extra Unit (FE8U)
+
+:Extra Unit Editor
+Extra Unit Editor
+
+:Eye Frames (32x16 x2)
+Eye Frames (32x16 x2)
+
+:Eye X:
+Eye X:
+
+:Eye Y:
+Eye Y:
+
+:FE-Repo
+FE-Repo
+
+:FE-Repo Remote URL
+FE-Repo Remote URL
+
+:FE-Repo-Music Remote URL
+FE-Repo-Music Remote URL
+
+:FECLIB
+FECLIB
+
+:File name:
+File name:
+
+:Filter text:
+Filter text:
+
+:Find
+Find
+
+:First Reference
+First Reference
+
+:First byte = type (0-3), rest = unit/class IDs. Null-terminated.
+First byte = type (0-3), rest = unit/class IDs. Null-terminated.
+
+:Flag 1:
+Flag 1:
+
+:Flag 2:
+Flag 2:
+
+:Flag ID:
+Flag ID:
+
+:Flag Name Editor
+Flag Name Editor
+
+:Flag Usage Viewer
+Flag Usage Viewer
+
+:Font Editor (Chinese)
+Font Editor (Chinese)
+
+:Footstep Sounds Editor
+Footstep Sounds Editor
+
+:For import, use Run > Event Assembler Add.
+For import, use Run > Event Assembler Add.
+
+:Force Little Endian
+Force Little Endian
+
+:Force Sortie Editor
+Force Sortie Editor
+
+:Force Update
+Force Update
+
+:Force close with current results.
+Force close with current results.
+
+:Forge Price:
+Forge Price:
+
+:Frame Count:
+Frame Count:
+
+:Frame Data:
+Frame Data:
+
+:Frame Ptr:
+Frame Ptr:
+
+:Frame:
+Frame:
+
+:Free Map Type:
+Free Map Type:
+
+:Free Space Address:
+Free Space Address:
+
+:Frequency Hz*1024:
+Frequency Hz*1024:
+
+:From Unit:
+From Unit:
+
+:Function Pointer:
+Function Pointer:
+
+:Function pointers called when entering each map chapter.
+Function pointers called when entering each map chapter.
+
+:Function pointers for item usability checks
+Function pointers for item usability checks
+
+:G:
+G:
+
+:GBA 15-bit color palette entries for move/attack/staff range display.
+GBA 15-bit color palette entries for move/attack/staff range display.
+
+:GBA Color (W0):
+GBA Color (W0):
+
+:General
+General
+
+:Generate Patch
+Generate Patch
+
+:Generic Enemy Portraits
+Generic Enemy Portraits
+
+:Getter Routine:
+Getter Routine:
+
+:Git Executable Path
+Git Executable Path
+
+:Give Up
+Give Up
+
+:Go
+Go
+
+:GoldRoad ASM
+GoldRoad ASM
+
+:Growth Caps / Promotion Bonuses
+Growth Caps / Promotion Bonuses
+
+:Growth Rate 10:
+Growth Rate 10:
+
+:Growth Rate 1:
+Growth Rate 1:
+
+:Growth Rate 2:
+Growth Rate 2:
+
+:Growth Rate 3:
+Growth Rate 3:
+
+:Growth Rate 4:
+Growth Rate 4:
+
+:Growth Rate 5:
+Growth Rate 5:
+
+:Growth Rate 6:
+Growth Rate 6:
+
+:Growth Rate 7:
+Growth Rate 7:
+
+:Growth Rate 8:
+Growth Rate 8:
+
+:Growth Rate 9:
+Growth Rate 9:
+
+:Growth Rate Bonuses
+Growth Rate Bonuses
+
+:Growth Rates (%)
+Growth Rates (%)
+
+:Growth Rates (%):
+Growth Rates (%):
+
+:Growth Simulator
+Growth Simulator
+
+:HP
+HP
+
+:HP (B11):
+HP (B11):
+
+:HP (B27):
+HP (B27):
+
+:HP (b34):
+HP (b34):
+
+:HP Cap (B19):
+HP Cap (B19):
+
+:HP Growth:
+HP Growth:
+
+:HP:
+HP:
+
+:Haiku Event Editor
+Haiku Event Editor
+
+:Hard Boost
+Hard Boost
+
+:Header Byte:
+Header Byte:
+
+:Header Priority:
+Header Priority:
+
+:Header Reverb:
+Header Reverb:
+
+:Header:
+Header:
+
+:Hector Hard (D108):
+Hector Hard (D108):
+
+:Hector Normal (D104):
+Hector Normal (D104):
+
+:Height:
+Height:
+
+:Held Item Skill Pointer:
+Held Item Skill Pointer:
+
+:Help Text ID:
+Help Text ID:
+
+:Hex:
+Hex:
+
+:Hide this error
+Hide this error
+
+:High byte:
+High byte:
+
+:Hit (B22):
+Hit (B22):
+
+:Hit Bonus:
+Hit Bonus:
+
+:Hit Color:
+Hit Color:
+
+:ID Text:
+ID Text:
+
+:ID:
+ID:
+
+:IDA MAP
+IDA MAP
+
+:Icon (B29):
+Icon (B29):
+
+:Icon ID:
+Icon ID:
+
+:Icon Index:
+Icon Index:
+
+:Icon:
+Icon:
+
+:Id 0:
+Id 0:
+
+:Id 10:
+Id 10:
+
+:Id 11:
+Id 11:
+
+:Id 1:
+Id 1:
+
+:Id 2:
+Id 2:
+
+:Id 3:
+Id 3:
+
+:Id 4:
+Id 4:
+
+:Id 5:
+Id 5:
+
+:Id 6:
+Id 6:
+
+:Id 7:
+Id 7:
+
+:Id 8:
+Id 8:
+
+:Id 9:
+Id 9:
+
+:Identifier:
+Identifier:
+
+:Identity
+Identity
+
+:Identity / Misc
+Identity / Misc
+
+:Image (D0):
+Image (D0):
+
+:Image Address:
+Image Address:
+
+:Image Form Reference
+Image Form Reference
+
+:Image Pointer:
+Image Pointer:
+
+:Image Source:
+Image Source:
+
+:Image Sub-Menu
+Image Sub-Menu
+
+:Image Type:
+Image Type:
+
+:Image Viewer
+Image Viewer
+
+:Import MIDI
+Import MIDI
+
+:Import PAL
+Import PAL
+
+:Import PNG
+Import PNG
+
+:Import TSV
+Import TSV
+
+:Import TSV...
+Import TSV...
+
+:Import Text (TSV)
+Import Text (TSV)
+
+:Import Texts (TSV)
+Import Texts (TSV)
+
+:Import as one picture (auto-generate map_config from this image)
+Import as one picture (auto-generate map_config from this image)
+
+:Import image only (do not import palette)
+Import image only (do not import palette)
+
+:Import image with palette (recommended)
+Import image with palette (recommended)
+
+:Import to ROM (Experimental)
+Import to ROM (Experimental)
+
+:Indent:
+Indent:
+
+:Info:
+Info:
+
+:Initial Configuration
+Initial Configuration
+
+:Initial Value 10:
+Initial Value 10:
+
+:Initial Value 1:
+Initial Value 1:
+
+:Initial Value 2:
+Initial Value 2:
+
+:Initial Value 3:
+Initial Value 3:
+
+:Initial Value 4:
+Initial Value 4:
+
+:Initial Value 5:
+Initial Value 5:
+
+:Initial Value 6:
+Initial Value 6:
+
+:Initial Value 7:
+Initial Value 7:
+
+:Initial Value 8:
+Initial Value 8:
+
+:Initial Value 9:
+Initial Value 9:
+
+:Initial Values
+Initial Values
+
+:Insert Command...
+Insert Command...
+
+:Insert New
+Insert New
+
+:Install Anyway
+Install Anyway
+
+:Install Patch
+Install Patch
+
+:Instrument Editor
+Instrument Editor
+
+:Instrument Selection
+Instrument Selection
+
+:Instrument Set:
+Instrument Set:
+
+:Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
+Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
+
+:Interpolated Picture Box
+Interpolated Picture Box
+
+:Interval (minutes):
+Interval (minutes):
+
+:Item # (B6):
+Item # (B6):
+
+:Item (Staff):
+Item (Staff):
+
+:Item 1:
+Item 1:
+
+:Item 2:
+Item 2:
+
+:Item 3:
+Item 3:
+
+:Item 4:
+Item 4:
+
+:Item Editor (FE6)
+Item Editor (FE6)
+
+:Item Effect Pointer Editor
+Item Effect Pointer Editor
+
+:Item Effectiveness (Main)
+Item Effectiveness (Main)
+
+:Item Effectiveness Editor
+Item Effectiveness Editor
+
+:Item ID:
+Item ID:
+
+:Item Name Text ID:
+Item Name Text ID:
+
+:Item Promotion Editor
+Item Promotion Editor
+
+:Item Shop Editor
+Item Shop Editor
+
+:Item Stat Bonuses Editor
+Item Stat Bonuses Editor
+
+:Item Usage Pointer Editor
+Item Usage Pointer Editor
+
+:Item Weapon Effect Editor
+Item Weapon Effect Editor
+
+:Item/Weapon Icon Viewer
+Item/Weapon Icon Viewer
+
+:Item:
+Item:
+
+:Japanese Name Length:
+Japanese Name Length:
+
+:Japanese Name Pointer:
+Japanese Name Pointer:
+
+:Jump To
+Jump To
+
+:Key Map Pointer:
+Key Map Pointer:
+
+:LCK Growth:
+LCK Growth:
+
+:LCK:
+LCK:
+
+:LV:
+LV:
+
+:LZ77 Compressed
+LZ77 Compressed
+
+:LZ77 Compression Tool
+LZ77 Compression Tool
+
+:Lance (B21):
+Lance (B21):
+
+:Lance (B45):
+Lance (B45):
+
+:Lance:
+Lance:
+
+:Lck (B33):
+Lck (B33):
+
+:Lck:
+Lck:
+
+:Leader Unit ID:
+Leader Unit ID:
+
+:Leave blank for defaults. Set custom URLs for forks/mirrors.
+Leave blank for defaults. Set custom URLs for forks/mirrors.
+
+:Left RMenuPointer:
+Left RMenuPointer:
+
+:Length Byte:
+Length Byte:
+
+:Length:
+Length:
+
+:Lethal Damage Priority:
+Lethal Damage Priority:
+
+:Level/Growth:
+Level/Growth:
+
+:Level:
+Level:
+
+:Light (B26):
+Light (B26):
+
+:Light (B50):
+Light (B50):
+
+:Light:
+Light:
+
+:Link Arena Deny Unit Editor
+Link Arena Deny Unit Editor
+
+:Linked Name:
+Linked Name:
+
+:Lint Check
+Lint Check
+
+:Lists all character codes in the ROM's text encoding table.
+Lists all character codes in the ROM's text encoding table.
+
+:Load
+Load
+
+:Load as FE6 (Binding Blade - Japan)
+Load as FE6 (Binding Blade - Japan)
+
+:Load as FE7J (Blazing Blade - Japan)
+Load as FE7J (Blazing Blade - Japan)
+
+:Load as FE7U (Blazing Blade - US)
+Load as FE7U (Blazing Blade - US)
+
+:Load as FE8J (Sacred Stones - Japan)
+Load as FE8J (Sacred Stones - Japan)
+
+:Load as FE8U (Sacred Stones - US)
+Load as FE8U (Sacred Stones - US)
+
+:Load as Other (Unknown)
+Load as Other (Unknown)
+
+:Lock Type / ID:
+Lock Type / ID:
+
+:Loop Routine:
+Loop Routine:
+
+:Loop Start Byte:
+Loop Start Byte:
+
+:Low byte:
+Low byte:
+
+:Lower Class Anim Color
+Lower Class Anim Color
+
+:Lower Class Anime:
+Lower Class Anime:
+
+:Lower Class Palette:
+Lower Class Palette:
+
+:Luck:
+Luck:
+
+:MIDI File Metadata
+MIDI File Metadata
+
+:MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results.
+MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results.
+
+:Magic Effect Editor (FEditor)
+Magic Effect Editor (FEditor)
+
+:Magic Effect:
+Magic Effect:
+
+:Magic/??
+Magic/??
+
+:Main Portrait
+Main Portrait
+
+:Manage background music, sound effects, and the in-game sound room.
+Manage background music, sound effects, and the in-game sound room.
+
+:Mant Animation
+Mant Animation
+
+:Manually configure from Options screen
+Manually configure from Options screen
+
+:Map Action Animation
+Map Action Animation
+
+:Map Change (Main)
+Map Change (Main)
+
+:Map Change Editor
+Map Change Editor
+
+:Map Change Event Editor
+Map Change Event Editor
+
+:Map Chip Import
+Map Chip Import
+
+:Map Data Pointer:
+Map Data Pointer:
+
+:Map Effect Pointer:
+Map Effect Pointer:
+
+:Map Exit Point (Main)
+Map Exit Point (Main)
+
+:Map Exit Point Editor
+Map Exit Point Editor
+
+:Map Face (32x32)
+Map Face (32x32)
+
+:Map Face:
+Map Face:
+
+:Map ID:
+Map ID:
+
+:Map Load Functions (FE8)
+Map Load Functions (FE8)
+
+:Map Name Text IDs
+Map Name Text IDs
+
+:Map Picture Box
+Map Picture Box
+
+:Map Pointer
+Map Pointer
+
+:Map Pointer (Main)
+Map Pointer (Main)
+
+:Map Pointer Editor
+Map Pointer Editor
+
+:Map Pointer:
+Map Pointer:
+
+:Map Properties
+Map Properties
+
+:Map Resize
+Map Resize
+
+:Map Setting Difficulty Extra
+Map Setting Difficulty Extra
+
+:Map Settings (FE7JP)
+Map Settings (FE7JP)
+
+:Map Settings (Main)
+Map Settings (Main)
+
+:Map Style / PLIST
+Map Style / PLIST
+
+:Map Style Editor
+Map Style Editor
+
+:Map Tile Animation Editor
+Map Tile Animation Editor
+
+:Map Tile Animation Type 1
+Map Tile Animation Type 1
+
+:Map Tile Animation Type 2 (Palette)
+Map Tile Animation Type 2 (Palette)
+
+:Map Tile Data Pointer:
+Map Tile Data Pointer:
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+Maps each unit index to a description text ID (2 bytes per entry).
+
+:Marked Addresses
+Marked Addresses
+
+:Match Method
+Match Method
+
+:Max Value:
+Max Value:
+
+:Menu Command Editor
+Menu Command Editor
+
+:Menu Command Ptr:
+Menu Command Ptr:
+
+:Menu Definition Editor
+Menu Definition Editor
+
+:Merge Statistics
+Merge Statistics
+
+:Might (B21):
+Might (B21):
+
+:Min Value:
+Min Value:
+
+:Mine:
+Mine:
+
+:Mini Portrait
+Mini Portrait
+
+:Mini-Map Terrain
+Mini-Map Terrain
+
+:Modified ROM:
+Modified ROM:
+
+:Monster Item Editor
+Monster Item Editor
+
+:Monster Probability Editor
+Monster Probability Editor
+
+:Motion:
+Motion:
+
+:Mouth Coord:
+Mouth Coord:
+
+:Mouth Frames (32x16 x6)
+Mouth Frames (32x16 x6)
+
+:Mouth Frames:
+Mouth Frames:
+
+:Mouth X:
+Mouth X:
+
+:Mouth Y:
+Mouth Y:
+
+:Mouth:
+Mouth:
+
+:Mov (B17):
+Mov (B17):
+
+:Move
+Move
+
+:Move Cost (FE6) Editor
+Move Cost (FE6) Editor
+
+:Move Cost (P56):
+Move Cost (P56):
+
+:Move Cost Editor
+Move Cost Editor
+
+:Move Cost Rain (P60):
+Move Cost Rain (P60):
+
+:Move Cost Snow (P64):
+Move Cost Snow (P64):
+
+:Move Costs
+Move Costs
+
+:Move Direction:
+Move Direction:
+
+:Move to Free Space
+Move to Free Space
+
+:Move:
+Move:
+
+:Multi Sample Pointers
+Multi Sample Pointers
+
+:Music
+Music
+
+:My ROM:
+My ROM:
+
+:My changes:
+My changes:
+
+:Name Char 0:
+Name Char 0:
+
+:Name Char 10:
+Name Char 10:
+
+:Name Char 11:
+Name Char 11:
+
+:Name Char 1:
+Name Char 1:
+
+:Name Char 2:
+Name Char 2:
+
+:Name Char 3:
+Name Char 3:
+
+:Name Char 4:
+Name Char 4:
+
+:Name Char 5:
+Name Char 5:
+
+:Name Char 6:
+Name Char 6:
+
+:Name Char 7:
+Name Char 7:
+
+:Name Char 8:
+Name Char 8:
+
+:Name Char 9:
+Name Char 9:
+
+:Name ID (W0):
+Name ID (W0):
+
+:Name ID:
+Name ID:
+
+:Name Pointer:
+Name Pointer:
+
+:Name Text ID:
+Name Text ID:
+
+:Name:
+Name:
+
+:New Name:
+New Name:
+
+:New PLIST Popup
+New PLIST Popup
+
+:Next Node (Eirika 2nd):
+Next Node (Eirika 2nd):
+
+:Next Node (Eirika):
+Next Node (Eirika):
+
+:Next Node (Ephraim 2nd):
+Next Node (Ephraim 2nd):
+
+:Next Node (Ephraim):
+Next Node (Ephraim):
+
+:No animation data found for this ID (ID=0 or invalid pointer chain).
+No animation data found for this ID (ID=0 or invalid pointer chain).
+
+:No file selected
+No file selected
+
+:No recent files
+No recent files
+
+:No song selected
+No song selected
+
+:No tile selected
+No tile selected
+
+:No$GBA SYM
+No$GBA SYM
+
+:Noise Parameters + ADSR
+Noise Parameters + ADSR
+
+:Normal Mode Penalty
+Normal Mode Penalty
+
+:Not Yet Implemented
+Not Yet Implemented
+
+:Note
+Note
+
+:Null-terminated list of class IDs (1 byte per entry).
+Null-terminated list of class IDs (1 byte per entry).
+
+:NumBlks:
+NumBlks:
+
+:OAM (L→R) Ptr:
+OAM (L→R) Ptr:
+
+:OAM (R→L) Ptr:
+OAM (R→L) Ptr:
+
+:OAM Data:
+OAM Data:
+
+:OAM Sprite Editor
+OAM Sprite Editor
+
+:OAM Sprite Viewer
+OAM Sprite Viewer
+
+:OBJ Tile Pointer:
+OBJ Tile Pointer:
+
+:OK
+OK
+
+:OP Class Alpha Name (FE6 Extra)
+OP Class Alpha Name (FE6 Extra)
+
+:OP Class Alpha Name (FE6) Editor
+OP Class Alpha Name (FE6) Editor
+
+:OP Class Alpha Name Editor
+OP Class Alpha Name Editor
+
+:OP Class Demo (FE7) Editor
+OP Class Demo (FE7) Editor
+
+:OP Class Demo (FE7U) Editor
+OP Class Demo (FE7U) Editor
+
+:OP Class Demo (FE8U) Editor
+OP Class Demo (FE8U) Editor
+
+:OP Class Demo Editor
+OP Class Demo Editor
+
+:OP Class Font (FE8U) Editor
+OP Class Font (FE8U) Editor
+
+:OP Class Font Editor
+OP Class Font Editor
+
+:OP Prologue Editor
+OP Prologue Editor
+
+:Older ↓
+Older ↓
+
+:On B Press Routine:
+On B Press Routine:
+
+:On HelpBox Routine:
+On HelpBox Routine:
+
+:On R Press Routine:
+On R Press Routine:
+
+:On/Off Text 1:
+On/Off Text 1:
+
+:On/Off Text 2:
+On/Off Text 2:
+
+:OnEnd Routine:
+OnEnd Routine:
+
+:OnInit Routine:
+OnInit Routine:
+
+:One Picture Import
+One Picture Import
+
+:Open Community
+Open Community
+
+:Open Info File
+Open Info File
+
+:Open Last Selected File
+Open Last Selected File
+
+:Open map change settings
+Open map change settings
+
+:Open the map change configuration screen to edit existing map change entries.
+Open the map change configuration screen to edit existing map change entries.
+
+:Option ID (u8@0):
+Option ID (u8@0):
+
+:Option Type:
+Option Type:
+
+:Order:
+Order:
+
+:Orig:
+Orig:
+
+:Original ROM:
+Original ROM:
+
+:Other ROM Ref
+Other ROM Ref
+
+:Other ROM&#x0a;Data Address
+Other ROM&#x0a;Data Address
+
+:Other Text Strings
+Other Text Strings
+
+:Override
+Override
+
+:Overriding map style data may cause visual artifacts. Are you sure?
+Overriding map style data may cause visual artifacts. Are you sure?
+
+:PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+
+:PLIST ID:
+PLIST ID:
+
+:Packed Memory Slot
+Packed Memory Slot
+
+:Padding
+Padding
+
+:Padding (B25):
+Padding (B25):
+
+:Padding (B26):
+Padding (B26):
+
+:Padding (B27):
+Padding (B27):
+
+:Padding (B6):
+Padding (B6):
+
+:Padding (B7):
+Padding (B7):
+
+:Padding 1 (W4):
+Padding 1 (W4):
+
+:Padding 1:
+Padding 1:
+
+:Padding 2 (W6):
+Padding 2 (W6):
+
+:Padding 2:
+Padding 2:
+
+:Padding:
+Padding:
+
+:Page Down
+Page Down
+
+:Page Up
+Page Up
+
+:Palette (D8):
+Palette (D8):
+
+:Palette / Custom Animation:
+Palette / Custom Animation:
+
+:Palette Address:
+Palette Address:
+
+:Palette Change Colors
+Palette Change Colors
+
+:Palette Clipboard
+Palette Clipboard
+
+:Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+
+:Palette Data Pointer:
+Palette Data Pointer:
+
+:Palette Error Display
+Palette Error Display
+
+:Palette ID:
+Palette ID:
+
+:Palette Mismatch
+Palette Mismatch
+
+:Palette Pointer:
+Palette Pointer:
+
+:Palette Ptr (P12):
+Palette Ptr (P12):
+
+:Palette Ptr:
+Palette Ptr:
+
+:Palette Swap
+Palette Swap
+
+:Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+
+:Palette Transparency Error
+Palette Transparency Error
+
+:Palette:
+Palette:
+
+:Parameters
+Parameters
+
+:Partner 10:
+Partner 10:
+
+:Partner 1:
+Partner 1:
+
+:Partner 2:
+Partner 2:
+
+:Partner 3:
+Partner 3:
+
+:Partner 4:
+Partner 4:
+
+:Partner 5:
+Partner 5:
+
+:Partner 6:
+Partner 6:
+
+:Partner 7:
+Partner 7:
+
+:Partner 8:
+Partner 8:
+
+:Partner 9:
+Partner 9:
+
+:Partner Count / Separator
+Partner Count / Separator
+
+:Partner Count:
+Partner Count:
+
+:Paste
+Paste
+
+:Patch Details
+Patch Details
+
+:Patch Filter
+Patch Filter
+
+:Patch Review
+Patch Review
+
+:Patch Uninstall
+Patch Uninstall
+
+:Patch2 Remote URL
+Patch2 Remote URL
+
+:Path Data Pointer:
+Path Data Pointer:
+
+:Path Move Pointer:
+Path Move Pointer:
+
+:Path Movement Editor
+Path Movement Editor
+
+:Pattern:
+Pattern:
+
+:Penalty:
+Penalty:
+
+:Per-Turn Callback:
+Per-Turn Callback:
+
+:Period:
+Period:
+
+:Personal Skill:
+Personal Skill:
+
+:Pick...
+Pick...
+
+:Platform Notice
+Platform Notice
+
+:Play
+Play
+
+:Play all tracks
+Play all tracks
+
+:Play only this track
+Play only this track
+
+:Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+
+:Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+
+:Pointers (D96-D108)
+Pointers (D96-D108)
+
+:Pointers / Movement / Terrain
+Pointers / Movement / Terrain
+
+:Portrait (W8):
+Portrait (W8):
+
+:Portrait Editor (FE6)
+Portrait Editor (FE6)
+
+:Portrait Image Editor
+Portrait Image Editor
+
+:Portrait Import Wizard
+Portrait Import Wizard
+
+:Portrait:
+Portrait:
+
+:Post-Clear Icon:
+Post-Clear Icon:
+
+:Pre-Clear Icon:
+Pre-Clear Icon:
+
+:Preparation shop item list
+Preparation shop item list
+
+:Prev
+Prev
+
+:Preview:
+Preview:
+
+:Price (W26):
+Price (W26):
+
+:Priority (PlayerType):
+Priority (PlayerType):
+
+:Priority:
+Priority:
+
+:Probability %:
+Probability %:
+
+:Probability 1:
+Probability 1:
+
+:Probability 2:
+Probability 2:
+
+:Probability 3:
+Probability 3:
+
+:Probability 4:
+Probability 4:
+
+:Probability 5:
+Probability 5:
+
+:Problem Reporter
+Problem Reporter
+
+:Procs Script Editor
+Procs Script Editor
+
+:Project Information
+Project Information
+
+:Promo Class
+Promo Class
+
+:Promo Lv (B5):
+Promo Lv (B5):
+
+:Promotion Class 1:
+Promotion Class 1:
+
+:Promotion Class 2:
+Promotion Class 2:
+
+:Promotion target class per source class
+Promotion target class per source class
+
+:Promotions
+Promotions
+
+:Ptr@
+Ptr@
+
+:Python 3
+Python 3
+
+:Quantity/Uses:
+Quantity/Uses:
+
+:R:
+R:
+
+:RAM Rewrite Tool
+RAM Rewrite Tool
+
+:RAM Rewrite Tool (MAP)
+RAM Rewrite Tool (MAP)
+
+:RAM rewriting requires Windows P/Invoke to access emulator process memory and is not available in the cross-platform Avalonia version.
+RAM rewriting requires Windows P/Invoke to access emulator process memory and is not available in the cross-platform Avalonia version.
+
+:RES Growth:
+RES Growth:
+
+:RES:
+RES:
+
+:RMenu Text ID:
+RMenu Text ID:
+
+:ROM Animation Viewer
+ROM Animation Viewer
+
+:ROM Data Sections
+ROM Data Sections
+
+:ROM Diff Tool
+ROM Diff Tool
+
+:ROM Information
+ROM Information
+
+:ROM Rebuild Tool
+ROM Rebuild Tool
+
+:ROM Translation Tool
+ROM Translation Tool
+
+:ROM and Configuration Information
+ROM and Configuration Information
+
+:ROM without patch
+ROM without patch
+
+:Random Chest Items
+Random Chest Items
+
+:Range (B25):
+Range (B25):
+
+:Rank (B28):
+Rank (B28):
+
+:Raw Bytes:
+Raw Bytes:
+
+:Raw Hex:
+Raw Hex:
+
+:Ready
+Ready
+
+:Reason for hiding:
+Reason for hiding:
+
+:Recent Files
+Recent Files
+
+:Record Address:
+Record Address:
+
+:Record Size:
+Record Size:
+
+:Records
+Records
+
+:Recover ROM Header
+Recover ROM Header
+
+:Reference Data:
+Reference Data:
+
+:Reference Text:
+Reference Text:
+
+:Refresh
+Refresh
+
+:Refresh Map
+Refresh Map
+
+:Regions:
+Regions:
+
+:Release:
+Release:
+
+:Rendered Frame:
+Rendered Frame:
+
+:Res (B16):
+Res (B16):
+
+:Res (B32):
+Res (B32):
+
+:Res (b39):
+Res (b39):
+
+:Res:
+Res:
+
+:Reserved (0x06):
+Reserved (0x06):
+
+:Reserved (B1-B3):
+Reserved (B1-B3):
+
+:Resistance
+Resistance
+
+:Resistance:
+Resistance:
+
+:Resolved Name:
+Resolved Name:
+
+:Resolved:
+Resolved:
+
+:Resources
+Resources
+
+:RetDec Decompiler
+RetDec Decompiler
+
+:Retreat AI:
+Retreat AI:
+
+:Reverb:
+Reverb:
+
+:Reverse search
+Reverse search
+
+:Revert to This Version
+Revert to This Version
+
+:Rewrite RAM values for map data in a running emulator.
+Rewrite RAM values for map data in a running emulator.
+
+:Right RMenuPointer:
+Right RMenuPointer:
+
+:Rows:
+Rows:
+
+:Run Dump
+Run Dump
+
+:SKL Growth:
+SKL Growth:
+
+:SKL:
+SKL:
+
+:SPD Growth:
+SPD Growth:
+
+:SPD:
+SPD:
+
+:STR Growth:
+STR Growth:
+
+:STR:
+STR:
+
+:Sappy (Sound Editor)
+Sappy (Sound Editor)
+
+:Save Image Ptr:
+Save Image Ptr:
+
+:Save Merged ROM
+Save Merged ROM
+
+:Save Patch File
+Save Patch File
+
+:Save to File...
+Save to File...
+
+:Script Template Browser
+Script Template Browser
+
+:Search Content
+Search Content
+
+:Search disassembly output by argument pattern.
+Search disassembly output by argument pattern.
+
+:Search prefix
+Search prefix
+
+:Search:
+Search:
+
+:Secret Shop Pointer:
+Secret Shop Pointer:
+
+:Section Ptr:
+Section Ptr:
+
+:Section:
+Section:
+
+:Select Category...
+Select Category...
+
+:Select Event Script Category
+Select Event Script Category
+
+:Select Text Script Category
+Select Text Script Category
+
+:Select an animation to view OAM sprites.
+Select an animation to view OAM sprites.
+
+:Select an output format and run the disassembly dump.
+Select an output format and run the disassembly dump.
+
+:Select file
+Select file
+
+:Selected ROM Info
+Selected ROM Info
+
+:Selected Record
+Selected Record
+
+:Selection Text 1:
+Selection Text 1:
+
+:Selection Text 2:
+Selection Text 2:
+
+:Self Remaining HP Warning:
+Self Remaining HP Warning:
+
+:Sell Price:
+Sell Price:
+
+:Separator 1:
+Separator 1:
+
+:Separator 2:
+Separator 2:
+
+:Separator:
+Separator:
+
+:Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+
+:Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
+Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
+
+:Setup Steps
+Setup Steps
+
+:Setup Wizard
+Setup Wizard
+
+:Ship Setting:
+Ship Setting:
+
+:Shops
+Shops
+
+:Short Bit Flags (16-bit)
+Short Bit Flags (16-bit)
+
+:Show All
+Show All
+
+:Show All Works
+Show All Works
+
+:Show Frame:
+Show Frame:
+
+:Show Subtitles
+Show Subtitles
+
+:Show subtitle window even when there are no subtitles
+Show subtitle window even when there are no subtitles
+
+:Sim Level:
+Sim Level:
+
+:Simple Menu (Easy Mode)
+Simple Menu (Easy Mode)
+
+:Simulate to LV:
+Simulate to LV:
+
+:Size:
+Size:
+
+:Skill Assignment (Class)
+Skill Assignment (Class)
+
+:Skill Assignment (Unit)
+Skill Assignment (Unit)
+
+:Skill Assignment - Class (CSkillSys)
+Skill Assignment - Class (CSkillSys)
+
+:Skill Assignment - Unit (CSkillSys)
+Skill Assignment - Unit (CSkillSys)
+
+:Skill Assignment - Unit (FE8N)
+Skill Assignment - Unit (FE8N)
+
+:Skill Config (SkillSystem)
+Skill Config (SkillSystem)
+
+:Skill Configuration (CSkillSys 0.9.x)
+Skill Configuration (CSkillSys 0.9.x)
+
+:Skill Configuration (FE8N v2)
+Skill Configuration (FE8N v2)
+
+:Skill Configuration (FE8N v3)
+Skill Configuration (FE8N v3)
+
+:Skill Configuration (FE8N)
+Skill Configuration (FE8N)
+
+:Skill Name:
+Skill Name:
+
+:Skill Set 1:
+Skill Set 1:
+
+:Skill Set 2:
+Skill Set 2:
+
+:Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+
+:Skill:
+Skill:
+
+:Skip
+Skip
+
+:Skl (B13):
+Skl (B13):
+
+:Skl (B29):
+Skl (B29):
+
+:Skl (b36):
+Skl (b36):
+
+:Skl:
+Skl:
+
+:Slide Search
+Slide Search
+
+:SoX (Sound eXchange)
+SoX (Sound eXchange)
+
+:Song Exchange Tool
+Song Exchange Tool
+
+:Song Header Pointer:
+Song Header Pointer:
+
+:Song ID 1 (u16@0):
+Song ID 1 (u16@0):
+
+:Song ID 2 (u16@2):
+Song ID 2 (u16@2):
+
+:Song ID:
+Song ID:
+
+:Song Length:
+Song Length:
+
+:Song Name (Text ID):
+Song Name (Text ID):
+
+:Song Table (Main)
+Song Table (Main)
+
+:Song Table Editor
+Song Table Editor
+
+:Song Tracks
+Song Tracks
+
+:Sort Order:
+Sort Order:
+
+:Sort:
+Sort:
+
+:Source Code
+Source Code
+
+:Source Directory
+Source Directory
+
+:Source Palette:
+Source Palette:
+
+:Spd (B14):
+Spd (B14):
+
+:Spd (B30):
+Spd (B30):
+
+:Spd (b37):
+Spd (b37):
+
+:Spd:
+Spd:
+
+:Speak
+Speak
+
+:Special (B1):
+Special (B1):
+
+:Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0.
+Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0.
+
+:Specifies the function that determines whether AI will use a staff.
+Specifies the function that determines whether AI will use a staff.
+
+:Specifies the function that determines whether AI will use an item.
+Specifies the function that determines whether AI will use an item.
+
+:Speed
+Speed
+
+:Speed:
+Speed:
+
+:Spell Menu Extensions
+Spell Menu Extensions
+
+:Split Menu Definition
+Split Menu Definition
+
+:Sprite Tile Sheet
+Sprite Tile Sheet
+
+:Squad:
+Squad:
+
+:Square Wave Parameters + ADSR
+Square Wave Parameters + ADSR
+
+:Staff (B24):
+Staff (B24):
+
+:Staff (B48):
+Staff (B48):
+
+:Staff Roll Editor
+Staff Roll Editor
+
+:Staff:
+Staff:
+
+:Start Base Point ID:
+Start Base Point ID:
+
+:Start Palette Index:
+Start Palette Index:
+
+:Start X:
+Start X:
+
+:Start Y:
+Start Y:
+
+:Stat Bonus (P12):
+Stat Bonus (P12):
+
+:Stat Bonuses (Skill Systems)
+Stat Bonuses (Skill Systems)
+
+:Stat Bonuses Preview
+Stat Bonuses Preview
+
+:State:
+State:
+
+:Stats / Bonuses
+Stats / Bonuses
+
+:Status
+Status
+
+:Status Option Order Editor
+Status Option Order Editor
+
+:Status Parameters Editor
+Status Parameters Editor
+
+:Status R-Menu Editor
+Status R-Menu Editor
+
+:Status Screen Options
+Status Screen Options
+
+:Status Units Menu Editor
+Status Units Menu Editor
+
+:Status:
+Status:
+
+:StatusMenuTextStruct:
+StatusMenuTextStruct:
+
+:Step 1: Select your clean Fire Emblem GBA ROM file.
+Step 1: Select your clean Fire Emblem GBA ROM file.
+
+:Step 2: Choose your preferred language for the editor interface.
+Step 2: Choose your preferred language for the editor interface.
+
+:Step 3: Configure paths for external tools (emulators, assemblers).
+Step 3: Configure paths for external tools (emulators, assemblers).
+
+:Step 4: Review settings and begin editing.
+Step 4: Review settings and begin editing.
+
+:Str (B12):
+Str (B12):
+
+:Str (B28):
+Str (B28):
+
+:Str (b35):
+Str (b35):
+
+:Str/Mag
+Str/Mag
+
+:Str/Mag:
+Str/Mag:
+
+:Str:
+Str:
+
+:Strategy Rating
+Strategy Rating
+
+:String 0:
+String 0:
+
+:String 1:
+String 1:
+
+:String 2:
+String 2:
+
+:String 3:
+String 3:
+
+:String 4:
+String 4:
+
+:String 5:
+String 5:
+
+:String 6:
+String 6:
+
+:String 7:
+String 7:
+
+:String Pointer:
+String Pointer:
+
+:String Text:
+String Text:
+
+:Struct Dump Selector
+Struct Dump Selector
+
+:Style Data:
+Style Data:
+
+:Style:
+Style:
+
+:Sub-Instrument Ptr:
+Sub-Instrument Ptr:
+
+:Sub-type:
+Sub-type:
+
+:Submodule Remote URLs (advanced)
+Submodule Remote URLs (advanced)
+
+:Subtitle Overlay
+Subtitle Overlay
+
+:Subtitle Text:
+Subtitle Text:
+
+:Summon Unit Editor
+Summon Unit Editor
+
+:Summoned Unit:
+Summoned Unit:
+
+:Summoner:
+Summoner:
+
+:Support &amp; Other
+Support &amp; Other
+
+:Support / Talk:
+Support / Talk:
+
+:Support Attribute Editor
+Support Attribute Editor
+
+:Support Class:
+Support Class:
+
+:Support Data Ptr:
+Support Data Ptr:
+
+:Support Partner 1:
+Support Partner 1:
+
+:Support Partner 2:
+Support Partner 2:
+
+:Support Partners
+Support Partners
+
+:Support Ptr:
+Support Ptr:
+
+:Support Talk (FE6)
+Support Talk (FE6)
+
+:Support Talk (FE7)
+Support Talk (FE7)
+
+:Support Unit Editor
+Support Unit Editor
+
+:Support Units (FE6)
+Support Units (FE6)
+
+:Surround Warning:
+Surround Warning:
+
+:Sustain:
+Sustain:
+
+:Swap
+Swap
+
+:Sweep:
+Sweep:
+
+:Sword (B20):
+Sword (B20):
+
+:Sword (B44):
+Sword (B44):
+
+:Sword:
+Sword:
+
+:System Area Gradation Color Viewer
+System Area Gradation Color Viewer
+
+:System Area Graphics
+System Area Graphics
+
+:System Icon Viewer
+System Icon Viewer
+
+:TSA (D4):
+TSA (D4):
+
+:TSA Animation Editor
+TSA Animation Editor
+
+:TSA Animation Editor v2
+TSA Animation Editor v2
+
+:TSA Error
+TSA Error
+
+:TSA Pointer:
+TSA Pointer:
+
+:TSA Tile Editor
+TSA Tile Editor
+
+:TSA w/ Header (P8):
+TSA w/ Header (P8):
+
+:TSA:
+TSA:
+
+:Table Pointer:
+Table Pointer:
+
+:Table:
+Table:
+
+:Tags:
+Tags:
+
+:Talk Group Editor
+Talk Group Editor
+
+:Talk Group:
+Talk Group:
+
+:Target Class ID:
+Target Class ID:
+
+:Target/Recovery AI:
+Target/Recovery AI:
+
+:Template ROM FROM
+Template ROM FROM
+
+:Template ROM TO
+Template ROM TO
+
+:Terminator (FFFF):
+Terminator (FFFF):
+
+:Terrain Avoid (P68):
+Terrain Avoid (P68):
+
+:Terrain BG Lookup
+Terrain BG Lookup
+
+:Terrain BG Lookup Table
+Terrain BG Lookup Table
+
+:Terrain Battle Floor:
+Terrain Battle Floor:
+
+:Terrain Def (P72):
+Terrain Def (P72):
+
+:Terrain Floor Lookup
+Terrain Floor Lookup
+
+:Terrain Floor Lookup Table
+Terrain Floor Lookup Table
+
+:Terrain Left:
+Terrain Left:
+
+:Terrain Move Costs (51 entries):
+Terrain Move Costs (51 entries):
+
+:Terrain Move Costs (65 terrains: 0x00 - 0x40):
+Terrain Move Costs (65 terrains: 0x00 - 0x40):
+
+:Terrain Name (English)
+Terrain Name (English)
+
+:Terrain Name Editor
+Terrain Name Editor
+
+:Terrain Name Text ID:
+Terrain Name Text ID:
+
+:Terrain Name:
+Terrain Name:
+
+:Terrain Res (P76):
+Terrain Res (P76):
+
+:Terrain Right:
+Terrain Right:
+
+:Test Play in Emulator
+Test Play in Emulator
+
+:Test play selected ROM in emulator
+Test play selected ROM in emulator
+
+:Text Detail:
+Text Detail:
+
+:Text Dictionary
+Text Dictionary
+
+:Text Escape Sequences
+Text Escape Sequences
+
+:Text ID (TID):
+Text ID (TID):
+
+:Text ID 1:
+Text ID 1:
+
+:Text ID 2:
+Text ID 2:
+
+:Text ID:
+Text ID:
+
+:The following error has occurred.
+The following error has occurred.
+
+:The latest EA may not dump extended area data. In that case, use EA ver9.
+The latest EA may not dump extended area data. In that case, use EA ver9.
+
+:Their ROM:
+Their ROM:
+
+:Their changes:
+Their changes:
+
+:Theirs
+Theirs
+
+:Theirs:
+Theirs:
+
+:This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+
+:This tool relocates data to free ROM space.
+This tool relocates data to free ROM space.
+
+:This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes.
+This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes.
+
+:Three-Way ROM Merge
+Three-Way ROM Merge
+
+:Tile Data Ptr:
+Tile Data Ptr:
+
+:Tile Editor (click on map to select)
+Tile Editor (click on map to select)
+
+:Tile ID (hex):
+Tile ID (hex):
+
+:Tile Offset:
+Tile Offset:
+
+:Tile Override Warning
+Tile Override Warning
+
+:Tile Sheet (Reference):
+Tile Sheet (Reference):
+
+:Tile:
+Tile:
+
+:Tiles X:
+Tiles X:
+
+:Tiles Y:
+Tiles Y:
+
+:Tileset Append
+Tileset Append
+
+:Title Image Ptr:
+Title Image Ptr:
+
+:Title Index:
+Title Index:
+
+:To Unit:
+To Unit:
+
+:Top
+Top
+
+:Total animations: --
+Total animations: --
+
+:Track Change
+Track Change
+
+:Track Count:
+Track Count:
+
+:Trainee Class (trainee only):
+Trainee Class (trainee only):
+
+:Trait 1 (B8):
+Trait 1 (B8):
+
+:Trait 1 (flags):
+Trait 1 (flags):
+
+:Trait 2 (B9):
+Trait 2 (B9):
+
+:Trait 2 (flags):
+Trait 2 (flags):
+
+:Trait 3 (B10):
+Trait 3 (B10):
+
+:Trait 3 (flags):
+Trait 3 (flags):
+
+:Trait 4 (B11):
+Trait 4 (B11):
+
+:Trait 4 (flags):
+Trait 4 (flags):
+
+:Trait Flags
+Trait Flags
+
+:Type (B7):
+Type (B7):
+
+:Type Name:
+Type Name:
+
+:Type:
+Type:
+
+:UPS Patch Applier
+UPS Patch Applier
+
+:UPS Patch Creator
+UPS Patch Creator
+
+:Undo
+Undo
+
+:Undo Buffer
+Undo Buffer
+
+:Undo History Viewer
+Undo History Viewer
+
+:Unit Action Pointers
+Unit Action Pointers
+
+:Unit Allocation Editor
+Unit Allocation Editor
+
+:Unit Color Assignment
+Unit Color Assignment
+
+:Unit Data Pointer:
+Unit Data Pointer:
+
+:Unit Editor (FE6)
+Unit Editor (FE6)
+
+:Unit Editor (Main)
+Unit Editor (Main)
+
+:Unit Face (96x80)
+Unit Face (96x80)
+
+:Unit Face:
+Unit Face:
+
+:Unit Groups
+Unit Groups
+
+:Unit Growth:
+Unit Growth:
+
+:Unit Height Adjustment
+Unit Height Adjustment
+
+:Unit ID:
+Unit ID:
+
+:Unit Info Pointer:
+Unit Info Pointer:
+
+:Unit Info:
+Unit Info:
+
+:Unit Item Drop Editor
+Unit Item Drop Editor
+
+:Unit List Pointer:
+Unit List Pointer:
+
+:Unit Move Icon
+Unit Move Icon
+
+:Unit Palette Assignment
+Unit Palette Assignment
+
+:Unit Palette Editor
+Unit Palette Editor
+
+:Unit Simulation Control
+Unit Simulation Control
+
+:Unit Skill Pointer:
+Unit Skill Pointer:
+
+:Unit Skill:
+Unit Skill:
+
+:Unit Wait Icon
+Unit Wait Icon
+
+:Unit/Class Pointer:
+Unit/Class Pointer:
+
+:Unit:
+Unit:
+
+:Units (FE7) Editor
+Units (FE7) Editor
+
+:Units Short Text Editor
+Units Short Text Editor
+
+:Unk33 (B33):
+Unk33 (B33):
+
+:Unk34 (B34):
+Unk34 (B34):
+
+:Unk35 (B35):
+Unk35 (B35):
+
+:Unknown (0x02):
+Unknown (0x02):
+
+:Unknown (0x03):
+Unknown (0x03):
+
+:Unknown (0x07):
+Unknown (0x07):
+
+:Unknown (0x12):
+Unknown (0x12):
+
+:Unknown (D20):
+Unknown (D20):
+
+:Unknown (byte 1):
+Unknown (byte 1):
+
+:Unknown (byte 10):
+Unknown (byte 10):
+
+:Unknown (byte 11):
+Unknown (byte 11):
+
+:Unknown (byte 15):
+Unknown (byte 15):
+
+:Unknown (byte 3):
+Unknown (byte 3):
+
+:Unknown (byte 9):
+Unknown (byte 9):
+
+:Unknown (bytes 6-7):
+Unknown (bytes 6-7):
+
+:Unknown (offset 4):
+Unknown (offset 4):
+
+:Unknown 0 (W0):
+Unknown 0 (W0):
+
+:Unknown 10:
+Unknown 10:
+
+:Unknown 11:
+Unknown 11:
+
+:Unknown 12:
+Unknown 12:
+
+:Unknown 13:
+Unknown 13:
+
+:Unknown 14:
+Unknown 14:
+
+:Unknown 15:
+Unknown 15:
+
+:Unknown 16:
+Unknown 16:
+
+:Unknown 17:
+Unknown 17:
+
+:Unknown 18:
+Unknown 18:
+
+:Unknown 19:
+Unknown 19:
+
+:Unknown 1:
+Unknown 1:
+
+:Unknown 2 (W2):
+Unknown 2 (W2):
+
+:Unknown 2:
+Unknown 2:
+
+:Unknown 39:
+Unknown 39:
+
+:Unknown 3:
+Unknown 3:
+
+:Unknown 4 (W4):
+Unknown 4 (W4):
+
+:Unknown 49:
+Unknown 49:
+
+:Unknown 50:
+Unknown 50:
+
+:Unknown 51:
+Unknown 51:
+
+:Unknown 6 (W6):
+Unknown 6 (W6):
+
+:Unknown 7:
+Unknown 7:
+
+:Unknown 8:
+Unknown 8:
+
+:Unknown 9:
+Unknown 9:
+
+:Unknown Fields:
+Unknown Fields:
+
+:Unknown ROM Version
+Unknown ROM Version
+
+:Unknown Routine:
+Unknown Routine:
+
+:Unknown instrument type. Raw 12-byte data is shown in the header byte field.
+Unknown instrument type. Raw 12-byte data is shown in the header byte field.
+
+:Unmet Dependencies
+Unmet Dependencies
+
+:Unused (B14):
+Unused (B14):
+
+:Unused (B15):
+Unused (B15):
+
+:Unused (B25):
+Unused (B25):
+
+:Unused (B26):
+Unused (B26):
+
+:Unused (B27):
+Unused (B27):
+
+:Unused 1:
+Unused 1:
+
+:Unused 2:
+Unused 2:
+
+:Unused 3:
+Unused 3:
+
+:Unused:
+Unused:
+
+:Up RMenuPointer:
+Up RMenuPointer:
+
+:Update Checker
+Update Checker
+
+:Upper Class Anim Color
+Upper Class Anim Color
+
+:Upper Class Anime:
+Upper Class Anime:
+
+:Upper Class Palette:
+Upper Class Palette:
+
+:Upstream Chain (classes that promote to this one):
+Upstream Chain (classes that promote to this one):
+
+:Usability Pointer:
+Usability Pointer:
+
+:Usability Routine:
+Usability Routine:
+
+:Use ASM Map for search
+Use ASM Map for search
+
+:Use Desc (W4):
+Use Desc (W4):
+
+:Use Effect (B30):
+Use Effect (B30):
+
+:Use this ROM as the last stable baseline and get differences
+Use this ROM as the last stable baseline and get differences
+
+:Uses (B20):
+Uses (B20):
+
+:Value:
+Value:
+
+:Vanilla ROM
+Vanilla ROM
+
+:Vendor Pointer:
+Vendor Pointer:
+
+:Version:
+Version:
+
+:View tile graphics from ROM. Enter addresses and click Draw.
+View tile graphics from ROM. Enter addresses and click Draw.
+
+:Visual Map Editor
+Visual Map Editor
+
+:W112: Eliwood title text
+W112: Eliwood title text
+
+:W112: Map name 1
+W112: Map name 1
+
+:W114: Hector title text
+W114: Hector title text
+
+:W114: Map name 2
+W114: Map name 2
+
+:W114: Map name 2 (X)
+W114: Map name 2 (X)
+
+:W116: Eliwood title text 2
+W116: Eliwood title text 2
+
+:W118: Fortune text (opening)
+W118: Fortune text (opening)
+
+:W118: Hector title text 2
+W118: Hector title text 2
+
+:W120: Fortune text (Eliwood)
+W120: Fortune text (Eliwood)
+
+:W122: Fortune text (Hector)
+W122: Fortune text (Hector)
+
+:W122: Fortune text (opening)
+W122: Fortune text (opening)
+
+:W124: Fortune text (Eliwood)
+W124: Fortune text (Eliwood)
+
+:W124: Fortune text (confirm)
+W124: Fortune text (confirm)
+
+:W126: Fortune text (Hector)
+W126: Fortune text (Hector)
+
+:W128: Fortune text (confirm)
+W128: Fortune text (confirm)
+
+:W136: Clear condition (display only)
+W136: Clear condition (display only)
+
+:W136: Clear condition text
+W136: Clear condition text
+
+:W138: Detail clear condition
+W138: Detail clear condition
+
+:W138: Detail clear condition (display only)
+W138: Detail clear condition (display only)
+
+:W140: Clear condition text
+W140: Clear condition text
+
+:W142: Detail clear condition
+W142: Detail clear condition
+
+:W20: Difficulty adjustment
+W20: Difficulty adjustment
+
+:W22: Player phase BGM
+W22: Player phase BGM
+
+:W24: Enemy phase BGM
+W24: Enemy phase BGM
+
+:W26: NPC phase BGM
+W26: NPC phase BGM
+
+:W28: Player phase BGM 2
+W28: Player phase BGM 2
+
+:W28: Player phase BGM 2 (X)
+W28: Player phase BGM 2 (X)
+
+:W30: Enemy phase BGM 2
+W30: Enemy phase BGM 2
+
+:W30: Enemy phase BGM 2 (X)
+W30: Enemy phase BGM 2 (X)
+
+:W32: NPC phase BGM 2
+W32: NPC phase BGM 2
+
+:W32: NPC phase BGM 2 (X)
+W32: NPC phase BGM 2 (X)
+
+:W34: Player phase BGM flag 4
+W34: Player phase BGM flag 4
+
+:W36: Enemy phase BGM flag 4
+W36: Enemy phase BGM flag 4
+
+:W38: ???
+W38: ???
+
+:W38: Prologue BGM (Common)
+W38: Prologue BGM (Common)
+
+:W40: ???
+W40: ???
+
+:W40: Prologue BGM (Eliwood)
+W40: Prologue BGM (Eliwood)
+
+:W42: ???
+W42: ???
+
+:W42: Prologue BGM (Hector)
+W42: Prologue BGM (Hector)
+
+:W4: Object type (PLIST)
+W4: Object type (PLIST)
+
+:W62: A Eliwood Normal
+W62: A Eliwood Normal
+
+:W64: A Eliwood Hard
+W64: A Eliwood Hard
+
+:W66: A Hector Normal
+W66: A Hector Normal
+
+:W68: A Hector Hard
+W68: A Hector Hard
+
+:W70: B Eliwood Normal
+W70: B Eliwood Normal
+
+:W72: B Eliwood Hard
+W72: B Eliwood Hard
+
+:W74: B Hector Normal
+W74: B Hector Normal
+
+:W76: B Hector Hard
+W76: B Hector Hard
+
+:W78: C Eliwood Normal
+W78: C Eliwood Normal
+
+:W80: C Eliwood Hard
+W80: C Eliwood Hard
+
+:W82: C Hector Normal
+W82: C Hector Normal
+
+:W84: C Hector Hard
+W84: C Hector Hard
+
+:W86: D Eliwood Normal
+W86: D Eliwood Normal
+
+:W88: D Eliwood Hard
+W88: D Eliwood Hard
+
+:W90: D Hector Normal
+W90: D Hector Normal
+
+:W92: D Hector Hard
+W92: D Hector Hard
+
+:W94: ??
+W94: ??
+
+:W94: Unknown
+W94: Unknown
+
+:Wait Icon (B6):
+Wait Icon (B6):
+
+:Walk Spd (B7):
+Walk Spd (B7):
+
+:Warning Level
+Warning Level
+
+:Warning: Effectiveness pointer is null (P16=0). Consider allocating.
+Warning: Effectiveness pointer is null (P16=0). Consider allocating.
+
+:Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
+Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
+
+:Warnings
+Warnings
+
+:Wave Pointer + ADSR
+Wave Pointer + ADSR
+
+:Wave Pointer:
+Wave Pointer:
+
+:Wave Track Import
+Wave Track Import
+
+:Weapon ID:
+Weapon ID:
+
+:Weapon Item Skill Pointer:
+Weapon Item Skill Pointer:
+
+:Weapon Levels
+Weapon Levels
+
+:Weapon Lock (Vennou) Editor
+Weapon Lock (Vennou) Editor
+
+:Weapon Properties
+Weapon Properties
+
+:Weapon Rank Levels (B44-B51)
+Weapon Rank Levels (B44-B51)
+
+:Weapon Ranks:
+Weapon Ranks:
+
+:Weapon Triangle Editor
+Weapon Triangle Editor
+
+:Weapon Type (B0):
+Weapon Type (B0):
+
+:Weapon Type 1:
+Weapon Type 1:
+
+:Weapon Type 2:
+Weapon Type 2:
+
+:Weapon Type:
+Weapon Type:
+
+:Weapon effectiveness 2x/3x class list (FE8 only)
+Weapon effectiveness 2x/3x class list (FE8 only)
+
+:Weapon triangle bonus/penalty data
+Weapon triangle bonus/penalty data
+
+:Weight (B23):
+Weight (B23):
+
+:Wep Exp (B32):
+Wep Exp (B32):
+
+:What Is
+What Is
+
+:Width:
+Width:
+
+:Word Bit Flags (32-bit)
+Word Bit Flags (32-bit)
+
+:Work Support
+Work Support
+
+:World Map BGM Editor
+World Map BGM Editor
+
+:World Map Event Editor
+World Map Event Editor
+
+:World Map Image (FE6)
+World Map Image (FE6)
+
+:World Map Image (FE7)
+World Map Image (FE7)
+
+:World Map Monster Editor
+World Map Monster Editor
+
+:World Map Paths
+World Map Paths
+
+:World Map Point Editor
+World Map Point Editor
+
+:Write Notification
+Write Notification
+
+:Write Pointer
+Write Pointer
+
+:Write Positions
+Write Positions
+
+:Write Record
+Write Record
+
+:Write Text
+Write Text
+
+:Write Tile
+Write Tile
+
+:X Position:
+X Position:
+
+:X1:
+X1:
+
+:X2:
+X2:
+
+:X:
+X:
+
+:Y Position:
+Y Position:
+
+:Y1:
+Y1:
+
+:Y2:
+Y2:
+
+:Y:
+Y:
+
+:Yes Text ID:
+Yes Text ID:
+
+:You can change these settings later from the Options menu.
+You can change these settings later from the Options menu.
+
+:Zoom:
+Zoom:
+
+:[No palette data in clipboard]
+[No palette data in clipboard]
+
+:[Palette color grid - 16 color slots]
+[Palette color grid - 16 color slots]
+
+:backup.7z
+backup.7z
+
+:gba_mus_riper
+gba_mus_riper
+
+:mid2agb
+mid2agb
+
+:midfix4agb
+midfix4agb
+
+:sav
+sav
+
+:↑ Newest
+↑ Newest
+
+:Search...
+Search...
+
+:Search editors...
+Search editors...
+
+:Filter patches by name, tag, or author...
+Filter patches by name, tag, or author...
+
+:Enter text here...
+Enter text here...
+
+:Enter search pattern...
+Enter search pattern...
+
+:0x08XXXXXX or hex offset
+0x08XXXXXX or hex offset
+
+:0x Address
+0x Address
+
+:Filter commands...
+Filter commands...
+
+:Enter filter keywords...
+Enter filter keywords...
+
+:Search in text content...
+Search in text content...
+
+:Reason for hiding
+Reason for hiding
+
+:Enter animation name
+Enter animation name
+
+:Enter ARM/Thumb ASM code here...
+Enter ARM/Thumb ASM code here...
+
+:Enter new project name
+Enter new project name
+
+:Enter subtitle text...
+Enter subtitle text...
+
+:Enter reference text...
+Enter reference text...
+
+:Select source image...
+Select source image...
+
+:Open ROM
+Open ROM
+
+:Save ROM
+Save ROM
+
+:Open Patch
+Open Patch
+
+:Export Image
+Export Image
+
+:Import Image
+Import Image
+
+:Export Palette
+Export Palette
+
+:Import Palette
+Import Palette
+
+:GBA ROM Files
+GBA ROM Files
+
+:All Files
+All Files
+
+:UPS Patch Files
+UPS Patch Files
+
+:PNG Image
+PNG Image
+
+:Image Files
+Image Files
+
+:Adobe ACT (Photoshop)
+Adobe ACT (Photoshop)
+
+:All Palette Files
+All Palette Files
+
+:GBA Raw Palette
+GBA Raw Palette
+
+:GIMP GPL Palette
+GIMP GPL Palette
+
+:Hex Text Palette
+Hex Text Palette
+
+:JASC-PAL (Aseprite/GIMP)
+JASC-PAL (Aseprite/GIMP)

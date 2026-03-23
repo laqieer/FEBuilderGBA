@@ -11,7 +11,7 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class UnitEditorView : Window, IPickableEditor, IDataVerifiableView
+    public partial class UnitEditorView : TranslatedWindow, IPickableEditor, IDataVerifiableView
     {
         readonly UnitEditorViewModel _vm = new();
         readonly UndoService _undoService = new();

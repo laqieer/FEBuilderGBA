@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveToFreeSpaceView : Window, IEditorView
+    public partial class MoveToFreeSpaceView : TranslatedWindow, IEditorView
     {
         readonly MoveToFreeSpaceViewViewModel _vm = new();
         readonly UndoService _undoService = new();

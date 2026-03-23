@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorPaletteTransparentView : Window, IEditorView
+    public partial class ErrorPaletteTransparentView : TranslatedWindow, IEditorView
     {
         readonly ErrorPaletteTransparentViewModel _vm = new();
         public string ViewTitle => "Palette Transparent Error";

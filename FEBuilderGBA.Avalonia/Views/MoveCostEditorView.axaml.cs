@@ -9,7 +9,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveCostEditorView : Window, IEditorView, IDataVerifiableView
+    public partial class MoveCostEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MoveCostEditorViewModel _vm = new();
         readonly UndoService _undoService = new();

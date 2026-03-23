@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageTSAAnime2View : Window, IEditorView
+    public partial class ImageTSAAnime2View : TranslatedWindow, IEditorView
     {
         readonly ImageTSAAnime2ViewModel _vm = new();
         readonly UndoService _undoService = new();

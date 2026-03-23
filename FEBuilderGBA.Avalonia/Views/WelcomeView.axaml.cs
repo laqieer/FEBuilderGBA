@@ -10,7 +10,7 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class WelcomeView : Window, IEditorView, IDataVerifiableView
+    public partial class WelcomeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly WelcomeViewModel _vm = new();
         public string ViewTitle => "Welcome";

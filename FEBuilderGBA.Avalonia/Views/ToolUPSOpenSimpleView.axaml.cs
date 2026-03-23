@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ToolUPSOpenSimpleView : Window, IEditorView
+    public partial class ToolUPSOpenSimpleView : TranslatedWindow, IEditorView
     {
         readonly ToolUPSOpenSimpleViewModel _vm = new();
 

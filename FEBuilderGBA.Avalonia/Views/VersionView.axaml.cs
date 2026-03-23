@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class VersionView : Window, IEditorView, IDataVerifiableView
+    public partial class VersionView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly VersionViewModel _vm = new();
         public string ViewTitle => "Version Information";

@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIPerformItemView : Window, IEditorView
+    public partial class AIPerformItemView : TranslatedWindow, IEditorView
     {
         readonly AIPerformItemViewModel _vm = new();
         readonly UndoService _undoService = new();

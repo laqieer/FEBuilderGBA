@@ -1,10 +1,13 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
 
+using FEBuilderGBA.Avalonia.Services;
+
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class FERepoResourceBrowserWindow : Window
+    public partial class FERepoResourceBrowserWindow : TranslatedWindow
     {
         public string SelectedFilePath => (DataContext as FERepoResourceBrowserViewModel)?.SelectedFilePath;
 
@@ -14,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             DataContext = new FERepoResourceBrowserViewModel(musicMode);
-            if (musicMode) Title = "FE-Repo Music Browser";
+            if (musicMode) Title = R._("FE-Repo Music Browser");
         }
 
         void InsertButton_Click(object sender, RoutedEventArgs e)

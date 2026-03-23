@@ -3,9 +3,11 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.ViewModels;
 
+using FEBuilderGBA.Avalonia.Services;
+
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class NotifyPleaseWaitView : Window
+    public partial class NotifyPleaseWaitView : TranslatedWindow
     {
         bool _forceClosing;
 

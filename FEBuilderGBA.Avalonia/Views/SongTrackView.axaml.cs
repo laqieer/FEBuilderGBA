@@ -7,7 +7,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SongTrackView : Window, IEditorView
+    public partial class SongTrackView : TranslatedWindow, IEditorView
     {
         readonly SongTrackViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -104,11 +104,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = "Export MIDI",
+                    Title = R._("Export MIDI"),
                     SuggestedFileName = $"song_0x{_vm.CurrentAddr:X06}.mid",
                     FileTypeChoices = new[] { midiType, allType },
                 });
@@ -134,11 +134,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                var midiType = new FilePickerFileType("MIDI Files") { Patterns = new[] { "*.mid", "*.midi" } };
-                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = "Import MIDI",
+                    Title = R._("Import MIDI"),
                     AllowMultiple = false,
                     FileTypeFilter = new[] { midiType, allType },
                 });

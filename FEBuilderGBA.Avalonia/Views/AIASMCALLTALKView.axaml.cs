@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIASMCALLTALKView : Window, IEditorView
+    public partial class AIASMCALLTALKView : TranslatedWindow, IEditorView
     {
         readonly AIASMCALLTALKViewModel _vm = new();
         readonly UndoService _undoService = new();

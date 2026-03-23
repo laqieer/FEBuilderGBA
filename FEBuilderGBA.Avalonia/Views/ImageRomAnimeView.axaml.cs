@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ImageRomAnimeView : Window, IEditorView
+    public partial class ImageRomAnimeView : TranslatedWindow, IEditorView
     {
         readonly ImageRomAnimeViewModel _vm = new();
 

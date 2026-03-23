@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ErrorPaletteShowView : Window, IEditorView
+    public partial class ErrorPaletteShowView : TranslatedWindow, IEditorView
     {
         readonly ErrorPaletteShowViewModel _vm = new();
         public string ViewTitle => "Palette Error Display";

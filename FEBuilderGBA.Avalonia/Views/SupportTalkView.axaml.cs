@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class SupportTalkView : Window, IEditorView, IDataVerifiableView
+    public partial class SupportTalkView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SupportTalkViewModel _vm = new();
         readonly UndoService _undoService = new();
