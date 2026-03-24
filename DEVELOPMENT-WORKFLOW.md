@@ -325,7 +325,7 @@ Address feedback in categories:
 
 **After each push, check for ALL feedback — both inline review threads AND issue-level conversation comments:**
 
-**CRITICAL: Human reviewer comments appear as issue-level comments, NOT inline threads. You MUST check both or you will miss human feedback. This is a recurring failure mode.**
+**CRITICAL: Reviewers (human, Copilot bot, Copilot CLI) may post feedback in EITHER place — issue-level comments or inline threads. You MUST check both or you will miss feedback. This is a recurring failure mode.**
 
 **Step A — Check issue-level conversation comments (ALL reviewers):**
 ```bash
