@@ -193,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassEditorView.OnClassSelected failed: " + ex.Message);
+                Log.Error("ClassEditorView.OnClassSelected failed: " + ex.ToString());
             }
         }
 

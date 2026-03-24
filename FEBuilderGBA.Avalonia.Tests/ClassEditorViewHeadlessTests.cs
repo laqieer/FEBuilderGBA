@@ -91,7 +91,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             // Avalonia NumericUpDown uses decimal internally; hex FormatString
             // (X2/X4) causes FormatException since decimal.ToString("X4") is
-            // invalid. All fields must use decimal format "0". See #253.
+            // invalid. NumericUpDown fields must use decimal format "0" because
+            // Avalonia NumericUpDown uses decimal internally and hex format
+            // specifiers (X2/X4) cause FormatException. See #253.
             var view = new ClassEditorView();
             var nud = view.FindControl<NumericUpDown>(controlName);
             Assert.NotNull(nud);
