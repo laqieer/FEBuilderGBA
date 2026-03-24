@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("[\"B4_ClassNumber\"]", src);
             Assert.Contains("[\"B11_BaseHp\"]", src);
             Assert.Contains("[\"B27_GrowHp\"]", src);
-            Assert.Contains("[\"B17_Mov\"]", src);
+            Assert.Contains("[\"B17_BaseCon\"]", src);
         }
 
         // ------------------------------------------------------------------ Raw ROM report covers correct offsets

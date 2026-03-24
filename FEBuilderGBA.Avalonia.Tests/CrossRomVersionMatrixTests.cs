@@ -1139,10 +1139,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 for (int i = 1; i < Math.Min(10, list.Count); i++)
                 {
                     vm.LoadClass(list[i].addr);
-                    if (vm.Mov > 0) { anyHasMov = true; break; }
+                    if (vm.BaseMov > 0) { anyHasMov = true; break; }
                 }
-                Assert.True(anyHasMov, $"{version}: at least one class should have non-zero Mov");
-                _output.WriteLine($"{version}: found class with non-zero Mov");
+                Assert.True(anyHasMov, $"{version}: at least one class should have non-zero BaseMov");
+                _output.WriteLine($"{version}: found class with non-zero BaseMov");
             });
         }
 

@@ -324,7 +324,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void ClassEditor_LoadClass_MovIsNonZero()
+        public void ClassEditor_LoadClass_BaseMovIsNonZero()
         {
             if (!_fixture.IsAvailable) return;
 
@@ -337,7 +337,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             for (int i = 1; i < System.Math.Min(10, list.Count); i++)
             {
                 vm.LoadClass(list[i].addr);
-                if (vm.Mov > 0)
+                if (vm.BaseMov > 0)
                 {
                     anyHasMov = true;
                     break;

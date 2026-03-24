@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(rom.u8(addr + 6), vm.WaitIcon);   // B6: Wait Icon
                 Assert.Equal(rom.u8(addr + 7), vm.WalkSpeed);  // B7: Walk Speed
                 Assert.Equal(rom.u16(addr + 8), vm.PortraitId); // W8: Portrait ID
-                Assert.Equal(rom.u8(addr + 10), vm.BuildStat); // B10: Build Stat
+                Assert.Equal(rom.u8(addr + 10), vm.SortOrder); // B10: Sort Order
 
                 // Base Stats
                 Assert.Equal(rom.u8(addr + 11), vm.BaseHp);    // B11: HP
@@ -102,18 +102,18 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(rom.u8(addr + 14), vm.BaseSpd);   // B14: Spd
                 Assert.Equal(rom.u8(addr + 15), vm.BaseDef);   // B15: Def
                 Assert.Equal(rom.u8(addr + 16), vm.BaseRes);   // B16: Res
-                Assert.Equal(rom.u8(addr + 17), vm.Mov);       // B17: Mov
-                Assert.Equal(rom.u8(addr + 18), vm.Con);       // B18: Con
-                Assert.Equal(rom.u8(addr + 19), vm.ClassStat19); // B19
+                Assert.Equal(rom.u8(addr + 17), vm.BaseCon);   // B17: Con
+                Assert.Equal(rom.u8(addr + 18), vm.BaseMov);   // B18: Mov
 
-                // Weapon proficiency
-                Assert.Equal(rom.u8(addr + 20), vm.WepSword);  // B20
-                Assert.Equal(rom.u8(addr + 21), vm.WepLance);  // B21
-                Assert.Equal(rom.u8(addr + 22), vm.WepAxe);    // B22
-                Assert.Equal(rom.u8(addr + 23), vm.WepBow);    // B23
-                Assert.Equal(rom.u8(addr + 24), vm.WepStaff);  // B24
-                Assert.Equal(rom.u8(addr + 25), vm.WepAnima);  // B25
-                Assert.Equal(rom.u8(addr + 26), vm.WepLight);  // B26
+                // Stat caps (max values)
+                Assert.Equal(rom.u8(addr + 19), vm.MaxHp);     // B19: Max HP
+                Assert.Equal(rom.u8(addr + 20), vm.MaxStr);    // B20: Max Str
+                Assert.Equal(rom.u8(addr + 21), vm.MaxSkl);    // B21: Max Skl
+                Assert.Equal(rom.u8(addr + 22), vm.MaxSpd);    // B22: Max Spd
+                Assert.Equal(rom.u8(addr + 23), vm.MaxDef);    // B23: Max Def
+                Assert.Equal(rom.u8(addr + 24), vm.MaxRes);    // B24: Max Res
+                Assert.Equal(rom.u8(addr + 25), vm.MaxCon);    // B25: Max Con
+                Assert.Equal(rom.u8(addr + 26), vm.ClassPower); // B26: Class Power
 
                 // Growth rates
                 Assert.Equal(rom.u8(addr + 27), vm.GrowHp);    // B27
@@ -124,13 +124,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(rom.u8(addr + 32), vm.GrowRes);   // B32
                 Assert.Equal(rom.u8(addr + 33), vm.GrowLck);   // B33
 
-                // Stat caps (signed bytes) -- FE8 uses b34-b39
-                Assert.Equal((int)(sbyte)rom.u8(addr + 34), vm.CapHp);  // b34
-                Assert.Equal((int)(sbyte)rom.u8(addr + 35), vm.CapStr); // b35
-                Assert.Equal((int)(sbyte)rom.u8(addr + 36), vm.CapSkl); // b36
-                Assert.Equal((int)(sbyte)rom.u8(addr + 37), vm.CapSpd); // b37
-                Assert.Equal((int)(sbyte)rom.u8(addr + 38), vm.CapDef); // b38
-                Assert.Equal((int)(sbyte)rom.u8(addr + 39), vm.CapRes); // b39
+                // Promotion gains (signed bytes) -- FE8 uses b34-b39
+                Assert.Equal((int)(sbyte)rom.u8(addr + 34), vm.PromoHp);  // b34
+                Assert.Equal((int)(sbyte)rom.u8(addr + 35), vm.PromoStr); // b35
+                Assert.Equal((int)(sbyte)rom.u8(addr + 36), vm.PromoSkl); // b36
+                Assert.Equal((int)(sbyte)rom.u8(addr + 37), vm.PromoSpd); // b37
+                Assert.Equal((int)(sbyte)rom.u8(addr + 38), vm.PromoDef); // b38
+                Assert.Equal((int)(sbyte)rom.u8(addr + 39), vm.PromoRes); // b39
 
                 // Ability flags -- FE8 at +40..+43
                 Assert.Equal(rom.u8(addr + 40), vm.Ability1);   // B40
@@ -162,8 +162,8 @@ namespace FEBuilderGBA.Core.Tests
                 _output.WriteLine($"NameId=0x{vm.NameId:X04}  DescId=0x{vm.DescId:X04}");
                 _output.WriteLine($"ClassNumber={vm.ClassNumber}  PromoLevel={vm.PromotionLevel}");
                 _output.WriteLine($"HP={vm.BaseHp} Str={vm.BaseStr} Skl={vm.BaseSkl} Spd={vm.BaseSpd} Def={vm.BaseDef} Res={vm.BaseRes}");
-                _output.WriteLine($"Mov={vm.Mov} Con={vm.Con} B19={vm.ClassStat19}");
-                _output.WriteLine($"CapHp={vm.CapHp} CapStr={vm.CapStr} CapSkl={vm.CapSkl} CapSpd={vm.CapSpd} CapDef={vm.CapDef} CapRes={vm.CapRes}");
+                _output.WriteLine($"Con={vm.BaseCon} Mov={vm.BaseMov} MaxHp={vm.MaxHp}");
+                _output.WriteLine($"PromoHp={vm.PromoHp} PromoStr={vm.PromoStr} PromoSkl={vm.PromoSkl} PromoSpd={vm.PromoSpd} PromoDef={vm.PromoDef} PromoRes={vm.PromoRes}");
                 _output.WriteLine($"Ability: {vm.Ability1:X02} {vm.Ability2:X02} {vm.Ability3:X02} {vm.Ability4:X02}");
                 _output.WriteLine($"WepRank: Sword={vm.WepRankSword} Lance={vm.WepRankLance} Axe={vm.WepRankAxe} Bow={vm.WepRankBow}");
                 _output.WriteLine($"BattleAnimePtr=0x{vm.BattleAnimePtr:X08}  MoveCost=0x{vm.MoveCostPtr:X08}");
@@ -223,23 +223,23 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(rom.u8(addr + 6), vm.WaitIcon);
                 Assert.Equal(rom.u8(addr + 7), vm.WalkSpeed);
                 Assert.Equal(rom.u16(addr + 8), vm.PortraitId);
-                Assert.Equal(rom.u8(addr + 10), vm.BuildStat);
+                Assert.Equal(rom.u8(addr + 10), vm.SortOrder);
                 Assert.Equal(rom.u8(addr + 11), vm.BaseHp);
                 Assert.Equal(rom.u8(addr + 12), vm.BaseStr);
                 Assert.Equal(rom.u8(addr + 13), vm.BaseSkl);
                 Assert.Equal(rom.u8(addr + 14), vm.BaseSpd);
                 Assert.Equal(rom.u8(addr + 15), vm.BaseDef);
                 Assert.Equal(rom.u8(addr + 16), vm.BaseRes);
-                Assert.Equal(rom.u8(addr + 17), vm.Mov);
-                Assert.Equal(rom.u8(addr + 18), vm.Con);
-                Assert.Equal(rom.u8(addr + 19), vm.ClassStat19);
-                Assert.Equal(rom.u8(addr + 20), vm.WepSword);
-                Assert.Equal(rom.u8(addr + 21), vm.WepLance);
-                Assert.Equal(rom.u8(addr + 22), vm.WepAxe);
-                Assert.Equal(rom.u8(addr + 23), vm.WepBow);
-                Assert.Equal(rom.u8(addr + 24), vm.WepStaff);
-                Assert.Equal(rom.u8(addr + 25), vm.WepAnima);
-                Assert.Equal(rom.u8(addr + 26), vm.WepLight);
+                Assert.Equal(rom.u8(addr + 17), vm.BaseCon);
+                Assert.Equal(rom.u8(addr + 18), vm.BaseMov);
+                Assert.Equal(rom.u8(addr + 19), vm.MaxHp);
+                Assert.Equal(rom.u8(addr + 20), vm.MaxStr);
+                Assert.Equal(rom.u8(addr + 21), vm.MaxSkl);
+                Assert.Equal(rom.u8(addr + 22), vm.MaxSpd);
+                Assert.Equal(rom.u8(addr + 23), vm.MaxDef);
+                Assert.Equal(rom.u8(addr + 24), vm.MaxRes);
+                Assert.Equal(rom.u8(addr + 25), vm.MaxCon);
+                Assert.Equal(rom.u8(addr + 26), vm.ClassPower);
                 Assert.Equal(rom.u8(addr + 27), vm.GrowHp);
                 Assert.Equal(rom.u8(addr + 28), vm.GrowStr);
                 Assert.Equal(rom.u8(addr + 29), vm.GrowSkl);
@@ -247,12 +247,12 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(rom.u8(addr + 31), vm.GrowDef);
                 Assert.Equal(rom.u8(addr + 32), vm.GrowRes);
                 Assert.Equal(rom.u8(addr + 33), vm.GrowLck);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 34), vm.CapHp);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 35), vm.CapStr);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 36), vm.CapSkl);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 37), vm.CapSpd);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 38), vm.CapDef);
-                Assert.Equal((int)(sbyte)rom.u8(addr + 39), vm.CapRes);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 34), vm.PromoHp);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 35), vm.PromoStr);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 36), vm.PromoSkl);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 37), vm.PromoSpd);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 38), vm.PromoDef);
+                Assert.Equal((int)(sbyte)rom.u8(addr + 39), vm.PromoRes);
                 Assert.Equal(rom.u8(addr + 40), vm.Ability1);
                 Assert.Equal(rom.u8(addr + 41), vm.Ability2);
                 Assert.Equal(rom.u8(addr + 42), vm.Ability3);

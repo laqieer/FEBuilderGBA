@@ -20,18 +20,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _waitIcon, _walkSpeed;
         // W8: portrait or related u16
         uint _portraitId;
-        // B10: con/build or related stat
-        uint _buildStat;
-        // B11-B17: base stats + mov
-        uint _baseHp, _baseStr, _baseSkl, _baseSpd, _baseDef, _baseRes, _mov;
-        // B18-B19: con, weight (class stats)
-        uint _con, _classStat19;
-        // B20-B26: weapon levels (7 weapon types)
-        uint _wepSword, _wepLance, _wepAxe, _wepBow, _wepStaff, _wepAnima, _wepLight;
+        // B10: sort order
+        uint _sortOrder;
+        // B11-B16: base stats
+        uint _baseHp, _baseStr, _baseSkl, _baseSpd, _baseDef, _baseRes;
+        // B17: base constitution, B18: base movement
+        uint _baseCon, _baseMov;
+        // B19-B25: stat caps (max HP, Str, Skl, Spd, Def, Res, Con)
+        uint _maxHp, _maxStr, _maxSkl, _maxSpd, _maxDef, _maxRes, _maxCon;
+        // B26: class power / EXP correction
+        uint _classPower;
         // B27-B33: growth rates
         uint _growHp, _growStr, _growSkl, _growSpd, _growDef, _growRes, _growLck;
-        // b34-b39: signed stat caps / promotion bonuses
-        int _capHp, _capStr, _capSkl, _capSpd, _capDef, _capRes;
+        // b34-b39: signed CC bonus / promotion gains
+        int _promoHp, _promoStr, _promoSkl, _promoSpd, _promoDef, _promoRes;
         // B40-B43: ability flags
         uint _ability1, _ability2, _ability3, _ability4;
         // B44-B51: weapon rank levels (Sword, Lance, Axe, Bow, Staff, Anima, Light, Dark)
@@ -70,8 +72,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint WalkSpeed { get => _walkSpeed; set => SetField(ref _walkSpeed, value); }
         // W8: Portrait / map sprite
         public uint PortraitId { get => _portraitId; set => SetField(ref _portraitId, value); }
-        // B10: Build stat
-        public uint BuildStat { get => _buildStat; set => SetField(ref _buildStat, value); }
+        // B10: Sort order
+        public uint SortOrder { get => _sortOrder; set => SetField(ref _sortOrder, value); }
 
         // B11-B16: Base stats
         public uint BaseHp { get => _baseHp; set => SetField(ref _baseHp, value); }
@@ -80,21 +82,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint BaseSpd { get => _baseSpd; set => SetField(ref _baseSpd, value); }
         public uint BaseDef { get => _baseDef; set => SetField(ref _baseDef, value); }
         public uint BaseRes { get => _baseRes; set => SetField(ref _baseRes, value); }
-        // B17: Movement
-        public uint Mov { get => _mov; set => SetField(ref _mov, value); }
-        // B18: Constitution
-        public uint Con { get => _con; set => SetField(ref _con, value); }
-        // B19: Unknown class stat
-        public uint ClassStat19 { get => _classStat19; set => SetField(ref _classStat19, value); }
+        // B17: Constitution
+        public uint BaseCon { get => _baseCon; set => SetField(ref _baseCon, value); }
+        // B18: Movement
+        public uint BaseMov { get => _baseMov; set => SetField(ref _baseMov, value); }
 
-        // B20-B26: Weapon proficiency levels
-        public uint WepSword { get => _wepSword; set => SetField(ref _wepSword, value); }
-        public uint WepLance { get => _wepLance; set => SetField(ref _wepLance, value); }
-        public uint WepAxe { get => _wepAxe; set => SetField(ref _wepAxe, value); }
-        public uint WepBow { get => _wepBow; set => SetField(ref _wepBow, value); }
-        public uint WepStaff { get => _wepStaff; set => SetField(ref _wepStaff, value); }
-        public uint WepAnima { get => _wepAnima; set => SetField(ref _wepAnima, value); }
-        public uint WepLight { get => _wepLight; set => SetField(ref _wepLight, value); }
+        // B19-B25: Stat caps (max values)
+        public uint MaxHp { get => _maxHp; set => SetField(ref _maxHp, value); }
+        public uint MaxStr { get => _maxStr; set => SetField(ref _maxStr, value); }
+        public uint MaxSkl { get => _maxSkl; set => SetField(ref _maxSkl, value); }
+        public uint MaxSpd { get => _maxSpd; set => SetField(ref _maxSpd, value); }
+        public uint MaxDef { get => _maxDef; set => SetField(ref _maxDef, value); }
+        public uint MaxRes { get => _maxRes; set => SetField(ref _maxRes, value); }
+        public uint MaxCon { get => _maxCon; set => SetField(ref _maxCon, value); }
+        // B26: Class power / EXP correction
+        public uint ClassPower { get => _classPower; set => SetField(ref _classPower, value); }
 
         // B27-B33: Growth rates
         public uint GrowHp { get => _growHp; set => SetField(ref _growHp, value); }
@@ -105,13 +107,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint GrowRes { get => _growRes; set => SetField(ref _growRes, value); }
         public uint GrowLck { get => _growLck; set => SetField(ref _growLck, value); }
 
-        // b34-b39: Stat caps / promotion bonuses (signed)
-        public int CapHp { get => _capHp; set => SetField(ref _capHp, value); }
-        public int CapStr { get => _capStr; set => SetField(ref _capStr, value); }
-        public int CapSkl { get => _capSkl; set => SetField(ref _capSkl, value); }
-        public int CapSpd { get => _capSpd; set => SetField(ref _capSpd, value); }
-        public int CapDef { get => _capDef; set => SetField(ref _capDef, value); }
-        public int CapRes { get => _capRes; set => SetField(ref _capRes, value); }
+        // b34-b39: CC bonus / promotion gains (signed)
+        public int PromoHp { get => _promoHp; set => SetField(ref _promoHp, value); }
+        public int PromoStr { get => _promoStr; set => SetField(ref _promoStr, value); }
+        public int PromoSkl { get => _promoSkl; set => SetField(ref _promoSkl, value); }
+        public int PromoSpd { get => _promoSpd; set => SetField(ref _promoSpd, value); }
+        public int PromoDef { get => _promoDef; set => SetField(ref _promoDef, value); }
+        public int PromoRes { get => _promoRes; set => SetField(ref _promoRes, value); }
 
         // B40-B43: Ability flags
         public uint Ability1 { get => _ability1; set => SetField(ref _ability1, value); }
@@ -217,7 +219,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             WaitIcon = rom.u8(addr + 6);      // B6
             WalkSpeed = rom.u8(addr + 7);     // B7
             PortraitId = rom.u16(addr + 8);   // W8
-            BuildStat = rom.u8(addr + 10);    // B10
+            SortOrder = rom.u8(addr + 10);    // B10
 
             // Base stats (same offset for all versions)
             BaseHp = rom.u8(addr + 11);       // B11
@@ -226,18 +228,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BaseSpd = rom.u8(addr + 14);      // B14
             BaseDef = rom.u8(addr + 15);      // B15
             BaseRes = rom.u8(addr + 16);      // B16
-            Mov = rom.u8(addr + 17);          // B17
-            Con = rom.u8(addr + 18);          // B18
-            ClassStat19 = rom.u8(addr + 19);  // B19
+            BaseCon = rom.u8(addr + 17);      // B17 (Con)
+            BaseMov = rom.u8(addr + 18);      // B18 (Mov)
 
-            // Weapon proficiency (same offset for all versions)
-            WepSword = rom.u8(addr + 20);     // B20
-            WepLance = rom.u8(addr + 21);     // B21
-            WepAxe = rom.u8(addr + 22);       // B22
-            WepBow = rom.u8(addr + 23);       // B23
-            WepStaff = rom.u8(addr + 24);     // B24
-            WepAnima = rom.u8(addr + 25);     // B25
-            WepLight = rom.u8(addr + 26);     // B26
+            // Stat caps (same offset for all versions)
+            MaxHp = rom.u8(addr + 19);        // B19
+            MaxStr = rom.u8(addr + 20);       // B20
+            MaxSkl = rom.u8(addr + 21);       // B21
+            MaxSpd = rom.u8(addr + 22);       // B22
+            MaxDef = rom.u8(addr + 23);       // B23
+            MaxRes = rom.u8(addr + 24);       // B24
+            MaxCon = rom.u8(addr + 25);       // B25
+            ClassPower = rom.u8(addr + 26);   // B26 (EXP correction)
 
             // Growth rates (same offset for all versions)
             GrowHp = rom.u8(addr + 27);       // B27
@@ -248,25 +250,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             GrowRes = rom.u8(addr + 32);      // B32
             GrowLck = rom.u8(addr + 33);      // B33
 
-            // Stat caps / promotion bonuses (signed, same offset for all versions)
-            CapHp = (sbyte)rom.u8(addr + 34);  // b34
-            CapStr = (sbyte)rom.u8(addr + 35); // b35
+            // CC bonus / promotion gains (signed, same offset for all versions)
+            PromoHp = (sbyte)rom.u8(addr + 34);  // b34
+            PromoStr = (sbyte)rom.u8(addr + 35); // b35
 
             // From here, offsets diverge between FE6 (72-byte struct) and FE7/8 (84-byte struct).
             // FE6: b36-b39 = ability flags, B40-B47 = weapon ranks, P48 = battle anim,
             //      P52 = move cost, P56 = terrain avoid, P60 = terrain def,
             //      P64 = terrain res, D68 = unknown
-            // FE7/8: b36-b39 = stat caps continued, B40-B43 = ability flags,
+            // FE7/8: b36-b39 = promo gains continued, B40-B43 = ability flags,
             //        B44-B51 = weapon ranks, P52 = battle anim, P56-P64 = move costs,
             //        P68/P72/P76 = terrain ptrs, D80 = unknown
             if (IsFE6)
             {
-                // FE6: stat caps are only HP and Str (b34-b35)
+                // FE6: promo gains are only HP and Str (b34-b35)
                 // b36-b39 are ability flags in FE6
-                CapSkl = 0;
-                CapSpd = 0;
-                CapDef = 0;
-                CapRes = 0;
+                PromoSkl = 0;
+                PromoSpd = 0;
+                PromoDef = 0;
+                PromoRes = 0;
 
                 // Ability flags at +36..+39
                 Ability1 = rom.u8(addr + 36);
@@ -298,11 +300,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
-                // FE7/8: stat caps continue at b36-b39
-                CapSkl = (sbyte)rom.u8(addr + 36);
-                CapSpd = (sbyte)rom.u8(addr + 37);
-                CapDef = (sbyte)rom.u8(addr + 38);
-                CapRes = (sbyte)rom.u8(addr + 39);
+                // FE7/8: promo gains continue at b36-b39
+                PromoSkl = (sbyte)rom.u8(addr + 36);
+                PromoSpd = (sbyte)rom.u8(addr + 37);
+                PromoDef = (sbyte)rom.u8(addr + 38);
+                PromoRes = (sbyte)rom.u8(addr + 39);
 
                 // Ability flags at +40..+43
                 Ability1 = rom.u8(addr + 40);
@@ -375,23 +377,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B6_WaitIcon"] = $"0x{WaitIcon:X02}",
                 ["B7_WalkSpeed"] = $"0x{WalkSpeed:X02}",
                 ["W8_PortraitId"] = $"0x{PortraitId:X04}",
-                ["B10_BuildStat"] = $"0x{BuildStat:X02}",
+                ["B10_SortOrder"] = $"0x{SortOrder:X02}",
                 ["B11_BaseHp"] = $"0x{BaseHp:X02}",
                 ["B12_BaseStr"] = $"0x{BaseStr:X02}",
                 ["B13_BaseSkl"] = $"0x{BaseSkl:X02}",
                 ["B14_BaseSpd"] = $"0x{BaseSpd:X02}",
                 ["B15_BaseDef"] = $"0x{BaseDef:X02}",
                 ["B16_BaseRes"] = $"0x{BaseRes:X02}",
-                ["B17_Mov"] = $"0x{Mov:X02}",
-                ["B18_Con"] = $"0x{Con:X02}",
-                ["B19_ClassStat19"] = $"0x{ClassStat19:X02}",
-                ["B20_WepSword"] = $"0x{WepSword:X02}",
-                ["B21_WepLance"] = $"0x{WepLance:X02}",
-                ["B22_WepAxe"] = $"0x{WepAxe:X02}",
-                ["B23_WepBow"] = $"0x{WepBow:X02}",
-                ["B24_WepStaff"] = $"0x{WepStaff:X02}",
-                ["B25_WepAnima"] = $"0x{WepAnima:X02}",
-                ["B26_WepLight"] = $"0x{WepLight:X02}",
+                ["B17_BaseCon"] = $"0x{BaseCon:X02}",
+                ["B18_BaseMov"] = $"0x{BaseMov:X02}",
+                ["B19_MaxHp"] = $"0x{MaxHp:X02}",
+                ["B20_MaxStr"] = $"0x{MaxStr:X02}",
+                ["B21_MaxSkl"] = $"0x{MaxSkl:X02}",
+                ["B22_MaxSpd"] = $"0x{MaxSpd:X02}",
+                ["B23_MaxDef"] = $"0x{MaxDef:X02}",
+                ["B24_MaxRes"] = $"0x{MaxRes:X02}",
+                ["B25_MaxCon"] = $"0x{MaxCon:X02}",
+                ["B26_ClassPower"] = $"0x{ClassPower:X02}",
                 ["B27_GrowHp"] = $"0x{GrowHp:X02}",
                 ["B28_GrowStr"] = $"0x{GrowStr:X02}",
                 ["B29_GrowSkl"] = $"0x{GrowSkl:X02}",
@@ -399,12 +401,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B31_GrowDef"] = $"0x{GrowDef:X02}",
                 ["B32_GrowRes"] = $"0x{GrowRes:X02}",
                 ["B33_GrowLck"] = $"0x{GrowLck:X02}",
-                ["b34_CapHp"] = $"{CapHp}",
-                ["b35_CapStr"] = $"{CapStr}",
-                ["b36_CapSkl"] = $"{CapSkl}",
-                ["b37_CapSpd"] = $"{CapSpd}",
-                ["b38_CapDef"] = $"{CapDef}",
-                ["b39_CapRes"] = $"{CapRes}",
+                ["b34_PromoHp"] = $"{PromoHp}",
+                ["b35_PromoStr"] = $"{PromoStr}",
+                ["b36_PromoSkl"] = $"{PromoSkl}",
+                ["b37_PromoSpd"] = $"{PromoSpd}",
+                ["b38_PromoDef"] = $"{PromoDef}",
+                ["b39_PromoRes"] = $"{PromoRes}",
                 ["B40_Ability1"] = $"0x{Ability1:X02}",
                 ["B41_Ability2"] = $"0x{Ability2:X02}",
                 ["B42_Ability3"] = $"0x{Ability3:X02}",
@@ -518,7 +520,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     warnings.Add("No name assigned (NameId is 0)");
             }
 
-            if (Mov == 0)
+            if (BaseMov == 0)
                 warnings.Add("Movement is 0");
 
             // Check if all base stats are zero
@@ -545,7 +547,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 6, WaitIcon);
             rom.write_u8(addr + 7, WalkSpeed);
             rom.write_u16(addr + 8, PortraitId);
-            rom.write_u8(addr + 10, BuildStat);
+            rom.write_u8(addr + 10, SortOrder);
 
             rom.write_u8(addr + 11, BaseHp);
             rom.write_u8(addr + 12, BaseStr);
@@ -553,17 +555,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 14, BaseSpd);
             rom.write_u8(addr + 15, BaseDef);
             rom.write_u8(addr + 16, BaseRes);
-            rom.write_u8(addr + 17, Mov);
-            rom.write_u8(addr + 18, Con);
-            rom.write_u8(addr + 19, ClassStat19);
+            rom.write_u8(addr + 17, BaseCon);
+            rom.write_u8(addr + 18, BaseMov);
 
-            rom.write_u8(addr + 20, WepSword);
-            rom.write_u8(addr + 21, WepLance);
-            rom.write_u8(addr + 22, WepAxe);
-            rom.write_u8(addr + 23, WepBow);
-            rom.write_u8(addr + 24, WepStaff);
-            rom.write_u8(addr + 25, WepAnima);
-            rom.write_u8(addr + 26, WepLight);
+            rom.write_u8(addr + 19, MaxHp);
+            rom.write_u8(addr + 20, MaxStr);
+            rom.write_u8(addr + 21, MaxSkl);
+            rom.write_u8(addr + 22, MaxSpd);
+            rom.write_u8(addr + 23, MaxDef);
+            rom.write_u8(addr + 24, MaxRes);
+            rom.write_u8(addr + 25, MaxCon);
+            rom.write_u8(addr + 26, ClassPower);
 
             rom.write_u8(addr + 27, GrowHp);
             rom.write_u8(addr + 28, GrowStr);
@@ -573,8 +575,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 32, GrowRes);
             rom.write_u8(addr + 33, GrowLck);
 
-            rom.write_u8(addr + 34, (uint)(byte)(sbyte)CapHp);
-            rom.write_u8(addr + 35, (uint)(byte)(sbyte)CapStr);
+            rom.write_u8(addr + 34, (uint)(byte)(sbyte)PromoHp);
+            rom.write_u8(addr + 35, (uint)(byte)(sbyte)PromoStr);
 
             // Version-specific fields from offset 36 onward
             if (IsFE6)
@@ -607,11 +609,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
-                // FE7/8: stat caps continue at b36-b39
-                rom.write_u8(addr + 36, (uint)(byte)(sbyte)CapSkl);
-                rom.write_u8(addr + 37, (uint)(byte)(sbyte)CapSpd);
-                rom.write_u8(addr + 38, (uint)(byte)(sbyte)CapDef);
-                rom.write_u8(addr + 39, (uint)(byte)(sbyte)CapRes);
+                // FE7/8: promo gains continue at b36-b39
+                rom.write_u8(addr + 36, (uint)(byte)(sbyte)PromoSkl);
+                rom.write_u8(addr + 37, (uint)(byte)(sbyte)PromoSpd);
+                rom.write_u8(addr + 38, (uint)(byte)(sbyte)PromoDef);
+                rom.write_u8(addr + 39, (uint)(byte)(sbyte)PromoRes);
 
                 // FE7/8: ability flags at +40..+43
                 rom.write_u8(addr + 40, Ability1);

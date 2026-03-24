@@ -152,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void ClassEditor_WriteUndo_RestoresOriginalMov()
+        public void ClassEditor_WriteUndo_RestoresOriginalBaseMov()
         {
             if (!_fixture.IsAvailable) return;
 
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             vm.LoadClass(list[1].addr);
             uint addr = vm.CurrentAddr;
-            uint origMov = vm.Mov;
+            uint origBaseMov = vm.BaseMov;
 
             int snapSize = CoreState.ROM.RomInfo.version == 6 ? 72 : 84;
             byte[] snapshot = new byte[snapSize];
@@ -170,19 +170,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 var svc = new UndoService();
-                svc.Begin("test-class-mov");
-                vm.Mov = origMov == 99 ? 98u : 99u;
+                svc.Begin("test-class-basemov");
+                vm.BaseMov = origBaseMov == 99 ? 98u : 99u;
                 vm.WriteClass();
                 svc.Commit();
 
-                // Verify written (Mov is at offset +17)
-                Assert.NotEqual(origMov, CoreState.ROM.u8(addr + 17));
+                // Verify written (BaseMov is at offset +18)
+                Assert.NotEqual(origBaseMov, CoreState.ROM.u8(addr + 18));
 
                 // Undo
                 CoreState.Undo.RunUndo();
 
                 // Verify restored
-                Assert.Equal(origMov, CoreState.ROM.u8(addr + 17));
+                Assert.Equal(origBaseMov, CoreState.ROM.u8(addr + 18));
             }
             finally
             {
@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             vm.LoadClass(list[1].addr);
             uint addr = vm.CurrentAddr;
-            uint origMov = CoreState.ROM.u8(addr + 17);
+            uint origBaseMov = CoreState.ROM.u8(addr + 18);
 
             int snapSize = CoreState.ROM.RomInfo.version == 6 ? 72 : 84;
             byte[] snapshot = new byte[snapSize];
@@ -378,28 +378,28 @@ namespace FEBuilderGBA.Avalonia.Tests
                 uint[] values = { 10u, 20u, 30u };
                 // Ensure values differ from original
                 for (int i = 0; i < values.Length; i++)
-                    if (values[i] == origMov) values[i] = origMov + 1;
+                    if (values[i] == origBaseMov) values[i] = origBaseMov + 1;
 
                 uint[] afterEachWrite = new uint[3];
                 for (int i = 0; i < 3; i++)
                 {
                     var svc = new UndoService();
                     svc.Begin($"write{i}");
-                    vm.Mov = values[i];
+                    vm.BaseMov = values[i];
                     vm.WriteClass();
                     svc.Commit();
-                    afterEachWrite[i] = CoreState.ROM.u8(addr + 17);
+                    afterEachWrite[i] = CoreState.ROM.u8(addr + 18);
                 }
 
                 // Undo all three in reverse
                 CoreState.Undo.RunUndo();
-                Assert.Equal(afterEachWrite[1], CoreState.ROM.u8(addr + 17));
+                Assert.Equal(afterEachWrite[1], CoreState.ROM.u8(addr + 18));
 
                 CoreState.Undo.RunUndo();
-                Assert.Equal(afterEachWrite[0], CoreState.ROM.u8(addr + 17));
+                Assert.Equal(afterEachWrite[0], CoreState.ROM.u8(addr + 18));
 
                 CoreState.Undo.RunUndo();
-                Assert.Equal(origMov, CoreState.ROM.u8(addr + 17));
+                Assert.Equal(origBaseMov, CoreState.ROM.u8(addr + 18));
             }
             finally
             {

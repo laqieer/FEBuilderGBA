@@ -441,7 +441,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void WriteClass_Mov_RoundTrips()
+        public void WriteClass_BaseMov_RoundTrips()
         {
             if (!_fixture.IsAvailable) return;
 
@@ -457,17 +457,17 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             try
             {
-                uint original = vm.Mov;
+                uint original = vm.BaseMov;
                 uint testValue = (original == 7u) ? 8u : 7u;
-                vm.Mov = testValue;
+                vm.BaseMov = testValue;
                 vm.WriteClass();
 
-                // B17: u8 at offset 17
-                Assert.Equal(testValue, CoreState.ROM.u8(addr + 17));
+                // B18: u8 at offset 18 (movement)
+                Assert.Equal(testValue, CoreState.ROM.u8(addr + 18));
 
                 vm.LoadClass(addr);
-                Assert.Equal(testValue, vm.Mov);
-                _output.WriteLine($"Class Mov round-trip OK: {original} -> {testValue}");
+                Assert.Equal(testValue, vm.BaseMov);
+                _output.WriteLine($"Class BaseMov round-trip OK: {original} -> {testValue}");
             }
             finally
             {
@@ -600,7 +600,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 vm.NameId = 0xFACE;
-                vm.Mov = 9;
+                vm.BaseMov = 9;
                 vm.BaseHp = 30;
                 vm.BaseStr = 12;
                 vm.GrowHp = 75;
@@ -608,7 +608,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 vm.LoadClass(addr);
                 Assert.Equal(0xFACEu, vm.NameId);
-                Assert.Equal(9u, vm.Mov);
+                Assert.Equal(9u, vm.BaseMov);
                 Assert.Equal(30u, vm.BaseHp);
                 Assert.Equal(12u, vm.BaseStr);
                 Assert.Equal(75u, vm.GrowHp);
@@ -639,9 +639,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 // Save originals
                 uint origDescId = vm.DescId;
-                uint origMov = vm.Mov;
+                uint origBaseMov = vm.BaseMov;
                 uint origBaseStr = vm.BaseStr;
-                uint origCon = vm.Con;
+                uint origBaseCon = vm.BaseCon;
                 uint origGrowStr = vm.GrowStr;
 
                 // Only modify NameId
@@ -650,9 +650,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 vm.LoadClass(addr);
                 Assert.Equal(origDescId, vm.DescId);
-                Assert.Equal(origMov, vm.Mov);
+                Assert.Equal(origBaseMov, vm.BaseMov);
                 Assert.Equal(origBaseStr, vm.BaseStr);
-                Assert.Equal(origCon, vm.Con);
+                Assert.Equal(origBaseCon, vm.BaseCon);
                 Assert.Equal(origGrowStr, vm.GrowStr);
                 _output.WriteLine("Unmodified class fields preserved after write");
             }
@@ -679,8 +679,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             try
             {
-                vm.Mov = 11;
-                Assert.True(vm.IsDirty, "IsDirty should be true after Mov change");
+                vm.BaseMov = 11;
+                Assert.True(vm.IsDirty, "IsDirty should be true after BaseMov change");
                 vm.WriteClass();
 
                 // LoadClass explicitly calls MarkClean()

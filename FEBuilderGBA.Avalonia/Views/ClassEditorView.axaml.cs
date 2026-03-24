@@ -45,13 +45,6 @@ namespace FEBuilderGBA.Avalonia.Views
             BaseResBox.ValueChanged += OnGrowthInputChanged;
 
             // Wire weapon rank label updates
-            WepSwordBox.ValueChanged += OnWeaponValueChanged;
-            WepLanceBox.ValueChanged += OnWeaponValueChanged;
-            WepAxeBox.ValueChanged += OnWeaponValueChanged;
-            WepBowBox.ValueChanged += OnWeaponValueChanged;
-            WepStaffBox.ValueChanged += OnWeaponValueChanged;
-            WepAnimaBox.ValueChanged += OnWeaponValueChanged;
-            WepLightBox.ValueChanged += OnWeaponValueChanged;
             B44Box.ValueChanged += OnWeaponValueChanged;
             B45Box.ValueChanged += OnWeaponValueChanged;
             B46Box.ValueChanged += OnWeaponValueChanged;
@@ -110,15 +103,15 @@ namespace FEBuilderGBA.Avalonia.Views
             if (TerrainRow != null) TerrainRow.IsVisible = true;  // all versions need it
             if (D80Row != null) D80Row.IsVisible = !isFE6;
 
-            // FE6: stat caps only have HP and Str (b34-b35); Skl/Spd/Def/Res don't exist
-            if (CapSklLabel != null) CapSklLabel.IsVisible = !isFE6;
-            if (CapSklBox != null) CapSklBox.IsVisible = !isFE6;
-            if (CapSpdLabel != null) CapSpdLabel.IsVisible = !isFE6;
-            if (CapSpdBox != null) CapSpdBox.IsVisible = !isFE6;
-            if (CapDefLabel != null) CapDefLabel.IsVisible = !isFE6;
-            if (CapDefBox != null) CapDefBox.IsVisible = !isFE6;
-            if (CapResLabel != null) CapResLabel.IsVisible = !isFE6;
-            if (CapResBox != null) CapResBox.IsVisible = !isFE6;
+            // FE6: promo gains only have HP and Str (b34-b35); Skl/Spd/Def/Res don't exist
+            if (PromoSklLabel != null) PromoSklLabel.IsVisible = !isFE6;
+            if (PromoSklBox != null) PromoSklBox.IsVisible = !isFE6;
+            if (PromoSpdLabel != null) PromoSpdLabel.IsVisible = !isFE6;
+            if (PromoSpdBox != null) PromoSpdBox.IsVisible = !isFE6;
+            if (PromoDefLabel != null) PromoDefLabel.IsVisible = !isFE6;
+            if (PromoDefBox != null) PromoDefBox.IsVisible = !isFE6;
+            if (PromoResLabel != null) PromoResLabel.IsVisible = !isFE6;
+            if (PromoResBox != null) PromoResBox.IsVisible = !isFE6;
 
             if (isFE6)
             {
@@ -215,7 +208,7 @@ namespace FEBuilderGBA.Avalonia.Views
             WaitIconBox.Value = _vm.WaitIcon;
             WalkSpeedBox.Value = _vm.WalkSpeed;
             PortraitIdBox.Value = _vm.PortraitId;
-            BuildStatBox.Value = _vm.BuildStat;
+            SortOrderBox.Value = _vm.SortOrder;
 
             // Base stats
             BaseHpBox.Value = _vm.BaseHp;
@@ -224,18 +217,18 @@ namespace FEBuilderGBA.Avalonia.Views
             BaseSpdBox.Value = _vm.BaseSpd;
             BaseDefBox.Value = _vm.BaseDef;
             BaseResBox.Value = _vm.BaseRes;
-            MovBox.Value = _vm.Mov;
-            ConBox.Value = _vm.Con;
-            ClassStat19Box.Value = _vm.ClassStat19;
+            BaseConBox.Value = _vm.BaseCon;
+            BaseMovBox.Value = _vm.BaseMov;
 
-            // Weapons
-            WepSwordBox.Value = _vm.WepSword;
-            WepLanceBox.Value = _vm.WepLance;
-            WepAxeBox.Value = _vm.WepAxe;
-            WepBowBox.Value = _vm.WepBow;
-            WepStaffBox.Value = _vm.WepStaff;
-            WepAnimaBox.Value = _vm.WepAnima;
-            WepLightBox.Value = _vm.WepLight;
+            // Stat caps
+            MaxHpBox.Value = _vm.MaxHp;
+            MaxStrBox.Value = _vm.MaxStr;
+            MaxSklBox.Value = _vm.MaxSkl;
+            MaxSpdBox.Value = _vm.MaxSpd;
+            MaxDefBox.Value = _vm.MaxDef;
+            MaxResBox.Value = _vm.MaxRes;
+            MaxConBox.Value = _vm.MaxCon;
+            ClassPowerBox.Value = _vm.ClassPower;
 
             // Growth rates
             GrowHpBox.Value = _vm.GrowHp;
@@ -246,13 +239,13 @@ namespace FEBuilderGBA.Avalonia.Views
             GrowResBox.Value = _vm.GrowRes;
             GrowLckBox.Value = _vm.GrowLck;
 
-            // Stat caps
-            CapHpBox.Value = _vm.CapHp;
-            CapStrBox.Value = _vm.CapStr;
-            CapSklBox.Value = _vm.CapSkl;
-            CapSpdBox.Value = _vm.CapSpd;
-            CapDefBox.Value = _vm.CapDef;
-            CapResBox.Value = _vm.CapRes;
+            // Promotion gains
+            PromoHpBox.Value = _vm.PromoHp;
+            PromoStrBox.Value = _vm.PromoStr;
+            PromoSklBox.Value = _vm.PromoSkl;
+            PromoSpdBox.Value = _vm.PromoSpd;
+            PromoDefBox.Value = _vm.PromoDef;
+            PromoResBox.Value = _vm.PromoRes;
 
             // Abilities (BitFlagPanel)
             Ability1Flags.Value = (byte)_vm.Ability1;
@@ -311,15 +304,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateWeaponRankLabels()
         {
-            // Base weapon levels (B20-B26)
-            WepSwordRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepSwordBox.Value ?? 0));
-            WepLanceRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLanceBox.Value ?? 0));
-            WepAxeRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAxeBox.Value ?? 0));
-            WepBowRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepBowBox.Value ?? 0));
-            WepStaffRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepStaffBox.Value ?? 0));
-            WepAnimaRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepAnimaBox.Value ?? 0));
-            WepLightRankText.Text = WeaponRankUtil.GetRankLetter((uint)(WepLightBox.Value ?? 0));
-
             // Weapon rank levels (B44-B51)
             B44RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B44Box.Value ?? 0));
             B45RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B45Box.Value ?? 0));
@@ -366,7 +350,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.WaitIcon = (uint)(WaitIconBox.Value ?? 0);
             _vm.WalkSpeed = (uint)(WalkSpeedBox.Value ?? 0);
             _vm.PortraitId = (uint)(PortraitIdBox.Value ?? 0);
-            _vm.BuildStat = (uint)(BuildStatBox.Value ?? 0);
+            _vm.SortOrder = (uint)(SortOrderBox.Value ?? 0);
 
             _vm.BaseHp = (uint)(BaseHpBox.Value ?? 0);
             _vm.BaseStr = (uint)(BaseStrBox.Value ?? 0);
@@ -374,17 +358,17 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.BaseSpd = (uint)(BaseSpdBox.Value ?? 0);
             _vm.BaseDef = (uint)(BaseDefBox.Value ?? 0);
             _vm.BaseRes = (uint)(BaseResBox.Value ?? 0);
-            _vm.Mov = (uint)(MovBox.Value ?? 0);
-            _vm.Con = (uint)(ConBox.Value ?? 0);
-            _vm.ClassStat19 = (uint)(ClassStat19Box.Value ?? 0);
+            _vm.BaseCon = (uint)(BaseConBox.Value ?? 0);
+            _vm.BaseMov = (uint)(BaseMovBox.Value ?? 0);
 
-            _vm.WepSword = (uint)(WepSwordBox.Value ?? 0);
-            _vm.WepLance = (uint)(WepLanceBox.Value ?? 0);
-            _vm.WepAxe = (uint)(WepAxeBox.Value ?? 0);
-            _vm.WepBow = (uint)(WepBowBox.Value ?? 0);
-            _vm.WepStaff = (uint)(WepStaffBox.Value ?? 0);
-            _vm.WepAnima = (uint)(WepAnimaBox.Value ?? 0);
-            _vm.WepLight = (uint)(WepLightBox.Value ?? 0);
+            _vm.MaxHp = (uint)(MaxHpBox.Value ?? 0);
+            _vm.MaxStr = (uint)(MaxStrBox.Value ?? 0);
+            _vm.MaxSkl = (uint)(MaxSklBox.Value ?? 0);
+            _vm.MaxSpd = (uint)(MaxSpdBox.Value ?? 0);
+            _vm.MaxDef = (uint)(MaxDefBox.Value ?? 0);
+            _vm.MaxRes = (uint)(MaxResBox.Value ?? 0);
+            _vm.MaxCon = (uint)(MaxConBox.Value ?? 0);
+            _vm.ClassPower = (uint)(ClassPowerBox.Value ?? 0);
 
             _vm.GrowHp = (uint)(GrowHpBox.Value ?? 0);
             _vm.GrowStr = (uint)(GrowStrBox.Value ?? 0);
@@ -394,12 +378,12 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.GrowRes = (uint)(GrowResBox.Value ?? 0);
             _vm.GrowLck = (uint)(GrowLckBox.Value ?? 0);
 
-            _vm.CapHp = (int)(CapHpBox.Value ?? 0);
-            _vm.CapStr = (int)(CapStrBox.Value ?? 0);
-            _vm.CapSkl = (int)(CapSklBox.Value ?? 0);
-            _vm.CapSpd = (int)(CapSpdBox.Value ?? 0);
-            _vm.CapDef = (int)(CapDefBox.Value ?? 0);
-            _vm.CapRes = (int)(CapResBox.Value ?? 0);
+            _vm.PromoHp = (int)(PromoHpBox.Value ?? 0);
+            _vm.PromoStr = (int)(PromoStrBox.Value ?? 0);
+            _vm.PromoSkl = (int)(PromoSklBox.Value ?? 0);
+            _vm.PromoSpd = (int)(PromoSpdBox.Value ?? 0);
+            _vm.PromoDef = (int)(PromoDefBox.Value ?? 0);
+            _vm.PromoRes = (int)(PromoResBox.Value ?? 0);
 
             // Abilities from BitFlagPanel
             _vm.Ability1 = Ability1Flags.Value;
@@ -497,6 +481,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true; // prevent cascading dirty marks during sync
             _vm.SimLevel = (uint)(SimLevelBox.Value ?? 20);
+            // Use BaseHp through BaseRes for growth simulation (B11-B16)
             _vm.BaseHp = (uint)(BaseHpBox.Value ?? 0);
             _vm.BaseStr = (uint)(BaseStrBox.Value ?? 0);
             _vm.BaseSkl = (uint)(BaseSklBox.Value ?? 0);
