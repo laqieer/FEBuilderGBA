@@ -22,14 +22,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _portraitId;
         // B10: sort order
         uint _sortOrder;
-        // B11-B18: base stats (HP, Str, Skl, Spd, Def, Res, Mov, Con)
-        uint _baseHp, _baseStr, _baseSkl, _baseSpd, _baseDef, _baseRes, _baseMov, _baseCon;
-        // B19-B26: stat caps (HP, Str, Skl, Spd, Def, Res, Con, EXP bonus)
-        uint _capHp, _capStr, _capSkl, _capSpd, _capDef, _capRes, _capCon, _expBonus;
+        // B11-B18: base stats (HP, Str, Skl, Spd, Def, Res, Con, Mov)
+        uint _baseHp, _baseStr, _baseSkl, _baseSpd, _baseDef, _baseRes, _baseCon, _baseMov;
+        // B19-B26: stat caps (HP, Str, Skl, Spd, Def, Res, Con, Power/EXP)
+        uint _maxHp, _maxStr, _maxSkl, _maxSpd, _maxDef, _maxRes, _maxCon, _classPower;
         // B27-B33: growth rates
         uint _growHp, _growStr, _growSkl, _growSpd, _growDef, _growRes, _growLck;
-        // B34, B35: unknown misc fields
-        uint _unknown34, _unknown35;
+        // b34, b35: CC bonus / promotion gains (HP, Str)
+        int _promoHp, _promoStr;
         // B36-B39: ability flags (with bit fields)
         uint _ability1, _ability2, _ability3, _ability4;
         // B40-B47: weapon levels (Sword, Lance, Axe, Bow, Staff, Anima, Light, Dark)
@@ -74,18 +74,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint BaseSpd { get => _baseSpd; set => SetField(ref _baseSpd, value); }
         public uint BaseDef { get => _baseDef; set => SetField(ref _baseDef, value); }
         public uint BaseRes { get => _baseRes; set => SetField(ref _baseRes, value); }
-        public uint BaseMov { get => _baseMov; set => SetField(ref _baseMov, value); }
+        // B17: Con, B18: Mov
         public uint BaseCon { get => _baseCon; set => SetField(ref _baseCon, value); }
+        public uint BaseMov { get => _baseMov; set => SetField(ref _baseMov, value); }
 
-        // B19-B26: Stat caps
-        public uint CapHp { get => _capHp; set => SetField(ref _capHp, value); }
-        public uint CapStr { get => _capStr; set => SetField(ref _capStr, value); }
-        public uint CapSkl { get => _capSkl; set => SetField(ref _capSkl, value); }
-        public uint CapSpd { get => _capSpd; set => SetField(ref _capSpd, value); }
-        public uint CapDef { get => _capDef; set => SetField(ref _capDef, value); }
-        public uint CapRes { get => _capRes; set => SetField(ref _capRes, value); }
-        public uint CapCon { get => _capCon; set => SetField(ref _capCon, value); }
-        public uint ExpBonus { get => _expBonus; set => SetField(ref _expBonus, value); }
+        // B19-B26: Stat caps (max values)
+        public uint MaxHp { get => _maxHp; set => SetField(ref _maxHp, value); }
+        public uint MaxStr { get => _maxStr; set => SetField(ref _maxStr, value); }
+        public uint MaxSkl { get => _maxSkl; set => SetField(ref _maxSkl, value); }
+        public uint MaxSpd { get => _maxSpd; set => SetField(ref _maxSpd, value); }
+        public uint MaxDef { get => _maxDef; set => SetField(ref _maxDef, value); }
+        public uint MaxRes { get => _maxRes; set => SetField(ref _maxRes, value); }
+        public uint MaxCon { get => _maxCon; set => SetField(ref _maxCon, value); }
+        public uint ClassPower { get => _classPower; set => SetField(ref _classPower, value); }
 
         // B27-B33: Growth rates
         public uint GrowHp { get => _growHp; set => SetField(ref _growHp, value); }
@@ -96,9 +97,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint GrowRes { get => _growRes; set => SetField(ref _growRes, value); }
         public uint GrowLck { get => _growLck; set => SetField(ref _growLck, value); }
 
-        // B34, B35: Unknown misc fields
-        public uint Unknown34 { get => _unknown34; set => SetField(ref _unknown34, value); }
-        public uint Unknown35 { get => _unknown35; set => SetField(ref _unknown35, value); }
+        // b34, b35: CC bonus / promotion gains (HP, Str)
+        public int PromoHp { get => _promoHp; set => SetField(ref _promoHp, value); }
+        public int PromoStr { get => _promoStr; set => SetField(ref _promoStr, value); }
 
         // B36-B39: Ability flags
         public uint Ability1 { get => _ability1; set => SetField(ref _ability1, value); }
@@ -194,18 +195,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BaseSpd = rom.u8(addr + 14);
             BaseDef = rom.u8(addr + 15);
             BaseRes = rom.u8(addr + 16);
-            BaseMov = rom.u8(addr + 17);
-            BaseCon = rom.u8(addr + 18);
+            BaseCon = rom.u8(addr + 17);      // B17 (Con)
+            BaseMov = rom.u8(addr + 18);      // B18 (Mov)
 
-            // Stat caps
-            CapHp = rom.u8(addr + 19);
-            CapStr = rom.u8(addr + 20);
-            CapSkl = rom.u8(addr + 21);
-            CapSpd = rom.u8(addr + 22);
-            CapDef = rom.u8(addr + 23);
-            CapRes = rom.u8(addr + 24);
-            CapCon = rom.u8(addr + 25);
-            ExpBonus = rom.u8(addr + 26);
+            // Stat caps (max values)
+            MaxHp = rom.u8(addr + 19);
+            MaxStr = rom.u8(addr + 20);
+            MaxSkl = rom.u8(addr + 21);
+            MaxSpd = rom.u8(addr + 22);
+            MaxDef = rom.u8(addr + 23);
+            MaxRes = rom.u8(addr + 24);
+            MaxCon = rom.u8(addr + 25);
+            ClassPower = rom.u8(addr + 26);
 
             // Growth rates
             GrowHp = rom.u8(addr + 27);
@@ -216,9 +217,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             GrowRes = rom.u8(addr + 32);
             GrowLck = rom.u8(addr + 33);
 
-            // Unknown misc
-            Unknown34 = rom.u8(addr + 34);
-            Unknown35 = rom.u8(addr + 35);
+            // CC bonus / promotion gains (HP, Str)
+            PromoHp = (sbyte)rom.u8(addr + 34);
+            PromoStr = (sbyte)rom.u8(addr + 35);
 
             // Ability flags
             Ability1 = rom.u8(addr + 36);
@@ -273,16 +274,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B14_BaseSpd"] = $"0x{BaseSpd:X02}",
                 ["B15_BaseDef"] = $"0x{BaseDef:X02}",
                 ["B16_BaseRes"] = $"0x{BaseRes:X02}",
-                ["B17_BaseMov"] = $"0x{BaseMov:X02}",
-                ["B18_BaseCon"] = $"0x{BaseCon:X02}",
-                ["B19_CapHp"] = $"0x{CapHp:X02}",
-                ["B20_CapStr"] = $"0x{CapStr:X02}",
-                ["B21_CapSkl"] = $"0x{CapSkl:X02}",
-                ["B22_CapSpd"] = $"0x{CapSpd:X02}",
-                ["B23_CapDef"] = $"0x{CapDef:X02}",
-                ["B24_CapRes"] = $"0x{CapRes:X02}",
-                ["B25_CapCon"] = $"0x{CapCon:X02}",
-                ["B26_ExpBonus"] = $"0x{ExpBonus:X02}",
+                ["B17_BaseCon"] = $"0x{BaseCon:X02}",
+                ["B18_BaseMov"] = $"0x{BaseMov:X02}",
+                ["B19_MaxHp"] = $"0x{MaxHp:X02}",
+                ["B20_MaxStr"] = $"0x{MaxStr:X02}",
+                ["B21_MaxSkl"] = $"0x{MaxSkl:X02}",
+                ["B22_MaxSpd"] = $"0x{MaxSpd:X02}",
+                ["B23_MaxDef"] = $"0x{MaxDef:X02}",
+                ["B24_MaxRes"] = $"0x{MaxRes:X02}",
+                ["B25_MaxCon"] = $"0x{MaxCon:X02}",
+                ["B26_ClassPower"] = $"0x{ClassPower:X02}",
                 ["B27_GrowHp"] = $"0x{GrowHp:X02}",
                 ["B28_GrowStr"] = $"0x{GrowStr:X02}",
                 ["B29_GrowSkl"] = $"0x{GrowSkl:X02}",
@@ -290,8 +291,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B31_GrowDef"] = $"0x{GrowDef:X02}",
                 ["B32_GrowRes"] = $"0x{GrowRes:X02}",
                 ["B33_GrowLck"] = $"0x{GrowLck:X02}",
-                ["B34_Unknown"] = $"0x{Unknown34:X02}",
-                ["B35_Unknown"] = $"0x{Unknown35:X02}",
+                ["b34_PromoHp"] = $"{PromoHp}",
+                ["b35_PromoStr"] = $"{PromoStr}",
                 ["B36_Ability1"] = $"0x{Ability1:X02}",
                 ["B37_Ability2"] = $"0x{Ability2:X02}",
                 ["B38_Ability3"] = $"0x{Ability3:X02}",
@@ -404,18 +405,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 14, BaseSpd);
             rom.write_u8(addr + 15, BaseDef);
             rom.write_u8(addr + 16, BaseRes);
-            rom.write_u8(addr + 17, BaseMov);
-            rom.write_u8(addr + 18, BaseCon);
+            rom.write_u8(addr + 17, BaseCon);      // B17 (Con)
+            rom.write_u8(addr + 18, BaseMov);      // B18 (Mov)
 
-            // Stat caps
-            rom.write_u8(addr + 19, CapHp);
-            rom.write_u8(addr + 20, CapStr);
-            rom.write_u8(addr + 21, CapSkl);
-            rom.write_u8(addr + 22, CapSpd);
-            rom.write_u8(addr + 23, CapDef);
-            rom.write_u8(addr + 24, CapRes);
-            rom.write_u8(addr + 25, CapCon);
-            rom.write_u8(addr + 26, ExpBonus);
+            // Stat caps (max values)
+            rom.write_u8(addr + 19, MaxHp);
+            rom.write_u8(addr + 20, MaxStr);
+            rom.write_u8(addr + 21, MaxSkl);
+            rom.write_u8(addr + 22, MaxSpd);
+            rom.write_u8(addr + 23, MaxDef);
+            rom.write_u8(addr + 24, MaxRes);
+            rom.write_u8(addr + 25, MaxCon);
+            rom.write_u8(addr + 26, ClassPower);
 
             // Growth rates
             rom.write_u8(addr + 27, GrowHp);
@@ -426,9 +427,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 32, GrowRes);
             rom.write_u8(addr + 33, GrowLck);
 
-            // Unknown misc
-            rom.write_u8(addr + 34, Unknown34);
-            rom.write_u8(addr + 35, Unknown35);
+            // CC bonus / promotion gains
+            rom.write_u8(addr + 34, (uint)(byte)(sbyte)PromoHp);
+            rom.write_u8(addr + 35, (uint)(byte)(sbyte)PromoStr);
 
             // Ability flags
             rom.write_u8(addr + 36, Ability1);

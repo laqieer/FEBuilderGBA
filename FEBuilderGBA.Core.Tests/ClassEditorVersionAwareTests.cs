@@ -78,7 +78,8 @@ namespace FEBuilderGBA.Core.Tests
             // Base stats at B11-B16
             rom.write_u8(addr + 11, 20); // HP
             rom.write_u8(addr + 12, 5);  // Str
-            rom.write_u8(addr + 17, 6);  // Mov
+            rom.write_u8(addr + 17, 7);  // Con (B17)
+            rom.write_u8(addr + 18, 6);  // Mov (B18)
 
             // FE6 ability flags at +36..+39
             rom.write_u8(addr + 36, 0xAA); // Ability1
@@ -120,13 +121,14 @@ namespace FEBuilderGBA.Core.Tests
             // Verify base stats
             Assert.Equal(20u, vm.BaseHp);
             Assert.Equal(5u, vm.BaseStr);
-            Assert.Equal(6u, vm.Mov);
+            Assert.Equal(7u, vm.BaseCon);   // B17 = Con
+            Assert.Equal(6u, vm.BaseMov);   // B18 = Mov
 
-            // FE6 has no stat caps for Skl/Spd/Def/Res in class struct
-            Assert.Equal(0, vm.CapSkl);
-            Assert.Equal(0, vm.CapSpd);
-            Assert.Equal(0, vm.CapDef);
-            Assert.Equal(0, vm.CapRes);
+            // FE6 has no promo gains for Skl/Spd/Def/Res in class struct
+            Assert.Equal(0, vm.PromoSkl);
+            Assert.Equal(0, vm.PromoSpd);
+            Assert.Equal(0, vm.PromoDef);
+            Assert.Equal(0, vm.PromoRes);
         }
 
         /// <summary>
@@ -149,10 +151,10 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u8(addr + 4, 0x01); // Class number
 
             // FE8 stat caps at b36-b39
-            rom.write_u8(addr + 36, 0x03); // CapSkl
-            rom.write_u8(addr + 37, 0x04); // CapSpd
-            rom.write_u8(addr + 38, 0x05); // CapDef
-            rom.write_u8(addr + 39, 0x06); // CapRes
+            rom.write_u8(addr + 36, 0x03); // PromoSkl
+            rom.write_u8(addr + 37, 0x04); // PromoSpd
+            rom.write_u8(addr + 38, 0x05); // PromoDef
+            rom.write_u8(addr + 39, 0x06); // PromoRes
 
             // FE8 ability flags at +40..+43
             rom.write_u8(addr + 40, 0x11);
@@ -174,10 +176,10 @@ namespace FEBuilderGBA.Core.Tests
             vm.LoadClass(addr);
 
             // FE8 stat caps at b36-b39
-            Assert.Equal(3, vm.CapSkl);
-            Assert.Equal(4, vm.CapSpd);
-            Assert.Equal(5, vm.CapDef);
-            Assert.Equal(6, vm.CapRes);
+            Assert.Equal(3, vm.PromoSkl);
+            Assert.Equal(4, vm.PromoSpd);
+            Assert.Equal(5, vm.PromoDef);
+            Assert.Equal(6, vm.PromoRes);
 
             // FE8 ability flags at +40
             Assert.Equal(0x11u, vm.Ability1);
