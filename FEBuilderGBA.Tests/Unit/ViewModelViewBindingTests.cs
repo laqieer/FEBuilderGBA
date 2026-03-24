@@ -148,7 +148,8 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("_vm.BaseSpd", src);
             Assert.Contains("_vm.BaseDef", src);
             Assert.Contains("_vm.BaseRes", src);
-            Assert.Contains("_vm.Mov", src);
+            Assert.Contains("_vm.BaseCon", src);
+            Assert.Contains("_vm.BaseMov", src);
             // Growth rates
             Assert.Contains("_vm.GrowHp", src);
             Assert.Contains("_vm.GrowStr", src);
@@ -171,7 +172,8 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("_vm.BaseSpd = ", src);
             Assert.Contains("_vm.BaseDef = ", src);
             Assert.Contains("_vm.BaseRes = ", src);
-            Assert.Contains("_vm.Mov = ", src);
+            Assert.Contains("_vm.BaseCon = ", src);
+            Assert.Contains("_vm.BaseMov = ", src);
             Assert.Contains("_vm.GrowHp = ", src);
             Assert.Contains("_vm.GrowStr = ", src);
             Assert.Contains("_vm.GrowSkl = ", src);

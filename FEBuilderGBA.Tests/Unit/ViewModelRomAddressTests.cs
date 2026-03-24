@@ -199,7 +199,8 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("rom.write_u8(addr + 14, BaseSpd)", src);
             Assert.Contains("rom.write_u8(addr + 15, BaseDef)", src);
             Assert.Contains("rom.write_u8(addr + 16, BaseRes)", src);
-            Assert.Contains("rom.write_u8(addr + 17, Mov)", src);
+            Assert.Contains("rom.write_u8(addr + 17, BaseCon)", src);
+            Assert.Contains("rom.write_u8(addr + 18, BaseMov)", src);
             Assert.Contains("rom.write_u8(addr + 27, GrowHp)", src);
             Assert.Contains("rom.write_u8(addr + 28, GrowStr)", src);
             Assert.Contains("rom.write_u8(addr + 29, GrowSkl)", src);

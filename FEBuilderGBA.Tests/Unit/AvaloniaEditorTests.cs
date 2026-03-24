@@ -2233,15 +2233,14 @@ namespace FEBuilderGBA.Tests.Unit
         public void ClassEditorView_HasWeaponRankTextBlocks()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassEditorView.axaml"));
-            Assert.Contains("Name=\"WepSwordRankText\"", src);
-            Assert.Contains("Name=\"WepLanceRankText\"", src);
-            Assert.Contains("Name=\"WepAxeRankText\"", src);
-            Assert.Contains("Name=\"WepBowRankText\"", src);
-            Assert.Contains("Name=\"WepStaffRankText\"", src);
-            Assert.Contains("Name=\"WepAnimaRankText\"", src);
-            Assert.Contains("Name=\"WepLightRankText\"", src);
-            // B44-B51 rank texts
+            // B44-B51 rank texts (named by byte offset after field rename)
             Assert.Contains("Name=\"B44RankText\"", src);
+            Assert.Contains("Name=\"B45RankText\"", src);
+            Assert.Contains("Name=\"B46RankText\"", src);
+            Assert.Contains("Name=\"B47RankText\"", src);
+            Assert.Contains("Name=\"B48RankText\"", src);
+            Assert.Contains("Name=\"B49RankText\"", src);
+            Assert.Contains("Name=\"B50RankText\"", src);
             Assert.Contains("Name=\"B51RankText\"", src);
         }
 
@@ -2339,10 +2338,10 @@ namespace FEBuilderGBA.Tests.Unit
             var lines = src.Split('\n');
             Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Identity"));
             Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Base Stats\""));
-            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Weapon Levels\""));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Weapon Rank Levels"));
             Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Growth Rates\""));
             Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Ability Flags\""));
-            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Growth Caps"));
+            Assert.Contains(lines, l => l.Contains("<Expander") && l.Contains("Header=\"Promotion Gains"));
         }
 
         [Fact]
