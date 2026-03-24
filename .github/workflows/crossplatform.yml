@@ -44,6 +44,9 @@ jobs:
     - name: Run Core tests
       run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release --logger "trx;LogFileName=core-tests.trx"
 
+    - name: Run Avalonia tests (data-verify headless validation)
+      run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release --logger "trx;LogFileName=avalonia-tests.trx"
+
     - name: CLI smoke test
       run: dotnet run --project FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -- --version
 
@@ -55,7 +58,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.os }}
-        path: '**/core-tests.trx'
+        path: |
+          **/core-tests.trx
+          **/avalonia-tests.trx
         if-no-files-found: ignore
 
   publish:
