@@ -66,6 +66,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Configure version-specific UI BEFORE setting items,
+                // because SetItems() auto-selects the first item which triggers
+                // OnClassSelected -> LoadClass -> UpdateUI. We need correct labels
+                // and visibility before that first render.
+                ConfigureVersionUI();
+
                 var items = _vm.LoadClassList();
                 ClassList.SetItems(items);
 
@@ -75,9 +81,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     skillType == PatchDetectionService.SkillSystemType.SkillSystem ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys09x ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
-
-                // Configure version-specific UI
-                ConfigureVersionUI();
             }
             catch (Exception ex)
             {
@@ -102,18 +105,44 @@ namespace FEBuilderGBA.Avalonia.Views
             bool isFE6 = version == 6;
 
             // FE6 has no terrain avoid/def/res pointers and no D80
-            // These controls are in the "Pointers / Movement / Terrain" expander
             if (TerrainRow != null) TerrainRow.IsVisible = !isFE6;
             if (D80Row != null) D80Row.IsVisible = !isFE6;
 
-            // Update offset labels based on version
+            // FE6: stat caps only have HP and Str (b34-b35); Skl/Spd/Def/Res don't exist
+            if (CapSklLabel != null) CapSklLabel.IsVisible = !isFE6;
+            if (CapSklBox != null) CapSklBox.IsVisible = !isFE6;
+            if (CapSpdLabel != null) CapSpdLabel.IsVisible = !isFE6;
+            if (CapSpdBox != null) CapSpdBox.IsVisible = !isFE6;
+            if (CapDefLabel != null) CapDefLabel.IsVisible = !isFE6;
+            if (CapDefBox != null) CapDefBox.IsVisible = !isFE6;
+            if (CapResLabel != null) CapResLabel.IsVisible = !isFE6;
+            if (CapResBox != null) CapResBox.IsVisible = !isFE6;
+
             if (isFE6)
             {
                 // FE6 class struct: ability at +36, weapon ranks at +40, battle anime at +48
+                // Ability flag labels
                 if (AbilityHeaderText1 != null) AbilityHeaderText1.Text = "Ability 1 (B36):";
                 if (AbilityHeaderText2 != null) AbilityHeaderText2.Text = "Ability 2 (B37):";
                 if (AbilityHeaderText3 != null) AbilityHeaderText3.Text = "Ability 3 (B38):";
                 if (AbilityHeaderText4 != null) AbilityHeaderText4.Text = "Ability 4 (B39):";
+
+                // Weapon rank labels: FE6 uses B40-B47
+                if (WepRankExpander != null) WepRankExpander.Header = "Weapon Rank Levels (B40-B47)";
+                if (WepRankSwordLabel != null) WepRankSwordLabel.Text = "Sword (B40):";
+                if (WepRankLanceLabel != null) WepRankLanceLabel.Text = "Lance (B41):";
+                if (WepRankAxeLabel != null) WepRankAxeLabel.Text = "Axe (B42):";
+                if (WepRankBowLabel != null) WepRankBowLabel.Text = "Bow (B43):";
+                if (WepRankStaffLabel != null) WepRankStaffLabel.Text = "Staff (B44):";
+                if (WepRankAnimaLabel != null) WepRankAnimaLabel.Text = "Anima (B45):";
+                if (WepRankLightLabel != null) WepRankLightLabel.Text = "Light (B46):";
+                if (WepRankDarkLabel != null) WepRankDarkLabel.Text = "Dark (B47):";
+
+                // Pointer labels: FE6 battle anime at P48, move costs at P52/P56/P60/P64
+                if (BattleAnimeLabel != null) BattleAnimeLabel.Text = "Battle Anime (P48):";
+                if (MoveCostLabel != null) MoveCostLabel.Text = "Move Cost (P52):";
+                if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Move Cost Rain (P56):";
+                if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Move Cost Snow (P60):";
             }
         }
 
