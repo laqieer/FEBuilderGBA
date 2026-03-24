@@ -39,30 +39,30 @@
           <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
                        ToolTip.Tip="Text ID for this class's display name" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_NameId_Input" FormatString="X4" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center"
                        ToolTip.Tip="Text ID for this class's description" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_DescId_Input" FormatString="X4" Grid.Row="0" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_DescId_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Class # (B4):" VerticalAlignment="Center"
                        ToolTip.Tip="Internal class number" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_ClassNumber_Input" FormatString="X2" Grid.Row="1" Grid.Column="1" Name="ClassNumberBox" Minimum="0" Maximum="255" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_ClassNumber_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassNumberBox" Minimum="0" Maximum="255" />
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Promo Lv (B5):" VerticalAlignment="Center"
                        ToolTip.Tip="Level required for promotion (0=unpromoted)" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_PromotionLevel_Input" FormatString="X2" Grid.Row="1" Grid.Column="4" Name="PromotionLevelBox" Minimum="0" Maximum="255" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_PromotionLevel_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="PromotionLevelBox" Minimum="0" Maximum="255" />
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Wait Icon (B6):" VerticalAlignment="Center"
                        ToolTip.Tip="Map sprite index when idle" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WaitIcon_Input" FormatString="X2" Grid.Row="2" Grid.Column="1" Name="WaitIconBox" Minimum="0" Maximum="255" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WaitIcon_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="WaitIconBox" Minimum="0" Maximum="255" />
             <TextBlock Grid.Row="2" Grid.Column="3" Text="Walk Spd (B7):" VerticalAlignment="Center"
                        ToolTip.Tip="Walking speed on the map" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WalkSpeed_Input" FormatString="X2" Grid.Row="2" Grid.Column="4" Name="WalkSpeedBox" Minimum="0" Maximum="255" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WalkSpeed_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WalkSpeedBox" Minimum="0" Maximum="255" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Portrait (W8):" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_PortraitId_Input" FormatString="X4" Grid.Row="3" Grid.Column="1" Name="PortraitIdBox" Minimum="0" Maximum="65535" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_PortraitId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="PortraitIdBox" Minimum="0" Maximum="65535" />
             <TextBlock Grid.Row="3" Grid.Column="3" Text="Build (B10):" VerticalAlignment="Center"
                        ToolTip.Tip="Constitution/Build stat" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_BuildStat_Input" FormatString="X2" Grid.Row="3" Grid.Column="4" Name="BuildStatBox" Minimum="0" Maximum="255" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_BuildStat_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="BuildStatBox" Minimum="0" Maximum="255" />
           </Grid>
         </Border>
         </Expander>
