@@ -38,7 +38,7 @@ jobs:
       if: github.event_name == 'pull_request'
       shell: bash
       run: |
-        echo '${{ github.event.pull_request.body }}' > /tmp/pr-body.txt
+        python3 -c "import json,os; e=json.load(open(os.environ['GITHUB_EVENT_PATH'])); open('/tmp/pr-body.txt','w').write(e.get('pull_request',{}).get('body','') or '')"
         bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" /tmp/pr-body.txt
 
     - name: Validate Avalonia AutomationIds

@@ -22,15 +22,26 @@ fi
 echo "=== Validating PR #${PR_NUMBER} screenshot URLs ==="
 
 # Get PR body — prefer file input (no network dependency), fallback to gh API
+BODY_SOURCE="unknown"
 if [ -n "$BODY_FILE" ] && [ -f "$BODY_FILE" ]; then
   BODY=$(cat "$BODY_FILE")
+  BODY_SOURCE="file"
+elif [ -n "$BODY_FILE" ]; then
+  echo "ERROR: Body file '$BODY_FILE' not found — failing closed"
+  exit 1
 else
   BODY=$(gh pr view "$PR_NUMBER" -R "$REPO" --json body --jq .body 2>/dev/null || echo "")
+  BODY_SOURCE="api"
+  if [ -z "$BODY" ]; then
+    echo "ERROR: Could not fetch PR body via API — failing closed"
+    exit 1
+  fi
 fi
 
+# Empty body is valid (no URLs to check) — screenshots are optional for docs/chore PRs
 if [ -z "$BODY" ]; then
-  echo "ERROR: Could not fetch PR body — failing closed (not skipping)"
-  exit 1
+  echo "VALIDATION PASSED: PR body is empty (no URLs to check)"
+  exit 0
 fi
 
 # Consolidated check: find ANY blob/{non-master}/ image URL in any directory
