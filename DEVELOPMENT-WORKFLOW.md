@@ -300,7 +300,7 @@ EOF
   Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. \
   Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
   For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
-  Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Unchecked items must be verified or moved to Known Limitations before merge. \
+  Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Also flag placeholder/template text that was not replaced (e.g., items containing angle brackets like '<what was tested>' or generic boilerplate) — each item must describe a specific test that was actually performed. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -325,14 +325,18 @@ Address feedback in categories:
 
 **After each push, check for ALL feedback — both inline review threads AND issue-level conversation comments:**
 
-**CRITICAL: Reviewers (human, Copilot bot, Copilot CLI) may post feedback in EITHER place — issue-level comments or inline threads. You MUST check both or you will miss feedback. This is a recurring failure mode.**
+**CRITICAL: Reviewers (human, Copilot bot, Copilot CLI) may post feedback in THREE places: issue-level comments, inline review threads, AND top-level PR review bodies. You MUST check all three or you will miss feedback.**
 
-**Step A — Check issue-level conversation comments (ALL reviewers):**
+**Step A — Check issue-level conversation comments:**
 ```bash
-# ALWAYS check this — human reviewers, Copilot bot, AND Copilot CLI all post here
 gh api repos/laqieer/FEBuilderGBA/issues/<N>/comments --jq '.[] | select(.user.login != "github-actions[bot]") | "\(.user.login): \(.body | split("\n")[0])"'
 ```
-Address every comment before proceeding — human, Copilot bot, and Copilot CLI alike.
+
+**Step A2 — Check top-level PR review bodies** (separate from inline threads):
+```bash
+gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews --jq '.[] | "\(.user.login) [\(.state)]: \(.body | split("\n")[0])"'
+```
+Address every comment from all three channels before proceeding.
 
 **Step B — Find all unresolved inline review threads** (use `first: 100`; paginate if `hasNextPage` is true):
 ```bash
