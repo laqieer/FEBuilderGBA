@@ -25,6 +25,22 @@ namespace FEBuilderGBA.Avalonia.Views
             SlotCombo.SelectionChanged += OnSlotChanged;
             RecordList.SelectionChanged += OnRecordSelected;
             Opened += (_, _) => LoadAll();
+
+            // Initialize all NUD controls to 0 so UIVERIFY doesn't flag hidden
+            // ones as empty. FE7-extended fields (ExtraB12-B15) are hidden on
+            // FE6/FE8 and never set by UpdateEditorUI, leaving them null.
+            CondTypeBox.Value ??= 0;
+            SubTypeBox.Value ??= 0;
+            FlagIdBox.Value ??= 0;
+            EventPtrBox.Value ??= 0;
+            ExtraB8Box.Value ??= 0;
+            ExtraB9Box.Value ??= 0;
+            ExtraB10Box.Value ??= 0;
+            ExtraB11Box.Value ??= 0;
+            ExtraB12Box.Value ??= 0;
+            ExtraB13Box.Value ??= 0;
+            ExtraB14Box.Value ??= 0;
+            ExtraB15Box.Value ??= 0;
         }
 
         void LoadAll()
@@ -269,6 +285,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ExtraB13Box.IsVisible = visible; LblB13.IsVisible = visible;
             ExtraB14Box.IsVisible = visible; LblB14.IsVisible = visible;
             ExtraB15Box.IsVisible = visible; LblB15.IsVisible = visible;
+
+            // Initialize hidden NUDs to 0 so UIVERIFY doesn't flag them as empty.
+            // When hidden, their Value is never set by UpdateEditorUI, leaving it null.
+            if (!visible)
+            {
+                ExtraB12Box.Value ??= 0;
+                ExtraB13Box.Value ??= 0;
+                ExtraB14Box.Value ??= 0;
+                ExtraB15Box.Value ??= 0;
+            }
         }
 
         void UpdateNameHints()

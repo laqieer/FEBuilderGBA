@@ -250,5 +250,83 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.Contains("status=OK", stdout);
             Assert.DoesNotContain("status=REPLACEMENT_CHARS", stdout);
         }
+
+        // ================================================================
+        // --data-verify-full tests
+        // ================================================================
+
+        /// <summary>
+        /// Cache of --data-verify-full output per ROM path.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, (int ExitCode, string Stdout, string Stderr)> _fullCache = new();
+
+        private static (int ExitCode, string Stdout, string Stderr) GetDataVerifyFullOutput(string romPath)
+        {
+            return _fullCache.GetOrAdd(romPath, path =>
+                AvaloniaAppRunner.Run(ExePath!, $"--rom \"{path}\" --data-verify-full", timeoutMs: 600_000));
+        }
+
+        /// <summary>
+        /// Verifies --data-verify-full runs on FE8U and iterates multiple items per editor.
+        /// Checks VERIFY lines contain item indices (item=0, item=1, etc.).
+        /// </summary>
+        [SkippableFact]
+        public void Avalonia_DataVerifyFull_IteratesAllItems_FE8U()
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            var fe8uPath = RomLocator.FE8U;
+            Skip.If(fe8uPath == null, "FE8U ROM not available");
+
+            var (exitCode, stdout, stderr) = GetDataVerifyFullOutput(fe8uPath!);
+
+            // Verify the data verify mode ran in full mode
+            Assert.Contains("DATAVERIFY: Testing", stdout);
+            Assert.Contains("full=True", stdout);
+            Assert.Contains("DATAVERIFY: Results:", stdout);
+
+            // Full mode outputs per-item VERIFY lines with item indices
+            Assert.Contains("VERIFY: UnitEditorView[0]|", stdout);
+            Assert.Contains("VERIFY: UnitEditorView[1]|", stdout);
+            Assert.Contains("VERIFY: ItemEditorView[0]|", stdout);
+            Assert.Contains("VERIFY: ClassEditorView[0]|", stdout);
+
+            // No field mismatches for core editors
+            Assert.DoesNotContain("FIELDMISMATCH: UnitEditorView|", stdout);
+            Assert.DoesNotContain("FIELDMISMATCH: ItemEditorView|", stdout);
+            Assert.DoesNotContain("FIELDMISMATCH: ClassEditorView|", stdout);
+
+            Assert.True(exitCode == 0,
+                $"Data verify full failed with exit code {exitCode}.\nStdout (tail): {TailString(stdout, 2000)}\nStderr: {stderr}");
+        }
+
+        /// <summary>
+        /// Verifies --data-verify-full reports fieldMismatches count in summary.
+        /// </summary>
+        [SkippableFact]
+        public void Avalonia_DataVerifyFull_ReportsSummaryWithFieldMismatches_FE8U()
+        {
+            Skip.If(ExePath == null, "Avalonia exe not found — build FEBuilderGBA.Avalonia first");
+            var fe8uPath = RomLocator.FE8U;
+            Skip.If(fe8uPath == null, "FE8U ROM not available");
+
+            var (exitCode, stdout, stderr) = GetDataVerifyFullOutput(fe8uPath!);
+
+            // Summary must include fieldMismatches count
+            Assert.Contains("fieldMismatches=", stdout);
+
+            // Core editors should be VERIFIED
+            Assert.Contains("DATAVERIFY: UnitEditorView ... VERIFIED", stdout);
+            Assert.Contains("DATAVERIFY: ItemEditorView ... VERIFIED", stdout);
+            Assert.Contains("DATAVERIFY: ClassEditorView ... VERIFIED", stdout);
+        }
+
+        /// <summary>
+        /// Helper to get the tail of a string (for error output).
+        /// </summary>
+        private static string TailString(string s, int maxLen)
+        {
+            if (s.Length <= maxLen) return s;
+            return "..." + s.Substring(s.Length - maxLen);
+        }
     }
 }

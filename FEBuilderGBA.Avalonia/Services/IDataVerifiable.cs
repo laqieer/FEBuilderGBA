@@ -23,6 +23,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Example: { "u16@0x00" → "0x0001", "u8@0x04" → "0x01" }
         /// </summary>
         Dictionary<string, string> GetRawRomReport();
+
+        /// <summary>
+        /// Returns a mapping from GetDataReport() field names to GetRawRomReport() keys.
+        /// Used for per-field cross-checking in --data-verify-full mode.
+        /// Example: { "NameId" → "u16@0x00", "ClassId" → "u8@0x05" }
+        /// ViewModels that don't implement this return an empty dictionary (default).
+        /// </summary>
+        Dictionary<string, string> GetFieldOffsetMap() => new();
     }
 
     /// <summary>

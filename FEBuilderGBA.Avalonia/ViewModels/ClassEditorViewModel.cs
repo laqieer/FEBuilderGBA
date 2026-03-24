@@ -437,7 +437,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
 
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+
+            // Common fields (offsets 0x00-0x23, same for all versions)
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u16@0x00"] = $"0x{rom.u16(a + 0):X04}",
@@ -473,6 +475,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x21"] = $"0x{rom.u8(a + 33):X02}",
                 ["u8@0x22"] = $"0x{rom.u8(a + 34):X02}",
                 ["u8@0x23"] = $"0x{rom.u8(a + 35):X02}",
+                // Bytes at +36..+47 have the same raw offsets 0x24..0x2F for both versions
+                // (ability vs promo gains, then weapons vs ability+weapons)
                 ["u8@0x24"] = $"0x{rom.u8(a + 36):X02}",
                 ["u8@0x25"] = $"0x{rom.u8(a + 37):X02}",
                 ["u8@0x26"] = $"0x{rom.u8(a + 38):X02}",
@@ -485,19 +489,134 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x2D"] = $"0x{rom.u8(a + 45):X02}",
                 ["u8@0x2E"] = $"0x{rom.u8(a + 46):X02}",
                 ["u8@0x2F"] = $"0x{rom.u8(a + 47):X02}",
-                ["u8@0x30"] = $"0x{rom.u8(a + 48):X02}",
-                ["u8@0x31"] = $"0x{rom.u8(a + 49):X02}",
-                ["u8@0x32"] = $"0x{rom.u8(a + 50):X02}",
-                ["u8@0x33"] = $"0x{rom.u8(a + 51):X02}",
-                ["u32@0x34"] = $"0x{rom.u32(a + 52):X08}",
-                ["u32@0x38"] = $"0x{rom.u32(a + 56):X08}",
-                ["u32@0x3C"] = $"0x{rom.u32(a + 60):X08}",
-                ["u32@0x40"] = $"0x{rom.u32(a + 64):X08}",
-                ["u32@0x44"] = $"0x{rom.u32(a + 68):X08}",
-                ["u32@0x48"] = $"0x{rom.u32(a + 72):X08}",
-                ["u32@0x4C"] = $"0x{rom.u32(a + 76):X08}",
-                ["u32@0x50"] = $"0x{rom.u32(a + 80):X08}",
             };
+
+            if (IsFE6)
+            {
+                // FE6: 72-byte struct — pointers start at +48, end at +68
+                report["u32@0x30"] = $"0x{rom.u32(a + 48):X08}";  // P48 battle anim
+                report["u32@0x34"] = $"0x{rom.u32(a + 52):X08}";  // P52 move cost
+                report["u32@0x38"] = $"0x{rom.u32(a + 56):X08}";  // P56 terrain avoid
+                report["u32@0x3C"] = $"0x{rom.u32(a + 60):X08}";  // P60 terrain def
+                report["u32@0x40"] = $"0x{rom.u32(a + 64):X08}";  // P64 terrain res
+                report["u32@0x44"] = $"0x{rom.u32(a + 68):X08}";  // D68 unknown
+            }
+            else
+            {
+                // FE7/8: 84-byte struct — weapon ranks continue at +48..+51, pointers at +52..+80
+                report["u8@0x30"] = $"0x{rom.u8(a + 48):X02}";
+                report["u8@0x31"] = $"0x{rom.u8(a + 49):X02}";
+                report["u8@0x32"] = $"0x{rom.u8(a + 50):X02}";
+                report["u8@0x33"] = $"0x{rom.u8(a + 51):X02}";
+                report["u32@0x34"] = $"0x{rom.u32(a + 52):X08}";
+                report["u32@0x38"] = $"0x{rom.u32(a + 56):X08}";
+                report["u32@0x3C"] = $"0x{rom.u32(a + 60):X08}";
+                report["u32@0x40"] = $"0x{rom.u32(a + 64):X08}";
+                report["u32@0x44"] = $"0x{rom.u32(a + 68):X08}";
+                report["u32@0x48"] = $"0x{rom.u32(a + 72):X08}";
+                report["u32@0x4C"] = $"0x{rom.u32(a + 76):X08}";
+                report["u32@0x50"] = $"0x{rom.u32(a + 80):X08}";
+            }
+
+            return report;
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            // Common fields (offsets 0x00-0x23, same for all versions)
+            var map = new Dictionary<string, string>
+            {
+                ["W0_NameId"] = "u16@0x00",
+                ["W2_DescId"] = "u16@0x02",
+                ["B4_ClassNumber"] = "u8@0x04",
+                ["B5_PromoLevel"] = "u8@0x05",
+                ["B6_WaitIcon"] = "u8@0x06",
+                ["B7_WalkSpeed"] = "u8@0x07",
+                ["W8_PortraitId"] = "u16@0x08",
+                ["B10_SortOrder"] = "u8@0x0A",
+                ["B11_BaseHp"] = "u8@0x0B",
+                ["B12_BaseStr"] = "u8@0x0C",
+                ["B13_BaseSkl"] = "u8@0x0D",
+                ["B14_BaseSpd"] = "u8@0x0E",
+                ["B15_BaseDef"] = "u8@0x0F",
+                ["B16_BaseRes"] = "u8@0x10",
+                ["B17_BaseCon"] = "u8@0x11",
+                ["B18_BaseMov"] = "u8@0x12",
+                ["B19_MaxHp"] = "u8@0x13",
+                ["B20_MaxStr"] = "u8@0x14",
+                ["B21_MaxSkl"] = "u8@0x15",
+                ["B22_MaxSpd"] = "u8@0x16",
+                ["B23_MaxDef"] = "u8@0x17",
+                ["B24_MaxRes"] = "u8@0x18",
+                ["B25_MaxCon"] = "u8@0x19",
+                ["B26_ClassPower"] = "u8@0x1A",
+                ["B27_GrowHp"] = "u8@0x1B",
+                ["B28_GrowStr"] = "u8@0x1C",
+                ["B29_GrowSkl"] = "u8@0x1D",
+                ["B30_GrowSpd"] = "u8@0x1E",
+                ["B31_GrowDef"] = "u8@0x1F",
+                ["B32_GrowRes"] = "u8@0x20",
+                ["B33_GrowLck"] = "u8@0x21",
+                ["b34_PromoHp"] = "u8@0x22",
+                ["b35_PromoStr"] = "u8@0x23",
+            };
+
+            if (IsFE6)
+            {
+                // FE6: +36..+39 = ability flags, +40..+47 = weapon ranks,
+                //      P48 = battle anim, P52 = move cost, P56 = terrain avoid,
+                //      P60 = terrain def, P64 = terrain res, D68 = unknown
+                map["B40_Ability1"] = "u8@0x24";  // +36
+                map["B41_Ability2"] = "u8@0x25";  // +37
+                map["B42_Ability3"] = "u8@0x26";  // +38
+                map["B43_Ability4"] = "u8@0x27";  // +39
+                map["B44_WepRankSword"] = "u8@0x28";  // +40
+                map["B45_WepRankLance"] = "u8@0x29";  // +41
+                map["B46_WepRankAxe"] = "u8@0x2A";    // +42
+                map["B47_WepRankBow"] = "u8@0x2B";    // +43
+                map["B48_WepRankStaff"] = "u8@0x2C";  // +44
+                map["B49_WepRankAnima"] = "u8@0x2D";  // +45
+                map["B50_WepRankLight"] = "u8@0x2E";  // +46
+                map["B51_WepRankDark"] = "u8@0x2F";   // +47
+                map["P52_BattleAnimePtr"] = "u32@0x30";  // +48
+                map["P56_MoveCostPtr"] = "u32@0x34";     // +52
+                map["P68_TerrainAvoidPtr"] = "u32@0x38"; // +56
+                map["P72_TerrainDefPtr"] = "u32@0x3C";   // +60
+                map["P76_TerrainResPtr"] = "u32@0x40";   // +64
+                map["D80_Unknown"] = "u32@0x44";         // +68
+            }
+            else
+            {
+                // FE7/8: +36..+39 = promo gains, +40..+43 = ability flags,
+                //        +44..+51 = weapon ranks, P52 = battle anim,
+                //        P56..P64 = move costs, P68..P76 = terrain, D80 = unknown
+                map["b36_PromoSkl"] = "u8@0x24";
+                map["b37_PromoSpd"] = "u8@0x25";
+                map["b38_PromoDef"] = "u8@0x26";
+                map["b39_PromoRes"] = "u8@0x27";
+                map["B40_Ability1"] = "u8@0x28";
+                map["B41_Ability2"] = "u8@0x29";
+                map["B42_Ability3"] = "u8@0x2A";
+                map["B43_Ability4"] = "u8@0x2B";
+                map["B44_WepRankSword"] = "u8@0x2C";
+                map["B45_WepRankLance"] = "u8@0x2D";
+                map["B46_WepRankAxe"] = "u8@0x2E";
+                map["B47_WepRankBow"] = "u8@0x2F";
+                map["B48_WepRankStaff"] = "u8@0x30";
+                map["B49_WepRankAnima"] = "u8@0x31";
+                map["B50_WepRankLight"] = "u8@0x32";
+                map["B51_WepRankDark"] = "u8@0x33";
+                map["P52_BattleAnimePtr"] = "u32@0x34";
+                map["P56_MoveCostPtr"] = "u32@0x38";
+                map["P60_MoveCostRainPtr"] = "u32@0x3C";
+                map["P64_MoveCostSnowPtr"] = "u32@0x40";
+                map["P68_TerrainAvoidPtr"] = "u32@0x44";
+                map["P72_TerrainDefPtr"] = "u32@0x48";
+                map["P76_TerrainResPtr"] = "u32@0x4C";
+                map["D80_Unknown"] = "u32@0x50";
+            }
+
+            return map;
         }
 
         // --- Validation ---
