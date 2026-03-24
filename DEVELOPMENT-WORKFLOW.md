@@ -375,7 +375,7 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THRE
 - Re-run ALL THREE checks from step 10 (issue comments + review bodies + inline threads) to catch **newly posted** feedback
 - Resolve all review threads after addressing them
 - Re-trigger Copilot CLI review using the same invocation from step 10
-- Repeat until: **no unresolved comments of any kind**
+- Repeat until: **all inline review threads resolved AND no unaddressed feedback in issue comments or PR review bodies**
 
 **Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
 ```

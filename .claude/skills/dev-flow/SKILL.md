@@ -59,7 +59,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 
 ## Phase 4 — Merge
 
-15. **Pre-merge checklist**: CI green, branch up-to-date, no unresolved threads.
+15. **Pre-merge checklist**: CI green, branch up-to-date, all feedback addressed (all three channels: issue comments, review bodies, inline threads).
 16. **Merge**: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge`
 17. **Confirm**: `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` — must be `MERGED`.
 18. If not MERGED, diagnose and fix (see DEVELOPMENT-WORKFLOW.md), loop back to step 15.
