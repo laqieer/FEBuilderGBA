@@ -1306,7 +1306,7 @@ namespace FEBuilderGBA.Avalonia.Views
                                     {
                                         // Non-comparable data — count as skip, not verified
                                         editorSkipped = true;
-                                        Console.WriteLine($"DATAVERIFY: {name} ... SKIP (non-comparable data)");
+                                        Console.WriteLine($"DATAVERIFY: {name} ... SKIP (no comparable data)");
                                         break;
                                     }
 
