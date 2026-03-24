@@ -324,9 +324,18 @@ Address feedback in categories:
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
 | **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger Copilot CLI review |
 
-**After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews).
+**After each push, check for ALL feedback — both inline review threads AND issue-level conversation comments:**
 
-Find all unresolved review threads (use `first: 100` to cover large PRs; paginate if `hasNextPage` is true):
+**CRITICAL: Human reviewer comments appear as issue-level comments, NOT inline threads. You MUST check both or you will miss human feedback. This is a recurring failure mode.**
+
+**Step A — Check issue-level conversation comments (human reviewer feedback):**
+```bash
+# ALWAYS check this — human comments appear here, not in review threads
+gh api repos/laqieer/FEBuilderGBA/issues/<N>/comments --jq '.[] | select(.user.login != "github-actions[bot]" and .user.type != "Bot") | "\(.user.login): \(.body | split("\n")[0])"'
+```
+Address every human comment before proceeding.
+
+**Step B — Find all unresolved inline review threads** (use `first: 100`; paginate if `hasNextPage` is true):
 ```bash
 # Get ALL unresolved thread IDs and their first comment
 gh api graphql -f query='{
