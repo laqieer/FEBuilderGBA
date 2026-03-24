@@ -127,5 +127,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x06_AdvancedClass4"] = $"0x{rom.u8(a + 6):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["B0_TraineeClass"] = "u8@0x00_TraineeClass",
+                ["B1_BaseClass1"] = "u8@0x01_BaseClass1",
+                ["B2_BaseClass2"] = "u8@0x02_BaseClass2",
+                ["B3_AdvancedClass1"] = "u8@0x03_AdvancedClass1",
+                ["B4_AdvancedClass2"] = "u8@0x04_AdvancedClass2",
+                ["B5_AdvancedClass3"] = "u8@0x05_AdvancedClass3",
+                ["B6_AdvancedClass4"] = "u8@0x06_AdvancedClass4",
+            };
+        }
     }
 }

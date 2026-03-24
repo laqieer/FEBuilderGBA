@@ -236,5 +236,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Separator2@0x17"] = $"0x{rom.u8(a + 23):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Partner1"] = "Partner1@0x00",
+                ["Partner2"] = "Partner2@0x01",
+                ["Partner3"] = "Partner3@0x02",
+                ["Partner4"] = "Partner4@0x03",
+                ["Partner5"] = "Partner5@0x04",
+                ["Partner6"] = "Partner6@0x05",
+                ["Partner7"] = "Partner7@0x06",
+                ["InitialValue1"] = "InitialValue1@0x07",
+                ["InitialValue2"] = "InitialValue2@0x08",
+                ["InitialValue3"] = "InitialValue3@0x09",
+                ["InitialValue4"] = "InitialValue4@0x0A",
+                ["InitialValue5"] = "InitialValue5@0x0B",
+                ["InitialValue6"] = "InitialValue6@0x0C",
+                ["InitialValue7"] = "InitialValue7@0x0D",
+                ["GrowthRate1"] = "GrowthRate1@0x0E",
+                ["GrowthRate2"] = "GrowthRate2@0x0F",
+                ["GrowthRate3"] = "GrowthRate3@0x10",
+                ["GrowthRate4"] = "GrowthRate4@0x11",
+                ["GrowthRate5"] = "GrowthRate5@0x12",
+                ["GrowthRate6"] = "GrowthRate6@0x13",
+                ["GrowthRate7"] = "GrowthRate7@0x14",
+                ["PartnerCount"] = "PartnerCount@0x15",
+                ["Separator1"] = "Separator1@0x16",
+                ["Separator2"] = "Separator2@0x17",
+            };
+        }
     }
 }

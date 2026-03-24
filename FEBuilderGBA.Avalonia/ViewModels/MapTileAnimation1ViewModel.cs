@@ -112,5 +112,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["MapTileDataPointer@0x04"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["AnimInterval"] = "AnimInterval@0x00",
+                ["DataCount"] = "DataCount@0x02",
+                ["MapTileDataPointer"] = "MapTileDataPointer@0x04",
+            };
+        }
     }
 }

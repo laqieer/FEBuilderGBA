@@ -379,6 +379,64 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["W0_NameId"] = "u16@0x00",
+                ["W2_DescId"] = "u16@0x02",
+                ["B4_ClassId"] = "u8@0x04",
+                ["B5_PromotionLevel"] = "u8@0x05",
+                ["B6_WaitIcon"] = "u8@0x06",
+                ["B7_WalkSpeed"] = "u8@0x07",
+                ["W8_PortraitId"] = "u16@0x08",
+                ["B10_SortOrder"] = "u8@0x0A",
+                ["B11_BaseHp"] = "u8@0x0B",
+                ["B12_BaseStr"] = "u8@0x0C",
+                ["B13_BaseSkl"] = "u8@0x0D",
+                ["B14_BaseSpd"] = "u8@0x0E",
+                ["B15_BaseDef"] = "u8@0x0F",
+                ["B16_BaseRes"] = "u8@0x10",
+                ["B17_BaseCon"] = "u8@0x11",
+                ["B18_BaseMov"] = "u8@0x12",
+                ["B19_MaxHp"] = "u8@0x13",
+                ["B20_MaxStr"] = "u8@0x14",
+                ["B21_MaxSkl"] = "u8@0x15",
+                ["B22_MaxSpd"] = "u8@0x16",
+                ["B23_MaxDef"] = "u8@0x17",
+                ["B24_MaxRes"] = "u8@0x18",
+                ["B25_MaxCon"] = "u8@0x19",
+                ["B26_ClassPower"] = "u8@0x1A",
+                ["B27_GrowHp"] = "u8@0x1B",
+                ["B28_GrowStr"] = "u8@0x1C",
+                ["B29_GrowSkl"] = "u8@0x1D",
+                ["B30_GrowSpd"] = "u8@0x1E",
+                ["B31_GrowDef"] = "u8@0x1F",
+                ["B32_GrowRes"] = "u8@0x20",
+                ["B33_GrowLck"] = "u8@0x21",
+                ["b34_PromoHp"] = "u8@0x22",
+                ["b35_PromoStr"] = "u8@0x23",
+                ["B36_Ability1"] = "u8@0x24",
+                ["B37_Ability2"] = "u8@0x25",
+                ["B38_Ability3"] = "u8@0x26",
+                ["B39_Ability4"] = "u8@0x27",
+                ["B40_WepSword"] = "u8@0x28",
+                ["B41_WepLance"] = "u8@0x29",
+                ["B42_WepAxe"] = "u8@0x2A",
+                ["B43_WepBow"] = "u8@0x2B",
+                ["B44_WepStaff"] = "u8@0x2C",
+                ["B45_WepAnima"] = "u8@0x2D",
+                ["B46_WepLight"] = "u8@0x2E",
+                ["B47_WepDark"] = "u8@0x2F",
+                ["P48_BattleAnimePtr"] = "u32@0x30",
+                ["P52_MoveCostPtr"] = "u32@0x34",
+                ["P56_TerrainAvoidPtr"] = "u32@0x38",
+                ["P60_TerrainDefPtr"] = "u32@0x3C",
+                ["P64_TerrainResPtr"] = "u32@0x40",
+                ["D68_Unknown"] = "u32@0x44",
+            };
+        }
+
         public void WriteEntry()
         {
             ROM rom = CoreState.ROM;
