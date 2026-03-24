@@ -66,6 +66,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Configure version-specific UI BEFORE setting items,
+                // because SetItems() auto-selects the first item which triggers
+                // OnClassSelected -> LoadClass -> UpdateUI. We need correct labels
+                // and visibility before that first render.
+                ConfigureVersionUI();
+
                 var items = _vm.LoadClassList();
                 ClassList.SetItems(items);
 
@@ -75,9 +81,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     skillType == PatchDetectionService.SkillSystemType.SkillSystem ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys09x ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
-
-                // Configure version-specific UI
-                ConfigureVersionUI();
             }
             catch (Exception ex)
             {
@@ -101,19 +104,81 @@ namespace FEBuilderGBA.Avalonia.Views
 
             bool isFE6 = version == 6;
 
-            // FE6 has no terrain avoid/def/res pointers and no D80
-            // These controls are in the "Pointers / Movement / Terrain" expander
-            if (TerrainRow != null) TerrainRow.IsVisible = !isFE6;
+            // FE6 has terrain avoid/def/res at +56/+60/+64 (mapped to the "rain/snow" and terrain controls)
+            // FE7/8 has separate terrain pointers at +68/+72/+76 shown in TerrainRow and D80Row
+            // For FE6: show TerrainRow (repurposed for terrain res) but hide D80Row (no D80 field)
+            if (TerrainRow != null) TerrainRow.IsVisible = true;  // all versions need it
             if (D80Row != null) D80Row.IsVisible = !isFE6;
 
-            // Update offset labels based on version
+            // FE6: stat caps only have HP and Str (b34-b35); Skl/Spd/Def/Res don't exist
+            if (CapSklLabel != null) CapSklLabel.IsVisible = !isFE6;
+            if (CapSklBox != null) CapSklBox.IsVisible = !isFE6;
+            if (CapSpdLabel != null) CapSpdLabel.IsVisible = !isFE6;
+            if (CapSpdBox != null) CapSpdBox.IsVisible = !isFE6;
+            if (CapDefLabel != null) CapDefLabel.IsVisible = !isFE6;
+            if (CapDefBox != null) CapDefBox.IsVisible = !isFE6;
+            if (CapResLabel != null) CapResLabel.IsVisible = !isFE6;
+            if (CapResBox != null) CapResBox.IsVisible = !isFE6;
+
             if (isFE6)
             {
                 // FE6 class struct: ability at +36, weapon ranks at +40, battle anime at +48
+                // Ability flag labels
                 if (AbilityHeaderText1 != null) AbilityHeaderText1.Text = "Ability 1 (B36):";
                 if (AbilityHeaderText2 != null) AbilityHeaderText2.Text = "Ability 2 (B37):";
                 if (AbilityHeaderText3 != null) AbilityHeaderText3.Text = "Ability 3 (B38):";
                 if (AbilityHeaderText4 != null) AbilityHeaderText4.Text = "Ability 4 (B39):";
+
+                // Weapon rank labels: FE6 uses B40-B47
+                if (WepRankExpander != null) WepRankExpander.Header = "Weapon Rank Levels (B40-B47)";
+                if (WepRankSwordLabel != null) WepRankSwordLabel.Text = "Sword (B40):";
+                if (WepRankLanceLabel != null) WepRankLanceLabel.Text = "Lance (B41):";
+                if (WepRankAxeLabel != null) WepRankAxeLabel.Text = "Axe (B42):";
+                if (WepRankBowLabel != null) WepRankBowLabel.Text = "Bow (B43):";
+                if (WepRankStaffLabel != null) WepRankStaffLabel.Text = "Staff (B44):";
+                if (WepRankAnimaLabel != null) WepRankAnimaLabel.Text = "Anima (B45):";
+                if (WepRankLightLabel != null) WepRankLightLabel.Text = "Light (B46):";
+                if (WepRankDarkLabel != null) WepRankDarkLabel.Text = "Dark (B47):";
+
+                // Pointer labels: FE6 battle anime at P48, move cost at P52,
+                // terrain avoid/def/res at P56/P60/P64 (per WinForms ClassFE6Form)
+                if (BattleAnimeLabel != null) BattleAnimeLabel.Text = "Battle Anime (P48):";
+                if (MoveCostLabel != null) MoveCostLabel.Text = "Move Cost (P52):";
+                if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Terrain Avoid (P56):";
+                if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Terrain Def (P60):";
+
+                // TerrainRow: repurpose first slot for Terrain Res (P64), hide second pair
+                if (TerrainAvoidLabel != null) TerrainAvoidLabel.Text = "Terrain Res (P64):";
+                if (TerrainDefLabel != null) TerrainDefLabel.IsVisible = false;
+                if (Ptr72Box != null) Ptr72Box.IsVisible = false;
+            }
+            else
+            {
+                // FE7/8: reset labels to defaults in case they were set to FE6 values previously
+                if (AbilityHeaderText1 != null) AbilityHeaderText1.Text = "Ability 1 (B40):";
+                if (AbilityHeaderText2 != null) AbilityHeaderText2.Text = "Ability 2 (B41):";
+                if (AbilityHeaderText3 != null) AbilityHeaderText3.Text = "Ability 3 (B42):";
+                if (AbilityHeaderText4 != null) AbilityHeaderText4.Text = "Ability 4 (B43):";
+
+                if (WepRankExpander != null) WepRankExpander.Header = "Weapon Rank Levels (B44-B51)";
+                if (WepRankSwordLabel != null) WepRankSwordLabel.Text = "Sword (B44):";
+                if (WepRankLanceLabel != null) WepRankLanceLabel.Text = "Lance (B45):";
+                if (WepRankAxeLabel != null) WepRankAxeLabel.Text = "Axe (B46):";
+                if (WepRankBowLabel != null) WepRankBowLabel.Text = "Bow (B47):";
+                if (WepRankStaffLabel != null) WepRankStaffLabel.Text = "Staff (B48):";
+                if (WepRankAnimaLabel != null) WepRankAnimaLabel.Text = "Anima (B49):";
+                if (WepRankLightLabel != null) WepRankLightLabel.Text = "Light (B50):";
+                if (WepRankDarkLabel != null) WepRankDarkLabel.Text = "Dark (B51):";
+
+                if (BattleAnimeLabel != null) BattleAnimeLabel.Text = "Battle Anime (P52):";
+                if (MoveCostLabel != null) MoveCostLabel.Text = "Move Cost (P56):";
+                if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Move Cost Rain (P60):";
+                if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Move Cost Snow (P64):";
+
+                // TerrainRow: restore defaults for FE7/8
+                if (TerrainAvoidLabel != null) TerrainAvoidLabel.Text = "Terrain Avoid (P68):";
+                if (TerrainDefLabel != null) TerrainDefLabel.IsVisible = true;
+                if (Ptr72Box != null) Ptr72Box.IsVisible = true;
             }
         }
 
@@ -207,15 +272,31 @@ namespace FEBuilderGBA.Avalonia.Views
 
             UpdateWeaponRankLabels();
 
-            // Pointers
+            // Pointers — layout differs between FE6 and FE7/8.
+            // FE6: P48=BattleAnime, P52=MoveCost, P56=TerrainAvoid, P60=TerrainDef, P64=TerrainRes
+            // FE7/8: P52=BattleAnime, P56=MoveCost, P60=MoveCostRain, P64=MoveCostSnow,
+            //        P68=TerrainAvoid, P72=TerrainDef, P76=TerrainRes, D80=Unknown
             Ptr52Box.Text = $"0x{_vm.BattleAnimePtr:X08}";
             Ptr56Box.Text = $"0x{_vm.MoveCostPtr:X08}";
-            Ptr60Box.Text = $"0x{_vm.MoveCostRainPtr:X08}";
-            Ptr64Box.Text = $"0x{_vm.MoveCostSnowPtr:X08}";
-            Ptr68Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
-            Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
-            Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
-            D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+            if (_vm.IsFE6)
+            {
+                // FE6: Ptr60=TerrainAvoid(+56), Ptr64=TerrainDef(+60), Ptr68=TerrainRes(+64)
+                Ptr60Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
+                Ptr64Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
+                Ptr68Box.Text = $"0x{_vm.TerrainResPtr:X08}";
+                Ptr72Box.Text = "";
+                Ptr76Box.Text = "";
+                D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+            }
+            else
+            {
+                Ptr60Box.Text = $"0x{_vm.MoveCostRainPtr:X08}";
+                Ptr64Box.Text = $"0x{_vm.MoveCostSnowPtr:X08}";
+                Ptr68Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
+                Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
+                Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
+                D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+            }
 
             // Auto-calculate growth on entry load
             SimLevelBox.Value = _vm.SimLevel;
@@ -337,11 +418,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
             _vm.BattleAnimePtr = ParseHexText(Ptr52Box.Text);
             _vm.MoveCostPtr = ParseHexText(Ptr56Box.Text);
-            _vm.MoveCostRainPtr = ParseHexText(Ptr60Box.Text);
-            _vm.MoveCostSnowPtr = ParseHexText(Ptr64Box.Text);
-            _vm.TerrainAvoidPtr = ParseHexText(Ptr68Box.Text);
-            _vm.TerrainDefPtr = ParseHexText(Ptr72Box.Text);
-            _vm.TerrainResPtr = ParseHexText(Ptr76Box.Text);
+            if (_vm.IsFE6)
+            {
+                // FE6: Ptr60=TerrainAvoid, Ptr64=TerrainDef, Ptr68=TerrainRes
+                _vm.MoveCostRainPtr = 0;
+                _vm.MoveCostSnowPtr = 0;
+                _vm.TerrainAvoidPtr = ParseHexText(Ptr60Box.Text);
+                _vm.TerrainDefPtr = ParseHexText(Ptr64Box.Text);
+                _vm.TerrainResPtr = ParseHexText(Ptr68Box.Text);
+            }
+            else
+            {
+                _vm.MoveCostRainPtr = ParseHexText(Ptr60Box.Text);
+                _vm.MoveCostSnowPtr = ParseHexText(Ptr64Box.Text);
+                _vm.TerrainAvoidPtr = ParseHexText(Ptr68Box.Text);
+                _vm.TerrainDefPtr = ParseHexText(Ptr72Box.Text);
+                _vm.TerrainResPtr = ParseHexText(Ptr76Box.Text);
+            }
             _vm.UnknownD80 = ParseHexText(D80Box.Text);
 
             _undoService.Begin(R._("Edit Class"));

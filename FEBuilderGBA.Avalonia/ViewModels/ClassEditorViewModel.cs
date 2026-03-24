@@ -37,9 +37,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // B44-B51: weapon rank levels (Sword, Lance, Axe, Bow, Staff, Anima, Light, Dark)
         uint _wepRankSword, _wepRankLance, _wepRankAxe, _wepRankBow;
         uint _wepRankStaff, _wepRankAnima, _wepRankLight, _wepRankDark;
-        // P52: Battle animation pointer, P56-P64: Move cost pointers
+        // FE7/8: P52=BattleAnime, P56=MoveCost, P60=MoveCostRain, P64=MoveCostSnow
+        // FE6:   P48=BattleAnime, P52=MoveCost (no rain/snow)
         uint _battleAnimePtr, _moveCostPtr, _moveCostRainPtr, _moveCostSnowPtr;
-        // P68: Terrain avoid, P72: Terrain defense, P76: Terrain resistance
+        // FE7/8: P68=TerrainAvoid, P72=TerrainDef, P76=TerrainRes
+        // FE6:   P56=TerrainAvoid, P60=TerrainDef, P64=TerrainRes
         uint _terrainAvoidPtr, _terrainDefPtr, _terrainResPtr;
         // D80: unknown u32
         uint _unknownD80;
@@ -127,19 +129,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint WepRankLight { get => _wepRankLight; set => SetField(ref _wepRankLight, value); }
         public uint WepRankDark { get => _wepRankDark; set => SetField(ref _wepRankDark, value); }
 
-        // P52: Battle animation pointer
+        // Battle animation pointer (FE6: P48, FE7/8: P52)
         public uint BattleAnimePtr { get => _battleAnimePtr; set => SetField(ref _battleAnimePtr, value); }
-        // P56: Move cost (normal)
+        // Move cost — normal (FE6: P52, FE7/8: P56)
         public uint MoveCostPtr { get => _moveCostPtr; set => SetField(ref _moveCostPtr, value); }
-        // P60: Move cost (rain)
+        // Move cost — rain (FE7/8 only: P60; FE6 has no rain move cost)
         public uint MoveCostRainPtr { get => _moveCostRainPtr; set => SetField(ref _moveCostRainPtr, value); }
-        // P64: Move cost (snow)
+        // Move cost — snow (FE7/8 only: P64; FE6 has no snow move cost)
         public uint MoveCostSnowPtr { get => _moveCostSnowPtr; set => SetField(ref _moveCostSnowPtr, value); }
-        // P68: Terrain avoid
+        // Terrain avoid (FE6: P56, FE7/8: P68)
         public uint TerrainAvoidPtr { get => _terrainAvoidPtr; set => SetField(ref _terrainAvoidPtr, value); }
-        // P72: Terrain defense
+        // Terrain defense (FE6: P60, FE7/8: P72)
         public uint TerrainDefPtr { get => _terrainDefPtr; set => SetField(ref _terrainDefPtr, value); }
-        // P76: Terrain resistance
+        // Terrain resistance (FE6: P64, FE7/8: P76)
         public uint TerrainResPtr { get => _terrainResPtr; set => SetField(ref _terrainResPtr, value); }
 
         // D80: Unknown u32
@@ -252,7 +254,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // From here, offsets diverge between FE6 (72-byte struct) and FE7/8 (84-byte struct).
             // FE6: b36-b39 = ability flags, B40-B47 = weapon ranks, P48 = battle anim,
-            //      P52/P56/P60/P64 = move costs, D68 = unknown
+            //      P52 = move cost, P56 = terrain avoid, P60 = terrain def,
+            //      P64 = terrain res, D68 = unknown
             // FE7/8: b36-b39 = stat caps continued, B40-B43 = ability flags,
             //        B44-B51 = weapon ranks, P52 = battle anim, P56-P64 = move costs,
             //        P68/P72/P76 = terrain ptrs, D80 = unknown
@@ -281,17 +284,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 WepRankLight = rom.u8(addr + 46);
                 WepRankDark = rom.u8(addr + 47);
 
-                // Pointers (FE6)
+                // Pointers (FE6) — per WinForms ClassFE6Form.GetMoveCostAddrLow:
+                // +48 = battle anime, +52 = move cost,
+                // +56 = terrain avoid, +60 = terrain def, +64 = terrain res
                 BattleAnimePtr = rom.u32(addr + 48);
                 MoveCostPtr = rom.u32(addr + 52);
-                MoveCostRainPtr = rom.u32(addr + 56);
-                MoveCostSnowPtr = rom.u32(addr + 60);
-
-                // FE6 has a 4th move cost pointer at +64 instead of terrain ptrs
-                // and unknown at +68
-                TerrainAvoidPtr = 0; // Not present in FE6
-                TerrainDefPtr = 0;   // Not present in FE6
-                TerrainResPtr = 0;   // Not present in FE6
+                MoveCostRainPtr = 0;  // FE6 has no rain/snow move costs
+                MoveCostSnowPtr = 0;
+                TerrainAvoidPtr = rom.u32(addr + 56);
+                TerrainDefPtr = rom.u32(addr + 60);
+                TerrainResPtr = rom.u32(addr + 64);
                 UnknownD80 = rom.u32(addr + 68);  // D68 in FE6
             }
             else
@@ -594,10 +596,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom.write_u8(addr + 47, WepRankDark);
 
                 // FE6: pointers at +48..+64, unknown at +68
+                // Per WinForms ClassFE6Form: +52=MoveCost, +56=TerrainAvoid,
+                // +60=TerrainDef, +64=TerrainRes
                 rom.write_u32(addr + 48, BattleAnimePtr);
                 rom.write_u32(addr + 52, MoveCostPtr);
-                rom.write_u32(addr + 56, MoveCostRainPtr);
-                rom.write_u32(addr + 60, MoveCostSnowPtr);
+                rom.write_u32(addr + 56, TerrainAvoidPtr);
+                rom.write_u32(addr + 60, TerrainDefPtr);
+                rom.write_u32(addr + 64, TerrainResPtr);
                 rom.write_u32(addr + 68, UnknownD80);
             }
             else
