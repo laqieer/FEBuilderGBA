@@ -202,106 +202,110 @@ namespace FEBuilderGBA.Avalonia.Views
             // which calls SyncGrowthInputsToVm() and reads GrowResBox (still at its old/default
             // value), overwriting the ViewModel's GrowRes back to 0.
             _vm.IsLoading = true;
-
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            NameLabel.Text = _vm.Name;
-
-            // Identity
-            NameIdBox.Value = _vm.NameId;
-            DescIdBox.Value = _vm.DescId;
-            ClassNumberBox.Value = _vm.ClassNumber;
-            PromotionLevelBox.Value = _vm.PromotionLevel;
-            WaitIconBox.Value = _vm.WaitIcon;
-            WalkSpeedBox.Value = _vm.WalkSpeed;
-            PortraitIdBox.Value = _vm.PortraitId;
-            SortOrderBox.Value = _vm.SortOrder;
-
-            // Base stats
-            BaseHpBox.Value = _vm.BaseHp;
-            BaseStrBox.Value = _vm.BaseStr;
-            BaseSklBox.Value = _vm.BaseSkl;
-            BaseSpdBox.Value = _vm.BaseSpd;
-            BaseDefBox.Value = _vm.BaseDef;
-            BaseResBox.Value = _vm.BaseRes;
-            BaseConBox.Value = _vm.BaseCon;
-            BaseMovBox.Value = _vm.BaseMov;
-
-            // Stat caps
-            MaxHpBox.Value = _vm.MaxHp;
-            MaxStrBox.Value = _vm.MaxStr;
-            MaxSklBox.Value = _vm.MaxSkl;
-            MaxSpdBox.Value = _vm.MaxSpd;
-            MaxDefBox.Value = _vm.MaxDef;
-            MaxResBox.Value = _vm.MaxRes;
-            MaxConBox.Value = _vm.MaxCon;
-            ClassPowerBox.Value = _vm.ClassPower;
-
-            // Growth rates
-            GrowHpBox.Value = _vm.GrowHp;
-            GrowStrBox.Value = _vm.GrowStr;
-            GrowSklBox.Value = _vm.GrowSkl;
-            GrowSpdBox.Value = _vm.GrowSpd;
-            GrowDefBox.Value = _vm.GrowDef;
-            GrowResBox.Value = _vm.GrowRes;
-            GrowLckBox.Value = _vm.GrowLck;
-
-            // Promotion gains
-            PromoHpBox.Value = _vm.PromoHp;
-            PromoStrBox.Value = _vm.PromoStr;
-            PromoSklBox.Value = _vm.PromoSkl;
-            PromoSpdBox.Value = _vm.PromoSpd;
-            PromoDefBox.Value = _vm.PromoDef;
-            PromoResBox.Value = _vm.PromoRes;
-
-            // Abilities (BitFlagPanel)
-            Ability1Flags.Value = (byte)_vm.Ability1;
-            Ability2Flags.Value = (byte)_vm.Ability2;
-            Ability3Flags.Value = (byte)_vm.Ability3;
-            Ability4Flags.Value = (byte)_vm.Ability4;
-
-            // Weapon rank levels
-            B44Box.Value = _vm.WepRankSword;
-            B45Box.Value = _vm.WepRankLance;
-            B46Box.Value = _vm.WepRankAxe;
-            B47Box.Value = _vm.WepRankBow;
-            B48Box.Value = _vm.WepRankStaff;
-            B49Box.Value = _vm.WepRankAnima;
-            B50Box.Value = _vm.WepRankLight;
-            B51Box.Value = _vm.WepRankDark;
-
-            UpdateWeaponRankLabels();
-
-            // Pointers — layout differs between FE6 and FE7/8.
-            // FE6: P48=BattleAnime, P52=MoveCost, P56=TerrainAvoid, P60=TerrainDef, P64=TerrainRes
-            // FE7/8: P52=BattleAnime, P56=MoveCost, P60=MoveCostRain, P64=MoveCostSnow,
-            //        P68=TerrainAvoid, P72=TerrainDef, P76=TerrainRes, D80=Unknown
-            Ptr52Box.Text = $"0x{_vm.BattleAnimePtr:X08}";
-            Ptr56Box.Text = $"0x{_vm.MoveCostPtr:X08}";
-            if (_vm.IsFE6)
+            try
             {
-                // FE6: Ptr60=TerrainAvoid(+56), Ptr64=TerrainDef(+60), Ptr68=TerrainRes(+64)
-                Ptr60Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
-                Ptr64Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
-                Ptr68Box.Text = $"0x{_vm.TerrainResPtr:X08}";
-                Ptr72Box.Text = "";
-                Ptr76Box.Text = "";
-                D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+                AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+                NameLabel.Text = _vm.Name;
+
+                // Identity
+                NameIdBox.Value = _vm.NameId;
+                DescIdBox.Value = _vm.DescId;
+                ClassNumberBox.Value = _vm.ClassNumber;
+                PromotionLevelBox.Value = _vm.PromotionLevel;
+                WaitIconBox.Value = _vm.WaitIcon;
+                WalkSpeedBox.Value = _vm.WalkSpeed;
+                PortraitIdBox.Value = _vm.PortraitId;
+                SortOrderBox.Value = _vm.SortOrder;
+
+                // Base stats
+                BaseHpBox.Value = _vm.BaseHp;
+                BaseStrBox.Value = _vm.BaseStr;
+                BaseSklBox.Value = _vm.BaseSkl;
+                BaseSpdBox.Value = _vm.BaseSpd;
+                BaseDefBox.Value = _vm.BaseDef;
+                BaseResBox.Value = _vm.BaseRes;
+                BaseConBox.Value = _vm.BaseCon;
+                BaseMovBox.Value = _vm.BaseMov;
+
+                // Stat caps
+                MaxHpBox.Value = _vm.MaxHp;
+                MaxStrBox.Value = _vm.MaxStr;
+                MaxSklBox.Value = _vm.MaxSkl;
+                MaxSpdBox.Value = _vm.MaxSpd;
+                MaxDefBox.Value = _vm.MaxDef;
+                MaxResBox.Value = _vm.MaxRes;
+                MaxConBox.Value = _vm.MaxCon;
+                ClassPowerBox.Value = _vm.ClassPower;
+
+                // Growth rates
+                GrowHpBox.Value = _vm.GrowHp;
+                GrowStrBox.Value = _vm.GrowStr;
+                GrowSklBox.Value = _vm.GrowSkl;
+                GrowSpdBox.Value = _vm.GrowSpd;
+                GrowDefBox.Value = _vm.GrowDef;
+                GrowResBox.Value = _vm.GrowRes;
+                GrowLckBox.Value = _vm.GrowLck;
+
+                // Promotion gains
+                PromoHpBox.Value = _vm.PromoHp;
+                PromoStrBox.Value = _vm.PromoStr;
+                PromoSklBox.Value = _vm.PromoSkl;
+                PromoSpdBox.Value = _vm.PromoSpd;
+                PromoDefBox.Value = _vm.PromoDef;
+                PromoResBox.Value = _vm.PromoRes;
+
+                // Abilities (BitFlagPanel)
+                Ability1Flags.Value = (byte)_vm.Ability1;
+                Ability2Flags.Value = (byte)_vm.Ability2;
+                Ability3Flags.Value = (byte)_vm.Ability3;
+                Ability4Flags.Value = (byte)_vm.Ability4;
+
+                // Weapon rank levels
+                B44Box.Value = _vm.WepRankSword;
+                B45Box.Value = _vm.WepRankLance;
+                B46Box.Value = _vm.WepRankAxe;
+                B47Box.Value = _vm.WepRankBow;
+                B48Box.Value = _vm.WepRankStaff;
+                B49Box.Value = _vm.WepRankAnima;
+                B50Box.Value = _vm.WepRankLight;
+                B51Box.Value = _vm.WepRankDark;
+
+                UpdateWeaponRankLabels();
+
+                // Pointers — layout differs between FE6 and FE7/8.
+                // FE6: P48=BattleAnime, P52=MoveCost, P56=TerrainAvoid, P60=TerrainDef, P64=TerrainRes
+                // FE7/8: P52=BattleAnime, P56=MoveCost, P60=MoveCostRain, P64=MoveCostSnow,
+                //        P68=TerrainAvoid, P72=TerrainDef, P76=TerrainRes, D80=Unknown
+                Ptr52Box.Text = $"0x{_vm.BattleAnimePtr:X08}";
+                Ptr56Box.Text = $"0x{_vm.MoveCostPtr:X08}";
+                if (_vm.IsFE6)
+                {
+                    // FE6: Ptr60=TerrainAvoid(+56), Ptr64=TerrainDef(+60), Ptr68=TerrainRes(+64)
+                    Ptr60Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
+                    Ptr64Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
+                    Ptr68Box.Text = $"0x{_vm.TerrainResPtr:X08}";
+                    Ptr72Box.Text = "";
+                    Ptr76Box.Text = "";
+                    D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+                }
+                else
+                {
+                    Ptr60Box.Text = $"0x{_vm.MoveCostRainPtr:X08}";
+                    Ptr64Box.Text = $"0x{_vm.MoveCostSnowPtr:X08}";
+                    Ptr68Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
+                    Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
+                    Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
+                    D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+                }
+
+                // Auto-calculate growth on entry load
+                SimLevelBox.Value = _vm.SimLevel;
             }
-            else
+            finally
             {
-                Ptr60Box.Text = $"0x{_vm.MoveCostRainPtr:X08}";
-                Ptr64Box.Text = $"0x{_vm.MoveCostSnowPtr:X08}";
-                Ptr68Box.Text = $"0x{_vm.TerrainAvoidPtr:X08}";
-                Ptr72Box.Text = $"0x{_vm.TerrainDefPtr:X08}";
-                Ptr76Box.Text = $"0x{_vm.TerrainResPtr:X08}";
-                D80Box.Text = $"0x{_vm.UnknownD80:X08}";
+                // Finished bulk UI update — re-enable change handlers even if an exception occurred.
+                _vm.IsLoading = false;
             }
-
-            // Auto-calculate growth on entry load
-            SimLevelBox.Value = _vm.SimLevel;
-
-            // Finished bulk UI update — re-enable change handlers, then compute growth sim.
-            _vm.IsLoading = false;
 
             _vm.CalculateGrowth();
             GrowthSimLabel.Text = _vm.GrowthSimText;

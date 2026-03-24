@@ -404,6 +404,13 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
             }
 
+            // When fieldMap is non-empty and ROM is available, rawReport should be non-empty
+            // (the VM should be able to read raw ROM bytes at the current address).
+            if (rawReport == null || rawReport.Count == 0)
+            {
+                _output.WriteLine($"WARN {name}: rawReport is empty despite non-empty fieldMap — verify GetRawRomReport() reads data");
+            }
+
             // Validate: each field map value should exist in rawReport
             if (rawReport != null && rawReport.Count > 0)
             {
@@ -480,8 +487,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                     $"{name}: {mismatches} field mismatches out of {checked_} checked fields");
                 _output.WriteLine($"OK {name}: {checked_} fields cross-checked, all match");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!_rom.IsAvailable)
             {
+                // Only swallow exceptions when ROM is not available (expected failures).
+                // When ROM IS available, let exceptions propagate to surface regressions.
                 _output.WriteLine($"SKIP {name}: threw {ex.GetType().Name}: {ex.Message}");
             }
         }

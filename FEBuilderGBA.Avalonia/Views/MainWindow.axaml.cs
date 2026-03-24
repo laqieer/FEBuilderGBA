@@ -1254,14 +1254,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
                                 bool editorSkipped = false;
 
+                                // Resolve the AddressListControl once for the loop (avoids
+                                // repeated visual-tree scans in --data-verify-full).
+                                var (alcControl, alcMethod) = ResolveAddressListControl(window);
+
                                 for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
                                 {
                                     // Select the item by index (for full mode, iterate all)
                                     if (itemIdx > 0 || fullMode)
                                     {
-                                        if (!SelectItemByIndex(window, itemIdx))
+                                        bool selected = (alcControl != null && alcMethod != null)
+                                            ? SelectItemByIndex(alcControl, alcMethod, itemIdx)
+                                            : false;
+                                        if (!selected)
                                         {
                                             Console.WriteLine($"DATAVERIFY: {name} ... WARN: SelectItemByIndex({itemIdx}) failed, skipping remaining items");
+                                            editorOk = false; // Don't count as fully verified
                                             break;
                                         }
                                         await Task.Delay(50); // Let selection handler run
@@ -1397,12 +1405,11 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Select an item by index using reflection on the view's AddressListControl.
-        /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
-        /// then falls back to finding any AddressListControl in the visual tree.
-        /// Returns true if selection succeeded, false if no AddressListControl was found.
+        /// Resolve the AddressListControl and its SelectByIndex method for a window.
+        /// Returns (control, method) or (null, null) if not found.
+        /// Cache the result to avoid repeated visual tree scans in loops.
         /// </summary>
-        static bool SelectItemByIndex(Window window, int index)
+        static (object? control, System.Reflection.MethodInfo? method) ResolveAddressListControl(Window window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
@@ -1413,10 +1420,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     var selectMethod = control.GetType().GetMethod("SelectByIndex");
                     if (selectMethod != null)
-                    {
-                        selectMethod.Invoke(control, new object[] { index });
-                        return true;
-                    }
+                        return (control, selectMethod);
                 }
             }
 
@@ -1427,14 +1431,36 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     var selectMethod = descendant.GetType().GetMethod("SelectByIndex");
                     if (selectMethod != null)
-                    {
-                        selectMethod.Invoke(descendant, new object[] { index });
-                        return true;
-                    }
+                        return (descendant, selectMethod);
                 }
             }
 
-            return false;
+            return (null, null);
+        }
+
+        /// <summary>
+        /// Select an item by index using a pre-resolved control and method.
+        /// Returns true if selection succeeded, false otherwise.
+        /// </summary>
+        static bool SelectItemByIndex(object control, System.Reflection.MethodInfo selectMethod, int index)
+        {
+            var result = selectMethod.Invoke(control, new object[] { index });
+            return result is bool b && b;
+        }
+
+        /// <summary>
+        /// Select an item by index using reflection on the view's AddressListControl.
+        /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
+        /// then falls back to finding any AddressListControl in the visual tree.
+        /// Returns true if selection succeeded, false if no AddressListControl was found.
+        /// Note: For repeated calls (e.g., full sweep), prefer ResolveAddressListControl()
+        /// + the cached overload to avoid repeated visual tree scans.
+        /// </summary>
+        static bool SelectItemByIndex(Window window, int index)
+        {
+            var (control, method) = ResolveAddressListControl(window);
+            if (control == null || method == null) return false;
+            return SelectItemByIndex(control, method, index);
         }
 
         /// <summary>
