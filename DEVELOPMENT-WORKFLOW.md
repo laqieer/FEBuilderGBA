@@ -168,7 +168,9 @@ Before opening the PR, verify:
 
 **When required:** `feat` or `fix` PRs that modify GUI files under `FEBuilderGBA.Avalonia/` or `FEBuilderGBA/` (WinForms). NOT required for `docs`, `chore`, or refactor-only changes even if they touch GUI files. NOT required for changes that only touch `FEBuilderGBA.Core/`, `FEBuilderGBA.CLI/`, `FEBuilderGBA.Tests/`, or other non-GUI projects.
 
-**If MCP computer-use is not set up locally**, this step can be skipped with a note in the PR explaining why (e.g., "MCP not available — manual testing performed instead"). The GUI Test Report section should still be present with manual test results. See CLAUDE.md Dependencies for MCP setup.
+**Preferred method:** Use `PrintWindow` API (`tools/capture-window.cs`) + PowerShell `UIAutomationClient` for headless GUI validation. This works even with locked screens and produces real window captures.
+
+**If neither PrintWindow nor MCP is available**, this step can be skipped with a note in the PR explaining why (e.g., "headless capture unavailable — manual testing performed instead"). The GUI Test Report section should still be present with manual test results.
 
 **Procedure:**
 1. Build and launch the GUI app (Avalonia or WinForms) with a test ROM:
@@ -231,8 +233,11 @@ Closes #N
 Ref #M (partial — <what remains>)
 
 ## Screenshots
-<!-- For feat/fix PRs: MANDATORY — replace this comment with actual screenshot(s).
-     Acceptable proof: UI screenshot, CLI/terminal output, test run output, or before/after diff.
+<!-- For feat/fix PRs: MANDATORY — replace this comment with REAL GUI screenshot(s).
+     Screenshots MUST be captured from the actual running application (e.g., via PrintWindow API
+     or MCP computer-use). Fabricated images (e.g., DrawString on Bitmap) are NOT acceptable.
+     Image URLs MUST be permanent — use blob/master/pr-screenshots/ paths or GitHub asset uploads.
+     NEVER use blob/{feature-branch}/ URLs — they 404 after branch deletion.
      For docs/chore PRs: This entire section may be deleted. -->
 
 ## GUI Test Report
@@ -256,16 +261,24 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
-- **Screenshots are MANDATORY for `feat` and `fix` PRs** — include screenshot(s) proving the feature or bugfix works. Acceptable evidence: UI screenshot, CLI/terminal output capture, test run output, or before/after diff screenshot. For `docs` and `chore` PRs (documentation, gitignore, CI config, dependency bumps, etc.), screenshots are optional and the Screenshots section may be omitted entirely.
+- **Screenshots are MANDATORY for `feat` and `fix` PRs** — include **real GUI screenshot(s)** proving the feature or bugfix works. Screenshots MUST be captured from the actual running application using `PrintWindow` API (`tools/capture-window.cs`) or MCP computer-use — **NEVER fabricate images** (e.g., `System.Drawing.DrawString` on a blank Bitmap is NOT a screenshot). Image URLs MUST be permanent: commit to `pr-screenshots/` on master (via a docs PR) or use GitHub asset uploads. **NEVER use `blob/{feature-branch}/` URLs** — they 404 after branch deletion. For `docs` and `chore` PRs, screenshots are optional.
+- **Headless GUI screenshot workflow** (works with locked screen):
+  1. Launch app: `dotnet run --project FEBuilderGBA.Avalonia -- --rom roms/FE8U.gba &`
+  2. Navigate: PowerShell `UIAutomationClient` — `InvokePattern.Invoke()` to click buttons, `SelectionItemPattern.Select()` to pick list items
+  3. Capture: `dotnet run --project /tmp/WinCapture -c Release -- "Window Title" output.png` (uses `PrintWindow` API)
+  4. Commit screenshots to `pr-screenshots/` via a docs PR, then reference `blob/master/pr-screenshots/...` in the feat/fix PR
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
 - **Invocation** — trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
   Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. \
-  Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the feature/bugfix works. \
-  Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, relative repo paths, or blob URLs with ?raw=1. \
-  Treat a Screenshots section as missing if it contains only placeholder URLs (e.g., 'replace-with-actual-url', 'url', empty URLs), only HTML comments, or no rendered images at all. Flag missing screenshots as a blocking issue for feat/fix PRs. \
+  Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) showing the ACTUAL running application GUI. \
+  Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, or blob/master/ paths with ?raw=1. \
+  REJECT blob/{feature-branch}/ URLs — these break after branch deletion. Flag them as a blocking issue. \
+  REJECT fabricated images — screenshots that show only terminal text output (e.g., 'tests passed') drawn on a black background are NOT valid GUI proof. Real screenshots must show actual application windows with controls, data, and layout visible. \
+  Verify the screenshot content is RELEVANT to the behavior change — e.g., a Class Editor fix PR should show the Class Editor with data populated, not just a test output summary. \
+  Treat a Screenshots section as missing if it contains only placeholder URLs, only HTML comments, only fabricated terminal-output images, or no rendered images at all. Flag missing or invalid screenshots as a blocking issue for feat/fix PRs. \
   For docs/chore PRs (title starts with 'docs' or 'chore'), screenshots are optional — do NOT flag their absence. \
   GUI Test Report check: inspect the changed files list — if the PR modifies any GUI file under FEBuilderGBA.Avalonia/ or FEBuilderGBA/ (WinForms) AND the title starts with 'feat' or 'fix', verify the PR description contains a '## GUI Test Report' section with actual test results (a results table with pass/fail entries). \
   Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. \
@@ -475,9 +488,17 @@ Assuming "needs approval" when the real cause is an outdated branch or unresolve
 A style-only XAML change can still break layout. A ViewModel tweak can disconnect a binding. A WinForms designer change can misalign controls.
 **Do:** Always run MCP GUI validation for GUI feat/fix PRs (Avalonia or WinForms). The headless tests verify control properties; MCP validation verifies the user sees the right thing.
 
-### Don't: Open a feat/fix PR without screenshots
+### Don't: Open a feat/fix PR without real GUI screenshots
 A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
-**Do:** For feat/fix PRs, always capture and attach screenshot(s) to the PR description before requesting review. For `docs`/`chore` PRs, screenshots are optional.
+**Do:** For feat/fix PRs, always capture **real GUI screenshots** from the running application using `PrintWindow` API (`tools/capture-window.cs`) or MCP. For `docs`/`chore` PRs, screenshots are optional.
+
+### Don't: Fabricate screenshots
+Drawing text on a Bitmap with `System.Drawing.DrawString` (e.g., "VALIDATION PASSED" in green on black) is NOT a screenshot — it proves nothing about the GUI working. It's cheating the review process.
+**Do:** Use `PrintWindow` API to capture real window content. It works even with a locked screen. Combine with PowerShell `UIAutomationClient` for headless navigation.
+
+### Don't: Use feature branch blob URLs for screenshot images
+`blob/{feature-branch}/file.png?raw=1` becomes a 404 after the branch is deleted post-merge. Every screenshot in the PR breaks permanently.
+**Do:** Commit screenshots to `pr-screenshots/` on master (via a docs PR) BEFORE referencing them. Use `blob/master/pr-screenshots/...` URLs. Or use GitHub asset uploads which produce permanent `user-attachments/assets/...` URLs.
 
 ### Don't: Declare GUI changes complete with only unit tests
 Unit tests verify code logic (e.g., "the zoom variable changed to 2"). They do NOT verify UI behavior (e.g., "the image actually rendered at 2x size"). The `Stretch="None"` zoom bug (issue #183) passed all unit tests but zoom never actually worked — because the Image control ignored Width/Height when Stretch was None.
