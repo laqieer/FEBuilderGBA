@@ -13,6 +13,7 @@ set -euo pipefail
 PR_NUMBER="${1:-${GITHUB_PR_NUMBER:-}}"
 BODY_FILE="${2:-}"
 REPO="${GITHUB_REPOSITORY:-laqieer/FEBuilderGBA}"
+DEFAULT_BRANCH="${3:-${DEFAULT_BRANCH:-master}}"
 
 if [ -z "$PR_NUMBER" ]; then
   echo "Usage: $0 <pr-number> [pr-body-file]"
@@ -46,7 +47,7 @@ fi
 
 # Consolidated check: find ANY blob/{non-master}/ image URL in any directory
 # Matches: blob/<branch>/<any-path>.(png|jpg|jpeg|gif) with optional query string
-VIOLATIONS=$(echo "$BODY" | grep -oE 'blob/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|gif)(\?[a-zA-Z0-9_=&]*)?' | grep -v 'blob/master/' || true)
+VIOLATIONS=$(echo "$BODY" | grep -oE 'blob/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|gif)(\?[a-zA-Z0-9_=&]*)?' | grep -v "blob/${DEFAULT_BRANCH}/" || true)
 
 if [ -n "$VIOLATIONS" ]; then
   echo ""
@@ -58,7 +59,7 @@ if [ -n "$VIOLATIONS" ]; then
   echo ""
   echo "These URLs use blob/{feature-branch}/ which becomes 404 after branch deletion."
   echo "Fix: commit screenshots to pr-screenshots/ on master (via a docs PR) FIRST,"
-  echo "then reference them as blob/master/pr-screenshots/..."
+  echo "then reference them as blob/${DEFAULT_BRANCH}/pr-screenshots/..."
   echo ""
   echo "VALIDATION FAILED"
   exit 1

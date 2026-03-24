@@ -45,7 +45,7 @@ jobs:
     - name: Validate PR screenshot URLs
       if: github.event_name == 'pull_request'
       shell: bash
-      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt"
+      run: bash scripts/validate-pr-screenshots.sh "${{ github.event.pull_request.number }}" "$RUNNER_TEMP/pr-body.txt" "${{ github.event.repository.default_branch }}"
 
     - name: Validate Avalonia AutomationIds
       shell: pwsh
