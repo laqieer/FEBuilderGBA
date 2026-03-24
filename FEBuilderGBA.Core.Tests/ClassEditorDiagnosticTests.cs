@@ -313,6 +313,9 @@ namespace FEBuilderGBA.Core.Tests
                 _output.WriteLine($"ClassPointer=0x{classPtr:X08}, ClassBase=0x{classBase:X08}, DataSize={dataSize}");
                 _output.WriteLine($"List count: {list.Count}");
 
+                // Verify list is non-empty
+                Assert.NotEmpty(list);
+
                 // Verify each entry's address matches manual calculation
                 for (int i = 0; i < list.Count && i < 10; i++)
                 {
