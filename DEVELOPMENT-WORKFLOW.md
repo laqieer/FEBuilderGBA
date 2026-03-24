@@ -259,8 +259,12 @@ Ref #M (partial — <what remains>)
      For non-GUI PRs or docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
-- [x] <what was tested>
-- [ ] <what needs manual verification>
+<!-- ALL test cases MUST be checked [x] before requesting review.
+     Unchecked items block merge — do not leave items unchecked for "manual later".
+     If a test CAN be automated (e.g., via UIAutomation + PrintWindow), it MUST be automated.
+     Only items that genuinely require human judgment may remain unchecked. -->
+- [x] <what was tested and verified>
+- [x] <another verified item — ALL must be checked>
 
 ## Known limitations
 <anything not covered>
@@ -274,6 +278,7 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
+- **ALL test plan items MUST be checked `[x]` before requesting review.** Unchecked items `[ ]` block merge. If a test CAN be automated (e.g., PowerShell UIAutomation + PrintWindow for GUI validation), it MUST be automated — do not leave automatable tests as unchecked "manual later" items. Only items that genuinely require human judgment (e.g., subjective visual assessment) may remain unchecked, and these must include a justification.
 - **Screenshots are MANDATORY for `feat` and `fix` PRs:**
   - **GUI-changing PRs** (Avalonia or WinForms files modified): include **real GUI screenshot(s)** captured from the actual running application using `PrintWindow` API (`tools/capture-window.cs`), MCP, or manual screen capture. **NEVER fabricate images** (e.g., `System.Drawing.DrawString` on a blank Bitmap is NOT a screenshot).
   - **Non-GUI PRs** (Core, CLI, tests only): CLI terminal output, test run output, or before/after diff screenshots are acceptable proof.
@@ -296,6 +301,7 @@ EOF
   Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. \
   Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
   For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
+  Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — unchecked test cases mean the PR is not fully validated. If an unchecked item could be automated (e.g., GUI validation via UIAutomation/PrintWindow), flag it as 'should be automated, not left for manual'. Only items requiring genuine human judgment are acceptable as unchecked. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
