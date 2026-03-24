@@ -2,7 +2,7 @@
 # Validates that PR description does not contain blob/{feature-branch}/ image URLs
 # that will break after the branch is deleted post-merge.
 #
-# Usage: scripts/validate-pr-screenshots.sh <pr-number> [pr-body-file]
+# Usage: scripts/validate-pr-screenshots.sh <pr-number> [pr-body-file] [default-branch]
 # Exit 0 = pass, Exit 1 = blocking violations found
 #
 # Runs in CI (check.yml) on every pull_request event.
@@ -21,6 +21,11 @@ if [ -z "$PR_NUMBER" ]; then
 fi
 
 echo "=== Validating PR #${PR_NUMBER} screenshot URLs ==="
+
+# Normalize Windows paths to POSIX (Git-Bash/MSYS won't resolve D:\... paths)
+if [ -n "$BODY_FILE" ] && command -v cygpath &>/dev/null; then
+  BODY_FILE=$(cygpath -u "$BODY_FILE" 2>/dev/null || echo "$BODY_FILE")
+fi
 
 # Get PR body — prefer file input (no network dependency), fallback to gh API
 BODY_SOURCE="unknown"
