@@ -259,8 +259,11 @@ Ref #M (partial — <what remains>)
      For non-GUI PRs or docs/chore PRs: This entire section may be deleted. -->
 
 ## Test plan
-- [x] <what was tested>
-- [ ] <what needs manual verification>
+<!-- ALL items MUST be checked [x] before requesting review. No unchecked items allowed.
+     If a test is not yet verified, either verify it now or move it to Known Limitations.
+     If a test CAN be automated (e.g., via UIAutomation + PrintWindow), it MUST be automated. -->
+- [x] <what was tested and verified>
+- [x] <another verified item — ALL must be checked>
 
 ## Known limitations
 <anything not covered>
@@ -274,6 +277,7 @@ EOF
 - Reference the original Issue AND the accepted plan
 - Clearly distinguish `Closes` (fully done) from `Ref` (partial)
 - Include test coverage notes and known limitations
+- **ALL test plan items MUST be checked `[x]` before requesting review.** No unchecked `[ ]` items allowed — they block merge. If a test is not yet verified, verify it before opening the PR or move it to Known Limitations. If a test CAN be automated (e.g., PowerShell UIAutomation + PrintWindow), it MUST be automated.
 - **Screenshots are MANDATORY for `feat` and `fix` PRs:**
   - **GUI-changing PRs** (Avalonia or WinForms files modified): include **real GUI screenshot(s)** captured from the actual running application using `PrintWindow` API (`tools/capture-window.cs`), MCP, or manual screen capture. **NEVER fabricate images** (e.g., `System.Drawing.DrawString` on a blank Bitmap is NOT a screenshot).
   - **Non-GUI PRs** (Core, CLI, tests only): CLI terminal output, test run output, or before/after diff screenshots are acceptable proof.
@@ -296,6 +300,7 @@ EOF
   Files under FEBuilderGBA.Core/, FEBuilderGBA.CLI/, FEBuilderGBA.Tests/, FEBuilderGBA.Core.Tests/, FEBuilderGBA.E2ETests/, and FEBuilderGBA.SkiaSharp/ are NOT GUI files — do not count them. \
   Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
   For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
+  Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Also flag placeholder/template text that was not replaced (e.g., items containing angle brackets like '<what was tested>' or generic boilerplate) — each item must describe a specific test that was actually performed. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -318,9 +323,22 @@ Address feedback in categories:
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
 | **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger Copilot CLI review |
 
-**After each push, also check for inline comments from the GitHub Copilot bot** (separate from Copilot CLI reviews).
+**After each push, check for ALL feedback — both inline review threads AND issue-level conversation comments:**
 
-Find all unresolved review threads (use `first: 100` to cover large PRs; paginate if `hasNextPage` is true):
+**CRITICAL: Reviewers (human, Copilot bot, Copilot CLI) may post feedback in THREE places: issue-level comments, inline review threads, AND top-level PR review bodies. You MUST check all three or you will miss feedback.**
+
+**Step A — Check issue-level conversation comments:**
+```bash
+gh api repos/laqieer/FEBuilderGBA/issues/<N>/comments --jq '.[] | select(.user.login != "github-actions[bot]") | "\(.user.login): \(.body | split("\n")[0])"'
+```
+
+**Step A2 — Check top-level PR review bodies** (separate from inline threads):
+```bash
+gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews --jq '.[] | "\(.user.login) [\(.state)]: \(.body | split("\n")[0])"'
+```
+Address every comment from all three channels before proceeding.
+
+**Step B — Find all unresolved inline review threads** (use `first: 100`; paginate if `hasNextPage` is true):
 ```bash
 # Get ALL unresolved thread IDs and their first comment
 gh api graphql -f query='{
