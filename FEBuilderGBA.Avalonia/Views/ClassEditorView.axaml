@@ -286,9 +286,9 @@
           <!-- Terrain pointers row (shows Avoid+Def for FE7/8, Res only for FE6) -->
           <StackPanel Name="TerrainRow" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
             <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Name="TerrainAvoidLabel" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainAvoid_Label" Grid.Row="0" Grid.Column="0" Name="TerrainAvoidLabel" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr68_Input" Grid.Row="0" Grid.Column="1" Name="Ptr68Box" Width="120" />
-              <TextBlock Grid.Row="0" Grid.Column="3" Name="TerrainDefLabel" Text="Terrain Def (P72):" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainDef_Label" Grid.Row="0" Grid.Column="3" Name="TerrainDefLabel" Text="Terrain Def (P72):" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr72_Input" Grid.Row="0" Grid.Column="4" Name="Ptr72Box" Width="120" />
             </Grid>
           </StackPanel>
