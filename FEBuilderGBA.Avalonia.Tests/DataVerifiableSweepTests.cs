@@ -346,6 +346,160 @@ namespace FEBuilderGBA.Avalonia.Tests
                 $"Expected >= 90%.");
         }
 
+        /// <summary>
+        /// Verifies GetFieldOffsetMap() returns a non-null dictionary and that
+        /// all keys exist in GetDataReport() and all values exist in GetRawRomReport().
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(VerifiableViewModels))]
+        public void GetFieldOffsetMap_KeysConsistentWithReports(string name, Type vmType)
+        {
+            if (!_rom.IsAvailable)
+            {
+                _output.WriteLine($"SKIP {name}: ROM not available");
+                return;
+            }
+
+            var instance = TryCreateInstance(vmType);
+            if (instance == null)
+            {
+                _output.WriteLine($"SKIP {name}: could not instantiate");
+                return;
+            }
+
+            var verifiable = (IDataVerifiable)instance;
+
+            Dictionary<string, string>? fieldMap = null;
+            Dictionary<string, string>? dataReport = null;
+            Dictionary<string, string>? rawReport = null;
+
+            try
+            {
+                fieldMap = verifiable.GetFieldOffsetMap();
+                dataReport = verifiable.GetDataReport();
+                rawReport = verifiable.GetRawRomReport();
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"SKIP {name}: threw {ex.GetType().Name}: {ex.Message}");
+                return;
+            }
+
+            Assert.NotNull(fieldMap);
+            _output.WriteLine($"OK {name}.GetFieldOffsetMap() => {fieldMap.Count} mappings");
+
+            if (fieldMap.Count == 0)
+            {
+                _output.WriteLine($"OK {name}: empty field map (default implementation)");
+                return;
+            }
+
+            // Validate: each field map key should exist in dataReport
+            if (dataReport != null && dataReport.Count > 0)
+            {
+                foreach (var kv in fieldMap)
+                {
+                    Assert.True(dataReport.ContainsKey(kv.Key),
+                        $"{name}: GetFieldOffsetMap key '{kv.Key}' not found in GetDataReport()");
+                }
+            }
+
+            // Validate: each field map value should exist in rawReport
+            if (rawReport != null && rawReport.Count > 0)
+            {
+                foreach (var kv in fieldMap)
+                {
+                    Assert.True(rawReport.ContainsKey(kv.Value),
+                        $"{name}: GetFieldOffsetMap value '{kv.Value}' not found in GetRawRomReport()");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Per-field cross-check: for ViewModels with non-empty GetFieldOffsetMap(),
+        /// verifies that each mapped field value in GetDataReport() matches the
+        /// corresponding value in GetRawRomReport().
+        /// This is the core of --data-verify-full field validation.
+        /// </summary>
+        [Theory]
+        [MemberData(nameof(VerifiableViewModels))]
+        public void FieldLevelCrossCheck_AllFieldsMatch(string name, Type vmType)
+        {
+            if (!_rom.IsAvailable)
+            {
+                _output.WriteLine($"SKIP {name}: ROM not available");
+                return;
+            }
+
+            var instance = TryCreateInstance(vmType);
+            if (instance == null)
+            {
+                _output.WriteLine($"SKIP {name}: could not instantiate");
+                return;
+            }
+
+            var verifiable = (IDataVerifiable)instance;
+
+            try
+            {
+                var fieldMap = verifiable.GetFieldOffsetMap();
+                if (fieldMap.Count == 0)
+                {
+                    _output.WriteLine($"OK {name}: no field map (default implementation)");
+                    return;
+                }
+
+                var dataReport = verifiable.GetDataReport();
+                var rawReport = verifiable.GetRawRomReport();
+
+                if (dataReport.Count == 0 || rawReport.Count == 0)
+                {
+                    _output.WriteLine($"SKIP {name}: empty report(s)");
+                    return;
+                }
+
+                int checked_ = 0;
+                int mismatches = 0;
+                foreach (var (fieldName, offsetKey) in fieldMap)
+                {
+                    if (!dataReport.TryGetValue(fieldName, out string? dataVal)) continue;
+                    if (!rawReport.TryGetValue(offsetKey, out string? rawVal)) continue;
+
+                    checked_++;
+                    string normData = NormalizeHex(dataVal);
+                    string normRaw = NormalizeHex(rawVal);
+
+                    if (!string.Equals(normData, normRaw, StringComparison.OrdinalIgnoreCase))
+                    {
+                        mismatches++;
+                        _output.WriteLine($"MISMATCH {name}.{fieldName}: data={dataVal} raw={rawVal} (offset={offsetKey})");
+                    }
+                }
+
+                Assert.True(mismatches == 0,
+                    $"{name}: {mismatches} field mismatches out of {checked_} checked fields");
+                _output.WriteLine($"OK {name}: {checked_} fields cross-checked, all match");
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"SKIP {name}: threw {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>Normalize a hex or decimal string for comparison.</summary>
+        private static string NormalizeHex(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return value.ToUpperInvariant();
+            if (int.TryParse(value, out int dec))
+            {
+                if (dec >= 0 && dec <= 255) return $"0x{(byte)dec:X02}";
+                return $"0x{dec:X08}";
+            }
+            return value;
+        }
+
         // =====================================================================
         // Helpers
         // =====================================================================

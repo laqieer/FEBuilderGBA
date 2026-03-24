@@ -1203,18 +1203,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void RunDataVerify()
         {
+            bool fullMode = App.DataVerifyFullMode;
             Dispatcher.UIThread.Post(async () =>
             {
                 int verified = 0;
                 int failed = 0;
                 int skipped = 0;
+                int fieldMismatches = 0;
                 var failures = new List<string>();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 var editors = GetAllEditorFactories();
-                Console.WriteLine($"DATAVERIFY: Testing {editors.Count} editors...");
+                Console.WriteLine($"DATAVERIFY: Testing {editors.Count} editors (full={fullMode})...");
 
-                foreach (var (name, factory) in editors)
+                for (int editorIdx = 0; editorIdx < editors.Count; editorIdx++)
                 {
+                    var (name, factory) = editors[editorIdx];
+
+                    // Progress logging every 10 editors when full mode takes time
+                    if (fullMode && editorIdx > 0 && editorIdx % 10 == 0 && sw.ElapsedMilliseconds > 30_000)
+                        Console.WriteLine($"DATAVERIFY: Progress: {editorIdx}/{editors.Count} editors, elapsed={sw.ElapsedMilliseconds / 1000}s");
+
                     Window? window = null;
                     try
                     {
@@ -1228,16 +1237,7 @@ namespace FEBuilderGBA.Avalonia.Views
                             if (vm is IDataVerifiable verifiable)
                             {
                                 // Select first item if possible
-                                if (window is UnitEditorView uev) uev.SelectFirstItem();
-                                else if (window is ItemEditorView iev) iev.SelectFirstItem();
-                                else if (window is ClassEditorView cev) cev.SelectFirstItem();
-                                else
-                                {
-                                    // Generic: try calling SelectFirstItem via reflection
-                                    var method = window.GetType().GetMethod("SelectFirstItem");
-                                    method?.Invoke(window, null);
-                                }
-
+                                SelectFirstItemOnView(window);
                                 await Task.Delay(100); // Let selection handler run
 
                                 int listCount = verifiable.GetListCount();
@@ -1248,47 +1248,75 @@ namespace FEBuilderGBA.Avalonia.Views
                                     continue;
                                 }
 
-                                var dataReport = verifiable.GetDataReport();
-                                var rawReport = verifiable.GetRawRomReport();
+                                // Determine iteration range
+                                int maxItem = fullMode ? listCount : 1;
+                                bool editorOk = true;
 
-                                // Print VERIFY line
-                                var verifyParts = new List<string> { $"listCount={listCount}" };
-                                foreach (var kv in dataReport)
-                                    verifyParts.Add($"{kv.Key}={kv.Value}");
-                                Console.WriteLine($"VERIFY: {name}|{string.Join("|", verifyParts)}");
+                                for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
+                                {
+                                    // Select the item by index (for full mode, iterate all)
+                                    if (itemIdx > 0 || fullMode)
+                                    {
+                                        SelectItemByIndex(window, itemIdx);
+                                        await Task.Delay(50); // Let selection handler run
+                                    }
 
-                                // Print RAWROM line
-                                var rawParts = new List<string>();
-                                foreach (var kv in rawReport)
-                                    rawParts.Add($"{kv.Key}={kv.Value}");
-                                Console.WriteLine($"RAWROM: {name}|{string.Join("|", rawParts)}");
+                                    var dataReport = verifiable.GetDataReport();
+                                    var rawReport = verifiable.GetRawRomReport();
 
-                                // Cross-check: compare data fields with raw ROM values
-                                var comparison = CrossCheckDataReport(name, dataReport, rawReport);
+                                    // Print VERIFY line (always for item 0; for full mode, every item)
+                                    if (itemIdx == 0 || fullMode)
+                                    {
+                                        var verifyParts = new List<string> { $"listCount={listCount}" };
+                                        if (fullMode) verifyParts.Insert(0, $"item={itemIdx}");
+                                        foreach (var kv in dataReport)
+                                            verifyParts.Add($"{kv.Key}={kv.Value}");
+                                        Console.WriteLine($"VERIFY: {name}[{itemIdx}]|{string.Join("|", verifyParts)}");
+                                    }
 
-                                // UI check: verify NumericUpDown controls display values
-                                // Only check when data is comparable.
-                                bool uiOk = comparison == DataVerifyComparisonResult.Match && listCount > 0
+                                    // Print RAWROM line (only for item 0 in non-full mode)
+                                    if (itemIdx == 0 && !fullMode)
+                                    {
+                                        var rawParts = new List<string>();
+                                        foreach (var kv in rawReport)
+                                            rawParts.Add($"{kv.Key}={kv.Value}");
+                                        Console.WriteLine($"RAWROM: {name}|{string.Join("|", rawParts)}");
+                                    }
+
+                                    // Cross-check: address-level comparison
+                                    var comparison = CrossCheckDataReport(name, dataReport, rawReport);
+
+                                    // Per-field cross-check using GetFieldOffsetMap
+                                    var fieldMap = verifiable.GetFieldOffsetMap();
+                                    if (fieldMap.Count > 0 && comparison == DataVerifyComparisonResult.Match)
+                                    {
+                                        int itemFieldMismatches = FieldLevelCrossCheck(name, itemIdx, dataReport, rawReport, fieldMap);
+                                        fieldMismatches += itemFieldMismatches;
+                                        if (itemFieldMismatches > 0) editorOk = false;
+                                    }
+
+                                    if (comparison == DataVerifyComparisonResult.Mismatch)
+                                        editorOk = false;
+                                }
+
+                                // UI check (only on first item)
+                                SelectFirstItemOnView(window);
+                                await Task.Delay(50);
+                                bool uiOk = editorOk && listCount > 0
                                     ? CheckNumericUpDownsDisplayValues(name, window)
                                     : true;
 
-                                if (comparison == DataVerifyComparisonResult.Skip)
-                                {
-                                    skipped++;
-                                    Console.WriteLine($"DATAVERIFY: {name} ... SKIP (no comparable data)");
-                                }
-                                else if (comparison == DataVerifyComparisonResult.Match && uiOk)
-                                {
-                                    verified++;
-                                    Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
-                                }
-                                else
+                                if (!editorOk || !uiOk)
                                 {
                                     failed++;
                                     failures.Add(name);
-                                    if (comparison == DataVerifyComparisonResult.Mismatch)
-                                        Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
+                                    if (!editorOk) Console.WriteLine($"DATAVERIFY: {name} ... MISMATCH");
                                     if (!uiOk) Console.WriteLine($"DATAVERIFY: {name} ... UI_EMPTY");
+                                }
+                                else
+                                {
+                                    verified++;
+                                    Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
                                 }
                             }
                             else
@@ -1320,13 +1348,66 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Text encoding verification: decode first text entry and check for garbled output
                 VerifyTextEncoding();
 
-                Console.WriteLine($"DATAVERIFY: Results: {verified} verified, {failed} failed, {skipped} skipped out of {editors.Count}");
+                Console.WriteLine($"DATAVERIFY: Results: {verified} verified, {failed} failed, {skipped} skipped out of {editors.Count} (fieldMismatches={fieldMismatches}, elapsed={sw.ElapsedMilliseconds / 1000}s)");
                 if (failures.Count > 0)
                     Console.WriteLine($"DATAVERIFY: Failures: {string.Join(", ", failures)}");
 
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Select the first item on a view using the known method or reflection.
+        /// </summary>
+        static void SelectFirstItemOnView(Window window)
+        {
+            if (window is UnitEditorView uev) uev.SelectFirstItem();
+            else if (window is ItemEditorView iev) iev.SelectFirstItem();
+            else if (window is ClassEditorView cev) cev.SelectFirstItem();
+            else
+            {
+                var method = window.GetType().GetMethod("SelectFirstItem");
+                method?.Invoke(window, null);
+            }
+        }
+
+        /// <summary>
+        /// Select an item by index using reflection on the view's AddressListControl.
+        /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
+        /// then falls back to finding any AddressListControl in the visual tree.
+        /// </summary>
+        static void SelectItemByIndex(Window window, int index)
+        {
+            // Try known named controls first
+            string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
+            foreach (var controlName in knownNames)
+            {
+                var control = window.FindControl<global::Avalonia.Controls.UserControl>(controlName);
+                if (control != null)
+                {
+                    var selectMethod = control.GetType().GetMethod("SelectByIndex");
+                    if (selectMethod != null)
+                    {
+                        selectMethod.Invoke(control, new object[] { index });
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: find any AddressListControl in the visual tree via reflection
+            foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
+            {
+                if (descendant.GetType().Name == "AddressListControl")
+                {
+                    var selectMethod = descendant.GetType().GetMethod("SelectByIndex");
+                    if (selectMethod != null)
+                    {
+                        selectMethod.Invoke(descendant, new object[] { index });
+                        return;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1379,6 +1460,63 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             return DataVerifyComparisonResult.Match;
+        }
+
+        /// <summary>
+        /// Per-field cross-check: compares each GetDataReport field to the corresponding
+        /// GetRawRomReport field using the GetFieldOffsetMap mapping.
+        /// Returns the number of field mismatches found.
+        /// </summary>
+        static int FieldLevelCrossCheck(string viewName, int itemIdx,
+            Dictionary<string, string> dataReport,
+            Dictionary<string, string> rawReport,
+            Dictionary<string, string> fieldMap)
+        {
+            int mismatches = 0;
+            foreach (var (fieldName, offsetKey) in fieldMap)
+            {
+                if (!dataReport.TryGetValue(fieldName, out string? dataVal))
+                    continue;
+                if (!rawReport.TryGetValue(offsetKey, out string? rawVal))
+                    continue;
+
+                // Normalize comparison: both should be hex strings like "0xNN"
+                // Handle signed→unsigned: data may format (byte)(-1) as "0xFF" vs raw "0xFF" (already OK)
+                // Handle decimal promo values: e.g. "2" vs "0x02" — normalize
+                string normData = NormalizeHexValue(dataVal);
+                string normRaw = NormalizeHexValue(rawVal);
+
+                if (!string.Equals(normData, normRaw, StringComparison.OrdinalIgnoreCase))
+                {
+                    mismatches++;
+                    Console.WriteLine($"FIELDMISMATCH: {viewName}|item={itemIdx}|field={fieldName}|data={dataVal}|raw={rawVal}|offset={offsetKey}");
+                }
+            }
+            return mismatches;
+        }
+
+        /// <summary>
+        /// Normalizes a hex value string for comparison.
+        /// Handles: "0xFF" → "0xFF", "255" → "0xFF", "0x0001" → "0x0001"
+        /// </summary>
+        static string NormalizeHexValue(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+
+            // Already hex-formatted
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return value.ToUpperInvariant();
+
+            // Try parsing as decimal integer and convert to hex
+            if (int.TryParse(value, out int decVal))
+            {
+                // Format as 2-digit hex (matches u8 byte format)
+                if (decVal >= 0 && decVal <= 255)
+                    return $"0x{(byte)decVal:X02}";
+                return $"0x{decVal:X08}";
+            }
+
+            return value;
         }
 
         /// <summary>

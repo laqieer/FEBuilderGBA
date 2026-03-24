@@ -431,6 +431,65 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            var map = new Dictionary<string, string>
+            {
+                ["NameId"] = "u16@0x00",
+                ["DescId"] = "u16@0x02",
+                ["UnitId"] = "u8@0x04",
+                ["ClassId"] = "u8@0x05",
+                ["PortraitId"] = "u16@0x06",
+                ["MapFace"] = "u8@0x08",
+                ["Affinity"] = "u8@0x09",
+                ["SortOrder"] = "u8@0x0A",
+                ["Level"] = "u8@0x0B",
+                ["HP"] = "u8@0x0C",
+                ["Str"] = "u8@0x0D",
+                ["Skl"] = "u8@0x0E",
+                ["Spd"] = "u8@0x0F",
+                ["Def"] = "u8@0x10",
+                ["Res"] = "u8@0x11",
+                ["Lck"] = "u8@0x12",
+                ["Con"] = "u8@0x13",
+                ["WepSword"] = "u8@0x14",
+                ["WepLance"] = "u8@0x15",
+                ["WepAxe"] = "u8@0x16",
+                ["WepBow"] = "u8@0x17",
+                ["WepStaff"] = "u8@0x18",
+                ["WepAnima"] = "u8@0x19",
+                ["WepLight"] = "u8@0x1A",
+                ["WepDark"] = "u8@0x1B",
+                ["GrowHP"] = "u8@0x1C",
+                ["GrowStr"] = "u8@0x1D",
+                ["GrowSkl"] = "u8@0x1E",
+                ["GrowSpd"] = "u8@0x1F",
+                ["GrowDef"] = "u8@0x20",
+                ["GrowRes"] = "u8@0x21",
+                ["GrowLck"] = "u8@0x22",
+                ["Unk35"] = "u8@0x23",
+                ["Unk36"] = "u8@0x24",
+                ["Unk37"] = "u8@0x25",
+                ["Unk38"] = "u8@0x26",
+                ["Unk39"] = "u8@0x27",
+                ["Ability1"] = "u8@0x28",
+                ["Ability2"] = "u8@0x29",
+                ["Ability3"] = "u8@0x2A",
+                ["Ability4"] = "u8@0x2B",
+                ["SupportPtr"] = "u32@0x2C",
+            };
+
+            if (!IsFE6)
+            {
+                map["TalkGroup"] = "u8@0x30";
+                map["Unk49"] = "u8@0x31";
+                map["Unk50"] = "u8@0x32";
+                map["Unk51"] = "u8@0x33";
+            }
+
+            return map;
+        }
+
         // --- Validation ---
         List<string> _validationWarnings = new();
         public List<string> ValidationWarnings { get => _validationWarnings; set => SetField(ref _validationWarnings, value); }

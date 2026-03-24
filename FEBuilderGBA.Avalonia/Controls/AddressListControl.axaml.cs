@@ -113,6 +113,22 @@ namespace FEBuilderGBA.Avalonia.Controls
                 AddressList.SelectedIndex = 0;
         }
 
+        /// <summary>Select an item by its original (unfiltered) index.</summary>
+        /// <returns>True if the index was found and selected; false otherwise.</returns>
+        public bool SelectByIndex(int originalIndex)
+        {
+            for (int displayIdx = 0; displayIdx < _filteredIndices.Count; displayIdx++)
+            {
+                if (_filteredIndices[displayIdx] == originalIndex)
+                {
+                    AddressList.SelectedIndex = displayIdx;
+                    AddressList.ScrollIntoView(displayIdx);
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Select the last item in the list.</summary>
         public void SelectLast()
         {

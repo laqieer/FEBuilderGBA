@@ -390,6 +390,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["W0_NameId"] = "u16@0x00",
+            ["W2_DescId"] = "u16@0x02",
+            ["W4_UseDescId"] = "u16@0x04",
+            ["B6_ItemNumber"] = "u8@0x06",
+            ["B7_WeaponType"] = "u8@0x07",
+            ["B8_Trait1"] = "u8@0x08",
+            ["B9_Trait2"] = "u8@0x09",
+            ["B10_Trait3"] = "u8@0x0A",
+            ["B11_Trait4"] = "u8@0x0B",
+            ["P12_StatBonuses"] = "u32@0x0C",
+            ["P16_Effectiveness"] = "u32@0x10",
+            ["B20_Uses"] = "u8@0x14",
+            ["B21_Might"] = "u8@0x15",
+            ["B22_Hit"] = "u8@0x16",
+            ["B23_Weight"] = "u8@0x17",
+            ["B24_Crit"] = "u8@0x18",
+            ["B25_Range"] = "u8@0x19",
+            ["W26_Price"] = "u16@0x1A",
+            ["B28_WeaponRank"] = "u8@0x1C",
+            ["B29_Icon"] = "u8@0x1D",
+            ["B30_UsageEffect"] = "u8@0x1E",
+            ["B31_DamageEffect"] = "u8@0x1F",
+            ["B32_WeaponExp"] = "u8@0x20",
+            ["B33_Unk"] = "u8@0x21",
+            ["B34_Unk"] = "u8@0x22",
+            ["B35_Unk"] = "u8@0x23",
+        };
+
         // --- Validation ---
         List<string> _validationWarnings = new();
         public List<string> ValidationWarnings { get => _validationWarnings; set => SetField(ref _validationWarnings, value); }

@@ -33,6 +33,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run data verification mode: open editors, load first item, verify data against raw ROM.</summary>
         public static bool DataVerifyMode { get; set; }
 
+        /// <summary>When true, run full data verification: iterate ALL list items per editor, not just the first.</summary>
+        public static bool DataVerifyFullMode { get; set; }
+
         /// <summary>When true, capture screenshots of all editors and save as PNG.</summary>
         public static bool ScreenshotAllMode { get; set; }
 
@@ -227,6 +230,12 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     DataVerifyMode = true;
+                }
+                else if (args[i] == "--data-verify-full")
+                {
+                    SmokeTestMode = true;
+                    DataVerifyMode = true;
+                    DataVerifyFullMode = true;
                 }
                 else if (args[i] == "--screenshot-all")
                 {
