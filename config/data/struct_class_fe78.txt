@@ -33,12 +33,12 @@
 0x1F	B	GrowthDef	Defense growth rate
 0x20	B	GrowthRes	Resistance growth rate
 0x21	B	GrowthLck	Luck growth rate
-0x22	b	PromoHP	Promotion HP bonus (CC bonus)
-0x23	b	PromoPow	Promotion Str bonus (CC bonus)
-0x24	b	PromoSkl	Promotion Skill bonus (CC bonus)
-0x25	b	PromoSpd	Promotion Speed bonus (CC bonus)
-0x26	b	PromoDef	Promotion Defense bonus (CC bonus)
-0x27	b	PromoRes	Promotion Resistance bonus (CC bonus)
+0x22	B	PromoHP	Promotion HP bonus (CC bonus)
+0x23	B	PromoPow	Promotion Str bonus (CC bonus)
+0x24	B	PromoSkl	Promotion Skill bonus (CC bonus)
+0x25	B	PromoSpd	Promotion Speed bonus (CC bonus)
+0x26	B	PromoDef	Promotion Defense bonus (CC bonus)
+0x27	B	PromoRes	Promotion Resistance bonus (CC bonus)
 0x28	B	Ability1	Ability byte 1
 0x29	B	Ability2	Ability byte 2
 0x2A	B	Ability3	Ability byte 3

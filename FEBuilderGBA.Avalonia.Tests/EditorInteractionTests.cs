@@ -193,8 +193,8 @@ public class EditorInteractionTests : IClassFixture<RomFixture>
         Assert.NotNull(view.FindControl<NumericUpDown>("BaseSpdBox"));
         Assert.NotNull(view.FindControl<NumericUpDown>("BaseDefBox"));
         Assert.NotNull(view.FindControl<NumericUpDown>("BaseResBox"));
-        Assert.NotNull(view.FindControl<NumericUpDown>("MovBox"));
-        Assert.NotNull(view.FindControl<NumericUpDown>("ConBox"));
+        Assert.NotNull(view.FindControl<NumericUpDown>("BaseMovBox"));
+        Assert.NotNull(view.FindControl<NumericUpDown>("BaseConBox"));
     }
 
     [AvaloniaFact]
@@ -243,14 +243,14 @@ public class EditorInteractionTests : IClassFixture<RomFixture>
         // LoadClass calls MarkClean at the end
         Assert.False(vm.IsDirty);
 
-        uint original = vm.Mov;
-        vm.Mov = original + 1;
+        uint original = vm.BaseMov;
+        vm.BaseMov = original + 1;
         Assert.True(vm.IsDirty);
 
         vm.MarkClean();
         Assert.False(vm.IsDirty);
 
-        vm.Mov = original;
+        vm.BaseMov = original;
     }
 
     // =================================================================

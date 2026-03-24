@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("WaitIconBox")]
         [InlineData("WalkSpeedBox")]
         [InlineData("PortraitIdBox")]
-        [InlineData("BuildStatBox")]
+        [InlineData("SortOrderBox")]
         public void IdentityFields_Have_DecimalFormat(string controlName)
         {
             // Avalonia NumericUpDown uses decimal internally; hex FormatString
@@ -108,8 +108,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("BaseSpdBox")]
         [InlineData("BaseDefBox")]
         [InlineData("BaseResBox")]
-        [InlineData("MovBox")]
-        [InlineData("ConBox")]
+        [InlineData("BaseMovBox")]
+        [InlineData("BaseConBox")]
         public void BaseStatFields_Have_DecimalFormat(string controlName)
         {
             var view = new ClassEditorView();
@@ -139,19 +139,19 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===================================================================
 
         [AvaloniaTheory]
-        [InlineData("CapHpBox")]
-        [InlineData("CapStrBox")]
-        [InlineData("CapSklBox")]
-        [InlineData("CapSpdBox")]
-        [InlineData("CapDefBox")]
-        [InlineData("CapResBox")]
-        public void StatCapFields_Allow_SignedRange(string controlName)
+        [InlineData("MaxHpBox")]
+        [InlineData("MaxStrBox")]
+        [InlineData("MaxSklBox")]
+        [InlineData("MaxSpdBox")]
+        [InlineData("MaxDefBox")]
+        [InlineData("MaxResBox")]
+        public void StatCapFields_Allow_UnsignedRange(string controlName)
         {
             var view = new ClassEditorView();
             var nud = view.FindControl<NumericUpDown>(controlName);
             Assert.NotNull(nud);
-            Assert.Equal(-128, nud!.Minimum);
-            Assert.Equal(127, nud!.Maximum);
+            Assert.Equal(0, nud!.Minimum);
+            Assert.Equal(255, nud!.Maximum);
         }
 
         // ===================================================================
@@ -159,15 +159,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===================================================================
 
         [AvaloniaFact]
-        public void ClassEditorView_CapSkl_Visible_ByDefault()
+        public void ClassEditorView_MaxSkl_Visible_ByDefault()
         {
             var view = new ClassEditorView();
-            var label = view.FindControl<TextBlock>("CapSklLabel");
-            var box = view.FindControl<NumericUpDown>("CapSklBox");
-            Assert.NotNull(label);
+            var box = view.FindControl<NumericUpDown>("MaxSklBox");
             Assert.NotNull(box);
             // Default (no ROM loaded) should show FE7/8 fields
-            Assert.True(label!.IsVisible);
             Assert.True(box!.IsVisible);
         }
 
@@ -311,10 +308,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("ClassEditor_MoveCostLabel_Label")]
         [InlineData("ClassEditor_MoveCostRainLabel_Label")]
         [InlineData("ClassEditor_MoveCostSnowLabel_Label")]
-        [InlineData("ClassEditor_CapSklLabel_Label")]
-        [InlineData("ClassEditor_CapSpdLabel_Label")]
-        [InlineData("ClassEditor_CapDefLabel_Label")]
-        [InlineData("ClassEditor_CapResLabel_Label")]
+        [InlineData("ClassEditor_MaxSkl_Input")]
+        [InlineData("ClassEditor_MaxSpd_Input")]
+        [InlineData("ClassEditor_MaxDef_Input")]
+        [InlineData("ClassEditor_MaxRes_Input")]
         public void ClassEditorView_Has_NewlyAdded_AutomationId(string expectedId)
         {
             var view = new ClassEditorView();
