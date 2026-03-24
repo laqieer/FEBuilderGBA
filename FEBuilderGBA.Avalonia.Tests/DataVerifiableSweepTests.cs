@@ -487,7 +487,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>Normalize a hex or decimal string for comparison.</summary>
-        private static string NormalizeHex(string value)
+        internal static string NormalizeHex(string value)
         {
             if (string.IsNullOrEmpty(value)) return value;
             if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
@@ -495,6 +495,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (int.TryParse(value, out int dec))
             {
                 if (dec >= 0 && dec <= 255) return $"0x{(byte)dec:X02}";
+                // Signed byte range (-128..-1): treat as unsigned byte for ROM comparison
+                if (dec >= -128 && dec < 0) return $"0x{(byte)(sbyte)dec:X02}";
                 return $"0x{dec:X08}";
             }
             return value;

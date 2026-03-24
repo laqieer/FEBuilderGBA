@@ -1498,6 +1498,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Normalizes a hex value string for comparison.
         /// Handles: "0xFF" → "0xFF", "255" → "0xFF", "0x0001" → "0x0001"
+        /// Also handles signed byte values: "-1" → "0xFF", "37" → "0x25"
         /// </summary>
         static string NormalizeHexValue(string value)
         {
@@ -1510,9 +1511,13 @@ namespace FEBuilderGBA.Avalonia.Views
             // Try parsing as decimal integer and convert to hex
             if (int.TryParse(value, out int decVal))
             {
-                // Format as 2-digit hex (matches u8 byte format)
+                // Unsigned byte range (0..255)
                 if (decVal >= 0 && decVal <= 255)
                     return $"0x{(byte)decVal:X02}";
+                // Signed byte range (-128..-1): treat as unsigned byte for ROM comparison
+                // e.g. -1 → (byte)(-1) = 0xFF, matching the u8 raw ROM value
+                if (decVal >= -128 && decVal < 0)
+                    return $"0x{(byte)(sbyte)decVal:X02}";
                 return $"0x{decVal:X08}";
             }
 
@@ -1539,6 +1544,11 @@ namespace FEBuilderGBA.Avalonia.Views
             var emptyNames = new List<string>();
             foreach (var nud in nuds)
             {
+                // Skip NUDs that are not visible — they may have been intentionally hidden
+                // because they don't apply to the current ROM version/struct size.
+                // E.g. EventCondView hides ExtraB12-B15 for FE6/FE8 (12-byte records).
+                if (!nud.IsVisible) continue;
+
                 if (nud.Value == null)
                 {
                     emptyCount++;

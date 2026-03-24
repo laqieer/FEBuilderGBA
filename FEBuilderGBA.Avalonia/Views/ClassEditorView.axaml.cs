@@ -197,6 +197,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            // Suppress growth-input-changed handlers during bulk UI update.
+            // Without this guard, setting e.g. GrowHpBox.Value fires OnGrowthInputChanged,
+            // which calls SyncGrowthInputsToVm() and reads GrowResBox (still at its old/default
+            // value), overwriting the ViewModel's GrowRes back to 0.
+            _vm.IsLoading = true;
+
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             NameLabel.Text = _vm.Name;
 
@@ -293,6 +299,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Auto-calculate growth on entry load
             SimLevelBox.Value = _vm.SimLevel;
+
+            // Finished bulk UI update — re-enable change handlers, then compute growth sim.
+            _vm.IsLoading = false;
+
             _vm.CalculateGrowth();
             GrowthSimLabel.Text = _vm.GrowthSimText;
         }
