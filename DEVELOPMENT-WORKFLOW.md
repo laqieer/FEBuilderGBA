@@ -323,7 +323,7 @@ Address feedback in categories:
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
 | **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger Copilot CLI review |
 
-**After each push, check for ALL feedback — both inline review threads AND issue-level conversation comments:**
+**After each push, check for ALL feedback across all three channels:**
 
 **CRITICAL: Reviewers (human, Copilot bot, Copilot CLI) may post feedback in THREE places: issue-level comments, inline review threads, AND top-level PR review bodies. You MUST check all three or you will miss feedback.**
 
@@ -365,14 +365,14 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THRE
 ```
 
 ### 11. Iterate Until Approved
-- Fix ALL issues raised — both Copilot CLI reviews AND GitHub Copilot bot inline comments
+- Fix ALL issues raised — from all three channels: issue comments, PR review bodies, AND inline threads
 - Push fixes as new commits (not amends)
 - **After each push, wait for the GitHub Copilot bot auto-review to complete** (typically 2-5 minutes). Verify by checking for a new review with a timestamp after your push:
   ```bash
   gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
     --jq '[.[] | select(.user.login == "Copilot" or .user.type == "Bot")] | .[-1].submitted_at'
   ```
-- Re-run the unresolved threads query from step 10 to catch **newly posted** comments
+- Re-run ALL THREE checks from step 10 (issue comments + review bodies + inline threads) to catch **newly posted** feedback
 - Resolve all review threads after addressing them
 - Re-trigger Copilot CLI review using the same invocation from step 10
 - Repeat until: **no unresolved comments of any kind**
@@ -393,7 +393,7 @@ Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be
 ### 12. Pre-Merge Checklist
 Before attempting merge, verify ALL of these:
 - [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
-- [ ] All GitHub Copilot bot inline comments addressed and threads resolved
+- [ ] All feedback addressed across all three channels (issue comments, PR review bodies, inline threads)
 - [ ] All **required** CI checks green (build via `check.yml`). E2E checks are informational — they run daily on master via cron, not required for merge.
 - [ ] Branch is up to date with master — verify with:
   ```bash
@@ -414,7 +414,7 @@ gh pr merge <N> -R laqieer/FEBuilderGBA --merge
 |---------|-----------|-----|
 | **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
 | **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
-| **Unresolved conversations** | GraphQL query for unresolved threads (see step 10) | Resolve all threads |
+| **Unresolved feedback** | Run all three checks from step 10 (issue comments + review bodies + inline threads) | Address all feedback and resolve threads |
 | **Branch outdated** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus --jq .mergeStateStatus` shows `BEHIND` | `git fetch origin master && git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review |
 | **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review (rebase can introduce changes) |
 | **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
@@ -491,9 +491,9 @@ Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 "All checks pass" and "Copilot signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
 **Do:** Always run `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` and confirm the output is `MERGED`. If not, diagnose and fix.
 
-### Don't: Ignore GitHub Copilot bot inline comments
-The Copilot bot (separate from Copilot CLI) posts inline code comments on each push. Unresolved threads block merge when `required_review_thread_resolution` is enabled.
-**Do:** After each push, check for inline comments, address them, and resolve the threads via GraphQL.
+### Don't: Ignore non-inline feedback
+Reviewers (human, Copilot bot, Copilot CLI) post feedback in three places: issue-level comments, top-level PR review bodies, and inline threads. Checking only inline threads misses the other two channels.
+**Do:** After each push, check all three channels (step 10: issue comments, review bodies, inline threads). Address all feedback before re-triggering review or attempting merge.
 
 ### Don't: Merge before Copilot CLI posts its signoff on the PR
 A local-only review doesn't count — the review must be visible on GitHub.
