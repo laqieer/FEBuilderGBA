@@ -105,5 +105,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["ObjPointer@0x00"] = $"0x{rom.u32(a):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["ObjPointer"] = "ObjPointer@0x00",
+            };
+        }
     }
 }

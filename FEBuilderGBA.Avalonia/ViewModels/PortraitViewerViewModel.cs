@@ -237,5 +237,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x1B"] = $"0x{rom.u8(a + 27):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["ImagePointer"] = "u32@0x00",
+                ["MapPointer"] = "u32@0x04",
+                ["PalettePointer"] = "u32@0x08",
+                ["D12_MouthPointer"] = "u32@0x0C",
+                ["D16_ClassCardPointer"] = "u32@0x10",
+                ["B20_MouthX"] = "u8@0x14",
+                ["B21_MouthY"] = "u8@0x15",
+                ["B22_EyeX"] = "u8@0x16",
+                ["B23_EyeY"] = "u8@0x17",
+                ["B24_State"] = "u8@0x18",
+                ["B25_Padding"] = "u8@0x19",
+                ["B26_Padding"] = "u8@0x1A",
+                ["B27_Padding"] = "u8@0x1B",
+            };
+        }
     }
 }

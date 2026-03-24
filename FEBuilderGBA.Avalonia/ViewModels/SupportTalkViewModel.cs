@@ -137,5 +137,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["SongA@0x0E"] = $"0x{rom.u16(a + 14):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["SupportPartner1"] = "SupportPartner1@0x00",
+                ["SupportPartner2"] = "SupportPartner2@0x02",
+                ["TextIdC"] = "TextIdC@0x04",
+                ["TextIdB"] = "TextIdB@0x06",
+                ["TextIdA"] = "TextIdA@0x08",
+                ["SongC"] = "SongC@0x0A",
+                ["SongB"] = "SongB@0x0C",
+                ["SongA"] = "SongA@0x0E",
+            };
+        }
     }
 }

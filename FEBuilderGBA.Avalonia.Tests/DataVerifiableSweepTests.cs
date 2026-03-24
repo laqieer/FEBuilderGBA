@@ -495,6 +495,50 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the number of ViewModels with non-empty GetFieldOffsetMap().
+        /// After #263, we expect at least 30 editors with field maps.
+        /// </summary>
+        [Fact]
+        public void FieldOffsetMap_CoverageCount()
+        {
+            var types = VerifiableViewModels().ToList();
+            int withFieldMap = 0;
+            var mapped = new List<string>();
+
+            foreach (var entry in types)
+            {
+                var name = (string)entry[0];
+                var vmType = (Type)entry[1];
+
+                var instance = TryCreateInstance(vmType);
+                if (instance == null) continue;
+
+                var verifiable = (IDataVerifiable)instance;
+                try
+                {
+                    var fm = verifiable.GetFieldOffsetMap();
+                    if (fm != null && fm.Count > 0)
+                    {
+                        withFieldMap++;
+                        mapped.Add($"{name} ({fm.Count} fields)");
+                    }
+                }
+                catch
+                {
+                    // skip
+                }
+            }
+
+            _output.WriteLine($"ViewModels with field maps: {withFieldMap}");
+            foreach (var m in mapped)
+                _output.WriteLine($"  - {m}");
+
+            // After #263 we added maps to 28+ editors (total 31+ including the 3 from #264)
+            Assert.True(withFieldMap >= 30,
+                $"Expected >= 30 ViewModels with field maps, found {withFieldMap}");
+        }
+
         /// <summary>Normalize a hex or decimal string for comparison.</summary>
         internal static string NormalizeHex(string value)
         {

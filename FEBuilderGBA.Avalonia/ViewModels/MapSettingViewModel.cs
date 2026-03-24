@@ -857,6 +857,115 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            var map = new Dictionary<string, string>
+            {
+                ["CpPointer"] = "u32@0x00",
+                ["ObjectTypePLIST"] = "u16@0x04",
+                ["PalettePLIST"] = "u8@0x06",
+                ["ChipsetConfigPLIST"] = "u8@0x07",
+                ["MapPointerPLIST"] = "u8@0x08",
+                ["TileAnimation1PLIST"] = "u8@0x09",
+                ["TileAnimation2PLIST"] = "u8@0x0A",
+                ["MapChangePLIST"] = "u8@0x0B",
+                ["FogLevel"] = "u8@0x0C",
+                ["BattlePreparation"] = "u8@0x0D",
+                ["ChapterTitleImage"] = "u8@0x0E",
+                ["ChapterTitleImage2"] = "u8@0x0F",
+                ["InitialX"] = "u8@0x10",
+                ["InitialY"] = "u8@0x11",
+                ["Weather"] = "u8@0x12",
+                ["BattleBGLookup"] = "u8@0x13",
+                ["DifficultyAdjustment"] = "u16@0x14",
+                ["PlayerPhaseBGM"] = "u16@0x16",
+                ["EnemyPhaseBGM"] = "u16@0x18",
+                ["NpcPhaseBGM"] = "u16@0x1A",
+                ["PlayerPhaseBGM2"] = "u16@0x1C",
+                ["EnemyPhaseBGM2"] = "u16@0x1E",
+                ["NpcPhaseBGM2"] = "u16@0x20",
+                ["PlayerPhaseBGMFlag4"] = "u16@0x22",
+                ["EnemyPhaseBGMFlag4"] = "u16@0x24",
+                ["UnknownW38"] = "u16@0x26",
+                ["UnknownW40"] = "u16@0x28",
+                ["UnknownW42"] = "u16@0x2A",
+                ["BreakableWallHP"] = "u8@0x2C",
+            };
+
+            uint ds = DataSize;
+            if (ds > 45) map["RatingAEliwoodNormal"] = "u8@0x2D";
+            if (ds > 46) map["RatingAEliwoodHard"] = "u8@0x2E";
+            if (ds > 47) map["RatingAHectorNormal"] = "u8@0x2F";
+            if (ds > 48) map["RatingAHectorHard"] = "u8@0x30";
+            if (ds > 49) map["RatingBEliwoodNormal"] = "u8@0x31";
+            if (ds > 50) map["RatingBEliwoodHard"] = "u8@0x32";
+            if (ds > 51) map["RatingBHectorNormal"] = "u8@0x33";
+            if (ds > 52) map["RatingBHectorHard"] = "u8@0x34";
+            if (ds > 53) map["RatingCEliwoodNormal"] = "u8@0x35";
+            if (ds > 54) map["RatingCEliwoodHard"] = "u8@0x36";
+            if (ds > 55) map["RatingCHectorNormal"] = "u8@0x37";
+            if (ds > 56) map["RatingCHectorHard"] = "u8@0x38";
+            if (ds > 57) map["RatingDEliwoodNormal"] = "u8@0x39";
+            if (ds > 58) map["RatingDEliwoodHard"] = "u8@0x3A";
+            if (ds > 59) map["RatingDHectorNormal"] = "u8@0x3B";
+            if (ds > 60) map["RatingDHectorHard"] = "u8@0x3C";
+            if (ds > 61) map["UnknownB61"] = "u8@0x3D";
+            if (ds > 63) map["RatingAEliwoodNormalW"] = "u16@0x3E";
+            if (ds > 65) map["RatingAEliwoodHardW"] = "u16@0x40";
+            if (ds > 67) map["RatingAHectorNormalW"] = "u16@0x42";
+            if (ds > 69) map["RatingAHectorHardW"] = "u16@0x44";
+            if (ds > 71) map["RatingBEliwoodNormalW"] = "u16@0x46";
+            if (ds > 73) map["RatingBEliwoodHardW"] = "u16@0x48";
+            if (ds > 75) map["RatingBHectorNormalW"] = "u16@0x4A";
+            if (ds > 77) map["RatingBHectorHardW"] = "u16@0x4C";
+            if (ds > 79) map["RatingCEliwoodNormalW"] = "u16@0x4E";
+            if (ds > 81) map["RatingCEliwoodHardW"] = "u16@0x50";
+            if (ds > 83) map["RatingCHectorNormalW"] = "u16@0x52";
+            if (ds > 85) map["RatingCHectorHardW"] = "u16@0x54";
+            if (ds > 87) map["RatingDEliwoodNormalW"] = "u16@0x56";
+            if (ds > 89) map["RatingDEliwoodHardW"] = "u16@0x58";
+            if (ds > 91) map["RatingDHectorNormalW"] = "u16@0x5A";
+            if (ds > 93) map["RatingDHectorHardW"] = "u16@0x5C";
+            if (ds > 95) map["UnknownW94"] = "u16@0x5E";
+            if (ds > 99) map["DiffPtrEliwoodNormal"] = "u32@0x60";
+            if (ds > 103) map["DiffPtrEliwoodHard"] = "u32@0x64";
+            if (ds > 107) map["DiffPtrHectorNormal"] = "u32@0x68";
+            if (ds > 111) map["DiffPtrHectorHard"] = "u32@0x6C";
+            if (ds > 113) map["MapNameText1"] = "u16@0x70";
+            if (ds > 115) map["MapNameText2"] = "u16@0x72";
+            if (ds > 116) map["EventIdPLIST"] = "u8@0x74";
+            if (ds > 117) map["WorldMapAutoEvent"] = "u8@0x75";
+            if (ds > 118) map["UnknownB118"] = "u8@0x76";
+            if (ds > 119) map["UnknownB119"] = "u8@0x77";
+            if (ds > 120) map["UnknownB120"] = "u8@0x78";
+            if (ds > 121) map["UnknownB121"] = "u8@0x79";
+            if (ds > 122) map["UnknownB122"] = "u8@0x7A";
+            if (ds > 123) map["UnknownB123"] = "u8@0x7B";
+            if (ds > 124) map["UnknownB124"] = "u8@0x7C";
+            if (ds > 125) map["UnknownB125"] = "u8@0x7D";
+            if (ds > 126) map["UnknownB126"] = "u8@0x7E";
+            if (ds > 127) map["UnknownB127"] = "u8@0x7F";
+            if (ds > 128) map["ChapterNumber"] = "u8@0x80";
+            if (ds > 129) map["UnknownB129"] = "u8@0x81";
+            if (ds > 130) map["UnknownB130"] = "u8@0x82";
+            if (ds > 131) map["UnknownB131"] = "u8@0x83";
+            if (ds > 132) map["UnknownB132"] = "u8@0x84";
+            if (ds > 133) map["UnknownB133"] = "u8@0x85";
+            if (ds > 134) map["VictoryBGMEnemyCount"] = "u8@0x86";
+            if (ds > 135) map["BlackoutBeforeStart"] = "u8@0x87";
+            if (ds > 137) map["ClearConditionText"] = "u16@0x88";
+            if (ds > 139) map["DetailClearConditionText"] = "u16@0x8A";
+            if (ds > 140) map["SpecialDisplay"] = "u8@0x8C";
+            if (ds > 141) map["TurnCountDisplay"] = "u8@0x8D";
+            if (ds > 142) map["DefenseUnitMark"] = "u8@0x8E";
+            if (ds > 143) map["EscapeMarkerX"] = "u8@0x8F";
+            if (ds > 144) map["EscapeMarkerY"] = "u8@0x90";
+            if (ds > 145) map["UnknownB145"] = "u8@0x91";
+            if (ds > 146) map["UnknownB146"] = "u8@0x92";
+            if (ds > 147) map["UnknownB147"] = "u8@0x93";
+            return map;
+        }
+
         // Backward-compatible property aliases used by old code
         public uint TilesetPLIST => ObjectTypePLIST;
         public uint MapPLIST => MapPointerPLIST;

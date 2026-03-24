@@ -195,5 +195,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             return report;
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["ChangePointer"] = "u32@0x00",
+            };
+        }
     }
 }

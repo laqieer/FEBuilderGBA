@@ -133,5 +133,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return report;
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["SongHeaderPointer"] = "u32@0x00_SongHeaderPointer",
+                ["PlayerType"] = "u32@0x04_PlayerType",
+                ["TrackCount"] = "u8@0x00_TrackCount",
+                ["HeaderPriority"] = "u8@0x02_HeaderPriority",
+                ["HeaderReverb"] = "u8@0x03_HeaderReverb",
+            };
+        }
     }
 }

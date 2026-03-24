@@ -145,5 +145,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x0F"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["ItemId"] = "u8@0x00",
+                ["Unknown1"] = "u8@0x01",
+                ["AnimType"] = "u8@0x02",
+                ["Unknown3"] = "u8@0x03",
+                ["EffectId"] = "u16@0x04",
+                ["Unknown6"] = "u16@0x06",
+                ["MapEffectPointer"] = "u32@0x08",
+                ["DamageEffect"] = "u8@0x0C",
+                ["Motion"] = "u8@0x0D",
+                ["HitColor"] = "u8@0x0E",
+                ["Unknown15"] = "u8@0x0F",
+            };
+        }
     }
 }

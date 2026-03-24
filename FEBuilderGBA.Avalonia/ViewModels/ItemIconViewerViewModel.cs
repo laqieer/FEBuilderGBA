@@ -109,5 +109,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["PalettePointer"] = $"0x{rom.RomInfo.icon_palette_pointer:X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["ImagePointer"] = "ImagePointer",
+                ["PalettePointer"] = "PalettePointer",
+            };
+        }
     }
 }
