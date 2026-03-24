@@ -143,6 +143,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (MoveCostLabel != null) MoveCostLabel.Text = "Move Cost (P52):";
                 if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Move Cost Rain (P56):";
                 if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Move Cost Snow (P60):";
+                // Note: FE6 has a 4th move cost pointer at P64 (not "snow" -- it's an extra table)
+            }
+            else
+            {
+                // FE7/8: reset labels to defaults in case they were set to FE6 values previously
+                if (AbilityHeaderText1 != null) AbilityHeaderText1.Text = "Ability 1 (B40):";
+                if (AbilityHeaderText2 != null) AbilityHeaderText2.Text = "Ability 2 (B41):";
+                if (AbilityHeaderText3 != null) AbilityHeaderText3.Text = "Ability 3 (B42):";
+                if (AbilityHeaderText4 != null) AbilityHeaderText4.Text = "Ability 4 (B43):";
+
+                if (WepRankExpander != null) WepRankExpander.Header = "Weapon Rank Levels (B44-B51)";
+                if (WepRankSwordLabel != null) WepRankSwordLabel.Text = "Sword (B44):";
+                if (WepRankLanceLabel != null) WepRankLanceLabel.Text = "Lance (B45):";
+                if (WepRankAxeLabel != null) WepRankAxeLabel.Text = "Axe (B46):";
+                if (WepRankBowLabel != null) WepRankBowLabel.Text = "Bow (B47):";
+                if (WepRankStaffLabel != null) WepRankStaffLabel.Text = "Staff (B48):";
+                if (WepRankAnimaLabel != null) WepRankAnimaLabel.Text = "Anima (B49):";
+                if (WepRankLightLabel != null) WepRankLightLabel.Text = "Light (B50):";
+                if (WepRankDarkLabel != null) WepRankDarkLabel.Text = "Dark (B51):";
+
+                if (BattleAnimeLabel != null) BattleAnimeLabel.Text = "Battle Anime (P52):";
+                if (MoveCostLabel != null) MoveCostLabel.Text = "Move Cost (P56):";
+                if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Move Cost Rain (P60):";
+                if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Move Cost Snow (P64):";
             }
         }
 
