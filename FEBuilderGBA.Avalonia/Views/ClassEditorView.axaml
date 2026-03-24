@@ -283,17 +283,17 @@
           <TextBlock AutomationProperties.AutomationId="ClassEditor_MoveCostSnowLabel_Label" Grid.Row="1" Grid.Column="3" Name="MoveCostSnowLabel" Text="Move Cost Snow (P64):" VerticalAlignment="Center" />
           <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr64_Input" Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Width="120" />
 
-          <!-- Terrain pointers row (FE7/8 only, hidden for FE6) -->
+          <!-- Terrain pointers row (shows Avoid+Def for FE7/8, Res only for FE6) -->
           <StackPanel Name="TerrainRow" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
             <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="0" Name="TerrainAvoidLabel" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr68_Input" Grid.Row="0" Grid.Column="1" Name="Ptr68Box" Width="120" />
-              <TextBlock Grid.Row="0" Grid.Column="3" Text="Terrain Def (P72):" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Name="TerrainDefLabel" Text="Terrain Def (P72):" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr72_Input" Grid.Row="0" Grid.Column="4" Name="Ptr72Box" Width="120" />
             </Grid>
           </StackPanel>
 
-          <!-- D80 / Terrain Res row (FE7/8 only, hidden for FE6) -->
+          <!-- D80 / Terrain Res row (FE7/8 only; hidden for FE6 which has no D80) -->
           <StackPanel Name="D80Row" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
             <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
