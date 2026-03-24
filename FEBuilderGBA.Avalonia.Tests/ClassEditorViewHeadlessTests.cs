@@ -79,20 +79,23 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===================================================================
 
         [AvaloniaTheory]
-        [InlineData("NameIdBox", "X4")]
-        [InlineData("DescIdBox", "X4")]
-        [InlineData("ClassNumberBox", "X2")]
-        [InlineData("PromotionLevelBox", "X2")]
-        [InlineData("WaitIconBox", "X2")]
-        [InlineData("WalkSpeedBox", "X2")]
-        [InlineData("PortraitIdBox", "X4")]
-        [InlineData("BuildStatBox", "X2")]
-        public void IdentityFields_Have_HexFormat(string controlName, string expectedFormat)
+        [InlineData("NameIdBox")]
+        [InlineData("DescIdBox")]
+        [InlineData("ClassNumberBox")]
+        [InlineData("PromotionLevelBox")]
+        [InlineData("WaitIconBox")]
+        [InlineData("WalkSpeedBox")]
+        [InlineData("PortraitIdBox")]
+        [InlineData("BuildStatBox")]
+        public void IdentityFields_Have_DecimalFormat(string controlName)
         {
+            // Avalonia NumericUpDown uses decimal internally; hex FormatString
+            // (X2/X4) causes FormatException since decimal.ToString("X4") is
+            // invalid. All fields must use decimal format "0". See #253.
             var view = new ClassEditorView();
             var nud = view.FindControl<NumericUpDown>(controlName);
             Assert.NotNull(nud);
-            Assert.Equal(expectedFormat, nud!.FormatString);
+            Assert.Equal("0", nud!.FormatString);
             _output.WriteLine($"{controlName}: FormatString={nud.FormatString} (OK)");
         }
 
