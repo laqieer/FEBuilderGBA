@@ -1252,12 +1252,18 @@ namespace FEBuilderGBA.Avalonia.Views
                                 int maxItem = fullMode ? listCount : 1;
                                 bool editorOk = true;
 
+                                bool editorSkipped = false;
+
                                 for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
                                 {
                                     // Select the item by index (for full mode, iterate all)
                                     if (itemIdx > 0 || fullMode)
                                     {
-                                        SelectItemByIndex(window, itemIdx);
+                                        if (!SelectItemByIndex(window, itemIdx))
+                                        {
+                                            Console.WriteLine($"DATAVERIFY: {name} ... WARN: SelectItemByIndex({itemIdx}) failed, skipping remaining items");
+                                            break;
+                                        }
                                         await Task.Delay(50); // Let selection handler run
                                     }
 
@@ -1271,7 +1277,9 @@ namespace FEBuilderGBA.Avalonia.Views
                                         if (fullMode) verifyParts.Insert(0, $"item={itemIdx}");
                                         foreach (var kv in dataReport)
                                             verifyParts.Add($"{kv.Key}={kv.Value}");
-                                        Console.WriteLine($"VERIFY: {name}[{itemIdx}]|{string.Join("|", verifyParts)}");
+                                        // In non-full mode, use original format without [index] suffix
+                                        string verifyLabel = fullMode ? $"{name}[{itemIdx}]" : name;
+                                        Console.WriteLine($"VERIFY: {verifyLabel}|{string.Join("|", verifyParts)}");
                                     }
 
                                     // Print RAWROM line (only for item 0 in non-full mode)
@@ -1286,6 +1294,14 @@ namespace FEBuilderGBA.Avalonia.Views
                                     // Cross-check: address-level comparison
                                     var comparison = CrossCheckDataReport(name, dataReport, rawReport);
 
+                                    if (comparison == DataVerifyComparisonResult.Skip)
+                                    {
+                                        // Non-comparable data — count as skip, not verified
+                                        editorSkipped = true;
+                                        Console.WriteLine($"DATAVERIFY: {name} ... SKIP (non-comparable data)");
+                                        break;
+                                    }
+
                                     // Per-field cross-check using GetFieldOffsetMap
                                     var fieldMap = verifiable.GetFieldOffsetMap();
                                     if (fieldMap.Count > 0 && comparison == DataVerifyComparisonResult.Match)
@@ -1299,6 +1315,13 @@ namespace FEBuilderGBA.Avalonia.Views
                                         editorOk = false;
                                 }
 
+                                if (editorSkipped)
+                                {
+                                    skipped++;
+                                    // Already printed SKIP message above; skip UI verification
+                                }
+                                else
+                                {
                                 // UI check (only on first item)
                                 SelectFirstItemOnView(window);
                                 await Task.Delay(50);
@@ -1317,6 +1340,7 @@ namespace FEBuilderGBA.Avalonia.Views
                                 {
                                     verified++;
                                     Console.WriteLine($"DATAVERIFY: {name} ... VERIFIED");
+                                }
                                 }
                             }
                             else
@@ -1376,8 +1400,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Select an item by index using reflection on the view's AddressListControl.
         /// Tries known control names (UnitList, ItemList, ClassList, BranchList, EntryList)
         /// then falls back to finding any AddressListControl in the visual tree.
+        /// Returns true if selection succeeded, false if no AddressListControl was found.
         /// </summary>
-        static void SelectItemByIndex(Window window, int index)
+        static bool SelectItemByIndex(Window window, int index)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
@@ -1390,7 +1415,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (selectMethod != null)
                     {
                         selectMethod.Invoke(control, new object[] { index });
-                        return;
+                        return true;
                     }
                 }
             }
@@ -1404,10 +1429,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (selectMethod != null)
                     {
                         selectMethod.Invoke(descendant, new object[] { index });
-                        return;
+                        return true;
                     }
                 }
             }
+
+            return false;
         }
 
         /// <summary>
