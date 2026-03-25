@@ -70,11 +70,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetDataReport()
         {
+            // Note: AsmLabel is a display-only field (not ROM-backed), so it is
+            // excluded from the report.  Including it as "" would cause the
+            // data-verify cross-check to skip the entire record.
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["Pointer Value"] = $"0x{PointerValue:X08}",
-                ["ASM Label"] = AsmLabel,
             };
         }
 

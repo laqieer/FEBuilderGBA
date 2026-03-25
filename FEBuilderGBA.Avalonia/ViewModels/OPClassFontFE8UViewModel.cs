@@ -37,8 +37,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return new List<AddrResult>();
             }
 
-            // Double dereference (same as InputFormRef: p32 in caller + p32 in Init)
-            uint baseAddr = rom.p32p(ptrAddr);
+            // Single dereference: WinForms OPClassFontFE8UForm passes
+            // op_class_font_pointer directly to InputFormRef, which does one p32.
+            uint baseAddr = rom.p32(ptrAddr);
             if (!U.isSafetyOffset(baseAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
