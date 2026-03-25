@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainBGLookupTableView.LoadList failed: {0}", ex.Message);
+                Log.Error($"MapTerrainBGLookupTableView.LoadList failed: {ex.Message}");
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainBGLookupTableView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"MapTerrainBGLookupTableView.OnSelected failed: {ex.Message}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Terrain BG lookup data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTerrainBGLookupTableView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"MapTerrainBGLookupTableView.Write: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
