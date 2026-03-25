@@ -83,9 +83,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["Unit"] = Unit.ToString("X04"),
-                ["Squad"] = Squad.ToString("X02"),
-                ["ChapterId"] = ChapterId.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Unit"] = $"0x{Unit:X04}",
+                ["Squad"] = $"0x{Squad:X02}",
+                ["ChapterId"] = $"0x{ChapterId:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Unit"] = "u16@0x00_Unit",
+                ["Squad"] = "u8@0x02_Squad",
+                ["ChapterId"] = "u8@0x03_ChapterId",
             };
         }
 

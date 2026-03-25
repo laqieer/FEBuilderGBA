@@ -80,8 +80,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Item"] = Item.ToString("X02"),
-                ["Unused1"] = Unused1.ToString("X02"),
+                ["Item"] = $"0x{Item:X02}",
+                ["Unused1"] = $"0x{Unused1:X02}",
             };
         }
 
@@ -95,6 +95,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["addr"] = $"0x{a:X08}",
                 ["u8@0x00_Item"] = $"0x{rom.u8(a + 0):X02}",
                 ["u8@0x01_Unused1"] = $"0x{rom.u8(a + 1):X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Item"] = "u8@0x00_Item",
+                ["Unused1"] = "u8@0x01_Unused1",
             };
         }
     }

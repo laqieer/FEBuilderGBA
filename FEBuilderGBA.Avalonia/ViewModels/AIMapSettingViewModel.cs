@@ -86,10 +86,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["Trait1"] = Trait1.ToString("X02"),
-                ["Trait2"] = Trait2.ToString("X02"),
-                ["Trait3"] = Trait3.ToString("X02"),
-                ["Trait4"] = Trait4.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Trait1"] = $"0x{Trait1:X02}",
+                ["Trait2"] = $"0x{Trait2:X02}",
+                ["Trait3"] = $"0x{Trait3:X02}",
+                ["Trait4"] = $"0x{Trait4:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Trait1"] = "u8@0x00_Trait1",
+                ["Trait2"] = "u8@0x01_Trait2",
+                ["Trait3"] = "u8@0x02_Trait3",
+                ["Trait4"] = "u8@0x03_Trait4",
             };
         }
 

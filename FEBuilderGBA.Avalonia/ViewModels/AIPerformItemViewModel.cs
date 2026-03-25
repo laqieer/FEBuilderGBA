@@ -83,9 +83,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Item"] = Item.ToString("X04"),
-                ["Unused2"] = Unused2.ToString("X04"),
-                ["AsmPointer"] = AsmPointer.ToString("X08"),
+                ["Item"] = $"0x{Item:X04}",
+                ["Unused2"] = $"0x{Unused2:X04}",
+                ["AsmPointer"] = $"0x{AsmPointer:X08}",
             };
         }
 
@@ -100,6 +100,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x00_Item"] = $"0x{rom.u16(a + 0):X04}",
                 ["u16@0x02_Unused2"] = $"0x{rom.u16(a + 2):X04}",
                 ["u32@0x04_AsmPointer"] = $"0x{rom.u32(a + 4):X08}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Item"] = "u16@0x00_Item",
+                ["Unused2"] = "u16@0x02_Unused2",
+                ["AsmPointer"] = "u32@0x04_AsmPointer",
             };
         }
     }
