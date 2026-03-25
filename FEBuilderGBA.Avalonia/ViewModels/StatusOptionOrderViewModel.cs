@@ -22,9 +22,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.status_game_option_order_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptrAddr = rom.RomInfo.status_game_option_order_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
 
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+
+            // Dereference pointer: RomInfo values are pointer addresses, not data addresses.
+            // WinForms InputFormRef constructor always does p32() on the basepointer.
+            uint baseAddr = rom.p32(ptrAddr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             // Read count from the count address

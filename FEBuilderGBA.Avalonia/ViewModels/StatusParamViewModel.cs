@@ -60,15 +60,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = GetTablePointer(tableIndex);
-            if (ptr == 0) return new List<AddrResult>();
+            uint ptrAddr = GetTablePointer(tableIndex);
+            if (ptrAddr == 0) return new List<AddrResult>();
 
-            if (!U.isSafetyOffset(ptr)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+
+            // Dereference pointer: RomInfo values are pointer addresses, not data addresses.
+            // WinForms InputFormRef.Init() / ReInitPointer() always does p32() on the pointer.
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
             {
-                uint addr = (uint)(ptr + i * 16);
+                uint addr = (uint)(baseAddr + i * 16);
                 if (addr + 16 > (uint)rom.Data.Length) break;
 
                 // Validate: offset +12 should be a pointer

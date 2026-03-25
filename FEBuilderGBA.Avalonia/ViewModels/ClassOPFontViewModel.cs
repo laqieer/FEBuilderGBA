@@ -25,8 +25,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.op_class_font_pointer;
-            if (baseAddr == 0) return new List<AddrResult>();
+            uint ptrAddr = rom.RomInfo.op_class_font_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+
+            // Dereference pointer: RomInfo values are pointer addresses, not data addresses.
+            // WinForms ClassOPFontForm.Init() passes p32(op_class_font_pointer) directly,
+            // while OPClassFontForm passes the pointer and lets InputFormRef do p32().
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
