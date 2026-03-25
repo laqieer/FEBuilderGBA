@@ -1220,9 +1220,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (FE7/FE8); ItemFE6View uses 32-byte items (FE6 only).
                 var version = CoreState.ROM?.RomInfo?.VersionToFilename ?? "";
                 if (version == "FE6")
-                    editors.RemoveAll(e => e.Item1 == "ItemEditorView");
+                    editors.RemoveAll(e => e is ("ItemEditorView", _));
                 else
-                    editors.RemoveAll(e => e.Item1 == "ItemFE6View");
+                    editors.RemoveAll(e => e is ("ItemFE6View", _));
 
                 Console.WriteLine($"DATAVERIFY: Testing {editors.Count} editors (full={fullMode})...");
 

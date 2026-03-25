@@ -72,8 +72,10 @@ namespace FEBuilderGBA.E2ETests.Tests
 
             // Core editors should produce VERIFY lines
             var itemEditor = GetItemEditorName(romName);
+            var wrongItemEditor = romName == "FE6" ? "ItemEditorView" : "ItemFE6View";
             Assert.Contains("VERIFY: UnitEditorView|", stdout);
             Assert.Contains($"VERIFY: {itemEditor}|", stdout);
+            Assert.DoesNotContain($"VERIFY: {wrongItemEditor}|", stdout);
             Assert.Contains("VERIFY: ClassEditorView|", stdout);
 
             // And corresponding RAWROM lines
