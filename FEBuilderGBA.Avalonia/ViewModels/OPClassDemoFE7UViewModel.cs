@@ -60,17 +60,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint baseAddr = rom.RomInfo.op_class_demo_pointer;
-            if (baseAddr == 0)
+            uint ptrAddr = rom.RomInfo.op_class_demo_pointer;
+            if (ptrAddr == 0)
             {
                 UnavailableMessage = "Not available for this ROM version";
                 CanWrite = true;
                 return new List<AddrResult>();
             }
 
-            if (!U.isSafetyOffset(baseAddr))
+            if (!U.isSafetyOffset(ptrAddr))
             {
                 UnavailableMessage = "Invalid pointer for this ROM version";
+                CanWrite = true;
+                return new List<AddrResult>();
+            }
+
+            // Dereference pointer: RomInfo values are pointer addresses, not data addresses.
+            // WinForms InputFormRef constructor always does p32() on the basepointer.
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr))
+            {
+                UnavailableMessage = "Invalid data address for this ROM version";
                 CanWrite = true;
                 return new List<AddrResult>();
             }
