@@ -8,7 +8,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class EventUnitFE7View : TranslatedWindow, IEditorView
+    public partial class EventUnitFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventUnitFE7ViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -247,5 +247,6 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_mapItems.Count > 0)
                 MapListBox.SelectedIndex = 0;
         }
+        public ViewModelBase? DataViewModel => _vm;
     }
 }
