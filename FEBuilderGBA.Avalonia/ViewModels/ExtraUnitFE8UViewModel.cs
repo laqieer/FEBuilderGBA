@@ -15,7 +15,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "D0", "P4" });
 
-        const uint BaseAddress = 0x37D88;
+        /// <summary>
+        /// ROM pointer location that holds the address of the ExtraUnit table.
+        /// WinForms InputFormRef internally calls p32() on this to get the actual data address.
+        /// </summary>
+        const uint PointerAddress = 0x37D88;
         const uint EntrySize = 8;
 
         uint _currentAddr;
@@ -28,12 +32,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint FlagId { get => _flagId; set => SetField(ref _flagId, value); }
         public uint UnitInfoPtr { get => _unitInfoPtr; set => SetField(ref _unitInfoPtr, value); }
 
+        /// <summary>
+        /// Dereference the pointer at PointerAddress to get the actual data table base.
+        /// Returns 0 if the pointer is invalid.
+        /// </summary>
+        static uint ResolveBaseAddress(ROM rom)
+        {
+            uint baseAddr = rom.p32(PointerAddress);
+            return U.isSafetyOffset(baseAddr) ? baseAddr : 0;
+        }
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            return EditorFormRef.BuildListWithCount(rom, BaseAddress, EntrySize,
+            uint baseAddr = ResolveBaseAddress(rom);
+            if (baseAddr == 0) return new List<AddrResult>();
+
+            return EditorFormRef.BuildListWithCount(rom, baseAddr, EntrySize,
                 (i, addr) => U.isSafetyPointer(rom.u32(addr + 4)),
                 (i, addr) =>
                 {
@@ -78,7 +95,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
-            return EditorFormRef.CountEntries(rom, BaseAddress, EntrySize,
+            uint baseAddr = ResolveBaseAddress(rom);
+            if (baseAddr == 0) return 0;
+            return EditorFormRef.CountEntries(rom, baseAddr, EntrySize,
                 (i, addr) => U.isSafetyPointer(rom.u32(addr + 4)));
         }
 

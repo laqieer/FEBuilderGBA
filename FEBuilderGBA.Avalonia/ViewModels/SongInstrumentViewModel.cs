@@ -209,15 +209,68 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// IDataVerifiable fallback: returns a single sentinel entry because the real
-        /// instrument list requires a base address supplied by the parent SongTrack view
-        /// via <see cref="LoadInstrumentList(uint)"/>.
+        /// Resolve a valid voicegroup address from the song table.
+        /// Scans songs starting from index 0; some songs (e.g. song 0) may have
+        /// invalid voicegroup pointers (0x40000000), so we skip those.
+        /// Path per song: song table entry -> p32 -> song header -> p32(header+4) -> voicegroup.
+        /// Returns 0 if no valid voicegroup found.
+        /// </summary>
+        static uint ResolveFirstSongVoicegroup(ROM rom)
+        {
+            uint songTablePointer = rom.RomInfo.sound_table_pointer;
+            if (songTablePointer == 0) return 0;
+
+            // Verify the pointer at sound_table_pointer is valid
+            uint songTablePointerVal = rom.u32(songTablePointer);
+            if (!U.isSafetyPointer(songTablePointerVal)) return 0;
+
+            // Dereference to get song table base
+            uint songTableBase = rom.p32(songTablePointer);
+            if (!U.isSafetyOffset(songTableBase)) return 0;
+
+            // Song table entries are 8 bytes each (4 pointer + 4 priority)
+            const int SongEntrySize = 8;
+            const int MaxSongsToCheck = 32; // Enough to find a valid one
+
+            for (int i = 0; i < MaxSongsToCheck; i++)
+            {
+                uint entryAddr = songTableBase + (uint)(i * SongEntrySize);
+                if (entryAddr + SongEntrySize > (uint)rom.Data.Length) break;
+
+                uint songHeaderPtr = rom.u32(entryAddr);
+                if (!U.isPointer(songHeaderPtr)) continue;
+
+                uint songHeader = rom.p32(entryAddr);
+                if (!U.isSafetyOffset(songHeader)) continue;
+
+                // Song header offset +4 = voicegroup pointer
+                uint vocaPtr = rom.u32(songHeader + 4);
+                if (!U.isPointer(vocaPtr)) continue;
+
+                uint voca = rom.p32(songHeader + 4);
+                if (!U.isSafetyOffset(voca)) continue;
+
+                return voca;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// IDataVerifiable: when BaseAddr is set (by parent SongTrack view), uses it directly.
+        /// When BaseAddr is 0 (standalone), auto-resolves the first song's voicegroup.
         /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
             if (BaseAddr != 0) return LoadInstrumentList(BaseAddr);
+
+            // Auto-resolve first song's voicegroup for standalone mode
+            uint voca = ResolveFirstSongVoicegroup(rom);
+            if (voca != 0) return LoadInstrumentList(voca);
+
             var result = new List<AddrResult>();
             result.Add(new AddrResult(0, "Instrument Editor", 0));
             return result;
@@ -388,7 +441,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            uint effectiveBase = BaseAddr;
+            if (effectiveBase == 0)
+                effectiveBase = ResolveFirstSongVoicegroup(rom);
+            if (effectiveBase == 0) return 0;
+
+            // Count valid instruments up to MaxInstruments
+            int count = 0;
+            for (int i = 0; i < MaxInstruments; i++)
+            {
+                uint addr = effectiveBase + (uint)(i * BlockSize);
+                if (addr + BlockSize > (uint)rom.Data.Length) break;
+                byte type = (byte)rom.u8(addr);
+                if (!IsValidInstrument(rom, addr, type)) break;
+                count++;
+            }
+            return count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

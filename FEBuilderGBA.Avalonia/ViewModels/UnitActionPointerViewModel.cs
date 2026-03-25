@@ -4,10 +4,18 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Unit Action Pointer editor — table of function pointers for unit actions.
+    /// WinForms: UnitActionPointerForm.cs
+    /// Struct layout: P0 = function pointer (GBA pointer, 4 bytes) = 4 bytes total.
+    /// The base address comes from RomInfo.unitaction_function_pointer (p32 dereference).
+    /// </summary>
     public class UnitActionPointerViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "D0" });
+            EditorFormRef.DetectFields(new[] { "P0" });
+
+        const uint EntrySize = 4;
 
         uint _currentAddr;
         bool _isLoaded;
@@ -17,34 +25,79 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
 
+        /// <summary>
+        /// Resolve the base address of the unit action pointer table.
+        /// On vanilla ROMs: p32(RomInfo.unitaction_function_pointer).
+        /// Returns 0 if the pointer is invalid.
+        /// </summary>
+        static uint ResolveBaseAddress(ROM rom)
+        {
+            uint pointer = rom.RomInfo.unitaction_function_pointer;
+            if (pointer == 0) return 0;
+            uint baseAddr = rom.p32(pointer);
+            return U.isSafetyOffset(baseAddr) ? baseAddr : 0;
+        }
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Unit Action Pointers", 0));
-            return result;
+
+            uint baseAddr = ResolveBaseAddress(rom);
+            if (baseAddr == 0) return new List<AddrResult>();
+
+            return EditorFormRef.BuildListWithCount(rom, baseAddr, EntrySize,
+                (i, addr) =>
+                {
+                    uint a = rom.u32(addr);
+                    return U.isSafetyPointer(a);
+                },
+                (i, addr) =>
+                {
+                    // WinForms starts at id=1 for non-reworked; we use 0-based index here
+                    uint id = (uint)(i + 1);
+                    return $"{U.ToHexString(id)} Action {id}";
+                });
         }
 
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 4 > (uint)rom.Data.Length) return;
+            if (addr + EntrySize > (uint)rom.Data.Length) return;
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
-            P0 = values["D0"];
+            P0 = values["P0"];
             IsLoaded = true;
         }
 
-        public int GetListCount() => 0;
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            var values = new Dictionary<string, uint>
+            {
+                ["P0"] = P0,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
+        }
+
+        public int GetListCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint baseAddr = ResolveBaseAddress(rom);
+            if (baseAddr == 0) return 0;
+            return EditorFormRef.CountEntries(rom, baseAddr, EntrySize,
+                (i, addr) => U.isSafetyPointer(rom.u32(addr)));
+        }
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["P0"] = $"0x{P0:X08}",
+                ["P0_FuncPtr"] = $"0x{P0:X08}",
             };
         }
 
@@ -56,13 +109,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                // Raw u32 value (GBA pointer with 0x08 prefix, used for validation)
+                ["u32@0x00_RawPtr"] = $"0x{rom.u32(a + 0):X08}",
+                // P0 is a Pointer field (EditorFormRef reads via p32, stripping 0x08 prefix)
+                ["p32@0x00_FuncPtr"] = $"0x{rom.p32(a + 0):X08}",
             };
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
-            ["P0"] = "u32@0x00",
+            ["P0_FuncPtr"] = "p32@0x00_FuncPtr",
         };
     }
 }

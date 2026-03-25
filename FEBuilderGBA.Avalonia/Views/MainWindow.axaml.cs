@@ -1607,10 +1607,13 @@ namespace FEBuilderGBA.Avalonia.Views
             var emptyNames = new List<string>();
             foreach (var nud in nuds)
             {
-                // Skip NUDs that are not visible — they may have been intentionally hidden
-                // because they don't apply to the current ROM version/struct size.
-                // E.g. EventCondView hides ExtraB12-B15 for FE6/FE8 (12-byte records).
-                if (!nud.IsVisible) continue;
+                // Skip NUDs that are not effectively visible — they may have been
+                // intentionally hidden (or inside a hidden parent panel) because they
+                // don't apply to the current ROM version/struct size/instrument type.
+                // E.g. EventCondView hides ExtraB12-B15 for FE6/FE8 (12-byte records),
+                // SongInstrumentView hides DirectSoundPanel for SquareWave instruments.
+                // Use IsEffectivelyVisible to check the entire visual parent chain.
+                if (!nud.IsEffectivelyVisible) continue;
 
                 if (nud.Value == null)
                 {
