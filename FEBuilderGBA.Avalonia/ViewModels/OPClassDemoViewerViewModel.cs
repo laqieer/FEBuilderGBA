@@ -49,9 +49,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint ptrAddr = rom.RomInfo.op_class_demo_pointer;
             if (ptrAddr == 0) return new List<AddrResult>();
 
-            // Single dereference: all WinForms OPClassDemo forms pass
-            // op_class_demo_pointer directly to InputFormRef, which does one p32.
-            uint baseAddr = rom.p32(ptrAddr);
+            // Double dereference: ClassOPDemoForm pre-dereferences with p32 before
+            // passing to InputFormRef, which does another p32 in Init.
+            uint baseAddr = rom.p32p(ptrAddr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
