@@ -109,7 +109,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                // P0 is a Pointer field (EditorFormRef reads via p32), so raw report uses p32
+                // Raw u32 value (GBA pointer with 0x08 prefix, used for validation)
+                ["u32@0x00_RawPtr"] = $"0x{rom.u32(a + 0):X08}",
+                // P0 is a Pointer field (EditorFormRef reads via p32, stripping 0x08 prefix)
                 ["p32@0x00_FuncPtr"] = $"0x{rom.p32(a + 0):X08}",
             };
         }

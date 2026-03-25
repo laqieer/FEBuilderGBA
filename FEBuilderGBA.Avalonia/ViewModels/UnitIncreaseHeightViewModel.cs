@@ -137,11 +137,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+
+            // Include switch2 instruction bytes used by IsSwitch2Enable validation
+            uint switch2Addr = rom.RomInfo.unit_increase_height_switch2_address;
+            var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00_HeightValue"] = $"0x{rom.u32(a + 0):X08}",
             };
+
+            if (switch2Addr != 0 && U.isSafetyOffset(switch2Addr + 5))
+            {
+                report["u8@0x01_Switch2Op1"] = $"0x{rom.u8(switch2Addr + 1):X02}";
+                report["u16@0x02_Switch2Word"] = $"0x{rom.u16(switch2Addr + 2):X04}";
+                report["u8@0x03_Switch2Op2"] = $"0x{rom.u8(switch2Addr + 3):X02}";
+            }
+
+            return report;
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
