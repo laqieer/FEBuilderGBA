@@ -1742,10 +1742,12 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void PreviewIconHelper_LoadClassWaitIcon_ChecksZeroIndex()
+        public void PreviewIconHelper_LoadClassWaitIcon_Uses8ByteEntries()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
-            Assert.Contains("waitIconIndex == 0", src);
+            // Verify 8-byte stride and pointer at offset +4 (matches WinForms)
+            Assert.Contains("waitIconIndex * 8", src);
+            Assert.Contains("entryAddr + 4", src);
         }
 
         [Fact]
