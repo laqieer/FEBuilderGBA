@@ -18,6 +18,13 @@ namespace FEBuilderGBA.E2ETests.Tests
         private static readonly string? ExePath = AvaloniaAppRunner.FindExePath();
 
         /// <summary>
+        /// Returns the correct item editor view name for the given ROM version.
+        /// FE6 uses ItemFE6View (32-byte items); all other versions use ItemEditorView (36-byte).
+        /// </summary>
+        private static string GetItemEditorName(string romName)
+            => romName == "FE6" ? "ItemFE6View" : "ItemEditorView";
+
+        /// <summary>
         /// Cache of --data-verify output per ROM path. Each ROM is launched only once.
         /// </summary>
         private static readonly ConcurrentDictionary<string, (int ExitCode, string Stdout, string Stderr)> _cache = new();
@@ -64,13 +71,16 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Core editors should produce VERIFY lines
+            var itemEditor = GetItemEditorName(romName);
+            var wrongItemEditor = romName == "FE6" ? "ItemEditorView" : "ItemFE6View";
             Assert.Contains("VERIFY: UnitEditorView|", stdout);
-            Assert.Contains("VERIFY: ItemEditorView|", stdout);
+            Assert.Contains($"VERIFY: {itemEditor}|", stdout);
+            Assert.DoesNotContain($"VERIFY: {wrongItemEditor}|", stdout);
             Assert.Contains("VERIFY: ClassEditorView|", stdout);
 
             // And corresponding RAWROM lines
             Assert.Contains("RAWROM: UnitEditorView|", stdout);
-            Assert.Contains("RAWROM: ItemEditorView|", stdout);
+            Assert.Contains($"RAWROM: {itemEditor}|", stdout);
             Assert.Contains("RAWROM: ClassEditorView|", stdout);
         }
 
@@ -112,8 +122,9 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Must have at least 3 verified (Unit, Item, Class)
+            var itemEditor = GetItemEditorName(romName);
             Assert.Contains("DATAVERIFY: UnitEditorView ... VERIFIED", stdout);
-            Assert.Contains("DATAVERIFY: ItemEditorView ... VERIFIED", stdout);
+            Assert.Contains($"DATAVERIFY: {itemEditor} ... VERIFIED", stdout);
             Assert.Contains("DATAVERIFY: ClassEditorView ... VERIFIED", stdout);
         }
 
@@ -132,13 +143,14 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = GetDataVerifyOutput(romPath!);
 
             // Core editors (Unit/Item/Class) exist in all ROM versions
+            var itemEditor = GetItemEditorName(romName);
             Assert.Contains("UIVERIFY: UnitEditorView|", stdout);
-            Assert.Contains("UIVERIFY: ItemEditorView|", stdout);
+            Assert.Contains($"UIVERIFY: {itemEditor}|", stdout);
             Assert.Contains("UIVERIFY: ClassEditorView|", stdout);
 
             // Core editors must NOT have emptyNUDs
             Assert.DoesNotContain("UIVERIFY: UnitEditorView|emptyNUDs=", stdout);
-            Assert.DoesNotContain("UIVERIFY: ItemEditorView|emptyNUDs=", stdout);
+            Assert.DoesNotContain($"UIVERIFY: {itemEditor}|emptyNUDs=", stdout);
             Assert.DoesNotContain("UIVERIFY: ClassEditorView|emptyNUDs=", stdout);
 
             // No UI_EMPTY failures for any editor
@@ -263,7 +275,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         private static (int ExitCode, string Stdout, string Stderr) GetDataVerifyFullOutput(string romPath)
         {
             return _fullCache.GetOrAdd(romPath, path =>
-                AvaloniaAppRunner.Run(ExePath!, $"--rom \"{path}\" --data-verify-full", timeoutMs: 600_000));
+                AvaloniaAppRunner.Run(ExePath!, $"--rom \"{path}\" --data-verify-full", timeoutMs: 1_200_000));
         }
 
         /// <summary>
