@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
-            const uint blockSize = 4;
+            const uint blockSize = 8;
             var result = new List<AddrResult>();
             for (int i = 0; i < 512; i++)
             {
@@ -79,8 +79,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["EventCommandFunctionPointer"] = EventCommandFunctionPointer.ToString("X08"),
-                ["Unknown4"] = Unknown4.ToString("X08"),
+                ["EventCommandFunctionPointer"] = $"0x{EventCommandFunctionPointer:X08}",
+                ["Unknown4"] = $"0x{Unknown4:X08}",
             };
         }
 
@@ -97,5 +97,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x04_Unknown4"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["EventCommandFunctionPointer"] = "u32@0x00_EventCommandFunctionPointer",
+            ["Unknown4"] = "u32@0x04_Unknown4",
+        };
     }
 }

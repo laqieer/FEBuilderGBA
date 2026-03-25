@@ -534,6 +534,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             var report = new Dictionary<string, string>
             {
+                ["addr"] = $"0x{CondRecordAddr:X08}",
                 ["MapSettingAddr"] = $"0x{MapSettingAddr:X08}",
                 ["EventDataAddr"] = $"0x{EventDataAddr:X08}",
                 ["CondRecordAddr"] = $"0x{CondRecordAddr:X08}",
@@ -564,7 +565,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             var report = new Dictionary<string, string>
             {
-                ["Address"] = $"0x{a:X08}",
+                ["addr"] = $"0x{a:X08}",
             };
 
             if (IsPointerSlot)

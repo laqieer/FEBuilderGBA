@@ -188,5 +188,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@15_Unused15"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["PortraitImagePtr"] = "u32@0_PortraitImagePtr",
+            ["MiniPortraitPtr"] = "u32@4_MiniPortraitPtr",
+            ["PalettePtr"] = "u32@8_PalettePtr",
+            ["MouthX"] = "u8@12_MouthX",
+            ["MouthY"] = "u8@13_MouthY",
+            ["Unused14"] = "u8@14_Unused14",
+            ["Unused15"] = "u8@15_Unused15",
+        };
     }
 }

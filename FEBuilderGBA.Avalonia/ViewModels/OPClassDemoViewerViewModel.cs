@@ -154,5 +154,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x18_AnimePointer"] = $"0x{rom.u32(a + 24):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["EnglishNamePointer"] = "u32@0x00_EnglishNamePointer",
+            ["DescriptionTextId"] = "u32@0x04_DescriptionTextId",
+            ["JapaneseNamePointer"] = "u32@0x08_JapaneseNamePointer",
+            ["JapaneseNameLength"] = "u8@0x0C_JapaneseNameLength",
+            ["PaletteId"] = "u8@0x0D_PaletteId",
+            ["DisplayWeapon"] = "u8@0x0E_DisplayWeapon",
+            ["AllyEnemyColor"] = "u8@0x0F_AllyEnemyColor",
+            ["BattleAnime"] = "u8@0x10_BattleAnime",
+            ["MagicEffect"] = "u8@0x11_MagicEffect",
+            ["Unknown18"] = "u32@0x12_Unknown18",
+            ["TerrainLeft"] = "u8@0x16_TerrainLeft",
+            ["TerrainRight"] = "u8@0x17_TerrainRight",
+            ["AnimePointer"] = "u32@0x18_AnimePointer",
+        };
     }
 }

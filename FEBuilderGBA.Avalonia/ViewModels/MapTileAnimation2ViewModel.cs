@@ -125,5 +125,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Unknown7@0x07"] = $"0x{rom.u8(a + 7):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["PaletteDataPointer"] = "PaletteDataPointer@0x00",
+            ["AnimInterval"] = "AnimInterval@0x04",
+            ["DataCount"] = "DataCount@0x05",
+            ["StartPaletteIndex"] = "StartPaletteIndex@0x06",
+            ["Unknown7"] = "Unknown7@0x07",
+        };
     }
 }

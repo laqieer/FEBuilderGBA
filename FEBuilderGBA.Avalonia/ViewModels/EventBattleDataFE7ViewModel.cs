@@ -83,5 +83,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x03_Damage"] = $"0x{rom.u8(a + 3):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["AttackType"] = "u16@0x00_AttackType",
+            ["Attacker"] = "u8@0x02_Attacker",
+            ["Damage"] = "u8@0x03_Damage",
+        };
     }
 }

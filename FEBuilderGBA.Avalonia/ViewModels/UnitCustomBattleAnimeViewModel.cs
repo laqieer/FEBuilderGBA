@@ -117,5 +117,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x02_AnimeNumber"] = $"0x{rom.u16(a + 2):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["B0_WeaponType"] = "u8@0x00_WeaponType",
+            ["B1_Special"] = "u8@0x01_Special",
+            ["W2_AnimeNumber"] = "u16@0x02_AnimeNumber",
+        };
     }
 }

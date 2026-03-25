@@ -192,5 +192,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x13_Padding2"] = $"0x{rom.u8(a + 19):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["HP"] = "u8@0x00_HP",
+            ["Str"] = "u8@0x01_Str",
+            ["Skill"] = "u8@0x02_Skill",
+            ["Speed"] = "u8@0x03_Speed",
+            ["Def"] = "u8@0x04_Def",
+            ["Res"] = "u8@0x05_Res",
+            ["Luck"] = "u8@0x06_Luck",
+            ["Move"] = "u8@0x07_Move",
+            ["Con"] = "u8@0x08_Con",
+            ["MagicOrUnknown"] = "u8@0x09_MagicOrUnknown",
+            ["GrowHP"] = "u8@0x0A_GrowHP",
+            ["GrowStr"] = "u8@0x0B_GrowStr",
+            ["GrowSkill"] = "u8@0x0C_GrowSkill",
+            ["GrowSpeed"] = "u8@0x0D_GrowSpeed",
+            ["GrowDef"] = "u8@0x0E_GrowDef",
+            ["GrowRes"] = "u8@0x0F_GrowRes",
+            ["GrowLuck"] = "u8@0x10_GrowLuck",
+            ["GrowUnknown"] = "u8@0x11_GrowUnknown",
+            ["Padding1"] = "u8@0x12_Padding1",
+            ["Padding2"] = "u8@0x13_Padding2",
+        };
     }
 }

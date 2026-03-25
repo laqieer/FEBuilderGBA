@@ -88,5 +88,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@6"] = $"0x{rom.u16(a + 6):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["AnimationPointer"] = "u32@0",
+            ["Padding1"] = "u16@4",
+            ["Padding2"] = "u16@6",
+        };
     }
 }

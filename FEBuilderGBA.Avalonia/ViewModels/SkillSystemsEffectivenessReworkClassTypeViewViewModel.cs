@@ -66,5 +66,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x32"] = $"0x{rom.u16(a + 50):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["ClassType"] = "u16@0x32",
+        };
     }
 }

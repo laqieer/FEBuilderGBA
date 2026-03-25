@@ -84,5 +84,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@16"] = $"0x{rom.u32(a + 16):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["P0"] = "u32@0",
+            ["P4"] = "u32@4",
+            ["P8"] = "u32@8",
+            ["P12"] = "u32@12",
+            ["P16"] = "u32@16",
+        };
     }
 }

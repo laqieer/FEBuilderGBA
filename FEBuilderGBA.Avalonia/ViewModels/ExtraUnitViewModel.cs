@@ -110,5 +110,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 report["u8@0x00_flag"] = $"0x{rom.u8(flagAddr):X02}";
             return report;
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["P0"] = "u32@0x00",
+        };
     }
 }

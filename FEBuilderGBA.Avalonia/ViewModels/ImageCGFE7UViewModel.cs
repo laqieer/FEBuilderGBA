@@ -167,5 +167,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@12_PalettePtr"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["ImageType"] = "u8@0_ImageType",
+            ["Reserved1"] = "u8@1_Reserved1",
+            ["Reserved2"] = "u8@2_Reserved2",
+            ["Reserved3"] = "u8@3_Reserved3",
+            ["SplitImagePtr"] = "u32@4_SplitImagePtr",
+            ["TSAPtr"] = "u32@8_TSAPtr",
+            ["PalettePtr"] = "u32@12_PalettePtr",
+        };
     }
 }
