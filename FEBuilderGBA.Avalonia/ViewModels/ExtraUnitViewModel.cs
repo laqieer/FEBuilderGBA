@@ -104,7 +104,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u32@0x00"] = $"0x{rom.u32(a + 0):X08}",
+                // P0 is a Pointer field (EditorFormRef reads via p32, stripping 0x08 prefix),
+                // so raw report must also use p32 to match.
+                ["p32@0x00"] = $"0x{rom.p32(a + 0):X08}",
             };
             if (U.isSafetyOffset(flagAddr))
                 report["u8@0x00_flag"] = $"0x{rom.u8(flagAddr):X02}";
@@ -113,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
-            ["P0"] = "u32@0x00",
+            ["P0"] = "p32@0x00",
         };
     }
 }

@@ -101,14 +101,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00_FlagId"] = $"0x{rom.u32(a + 0):X08}",
-                ["u32@0x04_UnitInfoPtr"] = $"0x{rom.u32(a + 4):X08}",
+                // P4 is a Pointer field (EditorFormRef reads via p32, stripping 0x08 prefix),
+                // so raw report must also use p32 to match.
+                ["p32@0x04_UnitInfoPtr"] = $"0x{rom.p32(a + 4):X08}",
             };
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
             ["D0_FlagId"] = "u32@0x00_FlagId",
-            ["P4_UnitInfoPtr"] = "u32@0x04_UnitInfoPtr",
+            ["P4_UnitInfoPtr"] = "p32@0x04_UnitInfoPtr",
         };
     }
 }
