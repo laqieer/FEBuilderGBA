@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class AIASMRangeView : TranslatedWindow, IEditorView
+    public partial class AIASMRangeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly AIASMRangeViewModel _vm = new();
         readonly UndoService _undoService = new();
@@ -91,5 +91,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
     }
 }

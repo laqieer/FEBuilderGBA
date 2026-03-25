@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ClassOPFontView : TranslatedWindow, IEditorView
+    public partial class ClassOPFontView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ClassOPFontViewModel _vm = new();
 
@@ -53,5 +53,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+        public ViewModelBase? DataViewModel => _vm;
     }
 }
