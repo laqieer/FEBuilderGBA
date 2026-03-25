@@ -177,6 +177,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
+        /// <summary>
+        /// CharacterDisplay, CharCodeCount, SelectedCode are derived/display-only fields.
+        /// Only CharCode and TerminatorValue map directly to ROM bytes.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["CharCode"] = "u16@0x00",
+            ["TerminatorValue"] = "u16@0x02",
+        };
+
         void ClearListState()
         {
             _entryAddresses.Clear();

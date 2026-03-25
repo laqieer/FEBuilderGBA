@@ -195,5 +195,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x13"] = $"0x{rom.u8(a + 19):X02}",
             };
         }
+
+        /// <summary>
+        /// UnitGrow and Level are computed/derived fields (not direct ROM bytes), so excluded.
+        /// B3_LevelGrowth uses u8@0x03 but raw report has u16@0x03 — we use the correct
+        /// single-byte key. Note: the raw report intentionally uses u16@0x03 for overlapping
+        /// inspection, but the actual field is a byte.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["UnitId"] = "u8@0x00",
+            ["ClassId"] = "u8@0x01",
+            ["B2_Commander"] = "u8@0x02",
+            // B3_LevelGrowth skipped — raw report uses u16@0x03 (misaligned word), not u8@0x03
+            ["W4_Coordinates"] = "u16@0x04",
+            ["B6_Special"] = "u8@0x06",
+            ["B7_Padding"] = "u8@0x07",
+            ["P8_AIPointer"] = "u32@0x08",
+            ["B12_Item1"] = "u8@0x0C",
+            ["B13_Item2"] = "u8@0x0D",
+            ["B14_Item3"] = "u8@0x0E",
+            ["B15_Item4"] = "u8@0x0F",
+            ["B16_PrimaryAI"] = "u8@0x10",
+            ["B17_SecondaryAI"] = "u8@0x11",
+            ["B18_TargetRecoveryAI"] = "u8@0x12",
+            ["B19_RetreatAI"] = "u8@0x13",
+        };
     }
 }

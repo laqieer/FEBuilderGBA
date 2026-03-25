@@ -149,25 +149,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["IdTextId"] = IdTextId.ToString("X08"),
-                ["NameTextId"] = NameTextId.ToString("X04"),
-                ["HelpTextId"] = HelpTextId.ToString("X04"),
-                ["PosX"] = PosX.ToString("X04"),
-                ["PosY"] = PosY.ToString("X04"),
-                ["SelectionText1"] = SelectionText1.ToString("X04"),
-                ["SelectionText2"] = SelectionText2.ToString("X04"),
-                ["Columns"] = Columns.ToString("X04"),
-                ["Rows"] = Rows.ToString("X04"),
-                ["DefaultTextId"] = DefaultTextId.ToString("X04"),
-                ["YesTextId"] = YesTextId.ToString("X04"),
-                ["MinValue"] = MinValue.ToString("X04"),
-                ["MaxValue"] = MaxValue.ToString("X04"),
-                ["OnOffText1"] = OnOffText1.ToString("X04"),
-                ["OnOffText2"] = OnOffText2.ToString("X04"),
-                ["DefaultValue"] = DefaultValue.ToString("X04"),
-                ["OptionType"] = OptionType.ToString("X04"),
-                ["IconId"] = IconId.ToString("X08"),
-                ["AsmPointer"] = AsmPointer.ToString("X08"),
+                ["IdTextId"] = $"0x{IdTextId:X08}",
+                ["NameTextId"] = $"0x{NameTextId:X04}",
+                ["HelpTextId"] = $"0x{HelpTextId:X04}",
+                ["PosX"] = $"0x{PosX:X04}",
+                ["PosY"] = $"0x{PosY:X04}",
+                ["SelectionText1"] = $"0x{SelectionText1:X04}",
+                ["SelectionText2"] = $"0x{SelectionText2:X04}",
+                ["Columns"] = $"0x{Columns:X04}",
+                ["Rows"] = $"0x{Rows:X04}",
+                ["DefaultTextId"] = $"0x{DefaultTextId:X04}",
+                ["YesTextId"] = $"0x{YesTextId:X04}",
+                ["MinValue"] = $"0x{MinValue:X04}",
+                ["MaxValue"] = $"0x{MaxValue:X04}",
+                ["OnOffText1"] = $"0x{OnOffText1:X04}",
+                ["OnOffText2"] = $"0x{OnOffText2:X04}",
+                ["DefaultValue"] = $"0x{DefaultValue:X04}",
+                ["OptionType"] = $"0x{OptionType:X04}",
+                ["IconId"] = $"0x{IconId:X08}",
+                ["AsmPointer"] = $"0x{AsmPointer:X08}",
             };
         }
 
@@ -200,5 +200,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x28_AsmPointer"] = $"0x{rom.u32(a + 40):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["IdTextId"] = "u32@0x00_IdTextId",
+            ["NameTextId"] = "u16@0x04_NameTextId",
+            ["HelpTextId"] = "u16@0x06_HelpTextId",
+            ["PosX"] = "u16@0x08_PosX",
+            ["PosY"] = "u16@0x0A_PosY",
+            ["SelectionText1"] = "u16@0x0C_SelectionText1",
+            ["SelectionText2"] = "u16@0x0E_SelectionText2",
+            ["Columns"] = "u16@0x10_Columns",
+            ["Rows"] = "u16@0x12_Rows",
+            ["DefaultTextId"] = "u16@0x14_DefaultTextId",
+            ["YesTextId"] = "u16@0x16_YesTextId",
+            ["MinValue"] = "u16@0x18_MinValue",
+            ["MaxValue"] = "u16@0x1A_MaxValue",
+            ["OnOffText1"] = "u16@0x1C_OnOffText1",
+            ["OnOffText2"] = "u16@0x1E_OnOffText2",
+            ["DefaultValue"] = "u16@0x20_DefaultValue",
+            ["OptionType"] = "u16@0x22_OptionType",
+            ["IconId"] = "u32@0x24_IconId",
+            ["AsmPointer"] = "u32@0x28_AsmPointer",
+        };
     }
 }

@@ -220,5 +220,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Unknown31@0x1F"] = $"0x{rom.u8(a + 31):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["AlwaysAccessible"] = "AlwaysAccessible@0x00",
+            ["FreeMapType"] = "FreeMapType@0x01",
+            ["PreClearIcon"] = "PreClearIcon@0x02",
+            ["PostClearIcon"] = "PostClearIcon@0x03",
+            ["ChapterId1"] = "ChapterId1@0x04",
+            ["ChapterId2"] = "ChapterId2@0x05",
+            ["EventBranchFlag"] = "EventBranchFlag@0x06",
+            ["NextNodeEirika"] = "NextNodeEirika@0x08",
+            ["NextNodeEphraim"] = "NextNodeEphraim@0x09",
+            ["NextNodeEirika2nd"] = "NextNodeEirika2nd@0x0A",
+            ["NextNodeEphraim2nd"] = "NextNodeEphraim2nd@0x0B",
+            ["ArmoryPointer"] = "ArmoryPointer@0x0C",
+            ["VendorPointer"] = "VendorPointer@0x10",
+            ["SecretShopPointer"] = "SecretShopPointer@0x14",
+            ["CoordinateX"] = "CoordinateX@0x18",
+            ["CoordinateY"] = "CoordinateY@0x1A",
+            ["NameTextId"] = "NameTextId@0x1C",
+            ["ShipSetting"] = "ShipSetting@0x1E",
+            ["Unknown31"] = "Unknown31@0x1F",
+        };
     }
 }

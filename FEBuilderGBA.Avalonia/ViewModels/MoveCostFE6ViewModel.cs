@@ -484,5 +484,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             report["u8@0x32"] = $"0x{rom.u8(mc + 50):X02}";
             return report;
         }
+
+        /// <summary>
+        /// Field map for FE6 MoveCost. The terrain cost bytes (B0..B50) live at a
+        /// pointer-dereferenced address; both reports use "u8@0xNN" keys for cost data.
+        /// W0_NameTextId and D52_MoveCostPointer are class-struct metadata that use the
+        /// same raw key names but read from a different base address — the raw report
+        /// may overwrite "u16@0x00" from the class struct with "u8@0x00" from the
+        /// cost table, so we only map the terrain cost bytes for cross-checking.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            var map = new Dictionary<string, string>();
+            // Only map terrain cost bytes — class-level fields (W0_NameTextId,
+            // D52_MoveCostPointer) are from a different base address and their
+            // raw keys clash with cost-table keys.
+            for (int i = 0; i <= 50; i++)
+            {
+                map[$"B{i}"] = $"u8@0x{i:X02}";
+            }
+            return map;
+        }
     }
 }

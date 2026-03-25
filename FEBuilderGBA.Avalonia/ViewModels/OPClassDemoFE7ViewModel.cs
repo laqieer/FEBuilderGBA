@@ -211,5 +211,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x1C_AnimePointer"] = $"0x{rom.u32(a + 28):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["EnglishNamePointer"] = "u32@0x00_EnglishNamePointer",
+            ["DescriptionTextIdLow"] = "u16@0x04_DescriptionTextIdLow",
+            ["DescriptionTextIdHigh"] = "u16@0x06_DescriptionTextIdHigh",
+            ["JapaneseNamePointer"] = "u32@0x08_JapaneseNamePointer",
+            ["JapaneseNameLength"] = "u8@0x0C_JapaneseNameLength",
+            ["PaletteId"] = "u8@0x0D_PaletteId",
+            ["DisplayWeapon"] = "u8@0x0E_DisplayWeapon",
+            ["ClassId"] = "u8@0x0F_ClassId",
+            ["AllyEnemyColor"] = "u8@0x10_AllyEnemyColor",
+            ["BattleAnime"] = "u8@0x11_BattleAnime",
+            ["MagicEffect"] = "u8@0x12_MagicEffect",
+            ["Unknown19"] = "u8@0x13_Unknown19",
+            ["Unknown20"] = "u8@0x14_Unknown20",
+            ["Unknown21"] = "u8@0x15_Unknown21",
+            ["TerrainLeft"] = "u8@0x16_TerrainLeft",
+            ["TerrainRight"] = "u8@0x17_TerrainRight",
+            ["Unknown24"] = "u8@0x18_Unknown24",
+            ["Unknown25"] = "u8@0x19_Unknown25",
+            ["Unknown26"] = "u8@0x1A_Unknown26",
+            ["Unknown27"] = "u8@0x1B_Unknown27",
+            ["AnimePointer"] = "u32@0x1C_AnimePointer",
+        };
     }
 }

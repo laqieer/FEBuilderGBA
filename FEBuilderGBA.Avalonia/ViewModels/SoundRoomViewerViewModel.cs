@@ -100,10 +100,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["SongId"] = $"0x{SongId:X04}",
+                ["SongId"] = $"0x{SongId:X08}",
                 ["Raw4"] = $"0x{Raw4:X08}",
                 ["Raw8"] = $"0x{Raw8:X08}",
-                ["TextId"] = $"0x{TextId:X04}",
+                ["TextId"] = $"0x{TextId:X08}",
             };
         }
 
@@ -125,6 +125,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 report["u32@0x0C"] = $"0x{rom.u32(a + 12):X08}";
             }
             return report;
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            var map = new Dictionary<string, string>
+            {
+                ["SongId"] = "u32@0x00",
+                ["Raw4"] = "u32@0x04",
+                ["Raw8"] = "u32@0x08",
+            };
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo != null && rom.RomInfo.sound_room_datasize >= 16)
+                map["TextId"] = "u32@0x0C";
+            return map;
         }
     }
 }

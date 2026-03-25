@@ -99,5 +99,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0x02"] = $"0x{rom.u16(a + 2):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["SongId1"] = "u16@0x00",
+            ["SongId2"] = "u16@0x02",
+        };
     }
 }

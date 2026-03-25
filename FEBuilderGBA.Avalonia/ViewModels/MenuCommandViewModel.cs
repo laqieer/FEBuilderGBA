@@ -175,5 +175,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x20_CancelAction"] = $"0x{rom.u32(a + 32):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["JpNamePointer"] = "u32@0x00_JpName",
+            ["NameTextId"] = "u16@0x04_NameTextId",
+            ["HelpTextId"] = "u16@0x06_HelpTextId",
+            ["ColorType"] = "u8@0x08_ColorType",
+            ["MenuCommandId"] = "u8@0x09_MenuCommandId",
+            ["UsabilityRoutine"] = "u32@0x0C_UsabilityRoutine",
+            ["DrawRoutine"] = "u32@0x10_DrawRoutine",
+            ["EffectRoutine"] = "u32@0x14_EffectRoutine",
+            ["PerTurnCallback"] = "u32@0x18_PerTurnCallback",
+            ["CursorSelectAction"] = "u32@0x1C_CursorSelectAction",
+            ["CancelAction"] = "u32@0x20_CancelAction",
+        };
     }
 }
