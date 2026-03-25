@@ -74,5 +74,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x00_Tile"] = $"0x{rom.u8(a + 0):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["Tile"] = "u8@0x00_Tile",
+        };
     }
 }

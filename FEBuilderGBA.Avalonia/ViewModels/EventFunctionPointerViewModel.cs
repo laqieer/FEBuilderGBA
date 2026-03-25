@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["EventCommandFunctionPointer"] = EventCommandFunctionPointer.ToString("X08"),
+                ["EventCommandFunctionPointer"] = $"0x{EventCommandFunctionPointer:X08}",
             };
         }
 
@@ -89,5 +89,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x00_EventCommandFunctionPointer"] = $"0x{rom.u32(a + 0):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["EventCommandFunctionPointer"] = "u32@0x00_EventCommandFunctionPointer",
+        };
     }
 }

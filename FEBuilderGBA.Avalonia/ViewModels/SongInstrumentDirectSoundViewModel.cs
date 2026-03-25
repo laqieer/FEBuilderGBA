@@ -92,5 +92,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["LengthByte@0x0C"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["Header"] = "Header@0x00",
+            ["FrequencyHz1024"] = "FrequencyHz1024@0x04",
+            ["LoopStartByte"] = "LoopStartByte@0x08",
+            ["LengthByte"] = "LengthByte@0x0C",
+        };
     }
 }

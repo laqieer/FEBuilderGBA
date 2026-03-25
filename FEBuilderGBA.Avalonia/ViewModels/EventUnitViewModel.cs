@@ -227,5 +227,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["AI4Retreat@0x13"] = $"0x{rom.u8(a + 19):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["UnitID"] = "UnitID@0x00",
+            ["ClassID"] = "ClassID@0x01",
+            ["LeaderUnitID"] = "LeaderUnitID@0x02",
+            ["UnitInfo"] = "UnitInfo@0x03",
+            ["UnitGrowth"] = "UnitGrowth@0x04",
+            ["Reserved6"] = "Reserved6@0x06",
+            ["CoordCount"] = "CoordCount@0x07",
+            ["CoordPointer"] = "CoordPointer@0x08",
+            ["Item1"] = "Item1@0x0C",
+            ["Item2"] = "Item2@0x0D",
+            ["Item3"] = "Item3@0x0E",
+            ["Item4"] = "Item4@0x0F",
+            ["AI1Primary"] = "AI1Primary@0x10",
+            ["AI2Secondary"] = "AI2Secondary@0x11",
+            ["AI3TargetRecovery"] = "AI3TargetRecovery@0x12",
+            ["AI4Retreat"] = "AI4Retreat@0x13",
+        };
     }
 }

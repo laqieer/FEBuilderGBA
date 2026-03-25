@@ -173,5 +173,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x0C_StringPointer"] = $"0x{rom.u32(a + 12):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["MenuTextStruct"] = "u32@0x00_MenuTextStruct",
+            ["Bitmap"] = "u32@0x04_Bitmap",
+            ["ColorType"] = "u8@0x08_ColorType",
+            ["Indent"] = "u8@0x09_Indent",
+            ["StringPointer"] = "u32@0x0C_StringPointer",
+        };
     }
 }

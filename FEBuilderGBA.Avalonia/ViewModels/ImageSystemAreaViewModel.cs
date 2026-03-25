@@ -114,5 +114,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u16@0"] = $"0x{rom.u16(a + 0):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["GBAColor"] = "u16@0",
+        };
     }
 }

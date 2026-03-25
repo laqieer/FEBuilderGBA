@@ -126,5 +126,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["PathMovePointer@0x08"] = $"0x{rom.u32(a + 8):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["PathDataPointer"] = "PathDataPointer@0x00",
+            ["StartBasePointId"] = "StartBasePointId@0x04",
+            ["EndBasePointId"] = "EndBasePointId@0x05",
+            ["Padding6"] = "Padding6@0x06",
+            ["Padding7"] = "Padding7@0x07",
+            ["PathMovePointer"] = "PathMovePointer@0x08",
+        };
     }
 }

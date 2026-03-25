@@ -122,5 +122,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["CoordinateY@0x06"] = $"0x{rom.u16(a + 6):X04}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["ElapsedTime"] = "ElapsedTime@0x00",
+            ["CoordinateX"] = "CoordinateX@0x04",
+            ["CoordinateY"] = "CoordinateY@0x06",
+        };
     }
 }

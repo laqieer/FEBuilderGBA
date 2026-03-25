@@ -93,5 +93,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x04_TextID"] = $"0x{rom.u32(a + 4):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["Unit"] = "u32@0x00_Unit",
+            ["TextID"] = "u32@0x04_TextID",
+        };
     }
 }

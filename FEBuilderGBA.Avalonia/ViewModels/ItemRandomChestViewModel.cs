@@ -109,5 +109,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x01_Probability"] = $"0x{rom.u8(a + 1):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["ItemId"] = "u8@0x00_ItemId",
+            ["Probability"] = "u8@0x01_Probability",
+        };
     }
 }
