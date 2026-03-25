@@ -65,16 +65,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                ["Width"] = Width.ToString("X02"),
-                ["Height"] = Height.ToString("X02"),
-                ["CenterX"] = CenterX.ToString("X02"),
-                ["CenterY"] = CenterY.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Width"] = $"0x{Width:X02}",
+                ["Height"] = $"0x{Height:X02}",
+                ["CenterX"] = $"0x{CenterX:X02}",
+                ["CenterY"] = $"0x{CenterY:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Width"] = "u8@0x00_Width",
+                ["Height"] = "u8@0x01_Height",
+                ["CenterX"] = "u8@0x02_CenterX",
+                ["CenterY"] = "u8@0x03_CenterY",
             };
         }
 

@@ -146,32 +146,60 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                { "LethalDamagePriority", LethalDamagePriority.ToString("X02") },
-                { "EnemyRemainingHPPriority", EnemyRemainingHPPriority.ToString("X02") },
-                { "EnemyDistancePriority", EnemyDistancePriority.ToString("X02") },
-                { "EnemyClassPriority", EnemyClassPriority.ToString("X02") },
-                { "CurrentTurnPriority", CurrentTurnPriority.ToString("X02") },
-                { "CounterDamageWarning", CounterDamageWarning.ToString("X02") },
-                { "SurroundWarning", SurroundWarning.ToString("X02") },
-                { "SelfRemainingHPWarning", SelfRemainingHPWarning.ToString("X02") },
-                { "Unknown8", Unknown8.ToString("X02") },
-                { "Unknown9", Unknown9.ToString("X02") },
-                { "Unknown10", Unknown10.ToString("X02") },
-                { "Unknown11", Unknown11.ToString("X02") },
-                { "Unknown12", Unknown12.ToString("X02") },
-                { "Unknown13", Unknown13.ToString("X02") },
-                { "Unknown14", Unknown14.ToString("X02") },
-                { "Unknown15", Unknown15.ToString("X02") },
-                { "Unknown16", Unknown16.ToString("X02") },
-                { "Unknown17", Unknown17.ToString("X02") },
-                { "Unknown18", Unknown18.ToString("X02") },
-                { "Unknown19", Unknown19.ToString("X02") },
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["LethalDamagePriority"] = $"0x{LethalDamagePriority:X02}",
+                ["EnemyRemainingHPPriority"] = $"0x{EnemyRemainingHPPriority:X02}",
+                ["EnemyDistancePriority"] = $"0x{EnemyDistancePriority:X02}",
+                ["EnemyClassPriority"] = $"0x{EnemyClassPriority:X02}",
+                ["CurrentTurnPriority"] = $"0x{CurrentTurnPriority:X02}",
+                ["CounterDamageWarning"] = $"0x{CounterDamageWarning:X02}",
+                ["SurroundWarning"] = $"0x{SurroundWarning:X02}",
+                ["SelfRemainingHPWarning"] = $"0x{SelfRemainingHPWarning:X02}",
+                ["Unknown8"] = $"0x{Unknown8:X02}",
+                ["Unknown9"] = $"0x{Unknown9:X02}",
+                ["Unknown10"] = $"0x{Unknown10:X02}",
+                ["Unknown11"] = $"0x{Unknown11:X02}",
+                ["Unknown12"] = $"0x{Unknown12:X02}",
+                ["Unknown13"] = $"0x{Unknown13:X02}",
+                ["Unknown14"] = $"0x{Unknown14:X02}",
+                ["Unknown15"] = $"0x{Unknown15:X02}",
+                ["Unknown16"] = $"0x{Unknown16:X02}",
+                ["Unknown17"] = $"0x{Unknown17:X02}",
+                ["Unknown18"] = $"0x{Unknown18:X02}",
+                ["Unknown19"] = $"0x{Unknown19:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["LethalDamagePriority"] = "u8@0x00_LethalDamagePriority",
+                ["EnemyRemainingHPPriority"] = "u8@0x01_EnemyRemainingHPPriority",
+                ["EnemyDistancePriority"] = "u8@0x02_EnemyDistancePriority",
+                ["EnemyClassPriority"] = "u8@0x03_EnemyClassPriority",
+                ["CurrentTurnPriority"] = "u8@0x04_CurrentTurnPriority",
+                ["CounterDamageWarning"] = "u8@0x05_CounterDamageWarning",
+                ["SurroundWarning"] = "u8@0x06_SurroundWarning",
+                ["SelfRemainingHPWarning"] = "u8@0x07_SelfRemainingHPWarning",
+                ["Unknown8"] = "u8@0x08_Unknown8",
+                ["Unknown9"] = "u8@0x09_Unknown9",
+                ["Unknown10"] = "u8@0x0A_Unknown10",
+                ["Unknown11"] = "u8@0x0B_Unknown11",
+                ["Unknown12"] = "u8@0x0C_Unknown12",
+                ["Unknown13"] = "u8@0x0D_Unknown13",
+                ["Unknown14"] = "u8@0x0E_Unknown14",
+                ["Unknown15"] = "u8@0x0F_Unknown15",
+                ["Unknown16"] = "u8@0x10_Unknown16",
+                ["Unknown17"] = "u8@0x11_Unknown17",
+                ["Unknown18"] = "u8@0x12_Unknown18",
+                ["Unknown19"] = "u8@0x13_Unknown19",
             };
         }
 

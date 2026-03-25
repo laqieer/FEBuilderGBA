@@ -150,5 +150,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x0F_Unknown0F"] = $"0x{rom.u8(a + 15):X02}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Unit"] = "u8@0x00_Unit",
+                ["ChapterID"] = "u8@0x01_ChapterID",
+                ["Unknown02"] = "u8@0x02_Unknown02",
+                ["Unknown03"] = "u8@0x03_Unknown03",
+                ["DeathText"] = "u16@0x04_DeathText",
+                ["Unknown06"] = "u8@0x06_Unknown06",
+                ["Unknown07"] = "u8@0x07_Unknown07",
+                ["AchievementFlag"] = "u16@0x08_AchievementFlag",
+                ["Unknown0A"] = "u8@0x0A_Unknown0A",
+                ["Unknown0B"] = "u8@0x0B_Unknown0B",
+                ["FinalChapterText"] = "u16@0x0C_FinalChapterText",
+                ["Unknown0E"] = "u8@0x0E_Unknown0E",
+                ["Unknown0F"] = "u8@0x0F_Unknown0F",
+            };
+        }
     }
 }

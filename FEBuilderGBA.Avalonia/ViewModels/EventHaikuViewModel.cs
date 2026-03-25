@@ -120,5 +120,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u32@0x08_EventPointer"] = $"0x{rom.u32(a + 8):X08}",
             };
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Unit"] = "u8@0x00_Unit",
+                ["KillerUnit"] = "u8@0x01_KillerUnit",
+                ["Route"] = "u8@0x02_Route",
+                ["ChapterID"] = "u8@0x03_ChapterID",
+                ["AchievementFlag"] = "u16@0x04_AchievementFlag",
+                ["Text"] = "u16@0x06_Text",
+                ["EventPointer"] = "u32@0x08_EventPointer",
+            };
+        }
     }
 }
