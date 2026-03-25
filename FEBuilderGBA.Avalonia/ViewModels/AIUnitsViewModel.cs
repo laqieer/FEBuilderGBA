@@ -25,9 +25,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "AI Units Evaluation", 0));
-            return result;
+            // Find first valid AI unit sub-data (2-byte entries, terminated by 0x0000)
+            uint addr = AISubEditorHelper.FindFirstValidAISubData(rom, 2);
+            if (addr != 0)
+            {
+                LoadEntry(addr);
+                return new List<AddrResult> { new AddrResult(addr, "AI Units Evaluation", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -57,15 +63,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Unit"] = Unit.ToString("X02"),
-                ["Unknown1"] = Unknown1.ToString("X02"),
+                ["Unit"] = $"0x{Unit:X02}",
+                ["Unknown1"] = $"0x{Unknown1:X02}",
             };
         }
 
