@@ -1214,6 +1214,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
                 var editors = GetAllEditorFactories();
+
+                // Filter version-mismatched item editors to avoid data structure
+                // mismatches during verification. ItemEditorView uses 36-byte items
+                // (FE7/FE8); ItemFE6View uses 32-byte items (FE6 only).
+                var version = CoreState.ROM?.RomInfo?.VersionToFilename ?? "";
+                if (version == "FE6")
+                    editors.RemoveAll(e => e.Item1 == "ItemEditorView");
+                else
+                    editors.RemoveAll(e => e.Item1 == "ItemFE6View");
+
                 Console.WriteLine($"DATAVERIFY: Testing {editors.Count} editors (full={fullMode})...");
 
                 for (int editorIdx = 0; editorIdx < editors.Count; editorIdx++)
@@ -1686,14 +1696,9 @@ namespace FEBuilderGBA.Avalonia.Views
         static List<(string Name, Func<Window> Factory)> GetAllEditorFactories()
         {
             var wm = WindowManager.Instance;
-            var version = CoreState.ROM?.RomInfo?.VersionToFilename ?? "";
-            bool isFE6 = version == "FE6";
-
-            var editors = new List<(string, Func<Window>)>
+            return new List<(string, Func<Window>)>
             {
                 // Data Editors
-                // ItemEditorView (36-byte items) is for FE7/FE8; ItemFE6View (32-byte) is for FE6.
-                // Include only the correct one for the loaded ROM to avoid data mismatches.
                 ("UnitEditorView", () => wm.Open<UnitEditorView>()),
                 ("ItemEditorView", () => wm.Open<ItemEditorView>()),
                 ("ClassEditorView", () => wm.Open<ClassEditorView>()),
@@ -2080,14 +2085,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("SMEPromoListView", () => wm.Open<SMEPromoListView>()),
                 ("ToolRunHintMessageView", () => wm.Open<ToolRunHintMessageView>()),
             };
-
-            // Filter version-mismatched item editors to avoid data structure mismatches
-            if (isFE6)
-                editors.RemoveAll(e => e.Item1 == "ItemEditorView");
-            else
-                editors.RemoveAll(e => e.Item1 == "ItemFE6View");
-
-            return editors;
         }
 
         private async void OpenRom_Click(object? sender, RoutedEventArgs e)
