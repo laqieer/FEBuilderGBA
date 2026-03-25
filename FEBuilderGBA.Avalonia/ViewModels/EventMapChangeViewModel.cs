@@ -41,10 +41,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            // EventMapChangeForm uses a pointer table; record size = 12
-            var result = new List<AddrResult>();
-            // This form is typically opened with a specific address, enumerate a reasonable count
-            return result;
+            // EventMapChangeForm loads from map settings: each map has a PLIST for map change data.
+            // Walk map settings to find the first map with a non-zero map change PLIST,
+            // then resolve the PLIST to a ROM address.
+            uint mapPtr = rom.RomInfo.map_setting_pointer;
+            uint mapDataSize = rom.RomInfo.map_setting_datasize;
+            uint mapChangePtr = rom.RomInfo.map_mapchange_pointer;
+            if (mapPtr == 0 || mapDataSize == 0 || mapChangePtr == 0)
+                return new List<AddrResult>();
+
+            uint mapBase = rom.p32(mapPtr);
+            if (!U.isSafetyOffset(mapBase)) return new List<AddrResult>();
+
+            // Walk map change PLIST pointer table to find the first valid entry
+            uint plistBase = rom.p32(mapChangePtr);
+            if (!U.isSafetyOffset(plistBase)) return new List<AddrResult>();
+
+            uint romLen = (uint)rom.Data.Length;
+
+            // Map settings have the map change PLIST at offset 11 (byte)
+            for (int mapId = 0; mapId < 256; mapId++)
+            {
+                uint mapAddr = (uint)(mapBase + mapId * mapDataSize);
+                if (mapAddr + mapDataSize > romLen) break;
+
+                uint plist = rom.u8(mapAddr + 11);
+                if (plist == 0 || plist == 0xFF) continue;
+
+                // Resolve PLIST: read the pointer at plistBase + plist * 4
+                uint plistEntryAddr = (uint)(plistBase + plist * 4);
+                if (plistEntryAddr + 4 > romLen) continue;
+
+                uint changeAddr = rom.p32(plistEntryAddr);
+                if (!U.isSafetyOffset(changeAddr) || changeAddr + 12 > romLen) continue;
+
+                // Validate: first byte should not be 0xFF (end marker)
+                if (rom.u8(changeAddr) == 0xFF) continue;
+
+                LoadEventMapChange(changeAddr);
+                return new List<AddrResult> { new AddrResult(changeAddr, $"Map {mapId} Change 0", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEventMapChange(uint addr)
@@ -67,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
-        public int GetListCount() => LoadEventMapChangeList().Count;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {

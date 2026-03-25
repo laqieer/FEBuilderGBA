@@ -31,9 +31,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "AI ASM Call Talk", 0));
-            return result;
+            // Find first valid 4-byte AI CALLTALK sub-data from AI scripts
+            uint addr = AISubEditorHelper.FindFirstValidAISubData(rom, 4);
+            if (addr != 0)
+            {
+                LoadEntry(addr);
+                return new List<AddrResult> { new AddrResult(addr, "AI ASM Call Talk", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -65,16 +71,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                ["FromUnit"] = FromUnit.ToString("X02"),
-                ["ToUnit"] = ToUnit.ToString("X02"),
-                ["Unused2"] = Unused2.ToString("X02"),
-                ["Unused3"] = Unused3.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["FromUnit"] = $"0x{FromUnit:X02}",
+                ["ToUnit"] = $"0x{ToUnit:X02}",
+                ["Unused2"] = $"0x{Unused2:X02}",
+                ["Unused3"] = $"0x{Unused3:X02}",
             };
         }
 

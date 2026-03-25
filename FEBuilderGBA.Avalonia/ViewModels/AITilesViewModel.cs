@@ -22,9 +22,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "AI Tiles Evaluation", 0));
-            return result;
+            // Find first valid AI tile sub-data (1-byte entries, terminated by 0x00)
+            uint addr = AISubEditorHelper.FindFirstValidAISubData(rom, 1);
+            if (addr != 0)
+            {
+                LoadEntry(addr);
+                return new List<AddrResult> { new AddrResult(addr, "AI Tiles Evaluation", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -52,14 +58,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["Tile"] = Tile.ToString("X02"),
+                ["Tile"] = $"0x{Tile:X02}",
             };
         }
 

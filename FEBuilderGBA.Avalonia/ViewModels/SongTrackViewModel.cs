@@ -35,8 +35,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            // Find songs from the song table and load the first valid one
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            if (tablePtr == 0) return new List<AddrResult>();
+
+            uint tableBase = rom.p32(tablePtr);
+            if (!U.isSafetyOffset(tableBase)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Song Track Editor", 0));
+            uint romLen = (uint)rom.Data.Length;
+
+            // Walk the song table (each entry = 8 bytes: 4-byte pointer + 4-byte player type)
+            for (int i = 0; i < 512; i++)
+            {
+                uint entryAddr = (uint)(tableBase + i * 8);
+                if (entryAddr + 8 > romLen) break;
+
+                uint headerPtr = rom.u32(entryAddr);
+                if (!U.isPointer(headerPtr)) break;
+
+                uint headerAddr = U.toOffset(headerPtr);
+                if (!U.isSafetyOffset(headerAddr) || headerAddr + 8 > romLen)
+                    continue;
+
+                // Read track count from the song header
+                uint trackCount = rom.u8(headerAddr);
+                if (trackCount == 0 || trackCount > 16) continue;
+
+                string name = $"0x{i:X02} Song {i}";
+                result.Add(new AddrResult(headerAddr, name, (uint)i));
+
+                // Load the first valid song for data-verify standalone init
+                if (result.Count == 1)
+                    LoadEntry(headerAddr);
+
+                // For data-verify we only need one entry
+                break;
+            }
+
             return result;
         }
 
@@ -300,5 +337,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return report;
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["TrackCount"] = "TrackCount@0x00",
+            ["NumBlks"] = "NumBlks@0x01",
+            ["Priority"] = "Priority@0x02",
+            ["Reverb"] = "Reverb@0x03",
+            ["InstrumentAddr"] = "InstrumentAddr@0x04",
+        };
     }
 }

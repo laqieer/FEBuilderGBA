@@ -31,9 +31,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "AI ASM Range", 0));
-            return result;
+            // Find first valid 4-byte AI range sub-data from AI scripts
+            uint addr = AISubEditorHelper.FindFirstValidAISubData(rom, 4);
+            if (addr != 0)
+            {
+                LoadEntry(addr);
+                return new List<AddrResult> { new AddrResult(addr, "AI ASM Range", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -65,16 +71,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                ["X1"] = X1.ToString("X02"),
-                ["Y1"] = Y1.ToString("X02"),
-                ["X2"] = X2.ToString("X02"),
-                ["Y2"] = Y2.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["X1"] = $"0x{X1:X02}",
+                ["Y1"] = $"0x{Y1:X02}",
+                ["X2"] = $"0x{X2:X02}",
+                ["Y2"] = $"0x{Y2:X02}",
             };
         }
 
