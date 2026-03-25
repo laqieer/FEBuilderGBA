@@ -127,13 +127,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return report;
         }
 
-        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        public Dictionary<string, string> GetFieldOffsetMap()
         {
-            ["SongId"] = "u32@0x00",
-            ["Raw4"] = "u32@0x04",
-            ["Raw8"] = "u32@0x08",
-            // TextId only present when dataSize >= 16 (wide format)
-            ["TextId"] = "u32@0x0C",
-        };
+            var map = new Dictionary<string, string>
+            {
+                ["SongId"] = "u32@0x00",
+                ["Raw4"] = "u32@0x04",
+                ["Raw8"] = "u32@0x08",
+            };
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo != null && rom.RomInfo.sound_room_datasize >= 16)
+                map["TextId"] = "u32@0x0C";
+            return map;
+        }
     }
 }
