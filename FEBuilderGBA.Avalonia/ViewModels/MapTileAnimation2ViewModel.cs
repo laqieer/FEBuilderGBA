@@ -56,11 +56,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            // map_tileanime2_pointer is a PLIST base pointer (array of 4-byte pointers).
+            // The WinForms MapTileAnimation2Form scans map settings for non-zero anime2_plist
+            // values and looks up data via PlistToOffsetAddr.  For data-verify, we scan the
+            // PLIST table for the first valid entry whose target contains valid animation data.
             uint ptr = rom.RomInfo.map_tileanime2_pointer;
             if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
-            return BuildList(baseAddr);
+
+            uint plistBase = rom.p32(ptr);
+            if (!U.isSafetyOffset(plistBase, rom)) return new List<AddrResult>();
+
+            uint plistLimit = rom.RomInfo.map_map_pointer_list_default_size;
+            if (plistLimit == 0) plistLimit = 256;
+
+            // Scan PLIST entries for the first valid entry whose data passes BuildList validation
+            for (uint i = 0; i < plistLimit; i++)
+            {
+                uint entryAddr = plistBase + i * 4;
+                if (entryAddr + 4 > (uint)rom.Data.Length) break;
+                uint entryPtr = rom.u32(entryAddr);
+                if (!U.isPointer(entryPtr)) continue;
+                uint dataAddr = U.toOffset(entryPtr);
+                if (!U.isSafetyOffset(dataAddr, rom)) continue;
+                var list = BuildList(dataAddr);
+                if (list.Count > 0) return list;
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
