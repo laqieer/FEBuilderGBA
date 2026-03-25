@@ -1744,6 +1744,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("MapStyleEditorView", () => wm.Open<MapStyleEditorView>()),
                 ("MapTerrainBGLookupView", () => wm.Open<MapTerrainBGLookupView>()),
                 ("MapTerrainFloorLookupView", () => wm.Open<MapTerrainFloorLookupView>()),
+                ("MapTerrainBGLookupTableView", () => wm.Open<MapTerrainBGLookupTableView>()),
+                ("MapTerrainFloorLookupTableView", () => wm.Open<MapTerrainFloorLookupTableView>()),
                 ("MapMiniMapTerrainImageView", () => wm.Open<MapMiniMapTerrainImageView>()),
                 ("MapTileAnimation1View", () => wm.Open<MapTileAnimation1View>()),
                 ("MapTileAnimation2View", () => wm.Open<MapTileAnimation2View>()),

@@ -19,6 +19,26 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            Opened += (_, _) => LoadList();
+        }
+
+        void LoadList()
+        {
+            _vm.IsLoading = true;
+            try
+            {
+                var items = _vm.LoadList();
+                EntryList.SetItems(items);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapTerrainBGLookupTableView.LoadList failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
         }
 
         void OnSelected(uint addr)

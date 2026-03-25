@@ -10,12 +10,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _isLoaded;
+        bool _isLoading;
         uint _battleBG;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool IsLoading { get => _isLoading; set => SetField(ref _isLoading, value); }
         /// <summary>Battle BG index (B0 / J_0_BATTLEBG).</summary>
         public uint BattleBG { get => _battleBG; set => SetField(ref _battleBG, value); }
+
+        /// <summary>
+        /// Load the list of terrain entries using the first vanilla BG pointer.
+        /// Each entry is 1 byte, total count = map_terrain_type_count.
+        /// </summary>
+        public List<AddrResult> LoadList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.lookup_table_battle_bg_00_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            int count = (int)rom.RomInfo.map_terrain_type_count;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < count; i++)
+            {
+                uint addr = (uint)(baseAddr + i);
+                if (addr >= (uint)rom.Data.Length) break;
+                result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
+            }
+            return result;
+        }
 
         public void LoadEntry(uint addr)
         {
@@ -36,7 +64,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return (int)rom.RomInfo.map_terrain_type_count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {
