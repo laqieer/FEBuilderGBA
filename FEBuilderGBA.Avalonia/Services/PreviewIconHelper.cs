@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.Services
         public static IImage LoadClassWaitIcon(uint waitIconIndex)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || waitIconIndex == 0) return null;
+            if (rom?.RomInfo == null) return null;
 
             try
             {
@@ -188,13 +188,16 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint baseAddr = rom.p32(ptr);
                 if (!U.isSafetyOffset(baseAddr)) return null;
 
-                // Each entry in the unit wait icon table is a pointer to data
-                // The table format: each entry is 4 bytes (GBA pointer to sprite data)
-                // Plus a palette pointer
-                uint entryAddr = baseAddr + waitIconIndex * 4;
-                if (entryAddr + 4 > (uint)rom.Data.Length) return null;
+                // Each entry in the unit wait icon table is 8 bytes:
+                //   +0: flags (4 bytes), with byte at +2 indicating animation type
+                //   +4: sprite pointer (4 bytes, GBA pointer to LZ77-compressed tile data)
+                uint entryAddr = baseAddr + waitIconIndex * 8;
+                if (entryAddr + 8 > (uint)rom.Data.Length) return null;
 
-                uint spriteGba = rom.u32(entryAddr);
+                // Read animation type from byte at offset +2 to determine sprite dimensions
+                byte animType = (byte)rom.u8(entryAddr + 2);
+
+                uint spriteGba = rom.u32(entryAddr + 4);
                 if (!U.isPointer(spriteGba)) return null;
 
                 uint spriteAddr = U.toOffset(spriteGba);
@@ -207,8 +210,14 @@ namespace FEBuilderGBA.Avalonia.Services
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                // Sprites are LZ77-compressed 4bpp tile data
-                return ImageUtilCore.LoadROMTiles4bpp(spriteAddr, palette, 4, 4, true);
+                // Determine tile dimensions based on animation type (matches WinForms):
+                // Type 0: 16x16 (2x2 tiles)
+                // Type 1: 16x24 (2x3 tiles)
+                // Type 2: 32x32 (4x4 tiles)
+                int tilesW = animType == 2 ? 4 : 2;
+                int tilesH = animType == 0 ? 2 : animType == 1 ? 3 : 4;
+
+                return ImageUtilCore.LoadROMTiles4bpp(spriteAddr, palette, tilesW, tilesH, true);
             }
             catch
             {
