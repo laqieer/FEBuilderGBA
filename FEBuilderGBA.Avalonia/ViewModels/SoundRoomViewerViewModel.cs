@@ -100,10 +100,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
-                ["SongId"] = $"0x{SongId:X04}",
+                ["SongId"] = $"0x{SongId:X08}",
                 ["Raw4"] = $"0x{Raw4:X08}",
                 ["Raw8"] = $"0x{Raw8:X08}",
-                ["TextId"] = $"0x{TextId:X04}",
+                ["TextId"] = $"0x{TextId:X08}",
             };
         }
 
@@ -126,5 +126,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return report;
         }
+
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["SongId"] = "u32@0x00",
+            ["Raw4"] = "u32@0x04",
+            ["Raw8"] = "u32@0x08",
+            // TextId only present when dataSize >= 16 (wide format)
+            ["TextId"] = "u32@0x0C",
+        };
     }
 }

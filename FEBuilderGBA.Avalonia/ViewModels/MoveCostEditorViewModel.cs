@@ -520,5 +520,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return report;
         }
+
+        /// <summary>
+        /// Field map for MoveCostEditor. The terrain cost bytes (B0..B{N}) live at a
+        /// pointer-dereferenced address, so both GetDataReport and GetRawRomReport
+        /// use the same "u8@0xNN" keys for the cost data. We map them directly.
+        /// The class-level fields (nameId, class type) are metadata, not cost data.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            var map = new Dictionary<string, string>();
+            for (int i = 0; i < TerrainCount; i++)
+            {
+                map[$"B{i}"] = $"u8@0x{i:X02}";
+            }
+            return map;
+        }
     }
 }

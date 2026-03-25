@@ -173,5 +173,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["u8@0x0B_Unknown11"] = $"0x{rom.u8(a + 11):X02}",
             };
         }
+
+        /// <summary>
+        /// PaletteColorPointer is derived from a separate ROM info pointer, not from the struct.
+        /// It is excluded from the field map.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap() => new()
+        {
+            ["ImagePointer"] = "u32@0x00_ImagePointer",
+            ["TSAPointer"] = "u32@0x04_TSAPointer",
+            ["WaitFrames"] = "u8@0x08_WaitFrames",
+            ["Unknown9"] = "u8@0x09_Unknown9",
+            ["Unknown10"] = "u8@0x0A_Unknown10",
+            ["Unknown11"] = "u8@0x0B_Unknown11",
+        };
     }
 }

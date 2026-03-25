@@ -171,5 +171,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["system_icon_width_address"] = $"0x{rom.RomInfo.system_icon_width_address:X08}",
             };
         }
+
+        /// <summary>
+        /// SystemIcon uses ROM info pointers rather than a struct, so the data fields
+        /// (IconIndex, TileOffset) are computed from the icon list position, not raw bytes.
+        /// No direct per-field mapping is possible — return empty map.
+        /// </summary>
+        public Dictionary<string, string> GetFieldOffsetMap() => new();
     }
 }
