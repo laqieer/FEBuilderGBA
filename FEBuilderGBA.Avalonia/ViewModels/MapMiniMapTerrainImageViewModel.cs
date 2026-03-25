@@ -8,12 +8,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "D0" });
 
+        /// <summary>
+        /// Load the list of minimap terrain entries from map_minimap_tile_array_pointer.
+        /// Each entry is 4 bytes (a pointer/DWORD), total count = map_terrain_type_count.
+        /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.map_minimap_tile_array_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            int count = (int)rom.RomInfo.map_terrain_type_count;
+            const uint entrySize = 4;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Mini-Map Terrain", 0));
+            for (int i = 0; i < count; i++)
+            {
+                uint addr = (uint)(baseAddr + i * entrySize);
+                if (addr + entrySize > (uint)rom.Data.Length) break;
+                result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
+            }
             return result;
         }
 
@@ -37,7 +55,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return (int)rom.RomInfo.map_terrain_type_count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {
