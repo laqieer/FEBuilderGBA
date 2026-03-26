@@ -22,9 +22,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Talk Group (FE7)", 0));
-            return result;
+            // Find the first valid talk group address from event scripts
+            uint addr = EventSubEditorHelper.FindFirstTalkGroupAddr(rom);
+            if (addr != 0)
+            {
+                LoadEntry(addr);
+                return new List<AddrResult> { new AddrResult(addr, "Talk Group (FE7)", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -47,13 +53,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                ["TextId"] = TextId.ToString("X08"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["TextId"] = $"0x{TextId:X08}",
             };
         }
 
