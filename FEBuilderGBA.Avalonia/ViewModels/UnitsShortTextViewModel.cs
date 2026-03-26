@@ -76,8 +76,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public int GetListCount()
         {
-            if (_baseAddr == 0) return 0;
+            if (_baseAddr == 0)
+            {
+                // Standalone init: find a default address from event_haiku_pointer
+                // (death quotes) which has the same format: 0x46 u16 text IDs per unit.
+                uint defaultAddr = FindDefaultBaseAddr();
+                if (defaultAddr != 0)
+                    return BuildList(defaultAddr).Count;
+                return 0;
+            }
             return BuildList(_baseAddr).Count;
+        }
+
+        /// <summary>
+        /// Find a default base address for unit short text from ROM.
+        /// Uses event_haiku_pointer (death quotes), which has the same
+        /// format: array of u16 text IDs indexed by unit ID.
+        /// </summary>
+        static uint FindDefaultBaseAddr()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            uint ptr = rom.RomInfo.event_haiku_pointer;
+            if (ptr == 0) return 0;
+
+            uint addr = rom.p32(ptr);
+            if (U.isSafetyOffset(addr, rom) && addr + DATAMAX * 2 <= (uint)rom.Data.Length)
+                return addr;
+
+            return 0;
         }
 
         public Dictionary<string, string> GetDataReport()
@@ -86,8 +114,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["W0_TextId"] = $"0x{TextId:X04}",
-                ["UnitName"] = UnitName,
-                ["TextPreview"] = TextPreview,
             };
         }
 

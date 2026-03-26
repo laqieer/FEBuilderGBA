@@ -65,8 +65,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public int GetListCount()
         {
-            if (_baseAddr == 0) return 0;
+            if (_baseAddr == 0)
+            {
+                // Standalone init: find a default class list from CC item pointers.
+                // cc_item_hero_crest_pointer contains a null-terminated list of class IDs.
+                uint defaultAddr = FindDefaultClassListAddr();
+                if (defaultAddr != 0)
+                    return BuildList(defaultAddr).Count;
+                return 0;
+            }
             return BuildList(_baseAddr).Count;
+        }
+
+        /// <summary>
+        /// Find a default base address for a class list from the CC item pointer table.
+        /// </summary>
+        static uint FindDefaultClassListAddr()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            // Try cc_item_hero_crest_pointer first (most versions have this)
+            uint ptr = rom.RomInfo.cc_item_hero_crest_pointer;
+            if (ptr != 0)
+            {
+                uint addr = rom.p32(ptr);
+                if (U.isSafetyOffset(addr, rom) && rom.u8(addr) != 0)
+                    return addr;
+            }
+            return 0;
         }
 
         public Dictionary<string, string> GetDataReport()
