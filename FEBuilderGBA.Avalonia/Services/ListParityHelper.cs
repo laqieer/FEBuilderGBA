@@ -25,14 +25,78 @@ namespace FEBuilderGBA.Avalonia.Services
 
         static ListParityHelper()
         {
-            // Data Editors - these use well-known ROM pointers
+            // ---- Core data editors ----
             Register("UnitEditorView", "UnitForm", BuildUnitList);
             Register("ItemEditorView", "ItemForm", BuildItemList);
             Register("ClassEditorView", "ClassForm", BuildClassList);
             Register("PortraitViewerView", "ImagePortraitForm", BuildPortraitList);
-            Register("ImagePortraitView", "ImagePortraitForm", BuildPortraitList);
+            // ImagePortraitView uses a different format (with unit names) than the generic portrait list;
+            // skip it here since PortraitViewerView already covers the portrait table.
             Register("ImageGenericEnemyPortraitView", "ImageGenericEnemyPortraitForm", BuildGenericEnemyPortraitList);
             Register("SoundRoomViewerView", "SoundRoomForm", BuildSoundRoomList);
+
+            // ---- Support editors ----
+            Register("SupportUnitEditorView", "SupportUnitForm", BuildSupportUnitList);
+            Register("SupportTalkView", "SupportTalkForm", BuildSupportTalkList);
+            Register("SupportAttributeView", "SupportAttributeForm", BuildSupportAttributeList);
+
+            // ---- Map editors ----
+            Register("MapSettingView", "MapSettingForm", BuildMapSettingList);
+            Register("MapExitPointView", "MapExitPointForm", BuildMapExitPointList);
+            Register("TerrainNameEditorView", "MapTerrainNameForm", BuildTerrainNameList);
+
+            // ---- Song/Sound editors ----
+            Register("SongTableView", "SongTableForm", BuildSongTableList);
+            Register("SoundBossBGMViewerView", "SoundBossBGMForm", BuildSoundBossBGMList);
+
+            // ---- World map editors ----
+            Register("WorldMapPointView", "WorldMapPointForm", BuildWorldMapPointList);
+            Register("WorldMapPathView", "WorldMapPathForm", BuildWorldMapPathList);
+            Register("WorldMapBGMView", "WorldMapBGMForm", BuildWorldMapBGMList);
+
+            // ---- Item sub-editors ----
+            Register("ItemWeaponEffectViewerView", "ItemWeaponEffectForm", BuildItemWeaponEffectList);
+            Register("ItemWeaponTriangleViewerView", "ItemWeaponTriangleForm", BuildItemWeaponTriangleList);
+
+            // ---- Event editors ----
+            Register("EventBattleTalkView", "EventBattleTalkForm", BuildEventBattleTalkList);
+            Register("EventHaikuView", "EventHaikuForm", BuildEventHaikuList);
+            Register("EventForceSortieView", "EventForceSortieForm", BuildEventForceSortieList);
+
+            // ---- ED (ending) editor ----
+            Register("EDView", "EDForm", BuildEDList);
+
+            // ---- Class sub-editors ----
+            Register("CCBranchEditorView", "CCBranchForm", BuildCCBranchList);
+            Register("ClassOPDemoView", "OPClassDemoForm", BuildClassOPDemoList);
+            Register("ClassOPFontView", "OPClassFontForm", BuildClassOPFontList);
+
+            // ---- Menu editor ----
+            Register("MenuDefinitionView", "MenuDefinitionForm", BuildMenuDefinitionList);
+
+            // ---- Status option editor ----
+            Register("StatusOptionView", "StatusOptionForm", BuildStatusOptionList);
+
+            // ---- Arena editors ----
+            Register("ArenaClassViewerView", "ArenaClassForm", BuildArenaClassList);
+            Register("ArenaEnemyWeaponViewerView", "ArenaEnemyWeaponForm", BuildArenaEnemyWeaponList);
+
+            // ---- Link arena deny ----
+            Register("LinkArenaDenyUnitViewerView", "LinkArenaDenyUnitForm", BuildLinkArenaDenyUnitList);
+
+            // ---- Monster probability ----
+            Register("MonsterProbabilityViewerView", "MonsterProbabilityForm", BuildMonsterProbabilityList);
+
+            // ---- Summon editors ----
+            Register("SummonUnitViewerView", "SummonUnitForm", BuildSummonUnitList);
+            Register("SummonsDemonKingViewerView", "SummonsDemonKingForm", BuildSummonsDemonKingList);
+
+            // ---- AI editors ----
+            Register("AIMapSettingView", "AIMapSettingForm", BuildAIMapSettingList);
+            Register("AIPerformItemView", "AIPerformItemForm", BuildAIPerformItemList);
+            Register("AIPerformStaffView", "AIPerformStaffForm", BuildAIPerformStaffList);
+            Register("AIStealItemView", "AIStealItemForm", BuildAIStealItemList);
+            Register("AITargetView", "AITargetForm", BuildAITargetList);
         }
 
         static void Register(string avaloniaName, string winFormsName, ReferenceListBuilder builder)
@@ -316,6 +380,933 @@ namespace FEBuilderGBA.Avalonia.Services
                 string songName = NameResolver.GetSongName(songId);
                 string name = $"{(i + 1):D3} {songName} (0x{songId:X04})";
                 result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Support editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build support unit list matching SupportUnitEditorViewModel.
+        /// Includes gap tolerance: when u16(addr)==0 for i>0, look ahead up to 4 entries.</summary>
+        static List<AddrResult> BuildSupportUnitList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr;
+            if (ptr >= 0x08000000)
+                baseAddr = ptr - 0x08000000;
+            else
+            {
+                baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            }
+
+            const uint blockSize = 24;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint firstWord = rom.u16(addr);
+                if (firstWord == 0 && i > 0)
+                {
+                    // Gap tolerance: look ahead up to 4 entries for more data
+                    bool hasMore = false;
+                    for (uint j = 1; j <= 4 && (i + j) < 0x100; j++)
+                    {
+                        uint checkAddr = baseAddr + (i + j) * blockSize;
+                        if (checkAddr + blockSize > (uint)rom.Data.Length) break;
+                        if (rom.u16(checkAddr) != 0) { hasMore = true; break; }
+                    }
+                    if (!hasMore) break;
+                }
+
+                string unitName = NameResolver.GetUnitName(i);
+                string name = $"{U.ToHexString(i)} {unitName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build support talk list matching SupportTalkViewModel.</summary>
+        static List<AddrResult> BuildSupportTalkList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+                if (i > 10 && rom.IsEmpty(addr, blockSize * 10)) break;
+
+                uint uid1 = rom.u8(addr + 0);
+                uint uid2 = rom.u8(addr + 2);
+                string n1 = NameResolver.GetUnitName(uid1);
+                string n2 = NameResolver.GetUnitName(uid2);
+                string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build support attribute list matching SupportAttributeViewModel.</summary>
+        static List<AddrResult> BuildSupportAttributeList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_attribute_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            string[] affinityNames = { "None", "Fire", "Thunder", "Wind", "Ice", "Dark", "Light", "Anima" };
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint v = rom.u8(addr);
+                if (v == 0) break;
+
+                string affName = v < affinityNames.Length ? affinityNames[v] : $"0x{v:X02}";
+                string name = $"{U.ToHexString(i + 1)} {affName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Map editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build map setting list matching MapSettingViewModel (delegates to MapSettingCore).</summary>
+        static List<AddrResult> BuildMapSettingList(ROM rom)
+        {
+            return MapSettingCore.MakeMapIDList();
+        }
+
+        /// <summary>Build map exit point list matching MapExitPointViewModel.</summary>
+        static List<AddrResult> BuildMapExitPointList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.map_exit_point_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint npcBlockAdd = rom.RomInfo.map_exit_point_npc_blockadd;
+            uint maxEntries = npcBlockAdd > 0 ? npcBlockAdd : 0x100;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < maxEntries; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 4 > (uint)rom.Data.Length) break;
+                uint pointer = rom.u32(addr);
+                if (!U.isPointerOrNULL(pointer)) break;
+
+                string ptrStr = U.isPointer(pointer)
+                    ? "0x" + pointer.ToString("X08")
+                    : "NULL";
+                string name = U.ToHexString(i) + " ExitPoint " + ptrStr;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build terrain name list matching TerrainNameEditorViewModel.
+        /// The Avalonia VM treats each entry as a u16 text ID (2 bytes per entry),
+        /// while WinForms uses 4 bytes (pointer). We match the Avalonia VM format.</summary>
+        static List<AddrResult> BuildTerrainNameList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.map_terrain_name_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 2;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint textId = rom.u16(addr);
+                string decoded;
+                try { decoded = GetTextById(textId); }
+                catch { decoded = "???"; }
+
+                string name = U.ToHexString(i) + " " + decoded;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Song/Sound editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build song table list matching SongTableViewModel.</summary>
+        static List<AddrResult> BuildSongTableList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.sound_table_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                string songName = NameResolver.GetSongName(i);
+                string name = $"{U.ToHexString(i)} {songName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build sound boss BGM list matching SoundBossBGMViewerViewModel.</summary>
+        static List<AddrResult> BuildSoundBossBGMList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.sound_boss_bgm_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+                if (i > 10 && rom.IsEmpty(addr, blockSize * 10)) break;
+
+                uint unitId = rom.u32(addr);
+                uint songId = rom.u32(addr + 4);
+                string unitName = NameResolver.GetUnitName(unitId);
+                string name = $"{U.ToHexString(unitId)} {unitName} Song:0x{songId:X08}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // World map editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build world map point list matching WorldMapPointViewModel.</summary>
+        static List<AddrResult> BuildWorldMapPointList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.worldmap_point_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 32;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // WinForms validation: offsets 12, 16, 20 must be pointer or null
+                if (!U.isPointerOrNULL(rom.u32(addr + 12))
+                    || !U.isPointerOrNULL(rom.u32(addr + 16))
+                    || !U.isPointerOrNULL(rom.u32(addr + 20)))
+                    break;
+
+                uint nameTextId = rom.u16(addr + 28);
+                string pointName = nameTextId != 0 ? GetTextById(nameTextId) : "???";
+                string name = $"{U.ToHexString(i)} {pointName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build world map path list matching WorldMapPathViewModel.</summary>
+        static List<AddrResult> BuildWorldMapPathList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.worldmap_road_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                uint startId = rom.u8(addr + 4);
+                uint endId = rom.u8(addr + 5);
+                string name = $"{U.ToHexString(i)} Point {startId:X02} -> Point {endId:X02}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build world map BGM list matching WorldMapBGMViewModel.</summary>
+        static List<AddrResult> BuildWorldMapBGMList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.worldmap_bgm_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint songId1 = rom.u16(addr + 0);
+                uint songId2 = rom.u16(addr + 2);
+                // WinForms: stop when songId1 == 1 && songId2 == 0
+                if (songId1 == 1 && songId2 == 0) break;
+
+                string songName1 = NameResolver.GetSongName(songId1);
+                string name = $"{U.ToHexString(i)} {songName1}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Item sub-editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build item weapon effect list matching ItemWeaponEffectViewerViewModel.</summary>
+        static List<AddrResult> BuildItemWeaponEffectList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_effect_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+                if (i > 10 && rom.IsEmpty(addr, blockSize * 10)) break;
+
+                uint itemId = rom.u8(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item weapon triangle list matching ItemWeaponTriangleViewerViewModel.</summary>
+        static List<AddrResult> BuildItemWeaponTriangleList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_cornered_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            string[] wepNames = { "Sword", "Lance", "Axe", "Bow", "Staff", "Anima", "Light", "Dark", "Item" };
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 255) break;
+
+                uint w1 = rom.u8(addr);
+                uint w2 = rom.u8(addr + 1);
+                string n1 = w1 < wepNames.Length ? wepNames[w1] : $"0x{w1:X02}";
+                string n2 = w2 < wepNames.Length ? wepNames[w2] : $"0x{w2:X02}";
+                string name = $"{U.ToHexString(i)} {n1} > {n2}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Event editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build event battle talk list matching EventBattleTalkViewModel.</summary>
+        static List<AddrResult> BuildEventBattleTalkList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_ballte_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+
+                uint attacker = rom.u16(addr);
+                uint defender = rom.u16(addr + 2);
+                string atkName = NameResolver.GetUnitName(attacker);
+                string defName = NameResolver.GetUnitName(defender);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build event haiku (death quote) list matching EventHaikuViewModel.</summary>
+        static List<AddrResult> BuildEventHaikuList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_haiku_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+
+                uint unitId = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build event force sortie list matching EventForceSortieViewModel.</summary>
+        static List<AddrResult> BuildEventForceSortieList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_force_sortie_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+
+                uint unitId = rom.u16(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // ED (ending) editor
+        // ------------------------------------------------------------------
+
+        /// <summary>Build ED retreat list matching EDViewModel.</summary>
+        static List<AddrResult> BuildEDList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ed_1_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0x00) break;
+
+                uint uid = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(uid);
+                string name = $"{U.ToHexString(i)} {unitName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Class sub-editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build CC branch list matching CCBranchEditorViewModel.</summary>
+        static List<AddrResult> BuildCCBranchList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ccbranch_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            // Determine class count from class table
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint classDataSize = rom.RomInfo.class_datasize;
+            uint classBase = 0;
+            int classCount = 0;
+            if (classPtr != 0 && classDataSize > 0)
+            {
+                classBase = rom.p32(classPtr);
+                if (U.isSafetyOffset(classBase))
+                {
+                    for (int c = 0; c <= 0xFF; c++)
+                    {
+                        uint cAddr = (uint)(classBase + c * classDataSize);
+                        if (cAddr + classDataSize > (uint)rom.Data.Length) break;
+                        if (c > 0 && rom.u8(cAddr + 4) == 0) break;
+                        classCount++;
+                    }
+                }
+            }
+            if (classCount == 0) classCount = 0x80;
+
+            const uint blockSize = 2;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < (uint)classCount; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                // Match CCBranchEditorViewModel: resolve textId directly, return empty for 0
+                string className = "???";
+                try
+                {
+                    if (classBase != 0 && classDataSize > 0)
+                    {
+                        uint classTextId = rom.u16((uint)(classBase + i * classDataSize));
+                        if (classTextId != 0)
+                            className = GetTextById(classTextId);
+                        else
+                            className = "";
+                    }
+                }
+                catch { className = "???"; }
+
+                string name = U.ToHexString(i) + " " + className;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build class OP demo list matching ClassOPDemoViewModel.</summary>
+        static List<AddrResult> BuildClassOPDemoList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.op_class_demo_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            // Match VM: check isSafetyOffset on ptrAddr before dereferencing
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 28;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // Match VM: check if u32(addr) is pointer
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                uint cid = rom.u8(addr + 14);
+                string name = U.ToHexString(i) + " " + U.ToHexString(cid);
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build class OP font list matching ClassOPFontViewModel.</summary>
+        static List<AddrResult> BuildClassOPFontList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.op_class_font_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p)) break;
+
+                string name = U.ToHexString(i) + " OP Class Font";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Menu editor
+        // ------------------------------------------------------------------
+
+        /// <summary>Build menu definition list matching MenuDefinitionViewModel.</summary>
+        static List<AddrResult> BuildMenuDefinitionList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.menu_definiton_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 36;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr + 8))) break;
+
+                string name = U.ToHexString(i) + " Menu Definition";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Status option editor
+        // ------------------------------------------------------------------
+
+        /// <summary>Build status option list matching StatusOptionViewModel.</summary>
+        static List<AddrResult> BuildStatusOptionList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.status_game_option_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 44;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 64; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                // WinForms validation: u32(addr+40) must be pointer
+                if (!U.isPointer(rom.u32(addr + 40))) break;
+
+                uint nameTextId = rom.u16(addr + 4);
+                string optName = nameTextId > 0 ? GetTextById(nameTextId) : $"Option {i}";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {optName}", (uint)i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Arena editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build arena class list matching ArenaClassViewerViewModel (near weapon type).</summary>
+        static List<AddrResult> BuildArenaClassList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.arena_class_near_weapon_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 1;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint classId = rom.u8(addr);
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build arena enemy weapon list matching ArenaEnemyWeaponViewerViewModel.</summary>
+        static List<AddrResult> BuildArenaEnemyWeaponList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.arena_enemy_weapon_basic_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 1;
+            var result = new List<AddrResult>();
+            // WinForms: fixed 8 entries
+            for (uint i = 0; i < 8; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint weaponId = rom.u8(addr);
+                string itemName = NameResolver.GetItemName(weaponId);
+                string name = $"{U.ToHexString(i)} {itemName} (0x{weaponId:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Link arena deny
+        // ------------------------------------------------------------------
+
+        /// <summary>Build link arena deny unit list matching LinkArenaDenyUnitViewerViewModel.</summary>
+        static List<AddrResult> BuildLinkArenaDenyUnitList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.link_arena_deny_unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 2;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint unitId = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                string name = $"{U.ToHexString(unitId)} {unitName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Monster probability
+        // ------------------------------------------------------------------
+
+        /// <summary>Build monster probability list matching MonsterProbabilityViewerViewModel.</summary>
+        static List<AddrResult> BuildMonsterProbabilityList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.monster_probability_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+
+                string name = U.ToHexString(i) + " Monster Prob";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // Summon editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build summon unit list matching SummonUnitViewerViewModel.</summary>
+        static List<AddrResult> BuildSummonUnitList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.summon_unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 2;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint unitId = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                string name = $"{U.ToHexString(unitId)} {unitName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build summons demon king list matching SummonsDemonKingViewerViewModel.</summary>
+        static List<AddrResult> BuildSummonsDemonKingList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.summons_demon_king_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint maxCount = 0;
+            uint countAddr = rom.RomInfo.summons_demon_king_count_address;
+            if (countAddr > 0 && countAddr < (uint)rom.Data.Length)
+            {
+                maxCount = rom.u8(countAddr);
+            }
+            if (maxCount == 0 || maxCount >= 100) maxCount = 20;
+
+            const uint blockSize = 20;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i <= maxCount; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                // Match SummonsDemonKingViewerViewModel layout: unitId at offset 0, classId at offset 1
+                uint unitId = rom.u8(addr);
+                string name;
+                if (unitId == 0)
+                {
+                    name = U.ToHexString(i) + " -EMPTY-";
+                }
+                else
+                {
+                    try
+                    {
+                        uint classId = rom.u8(addr + 1);
+                        string unitName = NameResolver.GetUnitName(unitId);
+                        string className = NameResolver.GetClassName(classId);
+                        name = $"{U.ToHexString(i)} {unitName} ({className})";
+                    }
+                    catch
+                    {
+                        name = U.ToHexString(i);
+                    }
+                }
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------
+        // AI editors
+        // ------------------------------------------------------------------
+
+        /// <summary>Build AI map setting list matching AIMapSettingViewModel.</summary>
+        static List<AddrResult> BuildAIMapSettingList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ai_map_setting_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X2} Map {i}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build AI perform item list matching AIPerformItemViewModel.</summary>
+        static List<AddrResult> BuildAIPerformItemList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ai_preform_item_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0x0) break;
+
+                uint itemId = rom.u16(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {itemName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build AI perform staff list matching AIPerformStaffViewModel.</summary>
+        static List<AddrResult> BuildAIPerformStaffList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ai_preform_staff_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0x0) break;
+
+                uint itemId = rom.u16(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {itemName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build AI steal item list matching AIStealItemViewModel.</summary>
+        static List<AddrResult> BuildAIStealItemList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ai_steal_item_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 2;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+
+                uint itemId = rom.u8(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {itemName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build AI target list matching AITargetViewModel.</summary>
+        static List<AddrResult> BuildAITargetList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ai3_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 20;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 16; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                // Check all-zero (end marker) for i > 0
+                bool allZero = true;
+                for (int j = 0; j < blockSize; j++)
+                    if (rom.u8(addr + (uint)j) != 0) allZero = false;
+                if (allZero && i > 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X02} AI Target Profile {i}", i));
             }
             return result;
         }
