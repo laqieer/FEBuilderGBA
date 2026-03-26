@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
             // ---- Map/Terrain editors (batch 3) ----
             Register("MoveCostEditorView", "MoveCostForm", BuildMoveCostList);
-            Register("MapTileAnimationView", "MapTileAnimationForm", BuildMapTileAnimationList);
+            Register("MapTileAnimationView", "MapTileAnimationView(Avalonia)", BuildMapTileAnimationList);
 
             // ---- Units/Classes (batch 3) ----
             Register("ClassFE6View", "ClassForm", BuildClassFE6List);
@@ -224,12 +224,11 @@ namespace FEBuilderGBA.Avalonia.Services
             Register("MapTileAnimation1View", "MapTileAnimation1Form", BuildMapTileAnimation1List);
             Register("MapTileAnimation2View", "MapTileAnimation2Form", BuildMapTileAnimation2List);
             Register("MapTerrainNameEngView", "MapTerrainNameEngForm", BuildMapTerrainNameEngList);
-            Register("MapChangeView", "MapChangeForm", BuildMapChangeList);
+            // MapChangeView already registered in batch 4 — no duplicate here
 
             // ---- Event editors (FE7 variants) ----
             Register("EventFunctionPointerFE7View", "EventFunctionPointerFE7Form", BuildEventFunctionPointerFE7List);
-            Register("EventBattleTalkFE6View", "EventBattleTalkFE6Form", BuildEventBattleTalkFE6List);
-            Register("EventBattleTalkFE7View", "EventBattleTalkFE7Form", BuildEventBattleTalkFE7List);
+            // EventBattleTalkFE6View/FE7View already registered in batch 4 — no duplicates here
             Register("EventMapChangeView", "EventMapChangeForm", BuildEventMapChangeList);
             Register("EventFinalSerifFE7View", "EventFinalSerifFE7Form", BuildEventFinalSerifFE7List);
 
@@ -263,14 +262,9 @@ namespace FEBuilderGBA.Avalonia.Services
             // ---- Monster editor ----
             Register("MantAnimationView", "MantAnimationForm", BuildMantAnimationList);
 
-            // ---- Skill editors (patch-dependent, treated as coverable) ----
-            Register("ItemStatBonusesSkillSystemsView", "ItemStatBonusesSkillSystemsForm", BuildItemStatBonusesSkillSystemsList);
-            Register("ItemStatBonusesVennoView", "ItemStatBonusesVennoForm", BuildItemStatBonusesVennoList);
-
-            // ---- Event editors (FE7 data tables) ----
-            Register("EventMoveDataFE7View", "EventMoveDataFE7Form", BuildEventMoveDataFE7List);
-            Register("EventTalkGroupFE7View", "EventTalkGroupFE7Form", BuildEventTalkGroupFE7List);
-            Register("EventBattleDataFE7View", "EventBattleDataFE7Form", BuildEventBattleDataFE7List);
+            // ItemStatBonusesSkillSystems, ItemStatBonusesVenno, EventMoveDataFE7,
+            // EventTalkGroupFE7, EventBattleDataFE7 are all context/patch-dependent.
+            // Moved to ContextDependentEditors set instead of stub-registered builders.
         }
 
         /// <summary>
@@ -425,6 +419,10 @@ namespace FEBuilderGBA.Avalonia.Services
             "SkillSystemsEffectivenessReworkClassTypeView",
             // Image sub-editors (need parent context or specific address)
             "ImageBattleAnimePalletView",
+            // Patch-dependent stat bonuses editors (need SkillSystem/Venno patch installed)
+            "ItemStatBonusesSkillSystemsView", "ItemStatBonusesVennoView",
+            // FE7 event sub-editors (context-dependent, find address from event scripts at runtime)
+            "EventMoveDataFE7View", "EventTalkGroupFE7View", "EventBattleDataFE7View",
         };
 
         static void Register(string avaloniaName, string winFormsName, ReferenceListBuilder builder)
@@ -1839,7 +1837,7 @@ namespace FEBuilderGBA.Avalonia.Services
         // Batch 3 builders — Map/Terrain editors
         // ==================================================================
 
-        /// <summary>Build move cost list matching MoveCostEditorViewModel.
+        /// <summary>Build move cost list matching MoveCostEditorViewModel.LoadClassList().
         /// Uses class_pointer — lists classes similar to the class editor.</summary>
         static List<AddrResult> BuildMoveCostList(ROM rom)
         {
@@ -1854,13 +1852,15 @@ namespace FEBuilderGBA.Avalonia.Services
             var result = new List<AddrResult>();
             for (uint i = 0; i <= 0xFF; i++)
             {
-                uint addr = baseAddr + i * dataSize;
+                uint addr = (uint)(baseAddr + i * dataSize);
                 if (addr + dataSize > (uint)rom.Data.Length) break;
                 if (i > 0 && rom.u8(addr + 4) == 0) break;
 
-                uint nameId = rom.u16(addr);
-                string className = nameId != 0 ? GetTextById(nameId) : "";
-                string name = U.ToHexString(i) + " " + className;
+                uint nameId = rom.u16(addr + 0);
+                string decoded;
+                try { decoded = NameResolver.GetTextById(nameId); }
+                catch { decoded = "???"; }
+                string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -3271,14 +3271,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 });
         }
 
-        /// <summary>Build unit increase height list — uses switch2 pattern detection.</summary>
+        /// <summary>Build unit increase height list — uses switch2 pattern detection.
+        /// Matches UnitIncreaseHeightViewModel.LoadList(): uses GetPortraitName (not GetUnitName).</summary>
         static List<AddrResult> BuildUnitIncreaseHeightList(ROM rom)
         {
             uint switch2Addr = rom.RomInfo.unit_increase_height_switch2_address;
             uint pointer = rom.RomInfo.unit_increase_height_pointer;
             if (switch2Addr == 0 || pointer == 0) return new List<AddrResult>();
 
-            // Check switch2 enable pattern
+            // Check switch2 enable pattern (same as VM's IsSwitch2Enable)
             if (!U.isSafetyOffset(switch2Addr + 5)) return new List<AddrResult>();
             uint extraByte = 0;
             if (rom.u16(switch2Addr + 2) == 0x9A00) extraByte = 2;
@@ -3298,8 +3299,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 (i, addr) =>
                 {
                     uint id = startId + (uint)i;
-                    string unitName = NameResolver.GetUnitName(id);
-                    return $"{U.ToHexString(id)} {unitName}";
+                    string name = NameResolver.GetPortraitName(id);
+                    return $"{U.ToHexString(id)} {name}";
                 });
         }
 
@@ -3372,7 +3373,8 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build map terrain BG lookup table list — byte entries from lookup_table_battle_bg_00_pointer.</summary>
+        /// <summary>Build map terrain BG lookup table list — byte entries from lookup_table_battle_bg_00_pointer.
+        /// Matches MapTerrainBGLookupTableViewModel.LoadList(): count = map_terrain_type_count, format "0x{i:X02} Terrain {i}".</summary>
         static List<AddrResult> BuildMapTerrainBGLookupTableList(ROM rom)
         {
             uint ptr = rom.RomInfo.lookup_table_battle_bg_00_pointer;
@@ -3380,19 +3382,19 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
+            int count = (int)rom.RomInfo.map_terrain_type_count;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < count; i++)
             {
                 uint addr = (uint)(baseAddr + i);
                 if (addr >= (uint)rom.Data.Length) break;
-                uint val = rom.u8(addr);
-                string name = $"{U.ToHexString(i)} BG={val}";
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build map terrain floor lookup table list — byte entries from lookup_table_battle_terrain_00_pointer.</summary>
+        /// <summary>Build map terrain floor lookup table list — byte entries from lookup_table_battle_terrain_00_pointer.
+        /// Matches MapTerrainFloorLookupTableViewModel.LoadList(): count = map_terrain_type_count, format "0x{i:X02} Terrain {i}".</summary>
         static List<AddrResult> BuildMapTerrainFloorLookupTableList(ROM rom)
         {
             uint ptr = rom.RomInfo.lookup_table_battle_terrain_00_pointer;
@@ -3400,19 +3402,19 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
+            int count = (int)rom.RomInfo.map_terrain_type_count;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < count; i++)
             {
                 uint addr = (uint)(baseAddr + i);
                 if (addr >= (uint)rom.Data.Length) break;
-                uint val = rom.u8(addr);
-                string name = $"{U.ToHexString(i)} Terrain={val}";
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build minimap terrain image list — from map_minimap_tile_array_pointer.</summary>
+        /// <summary>Build minimap terrain image list — from map_minimap_tile_array_pointer.
+        /// Matches MapMiniMapTerrainImageViewModel.LoadList(): 4-byte entries, count = map_terrain_type_count, format "0x{i:X02} Terrain {i}".</summary>
         static List<AddrResult> BuildMapMiniMapTerrainImageList(ROM rom)
         {
             uint ptr = rom.RomInfo.map_minimap_tile_array_pointer;
@@ -3420,22 +3422,20 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
-            const uint entrySize = 8;
+            int count = (int)rom.RomInfo.map_terrain_type_count;
+            const uint entrySize = 4;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < count; i++)
             {
                 uint addr = (uint)(baseAddr + i * entrySize);
                 if (addr + entrySize > (uint)rom.Data.Length) break;
-                uint p = rom.u32(addr);
-                if (!U.isPointer(p) && p != 0 && i > 0) break;
-                if (p == 0 && i > 0) break;
-                string name = $"{U.ToHexString(i)} MiniMap Terrain";
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build map tile animation 1 list — from map_tileanime1_pointer.</summary>
+        /// <summary>Build map tile animation 1 list — from map_tileanime1_pointer.
+        /// Matches MapTileAnimation1ViewModel.LoadList()/BuildList(): 8-byte blocks, validated by isPointer(u32(addr+4)).</summary>
         static List<AddrResult> BuildMapTileAnimation1List(ROM rom)
         {
             uint ptr = rom.RomInfo.map_tileanime1_pointer;
@@ -3445,46 +3445,64 @@ namespace FEBuilderGBA.Avalonia.Services
 
             const uint blockSize = 8;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < 256; i++)
             {
-                uint addr = baseAddr + i * blockSize;
+                uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                uint first = rom.u32(addr);
-                if (first == 0 && i > 0) break;
-                string name = $"{U.ToHexString(i)} Tile Animation 1";
-                result.Add(new AddrResult(addr, name, i));
+                // Validate: P4 must be a valid pointer (same as VM)
+                if (!U.isPointer(rom.u32(addr + 4))) break;
+
+                string display = $"0x{i:X2} Interval={rom.u16(addr):X4} Count={rom.u16(addr + 2):X4}";
+                result.Add(new AddrResult(addr, display, (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build map tile animation 2 list — from map_tileanime2_pointer (PLIST-based).</summary>
+        /// <summary>Build map tile animation 2 list — from map_tileanime2_pointer (PLIST-based).
+        /// Matches MapTileAnimation2ViewModel.LoadList(): scans PLIST for first valid entry, then uses BuildList() on data.</summary>
         static List<AddrResult> BuildMapTileAnimation2List(ROM rom)
         {
             uint ptr = rom.RomInfo.map_tileanime2_pointer;
             if (ptr == 0) return new List<AddrResult>();
 
-            // map_tileanime2_pointer is PLIST-based
+            uint plistBase = rom.p32(ptr);
+            if (!U.isSafetyOffset(plistBase, rom)) return new List<AddrResult>();
+
             uint plistLimit = rom.RomInfo.map_map_pointer_list_default_size;
-            if (plistLimit == 0) plistLimit = 0x80;
+            if (plistLimit == 0) plistLimit = 256;
 
-            uint tableBase = rom.p32(ptr);
-            if (!U.isSafetyOffset(tableBase, rom)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
+            // Scan PLIST entries for the first valid entry whose data passes validation (same as VM)
             for (uint i = 0; i < plistLimit; i++)
             {
-                uint entryAddr = tableBase + i * 4;
+                uint entryAddr = plistBase + i * 4;
                 if (entryAddr + 4 > (uint)rom.Data.Length) break;
-                uint p = rom.u32(entryAddr);
-                if (p == 0) continue;
-                if (!U.isPointer(p)) continue;
-                string name = $"{U.ToHexString(i)} Tile Animation 2";
-                result.Add(new AddrResult(entryAddr, name, i));
+                uint entryPtr = rom.u32(entryAddr);
+                if (!U.isPointer(entryPtr)) continue;
+                uint dataAddr = U.toOffset(entryPtr);
+                if (!U.isSafetyOffset(dataAddr, rom)) continue;
+
+                // Build list from this data address (8-byte blocks, validate P0 is pointer)
+                const uint blockSize = 8;
+                var result = new List<AddrResult>();
+                for (int j = 0; j < 256; j++)
+                {
+                    uint addr = dataAddr + (uint)(j * blockSize);
+                    if (addr + blockSize > (uint)rom.Data.Length) break;
+                    if (!U.isPointer(rom.u32(addr + 0))) break;
+
+                    uint interval = rom.u8(addr + 4);
+                    uint count = rom.u8(addr + 5);
+                    string display = $"0x{j:X2} Palette Interval={interval:X2} Count={count:X2}";
+                    result.Add(new AddrResult(addr, display, (uint)j));
+                }
+                if (result.Count > 0) return result;
             }
-            return result;
+
+            return new List<AddrResult>();
         }
 
-        /// <summary>Build map terrain name (English) list — from map_terrain_name_pointer.</summary>
+        /// <summary>Build map terrain name (English) list — from map_terrain_name_pointer.
+        /// Matches MapTerrainNameEngViewModel.LoadList(): 2-byte text ID entries, terminates on textId==0.</summary>
         static List<AddrResult> BuildMapTerrainNameEngList(ROM rom)
         {
             uint pointer = rom.RomInfo.map_terrain_name_pointer;
@@ -3492,21 +3510,22 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
-            const uint blockSize = 12;
+            const uint blockSize = 2;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < 256; i++)
             {
-                uint addr = baseAddr + i * blockSize;
+                uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                uint first = rom.u32(addr);
-                if (first == 0 && i > 0) break;
-                string name = $"{U.ToHexString(i)} Terrain Name";
-                result.Add(new AddrResult(addr, name, i));
+                uint textId = rom.u16(addr);
+                if (textId == 0x0000) break;
+
+                string name = NameResolver.GetTextById(textId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {name}", (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build event function pointer FE7 list — 4-byte pointer entries.</summary>
+        /// <summary>Build event function pointer FE7 list — 8-byte entries matching EventFunctionPointerFE7ViewModel.LoadList().</summary>
         static List<AddrResult> BuildEventFunctionPointerFE7List(ROM rom)
         {
             uint pointer = rom.RomInfo.event_function_pointer_table_pointer;
@@ -3514,30 +3533,58 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
-            const uint blockSize = 4;
+            const uint blockSize = 8;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (int i = 0; i < 512; i++)
             {
-                uint addr = baseAddr + i * blockSize;
+                uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                uint p = rom.u32(addr);
-                if (!U.isPointer(p) && p != 0) break;
-                string name = $"{U.ToHexString(i)} Function Pointer";
-                result.Add(new AddrResult(addr, name, i));
+                uint funcPtr = rom.u32(addr);
+                if (!U.isPointer(funcPtr)) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X2} 0x{funcPtr:X08}", (uint)i));
             }
             return result;
         }
 
-        /// <summary>Build event map change list — from map_mapchange_pointer (per-map entries).</summary>
+        /// <summary>Build event map change list — matches EventMapChangeViewModel.LoadEventMapChangeList().
+        /// Walks map settings to find first map with non-zero map change PLIST, resolves and validates data.</summary>
         static List<AddrResult> BuildEventMapChangeList(ROM rom)
         {
             uint mapPtr = rom.RomInfo.map_setting_pointer;
-            if (mapPtr == 0) return new List<AddrResult>();
+            uint mapDataSize = rom.RomInfo.map_setting_datasize;
             uint mapChangePtr = rom.RomInfo.map_mapchange_pointer;
-            if (mapChangePtr == 0) return new List<AddrResult>();
+            if (mapPtr == 0 || mapDataSize == 0 || mapChangePtr == 0)
+                return new List<AddrResult>();
 
-            // Use the MapSettingCore list to iterate maps
-            return MapSettingCore.MakeMapIDList();
+            uint mapBase = rom.p32(mapPtr);
+            if (!U.isSafetyOffset(mapBase)) return new List<AddrResult>();
+
+            uint plistBase = rom.p32(mapChangePtr);
+            if (!U.isSafetyOffset(plistBase)) return new List<AddrResult>();
+
+            uint romLen = (uint)rom.Data.Length;
+
+            for (int mapId = 0; mapId < 256; mapId++)
+            {
+                uint mapAddr = (uint)(mapBase + mapId * mapDataSize);
+                if (mapAddr + mapDataSize > romLen) break;
+
+                uint plist = rom.u8(mapAddr + 11);
+                if (plist == 0 || plist == 0xFF) continue;
+
+                uint plistEntryAddr = (uint)(plistBase + plist * 4);
+                if (plistEntryAddr + 4 > romLen) continue;
+
+                uint changeAddr = rom.p32(plistEntryAddr);
+                if (!U.isSafetyOffset(changeAddr) || changeAddr + 12 > romLen) continue;
+
+                if (rom.u8(changeAddr) == 0xFF) continue;
+
+                return new List<AddrResult> { new AddrResult(changeAddr, $"Map {mapId} Change 0", 0) };
+            }
+
+            return new List<AddrResult>();
         }
 
         /// <summary>Build event final serif FE7 list — from event_final_serif_pointer.</summary>
@@ -3939,38 +3986,9 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build ItemStatBonusesSkillSystems list — patch-dependent, uses SkillSystem table.</summary>
-        static List<AddrResult> BuildItemStatBonusesSkillSystemsList(ROM rom)
-        {
-            // Skill system item stat bonuses use a different table that's patch-dependent.
-            // Return empty list if not installed (the VM also returns empty in this case).
-            return new List<AddrResult>();
-        }
-
-        /// <summary>Build ItemStatBonusesVenno list — patch-dependent, uses Venno table.</summary>
-        static List<AddrResult> BuildItemStatBonusesVennoList(ROM rom)
-        {
-            return new List<AddrResult>();
-        }
-
-        /// <summary>Build EventMoveDataFE7 list — context-dependent, finds first valid address.</summary>
-        static List<AddrResult> BuildEventMoveDataFE7List(ROM rom)
-        {
-            // This editor finds its address from event scripts at runtime
-            return new List<AddrResult>();
-        }
-
-        /// <summary>Build EventTalkGroupFE7 list — context-dependent, finds first valid address.</summary>
-        static List<AddrResult> BuildEventTalkGroupFE7List(ROM rom)
-        {
-            return new List<AddrResult>();
-        }
-
-        /// <summary>Build EventBattleDataFE7 list — context-dependent, finds first valid address.</summary>
-        static List<AddrResult> BuildEventBattleDataFE7List(ROM rom)
-        {
-            return new List<AddrResult>();
-        }
+        // Removed stub builders for ItemStatBonusesSkillSystems, ItemStatBonusesVenno,
+        // EventMoveDataFE7, EventTalkGroupFE7, EventBattleDataFE7.
+        // These are now in ContextDependentEditors set instead.
     }
 
     /// <summary>Result of a list parity comparison for one editor.</summary>

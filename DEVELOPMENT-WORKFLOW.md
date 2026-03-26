@@ -188,13 +188,16 @@ Then capture any window: `dotnet run --project tools/WinCapture -c Release -- "W
 **Procedure:**
 1. Build and launch the GUI app (Avalonia or WinForms) with a test ROM:
    ```bash
+   # Auto-select first .gba ROM from roms/ folder:
+   ROM=$(ls roms/*.gba 2>/dev/null | head -1)
+
    # Avalonia (cross-platform):
    dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
-   cd FEBuilderGBA.Avalonia && dotnet run -- --rom ../roms/FE8U.gba
+   cd FEBuilderGBA.Avalonia && dotnet run -- --rom "../$ROM"
 
    # WinForms (Windows, x86):
    msbuild /p:Configuration=Debug /p:Platform=x86 FEBuilderGBA.sln
-   ./FEBuilderGBA/bin/Debug/FEBuilderGBA.exe --rom roms/FE8U.gba
+   ./FEBuilderGBA/bin/Debug/FEBuilderGBA.exe --rom "$ROM"
    ```
    > **Shell note:** The examples above run in the foreground. To background a process in Git Bash append `&`; in PowerShell use `Start-Process`.
 2. Use MCP computer-use tools to exercise the changed feature:
@@ -250,7 +253,7 @@ Ref #M (partial — <what remains>)
      CRITICAL: Screenshots MUST show the SPECIFIC affected editor with populated data.
      NEVER use the generic main Avalonia window as proof — it proves nothing about the fix.
      Capture steps:
-       1. Launch: dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
+       1. Launch: ROM=$(ls roms/*.gba 2>/dev/null | head -1) && dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom "$ROM" &
        2. Navigate: Use PowerShell UIAutomation to click the specific editor button
        3. Capture: dotnet run --project tools/WinCapture -c Release -- "Editor Title" screenshot.png
        4. Commit to pr-screenshots/ on master, reference via raw.githubusercontent.com
