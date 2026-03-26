@@ -97,7 +97,79 @@ namespace FEBuilderGBA.Avalonia.Services
             Register("AIPerformStaffView", "AIPerformStaffForm", BuildAIPerformStaffList);
             Register("AIStealItemView", "AIStealItemForm", BuildAIStealItemList);
             Register("AITargetView", "AITargetForm", BuildAITargetList);
+
+            // ---- Item sub-editors (batch 3) ----
+            Register("ItemStatBonusesViewerView", "ItemStatBonusesForm", BuildItemStatBonusesList);
+            Register("ItemEffectivenessViewerView", "ItemEffectivenessForm", BuildItemEffectivenessList);
+            Register("ItemPromotionViewerView", "ItemPromotionForm", BuildItemPromotionList);
+            Register("ItemShopViewerView", "ItemShopForm", BuildItemShopList);
+            Register("ItemUsagePointerViewerView", "ItemUsagePointerForm", BuildItemUsagePointerList);
+            Register("ItemEffectPointerViewerView", "ItemEffectPointerForm", BuildItemEffectPointerList);
+            Register("ItemIconViewerView", "ImageItemIconForm", BuildItemIconList);
+
+            // ---- Map/Terrain editors (batch 3) ----
+            Register("MoveCostEditorView", "MoveCostForm", BuildMoveCostList);
+            Register("MapTileAnimationView", "MapTileAnimationForm", BuildMapTileAnimationList);
+
+            // ---- Units/Classes (batch 3) ----
+            Register("ClassFE6View", "ClassForm", BuildClassFE6List);
+            Register("UnitFE6View", "UnitFE6Form", BuildUnitFE6List);
+            Register("UnitPaletteView", "UnitPaletteForm", BuildUnitPaletteList);
+            Register("ExtraUnitFE8UView", "ExtraUnitFE8UForm", BuildExtraUnitFE8UList);
+
+            // ---- Event editors (batch 3) ----
+            Register("EventFunctionPointerView", "EventFunctionPointerForm", BuildEventFunctionPointerList);
+
+            // ---- Sound editors (batch 3) ----
+            Register("SoundFootStepsViewerView", "SoundFootStepsForm", BuildSoundFootStepsList);
+
+            // ---- Text editors (batch 3) ----
+            // TextDicView and TextCharCodeView use Huffman tree/TBL data, not pointer tables.
+            // StatusRMenuView uses linked address lists. MenuCommandView/MenuExtendSplitMenuView
+            // use dynamic base addresses from menu definitions. StatusUnitsMenuView/StatusOptionOrderView
+            // use different data sources. These are left unmapped for now.
+
+            // ---- Image/Graphics editors (batch 3) ----
+            Register("EDStaffRollView", "EDStaffRollForm", BuildEDStaffRollList);
+            Register("OPPrologueViewerView", "OPPrologueForm", BuildOPPrologueList);
+            Register("BigCGViewerView", "BigCGForm", BuildBigCGList);
+            Register("ChapterTitleViewerView", "ImageChapterTitleForm", BuildChapterTitleList);
+
+            // ---- Battle animation editors (batch 3) ----
+            Register("Command85PointerView", "Command85PointerForm", BuildCommand85PointerList);
         }
+
+        /// <summary>
+        /// Set of Avalonia editor views that are tools/dialogs without an address list.
+        /// These show "NO_LIST" instead of "SKIP" in --list-parity output.
+        /// </summary>
+        static readonly HashSet<string> NoListEditors = new(StringComparer.Ordinal)
+        {
+            // Tool / utility views
+            "DataExportView", "DecreaseColorTSAToolView", "DevTranslateView",
+            "DisASMView", "DisASMDumpAllView", "DisASMDumpAllArgGrepView",
+            "DumpStructSelectDialogView", "DumpStructSelectToTextDialogView",
+            "EmulatorMemoryView", "EventAssemblerView",
+            "FontEditorView", "FontZHView",
+            "GraphicsToolView", "GraphicsToolPatchMakerView",
+            "GrowSimulatorView",
+            "HexEditorView", "HexEditorJumpView", "HexEditorMarkView", "HexEditorSearchView",
+            "HowDoYouLikePatchView", "HowDoYouLikePatch2View",
+            // Error / dialog views
+            "ErrorLongMessageDialogView", "ErrorPaletteMissMatchView",
+            "ErrorPaletteShowView", "ErrorPaletteTransparentView",
+            "ErrorReportView", "ErrorTSAErrorView", "ErrorUnknownROMView",
+            // Template / script views (not list-based)
+            "EventTemplate1View", "EventTemplate2View", "EventTemplate3View",
+            "EventTemplate4View", "EventTemplate5View", "EventTemplate6View",
+            "EventTemplateImplView",
+            "EventScriptPopupView", "EventScriptTemplateView",
+            "EventScriptCategorySelectView",
+            "AIScriptCategorySelectView",
+            // Misc tool/dialog views
+            "CStringView",
+            "ToolExportEAEventView",
+        };
 
         static void Register(string avaloniaName, string winFormsName, ReferenceListBuilder builder)
         {
@@ -106,6 +178,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>Check if a given Avalonia editor name has a known reference list builder.</summary>
         public static bool HasMapping(string avaloniaEditorName) => EditorMap.ContainsKey(avaloniaEditorName);
+
+        /// <summary>Check if an Avalonia editor is known to have no address list (tool/dialog).</summary>
+        public static bool IsNoListEditor(string avaloniaEditorName) => NoListEditors.Contains(avaloniaEditorName);
 
         /// <summary>Get the WinForms form name for reporting.</summary>
         public static (string FormType, string MethodName)? GetMapping(string avaloniaEditorName)
@@ -1307,6 +1382,556 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (allZero && i > 0) break;
 
                 result.Add(new AddrResult(addr, $"0x{i:X02} AI Target Profile {i}", i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Item sub-editors
+        // ==================================================================
+
+        /// <summary>Build item stat bonuses list matching ItemStatBonusesViewerViewModel.
+        /// Each item that has a non-null pointer at item_base + i*dataSize + 12 gets listed.</summary>
+        static List<AddrResult> BuildItemStatBonusesList(ROM rom)
+        {
+            uint itemPtr = rom.RomInfo.item_pointer;
+            if (itemPtr == 0) return new List<AddrResult>();
+            uint itemBase = rom.p32(itemPtr);
+            if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint itemAddr = itemBase + i * dataSize;
+                if (itemAddr + dataSize > (uint)rom.Data.Length) break;
+
+                // Validation: offsets 12 and 16 must be pointer or null (same as WinForms Init)
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))
+                    || !U.isPointerOrNULL(rom.u32(itemAddr + 16)))
+                    break;
+
+                uint statPtr = rom.u32(itemAddr + 12);
+                if (!U.isPointer(statPtr)) continue;
+
+                uint statAddr = U.toOffset(statPtr);
+                uint nameId = rom.u16(itemAddr);
+                string name = U.ToHexString(i) + " " + GetTextById(nameId);
+                result.Add(new AddrResult(statAddr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item effectiveness list matching ItemEffectivenessViewerViewModel.
+        /// Uses weapon_effectiveness_2x3x_address — a byte array of class IDs (blockSize=1).</summary>
+        static List<AddrResult> BuildItemEffectivenessList(ROM rom)
+        {
+            uint baseAddr = rom.RomInfo.weapon_effectiveness_2x3x_address;
+            if (baseAddr == 0) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i;
+                if (addr >= (uint)rom.Data.Length) break;
+
+                uint classId = rom.u8(addr);
+                if (classId == 0) break;
+
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item promotion list matching ItemPromotionViewerViewModel.
+        /// Uses item_promotion1_array_pointer — a byte array of class IDs (blockSize=1).</summary>
+        static List<AddrResult> BuildItemPromotionList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_promotion1_array_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i;
+                if (addr >= (uint)rom.Data.Length) break;
+
+                uint classId = rom.u8(addr);
+                if (classId == 0x00) break;
+
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item shop (hensei) list matching ItemShopViewerViewModel.
+        /// Uses item_shop_hensei_pointer — 2-byte entries (item ID + quantity).</summary>
+        static List<AddrResult> BuildItemShopList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_shop_hensei_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 2;
+                if (addr + 1 >= (uint)rom.Data.Length) break;
+
+                uint itemId = rom.u8(addr);
+                if (itemId == 0x00) break;
+
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item usage pointer list matching ItemUsagePointerViewerViewModel.
+        /// Uses item_usability_array_pointer — 4-byte function pointer entries.</summary>
+        static List<AddrResult> BuildItemUsagePointerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_usability_array_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint startItemId = 0;
+            uint switchAddr = rom.RomInfo.item_usability_array_switch2_address;
+            if (switchAddr != 0 && U.isSafetyOffset(switchAddr + 2))
+                startItemId = rom.u8(switchAddr);
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint funcPtr = rom.u32(addr);
+                if (!U.isPointerOrNULL(funcPtr)) break;
+
+                uint itemId = startItemId + i;
+                string name = U.ToHexString(itemId) + " Func=0x" + funcPtr.ToString("X08");
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item effect pointer list matching ItemEffectPointerViewerViewModel.
+        /// Uses item_effect_pointer_table_pointer — 4-byte pointer entries.</summary>
+        static List<AddrResult> BuildItemEffectPointerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_effect_pointer_table_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint funcPtr = rom.u32(addr);
+                if (!U.isPointerOrNULL(funcPtr)) break;
+                if (funcPtr != 0 && funcPtr <= 0x08000100) break;
+                if (i > 0xFD) break;
+
+                // Match Avalonia VM format: "0x{i:X2} C{i:X02}"
+                string name = U.ToHexString(i) + " C" + i.ToString("X02");
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build item icon list matching ItemIconViewerViewModel.
+        /// Uses icon_pointer — 128 bytes per icon (raw uncompressed icon data).</summary>
+        static List<AddrResult> BuildItemIconList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.icon_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 128;
+                if (addr + 128 > (uint)rom.Data.Length) break;
+
+                string name = U.ToHexString(i) + " Item Icon";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Map/Terrain editors
+        // ==================================================================
+
+        /// <summary>Build move cost list matching MoveCostEditorViewModel.
+        /// Uses class_pointer — lists classes similar to the class editor.</summary>
+        static List<AddrResult> BuildMoveCostList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.class_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i <= 0xFF; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (i > 0 && rom.u8(addr + 4) == 0) break;
+
+                uint nameId = rom.u16(addr);
+                string className = nameId != 0 ? GetTextById(nameId) : "";
+                string name = U.ToHexString(i) + " " + className;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build map tile animation list matching MapTileAnimationViewModel.
+        /// Uses map_tileanime1_pointer — 4-byte pointer entries, stops at 0xFFFFFFFF.</summary>
+        static List<AddrResult> BuildMapTileAnimationList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.map_tileanime1_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint pointer = rom.u32(addr);
+                if (pointer == 0xFFFFFFFF) break;
+
+                // Match Avalonia VM format
+                string ptrStr = U.isPointer(pointer)
+                    ? "0x" + pointer.ToString("X08")
+                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
+                string name = U.ToHexString(i) + " TileAnim " + ptrStr;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Units/Classes
+        // ==================================================================
+
+        /// <summary>Build FE6 class list matching ClassFE6ViewModel.
+        /// Uses class_pointer — same as ClassEditorView but for FE6 ROM version.</summary>
+        static List<AddrResult> BuildClassFE6List(ROM rom)
+        {
+            // Identical to BuildClassList since the VM logic is the same
+            return BuildClassList(rom);
+        }
+
+        /// <summary>Build FE6 unit list matching UnitFE6ViewModel.
+        /// Uses unit_pointer — always skips first entry (unlike UnitEditorView which only skips for FE6).</summary>
+        static List<AddrResult> BuildUnitFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.unit_datasize;
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (maxCount == 0) maxCount = 0x100;
+
+            // UnitFE6ViewModel always skips the first entry
+            baseAddr += dataSize;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < maxCount; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                uint nameId = rom.u16(addr);
+                string name = U.ToHexString(i + 1) + " " + GetTextById(nameId);
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build unit palette list matching UnitPaletteViewModel.
+        /// Uses unit_palette_color_pointer — 7-byte entries, fixed count.</summary>
+        static List<AddrResult> BuildUnitPaletteList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.unit_palette_color_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (maxCount == 0) maxCount = 0x100;
+            const uint blockSize = 7;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < maxCount; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                string unitName = NameResolver.GetUnitName(i + 1);
+                // Match Avalonia VM format: "0x{id:X2} {name}"
+                result.Add(new AddrResult(addr, $"0x{(i + 1):X2} {unitName}", i + 1));
+            }
+            return result;
+        }
+
+        /// <summary>Build extra unit FE8U list matching ExtraUnitFE8UViewModel.
+        /// The VM dereferences p32(0x37D88) to get the actual table base, then walks 8-byte entries.</summary>
+        static List<AddrResult> BuildExtraUnitFE8UList(ROM rom)
+        {
+            const uint pointerAddr = 0x37D88;
+            const uint blockSize = 8;
+
+            uint baseAddr = rom.p32(pointerAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                // Validation: u32(addr+4) must be a safe pointer
+                if (!U.isSafetyPointer(rom.u32(addr + 4))) break;
+
+                uint flagId = rom.u32(addr + 0);
+                uint unitsAddr = rom.p32(addr + 4);
+                uint unitId = 0;
+                if (U.isSafetyOffset(unitsAddr))
+                    unitId = rom.u8(unitsAddr);
+
+                string unitName = NameResolver.GetUnitName(unitId);
+                // Match Avalonia VM format: "{hexUnitId} {unitName} (Flag:0x{flagId:X})"
+                string name = $"{U.ToHexString(unitId)} {unitName} (Flag:0x{flagId:X})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Event editors
+        // ==================================================================
+
+        /// <summary>Build event function pointer list matching EventFunctionPointerViewModel.
+        /// Uses event_function_pointer_table_pointer — 4-byte pointer entries.</summary>
+        static List<AddrResult> BuildEventFunctionPointerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_function_pointer_table_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint a = rom.u32(addr);
+                if (!U.isPointer(a)) break;
+                // WinForms also checks IsValueOdd and addr > 0x08000100
+                if (!U.IsValueOdd(a)) break;
+                if (a <= 0x08000100) break;
+
+                // Match Avalonia VM format: "0x{i:X2} 0x{ptr:X08}"
+                string ptrStr = $"0x{a:X08}";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Sound editors
+        // ==================================================================
+
+        /// <summary>Build sound foot steps list matching SoundFootStepsViewerViewModel.
+        /// Uses sound_foot_steps_pointer with switch2 offset for class ID base.</summary>
+        static List<AddrResult> BuildSoundFootStepsList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.sound_foot_steps_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint classIdBase = 0;
+            uint switch2Addr = rom.RomInfo.sound_foot_steps_switch2_address;
+            if (switch2Addr > 0 && switch2Addr < (uint)rom.Data.Length)
+                classIdBase = rom.u8(switch2Addr);
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                uint classId = classIdBase + i;
+                string className = NameResolver.GetClassName(classId);
+                // Match Avalonia VM format: "{hexId} {className}"
+                string name = $"{U.ToHexString(classId)} {className}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Image/Graphics editors
+        // ==================================================================
+
+        /// <summary>Build ED staff roll list matching EDStaffRollViewModel.
+        /// Uses ed_staffroll_image_pointer — 8-byte entries, max 12.</summary>
+        static List<AddrResult> BuildEDStaffRollList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.ed_staffroll_image_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 8;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 12; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                // Match Avalonia VM: "0x{i:X2} Staff Roll"
+                string name = U.ToHexString(i) + " Staff Roll";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build OP prologue list matching OPPrologueViewerViewModel.
+        /// Uses op_prologue_image_pointer — 12-byte entries with pointer validation.</summary>
+        static List<AddrResult> BuildOPPrologueList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.op_prologue_image_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                // Match Avalonia VM: "0x{i:X2} Prologue"
+                string name = U.ToHexString(i) + " Prologue";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build big CG list matching BigCGViewerViewModel.
+        /// Uses bigcg_pointer (indirect) — 12-byte entries with pointer validation.</summary>
+        static List<AddrResult> BuildBigCGList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.bigcg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                // Match Avalonia VM: "0x{i:X2} CG"
+                string name = U.ToHexString(i) + " CG";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build chapter title list matching ChapterTitleViewerViewModel.
+        /// Uses image_chapter_title_pointer — 12-byte entries (FE8) or 4-byte (FE7).</summary>
+        static List<AddrResult> BuildChapterTitleList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.image_chapter_title_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            // Avalonia VM always uses 12-byte entries
+            const uint blockSize = 12;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (!U.isPointer(rom.u32(addr))) break;
+
+                string name = U.ToHexString(i) + " Chapter Title";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 3 builders — Battle animation editors
+        // ==================================================================
+
+        /// <summary>Build command 85 pointer list matching Command85PointerViewModel.
+        /// Uses command_85_pointer_table_pointer — 4-byte pointer entries starting at ID 0x19.</summary>
+        static List<AddrResult> BuildCommand85PointerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.command_85_pointer_table_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint a = rom.u32(addr);
+                if (!U.isPointerOrNULL(a)) break;
+                // null entries are allowed, but non-pointer non-null stops the list
+                if (a != 0 && a <= 0x08000100) break;
+
+                // Match Avalonia VM format: "0x{i:X2} {ptrStr}" where ptrStr is "0x????????" or "NULL"
+                string ptrStr = a == 0 ? "NULL" : $"0x{a:X08}";
+                result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", i));
             }
             return result;
         }
