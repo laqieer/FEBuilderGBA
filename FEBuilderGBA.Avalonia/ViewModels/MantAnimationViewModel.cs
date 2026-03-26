@@ -21,8 +21,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint pointer = rom.RomInfo.mant_command_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            uint startAdd = rom.RomInfo.mant_command_startadd;
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Mant Animation", 0));
+            for (int i = 0; ; i++)
+            {
+                uint addr = (uint)(baseAddr + i * 4);
+                if (addr + 4 > (uint)rom.Data.Length) break;
+                uint a = rom.u32(addr);
+                if (!U.isPointer(a)) break;
+                uint id = (uint)i + startAdd;
+                string name = $"0x{id:X02} Mant {id}";
+                result.Add(new AddrResult(addr, name, id));
+            }
             return result;
         }
 
@@ -37,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {

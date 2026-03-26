@@ -8,12 +8,73 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "D12" });
 
+        /// <summary>
+        /// Find the first DirectSound instrument address by scanning the first song's
+        /// instrument set (voicegroup). Returns U.NOT_FOUND if none found.
+        /// </summary>
+        static uint FindFirstDirectSoundAddr(ROM rom)
+        {
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+
+            uint songTablePtr = rom.RomInfo.sound_table_pointer;
+            if (songTablePtr == 0) return U.NOT_FOUND;
+
+            uint songTableBase = rom.p32(songTablePtr);
+            if (!U.isSafetyOffset(songTableBase, rom)) return U.NOT_FOUND;
+
+            // Scan first few songs to find one with a valid instrument set
+            for (int songIdx = 0; songIdx < 10; songIdx++)
+            {
+                uint songEntryAddr = (uint)(songTableBase + songIdx * 8);
+                if (songEntryAddr + 8 > (uint)rom.Data.Length) break;
+
+                uint headerPtr = rom.u32(songEntryAddr);
+                if (!U.isPointer(headerPtr)) continue;
+
+                uint headerAddr = U.toOffset(headerPtr);
+                if (!U.isSafetyOffset(headerAddr, rom) || headerAddr + 8 > (uint)rom.Data.Length)
+                    continue;
+
+                // Voicegroup (instrument set) pointer is at song header + 4
+                uint voiceGroupPtr = rom.u32(headerAddr + 4);
+                if (!U.isPointer(voiceGroupPtr)) continue;
+
+                uint instBase = U.toOffset(voiceGroupPtr);
+                if (!U.isSafetyOffset(instBase, rom)) continue;
+
+                // Scan up to 128 instruments (12 bytes each) for a DirectSound type
+                for (int i = 0; i < 128; i++)
+                {
+                    uint instAddr = (uint)(instBase + i * 12);
+                    if (instAddr + 12 > (uint)rom.Data.Length) break;
+
+                    byte type = (byte)rom.u8(instAddr);
+                    if (type == 0x00 || type == 0x08 || type == 0x10 || type == 0x18)
+                    {
+                        // Verify the wave pointer at offset 4
+                        uint wavePtr = rom.u32(instAddr + 4);
+                        if (U.isPointer(wavePtr))
+                        {
+                            uint waveAddr = U.toOffset(wavePtr);
+                            if (U.isSafetyOffset(waveAddr, rom))
+                                return waveAddr;
+                        }
+                    }
+                }
+            }
+            return U.NOT_FOUND;
+        }
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint addr = FindFirstDirectSoundAddr(rom);
+            if (addr == U.NOT_FOUND || addr == 0) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Direct Sound Instruments", 0));
+            result.Add(new AddrResult(addr, "DirectSound Wave Data", 0));
             return result;
         }
 
@@ -64,7 +125,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
-        public int GetListCount() => 0;
+        public int GetListCount()
+        {
+            return LoadList().Count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

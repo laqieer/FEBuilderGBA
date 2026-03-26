@@ -19,6 +19,29 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            Opened += (_, _) => AutoInitIfNeeded();
+        }
+
+        /// <summary>
+        /// If no external NavigateTo call provided a base address, try to find
+        /// a default unit short text table from ROM for standalone operation.
+        /// Uses event_haiku_pointer (death quotes) which has the same format.
+        /// </summary>
+        void AutoInitIfNeeded()
+        {
+            if (_baseAddr != 0) return; // Already initialized via NavigateTo
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            uint ptr = rom.RomInfo.event_haiku_pointer;
+            if (ptr == 0) return;
+
+            uint addr = rom.p32(ptr);
+            if (U.isSafetyOffset(addr, rom) && addr + 0x46 * 2 <= (uint)rom.Data.Length)
+            {
+                NavigateTo(addr);
+            }
         }
 
         public void NavigateTo(uint address)

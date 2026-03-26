@@ -19,6 +19,31 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            Opened += (_, _) => AutoInitIfNeeded();
+        }
+
+        /// <summary>
+        /// If no external NavigateTo call provided a base address, try to find
+        /// a default class list from CC item pointers for standalone operation.
+        /// </summary>
+        void AutoInitIfNeeded()
+        {
+            if (_baseAddr != 0) return; // Already initialized via NavigateTo
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            // Try cc_item_hero_crest_pointer — contains a null-terminated class list
+            uint ptr = rom.RomInfo.cc_item_hero_crest_pointer;
+            if (ptr != 0)
+            {
+                uint addr = rom.p32(ptr);
+                if (U.isSafetyOffset(addr, rom) && rom.u8(addr) != 0)
+                {
+                    NavigateTo(addr);
+                    return;
+                }
+            }
         }
 
         public void NavigateTo(uint address)

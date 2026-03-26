@@ -26,8 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = new System.Collections.Generic.List<AddrResult>();
-                items.Add(new AddrResult(0, "Terrain Floor Lookup", 0));
+                var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
             catch (Exception ex)

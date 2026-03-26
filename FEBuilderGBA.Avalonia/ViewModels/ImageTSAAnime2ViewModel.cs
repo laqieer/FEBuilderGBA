@@ -34,8 +34,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            // Load TSA anime entries from config resource (matches WinForms g_TSAAnime)
+            var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime2_"), false);
+            if (tsaAnime == null || tsaAnime.Count == 0)
+                return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "TSA Animation Editor v2", 0));
+            foreach (var pair in tsaAnime)
+            {
+                uint pointer = pair.Key;
+                string name = U.ToHexString(pointer) + " " + pair.Value;
+
+                // Resolve the pointer to get the actual data address
+                uint offset = U.toOffset(pointer);
+                if (!U.isSafetyOffset(offset, rom)) continue;
+
+                uint dataAddr = rom.p32(offset);
+                if (!U.isSafetyOffset(dataAddr, rom)) continue;
+
+                // The TSA data starts 20 bytes after the header
+                uint tsaDataAddr = dataAddr + 20;
+                if (tsaDataAddr + SIZE > (uint)rom.Data.Length) continue;
+
+                result.Add(new AddrResult(tsaDataAddr, name, pointer));
+            }
             return result;
         }
 
@@ -70,7 +92,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 8, TSAHeaderPointer);
         }
 
-        public int GetListCount() => LoadList().Count;
+        public int GetListCount()
+        {
+            return LoadList().Count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {
