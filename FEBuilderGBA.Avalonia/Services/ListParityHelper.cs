@@ -137,6 +137,73 @@ namespace FEBuilderGBA.Avalonia.Services
 
             // ---- Battle animation editors (batch 3) ----
             Register("Command85PointerView", "Command85PointerForm", BuildCommand85PointerList);
+
+            // ==================================================================
+            // Batch 4 registrations
+            // ==================================================================
+
+            // ---- Event editors (FE6/FE7 variants) ----
+            Register("EventCondView", "EventCondForm", BuildMapSettingList);
+            Register("EventUnitView", "EventUnitForm", BuildMapSettingList);
+            Register("EventUnitFE6View", "EventUnitFE6Form", BuildMapSettingList);
+            Register("EventUnitFE7View", "EventUnitFE7Form", BuildMapSettingList);
+            Register("EventBattleTalkFE6View", "EventBattleTalkFE6Form", BuildEventBattleTalkFE6List);
+            Register("EventBattleTalkFE7View", "EventBattleTalkFE7Form", BuildEventBattleTalkFE7List);
+            Register("EventHaikuFE6View", "EventHaikuFE6Form", BuildEventHaikuFE6List);
+            Register("EventHaikuFE7View", "EventHaikuFE7Form", BuildEventHaikuFE7List);
+            Register("EventForceSortieFE7View", "EventForceSortieFE7Form", BuildEventForceSortieFE7List);
+
+            // ---- Map editors (FE6/FE7 variants) ----
+            Register("MapSettingFE6View", "MapSettingFE6Form", BuildMapSettingList);
+            Register("MapSettingFE7View", "MapSettingFE7Form", BuildMapSettingList);
+            Register("MapSettingFE7UView", "MapSettingFE7UForm", BuildMapSettingList);
+            Register("MapChangeView", "MapChangeForm", BuildMapChangeList);
+            Register("MapPointerView", "MapPointerForm", BuildMapPointerList);
+            Register("MapLoadFunctionView", "MapLoadFunctionForm", BuildMapLoadFunctionList);
+
+            // ---- Image/Graphics editors ----
+            Register("ImagePortraitView", "ImagePortraitForm", BuildImagePortraitList);
+            Register("ImagePortraitFE6View", "ImagePortraitFE6Form", BuildImagePortraitFE6List);
+            Register("ImageBGView", "ImageBGForm", BuildImageBGList);
+            Register("ImageBattleAnimeView", "ImageBattleAnimeForm", BuildImageBattleAnimeList);
+            Register("ImageBattleBGView", "ImageBattleBGForm", BuildImageBattleBGList);
+            Register("ImageCGView", "ImageCGForm", BuildImageCGList);
+            Register("ImageUnitPaletteView", "ImageUnitPaletteForm", BuildImageUnitPaletteList);
+            Register("ImageUnitWaitIconView", "ImageUnitWaitIconForm", BuildImageUnitWaitIconList);
+            Register("ImageUnitMoveIconView", "ImageUnitMoveIconForm", BuildImageUnitMoveIconList);
+            Register("ImageSystemAreaView", "ImageSystemAreaForm", BuildImageSystemAreaList);
+            Register("ImageTSAAnimeView", "ImageTSAAnimeForm", BuildImageTSAAnimeList);
+            Register("BattleBGViewerView", "BattleBGForm", BuildBattleBGViewerList);
+            Register("BattleTerrainViewerView", "BattleTerrainForm", BuildBattleTerrainList);
+
+            // ---- Sound editors (FE6 variant) ----
+            Register("SoundRoomFE6View", "SoundRoomFE6Form", BuildSoundRoomFE6List);
+
+            // ---- Monster editors ----
+            Register("MonsterItemViewerView", "MonsterItemForm", BuildMonsterItemList);
+            Register("MonsterWMapProbabilityViewerView", "MonsterWMapProbabilityForm", BuildMonsterWMapProbabilityList);
+
+            // ---- Status/Menu editors ----
+            Register("StatusOptionOrderView", "StatusOptionOrderForm", BuildStatusOptionOrderList);
+            Register("StatusRMenuView", "StatusRMenuForm", BuildStatusRMenuList);
+            Register("StatusUnitsMenuView", "StatusUnitsMenuForm", BuildStatusUnitsMenuList);
+            Register("MenuCommandView", "MenuCommandForm", BuildMenuCommandList);
+            Register("MenuExtendSplitMenuView", "MenuExtendSplitMenuForm", BuildMenuExtendSplitMenuList);
+
+            // ---- Text editors ----
+            Register("TextDicView", "TextDicForm", BuildTextDicList);
+
+            // ---- Unit/Class FE7/FE6 variants ----
+            Register("UnitFE7View", "UnitFE7Form", BuildUnitFE7List);
+            Register("MoveCostFE6View", "MoveCostFE6Form", BuildMoveCostList);
+            Register("SupportUnitFE6View", "SupportUnitFE6Form", BuildSupportUnitFE6List);
+            Register("SupportTalkFE6View", "SupportTalkFE6Form", BuildSupportTalkFE6List);
+            Register("SupportTalkFE7View", "SupportTalkFE7Form", BuildSupportTalkFE7List);
+
+            // ---- OP Class editors ----
+            Register("OPClassAlphaNameView", "OPClassAlphaNameForm", BuildOPClassAlphaNameList);
+            Register("OPClassDemoViewerView", "OPClassDemoViewerForm", BuildOPClassDemoViewerList);
+            Register("OPClassFontViewerView", "OPClassFontViewerForm", BuildOPClassFontViewerList);
         }
 
         /// <summary>
@@ -169,6 +236,43 @@ namespace FEBuilderGBA.Avalonia.Services
             // Misc tool/dialog views
             "CStringView",
             "ToolExportEAEventView",
+            // Batch 4 — additional tool/dialog/popup views without address lists
+            "ImageViewerView",
+            "LogViewerView",
+            "MainSimpleMenuEventErrorIgnoreErrorView",
+            "MapEditorAddMapChangeDialogView",
+            "MapEditorMarSizeDialogView",
+            "MapEditorResizeDialogView",
+            "MapPointerNewPLISTPopupView",
+            "MapSettingDifficultyDialogView",
+            "MapStyleEditorAppendPopupView",
+            "MapStyleEditorImportImageOptionView",
+            "MapStyleEditorWarningOverrideView",
+            "MoveToFreeSpaceView",
+            "OpenLastSelectedFileView",
+            "OptionsView",
+            "PackedMemorySlotView",
+            "PaletteChangeColorsView",
+            "PaletteClipboardView",
+            "PaletteSwapView",
+            "PatchFilterExView",
+            "PatchFormUninstallDialogView",
+            "PointerToolBatchInputView",
+            "PointerToolCopyToView",
+            "PointerToolView",
+            "ProcsScriptCategorySelectView",
+            "RAMRewriteToolMAPView",
+            "RAMRewriteToolView",
+            "ResourceView",
+            "TextBadCharPopupView",
+            "TextRefAddDialogView",
+            "TextScriptCategorySelectView",
+            "TextToSpeechView",
+            "UbyteBitFlagView",
+            "UshortBitFlagView",
+            "UwordBitFlagView",
+            "VersionView",
+            "WelcomeView",
         };
 
         static void Register(string avaloniaName, string winFormsName, ReferenceListBuilder builder)
@@ -1932,6 +2036,1056 @@ namespace FEBuilderGBA.Avalonia.Services
                 // Match Avalonia VM format: "0x{i:X2} {ptrStr}" where ptrStr is "0x????????" or "NULL"
                 string ptrStr = a == 0 ? "NULL" : $"0x{a:X08}";
                 result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", i));
+            }
+            return result;
+        }
+        // ==================================================================
+        // Batch 4 builders — Event editors (FE6/FE7 variants)
+        // ==================================================================
+
+        /// <summary>Build FE6 event battle talk list — 12-byte entries, u8(addr) attacker, u8(addr+1) defender.</summary>
+        static List<AddrResult> BuildEventBattleTalkFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_ballte_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint unit = rom.u16(addr);
+                if (unit == 0 || unit == 0xFFFF) break;
+
+                string atkName = NameResolver.GetUnitName(rom.u8(addr));
+                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE7 event battle talk list — 16-byte entries, u8(addr) attacker, u8(addr+1) defender.</summary>
+        static List<AddrResult> BuildEventBattleTalkFE7List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_ballte_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint unit = rom.u16(addr);
+                if (unit == 0 || unit == 0xFFFF) break;
+
+                string atkName = NameResolver.GetUnitName(rom.u8(addr));
+                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE6 event haiku (death quote) list — 16-byte entries, stop when u8(addr)==0.</summary>
+        static List<AddrResult> BuildEventHaikuFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_haiku_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint unitId = rom.u8(addr);
+                string unitName = NameResolver.GetUnitName(unitId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE7 event haiku (death quote) list — 16-byte entries, stop when u8(addr)==0.</summary>
+        static List<AddrResult> BuildEventHaikuFE7List(ROM rom)
+        {
+            // Same structure as FE6 haiku
+            return BuildEventHaikuFE6List(rom);
+        }
+
+        /// <summary>Build FE7 event force sortie list — fixed 23 entries starting at map 0x17.</summary>
+        static List<AddrResult> BuildEventForceSortieFE7List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_force_sortie_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 23; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint mapId = (uint)i + 0x17;
+                result.Add(new AddrResult(addr, $"0x{i:X2} Map 0x{mapId:X2}", (uint)i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Map editors
+        // ==================================================================
+
+        /// <summary>Build map change list — 4-byte pointer entries, stop at 0xFFFFFFFF.</summary>
+        static List<AddrResult> BuildMapChangeList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.map_mapchange_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint pointer = rom.u32(addr);
+                if (pointer == 0xFFFFFFFF) break;
+
+                string ptrStr = U.isPointer(pointer)
+                    ? "0x" + pointer.ToString("X08")
+                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
+                string name = U.ToHexString(i) + " Change " + ptrStr;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build map pointer list — uses map_map_pointer_pointer (default PLIST type 0).</summary>
+        static List<AddrResult> BuildMapPointerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.map_map_pointer_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint limit = rom.RomInfo.map_map_pointer_list_default_size;
+            if (limit == 0) limit = 256;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < limit; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 3 >= (uint)rom.Data.Length) break;
+
+                uint pointer = rom.u32(addr);
+                string ptrStr = U.isPointer(pointer)
+                    ? $"0x{pointer:X08}"
+                    : (pointer == 0 ? "NULL" : $"0x{pointer:X08}");
+                string name = $"{U.ToHexString(i)} MAP {ptrStr}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build map load function list — function pointers with count from switch1.</summary>
+        static List<AddrResult> BuildMapLoadFunctionList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.map_load_function_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+
+            uint switchAddr = rom.RomInfo.map_load_function_switch1_address;
+            if (switchAddr == 0) return new List<AddrResult>();
+            if (switchAddr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
+            uint count = rom.u8(switchAddr + 0);
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i <= count; i++)
+            {
+                uint addr = baseAddr + i * 4;
+                if (addr + 4 > (uint)rom.Data.Length) break;
+                uint funcPtr = rom.u32(addr);
+                string ptrStr = U.isPointer(funcPtr) ? $"0x{funcPtr:X08}" : (funcPtr == 0 ? "NULL" : $"0x{funcPtr:X08}");
+                string display = $"0x{i:X2} {ptrStr}";
+                result.Add(new AddrResult(addr, display, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Image/Graphics editors
+        // ==================================================================
+
+        /// <summary>Build image portrait list matching ImagePortraitViewModel — with unit name resolution.</summary>
+        static List<AddrResult> BuildImagePortraitList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.portrait_pointer;
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (pointer == 0 || dataSize == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            int nullCount = 0;
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0) { nullCount++; if (nullCount > 3) break; }
+                else nullCount = 0;
+
+                string name = $"0x{i:X2}";
+                try { string uname = NameResolver.GetUnitName((uint)i); if (uname != "???" && uname != $"#{i}") name += $" {uname}"; }
+                catch { /* skip name resolution errors */ }
+                result.Add(new AddrResult(addr, name, (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE6 image portrait list — pointer validation with null-run threshold of 10.</summary>
+        static List<AddrResult> BuildImagePortraitFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.portrait_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (dataSize == 0) dataSize = 16; // FE6 default
+
+            var result = new List<AddrResult>();
+            int nullCount = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                if (i > 0)
+                {
+                    uint u0 = rom.u32(addr + 0);
+                    uint u4 = rom.u32(addr + 4);
+                    uint u8 = rom.u32(addr + 8);
+                    if (!U.isPointerOrNULL(u0) || !U.isPointerOrNULL(u4) || !U.isPointerOrNULL(u8))
+                        break;
+                    if (u0 == 0 && u4 == 0 && u8 == 0)
+                    {
+                        nullCount++;
+                        if (nullCount >= 10) break;
+                    }
+                    else nullCount = 0;
+                }
+
+                string name = U.ToHexString(i) + " Portrait FE6";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image BG list — 12-byte entries, validate pointers at offsets 0 and 4.</summary>
+        static List<AddrResult> BuildImageBGList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint a0 = rom.u32(addr + 0);
+                uint a1 = rom.u32(addr + 4);
+                if (!U.isPointerOrNULL(a0) || !U.isPointerOrNULL(a1)) break;
+
+                string name = U.ToHexString(i) + " Background";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image battle anime list — 4-byte entries, stop at 0.</summary>
+        static List<AddrResult> BuildImageBattleAnimeList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.image_battle_animelist_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X2} Anim", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image battle BG list — 12-byte entries, validate img and tsa pointers.</summary>
+        static List<AddrResult> BuildImageBattleBGList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.battle_bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint img = rom.u32(addr + 0);
+                uint tsa = rom.u32(addr + 4);
+                if (!U.isPointer(img) || !U.isPointer(tsa)) break;
+
+                string name = U.ToHexString(i) + " Battle BG";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image CG list — 12-byte entries, validate 10-split pointer table.</summary>
+        static List<AddrResult> BuildImageCGList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.bigcg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p) || !U.isSafetyPointer(p)) break;
+                // Verify 10-split: first pointer in table must also be a pointer
+                uint p2 = rom.u32(U.toOffset(p));
+                if (!U.isPointer(p2) || !U.isSafetyPointer(p2)) break;
+
+                string name = U.ToHexString(i) + " CG Image";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image unit palette list — 16-byte entries, validate pointer at offset 12.</summary>
+        static List<AddrResult> BuildImageUnitPaletteList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.image_unit_palette_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 16;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint p = rom.u32(addr + 12);
+                if (!U.isPointer(p)) break;
+
+                // Read identifier string from bytes 0-11
+                string ident = "";
+                for (int j = 0; j < 12; j++)
+                {
+                    byte b = rom.Data[addr + (uint)j];
+                    if (b >= 0x20 && b < 0x7F) ident += (char)b;
+                    else if (b == 0) break;
+                }
+
+                string name = $"0x{i:X2} {ident}";
+                result.Add(new AddrResult(addr, name, (uint)i));
+            }
+            // Match ImageUnitPaletteViewModel: appends a trailing "Unit Palette Editor" entry
+            result.Add(new AddrResult(0, "Unit Palette Editor", 0));
+            return result;
+        }
+
+        /// <summary>Build image unit wait icon list — 8-byte entries, validate pointer at offset 4.</summary>
+        static List<AddrResult> BuildImageUnitWaitIconList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.unit_wait_icon_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 8;
+                if (addr + 8 > (uint)rom.Data.Length) break;
+
+                uint imgPtr = rom.u32(addr + 4);
+                if (!U.isPointer(imgPtr)) break;
+
+                string name = U.ToHexString(i) + " WaitIcon";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image unit move icon list — 8-byte entries, validate pointer at offset 0.</summary>
+        static List<AddrResult> BuildImageUnitMoveIconList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.unit_move_icon_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 8;
+                if (addr + 8 > (uint)rom.Data.Length) break;
+
+                uint imgPtr = rom.u32(addr + 0);
+                if (!U.isPointer(imgPtr)) break;
+
+                string name = U.ToHexString(i) + " MoveIcon";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build image system area list — 2-byte color entries (30 per filter), uses move gradation palette.</summary>
+        static List<AddrResult> BuildImageSystemAreaList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.systemarea_move_gradation_palette_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            int colorCount = 30;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < colorCount; i++)
+            {
+                uint addr = baseAddr + (uint)(i * 2);
+                if (addr + 2 > (uint)rom.Data.Length) break;
+                uint color = rom.u16(addr);
+                int r = (int)(color & 0x1F) * 8;
+                int g = (int)((color >> 5) & 0x1F) * 8;
+                int b = (int)((color >> 10) & 0x1F) * 8;
+                result.Add(new AddrResult(addr, $"0x{i:X2} #{r:X2}{g:X2}{b:X2}", color));
+            }
+            return result;
+        }
+
+        /// <summary>Build image TSA anime list — uses tsaanime_ config resource file.</summary>
+        static List<AddrResult> BuildImageTSAAnimeList(ROM rom)
+        {
+            var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime_"), false);
+            if (tsaAnime == null || tsaAnime.Count == 0) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            foreach (var pair in tsaAnime)
+            {
+                uint pointer = pair.Key;
+                uint ptrOff = U.toOffset(pointer);
+                if (!U.isSafetyOffset(ptrOff)) continue;
+
+                uint baseAddr = rom.p32(ptrOff);
+                if (!U.isSafetyOffset(baseAddr)) continue;
+
+                if (baseAddr + 12 > (uint)rom.Data.Length) continue;
+                uint img = rom.u32(baseAddr);
+                if (!U.isPointer(img)) continue;
+
+                string name = U.ToHexString(pointer) + " " + pair.Value;
+                result.Add(new AddrResult(baseAddr, name, (uint)result.Count));
+
+                if (result.Count >= 20) break;
+            }
+            return result;
+        }
+
+        /// <summary>Build BattleBGViewer list — 12-byte entries, validate img+tsa pointers. Index starts at 1.</summary>
+        static List<AddrResult> BuildBattleBGViewerList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.battle_bg_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 12;
+                if (addr + 12 > (uint)rom.Data.Length) break;
+
+                uint img = rom.u32(addr + 0);
+                uint tsa = rom.u32(addr + 4);
+                if (!U.isPointer(img) || !U.isPointer(tsa)) break;
+
+                string name = U.ToHexString(i + 1) + " Battle BG";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build battle terrain list — 24-byte entries, validate pointer at offset 12.</summary>
+        static List<AddrResult> BuildBattleTerrainList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.battle_terrain_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 24;
+                if (addr + 24 > (uint)rom.Data.Length) break;
+
+                uint ptr12 = rom.u32(addr + 12);
+                if (!U.isPointer(ptr12)) break;
+
+                // Read terrain name from ASCII at offset 0
+                string tname = "";
+                try
+                {
+                    for (int c = 0; c < 11; c++)
+                    {
+                        uint b = rom.u8(addr + (uint)c);
+                        if (b == 0) break;
+                        tname += (char)b;
+                    }
+                }
+                catch { /* skip name errors */ }
+
+                string name = U.ToHexString(i) + " " + tname;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Sound editors (FE6 variant)
+        // ==================================================================
+
+        /// <summary>Build FE6 sound room list — same pointer as SoundRoomViewerView but with FE6-specific format.</summary>
+        static List<AddrResult> BuildSoundRoomFE6List(ROM rom)
+        {
+            uint pointer = rom.RomInfo.sound_room_pointer;
+            uint dataSize = rom.RomInfo.sound_room_datasize;
+            if (pointer == 0 || dataSize == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0xFFFFFFFF) break;
+                // Match SoundRoomFE6ViewModel: custom IsEmptyBlock that checks for 0x00 and 0xFF
+                if (i > 10)
+                {
+                    uint end = addr + dataSize * 10;
+                    if (end > (uint)rom.Data.Length) end = (uint)rom.Data.Length;
+                    bool empty = true;
+                    for (uint a = addr; a < end; a++)
+                        if (rom.Data[a] != 0x00 && rom.Data[a] != 0xFF) { empty = false; break; }
+                    if (empty) break;
+                }
+
+                // Match SoundRoomFE6ViewModel.TryDecodeSongName: text ID at offset 4
+                string songName;
+                try
+                {
+                    uint textId = rom.u32(addr + 4);
+                    if (textId > 0 && textId < 0xFFFF)
+                        songName = GetTextById(textId);
+                    else
+                        songName = $"Song {rom.u32(addr):X}";
+                }
+                catch { songName = $"Song {rom.u32(addr):X}"; }
+                string display = $"{(i + 1):D3} {songName}";
+                result.Add(new AddrResult(addr, display, (uint)i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Monster editors
+        // ==================================================================
+
+        /// <summary>Build monster item list — 5-byte entries, stop at 0xFF.</summary>
+        static List<AddrResult> BuildMonsterItemList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.monster_item_item_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 5;
+                if (addr + 5 > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+
+                uint itemId = rom.u8(addr);
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build monster world map probability list — 9 fixed 1-byte entries.</summary>
+        static List<AddrResult> BuildMonsterWMapProbabilityList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.monster_wmap_base_point_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 9; i++)
+            {
+                uint addr = baseAddr + i;
+                if (addr >= (uint)rom.Data.Length) break;
+
+                uint basePointId = rom.u8(addr);
+                string name = U.ToHexString(i) + " WMap Monster 0x" + basePointId.ToString("X02");
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Status/Menu editors
+        // ==================================================================
+
+        /// <summary>Build status option order list — 1-byte entries, count from count address.</summary>
+        static List<AddrResult> BuildStatusOptionOrderList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.status_game_option_order_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint countAddr = rom.RomInfo.status_game_option_order_count_address;
+            uint count = 0;
+            if (countAddr != 0 && U.isSafetyOffset(countAddr))
+                count = rom.u8(countAddr);
+            if (count == 0 || count > 0x40)
+                count = 0x20;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < count; i++)
+            {
+                uint addr = baseAddr + i;
+                if (addr >= (uint)rom.Data.Length) break;
+
+                uint optionId = rom.u8(addr);
+                string name = $"{U.ToHexString(i)} Option {optionId}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build status R-menu list — 28-byte entries, validate directional pointers.</summary>
+        static List<AddrResult> BuildStatusRMenuList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.status_rmenu_unit_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 28;
+                if (addr + 28 > (uint)rom.Data.Length) break;
+
+                uint up = rom.u32(addr + 0);
+                uint down = rom.u32(addr + 4);
+                uint left = rom.u32(addr + 8);
+                uint right = rom.u32(addr + 12);
+
+                bool anyValid = U.isPointerOrNULL(up) || U.isPointerOrNULL(down)
+                    || U.isPointerOrNULL(left) || U.isPointerOrNULL(right);
+                if (!anyValid) break;
+
+                uint textId = rom.u16(addr + 18);
+                string textName = GetTextById(textId);
+                string name = $"{U.ToHexString(i)} {textName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build status units menu list — 16-byte entries, stop when order >= 0xFF.</summary>
+        static List<AddrResult> BuildStatusUnitsMenuList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.status_units_menu_pointer;
+            if (pointer == 0 || !U.isSafetyOffset(pointer)) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 16;
+                if (addr + 16 > (uint)rom.Data.Length) break;
+
+                uint order = rom.u32(addr);
+                if (order >= 0xFF) break;
+
+                string name = U.ToHexString(i) + " Order:" + order.ToString();
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build menu command list — dynamic list from menu definitions + well-known addresses.</summary>
+        static List<AddrResult> BuildMenuCommandList(ROM rom)
+        {
+            var result = new List<AddrResult>();
+
+            uint always = rom.RomInfo.MenuCommand_UsabilityAlways;
+            if (always != 0)
+                result.Add(new AddrResult(always, "0 UsabilityAlways", 0));
+
+            uint never = rom.RomInfo.MenuCommand_UsabilityNever;
+            if (never != 0)
+                result.Add(new AddrResult(never, "1 UsabilityNever", 1));
+
+            uint ptr = rom.RomInfo.menu_definiton_pointer;
+            if (ptr != 0)
+            {
+                uint defBase = rom.p32(ptr);
+                if (U.isSafetyOffset(defBase))
+                {
+                    uint idx = 2;
+                    for (uint i = 0; i < 0x100; i++)
+                    {
+                        uint defAddr = defBase + i * 36;
+                        if (defAddr + 36 > (uint)rom.Data.Length) break;
+                        if (!U.isPointer(rom.u32(defAddr + 8))) break;
+
+                        uint menuCmdPtr = rom.p32(defAddr + 8);
+                        if (!U.isSafetyOffset(menuCmdPtr)) continue;
+
+                        for (uint j = 0; j < 0x40; j++)
+                        {
+                            uint cmdAddr = menuCmdPtr + j * 36;
+                            if (cmdAddr + 36 > (uint)rom.Data.Length) break;
+                            if (!U.isPointer(rom.u32(cmdAddr + 0xC))) break;
+
+                            string name = U.ToHexString(idx) + " MenuCmd Def" + i.ToString() + "_" + j.ToString();
+                            result.Add(new AddrResult(cmdAddr, name, idx));
+                            idx++;
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>Build menu extend split menu list — 40-byte entries, stop when style==0 for i>0.</summary>
+        static List<AddrResult> BuildMenuExtendSplitMenuList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.menu_definiton_split_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 40;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 32; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint style = rom.u32(addr + 4);
+                if (style == 0 && i > 0) break;
+
+                result.Add(new AddrResult(addr, $"0x{i:X02} Split Menu {i}", i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Text editors
+        // ==================================================================
+
+        /// <summary>Build text dictionary list from dic_main_pointer — 12-byte entries, stop when textId1 or textId2 == 0.</summary>
+        static List<AddrResult> BuildTextDicList(ROM rom)
+        {
+            uint pointer = rom.RomInfo.dic_main_pointer;
+            if (pointer == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint textId1 = rom.u16(addr + 2);
+                uint textId2 = rom.u16(addr + 4);
+                if (textId1 == 0 || textId2 == 0) break;
+
+                string text = GetTextById(textId1);
+                string display = $"0x{i:X2} {text}";
+                result.Add(new AddrResult(addr, display, (uint)i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — Unit/Class FE7/FE6 variants
+        // ==================================================================
+
+        /// <summary>Build FE7 unit list — no entry skip, starts from index 0.</summary>
+        static List<AddrResult> BuildUnitFE7List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.unit_datasize;
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (maxCount == 0) maxCount = 253;
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < maxCount; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                uint nameId = rom.u16(addr + 0);
+                string decoded;
+                try { decoded = GetTextById(nameId); }
+                catch { decoded = "???"; }
+                string name = U.ToHexString(i) + " " + decoded;
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE6 support unit list — 32-byte entries with gap tolerance.</summary>
+        static List<AddrResult> BuildSupportUnitFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_unit_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr;
+            if (ptr >= 0x08000000)
+                baseAddr = ptr - 0x08000000;
+            else
+            {
+                baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            }
+
+            const uint blockSize = 32;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint first = rom.u8(addr);
+                if (first == 0 && i > 0)
+                {
+                    bool hasMore = false;
+                    for (uint j = 1; j <= 4 && (i + j) < 0x100; j++)
+                    {
+                        uint checkAddr = baseAddr + (i + j) * blockSize;
+                        if (checkAddr + blockSize > (uint)rom.Data.Length) break;
+                        if (rom.u8(checkAddr) != 0) { hasMore = true; break; }
+                    }
+                    if (!hasMore) break;
+                }
+
+                string unitName = NameResolver.GetUnitName(i);
+                string name = $"{U.ToHexString(i)} {unitName}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE6 support talk list — 16-byte entries, skip empty entries, stop after 10 consecutive empties.
+        /// FE6 format: u8(addr+0) = unit1, u8(addr+1) = unit2.</summary>
+        static List<AddrResult> BuildSupportTalkFE6List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint dataSize = 16;
+            var result = new List<AddrResult>();
+            int emptyCount = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                uint first = rom.u16(addr);
+                if (first == 0)
+                {
+                    emptyCount++;
+                    if (emptyCount >= 10) break;
+                    continue;
+                }
+                emptyCount = 0;
+
+                // FE6 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format
+                uint uid1 = rom.u8(addr + 0);
+                uint uid2 = rom.u8(addr + 1);
+                string n1 = NameResolver.GetUnitName(uid1);
+                string n2 = NameResolver.GetUnitName(uid2);
+                string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build FE7 support talk list — 20-byte entries, skip empty entries, stop after 10 consecutive empties.
+        /// FE7 format: u8(addr+0) = unit1, u8(addr+1) = unit2.</summary>
+        static List<AddrResult> BuildSupportTalkFE7List(ROM rom)
+        {
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint dataSize = 20;
+            var result = new List<AddrResult>();
+            int emptyCount = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                uint first = rom.u16(addr);
+                if (first == 0)
+                {
+                    emptyCount++;
+                    if (emptyCount >= 10) break;
+                    continue;
+                }
+                emptyCount = 0;
+
+                // FE7 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format
+                uint uid1 = rom.u8(addr + 0);
+                uint uid2 = rom.u8(addr + 1);
+                string n1 = NameResolver.GetUnitName(uid1);
+                string n2 = NameResolver.GetUnitName(uid2);
+                string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        // ==================================================================
+        // Batch 4 builders — OP Class editors
+        // ==================================================================
+
+        /// <summary>Build OP class alpha name list — 4-byte pointer entries from class_alphaname_pointer.</summary>
+        static List<AddrResult> BuildOPClassAlphaNameList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.class_alphaname_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p)) break;
+
+                string name = U.ToHexString(i) + " Alpha Name";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build OPClassDemoViewer list — 28-byte entries, validate first dword pointer, show class name.</summary>
+        static List<AddrResult> BuildOPClassDemoViewerList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.op_class_demo_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            if (!U.isSafetyOffset(ptrAddr)) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * 28;
+                if (addr + 28 > (uint)rom.Data.Length) break;
+
+                uint p0 = rom.u32(addr);
+                if (!U.isPointer(p0)) break;
+
+                uint cid = rom.u8(addr + 14);
+                string className = NameResolver.GetClassName(cid);
+                string name = $"{U.ToHexString(i)} {className}";
+                result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>Build OPClassFontViewer list — 4-byte pointer entries.</summary>
+        static List<AddrResult> BuildOPClassFontViewerList(ROM rom)
+        {
+            uint ptrAddr = rom.RomInfo.op_class_font_pointer;
+            if (ptrAddr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptrAddr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 4;
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint addr = baseAddr + i * blockSize;
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p)) break;
+
+                string name = U.ToHexString(i) + " OP Class Font";
+                result.Add(new AddrResult(addr, name, i));
             }
             return result;
         }
