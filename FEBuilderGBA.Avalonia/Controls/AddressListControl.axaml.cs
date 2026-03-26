@@ -158,6 +158,9 @@ namespace FEBuilderGBA.Avalonia.Controls
             }
         }
 
+        /// <summary>Get a read-only copy of the current (unfiltered) item list.</summary>
+        public List<AddrResult> GetItems() => new List<AddrResult>(_items);
+
         /// <summary>Enable pick mode — shows hint and makes double-click/Enter fire SelectionConfirmed.</summary>
         public void EnablePickMode()
         {

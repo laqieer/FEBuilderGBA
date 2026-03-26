@@ -48,6 +48,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, run palette export→import→export roundtrip validation.</summary>
         public static bool ValidatePaletteMode { get; set; }
 
+        /// <summary>When true, run list parity comparison between Avalonia and WinForms editors.</summary>
+        public static bool ListParityMode { get; set; }
+
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
@@ -256,6 +259,11 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ValidatePaletteMode = true;
+                }
+                else if (args[i] == "--list-parity")
+                {
+                    SmokeTestMode = true;
+                    ListParityMode = true;
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {

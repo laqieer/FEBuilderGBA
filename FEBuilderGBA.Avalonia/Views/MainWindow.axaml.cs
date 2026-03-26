@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia;
@@ -788,6 +789,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            if (App.ListParityMode)
+            {
+                RunListParity();
+                return;
+            }
+
             if (App.SmokeTestAll)
             {
                 RunSmokeTestAll();
@@ -1397,6 +1404,127 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        private void RunListParity()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int matched = 0;
+                int mismatched = 0;
+                int skipped = 0;
+                var failures = new List<string>();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+
+                var editors = GetAllEditorFactories();
+                var version = CoreState.ROM?.RomInfo?.VersionToFilename ?? "";
+
+                // Filter version-mismatched item editors
+                if (version == "FE6")
+                    editors.RemoveAll(e => e is ("ItemEditorView", _));
+                else
+                    editors.RemoveAll(e => e is ("ItemFE6View", _));
+
+                Console.WriteLine($"LISTPARITY: Testing {editors.Count} editors against reference lists (ROM version={version})...");
+
+                for (int editorIdx = 0; editorIdx < editors.Count; editorIdx++)
+                {
+                    var (name, factory) = editors[editorIdx];
+
+                    // Only process editors that have a known reference list builder
+                    if (!ListParityHelper.HasMapping(name))
+                    {
+                        skipped++;
+                        Console.WriteLine($"LISTPARITY: {name} | SKIP (no reference mapping)");
+                        continue;
+                    }
+
+                    Window window = null;
+                    try
+                    {
+                        window = factory();
+                        await Task.Delay(200); // Let it initialize and load list
+
+                        // Select first item to trigger full load
+                        SelectFirstItemOnView(window);
+                        await Task.Delay(100);
+
+                        // Extract the Avalonia list from the AddressListControl
+                        var avaloniaList = ExtractListFromView(window);
+                        if (avaloniaList == null)
+                        {
+                            skipped++;
+                            Console.WriteLine($"LISTPARITY: {name} | SKIP (no AddressListControl found)");
+                            continue;
+                        }
+
+                        // Build reference list from Core ROM data
+                        var referenceList = ListParityHelper.BuildReferenceList(name);
+                        if (referenceList == null)
+                        {
+                            skipped++;
+                            Console.WriteLine($"LISTPARITY: {name} | SKIP (reference list build returned null)");
+                            continue;
+                        }
+
+                        // Compare
+                        var result = ListParityHelper.CompareLists(name, avaloniaList, referenceList);
+                        Console.WriteLine(result.FormatResult());
+
+                        if (result.IsMatch)
+                            matched++;
+                        else
+                        {
+                            mismatched++;
+                            failures.Add(name);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        mismatched++;
+                        failures.Add(name);
+                        Console.WriteLine($"LISTPARITY: {name} | ERROR: {ex.GetBaseException().Message}");
+                    }
+                    finally
+                    {
+                        try { window?.Close(); } catch { }
+                    }
+                }
+
+                WindowManager.Instance.CloseAll();
+
+                Console.WriteLine($"LISTPARITY: Results: {matched} matched, {mismatched} mismatched, {skipped} skipped out of {editors.Count} (elapsed={sw.ElapsedMilliseconds / 1000}s)");
+                if (failures.Count > 0)
+                    Console.WriteLine($"LISTPARITY: Failures: {string.Join(", ", failures)}");
+
+                Environment.ExitCode = mismatched > 0 ? 1 : 0;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Extract the list items from the AddressListControl in a view window.
+        /// Uses reflection to find the control and call GetItems().
+        /// </summary>
+        static List<AddrResult> ExtractListFromView(Window window)
+        {
+            // Try known named controls first
+            string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
+            foreach (var controlName in knownNames)
+            {
+                var control = window.FindControl<Controls.AddressListControl>(controlName);
+                if (control != null)
+                    return control.GetItems();
+            }
+
+            // Fallback: find any AddressListControl in the visual tree
+            foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
+            {
+                if (descendant is Controls.AddressListControl alc)
+                    return alc.GetItems();
+            }
+
+            return null;
         }
 
         /// <summary>
