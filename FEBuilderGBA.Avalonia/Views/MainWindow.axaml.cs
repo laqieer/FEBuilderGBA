@@ -1413,6 +1413,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 int matched = 0;
                 int mismatched = 0;
                 int skipped = 0;
+                int noListCount = 0;
+                int contextDependentCount = 0;
                 var failures = new List<string>();
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -1436,9 +1438,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         skipped++;
                         if (ListParityHelper.IsNoListEditor(name))
+                        {
+                            noListCount++;
                             Console.WriteLine($"LISTPARITY: {name} | NO_LIST (tool/dialog without address list)");
+                        }
                         else if (ListParityHelper.IsContextDependentEditor(name))
+                        {
+                            contextDependentCount++;
                             Console.WriteLine($"LISTPARITY: {name} | CONTEXT_DEPENDENT (sub-editor needing parent context)");
+                        }
                         else
                             Console.WriteLine($"LISTPARITY: {name} | SKIP (no reference mapping)");
                         continue;
@@ -1498,7 +1506,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 WindowManager.Instance.CloseAll();
 
-                Console.WriteLine($"LISTPARITY: Results: {matched} matched, {mismatched} mismatched, {skipped} skipped out of {editors.Count} (elapsed={sw.ElapsedMilliseconds / 1000}s)");
+                Console.WriteLine($"LISTPARITY: Results: {matched} matched, {mismatched} mismatched, {skipped} skipped (NO_LIST={noListCount}, CONTEXT_DEPENDENT={contextDependentCount}) out of {editors.Count} (elapsed={sw.ElapsedMilliseconds / 1000}s)");
                 if (failures.Count > 0)
                     Console.WriteLine($"LISTPARITY: Failures: {string.Join(", ", failures)}");
 
