@@ -1437,6 +1437,8 @@ namespace FEBuilderGBA.Avalonia.Views
                         skipped++;
                         if (ListParityHelper.IsNoListEditor(name))
                             Console.WriteLine($"LISTPARITY: {name} | NO_LIST (tool/dialog without address list)");
+                        else if (ListParityHelper.IsContextDependentEditor(name))
+                            Console.WriteLine($"LISTPARITY: {name} | CONTEXT_DEPENDENT (sub-editor needing parent context)");
                         else
                             Console.WriteLine($"LISTPARITY: {name} | SKIP (no reference mapping)");
                         continue;
