@@ -247,10 +247,14 @@ Ref #M (partial — <what remains>)
 
 ## Screenshots
 <!-- For feat/fix PRs: MANDATORY — replace this comment with REAL GUI screenshot(s).
-     Screenshots MUST be captured from the actual running application (e.g., via PrintWindow API
-     or MCP computer-use). Fabricated images (e.g., DrawString on Bitmap) are NOT acceptable.
-     Image URLs MUST be permanent — use blob/master/pr-screenshots/ paths or GitHub asset uploads.
-     NEVER use blob/{feature-branch}/ URLs — they 404 after branch deletion.
+     CRITICAL: Screenshots MUST show the SPECIFIC affected editor with populated data.
+     NEVER use the generic main Avalonia window as proof — it proves nothing about the fix.
+     Capture steps:
+       1. Launch: dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
+       2. Navigate: Use PowerShell UIAutomation to click the specific editor button
+       3. Capture: dotnet run --project tools/WinCapture -c Release -- "Editor Title" screenshot.png
+       4. Commit to pr-screenshots/ on master, reference via raw.githubusercontent.com
+     Fabricated images are NOT acceptable. Generic main window screenshots are NOT acceptable.
      For docs/chore PRs: This entire section may be deleted. -->
 
 ## GUI Test Report
@@ -525,6 +529,10 @@ A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are
 ### Don't: Fabricate screenshots
 Drawing text on a Bitmap with `System.Drawing.DrawString` (e.g., "VALIDATION PASSED" in green on black) is NOT a screenshot — it proves nothing about the GUI working. It's cheating the review process.
 **Do:** Use `PrintWindow` API to capture real window content. It works even with a locked screen. Combine with PowerShell `UIAutomationClient` for headless navigation.
+
+### Don't: Use the generic main Avalonia window as a screenshot
+The main FEBuilderGBA hub window with category buttons proves nothing about whether a specific editor fix works. A PR fixing MapTerrain needs a MapTerrain screenshot, not the main menu.
+**Do:** Navigate to the SPECIFIC affected editor using UIAutomation (`powershell Add-Type -AssemblyName UIAutomationClient; $btn.GetCurrentPattern([InvokePattern]::Pattern).Invoke()`), then capture THAT editor window with `tools/WinCapture`. Every feat/fix screenshot must show populated data in the changed editor.
 
 ### Don't: Use feature branch blob URLs for screenshot images
 `blob/{feature-branch}/file.png?raw=1` becomes a 404 after the branch is deleted post-merge. Every screenshot in the PR breaks permanently.
