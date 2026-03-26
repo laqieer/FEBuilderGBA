@@ -2,14 +2,22 @@ using System.Collections.Generic;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 /// <summary>
 /// Tests for ListParityHelper comparison logic and AddressListControl.GetItems().
 /// </summary>
-public class ListParityHelperTests
+public class ListParityHelperTests : IClassFixture<RomFixture>
 {
+    readonly RomFixture _rom;
+
+    public ListParityHelperTests(RomFixture rom)
+    {
+        _rom = rom;
+    }
+
     static List<AddrResult> MakeItems(int count, uint baseAddr = 0x1000, string prefix = "Item")
     {
         var list = new List<AddrResult>();
@@ -57,8 +65,10 @@ public class ListParityHelperTests
         var copy2 = control.GetItems();
         Assert.NotSame(copy1, copy2);
 
-        // Mutating the copy should not affect the original
-        copy1.Clear();
+        // The returned IReadOnlyList should not allow mutation;
+        // verify we get consistent counts on repeated calls.
+        Assert.Equal(3, copy1.Count);
+        Assert.Equal(3, copy2.Count);
         var copy3 = control.GetItems();
         Assert.Equal(3, copy3.Count);
     }
@@ -228,5 +238,119 @@ public class ListParityHelperTests
         var editors = ListParityHelper.GetAllMappedEditors();
         Assert.NotEmpty(editors);
         Assert.Contains("UnitEditorView", editors);
+    }
+
+    // ---------------------------------------------------------------
+    // ROM-backed: reference builders vs Avalonia VM list loaders
+    // These tests verify that BuildReferenceList() output matches
+    // the corresponding ViewModel Load*List() for a real ROM.
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void BuildReferenceList_UnitEditor_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return; // skip if no ROM
+
+        var vm = new UnitEditorViewModel();
+        var vmList = vm.LoadUnitList();
+        var refList = ListParityHelper.BuildReferenceList("UnitEditorView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void BuildReferenceList_ItemEditor_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new ItemEditorViewModel();
+        var vmList = vm.LoadItemList();
+        var refList = ListParityHelper.BuildReferenceList("ItemEditorView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void BuildReferenceList_ClassEditor_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new ClassEditorViewModel();
+        var vmList = vm.LoadClassList();
+        var refList = ListParityHelper.BuildReferenceList("ClassEditorView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void BuildReferenceList_PortraitViewer_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new PortraitViewerViewModel();
+        var vmList = vm.LoadPortraitList();
+        var refList = ListParityHelper.BuildReferenceList("PortraitViewerView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void BuildReferenceList_SoundRoom_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new SoundRoomViewerViewModel();
+        var vmList = vm.LoadSoundRoomList();
+        var refList = ListParityHelper.BuildReferenceList("SoundRoomViewerView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void BuildReferenceList_GenericEnemyPortrait_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new ImageGenericEnemyPortraitViewModel();
+        var vmList = vm.LoadList();
+        var refList = ListParityHelper.BuildReferenceList("ImageGenericEnemyPortraitView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
     }
 }

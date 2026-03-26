@@ -1487,7 +1487,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch { }
+                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.ListParity window close: {0}", ex.Message); }
                     }
                 }
 
@@ -1504,9 +1504,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Extract the list items from the AddressListControl in a view window.
-        /// Uses reflection to find the control and call GetItems().
+        /// Searches by known control names via FindControl, then falls back to
+        /// a visual-tree scan for any AddressListControl descendant.
         /// </summary>
-        static List<AddrResult> ExtractListFromView(Window window)
+        static IReadOnlyList<AddrResult> ExtractListFromView(Window window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };

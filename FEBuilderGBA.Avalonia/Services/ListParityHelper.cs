@@ -82,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Compare two lists of AddrResult row-by-row.
         /// Returns a comparison result.
         /// </summary>
-        public static ListParityResult CompareLists(string editorName, List<AddrResult> avaloniaList, List<AddrResult> referenceList)
+        public static ListParityResult CompareLists(string editorName, IReadOnlyList<AddrResult> avaloniaList, List<AddrResult> referenceList)
         {
             var result = new ListParityResult
             {
@@ -200,12 +200,15 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             uint dataSize = rom.RomInfo.class_datasize;
-            // Class count is typically 0x100
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (uint i = 0; i <= 0xFF; i++)
             {
                 uint addr = baseAddr + i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                // Match VM: stop when ClassNumber (u8 @ offset +4) is 0 for i > 0
+                if (i > 0 && rom.u8(addr + 4) == 0) break;
+
                 uint nameId = rom.u16(addr);
                 string name = U.ToHexString(i) + " " + GetTextById(nameId);
                 result.Add(new AddrResult(addr, name, i));
@@ -213,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build portrait list matching PortraitViewerViewModel.</summary>
+        /// <summary>Build portrait list matching PortraitViewerViewModel.LoadPortraitList().</summary>
         static List<AddrResult> BuildPortraitList(ROM rom)
         {
             uint ptr = rom.RomInfo.portrait_pointer;
@@ -222,20 +225,41 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             uint dataSize = rom.RomInfo.portrait_datasize;
-            if (dataSize == 0) return new List<AddrResult>();
+            // PortraitViewerViewModel treats a datasize of 0 as 28 bytes.
+            if (dataSize == 0) dataSize = 28;
 
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            int nullCount = 0;
+            // PortraitViewerViewModel scans up to 0x400 entries with pointer-validity
+            // and null-run heuristics to determine the list end.
+            for (uint i = 0; i < 0x400; i++)
             {
                 uint addr = baseAddr + i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
+
+                if (i > 0)
+                {
+                    uint u0 = rom.u32(addr + 0);
+                    uint u4 = rom.u32(addr + 4);
+                    uint u8 = rom.u32(addr + 8);
+
+                    if (!U.isPointerOrNULL(u0) || !U.isPointerOrNULL(u4) || !U.isPointerOrNULL(u8))
+                        break;
+                    if (u0 == 0 && u4 == 0 && u8 == 0)
+                    {
+                        nullCount++;
+                        if (nullCount >= 100) break;
+                    }
+                    else nullCount = 0;
+                }
+
                 string name = U.ToHexString(i) + " Portrait";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
         }
 
-        /// <summary>Build generic enemy portrait list.</summary>
+        /// <summary>Build generic enemy portrait list matching ImageGenericEnemyPortraitViewModel.LoadList().</summary>
         static List<AddrResult> BuildGenericEnemyPortraitList(ROM rom)
         {
             uint ptr = rom.RomInfo.generic_enemy_portrait_pointer;
@@ -253,35 +277,44 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint addr = baseAddr + i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
-                string name = U.ToHexString(i);
+
+                // Match ImageGenericEnemyPortraitViewModel.LoadList() formatting:
+                // "0x{i:X2} {ptrStr}" where ptrStr is "0x????????" or "NULL".
+                uint imgPtr = rom.u32(addr);
+                string ptrStr = U.isPointer(imgPtr) ? $"0x{imgPtr:X08}" : "NULL";
+                string name = $"0x{i:X2} {ptrStr}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
         }
 
-        /// <summary>Build sound room list.</summary>
+        /// <summary>Build sound room list matching SoundRoomViewerViewModel.LoadSoundRoomList().</summary>
         static List<AddrResult> BuildSoundRoomList(ROM rom)
         {
             uint ptr = rom.RomInfo.sound_room_pointer;
             if (ptr == 0) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.sound_room_datasize;
+            // VM requires a non-zero data size; if zero, treat as not present.
+            if (dataSize == 0) return new List<AddrResult>();
+
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint dataSize = rom.RomInfo.sound_room_datasize;
-            if (dataSize == 0) dataSize = 16;
-
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            for (uint i = 0; i < 0x200; i++)
             {
                 uint addr = baseAddr + i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
 
-                // Check for end-of-list sentinel (all zeros or invalid)
-                uint songId = rom.u16(addr + 0);
-                if (songId == 0 && i > 0) break; // End of list
+                // End-of-list sentinel
+                if (rom.u32(addr) == 0xFFFFFFFF) break;
+                // Large empty block detection (matches VM: i > 10 && IsEmpty for 10 entries)
+                if (i > 10 && rom.IsEmpty(addr, dataSize * 10)) break;
 
-                uint textId = rom.u16(addr + 2);
-                string name = U.ToHexString(i) + " " + GetTextById(textId);
+                uint songId = rom.u16(addr);
+                string songName = NameResolver.GetSongName(songId);
+                string name = $"{(i + 1):D3} {songName} (0x{songId:X04})";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
