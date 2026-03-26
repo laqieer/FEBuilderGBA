@@ -70,5 +70,45 @@ if [ -n "$VIOLATIONS" ]; then
   exit 1
 fi
 
-echo "VALIDATION PASSED: No feature-branch blob URLs found in PR description"
+echo "CHECK 1 PASSED: No feature-branch blob URLs found"
+
+# --- CHECK 2: feat/fix PRs must have at least one rendered image ---
+# Get PR title
+PR_TITLE=""
+if command -v gh &>/dev/null; then
+  PR_TITLE=$(gh pr view "$PR_NUMBER" -R "$REPO" --json title --jq .title 2>/dev/null || echo "")
+fi
+
+if echo "$PR_TITLE" | grep -qiE "^(feat|fix):"; then
+  IMAGE_COUNT=$(echo "$BODY" | grep -cE '!\[.*\]\(https://raw\.githubusercontent\.com/|!\[.*\]\(https://github\.com/.*assets/|<img.*src=' || true)
+
+  if [ "$IMAGE_COUNT" -eq 0 ]; then
+    echo ""
+    echo "ERROR: feat/fix PR #${PR_NUMBER} has NO rendered screenshots!"
+    echo ""
+    echo "Every feat/fix PR that modifies FEBuilderGBA.Avalonia/ MUST include"
+    echo "at least one screenshot of the SPECIFIC affected editor with data."
+    echo ""
+    echo "Steps:"
+    echo "  1. Launch app with ROM"
+    echo "  2. Use UIAutomation to navigate to the affected editor"
+    echo "  3. Capture via: dotnet run --project tools/WinCapture -c Release -- \"Title\" file.png"
+    echo "  4. Commit to pr-screenshots/ and reference via raw.githubusercontent.com"
+    echo ""
+    echo "VALIDATION FAILED: Missing screenshots"
+    exit 1
+  fi
+
+  # Warn about generic main window screenshots
+  if echo "$BODY" | grep -qiE 'main.window|FEBuilderGBA.*main|proof\.png'; then
+    echo "WARNING: PR may contain a generic main window screenshot."
+    echo "Ensure screenshots show the SPECIFIC affected editor, not just the main window."
+  fi
+
+  echo "CHECK 2 PASSED: Found $IMAGE_COUNT screenshot(s) in feat/fix PR"
+else
+  echo "CHECK 2 SKIPPED: Not a feat/fix PR (title: $PR_TITLE)"
+fi
+
+echo "VALIDATION PASSED"
 exit 0
