@@ -131,6 +131,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("OPClassFontViewerView", "OPClassFontForm", "OPClassFontViewerViewModel"),
             ("OPPrologueViewerView", "OPPrologueForm", "OPPrologueViewerViewModel"),
             ("SystemIconViewerView", "ImageSystemIconForm", "SystemIconViewerViewModel"),
+            ("SystemHoverColorViewerView", "ImageSystemHoverColorForm", "SystemHoverColorViewerViewModel"),
             // ImageFormRef is not a Form (it's a helper class), skip
             // ("ImageViewerView", "ImageFormRef", "ImageViewerViewModel"),
             ("ItemIconViewerView", "ImageItemIconForm", "ItemIconViewerViewModel"),
