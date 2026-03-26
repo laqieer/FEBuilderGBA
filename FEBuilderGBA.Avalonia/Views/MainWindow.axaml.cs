@@ -1435,7 +1435,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (!ListParityHelper.HasMapping(name))
                     {
                         skipped++;
-                        Console.WriteLine($"LISTPARITY: {name} | SKIP (no reference mapping)");
+                        if (ListParityHelper.IsNoListEditor(name))
+                            Console.WriteLine($"LISTPARITY: {name} | NO_LIST (tool/dialog without address list)");
+                        else
+                            Console.WriteLine($"LISTPARITY: {name} | SKIP (no reference mapping)");
                         continue;
                     }
 
