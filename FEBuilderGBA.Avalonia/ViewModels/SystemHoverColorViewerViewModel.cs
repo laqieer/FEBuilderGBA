@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -8,16 +9,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Uses systemarea_*_gradation_palette_pointer from Core ROMFEINFO.
     /// Each palette set has 10 u16 GBA color entries (20 bytes).
     /// </summary>
-    public class SystemHoverColorViewerViewModel : ViewModelBase
+    public class SystemHoverColorViewerViewModel : ViewModelBase, IDataVerifiable
     {
         bool _canWrite;
         string _statusMessage = "";
         int _selectedFilterIndex;
+        uint _currentAddr;
+        uint _currentColor;
         readonly string[] _filterNames = { "Move Range", "Attack Range", "Staff Range" };
 
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
         public int SelectedFilterIndex { get => _selectedFilterIndex; set => SetField(ref _selectedFilterIndex, value); }
+        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public uint CurrentColor { get => _currentColor; set => SetField(ref _currentColor, value); }
         public string[] FilterNames => _filterNames;
 
         uint GetPointerForFilter(int filterIndex)
@@ -77,7 +82,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
+            CurrentAddr = addr;
             uint color = rom.u16(addr);
+            CurrentColor = color;
             int r = (int)(color & 0x1F) * 8;
             int g = (int)((color >> 5) & 0x1F) * 8;
             int b = (int)((color >> 10) & 0x1F) * 8;
@@ -99,6 +106,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             int g = (int)((color >> 5) & 0x1F) * 8;
             int b = (int)((color >> 10) & 0x1F) * 8;
             return $"#{r:X2}{g:X2}{b:X2}";
+        }
+
+        // --- IDataVerifiable ---
+
+        public int GetListCount() => LoadHoverColorList().Count;
+
+        public Dictionary<string, string> GetDataReport()
+        {
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["Color"] = $"0x{CurrentColor:X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetRawRomReport()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
+            uint a = CurrentAddr;
+            return new Dictionary<string, string>
+            {
+                ["addr"] = $"0x{a:X08}",
+                ["u16@0x00"] = $"0x{rom.u16(a):X04}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["Color"] = "u16@0x00",
+            };
         }
     }
 }
