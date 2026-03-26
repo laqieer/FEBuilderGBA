@@ -56,7 +56,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         if (U.isPointer(wavePtr))
                         {
                             uint waveAddr = U.toOffset(wavePtr);
-                            if (U.isSafetyOffset(waveAddr, rom))
+                            // Ensure the 16-byte DirectSound header is fully readable
+                            if (U.isSafetyOffset(waveAddr, rom) && waveAddr + 16 <= (uint)rom.Data.Length)
                                 return waveAddr;
                         }
                     }

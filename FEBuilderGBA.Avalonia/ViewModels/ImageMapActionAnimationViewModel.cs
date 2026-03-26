@@ -49,14 +49,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                    0xFF, 0xFF, 0x00, 0x00 };
             }
 
-            // Search from a low start address — the table is typically in the lower ROM area
-            uint startAddr = 0x100;
+            // Match WinForms: start search from compress_image_borderline_address
+            // to avoid false positives and reduce scan cost
+            uint startAddr = rom.RomInfo.compress_image_borderline_address;
             uint p = U.GrepEnd(rom.Data, bin, startAddr, 0, 4, 0, true);
-            if (p == U.NOT_FOUND)
-            {
-                // Retry with blocksize=1 in case alignment differs
-                p = U.GrepEnd(rom.Data, bin, startAddr, 0, 1, 0, true);
-            }
             if (p == U.NOT_FOUND) return U.NOT_FOUND;
 
             p = p - (uint)bin.Length - 4;
