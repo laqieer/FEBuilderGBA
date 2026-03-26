@@ -56,9 +56,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var types = VerifiableViewModels().ToList();
             _output.WriteLine($"Discovered {types.Count} IDataVerifiable types");
-            // We expect ~169 types; use a generous lower bound
-            Assert.True(types.Count >= 100,
-                $"Expected >= 100 IDataVerifiable types, found {types.Count}. " +
+            // We expect ~170 types; use a generous lower bound
+            Assert.True(types.Count >= 165,
+                $"Expected >= 165 IDataVerifiable types, found {types.Count}. " +
                 "Reflection discovery may be broken.");
         }
 
@@ -497,7 +497,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         /// <summary>
         /// Verifies the number of ViewModels with non-empty GetFieldOffsetMap().
-        /// After #263 complete sweep, we expect at least 70 editors with field maps.
+        /// After #269 batch, we expect at least 156 editors with field maps.
         /// </summary>
         [Fact]
         public void FieldOffsetMap_CoverageCount()
@@ -534,9 +534,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (var m in mapped)
                 _output.WriteLine($"  - {m}");
 
-            // After #263 complete sweep: all verified editors now have field maps (70+)
-            Assert.True(withFieldMap >= 70,
-                $"Expected >= 70 ViewModels with field maps, found {withFieldMap}");
+            // After #269 batch: 161 editors now have field maps
+            Assert.True(withFieldMap >= 156,
+                $"Expected >= 156 ViewModels with field maps, found {withFieldMap}");
         }
 
         /// <summary>Normalize a hex or decimal string for comparison.</summary>
