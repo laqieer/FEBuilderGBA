@@ -117,11 +117,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new Dictionary<string, string>
             {
-                ["UnitListPointer"] = UnitListPointer.ToString("X08"),
-                ["UnitId"] = UnitId.ToString("X02"),
-                ["Unknown1"] = Unknown1.ToString("X02"),
-                ["Unknown2"] = Unknown2.ToString("X02"),
-                ["Unknown3"] = Unknown3.ToString("X02"),
+                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["UnitListPointer"] = $"0x{UnitListPointer:X08}",
+                ["UnitId"] = $"0x{UnitId:X02}",
+                ["Unknown1"] = $"0x{Unknown1:X02}",
+                ["Unknown2"] = $"0x{Unknown2:X02}",
+                ["Unknown3"] = $"0x{Unknown3:X02}",
+            };
+        }
+
+        public Dictionary<string, string> GetFieldOffsetMap()
+        {
+            return new Dictionary<string, string>
+            {
+                ["UnitListPointer"] = "u32@0x00_UnitListPointer",
+                ["UnitId"] = "u8@0x00_UnitId",
+                ["Unknown1"] = "u8@0x01_Unknown1",
+                ["Unknown2"] = "u8@0x02_Unknown2",
+                ["Unknown3"] = "u8@0x03_Unknown3",
             };
         }
 
