@@ -1,0 +1,207 @@
+using System;
+using System.IO;
+using System.Reflection;
+using Xunit;
+
+namespace FEBuilderGBA.Core.Tests
+{
+    /// <summary>
+    /// Source-code verification tests for list icon wiring in Avalonia views.
+    /// Ensures all batch 2 views use SetItemsWithIcons with the correct loader.
+    /// </summary>
+    public class ListIconWiringTests
+    {
+        static string FindSolutionRoot()
+        {
+            string thisAssembly = Assembly.GetExecutingAssembly().Location;
+            string? dir = Path.GetDirectoryName(thisAssembly);
+            for (int i = 0; i < 10 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            throw new InvalidOperationException("Cannot find solution root");
+        }
+
+        static string ReadViewSource(string viewFileName)
+        {
+            string root = FindSolutionRoot();
+            string path = Path.Combine(root, "FEBuilderGBA.Avalonia", "Views", viewFileName);
+            return File.ReadAllText(path);
+        }
+
+        static string ReadServiceSource(string serviceFileName)
+        {
+            string root = FindSolutionRoot();
+            string path = Path.Combine(root, "FEBuilderGBA.Avalonia", "Services", serviceFileName);
+            return File.ReadAllText(path);
+        }
+
+        // ---- ListIconLoaders has all new methods ----
+
+        [Theory]
+        [InlineData("ItemIconFromAddrU16Loader")]
+        [InlineData("ItemIconFromAddrU8Loader")]
+        [InlineData("UnitPortraitFromAddrU16Loader")]
+        [InlineData("WaitIconDirectLoader")]
+        [InlineData("MoveIconLoader")]
+        [InlineData("ColorSwatchLoader")]
+        [InlineData("BattleAnimeLoader")]
+        [InlineData("BGThumbnailLoader")]
+        [InlineData("CGThumbnailLoader")]
+        [InlineData("CGFE7UThumbnailLoader")]
+        [InlineData("SoundRoomCGThumbnailLoader")]
+        public void ListIconLoaders_HasMethod(string methodName)
+        {
+            string src = ReadServiceSource("ListIconLoaders.cs");
+            Assert.Contains(methodName, src);
+        }
+
+        // ---- PreviewIconHelper has all new methods ----
+
+        [Theory]
+        [InlineData("LoadMoveIcon")]
+        [InlineData("CreateColorSwatch")]
+        [InlineData("LoadBattleAnimeThumbnail")]
+        [InlineData("LoadBGThumbnail")]
+        [InlineData("LoadCGThumbnail")]
+        [InlineData("LoadCGFE7UThumbnail")]
+        public void PreviewIconHelper_HasMethod(string methodName)
+        {
+            string src = ReadServiceSource("PreviewIconHelper.cs");
+            Assert.Contains(methodName, src);
+        }
+
+        // ---- Group A: Item icons from ROM addr ----
+
+        [Theory]
+        [InlineData("AIPerformItemView.axaml.cs", "ItemIconFromAddrU16Loader")]
+        [InlineData("AIPerformStaffView.axaml.cs", "ItemIconFromAddrU16Loader")]
+        [InlineData("AIStealItemView.axaml.cs", "ItemIconFromAddrU8Loader")]
+        [InlineData("ArenaEnemyWeaponViewerView.axaml.cs", "ItemIconFromAddrU8Loader")]
+        public void View_UsesItemIconLoader(string viewFile, string loaderName)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains(loaderName, src);
+        }
+
+        // ---- Group B: Class icon ----
+
+        [Fact]
+        public void CCBranchEditorView_UsesClassIconLoader()
+        {
+            string src = ReadViewSource("CCBranchEditorView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("ClassIconLoader", src);
+        }
+
+        // ---- Group C: Unit portrait ----
+
+        [Theory]
+        [InlineData("AIUnitsView.axaml.cs", "UnitPortraitFromAddrU16Loader")]
+        [InlineData("SkillAssignmentUnitSkillSystemView.axaml.cs", "UnitPortraitByIdLoader")]
+        public void View_UsesUnitPortraitLoader(string viewFile, string loaderName)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains(loaderName, src);
+        }
+
+        // ---- Group D: Unit portrait from addr ----
+
+        [Theory]
+        [InlineData("EventBattleTalkView.axaml.cs")]
+        [InlineData("EventBattleTalkFE6View.axaml.cs")]
+        [InlineData("EventBattleTalkFE7View.axaml.cs")]
+        [InlineData("SupportTalkView.axaml.cs")]
+        [InlineData("SupportTalkFE6View.axaml.cs")]
+        [InlineData("SupportTalkFE7View.axaml.cs")]
+        public void View_UsesUnitPortraitFromAddrLoader(string viewFile)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("UnitPortraitFromAddrU16Loader", src);
+        }
+
+        // ---- Group E: Wait/Move icons ----
+
+        [Fact]
+        public void ImageUnitWaitIconView_UsesWaitIconDirectLoader()
+        {
+            string src = ReadViewSource("ImageUnitWaitIconView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("WaitIconDirectLoader", src);
+        }
+
+        [Fact]
+        public void ImageUnitMoveIconView_UsesMoveIconLoader()
+        {
+            string src = ReadViewSource("ImageUnitMoveIconView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("MoveIconLoader", src);
+        }
+
+        // ---- Group F: Color swatches ----
+
+        [Theory]
+        [InlineData("SystemHoverColorViewerView.axaml.cs")]
+        [InlineData("ImageSystemAreaView.axaml.cs")]
+        [InlineData("MapTileAnimation2View.axaml.cs")]
+        public void View_UsesColorSwatchLoader(string viewFile)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("ColorSwatchLoader", src);
+        }
+
+        // ---- Group G: Battle animation ----
+
+        [Theory]
+        [InlineData("ImageBattleAnimeView.axaml.cs")]
+        [InlineData("MantAnimationView.axaml.cs")]
+        public void View_UsesBattleAnimeLoader(string viewFile)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("BattleAnimeLoader", src);
+        }
+
+        // ---- Group H: BG/CG thumbnails ----
+
+        [Fact]
+        public void ImageBGView_UsesBGThumbnailLoader()
+        {
+            string src = ReadViewSource("ImageBGView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("BGThumbnailLoader", src);
+        }
+
+        [Fact]
+        public void ImageCGView_UsesCGThumbnailLoader()
+        {
+            string src = ReadViewSource("ImageCGView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("CGThumbnailLoader", src);
+        }
+
+        [Fact]
+        public void ImageCGFE7UView_UsesCGFE7UThumbnailLoader()
+        {
+            string src = ReadViewSource("ImageCGFE7UView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("CGFE7UThumbnailLoader", src);
+        }
+
+        // ---- Group I: SoundRoomCG ----
+
+        [Fact]
+        public void SoundRoomCGView_UsesSoundRoomCGThumbnailLoader()
+        {
+            string src = ReadViewSource("SoundRoomCGView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("SoundRoomCGThumbnailLoader", src);
+        }
+    }
+}
