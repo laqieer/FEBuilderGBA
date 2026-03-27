@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
             }
             catch (Exception ex)
             {

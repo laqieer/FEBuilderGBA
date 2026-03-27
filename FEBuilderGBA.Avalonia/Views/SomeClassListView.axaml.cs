@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             var items = _vm.BuildList(_baseAddr);
-            EntryList.SetItems(items);
+            EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
         }
 
         void OnSelected(uint address)

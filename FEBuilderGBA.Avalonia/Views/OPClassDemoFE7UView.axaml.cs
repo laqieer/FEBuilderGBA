@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
                 if (!string.IsNullOrEmpty(_vm.UnavailableMessage))
                     UnavailableLabel.Text = _vm.UnavailableMessage;
             }

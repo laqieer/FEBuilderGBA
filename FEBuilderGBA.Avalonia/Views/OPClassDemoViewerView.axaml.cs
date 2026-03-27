@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             _vm.IsLoading = true;
-            try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItems(items); }
+            try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i)); }
             catch (Exception ex) { Log.Error("OPClassDemoViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

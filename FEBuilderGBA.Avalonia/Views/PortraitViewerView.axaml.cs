@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadPortraitList();
-                PortraitList.SetItems(items);
+                PortraitList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
             }
             catch (Exception ex)
             {

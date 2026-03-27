@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -150,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Ability4Flags.SetBitNames(AbilityFlagNames.GetAbilityNames(version, 4));
 
                 var items = _vm.LoadUnitList();
-                UnitList.SetItemsWithIcons(items, index => LoadUnitPortraitThumbnail(items, index));
+                UnitList.SetItemsWithIcons(items, index => ListIconLoaders.UnitPortraitLoader(items, index));
                 UpdateFE78Visibility();
             }
             catch (Exception ex)
@@ -586,31 +585,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     UpdateUI();
                 }
             });
-        }
-
-        /// <summary>
-        /// Load a portrait mini thumbnail for the unit at the given list index.
-        /// Returns null if portrait cannot be loaded.
-        /// </summary>
-        Bitmap? LoadUnitPortraitThumbnail(List<AddrResult> items, int index)
-        {
-            if (index < 0 || index >= items.Count) return null;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return null;
-
-            try
-            {
-                uint addr = items[index].addr;
-                uint portraitId = PreviewIconHelper.ResolveUnitPortraitId(addr);
-                if (portraitId == 0) return null;
-
-                using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
-                return ImageConversionHelper.ToAvaloniaBitmap(img);
-            }
-            catch
-            {
-                return null;
-            }
         }
 
         public void EnablePickMode() => UnitList.EnablePickMode();

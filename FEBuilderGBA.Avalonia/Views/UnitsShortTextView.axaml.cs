@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _baseAddr = address;
             var items = _vm.BuildList(address);
-            EntryList.SetItems(items);
+            EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitLoader(items, i));
         }
 
         public void SelectFirstItem() => EntryList.SelectFirst();
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 // Refresh list
                 var items = _vm.BuildList(_baseAddr);
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitLoader(items, i));
                 CoreState.Services?.ShowInfo("Units short text data written.");
             }
             catch (Exception ex)

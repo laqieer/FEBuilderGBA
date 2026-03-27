@@ -171,6 +171,51 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a class wait icon by class ID. Resolves class ID -> wait icon index (offset +6) -> loads icon.
+        /// </summary>
+        public static IImage LoadClassWaitIconByClassId(uint classId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || classId == 0) return null;
+            try
+            {
+                uint classPtr = rom.RomInfo.class_pointer;
+                if (classPtr == 0) return null;
+                uint classBase = rom.p32(classPtr);
+                if (!U.isSafetyOffset(classBase)) return null;
+                uint classSize = rom.RomInfo.class_datasize;
+                uint classAddr = classBase + classId * classSize;
+                if (classAddr + classSize > (uint)rom.Data.Length) return null;
+                uint waitIconIndex = rom.u8(classAddr + 6);
+                if (waitIconIndex == 0) return null;
+                return LoadClassWaitIcon(waitIconIndex);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load an item icon by item ID. Resolves item ID -> icon index (offset +29) -> loads icon.
+        /// </summary>
+        public static IImage LoadItemIconByItemId(uint itemId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || itemId == 0) return null;
+            try
+            {
+                uint itemPtr = rom.RomInfo.item_pointer;
+                if (itemPtr == 0) return null;
+                uint itemBase = rom.p32(itemPtr);
+                if (!U.isSafetyOffset(itemBase)) return null;
+                uint itemSize = rom.RomInfo.item_datasize;
+                uint itemAddr = itemBase + itemId * itemSize;
+                if (itemAddr + itemSize > (uint)rom.Data.Length) return null;
+                uint iconIndex = rom.u8(itemAddr + 29);
+                return LoadItemIcon(iconIndex);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load a class wait icon (map sprite) for the given wait icon index (B6 field).
         /// The wait icon table stores compressed 16x16 (2x2 tile) sprites per entry.
         /// Returns null on failure.
