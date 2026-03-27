@@ -18,6 +18,9 @@
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_DescTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
+          <TextBlock AutomationProperties.AutomationId="OPClassDemoViewer_DescTextId_Label" Grid.Row="2" Grid.Column="2" Name="DescTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Japanese Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_JpNamePtr_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="JpNamePtrBox" Minimum="0" Maximum="4294967295" />

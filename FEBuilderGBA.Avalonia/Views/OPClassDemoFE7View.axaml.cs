@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -19,7 +20,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            DescTextIdLowBox.ValueChanged += OnDescTextIdLowChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnDescTextIdLowChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DescTextIdLowBox.Value ?? 0);
+            try { DescTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { DescTextPreview.Text = ""; }
         }
 
         void LoadList()
@@ -59,6 +69,8 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             EnglishNamePtrBox.Value = _vm.EnglishNamePointer;
             DescTextIdLowBox.Value = _vm.DescriptionTextIdLow;
+            try { DescTextPreview.Text = _vm.DescriptionTextIdLow != 0 ? NameResolver.GetTextById(_vm.DescriptionTextIdLow) : ""; }
+            catch { DescTextPreview.Text = ""; }
             JpNamePtrBox.Value = _vm.JapaneseNamePointer;
             JpNameLenBox.Value = _vm.JapaneseNameLength;
             PaletteIdBox.Value = _vm.PaletteId;

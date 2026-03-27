@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -19,7 +20,52 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            IdTextIdBox.ValueChanged += OnIdTextIdChanged;
+            NameTextIdBox.ValueChanged += OnNameTextIdChanged;
+            HelpTextIdBox.ValueChanged += OnHelpTextIdChanged;
+            DefaultTextIdBox.ValueChanged += OnDefaultTextIdChanged;
+            YesTextIdBox.ValueChanged += OnYesTextIdChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnIdTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(IdTextIdBox.Value ?? 0);
+            try { IdTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { IdTextPreview.Text = ""; }
+        }
+
+        void OnNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(NameTextIdBox.Value ?? 0);
+            try { NameTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { NameTextPreview.Text = ""; }
+        }
+
+        void OnHelpTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(HelpTextIdBox.Value ?? 0);
+            try { HelpTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { HelpTextPreview.Text = ""; }
+        }
+
+        void OnDefaultTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DefaultTextIdBox.Value ?? 0);
+            try { DefaultTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { DefaultTextPreview.Text = ""; }
+        }
+
+        void OnYesTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(YesTextIdBox.Value ?? 0);
+            try { YesTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { YesTextPreview.Text = ""; }
         }
 
         void LoadList()
@@ -56,8 +102,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             IdTextIdBox.Value = _vm.IdTextId;
+            try { IdTextPreview.Text = _vm.IdTextId != 0 ? NameResolver.GetTextById(_vm.IdTextId) : ""; }
+            catch { IdTextPreview.Text = ""; }
             NameTextIdBox.Value = _vm.NameTextId;
+            try { NameTextPreview.Text = _vm.NameTextId != 0 ? NameResolver.GetTextById(_vm.NameTextId) : ""; }
+            catch { NameTextPreview.Text = ""; }
             HelpTextIdBox.Value = _vm.HelpTextId;
+            try { HelpTextPreview.Text = _vm.HelpTextId != 0 ? NameResolver.GetTextById(_vm.HelpTextId) : ""; }
+            catch { HelpTextPreview.Text = ""; }
             PosXBox.Value = _vm.PosX;
             PosYBox.Value = _vm.PosY;
             Sel1Box.Value = _vm.SelectionText1;
@@ -65,7 +117,11 @@ namespace FEBuilderGBA.Avalonia.Views
             ColumnsBox.Value = _vm.Columns;
             RowsBox.Value = _vm.Rows;
             DefaultTextIdBox.Value = _vm.DefaultTextId;
+            try { DefaultTextPreview.Text = _vm.DefaultTextId != 0 ? NameResolver.GetTextById(_vm.DefaultTextId) : ""; }
+            catch { DefaultTextPreview.Text = ""; }
             YesTextIdBox.Value = _vm.YesTextId;
+            try { YesTextPreview.Text = _vm.YesTextId != 0 ? NameResolver.GetTextById(_vm.YesTextId) : ""; }
+            catch { YesTextPreview.Text = ""; }
             MinValueBox.Value = _vm.MinValue;
             MaxValueBox.Value = _vm.MaxValue;
             OnOff1Box.Value = _vm.OnOffText1;
