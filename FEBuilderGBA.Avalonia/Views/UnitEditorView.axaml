@@ -39,12 +39,14 @@
             <!-- Fields -->
             <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitEditor_NameIdLink"
                          Classes="Hyperlink" Name="NameIdLink" PointerPressed="OnNameIdLinkClick"
                          ToolTip.Tip="Text ID for the unit's display name (click to open Text Viewer)" />
               <NumericUpDown AutomationProperties.AutomationId="UnitEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock AutomationProperties.AutomationId="UnitEditor_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="6" Text="Desc ID:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitEditor_DescIdLink"
                          Classes="Hyperlink" Name="DescIdLink" PointerPressed="OnDescIdLinkClick"
                          ToolTip.Tip="Text ID for the unit's description (click to open Text Viewer)" />
               <StackPanel Grid.Row="0" Grid.Column="7" Orientation="Horizontal" Spacing="4">
@@ -60,6 +62,7 @@
                          ToolTip.Tip="Unique identifier for this unit" />
               <NumericUpDown AutomationProperties.AutomationId="UnitEditor_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitEditor_ClassIdLink"
                          Classes="Hyperlink" Name="ClassIdLink" PointerPressed="OnClassIdLinkClick"
                          ToolTip.Tip="The unit's class (click to open Class Editor)" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
@@ -68,6 +71,7 @@
                 <Button AutomationProperties.AutomationId="UnitEditor_PickClass_Button" Content="Pick..." Click="PickClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick class from editor" />
               </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitEditor_PortraitLink"
                          Classes="Hyperlink" Name="PortraitLink" PointerPressed="OnPortraitLinkClick"
                          ToolTip.Tip="Portrait graphic index (click to open Portrait Viewer)" />
               <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">

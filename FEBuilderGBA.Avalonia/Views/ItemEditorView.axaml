@@ -36,6 +36,7 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
         <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemEditor_NameIdLink"
                      Classes="Hyperlink" Name="NameIdLink" PointerPressed="OnNameIdLinkClick"
                      ToolTip.Tip="Text ID for this item's display name (click to open Text Viewer)" />
           <NumericUpDown AutomationProperties.AutomationId="ItemEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
@@ -43,6 +44,7 @@
           <TextBlock AutomationProperties.AutomationId="ItemEditor_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Desc ID (W2):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemEditor_DescIdLink"
                      Classes="Hyperlink" Name="DescIdLink" PointerPressed="OnDescIdLinkClick"
                      ToolTip.Tip="Text ID for the item description (click to open Text Viewer)" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
@@ -54,6 +56,7 @@
                     ToolTip.Tip="Open text viewer for this description" />
           </StackPanel>
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Use Desc (W4):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemEditor_UseDescLink"
                      Classes="Hyperlink" Name="UseDescIdLink" PointerPressed="OnUseDescIdLinkClick"
                      ToolTip.Tip="Text ID for the item usage description (click to open Text Viewer)" />
           <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
