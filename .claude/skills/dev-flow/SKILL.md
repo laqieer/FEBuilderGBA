@@ -32,12 +32,24 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 7. **Implement** per the accepted plan. No scope creep.
 8. **Tests** — add unit tests, run all test suites, ensure passing.
 9. **Commit and push** — one logical change per commit, reference issue number.
+9.5. **Capture screenshots** (feat/fix PRs ONLY — BEFORE opening PR):
+    ```bash
+    # Launch app
+    dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
+    sleep 15
+    # Navigate to the SPECIFIC affected editor (NOT the main window!)
+    powershell -Command "Add-Type -AssemblyName UIAutomationClient; ... $btn.Invoke()"
+    # Capture THAT editor
+    dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshots/prN-editor.png
+    # Commit to branch, use raw.githubusercontent.com/{SHA}/pr-screenshots/... URL
+    ```
+    **CRITICAL: The screenshot MUST show the specific editor that was changed, with populated data. NEVER use the generic main Avalonia window.**
 
 ## Phase 3 — PR & Review Loop
 
 10. **Open PR** via `gh pr create -R laqieer/FEBuilderGBA`. Include:
     - Summary, plan reference, scope (Closes/Ref), test plan (ALL items `[x]`), screenshots
-    - **Screenshots**: GUI PRs require real GUI captures (PrintWindow or MCP); non-GUI PRs accept CLI/test output. NEVER fabricate images. NEVER use `blob/{feature-branch}/` URLs.
+    - **Screenshots**: MUST show the SPECIFIC affected editor with data. Generic main window is NOT acceptable. NEVER fabricate images. NEVER use `blob/{feature-branch}/` URLs.
     - **Test plan**: ALL items must be `[x]`. Automatable tests MUST be automated — no unchecked "manual later" items.
     - Footer: `Generated with Claude Code (claude-opus-4-6)`
 11. **Trigger Copilot CLI review** of the PR:
