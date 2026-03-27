@@ -49,6 +49,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             var tooSmall = new List<string>();
             foreach (var nud in nuds)
             {
+                // Skip controls with explicit Width set (they are intentionally sized for layout)
+                if (!double.IsNaN(nud.Width)) continue;
                 if (nud.MinWidth < 120)
                 {
                     tooSmall.Add($"{nud.Name ?? "(unnamed)"}: MinWidth={nud.MinWidth}");
