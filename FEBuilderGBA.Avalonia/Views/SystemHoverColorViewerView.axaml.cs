@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadColorList(_vm.SelectedFilterIndex);
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ColorSwatchLoader(items, i));
             }
             catch (Exception ex) { Log.Error("SystemHoverColorViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }

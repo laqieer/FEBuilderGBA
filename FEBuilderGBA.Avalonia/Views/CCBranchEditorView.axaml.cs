@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadCCBranchList();
-                BranchList.SetItems(items);
+                BranchList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
             }
             catch (Exception ex)
             {

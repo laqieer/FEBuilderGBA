@@ -311,5 +311,40 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Load a CG thumbnail for SoundRoomCG entries.
+        /// Each entry has a CG ID (u32) which maps to the bigcg_pointer table.
+        /// CG entry layout in table: P0=image, P4=TSA, P8=palette (SIZE=12).
+        /// </summary>
+        public static Bitmap? SoundRoomCGThumbnailLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+
+                // Read the CG ID from this SoundRoom entry
+                uint entryAddr = items[index].addr;
+                if (!U.isSafetyOffset(entryAddr + 3)) return null;
+                uint cgId = rom.u32(entryAddr);
+                if (cgId == 0 || cgId == 0xFFFFFFFF) return null;
+
+                // Resolve CG ID to CG table entry
+                uint cgPtr = rom.RomInfo.bigcg_pointer;
+                if (cgPtr == 0) return null;
+                uint cgBase = rom.p32(cgPtr);
+                if (!U.isSafetyOffset(cgBase)) return null;
+
+                const uint CG_ENTRY_SIZE = 12;
+                uint cgAddr = cgBase + cgId * CG_ENTRY_SIZE;
+                if (cgAddr + CG_ENTRY_SIZE > (uint)rom.Data.Length) return null;
+
+                using var img = PreviewIconHelper.LoadCGThumbnail(cgAddr);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }
