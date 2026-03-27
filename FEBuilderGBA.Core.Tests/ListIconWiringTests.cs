@@ -112,17 +112,17 @@ namespace FEBuilderGBA.Core.Tests
         // ---- Group D: Unit portrait from addr ----
 
         [Theory]
-        [InlineData("EventBattleTalkView.axaml.cs")]
-        [InlineData("EventBattleTalkFE6View.axaml.cs")]
-        [InlineData("EventBattleTalkFE7View.axaml.cs")]
-        [InlineData("SupportTalkView.axaml.cs")]
-        [InlineData("SupportTalkFE6View.axaml.cs")]
-        [InlineData("SupportTalkFE7View.axaml.cs")]
-        public void View_UsesUnitPortraitFromAddrLoader(string viewFile)
+        [InlineData("EventBattleTalkView.axaml.cs", "UnitPortraitFromAddrU16Loader")]  // FE8: W0 = u16 unit ID
+        [InlineData("EventBattleTalkFE6View.axaml.cs", "UnitPortraitFromAddrU8Loader")] // FE6: B0 = u8 unit ID
+        [InlineData("EventBattleTalkFE7View.axaml.cs", "UnitPortraitFromAddrU8Loader")] // FE7: B0 = u8 unit ID
+        [InlineData("SupportTalkView.axaml.cs", "UnitPortraitFromAddrU8Loader")]        // FE8: B0 = u8 partner1 ID
+        [InlineData("SupportTalkFE6View.axaml.cs", "UnitPortraitFromAddrU8Loader")]     // FE6: B0 = u8 partner1 ID
+        [InlineData("SupportTalkFE7View.axaml.cs", "UnitPortraitFromAddrU8Loader")]     // FE7: B0 = u8 partner1 ID
+        public void View_UsesUnitPortraitFromAddrLoader(string viewFile, string loaderName)
         {
             string src = ReadViewSource(viewFile);
             Assert.Contains("SetItemsWithIcons(items", src);
-            Assert.Contains("UnitPortraitFromAddrU16Loader", src);
+            Assert.Contains(loaderName, src);
         }
 
         // ---- Group E: Wait/Move icons ----
