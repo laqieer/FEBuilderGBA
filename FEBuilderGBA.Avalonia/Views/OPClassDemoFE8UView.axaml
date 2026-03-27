@@ -25,7 +25,10 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Display Weapon:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DisplayWeapon_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                     AutomationProperties.AutomationId="OPClassDemoFE8U_ClassId_Link"
+                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
+                     ToolTip.Tip="Click to open Class Editor" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_ClassId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />

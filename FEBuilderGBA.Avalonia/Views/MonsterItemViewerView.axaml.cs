@@ -1,8 +1,10 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -78,6 +80,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Monster item data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterItemViewerView.Write: {0}", ex.Message); }
+        }
+
+        void OnItemIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint itemId = (uint)(ItemIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + itemId * rom.RomInfo.item_datasize;
+                if (rom.RomInfo.version == 6)
+                    WindowManager.Instance.Navigate<ItemFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("OnItemIdLinkClick failed: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

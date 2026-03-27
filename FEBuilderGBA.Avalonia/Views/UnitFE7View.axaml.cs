@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -149,6 +150,38 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error($"JumpToDesc failed: {ex.Message}");
             }
+        }
+
+        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint classId = (uint)(ClassIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
+                WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+        }
+
+        void OnPortraitLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+                uint addr = baseAddr + portraitId * dataSize;
+                WindowManager.Instance.Navigate<PortraitViewerView>(addr);
+            }
+            catch (Exception ex) { Log.Error("OnPortraitLinkClick failed: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SummonUnitViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Summoner:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Summoner:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="SummonUnitViewer_SummonerId_Link"
+                     Classes="Hyperlink" Name="SummonerId_Link" PointerPressed="OnSummonerIdLinkClick"
+                     ToolTip.Tip="Click to open Unit Editor" />
           <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Summoned Unit:" VerticalAlignment="Center" />

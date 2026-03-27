@@ -42,9 +42,15 @@
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitFE6_ClassId_Link"
+                         Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
+                         ToolTip.Tip="Click to open Class Editor" />
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_ClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2"
+                         AutomationProperties.AutomationId="UnitFE6_Portrait_Link"
+                         Classes="Hyperlink" Name="Portrait_Link" PointerPressed="OnPortraitLinkClick"
+                         ToolTip.Tip="Click to open Portrait Viewer" />
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_PortraitId_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />

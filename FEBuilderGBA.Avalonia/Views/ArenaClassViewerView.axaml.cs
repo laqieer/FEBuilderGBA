@@ -1,8 +1,10 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -86,6 +88,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Arena Class data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaClassViewerView.Write: {0}", ex.Message); }
+        }
+
+        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint classId = (uint)(ClassIdBox.Value ?? 0);
+                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
+                if (rom.RomInfo.version == 6)
+                    WindowManager.Instance.Navigate<ClassFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

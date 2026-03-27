@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -101,6 +102,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("SoundRoomViewerView.Write_Click failed: {0}", ex.Message);
             }
+        }
+
+        void OnSongIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            JumpToSong_Click(sender, new RoutedEventArgs());
         }
 
         void JumpToSong_Click(object? sender, RoutedEventArgs e)

@@ -18,7 +18,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="ArenaClassViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ArenaClassViewer_ClassId_Link"
+                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
+                     ToolTip.Tip="Click to open Class Editor" />
           <NumericUpDown AutomationProperties.AutomationId="ArenaClassViewer_ClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 

@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="LinkArenaDenyUnitViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="LinkArenaDenyUnitViewer_UnitId_Link"
+                     Classes="Hyperlink" Name="UnitId_Link" PointerPressed="OnUnitIdLinkClick"
+                     ToolTip.Tip="Click to open Unit Editor" />
           <NumericUpDown AutomationProperties.AutomationId="LinkArenaDenyUnitViewer_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 

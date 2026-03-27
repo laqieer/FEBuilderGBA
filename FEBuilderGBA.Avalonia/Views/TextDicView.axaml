@@ -36,12 +36,18 @@
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Flag 2:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="TextDic_Flag2_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="Flag2Box" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2"
+                     AutomationProperties.AutomationId="TextDic_UnitId_Link"
+                     Classes="Hyperlink" Name="UnitId_Link" PointerPressed="OnUnitIdLinkClick"
+                     ToolTip.Tip="Click to open Unit Editor" />
           <NumericUpDown AutomationProperties.AutomationId="TextDic_UnitId_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="4" Grid.Column="3" Text="Unit:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="TextDic_UnitName_Label" Grid.Row="4" Grid.Column="4" Name="UnitNameLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                     AutomationProperties.AutomationId="TextDic_ClassId_Link"
+                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
+                     ToolTip.Tip="Click to open Class Editor" />
           <NumericUpDown AutomationProperties.AutomationId="TextDic_ClassId_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="100" Margin="0,2" />
           <TextBlock Grid.Row="5" Grid.Column="3" Text="Class:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="TextDic_ClassName_Label" Grid.Row="5" Grid.Column="4" Name="ClassNameLabel" VerticalAlignment="Center" />
