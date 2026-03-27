@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         Minimum = 0,
                         Maximum = 255,
                         Value = 0,
-                        Width = 100,
+                        Width = 120,
                         FontSize = 11,
                         Tag = index,
                     };

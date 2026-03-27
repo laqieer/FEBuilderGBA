@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===================================================================
 
         [AvaloniaFact]
-        public void ClassEditorView_AllNumericUpDowns_HaveMinWidth90()
+        public void ClassEditorView_AllNumericUpDowns_HaveMinWidth120()
         {
             var view = new ClassEditorView();
             var nuds = CollectNumericUpDowns(view);
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var tooSmall = new List<string>();
             foreach (var nud in nuds)
             {
-                if (nud.MinWidth < 90)
+                if (nud.MinWidth < 120)
                 {
                     tooSmall.Add($"{nud.Name ?? "(unnamed)"}: MinWidth={nud.MinWidth}");
                 }
