@@ -5,6 +5,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -30,6 +31,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // Set trait flag names
             Trait1Flags.SetBitNames(AbilityFlagNames.ItemTrait1);
             Trait2Flags.SetBitNames(AbilityFlagNames.ItemTrait2);
+
+            // Wire desc text live updates
+            DescIdBox.ValueChanged += OnDescIdChanged;
+            UseDescIdBox.ValueChanged += OnUseDescIdChanged;
         }
 
         void LoadList()
@@ -49,6 +54,62 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ItemEditorView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void OnDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DescIdBox.Value ?? 0);
+            try { DescTextLabel.Text = NameResolver.GetTextById(id); }
+            catch { DescTextLabel.Text = ""; }
+        }
+
+        void OnUseDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(UseDescIdBox.Value ?? 0);
+            try { UseDescTextLabel.Text = NameResolver.GetTextById(id); }
+            catch { UseDescTextLabel.Text = ""; }
+        }
+
+        void JumpToDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint textId = (uint)(DescIdBox.Value ?? 0);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr == 0) return;
+                uint baseAddr = rom.p32(textPtr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToDesc failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpToUseDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint textId = (uint)(UseDescIdBox.Value ?? 0);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr == 0) return;
+                uint baseAddr = rom.p32(textPtr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToUseDesc failed: {0}", ex.Message);
             }
         }
 
@@ -84,7 +145,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // Text IDs
             NameIdBox.Value = _vm.NameId;
             DescIdBox.Value = _vm.DescId;
+            DescTextLabel.Text = _vm.DescText;
             UseDescIdBox.Value = _vm.UseDescId;
+            UseDescTextLabel.Text = _vm.UseDescText;
 
             // Identity
             ItemNumberBox.Value = _vm.ItemNumber;

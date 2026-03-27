@@ -127,6 +127,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True when the magic split patch is detected and extension fields should be shown.</summary>
         public bool ShowMagicExtension { get => _showMagicExtension; private set => SetField(ref _showMagicExtension, value); }
 
+        // Description text preview
+        string _descText = "";
+
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
+
         // Growth simulator
         string _growthSimText = "";
         uint _simLevel = 20;
@@ -212,6 +218,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
 
             // Base stats (b12-b19, signed bytes matching WinForms)
             HP = (int)(sbyte)rom.u8(addr + 12);

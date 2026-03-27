@@ -44,6 +44,9 @@ namespace FEBuilderGBA.Avalonia.Views
             BaseDefBox.ValueChanged += OnGrowthInputChanged;
             BaseResBox.ValueChanged += OnGrowthInputChanged;
 
+            // Wire desc text live update
+            DescIdBox.ValueChanged += OnDescIdChanged;
+
             // Wire weapon rank label updates
             B44Box.ValueChanged += OnWeaponValueChanged;
             B45Box.ValueChanged += OnWeaponValueChanged;
@@ -210,6 +213,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Identity
                 NameIdBox.Value = _vm.NameId;
                 DescIdBox.Value = _vm.DescId;
+                DescTextLabel.Text = _vm.DescText;
                 ClassNumberBox.Value = _vm.ClassNumber;
                 PromotionLevelBox.Value = _vm.PromotionLevel;
                 WaitIconBox.Value = _vm.WaitIcon;
@@ -309,6 +313,34 @@ namespace FEBuilderGBA.Avalonia.Views
 
             _vm.CalculateGrowth();
             GrowthSimLabel.Text = _vm.GrowthSimText;
+        }
+
+        void OnDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DescIdBox.Value ?? 0);
+            try { DescTextLabel.Text = NameResolver.GetTextById(id); }
+            catch { DescTextLabel.Text = ""; }
+        }
+
+        void JumpToDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint textId = (uint)(DescIdBox.Value ?? 0);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr == 0) return;
+                uint baseAddr = rom.p32(textPtr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToDesc failed: {0}", ex.Message);
+            }
         }
 
         void OnWeaponValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
