@@ -59,6 +59,9 @@ ss-stdout.txt
 docs/screenshots/*_test_output.txt
 cli-logs/
 
+# Prevent screenshots in project root (use pr-screenshots/ instead)
+/*.png
+
 # IDE / editor
 .vs/
 .claude/*
