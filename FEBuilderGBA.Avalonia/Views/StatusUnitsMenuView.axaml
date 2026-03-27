@@ -20,12 +20,18 @@
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Item Name Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusUnitsMenu_ItemNameTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ItemNameTextIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Name="ItemNameTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Reference Data:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusUnitsMenu_ReferenceData_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ReferenceDataBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="RMenu Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusUnitsMenu_RMenuTextId_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="RMenuTextIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="4" Grid.Column="2" Name="RMenuTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

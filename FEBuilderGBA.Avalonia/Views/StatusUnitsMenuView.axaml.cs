@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -19,7 +20,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            ItemNameTextIdBox.ValueChanged += OnItemNameTextIdChanged;
+            RMenuTextIdBox.ValueChanged += OnRMenuTextIdChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnItemNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(ItemNameTextIdBox.Value ?? 0);
+            try { ItemNameTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { ItemNameTextPreview.Text = ""; }
+        }
+
+        void OnRMenuTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(RMenuTextIdBox.Value ?? 0);
+            try { RMenuTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { RMenuTextPreview.Text = ""; }
         }
 
         void LoadList()
@@ -57,8 +76,12 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             OrderBox.Value = _vm.Order;
             ItemNameTextIdBox.Value = _vm.ItemNameTextId;
+            try { ItemNameTextPreview.Text = _vm.ItemNameTextId != 0 ? NameResolver.GetTextById(_vm.ItemNameTextId) : ""; }
+            catch { ItemNameTextPreview.Text = ""; }
             ReferenceDataBox.Value = _vm.ReferenceData;
             RMenuTextIdBox.Value = _vm.RMenuTextId;
+            try { RMenuTextPreview.Text = _vm.RMenuTextId != 0 ? NameResolver.GetTextById(_vm.RMenuTextId) : ""; }
+            catch { RMenuTextPreview.Text = ""; }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

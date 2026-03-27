@@ -17,12 +17,21 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="ID Text:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_IdTextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="IdTextIdBox" Minimum="0" Maximum="4294967295" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Name="IdTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_NameTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_HelpTextId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="2" Name="HelpTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="X Position:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_PosX_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="PosXBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
@@ -44,9 +53,15 @@
 
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Default Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_DefaultTextId_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="DefaultTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="2" Name="DefaultTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Yes Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_YesTextId_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="YesTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="11" Grid.Column="2" Name="YesTextPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="12" Grid.Column="0" Text="Min Value:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusOption_MinValue_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="MinValueBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />

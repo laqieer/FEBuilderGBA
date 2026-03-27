@@ -35,6 +35,9 @@
 
           <TextBlock Grid.Row="7" Grid.Column="0" Text="Text ID (TID):" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="StatusRMenu_TextId_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
+          <TextBlock Grid.Row="7" Grid.Column="2" Name="TextIdPreview" Foreground="Gray" FontSize="11"
+                     VerticalAlignment="Center" Margin="4,0,0,0"
+                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Loop Routine:" VerticalAlignment="Center" />
           <TextBox AutomationProperties.AutomationId="StatusRMenu_Loop_Input" Grid.Row="8" Grid.Column="1" Name="LoopBox" Width="200" Margin="0,2" />

@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -18,7 +19,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            NameTextIdBox.ValueChanged += OnNameTextIdChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(NameTextIdBox.Value ?? 0);
+            try { NameTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { NameTextPreview.Text = ""; }
         }
 
         void LoadList()
@@ -75,6 +85,8 @@ namespace FEBuilderGBA.Avalonia.Views
             CoordinateXBox.Value = _vm.CoordinateX;
             CoordinateYBox.Value = _vm.CoordinateY;
             NameTextIdBox.Value = _vm.NameTextId;
+            try { NameTextPreview.Text = _vm.NameTextId != 0 ? NameResolver.GetTextById(_vm.NameTextId) : ""; }
+            catch { NameTextPreview.Text = ""; }
             ShipSettingBox.Value = _vm.ShipSetting;
         }
 

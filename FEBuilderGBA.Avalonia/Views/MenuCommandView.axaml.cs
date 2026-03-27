@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -19,7 +20,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            NameTextIdBox.ValueChanged += OnNameTextIdChanged;
+            HelpTextIdBox.ValueChanged += OnHelpTextIdChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnNameTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(NameTextIdBox.Value ?? 0);
+            try { NameTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { NameTextPreview.Text = ""; }
+        }
+
+        void OnHelpTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(HelpTextIdBox.Value ?? 0);
+            try { HelpTextPreview.Text = id != 0 ? NameResolver.GetTextById(id) : ""; }
+            catch { HelpTextPreview.Text = ""; }
         }
 
         void LoadList()
@@ -57,7 +76,11 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             JpNamePtrBox.Text = $"0x{_vm.JpNamePointer:X08}";
             NameTextIdBox.Value = _vm.NameTextId;
+            try { NameTextPreview.Text = _vm.NameTextId != 0 ? NameResolver.GetTextById(_vm.NameTextId) : ""; }
+            catch { NameTextPreview.Text = ""; }
             HelpTextIdBox.Value = _vm.HelpTextId;
+            try { HelpTextPreview.Text = _vm.HelpTextId != 0 ? NameResolver.GetTextById(_vm.HelpTextId) : ""; }
+            catch { HelpTextPreview.Text = ""; }
             ColorIdBox.Text = $"0x{_vm.ColorAndIdDword:X08}";
             UsabilityBox.Text = $"0x{_vm.UsabilityRoutine:X08}";
             DrawBox.Text = $"0x{_vm.DrawRoutine:X08}";
