@@ -103,6 +103,35 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Resolve the portrait ID for a unit by unit ID (not address).
+        /// Looks up the unit struct from the unit table, then calls ResolveUnitPortraitId.
+        /// </summary>
+        public static uint ResolveUnitPortraitIdByUnitId(uint unitId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || unitId == 0) return 0;
+
+            try
+            {
+                uint unitPtr = rom.RomInfo.unit_pointer;
+                if (unitPtr == 0) return 0;
+
+                uint unitBase = rom.p32(unitPtr);
+                if (!U.isSafetyOffset(unitBase)) return 0;
+
+                uint unitSize = rom.RomInfo.unit_datasize;
+                uint unitAddr = unitBase + unitId * unitSize;
+                if (unitAddr + unitSize > (uint)rom.Data.Length) return 0;
+
+                return ResolveUnitPortraitId(unitAddr);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
         /// Get the portrait ID associated with a class ID (offset +8 in class struct).
         /// Returns 0 if the class has no portrait.
         /// </summary>

@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadSupportUnitList();
-                SupportList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitLoader(items, i));
+                SupportList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
             }
             catch (Exception ex)
             {
