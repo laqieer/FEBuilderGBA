@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="ItemRandomChest_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Item:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Item:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemRandomChest_ItemId_Link"
+                     Classes="Hyperlink" Name="ItemId_Link" PointerPressed="OnItemIdLinkClick"
+                     ToolTip.Tip="Click to open Item Editor" />
           <NumericUpDown AutomationProperties.AutomationId="ItemRandomChest_ItemId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemIdBox" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Probability %:" VerticalAlignment="Center" />

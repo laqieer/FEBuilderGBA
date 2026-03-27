@@ -15,7 +15,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SoundRoomViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="SoundRoomViewer_SongId_Link"
+                     Classes="Hyperlink" Name="SongId_Link" PointerPressed="OnSongIdLinkClick"
+                     ToolTip.Tip="Click to open Song Table" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_SongId_Input" FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
             <Button AutomationProperties.AutomationId="SoundRoomViewer_JumpToSong_Button" Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />

@@ -16,7 +16,10 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="ItemPromotionViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Target Class ID:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Target Class ID:" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemPromotionViewer_TargetClassId_Link"
+                     Classes="Hyperlink" Name="TargetClassId_Link" PointerPressed="OnTargetClassIdLinkClick"
+                     ToolTip.Tip="Click to open Class Editor" />
           <NumericUpDown AutomationProperties.AutomationId="ItemPromotionViewer_TargetClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TargetClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
         </Grid>
 

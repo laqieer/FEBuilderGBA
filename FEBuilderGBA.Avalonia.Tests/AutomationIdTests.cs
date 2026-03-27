@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         private static readonly string[] ValidSuffixes = new[]
         {
             "_Input", "_Combo", "_Button", "_List", "_Check",
-            "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control"
+            "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link"
         };
 
         /// <summary>
