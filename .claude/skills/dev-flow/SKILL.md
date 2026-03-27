@@ -33,22 +33,24 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 8. **Tests** — add unit tests, run all test suites, ensure passing.
 9. **Commit and push** — one logical change per commit, reference issue number.
 ### Step 9.5 — Capture screenshots (feat/fix PRs ONLY — BEFORE opening PR)
-    ```bash
-    # Launch app
-    dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
-    sleep 15
-    # One-time setup (run once per clone):
-    #   dotnet new console -o tools/WinCapture --force -n WinCapture
-    #   cp tools/capture-window.cs tools/WinCapture/Program.cs
-    #   cd tools/WinCapture && dotnet add package System.Drawing.Common && dotnet build -c Release
-    # Navigate to the SPECIFIC affected editor (NOT the main window!)
-    powershell -Command "Add-Type -AssemblyName UIAutomationClient; <# locate and invoke target editor button #>"
-    # Capture THAT editor
-    dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshots/prN-editor.png
-    # Commit to pr-screenshots/ on master (via docs PR) or use GitHub asset upload
-    # Reference via raw.githubusercontent.com/{owner}/{repo}/{SHA}/pr-screenshots/... URL
-    ```
-    **CRITICAL: The screenshot MUST show the specific editor that was changed, with populated data. NEVER use the generic main Avalonia window.**
+
+```bash
+# Launch app
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
+sleep 15
+# One-time setup (run once per clone):
+#   dotnet new console -o tools/WinCapture --force -n WinCapture
+#   cp tools/capture-window.cs tools/WinCapture/Program.cs
+#   cd tools/WinCapture && dotnet add package System.Drawing.Common && dotnet build -c Release
+# Navigate to the SPECIFIC affected editor (NOT the main window!)
+powershell -Command "Add-Type -AssemblyName UIAutomationClient; <# locate and invoke target editor button #>"
+# Capture THAT editor
+dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshots/prN-editor.png
+# Commit to pr-screenshots/ on master (via docs PR) or use GitHub asset upload
+# Reference via raw.githubusercontent.com/{owner}/{repo}/{SHA}/pr-screenshots/... URL
+```
+
+**CRITICAL: The screenshot MUST show the specific editor that was changed, with populated data. NEVER use the generic main Avalonia window.**
 
 ## Phase 3 — PR & Review Loop
 
