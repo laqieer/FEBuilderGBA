@@ -1,0 +1,23 @@
+// Class Alpha Name struct definition (FE6/FE8J)
+// 20 bytes per entry
+@ClassAlphaName 14
+0x00	B	Char00	Character 0
+0x01	B	Char01	Character 1
+0x02	B	Char02	Character 2
+0x03	B	Char03	Character 3
+0x04	B	Char04	Character 4
+0x05	B	Char05	Character 5
+0x06	B	Char06	Character 6
+0x07	B	Char07	Character 7
+0x08	B	Char08	Character 8
+0x09	B	Char09	Character 9
+0x0A	B	Char0A	Character 10
+0x0B	B	Char0B	Character 11
+0x0C	B	Char0C	Character 12
+0x0D	B	Char0D	Character 13
+0x0E	B	Char0E	Character 14
+0x0F	B	Char0F	Character 15
+0x10	B	Char10	Character 16
+0x11	B	Char11	Character 17
+0x12	B	Char12	Character 18
+0x13	B	Char13	Character 19

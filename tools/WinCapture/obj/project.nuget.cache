@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "UoHAOrkMFww=",
+  "dgSpecHash": "FSpz+CakEto=",
   "success": true,
-  "projectFilePath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-aaae04cc\\tools\\WinCapture\\WinCapture.csproj",
+  "projectFilePath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-a35dc19a\\tools\\WinCapture\\WinCapture.csproj",
   "expectedPackageFiles": [
     "C:\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.5\\microsoft.win32.systemevents.10.0.5.nupkg.sha512",
     "C:\\.nuget\\packages\\system.drawing.common\\10.0.5\\system.drawing.common.10.0.5.nupkg.sha512"

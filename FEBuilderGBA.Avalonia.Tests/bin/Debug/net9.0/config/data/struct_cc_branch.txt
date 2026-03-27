@@ -1,0 +1,5 @@
+// Class Change Branch struct definition (FE8 only)
+// 2 bytes per entry
+@CCBranch 02
+0x00	B	ClassID1	Branch class 1
+0x01	B	ClassID2	Branch class 2

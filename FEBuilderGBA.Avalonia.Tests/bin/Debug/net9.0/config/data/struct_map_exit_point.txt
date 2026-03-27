@@ -1,0 +1,4 @@
+// Map Exit Point struct definition (all versions)
+// 4 bytes per entry (pointer to exit data)
+@MapExitPoint 04
+0x00	P	ExitPointer	Pointer to exit point data

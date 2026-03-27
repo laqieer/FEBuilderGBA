@@ -1,0 +1,22 @@
+// World Map Point struct definition (FE8 only)
+// 32 bytes per entry
+@WorldMapPoint 20
+0x00	B	AlwaysAccessible	Always accessible flag
+0x01	B	PreClearIcon	Pre-clear icon type
+0x02	B	PostClearIcon	Post-clear icon type
+0x03	B	FreeMapType	Free map type
+0x04	B	Field04	Field 0x04
+0x05	B	Field05	Field 0x05
+0x06	W	Field06	Field 0x06
+0x08	B	NextPointA	Next point route A
+0x09	B	NextPointB	Next point route B
+0x0A	B	NextPointC	Next point route C
+0x0B	B	NextPointD	Next point route D
+0x0C	P	Pointer0C	Pointer 0x0C
+0x10	P	Pointer10	Pointer 0x10
+0x14	P	Pointer14	Pointer 0x14
+0x18	W	TerrainY	Terrain Y coordinate
+0x1A	W	Field1A	Field 0x1A
+0x1C	W	Field1C	Field 0x1C
+0x1E	B	Field1E	Field 0x1E
+0x1F	B	Field1F	Field 0x1F

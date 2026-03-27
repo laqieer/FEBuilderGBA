@@ -1,0 +1,6 @@
+// World Map Path struct definition (FE8 only)
+// 12 bytes per entry
+@WorldMapPath 0C
+0x00	P	PathDataPtr1	Path data pointer 1
+0x04	P	PathDataPtr2	Path data pointer 2
+0x08	P	PathDataPtr3	Path data pointer 3

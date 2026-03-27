@@ -159,11 +159,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-aaae04cc\\tools\\WinCapture\\WinCapture.csproj",
+      "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-a35dc19a\\tools\\WinCapture\\WinCapture.csproj",
       "projectName": "WinCapture",
-      "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-aaae04cc\\tools\\WinCapture\\WinCapture.csproj",
+      "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-a35dc19a\\tools\\WinCapture\\WinCapture.csproj",
       "packagesPath": "C:\\.nuget\\packages",
-      "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-aaae04cc\\tools\\WinCapture\\obj\\",
+      "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\FEBuilderGBA\\.claude\\worktrees\\agent-a35dc19a\\tools\\WinCapture\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

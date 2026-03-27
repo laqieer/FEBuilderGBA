@@ -38,24 +38,33 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===================================================================
 
         [Fact]
-        public void AppAxaml_NumericUpDown_GlobalMinWidth_IsAtLeast120()
+        public void AppAndTestApp_NumericUpDown_GlobalMinWidth_IsAtLeast120()
         {
-            // Verify App.axaml global style sets MinWidth >= 120 for NumericUpDown (#315).
-            // Note: headless tests don't load App.axaml styles, so we verify the file content directly.
-            // Walk up from test assembly to find the Avalonia project
+            // Verify both App.axaml and TestApp.axaml define MinWidth >= 120 for NumericUpDown (#315).
             string dir = AppContext.BaseDirectory;
             while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "App.axaml")))
                 dir = System.IO.Path.GetDirectoryName(dir);
             Assert.NotNull(dir);
-            string appAxaml = System.IO.File.ReadAllText(
-                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia", "App.axaml"));
-            Assert.Contains("NumericUpDown", appAxaml);
-            // Extract MinWidth value from the NumericUpDown style
-            var match = System.Text.RegularExpressions.Regex.Match(
-                appAxaml, @"MinWidth""\s+Value=""(\d+)""");
-            Assert.True(match.Success, "App.axaml should define MinWidth for NumericUpDown");
-            int minWidth = int.Parse(match.Groups[1].Value);
-            Assert.True(minWidth >= 120, $"NumericUpDown MinWidth should be >= 120, was {minWidth}");
+
+            // Check both files
+            var files = new[]
+            {
+                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia", "App.axaml"),
+                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia.Tests", "TestApp.axaml"),
+            };
+            // Regex scoped to NumericUpDown style block (Singleline: . matches \n)
+            var pattern = new System.Text.RegularExpressions.Regex(
+                @"Selector=""NumericUpDown"".+?MinWidth.+?Value=""(\d+)""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            foreach (var file in files)
+            {
+                string content = System.IO.File.ReadAllText(file);
+                var match = pattern.Match(content);
+                Assert.True(match.Success, $"{System.IO.Path.GetFileName(file)} should define MinWidth for NumericUpDown style");
+                int minWidth = int.Parse(match.Groups[1].Value);
+                Assert.True(minWidth >= 120, $"{System.IO.Path.GetFileName(file)}: NumericUpDown MinWidth should be >= 120, was {minWidth}");
+            }
         }
 
         // ===================================================================

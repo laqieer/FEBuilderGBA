@@ -5,7 +5,7 @@
     <FluentTheme />
     <!-- Mirror App.axaml global styles for headless testing (#315) -->
     <Style Selector="NumericUpDown">
-      <Setter Property="MinWidth" Value="90"/>
+      <Setter Property="MinWidth" Value="120"/>
     </Style>
     <!-- Clickable hyperlink labels for cross-editor navigation (#318) -->
     <Style Selector="TextBlock.Hyperlink">

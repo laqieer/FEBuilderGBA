@@ -1,0 +1,16 @@
+// OP Class Demo struct definition (FE7/FE8)
+// 28 bytes per entry
+@OPClassDemo 1C
+0x00	P	Pointer0	Pointer 0
+0x04	D	Field04	Dword 4
+0x08	P	Pointer8	Pointer 8
+0x0C	B	Field0C	Byte 0C
+0x0D	B	Field0D	Byte 0D
+0x0E	B	Field0E	Byte 0E
+0x0F	B	Field0F	Byte 0F
+0x10	B	Field10	Byte 10
+0x11	B	Field11	Byte 11
+0x12	D	Field12	Dword 12
+0x16	B	Field16	Byte 16
+0x17	B	Field17	Byte 17
+0x18	P	Pointer18	Pointer 18

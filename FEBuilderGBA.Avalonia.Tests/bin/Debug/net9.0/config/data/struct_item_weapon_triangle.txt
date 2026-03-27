@@ -1,0 +1,7 @@
+// Item Weapon Triangle struct definition (all versions)
+// 4 bytes per entry
+@ItemWeaponTriangle 04
+0x00	B	WeaponType1	First weapon type
+0x01	B	WeaponType2	Second weapon type
+0x02	B	AtkBonus	Attack bonus (signed)
+0x03	B	HitBonus	Hit bonus (signed)
