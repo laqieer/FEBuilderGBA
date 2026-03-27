@@ -25,8 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             _vm.IsLoading = true;
-            try { var items = _vm.LoadOPClassFontList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("OPClassFontViewerView.LoadList: {0}", ex.Message); }
+            try { var items = _vm.LoadOPClassFontList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i)); }
+            catch (Exception ex) { Log.Error($"OPClassFontViewerView.LoadList: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("OPClassFontViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error($"OPClassFontViewerView.OnSelected: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("OP Class Font data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassFontViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassFontViewerView.Write: {ex.Message}"); }
         }
 
         static uint ParseHexText(string? text)

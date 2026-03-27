@@ -96,7 +96,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _suppressEvents = false;
 
                 var items = _vm.LoadClassList();
-                ClassList.SetItems(items);
+                ClassList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
             }
             catch (Exception ex)
             {

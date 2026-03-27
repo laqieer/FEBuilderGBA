@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadSoundBossBGMList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
             }
             catch (Exception ex)
             {

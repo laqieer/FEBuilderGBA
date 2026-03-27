@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
-            try { var items = _vm.LoadItemIconList(); EntryList.SetItems(items); }
+            try { var items = _vm.LoadItemIconList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.DirectItemIconLoader(items, i)); }
             catch (Exception ex) { Log.Error("ItemIconViewerView.LoadList: {0}", ex.Message); }
         }
 

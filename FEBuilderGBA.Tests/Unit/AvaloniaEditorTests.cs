@@ -1535,14 +1535,14 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
             Assert.Contains("SetItemsWithIcons(items", src);
-            Assert.Contains("LoadUnitPortraitThumbnail", src);
+            Assert.Contains("ListIconLoaders.UnitPortraitLoader", src);
         }
 
         [Fact]
         public void UnitEditorView_PortraitThumbnailUsesResolveHelper()
         {
-            // Portrait ID resolution now uses the shared helper
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            // Portrait ID resolution is now centralized in ListIconLoaders
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ListIconLoaders.cs"));
             Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId(addr)", src);
             Assert.Contains("PreviewIconHelper.LoadPortraitMini(portraitId)", src);
             Assert.Contains("ImageConversionHelper.ToAvaloniaBitmap(img)", src);
@@ -1551,8 +1551,8 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void UnitEditorView_PortraitThumbnailDisposesIImage()
         {
-            // The IImage from PreviewIconHelper should be disposed after conversion
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            // The IImage from PreviewIconHelper should be disposed after conversion in ListIconLoaders
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ListIconLoaders.cs"));
             Assert.Contains("using var img = PreviewIconHelper.LoadPortraitMini", src);
         }
 
@@ -1590,23 +1590,23 @@ namespace FEBuilderGBA.Tests.Unit
             // FE6 view must also show portrait icons in the list (#56)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
             Assert.Contains("SetItemsWithIcons(items", src);
-            Assert.Contains("LoadUnitPortraitThumbnail", src);
+            Assert.Contains("ListIconLoaders.UnitPortraitLoader", src);
         }
 
         [Fact]
         public void UnitEditorView_HasPortraitFallbackViaResolveHelper()
         {
-            // When portrait ID is 0, use ResolveUnitPortraitId helper (#56)
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            // Portrait fallback via ResolveUnitPortraitId now in centralized ListIconLoaders (#56)
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "ListIconLoaders.cs"));
             Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
         }
 
         [Fact]
         public void UnitFE6View_HasPortraitFallbackViaResolveHelper()
         {
-            // FE6 view also uses the shared resolve helper (#56)
+            // FE6 view uses centralized ListIconLoaders which calls the shared resolve helper (#56)
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
-            Assert.Contains("PreviewIconHelper.ResolveUnitPortraitId", src);
+            Assert.Contains("ListIconLoaders.UnitPortraitLoader", src);
         }
 
         [Fact]

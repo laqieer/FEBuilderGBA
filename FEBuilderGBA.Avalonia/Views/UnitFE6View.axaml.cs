@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -28,32 +26,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadUnitList();
-                EntryList.SetItemsWithIcons(items, index => LoadUnitPortraitThumbnail(items, index));
+                EntryList.SetItemsWithIcons(items, index => ListIconLoaders.UnitPortraitLoader(items, index));
             }
             catch (Exception ex)
             {
                 Log.Error("UnitFE6View.LoadList failed: {0}", ex.Message);
-            }
-        }
-
-        Bitmap? LoadUnitPortraitThumbnail(List<AddrResult> items, int index)
-        {
-            if (index < 0 || index >= items.Count) return null;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return null;
-
-            try
-            {
-                uint addr = items[index].addr;
-                uint portraitId = PreviewIconHelper.ResolveUnitPortraitId(addr);
-                if (portraitId == 0) return null;
-
-                using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
-                return ImageConversionHelper.ToAvaloniaBitmap(img);
-            }
-            catch
-            {
-                return null;
             }
         }
 

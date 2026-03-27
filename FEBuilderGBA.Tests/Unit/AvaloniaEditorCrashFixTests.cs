@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Tests.Unit
         [Theory]
         [InlineData("UnitEditorView.axaml.cs", "ClassIdCombo.ItemsSource", ".SetItemsWithIcons(items")]
         [InlineData("UnitEditorView.axaml.cs", "AffinityCombo.ItemsSource", ".SetItemsWithIcons(items")]
-        [InlineData("ItemEditorView.axaml.cs", "WeaponTypeCombo.ItemsSource", ".SetItems(items)")]
+        [InlineData("ItemEditorView.axaml.cs", "WeaponTypeCombo.ItemsSource", ".SetItemsWithIcons(items")]
         public void ComboItemsSource_SetBeforeSetItems(string fileName, string comboAssign, string setItemsCall)
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", fileName));

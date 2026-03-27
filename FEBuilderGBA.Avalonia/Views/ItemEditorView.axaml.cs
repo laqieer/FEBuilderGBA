@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 EditSkillConfigButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
 
                 var items = _vm.LoadItemList();
-                ItemList.SetItems(items);
+                ItemList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
             }
             catch (Exception ex)
             {

@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ConfigureVersionUI();
 
                 var items = _vm.LoadClassList();
-                ClassList.SetItems(items);
+                ClassList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
 
                 // Show "Edit Skills" button if a skill system with class assignment is installed
                 var skillType = PatchDetectionService.Instance.SkillSystem;

@@ -25,8 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             _vm.IsLoading = true;
-            try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("OPClassDemoViewerView.LoadList: {0}", ex.Message); }
+            try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i)); }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadList: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadOPClassDemo(addr);
                 UpdateUI();
             }
-            catch (Exception ex) { Log.Error("OPClassDemoViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.OnSelected: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("OP Class Demo data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassDemoViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.Write: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
