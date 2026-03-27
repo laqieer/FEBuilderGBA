@@ -42,7 +42,14 @@
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center"
                        ToolTip.Tip="Text ID for this class's description" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassEditor_DescId_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="DescIdBox" Minimum="0" Maximum="65535" />
+            <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="ClassEditor_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" />
+              <TextBlock AutomationProperties.AutomationId="ClassEditor_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
+                         MaxWidth="200" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                         ToolTip.Tip="Decoded description text" />
+              <Button AutomationProperties.AutomationId="ClassEditor_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
+                      ToolTip.Tip="Open text viewer for this description" />
+            </StackPanel>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Class # (B4):" VerticalAlignment="Center"
                        ToolTip.Tip="Internal class number" />

@@ -40,6 +40,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire portrait name live update
             PortraitIdBox.ValueChanged += OnPortraitIdChanged;
+
+            // Wire desc text live update
+            DescIdBox.ValueChanged += OnDescIdChanged;
         }
 
         /// <summary>
@@ -95,6 +98,35 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.PortraitId = id;
             PortraitNameLabel.Text = NameResolver.GetPortraitName(id);
             TryShowPortrait();
+        }
+
+        void OnDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DescIdBox.Value ?? 0);
+            try { DescTextLabel.Text = NameResolver.GetTextById(id); }
+            catch { DescTextLabel.Text = ""; }
+        }
+
+        void JumpToDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint textId = (uint)(DescIdBox.Value ?? 0);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr == 0) return;
+                uint baseAddr = rom.p32(textPtr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                if (!U.isSafetyOffset(addr)) return;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"JumpToDesc failed: {ex.Message}");
+            }
         }
 
         void UpdateWeaponRankLabels()
@@ -199,6 +231,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Identity
             NameIdBox.Value = _vm.NameId;
             DescIdBox.Value = _vm.DescId;
+            DescTextLabel.Text = _vm.DescText;
             UnitIdBox.Value = _vm.UnitId;
 
             // Class combo

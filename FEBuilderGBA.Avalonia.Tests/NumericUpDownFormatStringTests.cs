@@ -281,5 +281,45 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.Empty(exceptions);
         }
+
+        // ===================================================================
+        // Desc text preview controls exist (#317)
+        // ===================================================================
+
+        [AvaloniaFact]
+        public void UnitEditorView_HasDescTextLabel()
+        {
+            var view = new UnitEditorView();
+            var label = view.FindControl<TextBlock>("DescTextLabel");
+            Assert.NotNull(label);
+            _output.WriteLine("UnitEditorView: DescTextLabel found");
+        }
+
+        [AvaloniaFact]
+        public void UnitFE6View_HasDescTextLabel()
+        {
+            var view = new UnitFE6View();
+            var label = view.FindControl<TextBlock>("DescTextLabel");
+            Assert.NotNull(label);
+            _output.WriteLine("UnitFE6View: DescTextLabel found");
+        }
+
+        [AvaloniaFact]
+        public void UnitFE7View_HasDescTextLabel()
+        {
+            var view = new UnitFE7View();
+            var label = view.FindControl<TextBlock>("DescTextLabel");
+            Assert.NotNull(label);
+            _output.WriteLine("UnitFE7View: DescTextLabel found");
+        }
+
+        [AvaloniaFact]
+        public void ItemFE6View_HasDescTextLabel()
+        {
+            var view = new ItemFE6View();
+            var label = view.FindControl<TextBlock>("DescTextLabel");
+            Assert.NotNull(label);
+            _output.WriteLine("ItemFE6View: DescTextLabel found");
+        }
     }
 }

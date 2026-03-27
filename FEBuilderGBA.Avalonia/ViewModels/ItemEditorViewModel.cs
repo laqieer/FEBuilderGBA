@@ -25,6 +25,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _weaponExp, _unk33, _unk34, _unk35;
         bool _canWrite;
 
+        // Description text previews
+        string _descText = "";
+        string _useDescText = "";
+
         // Skill system extension fields
         bool _showSkillField;
         string _skillName = "";
@@ -39,6 +43,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint DescId { get => _descId; set => SetField(ref _descId, value); }
         // W4: Usage description text ID
         public uint UseDescId { get => _useDescId; set => SetField(ref _useDescId, value); }
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
+        // Usage description text preview
+        public string UseDescText { get => _useDescText; set => SetField(ref _useDescText, value); }
         // B6: Item number / ID
         public uint ItemNumber { get => _itemNumber; set => SetField(ref _itemNumber, value); }
         // B7: Weapon type (0=sword,1=lance,2=axe,etc.)
@@ -252,6 +260,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
+
+            try { UseDescText = NameResolver.GetTextById(UseDescId); }
+            catch { UseDescText = ""; }
 
             // Identity
             ItemNumber = rom.u8(addr + 6);   // B6

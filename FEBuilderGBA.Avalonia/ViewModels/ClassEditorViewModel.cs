@@ -53,6 +53,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _showMagicExtension;
         uint _currentClassIndex; // 0-based index for MagicSplitUtil
 
+        // Description text preview
+        string _descText = "";
+
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -62,6 +65,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint NameId { get => _nameId; set => SetField(ref _nameId, value); }
         // W2: Description text ID
         public uint DescId { get => _descId; set => SetField(ref _descId, value); }
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
         // B4: Class Number
         public uint ClassNumber { get => _classNumber; set => SetField(ref _classNumber, value); }
         // B5: Promotion level / tier
@@ -212,6 +217,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DescId = rom.u16(addr + 2);       // W2
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
 
             // Identity (same offset for all versions)
             ClassNumber = rom.u8(addr + 4);   // B4
