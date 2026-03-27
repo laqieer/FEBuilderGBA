@@ -52,6 +52,8 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("CGThumbnailLoader")]
         [InlineData("CGFE7UThumbnailLoader")]
         [InlineData("SoundRoomCGThumbnailLoader")]
+        [InlineData("AttributeIconLoader")]
+        [InlineData("SkillIconLoader")]
         public void ListIconLoaders_HasMethod(string methodName)
         {
             string src = ReadServiceSource("ListIconLoaders.cs");
@@ -67,6 +69,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("LoadBGThumbnail")]
         [InlineData("LoadCGThumbnail")]
         [InlineData("LoadCGFE7UThumbnail")]
+        [InlineData("LoadItemIconWithWeaponPalette")]
+        [InlineData("LoadSkillIcon")]
+        [InlineData("FindSkillSystemIconBaseAddress")]
         public void PreviewIconHelper_HasMethod(string methodName)
         {
             string src = ReadServiceSource("PreviewIconHelper.cs");
@@ -202,6 +207,25 @@ namespace FEBuilderGBA.Core.Tests
             string src = ReadViewSource("SoundRoomCGView.axaml.cs");
             Assert.Contains("SetItemsWithIcons(items", src);
             Assert.Contains("SoundRoomCGThumbnailLoader", src);
+        }
+        // ---- Group J: Attribute icons ----
+
+        [Fact]
+        public void SupportAttributeView_UsesAttributeIconLoader()
+        {
+            string src = ReadViewSource("SupportAttributeView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("AttributeIconLoader", src);
+        }
+
+        // ---- Group K: Skill icons ----
+
+        [Fact]
+        public void SkillConfigSkillSystemView_UsesSkillIconLoader()
+        {
+            string src = ReadViewSource("SkillConfigSkillSystemView.axaml.cs");
+            Assert.Contains("SetItemsWithIcons(items", src);
+            Assert.Contains("SkillIconLoader", src);
         }
     }
 }

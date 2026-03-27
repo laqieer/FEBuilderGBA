@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.IsLoading = true;
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.SkillIconLoader(items, i));
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
