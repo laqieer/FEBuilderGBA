@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadItemEffectivenessList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
             }
             catch (Exception ex)
             {
