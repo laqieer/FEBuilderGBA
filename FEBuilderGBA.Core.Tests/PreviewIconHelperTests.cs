@@ -116,8 +116,8 @@ namespace FEBuilderGBA.Core.Tests
 
                 uint iconIndex = rom.u8(itemAddr + 29);
                 _output.WriteLine($"Item 1 (Iron Sword) icon index: {iconIndex}");
-                // Iron Sword should have an icon
-                Assert.True(iconIndex >= 0, "Icon index should be a valid non-negative value");
+                // Iron Sword should have a non-zero icon index
+                Assert.True(iconIndex > 0, "Item 1 (Iron Sword) should have a non-zero icon index");
             }
             finally
             {
