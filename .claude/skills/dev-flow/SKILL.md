@@ -32,7 +32,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 7. **Implement** per the accepted plan. No scope creep.
 8. **Tests** — add unit tests, run all test suites, ensure passing.
 9. **Commit and push** — one logical change per commit, reference issue number.
-9.5. **Capture screenshots** (feat/fix PRs ONLY — BEFORE opening PR):
+**Step 9.5 — Capture screenshots** (feat/fix PRs ONLY — BEFORE opening PR):
     ```bash
     # Launch app
     dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
