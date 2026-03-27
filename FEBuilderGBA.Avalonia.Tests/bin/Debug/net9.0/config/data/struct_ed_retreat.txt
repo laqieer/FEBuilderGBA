@@ -1,0 +1,7 @@
+// ED Retreat (Ending retreat/death quote) struct definition
+// 4 bytes per entry (ed_1_pointer, FE7/FE8 only)
+@EDRetreat 04
+0x00	B	UnitID	Unit ID
+0x01	B	Field01	Field 0x01
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03

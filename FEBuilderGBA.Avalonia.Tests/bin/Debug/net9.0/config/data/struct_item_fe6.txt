@@ -1,0 +1,23 @@
+// Item struct layout for FE6 (Binding Blade)
+// Size: 32 bytes (0x20)
+@Item_FE6 20
+0x00	W	NameTextID	Item name text ID
+0x02	W	DescTextID	Item description text ID
+0x04	W	UseDescTextID	Use description text ID
+0x06	B	ItemNumber	Item number
+0x07	B	WeaponType	Weapon type
+0x08	D	Ability	Item ability bitfield
+0x0C	P	StatBonusPointer	Stat bonus pointer
+0x10	P	EffectivenessPointer	Effectiveness pointer
+0x14	B	Durability	Max uses
+0x15	B	Might	Weapon power
+0x16	B	Hit	Hit rate
+0x17	B	Weight	Weight
+0x18	B	Crit	Critical rate
+0x19	B	MinRange	Minimum range
+0x1A	B	MaxRange	Maximum range
+0x1B	B	CostPerUse	Cost per use
+0x1C	B	WeaponRank	Required weapon rank
+0x1D	B	IconID	Icon index
+0x1E	B	UseEffect	Use effect index
+0x1F	B	WeaponEffect	Weapon effect index

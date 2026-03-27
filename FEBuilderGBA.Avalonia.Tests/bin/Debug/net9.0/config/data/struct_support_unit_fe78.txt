@@ -1,0 +1,21 @@
+// Support Unit struct definition for FE7/FE8
+// 24 bytes per entry - each byte is a supported unit ID
+@SupportUnit_FE78 18
+0x00	B	SupportUnit00	Support unit 0
+0x01	B	SupportUnit01	Support unit 1
+0x02	B	SupportUnit02	Support unit 2
+0x03	B	SupportUnit03	Support unit 3
+0x04	B	SupportUnit04	Support unit 4
+0x05	B	SupportUnit05	Support unit 5
+0x06	B	SupportUnit06	Support unit 6
+0x07	B	SupportUnit07	Support unit 7
+0x08	B	SupportUnit08	Support unit 8
+0x09	B	SupportUnit09	Support unit 9
+0x0A	B	SupportUnit0A	Support unit 10
+0x0B	B	SupportUnit0B	Support unit 11
+0x0C	B	SupportUnit0C	Support unit 12
+0x0D	B	SupportUnit0D	Support unit 13
+0x0E	B	SupportUnit0E	Support unit 14
+0x0F	B	SupportUnit0F	Support unit 15
+0x10	B	SupportUnit10	Support unit 16
+0x11	B	SupportUnit11	Support unit 17

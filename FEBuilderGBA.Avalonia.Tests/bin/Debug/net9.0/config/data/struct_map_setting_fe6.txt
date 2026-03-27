@@ -1,0 +1,53 @@
+// Map Setting struct definition for FE6
+// 68 bytes per entry (base, may be 72 with extended patch)
+@MapSetting_FE6 44
+0x00	D	EventDataPtr	Event data pointer
+0x04	W	PLISTObj	PLIST tileset obj
+0x06	B	PLISTPal	PLIST tileset palette
+0x07	B	PLISTConfig	PLIST tileset config
+0x08	B	PLISTMap	PLIST map data
+0x09	B	PLISTAnime1	PLIST tile animation 1
+0x0A	B	PLISTAnime2	PLIST tile animation 2
+0x0B	B	PLISTMapchange	PLIST map changes
+0x0C	B	Weather	Weather type
+0x0D	B	Field0D	Field 0x0D
+0x0E	B	ChapterTitleIndex	Chapter title index
+0x0F	B	Field0F	Field 0x0F
+0x10	B	Field10	Field 0x10
+0x11	B	Field11	Field 0x11
+0x12	B	TerrainTableID	Terrain table ID
+0x13	B	Field13	Field 0x13
+0x14	W	BGM1	BGM 1
+0x15	B	Field15	Field 0x15
+0x16	W	BGM2	BGM 2
+0x17	B	Field17	Field 0x17
+0x18	W	BGM3	BGM 3
+0x19	B	Field19	Field 0x19
+0x1A	B	Field1A	Field 0x1A
+0x1B	B	Field1B	Field 0x1B
+0x1C	B	Field1C	Field 0x1C
+0x1D	B	Field1D	Field 0x1D
+0x1E	B	Field1E	Field 0x1E
+0x1F	B	Field1F	Field 0x1F
+0x20	W	TextChapterName	Chapter name text
+0x22	W	Field22	Field 0x22
+0x24	W	Field24	Field 0x24
+0x26	W	Field26	Field 0x26
+0x28	W	Field28	Field 0x28
+0x2A	W	Field2A	Field 0x2A
+0x2C	W	Field2C	Field 0x2C
+0x2E	W	Field2E	Field 0x2E
+0x30	W	TextGoal	Goal text
+0x32	W	Field32	Field 0x32
+0x34	W	Field34	Field 0x34
+0x36	W	TextStatus	Status text
+0x38	W	Field38	Field 0x38
+0x3A	B	PLISTEvent	PLIST event
+0x3B	B	WorldMapEvent	World map event
+0x3C	W	TextObjective	Objective text
+0x3E	B	Field3E	Field 0x3E
+0x3F	B	Field3F	Field 0x3F
+0x40	B	Field40	Field 0x40
+0x41	B	Field41	Field 0x41
+0x42	B	Field42	Field 0x42
+0x43	B	Field43	Field 0x43

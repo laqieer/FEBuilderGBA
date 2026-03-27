@@ -1,0 +1,6 @@
+// AI Perform Staff struct definition (all versions)
+// 8 bytes per entry
+@AIPerformStaff 08
+0x00	W	StaffID	Staff item ID
+0x02	W	Field02	Unknown word
+0x04	P	ASMPointer	ASM function pointer

@@ -1,0 +1,19 @@
+// Summons Demon King struct definition (FE8 only)
+// 20 bytes per entry
+@SummonsDemonKing 14
+0x00	B	Field00	Byte 00
+0x01	B	Field01	Byte 01
+0x02	B	Field02	Byte 02
+0x03	B	Field03	Byte 03
+0x04	W	Field04	Word 04
+0x06	B	Field06	Byte 06
+0x07	B	Field07	Byte 07
+0x08	P	ASMPointer	ASM function pointer
+0x0C	B	Field0C	Byte 0C
+0x0D	B	Field0D	Byte 0D
+0x0E	B	Field0E	Byte 0E
+0x0F	B	Field0F	Byte 0F
+0x10	B	Field10	Byte 10
+0x11	B	Field11	Byte 11
+0x12	B	Field12	Byte 12
+0x13	B	Field13	Byte 13

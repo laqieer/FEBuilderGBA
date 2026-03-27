@@ -1,0 +1,89 @@
+@echo off
+set PID=%1
+set TARGETDIR=.\
+set TARGET_CHECK=.\FEBuilderGBA.exe
+set UPDATE=.\_update
+set UPDATE_CHECK=.\_update\FEBuilderGBA.exe
+
+IF NOT EXIST %TARGET_CHECK% GOTO E2
+IF NOT EXIST %UPDATE% GOTO E3
+IF NOT EXIST %UPDATE_CHECK% GOTO E4
+
+IF "%PID%"=="" GOTO NO_ARGS
+
+echo Checking stop of FEBuilderGBA main process..
+ping 127.0.0.1 -n 2 > nul
+
+:PID_LOOP
+tasklist /FI "PID eq %PID%" | find "exe" > nul 2>&1
+if ERRORLEVEL 1 GOTO NEXT_STEP
+echo "WAIT EXIT FOR MAIN PROGRAM"
+ping 127.0.0.1 -n 2 > nul 2>&1
+
+tasklist /FI "PID eq %PID%" | find "exe" > nul 2>&1
+if ERRORLEVEL 1 GOTO NEXT_STEP
+echo "WAIT EXIT FOR MAIN PROGRAM"
+ping 127.0.0.1 -n 2 > nul 2>&1
+
+tasklist /FI "PID eq %PID%" | find "exe" > nul 2>&1
+if ERRORLEVEL 1 GOTO NEXT_STEP
+echo "WAIT EXIT FOR MAIN PROGRAM"
+ping 127.0.0.1 -n 2 > nul 2>&1
+
+tasklist /FI "PID eq %PID%" | find "exe" > nul 2>&1
+if ERRORLEVEL 1 GOTO NEXT_STEP
+echo "WAIT EXIT FOR MAIN PROGRAM"
+ping 127.0.0.1 -n 2 > nul 2>&1
+
+taskkill /pid %PID% /F
+GOTO PID_LOOP
+
+:NO_ARGS
+echo "Wait... 10sec"
+ping 127.0.0.1 -n 10 > nul 2>&1
+GOTO NEXT_STEP
+
+:NEXT_STEP
+rem STOP ALL FEBuilderGBA
+taskkill /F /IM FEBuilderGBA.exe > nul 2>&1
+ping 127.0.0.1 -n 2 > nul 2>&1
+
+echo Updating to new version ...
+
+:DELETE_OLD_FILE
+del /F FEBuilderGBA_SRC_*.7z > nul 2>&1
+FOR /R %%I IN (*.txt) DO IF %%~zI==0 del "%%I"
+
+
+:RUN_COPY
+xcopy /Y /I /E "%UPDATE%" "%TARGETDIR%"
+rmdir /q /s "%UPDATE%"
+del /F dltemp_*.*
+
+:RUN_PROGRAM
+start %TARGET_CHECK%
+
+GOTO DELETE_MYSELF
+
+
+
+:E1
+echo "no args"
+goto EXIT
+
+:E2
+echo "no target"
+goto EXIT
+
+:E3
+echo "no update"
+goto EXIT
+
+:E4
+echo "no update program"
+goto EXIT
+
+:DELETE_MYSELF
+del /f "%~dp0%~nx0"
+
+:EXIT

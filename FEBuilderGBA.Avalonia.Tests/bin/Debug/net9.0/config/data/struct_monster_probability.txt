@@ -1,0 +1,15 @@
+// Monster Probability struct definition (FE8 only)
+// 12 bytes per entry
+@MonsterProbability 0C
+0x00	B	Field00	Byte 00
+0x01	B	Field01	Byte 01
+0x02	B	Field02	Byte 02
+0x03	B	Field03	Byte 03
+0x04	B	Field04	Byte 04
+0x05	B	Field05	Byte 05
+0x06	B	Field06	Byte 06
+0x07	B	Field07	Byte 07
+0x08	B	Field08	Byte 08
+0x09	B	Field09	Byte 09
+0x0A	B	Field0A	Byte 0A
+0x0B	B	Field0B	Byte 0B

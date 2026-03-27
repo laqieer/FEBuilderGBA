@@ -1,0 +1,10 @@
+// Death Quote (Haiku) struct definition for FE7/FE8
+// 12 bytes per entry
+@EventHaiku_FE78 0C
+0x00	B	UnitID	Unit ID
+0x01	B	Field01	Field 0x01
+0x02	B	MapID	Map chapter ID
+0x03	B	Field03	Field 0x03
+0x04	W	TextID	Death quote text ID
+0x06	W	Field06	Field 0x06
+0x08	P	ConditionPtr	Condition ASM pointer

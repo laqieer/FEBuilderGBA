@@ -1,0 +1,15 @@
+// Menu Definition struct definition (all versions)
+// 36 bytes per entry
+@MenuDefinition 24
+0x00	B	Field00	Field 0x00
+0x01	B	Field01	Field 0x01
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	D	Field04	Field 0x04
+0x08	P	TextPtr	Text pointer
+0x0C	P	AvailabilityPtr	Availability function pointer
+0x10	P	ColorPtr	Color function pointer
+0x14	P	HoverPtr	Hover effect pointer
+0x18	P	SelectPtr	Select handler pointer
+0x1C	P	DrawPtr	Draw function pointer
+0x20	P	SwitchPtr	Switch function pointer

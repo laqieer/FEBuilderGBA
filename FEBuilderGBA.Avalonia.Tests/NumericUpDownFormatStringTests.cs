@@ -37,28 +37,34 @@ namespace FEBuilderGBA.Avalonia.Tests
         // Global MinWidth style regression test (#315)
         // ===================================================================
 
-        [AvaloniaFact]
-        public void ClassEditorView_AllNumericUpDowns_HaveMinWidth90()
+        [Fact]
+        public void AppAndTestApp_NumericUpDown_GlobalMinWidth_IsAtLeast120()
         {
-            var view = new ClassEditorView();
-            var nuds = CollectNumericUpDowns(view);
+            // Verify both App.axaml and TestApp.axaml define MinWidth >= 120 for NumericUpDown (#315).
+            string dir = AppContext.BaseDirectory;
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "App.axaml")))
+                dir = System.IO.Path.GetDirectoryName(dir);
+            Assert.NotNull(dir);
 
-            Assert.True(nuds.Count > 0, "ClassEditorView should have NumericUpDown controls");
-            _output.WriteLine($"ClassEditorView: {nuds.Count} NumericUpDown controls found");
-
-            var tooSmall = new List<string>();
-            foreach (var nud in nuds)
+            // Check both files
+            var files = new[]
             {
-                if (nud.MinWidth < 90)
-                {
-                    tooSmall.Add($"{nud.Name ?? "(unnamed)"}: MinWidth={nud.MinWidth}");
-                }
+                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia", "App.axaml"),
+                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia.Tests", "TestApp.axaml"),
+            };
+            // Regex scoped to NumericUpDown style block (Singleline: . matches \n)
+            var pattern = new System.Text.RegularExpressions.Regex(
+                @"Selector=""NumericUpDown"".+?MinWidth.+?Value=""(\d+)""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            foreach (var file in files)
+            {
+                string content = System.IO.File.ReadAllText(file);
+                var match = pattern.Match(content);
+                Assert.True(match.Success, $"{System.IO.Path.GetFileName(file)} should define MinWidth for NumericUpDown style");
+                int minWidth = int.Parse(match.Groups[1].Value);
+                Assert.True(minWidth >= 120, $"{System.IO.Path.GetFileName(file)}: NumericUpDown MinWidth should be >= 120, was {minWidth}");
             }
-
-            foreach (var v in tooSmall)
-                _output.WriteLine($"  TOO SMALL: {v}");
-
-            Assert.Empty(tooSmall);
         }
 
         // ===================================================================

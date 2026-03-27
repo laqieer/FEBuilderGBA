@@ -1,0 +1,36 @@
+﻿//特性1
+01=Equippable	Register as a weapon item that can be equipped.\r\nEnable to equip items.
+02=Attacks res(Magic)	Register as an item to perform a magic attack.\r\nIf enabled, Str-Res will be Damage\r\nIf disabled, Str-Def will be Damage.
+03=Staff	Sets item as a staff.\r\nComplex settings are required to create the effect of using a staff.\r\n(Do not change)
+04=Unbreakable	Gives an item infinite uses.
+05=Unsellable	Prevents an item from being sold.
+06=Brave Effect	Attacks are followed up with a second attack.\r\nBy default, this is used by Brave Weapons.
+07=Magic Damage	Adjusts damage formula to:\r\nPower-Res:Damage\r\nNo weapon exp will be granted.\r\nBy default, this is used for magic swords like the Light Brand and Runesword.
+08=Uncounterable	Prevents foe from counterattacking.\r\nBy default, this is used by long-range weapons like Ballistae and Bolting.
+//特性2
+11=Reaver Effect	Reverses the Weapon triangle.\r\nBy default, this is used by the Reaver weapons.
+12=Disable Hammerne	Disables Hammerne staff from being used on item.
+13=Manakete Lock	Restricts item use to only those with the Manakete Lock set.\r\nBy default, this is set for Firestone.
+14=Weapon Lock 1	Restricts item use to only those with the Weapon Lock 1 set.\r\nBy default, this is unused. Use for custom unique weapons.
+15=Myrmidon/Swordmaster Lock	Restricts item use to only those with the Myrmidon/Swordmaster lock set.\r\nBy default, this is set for Wo Dao.
+16=Show Prf only	Displays the weapon level as Prf.\r\nIf you turn this setting on,\r\nbe sure to set weapon level of this item to 0 as well.\r\nIf you do so, the weapon level will be Prf.\r\nWhether or not the item can actually be equipped is set in another section.\r\n
+17=Negate Flying Effectiveness	When equipped, negates Bow effectiveness against Flying units.\r\nBy default, this is set for the Delphi Shield.
+18=Negate Criticals	When equipped, prevents enemy critical hits.\r\nBy default, this is set for the Iron Rune.
+//特性3
+21=Unusable	??. By default, this is unused.
+22=Negate Defenses	Weapon ignores the opponent's defense/resistance stat.\r\nBy default, this is set for Luna.
+23=Eliwood Lock	Restricts item use to only those with the Eliwood Lock set.\r\nBy default, this is set for Rapier and Durandal.
+24=Hector Lock	Restricts item use to only those with the Hector Lock set.\r\nBy default, this is set for Wolf Beil and Armads.
+25=Lyn Lock	Restricts item use to only those with the Lyn Lock set.\r\nBy default, this is set for Mani Katti and Sol Katti.
+26=Athos Lock	Restricts item use to only those with the Athos Lock set.\r\nBy default, this is set for Forblaze.
+27=??
+28=??
+//特性4
+31=??
+32=??
+33=??
+34=??
+35=??
+36=??
+37=??
+38=??
