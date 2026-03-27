@@ -38,10 +38,12 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <Grid ColumnDefinitions="130,170,20,130,170" RowDefinitions="Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
-                       ToolTip.Tip="Text ID for this class's display name" />
+                       Classes="Hyperlink" Name="NameIdLink" PointerPressed="OnNameIdLinkClick"
+                       ToolTip.Tip="Text ID for this class's display name (click to open Text Viewer)" />
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center"
-                       ToolTip.Tip="Text ID for this class's description" />
+                       Classes="Hyperlink" Name="DescIdLink" PointerPressed="OnDescIdLinkClick"
+                       ToolTip.Tip="Text ID for this class's description (click to open Text Viewer)" />
             <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
               <NumericUpDown AutomationProperties.AutomationId="ClassEditor_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" />
               <TextBlock AutomationProperties.AutomationId="ClassEditor_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
@@ -65,7 +67,9 @@
                        ToolTip.Tip="Walking speed on the map" />
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_WalkSpeed_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WalkSpeedBox" Minimum="0" Maximum="255" />
 
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Portrait (W8):" VerticalAlignment="Center" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Portrait (W8):" VerticalAlignment="Center"
+                       Classes="Hyperlink" Name="PortraitLink" PointerPressed="OnPortraitLinkClick"
+                       ToolTip.Tip="Portrait graphic index (click to open Portrait Viewer)" />
             <NumericUpDown AutomationProperties.AutomationId="ClassEditor_PortraitId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="PortraitIdBox" Minimum="0" Maximum="65535" />
             <TextBlock Grid.Row="3" Grid.Column="3" Text="Sort Order (B10):" VerticalAlignment="Center"
                        ToolTip.Tip="Sort order for class list" />

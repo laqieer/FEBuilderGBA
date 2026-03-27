@@ -39,12 +39,14 @@
             <!-- Fields -->
             <Grid Grid.Column="0" ColumnDefinitions="Auto,120,16,Auto,*,16,Auto,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID:" VerticalAlignment="Center" Margin="0,2"
-                         ToolTip.Tip="Text ID for the unit's display name" />
+                         Classes="Hyperlink" Name="NameIdLink" PointerPressed="OnNameIdLinkClick"
+                         ToolTip.Tip="Text ID for the unit's display name (click to open Text Viewer)" />
               <NumericUpDown AutomationProperties.AutomationId="UnitEditor_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock AutomationProperties.AutomationId="UnitEditor_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
               <TextBlock Grid.Row="0" Grid.Column="6" Text="Desc ID:" VerticalAlignment="Center" Margin="0,2"
-                         ToolTip.Tip="Text ID for the unit's description" />
+                         Classes="Hyperlink" Name="DescIdLink" PointerPressed="OnDescIdLinkClick"
+                         ToolTip.Tip="Text ID for the unit's description (click to open Text Viewer)" />
               <StackPanel Grid.Row="0" Grid.Column="7" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="UnitEditor_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="100" />
                 <TextBlock AutomationProperties.AutomationId="UnitEditor_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
@@ -58,14 +60,16 @@
                          ToolTip.Tip="Unique identifier for this unit" />
               <NumericUpDown AutomationProperties.AutomationId="UnitEditor_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
               <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
-                         ToolTip.Tip="The unit's class, which determines base stats and abilities" />
+                         Classes="Hyperlink" Name="ClassIdLink" PointerPressed="OnClassIdLinkClick"
+                         ToolTip.Tip="The unit's class (click to open Class Editor)" />
               <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <ComboBox AutomationProperties.AutomationId="UnitEditor_ClassId_Combo" Name="ClassIdCombo" MinWidth="120" Margin="0,2" />
                 <Button AutomationProperties.AutomationId="UnitEditor_JumpToClass_Button" Content="Jump" Click="JumpToClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
                 <Button AutomationProperties.AutomationId="UnitEditor_PickClass_Button" Content="Pick..." Click="PickClass_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" ToolTip.Tip="Pick class from editor" />
               </StackPanel>
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2"
-                         ToolTip.Tip="Portrait graphic index for this unit" />
+                         Classes="Hyperlink" Name="PortraitLink" PointerPressed="OnPortraitLinkClick"
+                         ToolTip.Tip="Portrait graphic index (click to open Portrait Viewer)" />
               <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="UnitEditor_PortraitId_Input" FormatString="0" Name="PortraitIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="100" />
                 <TextBlock AutomationProperties.AutomationId="UnitEditor_PortraitName_Label" Name="PortraitNameLabel" VerticalAlignment="Center" Foreground="Gray" MinWidth="80" MaxWidth="160" TextTrimming="CharacterEllipsis"

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
@@ -110,11 +111,37 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToDesc_Click(object? sender, RoutedEventArgs e)
         {
+            NavigateToTextId((uint)(DescIdBox.Value ?? 0));
+        }
+
+        // -- Hyperlink label click handlers (#318) --
+
+        void OnNameIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            NavigateToTextId((uint)(NameIdBox.Value ?? 0));
+        }
+
+        void OnDescIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            NavigateToTextId((uint)(DescIdBox.Value ?? 0));
+        }
+
+        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            JumpToClass_Click(sender, new RoutedEventArgs());
+        }
+
+        void OnPortraitLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            JumpToPortrait_Click(sender, new RoutedEventArgs());
+        }
+
+        void NavigateToTextId(uint textId)
+        {
             try
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
-                uint textId = (uint)(DescIdBox.Value ?? 0);
                 uint textPtr = rom.RomInfo.text_pointer;
                 if (textPtr == 0) return;
                 uint baseAddr = rom.p32(textPtr);
@@ -125,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"JumpToDesc failed: {ex.Message}");
+                Log.Error($"NavigateToTextId failed: {ex.Message}");
             }
         }
 

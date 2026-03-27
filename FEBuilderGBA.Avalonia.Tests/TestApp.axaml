@@ -7,5 +7,14 @@
     <Style Selector="NumericUpDown">
       <Setter Property="MinWidth" Value="90"/>
     </Style>
+    <!-- Clickable hyperlink labels for cross-editor navigation (#318) -->
+    <Style Selector="TextBlock.Hyperlink">
+      <Setter Property="Foreground" Value="#0066CC"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="TextDecorations" Value="Underline"/>
+    </Style>
+    <Style Selector="TextBlock.Hyperlink:pointerover">
+      <Setter Property="Foreground" Value="#0044AA"/>
+    </Style>
   </Application.Styles>
 </Application>
