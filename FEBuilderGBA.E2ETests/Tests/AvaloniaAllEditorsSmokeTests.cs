@@ -10,6 +10,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// </summary>
     public class AvaloniaAllEditorsSmokeTests
     {
+        private const int ExpectedEditorCount = 325;
         private static readonly string? ExePath = AvaloniaAppRunner.FindExePath();
 
         /// <summary>
@@ -48,8 +49,8 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
                 ExePath!, $"--rom \"{romPath}\" --smoke-test-all", timeoutMs: 300_000);
 
-            // Should report testing 325 editors
-            Assert.Contains("SMOKE: Testing 325 editors", stdout);
+            // Should report testing ExpectedEditorCount editors
+            Assert.Contains($"SMOKE: Testing {ExpectedEditorCount} editors", stdout);
 
             // Should report results line
             Assert.Contains("passed", stdout);
