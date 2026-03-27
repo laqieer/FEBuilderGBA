@@ -37,30 +37,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         // Global MinWidth style regression test (#315)
         // ===================================================================
 
-        [AvaloniaFact]
-        public void ClassEditorView_AllNumericUpDowns_HaveMinWidth120()
+        [Fact]
+        public void AppAxaml_NumericUpDown_GlobalMinWidth_IsAtLeast120()
         {
-            var view = new ClassEditorView();
-            var nuds = CollectNumericUpDowns(view);
-
-            Assert.True(nuds.Count > 0, "ClassEditorView should have NumericUpDown controls");
-            _output.WriteLine($"ClassEditorView: {nuds.Count} NumericUpDown controls found");
-
-            var tooSmall = new List<string>();
-            foreach (var nud in nuds)
-            {
-                // Skip controls with explicit Width set (they are intentionally sized for layout)
-                if (!double.IsNaN(nud.Width)) continue;
-                if (nud.MinWidth < 120)
-                {
-                    tooSmall.Add($"{nud.Name ?? "(unnamed)"}: MinWidth={nud.MinWidth}");
-                }
-            }
-
-            foreach (var v in tooSmall)
-                _output.WriteLine($"  TOO SMALL: {v}");
-
-            Assert.Empty(tooSmall);
+            // Verify App.axaml global style sets MinWidth >= 120 for NumericUpDown (#315).
+            // Note: headless tests don't load App.axaml styles, so we verify the file content directly.
+            // Walk up from test assembly to find the Avalonia project
+            string dir = AppContext.BaseDirectory;
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "App.axaml")))
+                dir = System.IO.Path.GetDirectoryName(dir);
+            Assert.NotNull(dir);
+            string appAxaml = System.IO.File.ReadAllText(
+                System.IO.Path.Combine(dir!, "FEBuilderGBA.Avalonia", "App.axaml"));
+            Assert.Contains("NumericUpDown", appAxaml);
+            // Extract MinWidth value from the NumericUpDown style
+            var match = System.Text.RegularExpressions.Regex.Match(
+                appAxaml, @"MinWidth""\s+Value=""(\d+)""");
+            Assert.True(match.Success, "App.axaml should define MinWidth for NumericUpDown");
+            int minWidth = int.Parse(match.Groups[1].Value);
+            Assert.True(minWidth >= 120, $"NumericUpDown MinWidth should be >= 120, was {minWidth}");
         }
 
         // ===================================================================
