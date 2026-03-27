@@ -120,6 +120,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isSafetyOffset(unitBase)) return 0;
 
                 uint unitSize = rom.RomInfo.unit_datasize;
+                // unitId is 0-based (matches InputFormRef.IDToAddr: base + id * size)
                 uint unitAddr = unitBase + unitId * unitSize;
                 if (unitAddr + unitSize > (uint)rom.Data.Length) return 0;
 

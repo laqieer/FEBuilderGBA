@@ -6,17 +6,16 @@ using Xunit.Abstractions;
 namespace FEBuilderGBA.Core.Tests
 {
     /// <summary>
-    /// Tests for the ROM data access patterns used by PreviewIconHelper icon loading.
-    /// Verifies that class wait icon indices and item icon indices can be resolved
-    /// from ROM data, matching the WinForms DrawClassAndText/DrawItemAndText logic.
-    /// Real-ROM tests skip gracefully when FE8U.gba is unavailable.
+    /// Tests for ROM icon-index resolution patterns used by PreviewIconHelper.
+    /// Verifies that class wait icon indices (offset +6) and item icon indices (offset +29)
+    /// can be correctly read from ROM data. Real-ROM tests skip when FE8U.gba is unavailable.
     /// </summary>
     [Collection("SharedState")]
-    public class PreviewIconHelperTests
+    public class IconIndexResolutionTests
     {
         private readonly ITestOutputHelper _output;
 
-        public PreviewIconHelperTests(ITestOutputHelper output)
+        public IconIndexResolutionTests(ITestOutputHelper output)
         {
             _output = output;
         }
