@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Core.Tests
         // ---- Group C: Unit portrait ----
 
         [Theory]
-        [InlineData("AIUnitsView.axaml.cs", "UnitPortraitFromAddrU16Loader")]
+        [InlineData("AIUnitsView.axaml.cs", "UnitPortraitFromAddrU8Loader")]
         [InlineData("SkillAssignmentUnitSkillSystemView.axaml.cs", "UnitPortraitByIdLoader")]
         public void View_UsesUnitPortraitLoader(string viewFile, string loaderName)
         {
@@ -159,13 +159,13 @@ namespace FEBuilderGBA.Core.Tests
         // ---- Group G: Battle animation ----
 
         [Theory]
-        [InlineData("ImageBattleAnimeView.axaml.cs")]
-        [InlineData("MantAnimationView.axaml.cs")]
-        public void View_UsesBattleAnimeLoader(string viewFile)
+        [InlineData("ImageBattleAnimeView.axaml.cs", "BattleAnimeLoader")]
+        [InlineData("MantAnimationView.axaml.cs", "BattleAnimeTextLoader")]
+        public void View_UsesBattleAnimeLoader(string viewFile, string loaderName)
         {
             string src = ReadViewSource(viewFile);
             Assert.Contains("SetItemsWithIcons(items", src);
-            Assert.Contains("BattleAnimeLoader", src);
+            Assert.Contains(loaderName, src);
         }
 
         // ---- Group H: BG/CG thumbnails ----

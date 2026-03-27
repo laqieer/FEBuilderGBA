@@ -188,6 +188,30 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load unit portrait by reading unit ID from ROM address as u8.
+        /// For views where the first field at the entry address is an 8-bit unit ID.
+        /// Used by AIUnits (u8 unitId at +0, u8 unknown at +1).
+        /// </summary>
+        public static Bitmap? UnitPortraitFromAddrU8Loader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr)) return null;
+                uint unitId = rom.u8(addr);
+                if (unitId == 0) return null;
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(unitId);
+                if (portraitId == 0) return null;
+                using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load wait icon directly by parsing the list item text as a wait icon index.
         /// For ImageUnitWaitIcon view where items represent wait icon entries.
         /// </summary>
@@ -243,9 +267,8 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Load a battle animation thumbnail by parsing the animation number from ROM.
-        /// For ImageBattleAnime and MantAnimation views.
-        /// The animation ID is extracted from the entry (W2 field, offset +2 from entry addr).
+        /// Load a battle animation thumbnail by reading the animation ID from ROM entry.
+        /// For ImageBattleAnime view (4-byte entries: B0=type, B1=flags, W2=animeId).
         /// </summary>
         public static Bitmap? BattleAnimeLoader(List<AddrResult> items, int index)
         {
@@ -257,6 +280,24 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint addr = items[index].addr;
                 if (!U.isSafetyOffset(addr + 3)) return null;
                 uint animeId = rom.u16(addr + 2);
+                if (animeId == 0) return null;
+                using var img = PreviewIconHelper.LoadBattleAnimeThumbnail(animeId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a battle animation thumbnail by parsing animation ID from the list text.
+        /// For MantAnimation view where entries are 4-byte pointers and the text prefix
+        /// is the animation row index (same as what WinForms DrawImageBattleAndText uses).
+        /// </summary>
+        public static Bitmap? BattleAnimeTextLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint animeId = U.atoh(items[index].name);
                 if (animeId == 0) return null;
                 using var img = PreviewIconHelper.LoadBattleAnimeThumbnail(animeId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);

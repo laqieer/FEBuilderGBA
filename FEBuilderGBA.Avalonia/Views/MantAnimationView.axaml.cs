@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.BattleAnimeLoader(items, i));
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.BattleAnimeTextLoader(items, i));
             }
             catch (Exception ex)
             {
