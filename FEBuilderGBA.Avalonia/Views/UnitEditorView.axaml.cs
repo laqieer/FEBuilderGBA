@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToDesc failed: {0}", ex.Message);
+                Log.Error($"JumpToDesc failed: {ex.Message}");
             }
         }
 
