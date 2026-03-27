@@ -285,16 +285,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     try
                     {
-                        uint entryAddr = (uint)(terrainNameBase + i * 4);
-                        if (U.isSafetyOffset(entryAddr + 3))
+                        if (rom.RomInfo.is_multibyte)
                         {
-                            uint rawPtr = rom.u32(entryAddr);
-                            if (U.isPointer(rawPtr))
+                            // JP ROMs: 4-byte entries, each a pointer to a raw string
+                            uint entryAddr = (uint)(terrainNameBase + i * 4);
+                            if (U.isSafetyOffset(entryAddr + 3))
                             {
-                                uint strPtr = U.toOffset(rawPtr);
-                                if (U.isSafetyOffset(strPtr))
+                                uint rawPtr = rom.u32(entryAddr);
+                                if (U.isPointer(rawPtr))
                                 {
-                                    string decoded = rom.getString(strPtr);
+                                    uint strPtr = U.toOffset(rawPtr);
+                                    if (U.isSafetyOffset(strPtr))
+                                    {
+                                        string decoded = rom.getString(strPtr);
+                                        if (!string.IsNullOrEmpty(decoded))
+                                            name = $"0x{i:X2} {decoded}";
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // US ROMs: 2-byte entries, each a Huffman text ID
+                            uint entryAddr = (uint)(terrainNameBase + i * 2);
+                            if (U.isSafetyOffset(entryAddr + 1))
+                            {
+                                uint textId = rom.u16(entryAddr);
+                                if (textId != 0)
+                                {
+                                    string decoded = FETextDecode.Direct(textId);
                                     if (!string.IsNullOrEmpty(decoded))
                                         name = $"0x{i:X2} {decoded}";
                                 }
