@@ -118,5 +118,198 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Load item icon by reading item ID from ROM address as u16.
+        /// For views where the first field at the entry address is a 16-bit item ID.
+        /// Used by AIPerformItem and AIPerformStaff.
+        /// </summary>
+        public static Bitmap? ItemIconFromAddrU16Loader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 1)) return null;
+                uint itemId = rom.u16(addr);
+                if (itemId == 0) return null;
+                using var img = PreviewIconHelper.LoadItemIconByItemId(itemId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load item icon by reading item ID from ROM address as u8.
+        /// For views where the first field at the entry address is an 8-bit item ID.
+        /// Used by AIStealItem and ArenaEnemyWeapon.
+        /// </summary>
+        public static Bitmap? ItemIconFromAddrU8Loader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr)) return null;
+                uint itemId = rom.u8(addr);
+                if (itemId == 0) return null;
+                using var img = PreviewIconHelper.LoadItemIconByItemId(itemId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load unit portrait by reading unit ID from ROM address as u16.
+        /// For views where the first field at the entry address is a 16-bit unit ID.
+        /// Used by EventBattleTalk and SupportTalk views.
+        /// </summary>
+        public static Bitmap? UnitPortraitFromAddrU16Loader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 1)) return null;
+                uint unitId = rom.u16(addr);
+                if (unitId == 0) return null;
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(unitId);
+                if (portraitId == 0) return null;
+                using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load wait icon directly by parsing the list item text as a wait icon index.
+        /// For ImageUnitWaitIcon view where items represent wait icon entries.
+        /// </summary>
+        public static Bitmap? WaitIconDirectLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint iconIndex = U.atoh(items[index].name);
+                using var img = PreviewIconHelper.LoadClassWaitIcon(iconIndex);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load move icon by parsing the list item text as a move icon index.
+        /// Move icon IDs are 1-based; the loader handles the conversion.
+        /// For ImageUnitMoveIcon view.
+        /// </summary>
+        public static Bitmap? MoveIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint iconIndex = U.atoh(items[index].name);
+                // Move icon LoadMoveIcon expects 1-based ID and handles subtraction internally
+                // But list items are 0-based indices, so add 1
+                using var img = PreviewIconHelper.LoadMoveIcon(iconIndex + 1);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a color swatch from a GBA BGR555 color at the entry address (u16).
+        /// For SystemHoverColor, ImageSystemArea, and MapTileAnimation2 views.
+        /// </summary>
+        public static Bitmap? ColorSwatchLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 1)) return null;
+                uint gbaColor = rom.u16(addr);
+                using var img = PreviewIconHelper.CreateColorSwatch(gbaColor);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a battle animation thumbnail by parsing the animation number from ROM.
+        /// For ImageBattleAnime and MantAnimation views.
+        /// The animation ID is extracted from the entry (W2 field, offset +2 from entry addr).
+        /// </summary>
+        public static Bitmap? BattleAnimeLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 3)) return null;
+                uint animeId = rom.u16(addr + 2);
+                if (animeId == 0) return null;
+                using var img = PreviewIconHelper.LoadBattleAnimeThumbnail(animeId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a BG image thumbnail for background image entries.
+        /// Entry layout: P0=image, P4=TSA, P8=palette.
+        /// </summary>
+        public static Bitmap? BGThumbnailLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint addr = items[index].addr;
+                using var img = PreviewIconHelper.LoadBGThumbnail(addr);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a CG image thumbnail for CG entries.
+        /// Entry layout: P0=image, P4=TSA, P8=palette.
+        /// </summary>
+        public static Bitmap? CGThumbnailLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint addr = items[index].addr;
+                using var img = PreviewIconHelper.LoadCGThumbnail(addr);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a CG image thumbnail for FE7U CG entries.
+        /// Entry layout: B0=type, B1-B3=reserved, P4=image, P8=TSA, P12=palette.
+        /// </summary>
+        public static Bitmap? CGFE7UThumbnailLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint addr = items[index].addr;
+                using var img = PreviewIconHelper.LoadCGFE7UThumbnail(addr);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }

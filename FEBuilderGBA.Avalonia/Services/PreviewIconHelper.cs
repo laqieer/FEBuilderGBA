@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using global::Avalonia.Media.Imaging;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -293,6 +294,265 @@ namespace FEBuilderGBA.Avalonia.Services
                 int tilesH = animType == 0 ? 2 : animType == 1 ? 3 : 4;
 
                 return ImageUtilCore.LoadROMTiles4bpp(spriteAddr, palette, tilesW, tilesH, true);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load a move icon for the given move icon index.
+        /// Move icon IDs are 1-based (subtracts 1 to get table index), matching WinForms DrawMoveUnitIconBitmap.
+        /// Entry structure: 8 bytes, GBA pointer at offset +0 (pic data), LZ77-compressed 4bpp.
+        /// Returns the first frame (32x32) of the move animation, or null on failure.
+        /// </summary>
+        public static IImage LoadMoveIcon(uint moveIconIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || moveIconIndex == 0) return null;
+
+            try
+            {
+                // Move icon IDs are 1-based
+                uint tableIndex = moveIconIndex - 1;
+
+                uint ptr = rom.RomInfo.unit_move_icon_pointer;
+                if (ptr == 0) return null;
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return null;
+
+                // Each entry is 8 bytes: +0 = GBA pointer to LZ77 pic data, +4 = flags/animation
+                uint entryAddr = baseAddr + tableIndex * 8;
+                if (entryAddr + 8 > (uint)rom.Data.Length) return null;
+
+                uint picGba = rom.u32(entryAddr + 0);
+                if (!U.isPointer(picGba)) return null;
+
+                uint picAddr = U.toOffset(picGba);
+                if (!U.isSafetyOffset(picAddr)) return null;
+
+                // Palette: use the unit icon palette address
+                uint palAddr = rom.RomInfo.unit_icon_palette_address;
+                if (palAddr == 0 || !U.isSafetyOffset(palAddr)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                // Decompress and render at 4x4 tiles (32x32), first frame only (step=0)
+                byte[] imageUZ = LZ77.decompress(rom.Data, picAddr);
+                if (imageUZ == null || imageUZ.Length == 0) return null;
+
+                IImageService svc = CoreState.ImageService;
+                if (svc == null) return null;
+
+                // Render at 4 tiles wide (32px), compute height from data
+                int width = 4 * 8; // 32 pixels
+                int height = 4 * 8; // 32 pixels for first frame
+                int bytesNeeded = (width / 8) * (height / 8) * 32; // 4bpp tile data
+                if (imageUZ.Length < bytesNeeded)
+                {
+                    // If not enough data for full 32x32, use what we have
+                    int totalTiles = imageUZ.Length / 32;
+                    if (totalTiles <= 0) return null;
+                    int tilesX = 4;
+                    int tilesY = Math.Max(1, (totalTiles + tilesX - 1) / tilesX);
+                    height = tilesY * 8;
+                }
+
+                return svc.Decode4bppTiles(imageUZ, 0, width, height, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Create a solid color swatch image from a GBA BGR555 color value.
+        /// Returns a 16x16 solid-color IImage.
+        /// </summary>
+        public static IImage CreateColorSwatch(uint gbaColor)
+        {
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            try
+            {
+                // Convert GBA BGR555 to RGB
+                byte r = (byte)(((gbaColor) & 0x1F) << 3);
+                byte g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
+                byte b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
+
+                const int size = 16;
+                var image = svc.CreateImage(size, size);
+                byte[] pixels = new byte[size * size * 4];
+                for (int i = 0; i < size * size; i++)
+                {
+                    pixels[i * 4 + 0] = r;
+                    pixels[i * 4 + 1] = g;
+                    pixels[i * 4 + 2] = b;
+                    pixels[i * 4 + 3] = 255;
+                }
+                image.SetPixelData(pixels);
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load a battle animation thumbnail by animation ID.
+        /// Renders the first frame tile sheet of the animation, scaled to a small icon.
+        /// Animation IDs are 1-based (same as WinForms).
+        /// Returns null if the animation cannot be loaded.
+        /// </summary>
+        public static IImage LoadBattleAnimeThumbnail(uint animeId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || animeId == 0) return null;
+
+            try
+            {
+                uint pointer = rom.RomInfo.image_battle_animelist_pointer;
+                if (pointer == 0) return null;
+
+                uint tableBase = rom.p32(pointer);
+                if (!U.isSafetyOffset(tableBase, rom)) return null;
+
+                const uint ANIME_RECORD_SIZE = 32;
+                uint id = animeId - 1;  // 1-based to 0-based
+                uint addr = tableBase + id * ANIME_RECORD_SIZE;
+                if (addr + ANIME_RECORD_SIZE > (uint)rom.Data.Length) return null;
+
+                // Use BattleAnimeRendererCore to render the tile sheet
+                return BattleAnimeRendererCore.RenderAnimationTileSheet(addr, 8);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load a BG image thumbnail from a BG entry address.
+        /// BG entry layout: P0=image pointer, P4=TSA pointer, P8=palette pointer.
+        /// Returns a decoded image (full-size, caller should use for thumbnail), or null.
+        /// </summary>
+        public static IImage LoadBGThumbnail(uint entryAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || entryAddr == 0) return null;
+
+            try
+            {
+                uint p0 = rom.u32(entryAddr + 0);
+                uint p4 = rom.u32(entryAddr + 4);
+                uint p8 = rom.u32(entryAddr + 8);
+
+                if (!U.isPointer(p0) || !U.isPointer(p8)) return null;
+                uint imgAddr = U.toOffset(p0);
+                uint palAddr = U.toOffset(p8);
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+
+                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+                if (tileData == null || tileData.Length == 0) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
+                if (palette == null || palette.Length == 0) return null;
+
+                if (U.isPointer(p4))
+                {
+                    uint tsaAddr = U.toOffset(p4);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        int tsaLen = Math.Min(32 * 20 * 2 + 4, (int)((uint)rom.Data.Length - tsaAddr));
+                        if (tsaLen > 0)
+                        {
+                            byte[] tsaData = new byte[tsaLen];
+                            Array.Copy(rom.Data, tsaAddr, tsaData, 0, tsaLen);
+                            return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20);
+                        }
+                    }
+                }
+
+                // Fallback: render raw tiles
+                if (CoreState.ImageService == null) return null;
+                int totalTiles = tileData.Length / 32;
+                if (totalTiles <= 0) return null;
+                int tilesX = 30;
+                int tilesY = Math.Max(1, (totalTiles + tilesX - 1) / tilesX);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load a CG image thumbnail from a CG entry address.
+        /// CG entry layout (FE8): P0=image pointer, P4=TSA pointer, P8=palette pointer.
+        /// Returns a decoded image, or null.
+        /// </summary>
+        public static IImage LoadCGThumbnail(uint entryAddr)
+        {
+            // CG uses the same 3-pointer layout as BG
+            return LoadBGThumbnail(entryAddr);
+        }
+
+        /// <summary>
+        /// Load a CG image thumbnail for FE7U, which has a different entry layout.
+        /// FE7U CG entry: B0=type, B1-B3=reserved, P4=image, P8=TSA, P12=palette.
+        /// Returns a decoded image, or null.
+        /// </summary>
+        public static IImage LoadCGFE7UThumbnail(uint entryAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || entryAddr == 0) return null;
+
+            try
+            {
+                uint p4 = rom.u32(entryAddr + 4);
+                uint p8 = rom.u32(entryAddr + 8);
+                uint p12 = rom.u32(entryAddr + 12);
+
+                if (!U.isPointer(p4) || !U.isPointer(p12)) return null;
+                uint imgAddr = U.toOffset(p4);
+                uint palAddr = U.toOffset(p12);
+                if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
+
+                byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
+                if (tileData == null || tileData.Length == 0) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 256);
+                if (palette == null || palette.Length == 0) return null;
+
+                if (U.isPointer(p8))
+                {
+                    uint tsaAddr = U.toOffset(p8);
+                    if (U.isSafetyOffset(tsaAddr))
+                    {
+                        int tsaLen = Math.Min(32 * 20 * 2 + 4, (int)((uint)rom.Data.Length - tsaAddr));
+                        if (tsaLen > 0)
+                        {
+                            byte[] tsaData = new byte[tsaLen];
+                            Array.Copy(rom.Data, tsaAddr, tsaData, 0, tsaLen);
+                            return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette, 32, 20);
+                        }
+                    }
+                }
+
+                // Fallback: render raw tiles
+                if (CoreState.ImageService == null) return null;
+                int totalTiles = tileData.Length / 32;
+                if (totalTiles <= 0) return null;
+                int tilesX = 30;
+                int tilesY = Math.Max(1, (totalTiles + tilesX - 1) / tilesX);
+                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch
             {
