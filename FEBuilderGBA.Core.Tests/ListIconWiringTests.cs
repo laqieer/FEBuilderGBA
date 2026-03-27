@@ -99,15 +99,15 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- Group C: Unit portrait ----
 
-        [Theory]
-        [InlineData("AIUnitsView.axaml.cs", "UnitPortraitFromAddrU8Loader")]
-        [InlineData("SkillAssignmentUnitSkillSystemView.axaml.cs", "UnitPortraitByIdLoader")]
-        public void View_UsesUnitPortraitLoader(string viewFile, string loaderName)
+        [Fact]
+        public void AIUnitsView_UsesUnitPortraitFromAddrU8Loader()
         {
-            string src = ReadViewSource(viewFile);
+            string src = ReadViewSource("AIUnitsView.axaml.cs");
             Assert.Contains("SetItemsWithIcons(items", src);
-            Assert.Contains(loaderName, src);
+            Assert.Contains("UnitPortraitFromAddrU8Loader", src);
         }
+
+        // SkillAssignmentUnitSkillSystemView uses plain SetItems (VM returns single placeholder entry)
 
         // ---- Group D: Unit portrait from addr ----
 
