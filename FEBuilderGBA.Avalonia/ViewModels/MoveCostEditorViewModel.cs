@@ -289,7 +289,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         if (U.isSafetyOffset(entryAddr + 3))
                         {
                             uint rawPtr = rom.u32(entryAddr);
-                            if (U.isPointerOrNULL(rawPtr) && U.isPointer(rawPtr))
+                            if (U.isPointer(rawPtr))
                             {
                                 uint strPtr = U.toOffset(rawPtr);
                                 if (U.isSafetyOffset(strPtr))
