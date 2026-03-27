@@ -288,12 +288,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         uint entryAddr = (uint)(terrainNameBase + i * 4);
                         if (U.isSafetyOffset(entryAddr + 3))
                         {
-                            uint strPtr = rom.p32(entryAddr);
-                            if (U.isSafetyOffset(strPtr))
+                            uint rawPtr = rom.u32(entryAddr);
+                            if (U.isPointer(rawPtr))
                             {
-                                string decoded = rom.getString(strPtr);
-                                if (!string.IsNullOrEmpty(decoded))
-                                    name = $"0x{i:X2} {decoded}";
+                                uint strPtr = U.toOffset(rawPtr);
+                                if (U.isSafetyOffset(strPtr))
+                                {
+                                    string decoded = rom.getString(strPtr);
+                                    if (!string.IsNullOrEmpty(decoded))
+                                        name = $"0x{i:X2} {decoded}";
+                                }
                             }
                         }
                     }
