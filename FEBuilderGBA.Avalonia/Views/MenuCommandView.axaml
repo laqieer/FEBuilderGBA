@@ -20,13 +20,13 @@
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MenuCommand_NameTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
+          <TextBlock AutomationProperties.AutomationId="MenuCommand_NameTextId_Preview" Grid.Row="2" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
                      TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MenuCommand_HelpTextId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
-          <TextBlock Grid.Row="3" Grid.Column="2" Name="HelpTextPreview" Foreground="Gray" FontSize="11"
+          <TextBlock AutomationProperties.AutomationId="MenuCommand_HelpTextId_Preview" Grid.Row="3" Grid.Column="2" Name="HelpTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
                      TextTrimming="CharacterEllipsis" MaxWidth="200" />
 

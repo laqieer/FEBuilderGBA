@@ -65,7 +65,7 @@
 
           <TextBlock Grid.Row="17" Grid.Column="0" Text="Name Text ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="WorldMapPoint_NameTextId_Input" FormatString="0" Grid.Row="17" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="150" Margin="0,2" HorizontalAlignment="Left" />
-          <TextBlock Grid.Row="17" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
+          <TextBlock AutomationProperties.AutomationId="WorldMapPoint_NameTextId_Preview" Grid.Row="17" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
                      TextTrimming="CharacterEllipsis" MaxWidth="200" />
 

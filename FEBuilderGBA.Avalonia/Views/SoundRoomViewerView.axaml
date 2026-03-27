@@ -30,7 +30,7 @@
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_TextId_Input" FormatString="0" Name="TextIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
-            <TextBlock Name="TextIdPreview" Foreground="Gray" FontSize="11"
+            <TextBlock AutomationProperties.AutomationId="SoundRoomViewer_TextId_Preview" Name="TextIdPreview" Foreground="Gray" FontSize="11"
                        VerticalAlignment="Center" Margin="4,0,0,0"
                        TextTrimming="CharacterEllipsis" MaxWidth="200" />
           </StackPanel>

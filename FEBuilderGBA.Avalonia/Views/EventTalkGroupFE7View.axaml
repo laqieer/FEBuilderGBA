@@ -18,7 +18,7 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Margin="0,4" />
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="0,4">
             <NumericUpDown AutomationProperties.AutomationId="EventTalkGroupFE7_TextId_Input" FormatString="0" Name="TextIdUpDown" Minimum="0" Maximum="4294967295" />
-            <TextBlock Name="TextIdPreview" Foreground="Gray" FontSize="11"
+            <TextBlock AutomationProperties.AutomationId="EventTalkGroupFE7_TextId_Preview" Name="TextIdPreview" Foreground="Gray" FontSize="11"
                        VerticalAlignment="Center" Margin="4,0,0,0"
                        TextTrimming="CharacterEllipsis" MaxWidth="200" />
           </StackPanel>
