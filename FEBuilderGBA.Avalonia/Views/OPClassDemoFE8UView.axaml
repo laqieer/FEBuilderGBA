@@ -18,7 +18,7 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
-          <TextBlock AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Preview" Grid.Row="1" Grid.Column="2" Name="DescTextPreview" Foreground="Gray" FontSize="11"
+          <TextBlock AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Label" Grid.Row="1" Grid.Column="2" Name="DescTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
                      TextTrimming="CharacterEllipsis" MaxWidth="200" />
 
