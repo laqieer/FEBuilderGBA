@@ -21,8 +21,16 @@
           <TextBlock AutomationProperties.AutomationId="UnitFE7_DecodedName_Label" Grid.Row="1" Grid.Column="4" Name="DecodedNameLabel" VerticalAlignment="Center" />
 
           <!-- Row 2: Description + Unit ID -->
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="UnitFE7_DescId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescIdBox" Minimum="0" Maximum="65535" Width="180" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center"
+                     ToolTip.Tip="Text ID for the unit's description" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE7_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE7_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
+                       MaxWidth="200" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       ToolTip.Tip="Decoded description text" />
+            <Button AutomationProperties.AutomationId="UnitFE7_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
+                    ToolTip.Tip="Open text viewer for this description" />
+          </StackPanel>
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Unit ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="UnitFE7_UnitId_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="UnitIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 

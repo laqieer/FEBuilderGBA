@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -19,6 +20,9 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Wire desc text live update
+            DescIdBox.ValueChanged += OnDescIdChanged;
         }
 
         void LoadList()
@@ -59,6 +63,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Identity
             NameIdBox.Value = _vm.NameId;
             DescIdBox.Value = _vm.DescId;
+            DescTextLabel.Text = _vm.DescText;
             UnitIdBox.Value = _vm.UnitId;
             ClassIdBox.Value = _vm.ClassId;
             PortraitIdBox.Value = _vm.PortraitId;
@@ -115,6 +120,34 @@ namespace FEBuilderGBA.Avalonia.Views
             Unk49Box.Value = _vm.Unk49;
             Unk50Box.Value = _vm.Unk50;
             Unk51Box.Value = _vm.Unk51;
+        }
+
+        void OnDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DescIdBox.Value ?? 0);
+            try { DescTextLabel.Text = NameResolver.GetTextById(id); }
+            catch { DescTextLabel.Text = ""; }
+        }
+
+        void JumpToDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint textId = (uint)(DescIdBox.Value ?? 0);
+                uint textPtr = rom.RomInfo.text_pointer;
+                if (textPtr == 0) return;
+                uint baseAddr = rom.p32(textPtr);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint addr = baseAddr + textId * 4;
+                WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"JumpToDesc failed: {ex.Message}");
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

@@ -37,6 +37,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Portrait image loaded from portrait table
         IImage? _portraitImage;
 
+        // Description text preview
+        string _descText = "";
+
         // Properties -- Identity
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint SelectedId { get => _selectedId; set => SetField(ref _selectedId, value); }
@@ -97,6 +100,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Properties -- Support
         public uint SupportPtr { get => _supportPtr; set => SetField(ref _supportPtr, value); }
+
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
 
         // Portrait image
         public IImage? PortraitImage => _portraitImage;
@@ -169,6 +175,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
 
             // b12-b19: Base stats (signed bytes)
             HP = (int)(sbyte)rom.u8(addr + 12);

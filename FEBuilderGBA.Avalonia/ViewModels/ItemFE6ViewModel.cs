@@ -24,6 +24,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // B28-B31 (weapon rank, icon, usage effect, damage effect)
         uint _weaponRank, _icon, _usageEffect, _damageEffect;
 
+        // Description text preview
+        string _descText = "";
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
@@ -72,6 +75,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint UsageEffect { get => _usageEffect; set => SetField(ref _usageEffect, value); }
         // B31: Damage additional effect
         public uint DamageEffect { get => _damageEffect; set => SetField(ref _damageEffect, value); }
+
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
 
         public List<AddrResult> LoadItemList()
         {
@@ -126,6 +132,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
 
             // Identity
             ItemNumber = rom.u8(addr + 6);   // B6

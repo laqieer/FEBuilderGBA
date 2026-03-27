@@ -40,6 +40,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Talk group & unknowns (offsets 48-51)
         uint _talkGroup, _unk49, _unk50, _unk51;
 
+        // Description text preview
+        string _descText = "";
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string Name { get => _name; set => SetField(ref _name, value); }
@@ -104,6 +107,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Support pointer
         public uint SupportPtr { get => _supportPtr; set => SetField(ref _supportPtr, value); }
 
+        // Description text preview
+        public string DescText { get => _descText; set => SetField(ref _descText, value); }
+
         // Talk group & unknowns
         public uint TalkGroup { get => _talkGroup; set => SetField(ref _talkGroup, value); }
         public uint Unk49 { get => _unk49; set => SetField(ref _unk49, value); }
@@ -164,6 +170,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try { Name = NameResolver.GetTextById(NameId); }
             catch { Name = "???"; }
+
+            try { DescText = NameResolver.GetTextById(DescId); }
+            catch { DescText = ""; }
 
             // Base stats (signed byte)
             HP = (sbyte)rom.u8(addr + 12);
