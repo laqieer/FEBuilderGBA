@@ -58,7 +58,7 @@ dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshot
 
 10. **Open PR** via `gh pr create -R laqieer/FEBuilderGBA`. Include:
     - Summary, plan reference, scope (Closes/Ref), test plan (ALL items `[x]`), screenshots
-    - **Screenshots**: MUST show the SPECIFIC affected editor with data for GUI-changing PRs. Non-GUI PRs (Core, CLI, tests only) may use CLI/test output as proof. Generic main window is NOT acceptable for GUI PRs. NEVER fabricate images. NEVER use `blob/{feature-branch}/` URLs.
+    - **Screenshots**: MUST show the SPECIFIC affected editor with data for GUI-changing PRs. Non-GUI PRs (Core, CLI, tests only) may use CLI/test output as proof. Generic main window is NOT acceptable for GUI PRs. NEVER fabricate images. NEVER use `blob/{feature-branch}/` URLs. For `docs`/`chore` PRs, screenshots are optional.
     - **Test plan**: ALL items must be `[x]`. Automatable tests MUST be automated — no unchecked "manual later" items.
     - Footer: `Generated with Claude Code (claude-opus-4-6)`
 11. **Trigger Copilot CLI review** of the PR:
