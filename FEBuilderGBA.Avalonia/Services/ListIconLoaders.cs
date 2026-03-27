@@ -337,11 +337,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint cgBase = rom.p32(cgPtr);
                 if (!U.isSafetyOffset(cgBase)) return null;
 
-                const uint CG_ENTRY_SIZE = 12;
-                uint cgAddr = cgBase + cgId * CG_ENTRY_SIZE;
-                if (cgAddr + CG_ENTRY_SIZE > (uint)rom.Data.Length) return null;
+                // FE7U uses 16-byte bigcg entries with different layout; others use 12-byte
+                bool isFE7U = rom.RomInfo.version == 7 && !rom.RomInfo.is_multibyte;
+                uint cgEntrySize = isFE7U ? 16u : 12u;
+                uint cgAddr = cgBase + cgId * cgEntrySize;
+                if (cgAddr + cgEntrySize > (uint)rom.Data.Length) return null;
 
-                using var img = PreviewIconHelper.LoadCGThumbnail(cgAddr);
+                using var img = isFE7U
+                    ? PreviewIconHelper.LoadCGFE7UThumbnail(cgAddr)
+                    : PreviewIconHelper.LoadCGThumbnail(cgAddr);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
             catch { return null; }

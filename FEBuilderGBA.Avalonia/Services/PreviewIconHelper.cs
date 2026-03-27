@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using System.Collections.Generic;
+
 using global::Avalonia.Media.Imaging;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -479,13 +479,11 @@ namespace FEBuilderGBA.Avalonia.Services
                     }
                 }
 
-                // Fallback: render raw tiles
-                if (CoreState.ImageService == null) return null;
-                int totalTiles = tileData.Length / 32;
-                if (totalTiles <= 0) return null;
-                int tilesX = 30;
-                int tilesY = Math.Max(1, (totalTiles + tilesX - 1) / tilesX);
-                return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
+                // Fallback: P4 is not a pointer. When BG256Color patch is installed,
+                // P4 is used as a flag (0/1) for 256/224-color 8bpp mode.
+                // Since 8bpp decode is not available in Core, return null
+                // rather than producing a wrong 4bpp thumbnail.
+                return null;
             }
             catch
             {
