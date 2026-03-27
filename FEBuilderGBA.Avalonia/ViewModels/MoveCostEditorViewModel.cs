@@ -285,6 +285,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     try
                     {
+                        string decoded = null;
                         if (rom.RomInfo.is_multibyte)
                         {
                             // JP ROMs: 4-byte entries, each a pointer to a raw string
@@ -296,11 +297,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                 {
                                     uint strPtr = U.toOffset(rawPtr);
                                     if (U.isSafetyOffset(strPtr))
-                                    {
-                                        string decoded = rom.getString(strPtr);
-                                        if (!string.IsNullOrEmpty(decoded))
-                                            name = $"0x{i:X2} {decoded}";
-                                    }
+                                        decoded = rom.getString(strPtr);
                                 }
                             }
                         }
@@ -312,13 +309,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                             {
                                 uint textId = rom.u16(entryAddr);
                                 if (textId != 0)
-                                {
-                                    string decoded = FETextDecode.Direct(textId);
-                                    if (!string.IsNullOrEmpty(decoded))
-                                        name = $"0x{i:X2} {decoded}";
-                                }
+                                    decoded = FETextDecode.Direct(textId);
                             }
                         }
+                        if (!string.IsNullOrEmpty(decoded))
+                            name = $"0x{i:X2} {decoded}";
                     }
                     catch { /* ignore decode errors */ }
                 }

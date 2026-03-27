@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Core.Tests
         private static ROM MakeRomFE8U()
         {
             var rom = new ROM();
-            var data = new byte[0x1000_0000];
+            var data = new byte[0x0100_0000];
             rom.LoadLow("fake.gba", data, "BE8E01");
             return rom;
         }
@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Core.Tests
         private static ROM MakeRomFE8JP()
         {
             var rom = new ROM();
-            var data = new byte[0x1000_0000];
+            var data = new byte[0x0100_0000];
             rom.LoadLow("fake.gba", data, "BE8J01");
             return rom;
         }
@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Core.Tests
         private static ROM MakeRomFE7U()
         {
             var rom = new ROM();
-            var data = new byte[0x1000_0000];
+            var data = new byte[0x0100_0000];
             rom.LoadLow("fake.gba", data, "AE7E01");
             return rom;
         }
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
 
             uint terrainNamePtr = rom.RomInfo.map_terrain_name_pointer;
-            if (terrainNamePtr == 0) return;
+            Assert.NotEqual(0u, terrainNamePtr);
 
             uint tableBase = 0x2000;
             rom.write_u32(terrainNamePtr, tableBase + 0x08000000);
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
 
             uint terrainNamePtr = rom.RomInfo.map_terrain_name_pointer;
-            if (terrainNamePtr == 0) return;
+            Assert.NotEqual(0u, terrainNamePtr);
 
             uint tableBase = 0x2000;
             rom.write_u32(terrainNamePtr, tableBase + 0x08000000);
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
 
             uint terrainNamePtr = rom.RomInfo.map_terrain_name_pointer;
-            if (terrainNamePtr == 0) return;
+            Assert.NotEqual(0u, terrainNamePtr);
 
             uint tableBase = 0x2000;
             rom.write_u32(terrainNamePtr, tableBase + 0x08000000);
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
 
             uint terrainNamePtr = rom.RomInfo.map_terrain_name_pointer;
-            if (terrainNamePtr == 0) return;
+            Assert.NotEqual(0u, terrainNamePtr);
 
             uint tableBase = 0x2000;
             rom.write_u32(terrainNamePtr, tableBase + 0x08000000);
