@@ -3,6 +3,9 @@
              x:Class="FEBuilderGBA.Avalonia.App">
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="NumericUpDown">
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
     </Application.Styles>
 
     <Application.Resources>
