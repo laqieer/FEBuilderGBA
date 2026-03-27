@@ -177,7 +177,7 @@ cp tools/capture-window.cs tools/WinCapture/Program.cs
 cd tools/WinCapture && dotnet add package System.Drawing.Common && dotnet build -c Release
 ```
 
-Then capture any window: `dotnet run --project tools/WinCapture -c Release -- "Window Title" output.png`
+Then capture any window: `dotnet run --project tools/WinCapture -c Release -- "Window Title" pr-screenshots/output.png`
 
 **Alternative:** MCP computer-use tools (`screenshot`, `click`, `type_text`) when the screen is unlocked.
 
@@ -255,7 +255,7 @@ Ref #M (partial — <what remains>)
      Capture steps:
        1. Launch: ROM=$(ls roms/*.gba 2>/dev/null | head -1) && dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom "$ROM" &
        2. Navigate: Use PowerShell UIAutomation to click the specific editor button
-       3. Capture: dotnet run --project tools/WinCapture -c Release -- "Editor Title" screenshot.png
+       3. Capture: dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshots/screenshot.png
        4. Commit to pr-screenshots/ on master, reference via raw.githubusercontent.com
      Fabricated images are NOT acceptable. Generic main window screenshots are NOT acceptable.
      For docs/chore PRs: This entire section may be deleted. -->
