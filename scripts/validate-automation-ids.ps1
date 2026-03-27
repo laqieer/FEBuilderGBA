@@ -31,7 +31,7 @@ $exemptInternalFiles = @(
 
 # Valid control type suffixes
 $validSuffixes = @('_Input', '_Combo', '_Button', '_List', '_Check', '_Expander',
-                   '_TabControl', '_Tab', '_Image', '_Label', '_Control')
+                   '_TabControl', '_Tab', '_Image', '_Label', '_Control', '_Link')
 
 # Interactive control types that should have AutomationIds
 $interactiveControlTypes = @(

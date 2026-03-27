@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -75,32 +76,37 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToDesc_Click(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint textId = (uint)(DescIdBox.Value ?? 0);
-                uint textPtr = rom.RomInfo.text_pointer;
-                if (textPtr == 0) return;
-                uint baseAddr = rom.p32(textPtr);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + textId * 4;
-                if (!U.isSafetyOffset(addr)) return;
-                WindowManager.Instance.Navigate<TextViewerView>(addr);
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"JumpToDesc failed: {ex.Message}");
-            }
+            NavigateToTextId((uint)(DescIdBox.Value ?? 0));
         }
 
         void JumpToUseDesc_Click(object? sender, RoutedEventArgs e)
+        {
+            NavigateToTextId((uint)(UseDescIdBox.Value ?? 0));
+        }
+
+        // -- Hyperlink label click handlers (#318) --
+
+        void OnNameIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            NavigateToTextId((uint)(NameIdBox.Value ?? 0));
+        }
+
+        void OnDescIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            NavigateToTextId((uint)(DescIdBox.Value ?? 0));
+        }
+
+        void OnUseDescIdLinkClick(object? sender, PointerPressedEventArgs e)
+        {
+            NavigateToTextId((uint)(UseDescIdBox.Value ?? 0));
+        }
+
+        void NavigateToTextId(uint textId)
         {
             try
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
-                uint textId = (uint)(UseDescIdBox.Value ?? 0);
                 uint textPtr = rom.RomInfo.text_pointer;
                 if (textPtr == 0) return;
                 uint baseAddr = rom.p32(textPtr);
@@ -111,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"JumpToUseDesc failed: {ex.Message}");
+                Log.Error($"NavigateToTextId failed: {ex.Message}");
             }
         }
 
