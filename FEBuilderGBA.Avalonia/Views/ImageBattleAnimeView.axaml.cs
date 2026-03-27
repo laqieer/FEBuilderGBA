@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.BattleAnimeLoader(items, i));
 
                 // Show total animation count in summary
                 int count = _vm.CountAnimations();

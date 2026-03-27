@@ -26,7 +26,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItems(items); // ViewModel returns single placeholder entry; no per-unit icons possible
             }
             catch (Exception ex)
             {

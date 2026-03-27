@@ -325,5 +325,136 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = savedRom;
             }
         }
+
+        /// <summary>
+        /// Verify the move icon table pointer is valid and entries have valid data pointers.
+        /// </summary>
+        [Fact]
+        public void FE8U_MoveIconTable_HasValidEntries()
+        {
+            string? romPath = FindRom("FE8U.gba");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8U.gba not found");
+                return;
+            }
+
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.Load(romPath!, out _);
+                CoreState.ROM = rom;
+
+                uint ptr = rom.RomInfo.unit_move_icon_pointer;
+                Assert.NotEqual(0u, ptr);
+
+                uint baseAddr = rom.p32(ptr);
+                Assert.True(U.isSafetyOffset(baseAddr), $"Invalid move icon base: 0x{baseAddr:X}");
+
+                int validSprites = 0;
+                for (uint i = 0; i < 30; i++)
+                {
+                    uint entryAddr = baseAddr + i * 8;
+                    if (entryAddr + 8 > (uint)rom.Data.Length) break;
+
+                    uint picGba = rom.u32(entryAddr + 0);
+                    if (U.isPointer(picGba))
+                    {
+                        validSprites++;
+                        _output.WriteLine($"Move icon entry {i}: pic ptr 0x{picGba:X08}");
+                    }
+                }
+
+                _output.WriteLine($"Move icon entries with valid pic pointers: {validSprites}/30");
+                Assert.True(validSprites > 3, "Should have multiple valid move icon pic pointers");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        /// <summary>
+        /// Verify the battle animation table pointer is valid and records exist.
+        /// </summary>
+        [Fact]
+        public void FE8U_BattleAnimeTable_HasValidEntries()
+        {
+            string? romPath = FindRom("FE8U.gba");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8U.gba not found");
+                return;
+            }
+
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.Load(romPath!, out _);
+                CoreState.ROM = rom;
+
+                uint pointer = rom.RomInfo.image_battle_animelist_pointer;
+                Assert.NotEqual(0u, pointer);
+
+                uint tableBase = rom.p32(pointer);
+                Assert.True(U.isSafetyOffset(tableBase, rom), $"Invalid battle anime table base: 0x{tableBase:X}");
+
+                // Check first 10 records (each is 32 bytes)
+                int validRecords = 0;
+                for (uint i = 0; i < 10; i++)
+                {
+                    uint addr = tableBase + i * 32;
+                    if (addr + 32 > (uint)rom.Data.Length) break;
+
+                    uint sectionRaw = rom.u32(addr + 12);
+                    if (U.isPointer(sectionRaw))
+                    {
+                        validRecords++;
+                        _output.WriteLine($"Anime record {i}: section ptr 0x{sectionRaw:X08}");
+                    }
+                }
+
+                _output.WriteLine($"Battle anime records with valid section pointers: {validRecords}/10");
+                Assert.True(validRecords > 2, "Should have multiple valid battle anime records");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        /// <summary>
+        /// Verify GBA BGR555 color decomposition matches expected values.
+        /// Tests the bit-shifting pattern used by CreateColorSwatch.
+        /// </summary>
+        [Fact]
+        public void GBA_BGR555_ColorDecomposition_IsCorrect()
+        {
+            // Pure red: r=31, g=0, b=0 -> 0x001F
+            uint red = 0x001F;
+            Assert.Equal(248, (int)((red & 0x1F) << 3));
+            Assert.Equal(0, (int)(((red >> 5) & 0x1F) << 3));
+            Assert.Equal(0, (int)(((red >> 10) & 0x1F) << 3));
+
+            // Pure green: r=0, g=31, b=0 -> 0x03E0
+            uint green = 0x03E0;
+            Assert.Equal(0, (int)((green & 0x1F) << 3));
+            Assert.Equal(248, (int)(((green >> 5) & 0x1F) << 3));
+            Assert.Equal(0, (int)(((green >> 10) & 0x1F) << 3));
+
+            // Pure blue: r=0, g=0, b=31 -> 0x7C00
+            uint blue = 0x7C00;
+            Assert.Equal(0, (int)((blue & 0x1F) << 3));
+            Assert.Equal(0, (int)(((blue >> 5) & 0x1F) << 3));
+            Assert.Equal(248, (int)(((blue >> 10) & 0x1F) << 3));
+
+            // White: r=31, g=31, b=31 -> 0x7FFF
+            uint white = 0x7FFF;
+            Assert.Equal(248, (int)((white & 0x1F) << 3));
+            Assert.Equal(248, (int)(((white >> 5) & 0x1F) << 3));
+            Assert.Equal(248, (int)(((white >> 10) & 0x1F) << 3));
+        }
     }
 }
