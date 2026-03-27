@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var validSuffixes = new[]
             {
                 "_Input", "_Combo", "_Button", "_List", "_Check",
-                "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control"
+                "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link"
             };
 
             var view = new ClassEditorView();
