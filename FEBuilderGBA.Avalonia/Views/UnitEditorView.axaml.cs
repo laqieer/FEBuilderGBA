@@ -120,6 +120,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint baseAddr = rom.p32(textPtr);
                 if (!U.isSafetyOffset(baseAddr)) return;
                 uint addr = baseAddr + textId * 4;
+                if (!U.isSafetyOffset(addr)) return;
                 WindowManager.Instance.Navigate<TextViewerView>(addr);
             }
             catch (Exception ex)
