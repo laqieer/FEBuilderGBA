@@ -4,17 +4,18 @@ using Xunit;
 namespace FEBuilderGBA.E2ETests.Tests
 {
     /// <summary>
-    /// E2E tests that verify ALL 324 Avalonia GUI editor forms can be opened
+    /// E2E tests that verify ALL 325 Avalonia GUI editor forms can be opened
     /// without crashing. Uses --smoke-test-all flag to iterate through every
     /// editor accessible from MainWindow.
     /// </summary>
     public class AvaloniaAllEditorsSmokeTests
     {
+        private const int ExpectedEditorCount = 325;
         private static readonly string? ExePath = AvaloniaAppRunner.FindExePath();
 
         /// <summary>
         /// Opens every editor from MainWindow with --smoke-test-all flag.
-        /// Verifies all 324 editors can be instantiated and shown without crashing.
+        /// Verifies all 325 editors can be instantiated and shown without crashing.
         /// </summary>
         [SkippableTheory]
         [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
@@ -48,8 +49,8 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (exitCode, stdout, stderr) = AvaloniaAppRunner.Run(
                 ExePath!, $"--rom \"{romPath}\" --smoke-test-all", timeoutMs: 300_000);
 
-            // Should report testing 324 editors
-            Assert.Contains("SMOKE: Testing 324 editors", stdout);
+            // Should report testing ExpectedEditorCount editors
+            Assert.Contains($"SMOKE: Testing {ExpectedEditorCount} editors", stdout);
 
             // Should report results line
             Assert.Contains("passed", stdout);
