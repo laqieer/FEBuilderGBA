@@ -17,7 +17,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
         /// <summary>
         /// Captures screenshots of all editors via --screenshot-all.
-        /// Verifies at least 100 PNG files are created (of 323 total editors).
+        /// Verifies at least 100 PNG files are created (of 325 total editors).
         /// </summary>
         [SkippableTheory]
         [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
