@@ -36,8 +36,7 @@ Read `DEVELOPMENT-WORKFLOW.md` NOW for full details on each step.
 
 ```bash
 # Launch app
-dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba &
-sleep 15
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --rom roms/FE8U.gba
 # One-time setup (run once per clone):
 #   dotnet new console -o tools/WinCapture --force -n WinCapture
 #   cp tools/capture-window.cs tools/WinCapture/Program.cs
@@ -47,10 +46,12 @@ powershell -Command "Add-Type -AssemblyName UIAutomationClient; <# locate and in
 # Capture THAT editor
 dotnet run --project tools/WinCapture -c Release -- "Editor Title" pr-screenshots/prN-editor.png
 # Commit to pr-screenshots/ on master (via docs PR) or use GitHub asset upload
-# Reference via blob/master/pr-screenshots/... URLs or GitHub asset uploads
+# Reference via blob/master/pr-screenshots/...?raw=1 URLs, raw.githubusercontent.com, or GitHub asset uploads
 ```
 
 > **Shell note:** The examples above run in the foreground. To background a process in Git Bash append `&`; in PowerShell use `Start-Process`.
+
+> **Windows-only:** The UIAutomation + WinCapture flow above requires Windows. Non-Windows contributors should use MCP computer-use tools or manual testing with actual application screenshots.
 
 **CRITICAL: The screenshot MUST show the specific editor that was changed, with populated data. NEVER use the generic main Avalonia window.**
 
