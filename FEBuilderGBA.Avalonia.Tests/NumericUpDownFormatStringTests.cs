@@ -34,6 +34,34 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ===================================================================
+        // Global MinWidth style regression test (#315)
+        // ===================================================================
+
+        [AvaloniaFact]
+        public void ClassEditorView_AllNumericUpDowns_HaveMinWidth90()
+        {
+            var view = new ClassEditorView();
+            var nuds = CollectNumericUpDowns(view);
+
+            Assert.True(nuds.Count > 0, "ClassEditorView should have NumericUpDown controls");
+            _output.WriteLine($"ClassEditorView: {nuds.Count} NumericUpDown controls found");
+
+            var tooSmall = new List<string>();
+            foreach (var nud in nuds)
+            {
+                if (nud.MinWidth < 90)
+                {
+                    tooSmall.Add($"{nud.Name ?? "(unnamed)"}: MinWidth={nud.MinWidth}");
+                }
+            }
+
+            foreach (var v in tooSmall)
+                _output.WriteLine($"  TOO SMALL: {v}");
+
+            Assert.Empty(tooSmall);
+        }
+
+        // ===================================================================
         // ClassEditorView: all NumericUpDown controls use decimal format
         // ===================================================================
 
