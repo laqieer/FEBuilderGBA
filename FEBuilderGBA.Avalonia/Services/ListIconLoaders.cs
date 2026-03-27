@@ -391,5 +391,46 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+        /// <summary>
+        /// Load an attribute (affinity) icon by extracting the attribute type from the list item text.
+        /// Matches WinForms DrawAtributeAndText which calls ImageSystemIconForm.Attribute(type).
+        /// Attribute type is 1-based (1=Fire, 2=Thunder, ..., 7=Anima).
+        /// Icon index = type + 0x79 (maps to item icon indices 0x7A-0x80).
+        /// Uses weapon palette instead of normal item palette.
+        /// </summary>
+        public static Bitmap? AttributeIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint type = U.atoh(items[index].name);
+                if (type == 0) return null;
+                // Attribute icon index = type + 0x7A - 1 = type + 0x79
+                // (matching WinForms ImageSystemIconForm.Attribute which calls
+                //  DrawIconWhereID_UsingWeaponPalette(type + 0x7A - 1))
+                using var img = PreviewIconHelper.LoadItemIconWithWeaponPalette(type + 0x79);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load a skill icon for the SkillSystem patch.
+        /// Dynamically locates the skill icon base address via binary pattern search,
+        /// then renders the 16x16 4bpp tile at the given index.
+        /// Matches WinForms SkillConfigSkillSystemForm.DrawIcon(index, iconBaseAddress).
+        /// </summary>
+        public static Bitmap? SkillIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint iconBase = PreviewIconHelper.FindSkillSystemIconBaseAddress();
+                if (iconBase == 0) return null;
+                using var img = PreviewIconHelper.LoadSkillIcon((uint)index, iconBase);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }

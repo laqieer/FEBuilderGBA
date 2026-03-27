@@ -557,5 +557,179 @@ namespace FEBuilderGBA.Avalonia.Services
                 return null;
             }
         }
+        /// <summary>
+        /// Load item icon with the weapon palette instead of the normal item palette.
+        /// Used for attribute (affinity) icons which share item icon graphics but use
+        /// the weapon palette (system_weapon_icon_palette_pointer).
+        /// Matches WinForms ImageItemIconForm.DrawIconWhereID_UsingWeaponPalette.
+        /// </summary>
+        public static IImage LoadItemIconWithWeaponPalette(uint iconIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                uint ptr = rom.RomInfo.icon_pointer;
+                if (ptr == 0) return null;
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return null;
+
+                // Load weapon palette instead of normal item palette
+                uint palPtr = rom.RomInfo.system_weapon_icon_palette_pointer;
+                if (palPtr == 0) return null;
+
+                uint palGba = rom.u32(palPtr);
+                if (!U.isPointer(palGba)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(U.toOffset(palGba), 16);
+                if (palette == null) return null;
+
+                // Each icon is 128 bytes (2x2 tiles at 4bpp = 16x16 pixels)
+                uint iconAddr = baseAddr + iconIndex * 128;
+                if (iconAddr + 128 > (uint)rom.Data.Length) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load a 16x16 skill icon for the SkillSystem patch.
+        /// Each skill icon is 128 bytes of 4bpp tile data (16x16 pixels).
+        /// Uses a fixed palette at ROM address 0x22370 (pointer to palette data).
+        /// </summary>
+        /// <param name="index">Skill index (0-based)</param>
+        /// <param name="iconBaseAddress">Base address of the skill icon tile data in ROM</param>
+        public static IImage LoadSkillIcon(uint index, uint iconBaseAddress)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || iconBaseAddress == 0) return null;
+
+            try
+            {
+                const uint TILE_SIZE = 128; // 16x16 4bpp = 128 bytes
+                uint iconAddr = iconBaseAddress + index * TILE_SIZE;
+                if (iconAddr + TILE_SIZE > (uint)rom.Data.Length) return null;
+
+                // Skill palette is at a fixed ROM pointer (same for all game versions with SkillSystem)
+                const uint SKILL_PALETTE_POINTER = 0x22370;
+                if (!U.isSafetyOffset(SKILL_PALETTE_POINTER + 3)) return null;
+
+                uint palAddr = rom.p32(SKILL_PALETTE_POINTER);
+                if (!U.isSafetyOffset(palAddr)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Find the SkillSystem icon base address by searching for known binary patterns.
+        /// Mirrors WinForms SkillConfigSkillSystemForm.FindSkillPointer("ICON", 0).
+        /// Returns the icon base address (dereferenced pointer), or 0 if not found.
+        /// </summary>
+        public static uint FindSkillSystemIconBaseAddress()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return 0;
+
+            try
+            {
+                // Binary patterns for finding the ICON pointer, ordered by priority
+                // (same as WinForms SkillConfigSkillSystemForm.FindSkillPointer)
+                var iconPatterns = new (byte[] data, uint skip, bool hasMask)[]
+                {
+                    (new byte[] { 0x02, 0x40, 0x09, 0x4C, 0x05, 0x48, 0x00, 0x47, 0x05, 0x48, 0x00, 0x47, 0x05, 0x48, 0x00, 0x47 }, 24, false),
+                    (new byte[] { 0x08, 0x42, 0x04, 0xD1, 0x12, 0x79, 0xAA, 0x42, 0x01, 0xD1, 0x01, 0x20, 0x03, 0xE0, 0x01, 0x34, 0xBF, 0x2C, 0xEA, 0xDD, 0x00, 0x20, 0x30, 0xBC, 0x02, 0xBC, 0x08, 0x47 }, 8, false),
+                    (new byte[] { 0x38, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x80, 0x22, 0x0E, 0x49, 0x16, 0x48, 0x16, 0x4B, 0xFF, 0xFF, 0xFF, 0xFF, 0x2B, 0x34, 0x29, 0x00, 0x38, 0x00, 0x14, 0x4B, 0xFF, 0xFF, 0xFF, 0xFF, 0x26, 0x70, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x47, 0x01, 0x33, 0xCD, 0xE7, 0xC0, 0x46 }, 0, true),
+                    (new byte[] { 0x38, 0x00, 0x00, 0xF0, 0xFB, 0xF9, 0x80, 0x22, 0x0E, 0x49, 0x16, 0x48, 0x16, 0x4B, 0x00, 0xF0, 0xF5, 0xF9, 0x2B, 0x34, 0x29, 0x00, 0x38, 0x00, 0x14, 0x4B, 0x00, 0xF0, 0xEF, 0xF9, 0x26, 0x70, 0xF8, 0xBC, 0x01, 0xBC, 0x00, 0x47, 0x01, 0x33, 0xCD, 0xE7, 0xC0, 0x46 }, 0, false),
+                };
+
+                uint start = 0xB00000;
+                uint end = 0xC00000;
+
+                foreach (var (data, skip, hasMask) in iconPatterns)
+                {
+                    uint found;
+                    if (hasMask)
+                    {
+                        found = GrepWithMask(rom.Data, data, start, end, 4);
+                    }
+                    else
+                    {
+                        found = U.Grep(rom.Data, data, start, end, 4);
+                    }
+
+                    if (found == U.NOT_FOUND) continue;
+
+                    uint a = (uint)(found + data.Length + skip);
+                    if (!U.isSafetyOffset(a + 3)) continue;
+
+                    uint p = rom.u32(a);
+                    if (!U.isSafetyPointer(p)) continue;
+
+                    // Dereference the pointer to get the icon base address
+                    return U.toOffset(p);
+                }
+
+                return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Search ROM data for a byte pattern with 0xFF,0xFF wildcard pairs.
+        /// Mirrors WinForms U.GrepPatternMatch with MakeMaskData logic.
+        /// Adjacent 0xFF bytes are treated as wildcards (don't-care positions).
+        /// </summary>
+        static uint GrepWithMask(byte[] romData, byte[] pattern, uint start, uint end, uint blockSize)
+        {
+            if (romData == null || pattern == null || pattern.Length == 0) return U.NOT_FOUND;
+            if (end == 0 || end > (uint)romData.Length) end = (uint)romData.Length;
+            if (start + pattern.Length > end) return U.NOT_FOUND;
+
+            // Build mask: false = wildcard (0xFF,0xFF pair positions)
+            bool[] mustMatch = new bool[pattern.Length];
+            for (int i = 0; i < pattern.Length; i++)
+                mustMatch[i] = true;
+            for (int i = 0; i < pattern.Length - 1; i++)
+            {
+                if (pattern[i] == 0xFF && pattern[i + 1] == 0xFF)
+                {
+                    mustMatch[i] = false;
+                    mustMatch[i + 1] = false;
+                }
+            }
+
+            uint limit = end - (uint)pattern.Length;
+            for (uint pos = start; pos <= limit; pos += blockSize)
+            {
+                bool match = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (mustMatch[j] && romData[pos + j] != pattern[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) return pos;
+            }
+            return U.NOT_FOUND;
+        }
     }
 }
