@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -27,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MapActionAnimationLoader(items, i));
             }
             catch (Exception ex)
             {
@@ -57,6 +58,26 @@ namespace FEBuilderGBA.Avalonia.Views
             AnimationPointerBox.Text = $"0x{_vm.AnimationPointer:X08}";
             Padding1Box.Value = _vm.Padding1;
             Padding2Box.Value = _vm.Padding2;
+            UpdatePreview();
+        }
+
+        void UpdatePreview()
+        {
+            try
+            {
+                if (_vm.AnimationPointer == 0 || !U.isPointer(_vm.AnimationPointer))
+                {
+                    PreviewImage.Source = null;
+                    return;
+                }
+                using var img = PreviewIconHelper.LoadMapActionAnimationThumbnail(_vm.AnimationPointer);
+                Bitmap? bmp = ImageConversionHelper.ToAvaloniaBitmap(img);
+                PreviewImage.Source = bmp;
+            }
+            catch
+            {
+                PreviewImage.Source = null;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
