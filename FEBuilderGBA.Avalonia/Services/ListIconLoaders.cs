@@ -415,6 +415,29 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a map action animation thumbnail by reading the animation pointer (D0)
+        /// from the table entry at items[index].addr.
+        /// Renders the first frame of the animation as a 64x64 thumbnail.
+        /// </summary>
+        public static Bitmap? MapActionAnimationLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 3)) return null;
+                // D0 (u32 at offset 0) is the animation pointer
+                uint animePointer = rom.u32(addr);
+                if (animePointer == 0 || !U.isPointer(animePointer)) return null;
+                using var img = PreviewIconHelper.LoadMapActionAnimationThumbnail(animePointer);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load a skill icon for the SkillSystem patch.
         /// Dynamically locates the skill icon base address via binary pattern search,
         /// then renders the 16x16 4bpp tile at the given index.

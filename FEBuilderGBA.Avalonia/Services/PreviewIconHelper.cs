@@ -692,6 +692,31 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a map action animation thumbnail by rendering the first frame.
+        /// The animation pointer is read from the map action animation table entry.
+        /// Returns a 64x64 IImage of the first animation frame, or null.
+        /// </summary>
+        public static IImage LoadMapActionAnimationThumbnail(uint animePointer)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || animePointer == 0) return null;
+
+            try
+            {
+                // animePointer is a GBA pointer to the frame table
+                if (!U.isPointer(animePointer) && !U.isSafetyOffset(animePointer))
+                    return null;
+
+                // DrawFrame handles GBA pointer -> offset conversion internally
+                return ImageUtilMapActionAnimationCore.DrawFrame(animePointer, 0);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Search ROM data for a byte pattern with 0xFF,0xFF wildcard pairs.
         /// Mirrors WinForms U.GrepPatternMatch with MakeMaskData logic.
         /// Adjacent 0xFF bytes are treated as wildcards (don't-care positions).

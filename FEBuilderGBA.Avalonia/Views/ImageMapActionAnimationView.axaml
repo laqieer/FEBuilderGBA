@@ -29,6 +29,12 @@
           <!-- Row 3: Write button -->
           <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Write_Button" Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
         </Grid>
+
+        <!-- Animation preview -->
+        <TextBlock Text="Preview (Frame 0):" FontWeight="SemiBold" Margin="0,8,0,4" />
+        <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
+          <Image AutomationProperties.AutomationId="ImageMapActionAnimation_Preview" Name="PreviewImage" Width="128" Height="128" Stretch="Uniform" />
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>
