@@ -33,7 +33,7 @@
         <!-- Animation preview -->
         <TextBlock Text="Preview (Frame 0):" FontWeight="SemiBold" Margin="0,8,0,4" />
         <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
-          <Image AutomationProperties.AutomationId="ImageMapActionAnimation_Preview" Name="PreviewImage" Width="128" Height="128" Stretch="Uniform" />
+          <Image AutomationProperties.AutomationId="ImageMapActionAnimation_Preview_Image" Name="PreviewImage" Width="128" Height="128" Stretch="Uniform" />
         </Border>
       </StackPanel>
     </ScrollViewer>
