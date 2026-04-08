@@ -71,65 +71,122 @@ jobs:
         run: |
           $zip = "$env:TEMP\roms.zip"
 
-          # ---- Download -------------------------------------------------------
-          Write-Host "Downloading roms.zip..."
-          try {
-            Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip -ErrorAction Stop
-          } catch {
-            Write-Host "##[error]ROM download failed (network/HTTP error): $($_.Exception.Message)"
-            Write-Host "Update the ROMS_URL secret and re-run to enable ROM-based tests."
-            exit 1
-          }
-          $zipSize = (Get-Item $zip).Length
-          Write-Host "Downloaded $zipSize bytes."
-
-          # ---- Validate zip ---------------------------------------------------
-          $header = [System.IO.File]::ReadAllBytes($zip)[0..3]
-          if ($header[0] -ne 0x50 -or $header[1] -ne 0x4B) {
-            Write-Host "##[warning]Downloaded file is not a valid zip archive."
-            Write-Host "  Magic bytes: $([BitConverter]::ToString($header))  (expected 50-4B-03-04)"
-            Write-Host "  File size : $zipSize bytes"
-            Write-Host "ROM-based tests will be skipped this run."
-            exit 0
-          }
+          $maxAttempts = 3
+          $backoffSeconds = @(0, 10, 30)  # no wait before attempt 1, 10s after fail 1, 30s after fail 2
+          $success = $false
 
           Add-Type -AssemblyName System.IO.Compression.FileSystem
-          Write-Host ""
-          Write-Host "=== Zip contents ==="
-          try {
-            $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
-            foreach ($entry in $za.Entries) {
-              Write-Host ("  {0,-20}  {1,12:N0} bytes" -f $entry.FullName, $entry.Length)
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host ""
+            Write-Host "========== Attempt $attempt of $maxAttempts =========="
+
+            # ---- Clean up stale artifacts from previous attempt ----------------
+            if ($attempt -gt 1) {
+              Write-Host "Cleaning up stale artifacts..."
+              if (Test-Path $zip) {
+                Remove-Item $zip -Force
+                Write-Host "  Removed stale $zip"
+              }
+              $romsCleanDir = "${{ github.workspace }}\roms"
+              if (Test-Path $romsCleanDir) {
+                Remove-Item $romsCleanDir -Recurse -Force
+                Write-Host "  Removed stale $romsCleanDir"
+              }
             }
-            $za.Dispose()
-          } catch {
-            Write-Host "##[warning]Zip is corrupt: $($_.Exception.Message)"
-            Write-Host "ROM-based tests will be skipped this run."
-            exit 0
+
+            # ---- Download ------------------------------------------------------
+            Write-Host "Downloading roms.zip..."
+            try {
+              Invoke-WebRequest -Uri $env:ROMS_URL -OutFile $zip -ErrorAction Stop
+            } catch {
+              Write-Host "##[warning]Attempt $attempt : ROM download failed (network/HTTP error): $($_.Exception.Message)"
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
+            $zipSize = (Get-Item $zip).Length
+            Write-Host "Downloaded $zipSize bytes."
+
+            # ---- Validate zip header -------------------------------------------
+            $header = [System.IO.File]::ReadAllBytes($zip)[0..3]
+            if ($header[0] -ne 0x50 -or $header[1] -ne 0x4B) {
+              Write-Host "##[warning]Attempt $attempt : Downloaded file is not a valid zip archive."
+              Write-Host "  Magic bytes: $([BitConverter]::ToString($header))  (expected 50-4B-03-04)"
+              Write-Host "  File size : $zipSize bytes"
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
+
+            # ---- List zip contents ---------------------------------------------
+            Write-Host ""
+            Write-Host "=== Zip contents ==="
+            $zipCorrupt = $false
+            try {
+              $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+              foreach ($entry in $za.Entries) {
+                Write-Host ("  {0,-20}  {1,12:N0} bytes" -f $entry.FullName, $entry.Length)
+              }
+              $za.Dispose()
+            } catch {
+              Write-Host "##[warning]Attempt $attempt : Zip is corrupt: $($_.Exception.Message)"
+              $zipCorrupt = $true
+            }
+            if ($zipCorrupt) {
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
+
+            # ---- Extract -------------------------------------------------------
+            Write-Host ""
+            Write-Host "Extracting roms.zip..."
+            $extractFailed = $false
+            try {
+              Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force -ErrorAction Stop
+            } catch {
+              Write-Host "##[warning]Attempt $attempt : Failed to extract roms.zip: $($_.Exception.Message)"
+              $extractFailed = $true
+            }
+            if ($extractFailed) {
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
+
+            # ---- Verify target ROM ---------------------------------------------
+            $romsDir = "${{ github.workspace }}\roms"
+            $target  = "${{ inputs.rom-name }}.gba"
+            $path    = Join-Path $romsDir $target
+            if (Test-Path $path) {
+              $size = (Get-Item $path).Length
+              Write-Host "  [OK] $target  ($size bytes)"
+              $success = $true
+              break
+            } else {
+              Write-Host "##[warning]Attempt $attempt : Target ROM $target not found after extraction."
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
           }
 
-          # ---- Extract --------------------------------------------------------
-          Write-Host ""
-          Write-Host "Extracting roms.zip..."
-          try {
-            Expand-Archive -Path $zip -DestinationPath "${{ github.workspace }}" -Force -ErrorAction Stop
-          } catch {
-            Write-Host "##[warning]Failed to extract roms.zip: $($_.Exception.Message)"
-            Write-Host "ROM-based tests will be skipped this run."
-            exit 0
-          }
-
-          # ---- Verify target ROM -----------------------------------------------
-          $romsDir = "${{ github.workspace }}\roms"
-          $target  = "${{ inputs.rom-name }}.gba"
-          $path    = Join-Path $romsDir $target
-          if (Test-Path $path) {
-            $size = (Get-Item $path).Length
-            Write-Host "  [OK] $target  ($size bytes)"
-          } else {
-            Write-Host "##[warning]Target ROM $target not found after extraction."
-            Write-Host "ROM tests will be skipped."
-            exit 0
+          if (-not $success) {
+            Write-Host ""
+            Write-Host "##[error]ROM download failed after $maxAttempts attempts. All failure modes exhausted."
+            Write-Host "Update the ROMS_URL secret and re-run to enable ROM-based tests."
+            exit 1
           }
 
       # ---------------------------------------------------------------- Filter ROMs (keep only target)
