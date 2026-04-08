@@ -85,12 +85,12 @@ jobs:
             if ($attempt -gt 1) {
               Write-Host "Cleaning up stale artifacts..."
               if (Test-Path $zip) {
-                Remove-Item $zip -Force
+                Remove-Item $zip -Force -ErrorAction Stop
                 Write-Host "  Removed stale $zip"
               }
               $romsCleanDir = "${{ github.workspace }}\roms"
               if (Test-Path $romsCleanDir) {
-                Remove-Item $romsCleanDir -Recurse -Force
+                Remove-Item $romsCleanDir -Recurse -Force -ErrorAction Stop
                 Write-Host "  Removed stale $romsCleanDir"
               }
             }
@@ -111,6 +111,14 @@ jobs:
             Write-Host "Downloaded $zipSize bytes."
 
             # ---- Validate zip header -------------------------------------------
+            if ($zipSize -lt 4) {
+              Write-Host "##[warning]Attempt $attempt : Downloaded file is too small ($zipSize bytes) to be a valid zip."
+              if ($attempt -lt $maxAttempts) {
+                Write-Host "Retrying in $($backoffSeconds[$attempt]) seconds..."
+                Start-Sleep -Seconds $backoffSeconds[$attempt]
+              }
+              continue
+            }
             $header = [System.IO.File]::ReadAllBytes($zip)[0..3]
             if ($header[0] -ne 0x50 -or $header[1] -ne 0x4B) {
               Write-Host "##[warning]Attempt $attempt : Downloaded file is not a valid zip archive."
@@ -127,15 +135,19 @@ jobs:
             Write-Host ""
             Write-Host "=== Zip contents ==="
             $zipCorrupt = $false
+            $za = $null
             try {
               $za = [System.IO.Compression.ZipFile]::OpenRead($zip)
               foreach ($entry in $za.Entries) {
                 Write-Host ("  {0,-20}  {1,12:N0} bytes" -f $entry.FullName, $entry.Length)
               }
-              $za.Dispose()
             } catch {
               Write-Host "##[warning]Attempt $attempt : Zip is corrupt: $($_.Exception.Message)"
               $zipCorrupt = $true
+            } finally {
+              if ($null -ne $za) {
+                $za.Dispose()
+              }
             }
             if ($zipCorrupt) {
               if ($attempt -lt $maxAttempts) {
