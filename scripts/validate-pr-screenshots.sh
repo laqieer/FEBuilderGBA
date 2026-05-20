@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Validates that PR description does not contain blob/{feature-branch}/ image URLs
+# Validates that PR description does not contain feature-branch image URLs
+# (blob/{ref}/ or raw.githubusercontent.com/{owner}/{repo}/{ref}/)
 # that will break after the branch is deleted post-merge.
 #
 # Usage: scripts/validate-pr-screenshots.sh <pr-number> [pr-body-file] [default-branch]
@@ -50,27 +51,28 @@ if [ -z "$BODY" ]; then
   exit 0
 fi
 
-# Consolidated check: find ANY blob/{non-master}/ image URL in any directory
-# Matches: blob/<branch>/<any-path>.(png|jpg|jpeg|gif) with optional query string
-VIOLATIONS=$(echo "$BODY" | grep -oE 'blob/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|gif)(\?[a-zA-Z0-9_=&]*)?' | grep -v "blob/${DEFAULT_BRANCH}/" || true)
+# CHECK 1: feature-branch URLs (blob/ or raw.githubusercontent.com/)
+# These 404 after the branch is deleted post-merge.
+BLOB_VIOLATIONS=$(echo "$BODY" | grep -oE 'blob/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|gif)(\?[a-zA-Z0-9_=&]*)?' | grep -v "blob/${DEFAULT_BRANCH}/" || true)
+RAW_VIOLATIONS=$(echo "$BODY" | grep -oE 'raw\.githubusercontent\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_./-]+\.(png|jpg|jpeg|gif)(\?[a-zA-Z0-9_=&]*)?' | grep -vE "raw\.githubusercontent\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/${DEFAULT_BRANCH}/" || true)
+VIOLATIONS=$(printf '%s\n%s\n' "$BLOB_VIOLATIONS" "$RAW_VIOLATIONS" | grep -v '^$' || true)
 
 if [ -n "$VIOLATIONS" ]; then
   echo ""
-  echo "ERROR: PR description contains feature-branch blob URLs that will break after merge:"
+  echo "ERROR: PR description contains feature-branch URLs that will break after merge:"
   echo ""
   echo "$VIOLATIONS" | while read -r url; do
     echo "  BLOCKED: $url"
   done
   echo ""
-  echo "These URLs use blob/{feature-branch}/ which becomes 404 after branch deletion."
-  echo "Fix: commit screenshots to pr-screenshots/ on master (via a docs PR) FIRST,"
-  echo "then reference them as blob/${DEFAULT_BRANCH}/pr-screenshots/..."
+  echo "These URLs reference a feature branch (blob/{ref}/... or raw.githubusercontent.com/{owner}/{repo}/{ref}/...) and 404 after the branch is deleted."
+  echo "Fix: commit screenshots to pr-screenshots/ on the default branch (${DEFAULT_BRANCH}, via a docs PR) FIRST, then reference them as blob/${DEFAULT_BRANCH}/pr-screenshots/... or raw.githubusercontent.com/{owner}/{repo}/${DEFAULT_BRANCH}/pr-screenshots/..."
   echo ""
   echo "VALIDATION FAILED"
   exit 1
 fi
 
-echo "CHECK 1 PASSED: No feature-branch blob URLs found"
+echo "CHECK 1 PASSED: No feature-branch URLs found"
 
 # --- CHECK 2: feat/fix PRs must have at least one rendered image ---
 # Get PR title
