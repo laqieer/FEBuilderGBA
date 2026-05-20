@@ -273,7 +273,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 var img = PreviewIconHelper.LoadItemIcon(_vm.Icon);
                 if (img != null)
                 {
-                    ListPreviewImage.Zoom = 2;
                     ListPreviewImage.SetImage(img);
                     ListPreviewName.Text = _vm.Name;
                     ListPreviewBorder.IsVisible = true;

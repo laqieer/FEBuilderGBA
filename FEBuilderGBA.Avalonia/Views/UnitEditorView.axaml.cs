@@ -434,7 +434,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 var img = PreviewIconHelper.LoadPortraitMini(previewPortraitId);
                 if (img != null)
                 {
-                    ListPreviewImage.Zoom = 1;
                     ListPreviewImage.SetImage(img);
                     ListPreviewName.Text = _vm.Name;
                     ListPreviewBorder.IsVisible = true;
