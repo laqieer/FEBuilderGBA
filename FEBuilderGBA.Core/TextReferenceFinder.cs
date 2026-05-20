@@ -92,10 +92,15 @@ namespace FEBuilderGBA
                 if (fittingCount == 0) return;
             }
 
+            // Normalize null TextIdOffsets so the inner foreach is safe for
+            // external callers that didn't initialize the array.
+            uint[] offsets = t.TextIdOffsets ?? Array.Empty<uint>();
+            if (offsets.Length == 0) return;
+
             for (uint i = 0; i < fittingCount; i++)
             {
                 uint entry = baseAddr + i * t.EntrySize;
-                foreach (uint off in t.TextIdOffsets)
+                foreach (uint off in offsets)
                 {
                     uint addr = entry + off;
                     if (addr + 2 > (uint)rom.Data.Length) break;
