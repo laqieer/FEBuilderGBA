@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "computer-use": {
+    "febuildergba-computer-use": {
       "type": "stdio",
       "command": "./tools/mcp-computer-use/.venv/Scripts/python.exe",
       "args": ["./tools/mcp-computer-use/server.py"]
