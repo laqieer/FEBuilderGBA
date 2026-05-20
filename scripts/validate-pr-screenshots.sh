@@ -66,7 +66,7 @@ if [ -n "$VIOLATIONS" ]; then
   done
   echo ""
   echo "These URLs reference a feature branch (blob/{ref}/... or raw.githubusercontent.com/{owner}/{repo}/{ref}/...) and 404 after the branch is deleted."
-  echo "Fix: commit screenshots to pr-screenshots/ on master (via a docs PR) FIRST, then reference them as blob/${DEFAULT_BRANCH}/pr-screenshots/... or raw.githubusercontent.com/{owner}/{repo}/${DEFAULT_BRANCH}/pr-screenshots/..."
+  echo "Fix: commit screenshots to pr-screenshots/ on the default branch (${DEFAULT_BRANCH}, via a docs PR) FIRST, then reference them as blob/${DEFAULT_BRANCH}/pr-screenshots/... or raw.githubusercontent.com/{owner}/{repo}/${DEFAULT_BRANCH}/pr-screenshots/..."
   echo ""
   echo "VALIDATION FAILED"
   exit 1

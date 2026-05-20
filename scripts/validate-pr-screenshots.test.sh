@@ -92,6 +92,13 @@ run_case "empty_body" 0 ''
 # 7. Missing body file — must fail closed.
 run_case "missing_body_file" 1 'MISSING'
 
+# 8. Nested 'master' in path — must STILL fail closed (regression guard against
+#    the over-exclusion concern raised on PR #341: a URL where the branch is
+#    'feature' and 'master' appears as the 4th path segment must still be
+#    flagged as a violation).
+run_case "bad_raw_nested_master_in_path" 1 \
+  '![bad](https://raw.githubusercontent.com/owner/repo/feature/master/pr-screenshots/foo.png)'
+
 echo ""
 echo "PASSED: ${PASSED}/${TOTAL}  FAILED: ${FAILED}/${TOTAL}"
 
