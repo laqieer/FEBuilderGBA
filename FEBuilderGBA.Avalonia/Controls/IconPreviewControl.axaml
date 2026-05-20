@@ -1,0 +1,9 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Controls.IconPreviewControl">
+  <Border Name="OuterBorder" HorizontalAlignment="Center" VerticalAlignment="Center">
+    <Image Name="ImageDisplay" Stretch="Uniform"
+           RenderOptions.BitmapInterpolationMode="None"
+           HorizontalAlignment="Center" VerticalAlignment="Center" />
+  </Border>
+</UserControl>
