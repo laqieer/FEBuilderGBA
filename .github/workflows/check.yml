@@ -42,6 +42,10 @@ jobs:
         if ($null -eq $body) { $body = '' }
         [System.IO.File]::WriteAllText("$env:RUNNER_TEMP/pr-body.txt", $body)
 
+    - name: Run screenshot validator self-tests
+      shell: bash
+      run: bash scripts/validate-pr-screenshots.test.sh
+
     - name: Validate PR screenshot URLs
       if: github.event_name == 'pull_request'
       shell: bash

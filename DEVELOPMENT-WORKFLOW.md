@@ -288,7 +288,7 @@ EOF
 - **Screenshots are MANDATORY for `feat` and `fix` PRs:**
   - **GUI-changing PRs** (Avalonia or WinForms files modified): include **real GUI screenshot(s)** captured from the actual running application using `PrintWindow` API (`tools/capture-window.cs`), MCP, or manual screen capture. **NEVER fabricate images** (e.g., `System.Drawing.DrawString` on a blank Bitmap is NOT a screenshot).
   - **Non-GUI PRs** (Core, CLI, tests only): CLI terminal output, test run output, or before/after diff screenshots are acceptable proof.
-  - **Image URL rules** (all PRs): URLs MUST be permanent — commit to `pr-screenshots/` on master (via a docs PR) or use GitHub asset uploads. **NEVER use `blob/{feature-branch}/` URLs** — they 404 after branch deletion.
+  - **Image URL rules** (all PRs): URLs MUST be permanent — commit to `pr-screenshots/` on master (via a docs PR) or use GitHub asset uploads. **NEVER use feature-branch URLs** (either `blob/{feature-branch}/` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/`) — both 404 after branch deletion.
   - For `docs` and `chore` PRs, screenshots are optional.
 
 ### 10. Copilot CLI PR Review + Resolve ALL Comments
@@ -299,8 +299,8 @@ EOF
   Screenshot check: if the PR title starts with 'feat' or 'fix', verify the PR description contains at least one rendered image (Markdown ![...](URL) or HTML <img> tag) proving the change works. \
   For PRs that modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/ WinForms): screenshots MUST show the ACTUAL running application GUI with controls and data visible — NOT fabricated terminal-output images drawn on a blank background. Verify the screenshot content is RELEVANT to the behavior change (e.g., a Class Editor fix should show the Class Editor with populated data). \
   For PRs that only modify non-GUI files (Core, CLI, Tests): CLI terminal output or test run screenshots are acceptable proof. \
-  Accept valid image sources: GitHub attachments, raw.githubusercontent.com links, or blob/master/ paths with ?raw=1. \
-  REJECT blob/{feature-branch}/ URLs — these break after branch deletion. Flag them as a blocking issue. \
+  Accept valid image sources: GitHub attachments, default-branch `raw.githubusercontent.com/{owner}/{repo}/master/...` links, or `blob/master/...` paths with `?raw=1`. \
+  REJECT feature-branch URLs (`blob/{feature-branch}/...` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/...`) — these break after branch deletion. Flag them as a blocking issue. \
   Treat a Screenshots section as missing if it contains only placeholder URLs, only HTML comments, or no rendered images at all. Flag missing or invalid screenshots as a blocking issue for feat/fix PRs. \
   For docs/chore PRs (title starts with 'docs' or 'chore'), screenshots are optional — do NOT flag their absence. \
   GUI Test Report check: inspect the changed files list — if the PR modifies any GUI file under FEBuilderGBA.Avalonia/ or FEBuilderGBA/ (WinForms) AND the title starts with 'feat' or 'fix', verify the PR description contains a '## GUI Test Report' section with actual test results (a results table with pass/fail entries). \
@@ -537,9 +537,9 @@ Drawing text on a Bitmap with `System.Drawing.DrawString` (e.g., "VALIDATION PAS
 The main FEBuilderGBA hub window with category buttons proves nothing about whether a specific editor fix works. A PR fixing MapTerrain needs a MapTerrain screenshot, not the main menu.
 **Do:** Navigate to the SPECIFIC affected editor using UIAutomation (`powershell Add-Type -AssemblyName UIAutomationClient; $btn.GetCurrentPattern([InvokePattern]::Pattern).Invoke()`), then capture THAT editor window with `tools/WinCapture`. Every feat/fix screenshot must show populated data in the changed editor.
 
-### Don't: Use feature branch blob URLs for screenshot images
-`blob/{feature-branch}/file.png?raw=1` becomes a 404 after the branch is deleted post-merge. Every screenshot in the PR breaks permanently.
-**Do:** Commit screenshots to `pr-screenshots/` on master (via a docs PR) BEFORE referencing them. Use `blob/master/pr-screenshots/...` URLs. Or use GitHub asset uploads which produce permanent `user-attachments/assets/...` URLs.
+### Don't: Use feature-branch URLs (blob or raw) for screenshot images
+`blob/{feature-branch}/file.png?raw=1` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/file.png` becomes a 404 after the branch is deleted post-merge. Every screenshot in the PR breaks permanently.
+**Do:** Commit screenshots to `pr-screenshots/` on master (via a docs PR) BEFORE referencing them. Use `blob/master/pr-screenshots/...` URLs or `raw.githubusercontent.com/{owner}/{repo}/master/pr-screenshots/...` URLs. Or use GitHub asset uploads which produce permanent `user-attachments/assets/...` URLs.
 
 ### Don't: Declare GUI changes complete with only unit tests
 Unit tests verify code logic (e.g., "the zoom variable changed to 2"). They do NOT verify UI behavior (e.g., "the image actually rendered at 2x size"). The `Stretch="None"` zoom bug (issue #183) passed all unit tests but zoom never actually worked — because the Image control ignored Width/Height when Stretch was None.
