@@ -377,6 +377,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Path.Combine(avaloniaDir, "Controls", "BitFlagPanel.axaml"),
                 Path.Combine(avaloniaDir, "Controls", "AddressListControl.axaml"),
                 Path.Combine(avaloniaDir, "Controls", "GbaImageControl.axaml"),
+                Path.Combine(avaloniaDir, "Controls", "IconPreviewControl.axaml"),
                 Path.Combine(avaloniaDir, "App.axaml")
             };
 

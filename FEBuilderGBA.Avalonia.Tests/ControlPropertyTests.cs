@@ -215,9 +215,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             AssertDataContextType(view, typeof(ClassEditorViewModel), "ClassEditorView");
 
-            // Address list and preview image
+            // Address list and preview image (IconPreviewControl since #342)
             AssertNamedControlExists<AddressListControl>(view, "ClassList", "ClassEditorView");
-            AssertNamedControlExists<GbaImageControl>(view, "ListPreviewImage", "ClassEditorView");
+            AssertNamedControlExists<IconPreviewControl>(view, "ListPreviewImage", "ClassEditorView");
             AssertNamedControlExists(view, "AddrLabel", "ClassEditorView");
 
             // Write button
@@ -240,8 +240,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             AssertNamedControlExists<AddressListControl>(view, "ItemList", "ItemEditorView");
             AssertNamedControlExists(view, "AddrLabel", "ItemEditorView");
 
-            // Item icon preview (named "ListPreviewImage" in ItemEditorView.axaml)
-            AssertNamedControlExists<GbaImageControl>(view, "ListPreviewImage", "ItemEditorView");
+            // Item icon preview (named "ListPreviewImage" in ItemEditorView.axaml; IconPreviewControl since #342)
+            AssertNamedControlExists<IconPreviewControl>(view, "ListPreviewImage", "ItemEditorView");
 
             // Write button
             AssertWriteButtonExists(view, "ItemEditorView");
