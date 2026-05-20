@@ -33,8 +33,31 @@ public class IconPreviewControlTests
         return rgba;
     }
 
+    /// <summary>
+    /// Disposable host that owns a transient <see cref="Window"/> for layout-pass
+    /// testing of the embedded <see cref="IconPreviewControl"/>. Disposing closes
+    /// the window so the headless runner does not leak resources between tests
+    /// (PR #351 review).
+    /// </summary>
+    sealed class TestHost : System.IDisposable
+    {
+        public Window Window { get; }
+        public IconPreviewControl Control { get; }
+
+        public TestHost(Window window, IconPreviewControl control)
+        {
+            Window = window;
+            Control = control;
+        }
+
+        public void Dispose()
+        {
+            try { Window.Close(); } catch { /* best-effort */ }
+        }
+    }
+
     /// <summary>Force a layout pass on the freshly-created control so Bounds become populated.</summary>
-    static (Window window, IconPreviewControl control) HostInWindow(IconPreviewControl control,
+    static TestHost HostInWindow(IconPreviewControl control,
         double hostWidth = 250, double hostHeight = 120)
     {
         var window = new Window
@@ -47,14 +70,14 @@ public class IconPreviewControlTests
         window.Measure(new Size(hostWidth, hostHeight));
         window.Arrange(new Rect(0, 0, hostWidth, hostHeight));
         window.UpdateLayout();
-        return (window, control);
+        return new TestHost(window, control);
     }
 
     [AvaloniaFact]
     public void MeasuresToConfiguredSize()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         var border = control.FindControl<Border>("OuterBorder");
         Assert.NotNull(border);
@@ -66,7 +89,7 @@ public class IconPreviewControlTests
     public void RendersFullBitmapNoCrop_16x16()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
 
@@ -83,7 +106,7 @@ public class IconPreviewControlTests
         // With Scale=2 → 32×48 scaled; with the 32×32 source cap (Scale*max = 64×64),
         // the 32×48 fits entirely. Issue #342 was a smaller cap clipping these.
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(16, 24), 16, 24);
 
@@ -101,7 +124,7 @@ public class IconPreviewControlTests
         // we now reserve a 64×64 outer box, so a 32×32 source up-scaled to
         // 64×64 must render in full.
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(32, 32), 32, 32);
 
@@ -115,7 +138,7 @@ public class IconPreviewControlTests
     public void HandlesNullImage()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
         Assert.True(control.HasImage);
@@ -138,7 +161,7 @@ public class IconPreviewControlTests
     public void PropertyChange_RecomputesSize()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         var border = control.FindControl<Border>("OuterBorder");
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
@@ -181,7 +204,7 @@ public class IconPreviewControlTests
         // return a (transparent) bitmap instead of throwing — matching the
         // original GbaImageControl.SetImage behaviour.
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control);
+        using var host = HostInWindow(control);
 
         var image = new EmptyPaletteFakeImage(8, 8);
         var exception = Record.Exception(() => control.SetImage(image));
@@ -217,12 +240,15 @@ public class IconPreviewControlTests
     public void LayoutInsideLeftColumn()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        HostInWindow(control, hostWidth: 250, hostHeight: 120);
+        using var host = HostInWindow(control, hostWidth: 250, hostHeight: 120);
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
 
         // Force a second layout pass so Bounds reflect the loaded bitmap.
-        ((Window)control.Parent!).UpdateLayout();
+        // Use the returned host's window rather than casting control.Parent
+        // (parent may be a presenter/container depending on templates) — PR
+        // #351 review feedback.
+        host.Window.UpdateLayout();
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);

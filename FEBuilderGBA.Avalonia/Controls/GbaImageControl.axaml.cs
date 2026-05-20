@@ -64,21 +64,45 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             if (image == null)
             {
-                ImageDisplay.Source = null;
-                _bitmap = null;
+                ClearDisplay();
                 return;
             }
 
-            _bitmap = IconBitmapBuilder.FromImage(image);
+            var bmp = IconBitmapBuilder.FromImage(image);
+            if (bmp == null)
+            {
+                // Builder rejected the image (invalid dimensions, etc.) — clear
+                // the surface so ImageDisplay.Source doesn't keep showing a
+                // stale bitmap while HasImage reports false (issue #351 review).
+                ClearDisplay();
+                return;
+            }
+            _bitmap = bmp;
             UpdateDisplay();
         }
 
         /// <summary>Display raw RGBA pixel data.</summary>
         public void SetRgbaData(byte[] rgba, int width, int height)
         {
-            _bitmap = IconBitmapBuilder.FromRgba(rgba, width, height);
-            if (_bitmap == null) return;
+            var bmp = IconBitmapBuilder.FromRgba(rgba, width, height);
+            if (bmp == null)
+            {
+                ClearDisplay();
+                return;
+            }
+            _bitmap = bmp;
             UpdateDisplay();
+        }
+
+        void ClearDisplay()
+        {
+            _bitmap = null;
+            if (ImageDisplay != null)
+            {
+                ImageDisplay.Source = null;
+                ImageDisplay.Width = double.NaN;
+                ImageDisplay.Height = double.NaN;
+            }
         }
 
         void UpdateDisplay()

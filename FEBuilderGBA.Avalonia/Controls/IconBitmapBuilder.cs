@@ -52,7 +52,11 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Build a premultiplied-alpha RGBA8888 WriteableBitmap from raw RGBA bytes.
+        /// Build a premultiplied-alpha RGBA8888 WriteableBitmap from raw
+        /// straight-RGBA bytes (i.e. RGB channels are NOT pre-multiplied by
+        /// alpha at the call site — this method premultiplies them when
+        /// writing into the bitmap, as required by
+        /// <see cref="AlphaFormat.Premul"/>).
         /// Returns null if the data is too small or dimensions are invalid.
         /// </summary>
         public static WriteableBitmap? FromRgba(byte[] rgba, int width, int height)
@@ -88,11 +92,22 @@ namespace FEBuilderGBA.Avalonia.Controls
                                 ptr[dstIdx + 2] = 0;
                                 ptr[dstIdx + 3] = 0;
                             }
-                            else
+                            else if (a == 255)
                             {
+                                // Fully opaque — premul(c, 255) == c. Fast path.
                                 ptr[dstIdx] = rgba[srcIdx];
                                 ptr[dstIdx + 1] = rgba[srcIdx + 1];
                                 ptr[dstIdx + 2] = rgba[srcIdx + 2];
+                                ptr[dstIdx + 3] = 255;
+                            }
+                            else
+                            {
+                                // Partial alpha — premultiply RGB by α/255 with
+                                // +127 rounding so 0<α<255 inputs render correctly
+                                // under Avalonia's Premul alpha format.
+                                ptr[dstIdx]     = (byte)((rgba[srcIdx]     * a + 127) / 255);
+                                ptr[dstIdx + 1] = (byte)((rgba[srcIdx + 1] * a + 127) / 255);
+                                ptr[dstIdx + 2] = (byte)((rgba[srcIdx + 2] * a + 127) / 255);
                                 ptr[dstIdx + 3] = a;
                             }
                         }
