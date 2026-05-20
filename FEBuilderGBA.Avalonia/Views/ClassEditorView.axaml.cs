@@ -526,15 +526,36 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 uint ptr = ParseHexText(Ptr56Box.Text);
-                if (!U.isPointer(ptr)) return;
-                uint addr = ptr - 0x08000000;
-                if (!U.isSafetyOffset(addr)) return;
-                WindowManager.Instance.Navigate<MoveCostEditorView>(addr);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+
+                // Pass the CURRENT CLASS address — MoveCostEditorView's ClassList
+                // contains class addresses and resolves the move-cost pointer internally.
+                // Previously this passed the move-cost-table offset, which never matches
+                // any class in the list and silently fell back to entry 0 (issue #344).
+                WindowManager.Instance.Navigate<MoveCostEditorView>(_vm.CurrentAddr);
             }
             catch (Exception ex)
             {
                 Log.Error("JumpToMoveCost failed: {0}", ex.Message);
             }
+        }
+
+        // Issue #344 defensive gates for the Move Cost Jump button. Extracted
+        // for unit testing without a live UI: the displayed move-cost pointer
+        // must be a real GBA pointer AND its ROM offset must be inside the
+        // loaded image AND a class must currently be loaded. The same textbox
+        // (Ptr56Box) is used by both FE7/FE8 (where it represents P56) and
+        // FE6 (where it represents P52) — the gate is layout-agnostic and
+        // works for both versions.
+        internal static bool ShouldJumpToMoveCost(uint moveCostPtr, uint currentClassAddr)
+        {
+            if (!U.isPointer(moveCostPtr)) return false;
+            // U.isPointer only checks the GBA pointer range — also reject
+            // pointers whose ROM offset is outside the loaded image (e.g.
+            // dangling pointer in corrupted/unmapped class data).
+            if (!U.isSafetyOffset(U.toOffset(moveCostPtr))) return false;
+            if (currentClassAddr == 0) return false;
+            return true;
         }
 
         void UpdateWarnings()
