@@ -266,5 +266,113 @@ namespace FEBuilderGBA.Core.Tests
             var result = TextReferenceFinder.Find(null!, 0x0001, new[] { desc });
             Assert.Empty(result);
         }
+
+        /// <summary>
+        /// PR review follow-up (Copilot CLI): MaxCount is an upper bound for
+        /// expansion (e.g. 0x100 for class/item). A relocated/expanded ROM may
+        /// have fewer entries than the bound — the previous code bailed on the
+        /// entire table if MaxCount*EntrySize exceeded ROM length, hiding valid
+        /// early matches. The fix clamps to the number of entries that actually
+        /// fit. This test builds a ROM whose table base + MaxCount*EntrySize
+        /// extends past ROM end but whose early entries fit, places a match in
+        /// an early entry, and asserts the match is found.
+        /// </summary>
+        [Fact]
+        public void Find_PartiallyFittingTable_ScansAvailableEntries()
+        {
+            // ROM size 0x1000. Base at 0xF00 leaves 0x100 bytes. With
+            // EntrySize=4 and MaxCount=0x80 (=0x200 bytes), only 0x100/4 = 64
+            // entries actually fit. Match in entry 5 must be found.
+            int romSize = 0x1000;
+            uint pointerField = 0x200;
+            uint dataBase = 0xF00;
+
+            var bytes = new byte[romSize];
+            uint ptrValue = dataBase + 0x08000000u;
+            bytes[pointerField + 0] = (byte)(ptrValue & 0xFF);
+            bytes[pointerField + 1] = (byte)((ptrValue >> 8) & 0xFF);
+            bytes[pointerField + 2] = (byte)((ptrValue >> 16) & 0xFF);
+            bytes[pointerField + 3] = (byte)((ptrValue >> 24) & 0xFF);
+
+            // Lay 16 entries (well within the 64-fitting limit). Entry 5
+            // (offset 0xF00 + 5*4 = 0xF14) holds text id 0x0777 at +0.
+            for (int i = 0; i < 16; i++)
+            {
+                int entryOffset = (int)dataBase + i * 4;
+                ushort id = (ushort)(0x1000 + i);
+                if (i == 5) id = 0x0777;
+                bytes[entryOffset + 0] = (byte)(id & 0xFF);
+                bytes[entryOffset + 1] = (byte)((id >> 8) & 0xFF);
+            }
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Class",
+                PointerField = pointerField,
+                EntrySize = 4,
+                MaxCount = 0x80, // upper bound; 0x80 * 4 = 0x200 bytes; actual fit is 64 entries (0x100/4)
+                TextIdOffsets = new uint[] { 0, 2 },
+                NameResolver = id => $"C{id}",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0777, new[] { desc });
+
+            // The early entry must be found despite the table's nominal extent
+            // exceeding ROM end.
+            Assert.Single(result);
+            Assert.Equal("Class 0x05 (C5)", result[0]);
+        }
+
+        /// <summary>
+        /// PR review follow-up (Copilot CLI): even though
+        /// NameResolver.DerefPointer validates the ROMFEINFO pointer-field
+        /// address, it does NOT validate the dereferenced table base. A
+        /// malformed pointer value (e.g. one whose offset is below the 0x200
+        /// safety floor) would let the scan loop walk forward into arbitrary
+        /// later safe offsets as i advanced, reintroducing false positives.
+        /// The fix rejects bases that fail U.isSafetyOffset upfront.
+        /// </summary>
+        [Fact]
+        public void Find_DereffedBaseBelowSafetyFloor_ReturnsEmpty()
+        {
+            // pointer field at 0x200 holds GBA-encoded pointer 0x08000100,
+            // which dereferences to ROM offset 0x100 — below the 0x200 safety
+            // floor. Even with valid u16 text-id-matching bytes anywhere in
+            // the ROM, the scan must short-circuit.
+            uint pointerField = 0x200;
+            uint badDataBase = 0x100; // below 0x200 — should be rejected
+            var bytes = new byte[0x1000];
+            uint ptrValue = badDataBase + 0x08000000u;
+            bytes[pointerField + 0] = (byte)(ptrValue & 0xFF);
+            bytes[pointerField + 1] = (byte)((ptrValue >> 8) & 0xFF);
+            bytes[pointerField + 2] = (byte)((ptrValue >> 16) & 0xFF);
+            bytes[pointerField + 3] = (byte)((ptrValue >> 24) & 0xFF);
+            // Salt the ROM with bytes that WOULD match if the scan walked.
+            for (int i = 0x300; i < 0x800; i += 4)
+            {
+                bytes[i + 0] = 0x99;
+                bytes[i + 1] = 0x09;
+            }
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Unit",
+                PointerField = pointerField,
+                EntrySize = 4,
+                MaxCount = 64,
+                TextIdOffsets = new uint[] { 0 },
+                NameResolver = _ => "X",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0999, new[] { desc });
+
+            Assert.Empty(result);
+        }
     }
 }

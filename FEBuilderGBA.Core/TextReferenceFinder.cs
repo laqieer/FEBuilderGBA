@@ -69,11 +69,30 @@ namespace FEBuilderGBA
             uint baseAddr = NameResolver.DerefPointer(rom, t.PointerField);
             if (baseAddr == 0 || t.EntrySize == 0 || t.MaxCount == 0) return;
 
-            // Overflow-safe range guard: reject the whole table if it would extend past ROM end.
-            ulong end = (ulong)baseAddr + (ulong)t.MaxCount * (ulong)t.EntrySize;
-            if (end > (ulong)rom.Data.Length) return;
+            // Defensive base validation: the pointer FIELD passed
+            // U.isSafetyOffset inside DerefPointer, but its dereferenced
+            // value may still be a malformed/unmapped offset (e.g. below
+            // 0x200 header floor, or past ROM end). Reject those — without
+            // this guard the loop below could match arbitrary later safe
+            // offsets as `i` advances and reintroduce false positives.
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
 
-            for (uint i = 0; i < t.MaxCount; i++)
+            // Clamp MaxCount to the number of entries that physically fit
+            // inside the loaded ROM. MaxCount is an upper bound (e.g. 0x100
+            // for class/item) and the table might be relocated/expanded with
+            // fewer entries than the bound — bailing on the whole table
+            // would hide valid early matches. Compute the fitting count
+            // in ulong to avoid 32-bit overflow.
+            uint fittingCount = t.MaxCount;
+            ulong end = (ulong)baseAddr + (ulong)t.MaxCount * (ulong)t.EntrySize;
+            if (end > (ulong)rom.Data.Length)
+            {
+                ulong available = (ulong)rom.Data.Length - (ulong)baseAddr;
+                fittingCount = (uint)(available / t.EntrySize);
+                if (fittingCount == 0) return;
+            }
+
+            for (uint i = 0; i < fittingCount; i++)
             {
                 uint entry = baseAddr + i * t.EntrySize;
                 foreach (uint off in t.TextIdOffsets)
