@@ -525,11 +525,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Defensive gate: don't jump if the class has no valid Move Cost pointer
+                // or no class is currently loaded. P56 holds the move-cost-table pointer;
+                // FE6 reuses this same box for its P52 move-cost pointer.
                 uint ptr = ParseHexText(Ptr56Box.Text);
                 if (!U.isPointer(ptr)) return;
-                uint addr = ptr - 0x08000000;
-                if (!U.isSafetyOffset(addr)) return;
-                WindowManager.Instance.Navigate<MoveCostEditorView>(addr);
+                if (_vm.CurrentAddr == 0) return;
+
+                // Pass the CURRENT CLASS address — MoveCostEditorView's ClassList
+                // contains class addresses and resolves the move-cost pointer internally.
+                // Previously this passed the move-cost-table offset, which never matches
+                // any class in the list and silently fell back to entry 0 (issue #344).
+                WindowManager.Instance.Navigate<MoveCostEditorView>(_vm.CurrentAddr);
             }
             catch (Exception ex)
             {
