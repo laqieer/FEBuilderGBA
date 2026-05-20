@@ -203,4 +203,54 @@ public class ClassEditorMoveCostJumpTests : IClassFixture<RomFixture>
             Assert.Equal((byte)0, vm.GetCost(i));
         }
     }
+
+    /// <summary>
+    /// PR review follow-up (Copilot CLI): the original v1 of this fix dropped
+    /// the safety-offset guard, allowing an in-range-but-out-of-ROM P56 to
+    /// still open the Move Cost Editor on the current class with a dangling
+    /// pointer. The restored gate is exercised here via the extracted helper.
+    /// </summary>
+    [Fact]
+    public void ShouldJumpToMoveCost_RejectsOutOfRomPointer()
+    {
+        // 0x09FFFFFF is inside the GBA pointer range (so U.isPointer == true)
+        // but its ROM offset (0x01FFFFFF) exceeds any real ROM image, so
+        // U.isSafetyOffset must reject it.
+        Assert.True(U.isPointer(0x09FFFFFFu));
+        Assert.False(U.isSafetyOffset(U.toOffset(0x09FFFFFFu)));
+
+        // The gate must therefore return false even with a valid class addr.
+        Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x09FFFFFFu, 0x080807F4u));
+    }
+
+    [Fact]
+    public void ShouldJumpToMoveCost_RejectsZeroPointer()
+    {
+        Assert.False(ClassEditorView.ShouldJumpToMoveCost(0u, 0x080807F4u));
+    }
+
+    [Fact]
+    public void ShouldJumpToMoveCost_RejectsNonPointer()
+    {
+        // 0x00000001 is not in the GBA pointer range.
+        Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x00000001u, 0x080807F4u));
+    }
+
+    [Fact]
+    public void ShouldJumpToMoveCost_RejectsZeroCurrentClass()
+    {
+        // Even a perfectly valid P56 must not jump when no class is loaded
+        // (CurrentAddr == 0) — otherwise we'd open the editor on the previous
+        // selection.
+        Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x08800000u, 0u));
+    }
+
+    [Fact]
+    public void ShouldJumpToMoveCost_AcceptsValidInputs()
+    {
+        // 0x08800000 is a typical move-cost-table address in FE8U (offset
+        // 0x800000) and 0x080807F4 is the FE8U Master Lord class address.
+        // Both gates pass, so the click handler may navigate.
+        Assert.True(ClassEditorView.ShouldJumpToMoveCost(0x08800000u, 0x080807F4u));
+    }
 }

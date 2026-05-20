@@ -525,12 +525,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Defensive gate: don't jump if the class has no valid Move Cost pointer
-                // or no class is currently loaded. P56 holds the move-cost-table pointer;
-                // FE6 reuses this same box for its P52 move-cost pointer.
                 uint ptr = ParseHexText(Ptr56Box.Text);
-                if (!U.isPointer(ptr)) return;
-                if (_vm.CurrentAddr == 0) return;
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
 
                 // Pass the CURRENT CLASS address — MoveCostEditorView's ClassList
                 // contains class addresses and resolves the move-cost pointer internally.
@@ -542,6 +538,23 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("JumpToMoveCost failed: {0}", ex.Message);
             }
+        }
+
+        // Issue #344 defensive gates for the Move Cost Jump button. Extracted
+        // for unit testing without a live UI: P56 must be a real GBA pointer
+        // AND its ROM offset must be inside the loaded image AND a class must
+        // currently be loaded. P56 holds the move-cost-table pointer; FE6
+        // reuses the same Ptr56Box for its P52 move-cost pointer, so this
+        // gate works for both version layouts.
+        internal static bool ShouldJumpToMoveCost(uint p56Ptr, uint currentClassAddr)
+        {
+            if (!U.isPointer(p56Ptr)) return false;
+            // U.isPointer only checks the GBA pointer range — also reject
+            // pointers whose ROM offset is outside the loaded image (e.g.
+            // dangling pointer in corrupted/unmapped class data).
+            if (!U.isSafetyOffset(U.toOffset(p56Ptr))) return false;
+            if (currentClassAddr == 0) return false;
+            return true;
         }
 
         void UpdateWarnings()
