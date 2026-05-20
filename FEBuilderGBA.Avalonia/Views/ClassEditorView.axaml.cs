@@ -541,18 +541,19 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // Issue #344 defensive gates for the Move Cost Jump button. Extracted
-        // for unit testing without a live UI: P56 must be a real GBA pointer
-        // AND its ROM offset must be inside the loaded image AND a class must
-        // currently be loaded. P56 holds the move-cost-table pointer; FE6
-        // reuses the same Ptr56Box for its P52 move-cost pointer, so this
-        // gate works for both version layouts.
-        internal static bool ShouldJumpToMoveCost(uint p56Ptr, uint currentClassAddr)
+        // for unit testing without a live UI: the displayed move-cost pointer
+        // must be a real GBA pointer AND its ROM offset must be inside the
+        // loaded image AND a class must currently be loaded. The same textbox
+        // (Ptr56Box) is used by both FE7/FE8 (where it represents P56) and
+        // FE6 (where it represents P52) — the gate is layout-agnostic and
+        // works for both versions.
+        internal static bool ShouldJumpToMoveCost(uint moveCostPtr, uint currentClassAddr)
         {
-            if (!U.isPointer(p56Ptr)) return false;
+            if (!U.isPointer(moveCostPtr)) return false;
             // U.isPointer only checks the GBA pointer range — also reject
             // pointers whose ROM offset is outside the loaded image (e.g.
             // dangling pointer in corrupted/unmapped class data).
-            if (!U.isSafetyOffset(U.toOffset(p56Ptr))) return false;
+            if (!U.isSafetyOffset(U.toOffset(moveCostPtr))) return false;
             if (currentClassAddr == 0) return false;
             return true;
         }
