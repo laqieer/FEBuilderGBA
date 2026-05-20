@@ -1,0 +1,8 @@
+﻿A total of 1 test files matched the specified pattern.
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.AllMainWindowEditors_AreInSmokeTestFactories [217 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.AllSmokeTestEditors_AreInDocumentation [16 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.Documentation_Lists325Editors [4 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.SmokeTestFactories_Has325Entries [2 ms]
+Total tests: 4
+     Passed: 4
+ Total time: 3.2205 Seconds

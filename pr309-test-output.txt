@@ -1,0 +1,169 @@
+﻿=== PR #309 Proof: AvaloniaAllEditorsCoverageTests (325 editors) ===
+
+Build started 2026/3/27 12:33:41.
+     1>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" on node 1 (Restore target(s)).
+     1>_GetAllRestoreProjectPathItems:
+         Determining projects to restore...
+       Restore:
+         X.509 certificate chain validation will use the default trust store selected by .NET for code signing.
+         X.509 certificate chain validation will use the default trust store selected by .NET for timestamping.
+         Assets file has not changed. Skipping assets file writing. Path: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.SkiaSharp\obj\project.assets.json
+         Assets file has not changed. Skipping assets file writing. Path: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Core\obj\project.assets.json
+         Assets file has not changed. Skipping assets file writing. Path: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\obj\project.assets.json
+         Assets file has not changed. Skipping assets file writing. Path: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.CLI\obj\project.assets.json
+         Assets file has not changed. Skipping assets file writing. Path: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\obj\project.assets.json
+         Restored C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj (in 78 ms).
+         Restored C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj (in 78 ms).
+         Restored C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\FEBuilderGBA.csproj (in 78 ms).
+         Restored C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj (in 78 ms).
+         Restored C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj (in 78 ms).
+         
+         NuGet Config files used:
+             C:\Users\zhiwenzhu\AppData\Roaming\NuGet\NuGet.Config
+             C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.FallbackLocation.config
+             C:\Program Files (x86)\NuGet\Config\Microsoft.VisualStudio.Offline.config
+         
+         Feeds used:
+             https://api.nuget.org/v3/index.json
+             C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
+             C:\Program Files\dotnet\library-packs
+         All projects are up-to-date for restore.
+     1>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (Restore target(s)).
+   1:7>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" on node 3 (VSTest target(s)).
+     1>BuildProject:
+         Build started, please wait...
+   1:7>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:7) is building "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:8) on node 3 (default targets).
+   1:8>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:8) is building "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" (3:8) on node 4 (default targets).
+     3>GenerateTargetFrameworkMonikerAttribute:
+       Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+       _GenerateSourceLinkFile:
+         Source Link file 'obj\Debug\net9.0\FEBuilderGBA.Core.sourcelink.json' is up-to-date.
+       CoreCompile:
+       Skipping target "CoreCompile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildDependencyFile:
+       Skipping target "GenerateBuildDependencyFile" because all output files are up-to-date with respect to the input files.
+       CopyFilesToOutputDirectory:
+         FEBuilderGBA.Core -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Core\bin\Debug\net9.0\FEBuilderGBA.Core.dll
+     3>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" (default targets).
+   1:8>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:8) is building "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" (4:7) on node 1 (default targets).
+     4>GenerateTargetFrameworkMonikerAttribute:
+       Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+       CoreGenerateAssemblyInfo:
+       Skipping target "CoreGenerateAssemblyInfo" because all output files are up-to-date with respect to the input files.
+       _GenerateSourceLinkFile:
+         Source Link file 'obj\Debug\net9.0\FEBuilderGBA.SkiaSharp.sourcelink.json' is up-to-date.
+       CoreCompile:
+       Skipping target "CoreCompile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildDependencyFile:
+       Skipping target "GenerateBuildDependencyFile" because all output files are up-to-date with respect to the input files.
+       CopyFilesToOutputDirectory:
+         FEBuilderGBA.SkiaSharp -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.SkiaSharp\bin\Debug\net9.0\FEBuilderGBA.SkiaSharp.dll
+     4>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" (default targets).
+   1:8>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:8) is building "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj" (5:6) on node 3 (default targets).
+     5>GenerateTargetFrameworkMonikerAttribute:
+       Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+       CoreGenerateAssemblyInfo:
+       Skipping target "CoreGenerateAssemblyInfo" because all output files are up-to-date with respect to the input files.
+       _GenerateSourceLinkFile:
+         Source Link file 'obj\Debug\net9.0\FEBuilderGBA.CLI.sourcelink.json' is up-to-date.
+       CoreCompile:
+       Skipping target "CoreCompile" because all output files are up-to-date with respect to the input files.
+       _CreateAppHost:
+       Skipping target "_CreateAppHost" because all output files are up-to-date with respect to the input files.
+   1:8>Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (1:8) is building "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\FEBuilderGBA.csproj" (2:6) on node 2 (default targets).
+     2>CoreResGen:
+         No resources are out of date with respect to their source files. Skipping resource generation.
+       GenerateTargetFrameworkMonikerAttribute:
+       Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+       _GenerateSourceLinkFile:
+         Source Link file 'obj\Debug\FEBuilderGBA.sourcelink.json' is up-to-date.
+     5>_CopyOutOfDateSourceItemsToOutputDirectory:
+       Skipping target "_CopyOutOfDateSourceItemsToOutputDirectory" because all output files are up-to-date with respect to the input files.
+       GenerateBuildDependencyFile:
+       Skipping target "GenerateBuildDependencyFile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildRuntimeConfigurationFiles:
+       Skipping target "GenerateBuildRuntimeConfigurationFiles" because all output files are up-to-date with respect to the input files.
+       CopyFilesToOutputDirectory:
+         FEBuilderGBA.CLI -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.CLI\bin\Debug\net9.0\FEBuilderGBA.CLI.dll
+     5>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj" (default targets).
+     2>CoreCompile:
+       Skipping target "CoreCompile" because all output files are up-to-date with respect to the input files.
+       _CreateAppHost:
+       Skipping target "_CreateAppHost" because all output files are up-to-date with respect to the input files.
+       _CopyOutOfDateSourceItemsToOutputDirectory:
+       Skipping target "_CopyOutOfDateSourceItemsToOutputDirectory" because all output files are up-to-date with respect to the input files.
+       _CopyAppConfigFile:
+       Skipping target "_CopyAppConfigFile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildDependencyFile:
+       Skipping target "GenerateBuildDependencyFile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildRuntimeConfigurationFiles:
+       Skipping target "GenerateBuildRuntimeConfigurationFiles" because all output files are up-to-date with respect to the input files.
+       CopyFilesToOutputDirectory:
+         FEBuilderGBA -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\bin\Debug\FEBuilderGBA.dll
+       CopyConfigDirectories:
+         ========================================
+         Copying config directories to build output...
+         ========================================
+         Source (tracked config): C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\..\config
+         Source (patch2): C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\..\config\patch2
+         Target: bin\Debug\config
+         ========================================
+         Γ£ô Config directories copied:
+           - data/ (from config/data)
+           - translate/ (from config/translate)
+           - patch2/ (from config/patch2 submodule)
+         ========================================
+       CopyNativeLibs:
+         Γ£ô Copied 7-zip32.dll to output
+     2>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA\FEBuilderGBA.csproj" (default targets).
+     1>GenerateTargetFrameworkMonikerAttribute:
+       Skipping target "GenerateTargetFrameworkMonikerAttribute" because all output files are up-to-date with respect to the input files.
+       CoreGenerateAssemblyInfo:
+       Skipping target "CoreGenerateAssemblyInfo" because all output files are up-to-date with respect to the input files.
+       _GenerateSourceLinkFile:
+         Source Link file 'obj\Debug\net9.0-windows\FEBuilderGBA.Tests.sourcelink.json' is up-to-date.
+       CoreCompile:
+       Skipping target "CoreCompile" because all output files are up-to-date with respect to the input files.
+       _CopyOutOfDateSourceItemsToOutputDirectory:
+       Skipping target "_CopyOutOfDateSourceItemsToOutputDirectory" because all output files are up-to-date with respect to the input files.
+       _CopyAppConfigFile:
+       Skipping target "_CopyAppConfigFile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildDependencyFile:
+       Skipping target "GenerateBuildDependencyFile" because all output files are up-to-date with respect to the input files.
+       GenerateBuildRuntimeConfigurationFiles:
+       Skipping target "GenerateBuildRuntimeConfigurationFiles" because all output files are up-to-date with respect to the input files.
+       CopyFilesToOutputDirectory:
+         FEBuilderGBA.Tests -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\bin\Debug\net9.0-windows\FEBuilderGBA.Tests.dll
+     1>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (default targets).
+     1>BuildProject:
+         Build completed.
+         
+Test run for C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\bin\Debug\net9.0-windows\FEBuilderGBA.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (32-bit .NET 9.0.14)
+[xUnit.net 00:00:00.13]   Discovering: FEBuilderGBA.Tests
+[xUnit.net 00:00:00.35]   Discovered:  FEBuilderGBA.Tests
+[xUnit.net 00:00:00.36]   Starting:    FEBuilderGBA.Tests
+[xUnit.net 00:00:00.44]   Finished:    FEBuilderGBA.Tests
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.AllMainWindowEditors_AreInSmokeTestFactories [8 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.AllSmokeTestEditors_AreInDocumentation [4 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.Documentation_Lists325Editors [4 ms]
+  Passed FEBuilderGBA.Tests.Unit.AvaloniaAllEditorsCoverageTests.SmokeTestFactories_Has325Entries [2 ms]
+
+Test Run Successful.
+Total tests: 4
+     Passed: 4
+ Total time: 1.2534 Seconds
+     1>Done Building Project "C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj" (VSTest target(s)).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:19.14
+
+Workload updates are available. Run `dotnet workload list` for more information.
+
