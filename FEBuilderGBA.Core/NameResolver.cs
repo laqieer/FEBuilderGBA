@@ -82,7 +82,7 @@ namespace FEBuilderGBA
         /// ROMFEINFO fields like unit_pointer/class_pointer/item_pointer store the
         /// ROM offset of a pointer, not the data address itself.
         /// </summary>
-        static uint DerefPointer(ROM rom, uint pointerAddr)
+        internal static uint DerefPointer(ROM rom, uint pointerAddr)
         {
             if (pointerAddr == 0 || pointerAddr == U.NOT_FOUND) return 0;
             uint offset = U.toOffset(pointerAddr);
