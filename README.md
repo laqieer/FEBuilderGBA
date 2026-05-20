@@ -260,11 +260,11 @@ All 361 Avalonia `.axaml` files (360 views + 1 dialog) have `AutomationPropertie
 | `_Check` | CheckBox, ToggleButton, RadioButton, BitFlagPanel |
 | `_Expander` | Expander |
 | `_TabControl` / `_Tab` | TabControl, TabItem |
-| `_Image` | Image, GbaImageControl |
+| `_Image` | Image, GbaImageControl, IconPreviewControl |
 | `_Label` | TextBlock (dynamic/bound only) |
 
 **Exempt files** (no AutomationIds — reusable controls instantiated multiple times):
-- `Controls/BitFlagPanel.axaml`, `Controls/AddressListControl.axaml`, `Controls/GbaImageControl.axaml`, `App.axaml`
+- `Controls/BitFlagPanel.axaml`, `Controls/AddressListControl.axaml`, `Controls/GbaImageControl.axaml`, `Controls/IconPreviewControl.axaml`, `App.axaml`
 
 **Scripts:**
 - `scripts/add-automation-ids.ps1` — adds/refreshes AutomationIds across all .axaml files

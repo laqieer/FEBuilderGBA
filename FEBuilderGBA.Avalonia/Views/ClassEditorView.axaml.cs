@@ -406,7 +406,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 var img = PreviewIconHelper.LoadClassWaitIcon(_vm.WaitIcon);
                 if (img != null)
                 {
-                    ListPreviewImage.Zoom = 2;
                     ListPreviewImage.SetImage(img);
                     ListPreviewName.Text = _vm.Name;
                     ListPreviewBorder.IsVisible = true;

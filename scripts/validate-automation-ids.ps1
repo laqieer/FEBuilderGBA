@@ -26,6 +26,7 @@ $exemptInternalFiles = @(
     "Controls\BitFlagPanel.axaml",
     "Controls\AddressListControl.axaml",
     "Controls\GbaImageControl.axaml",
+    "Controls\IconPreviewControl.axaml",
     "App.axaml"
 )
 

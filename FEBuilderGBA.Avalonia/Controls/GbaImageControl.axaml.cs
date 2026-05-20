@@ -64,82 +64,45 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             if (image == null)
             {
-                ImageDisplay.Source = null;
-                _bitmap = null;
+                ClearDisplay();
                 return;
             }
 
-            byte[] rgba = image.GetPixelData();
-            int w = image.Width;
-            int h = image.Height;
-
-            // If indexed, the pixel data is palette indices — get RGBA instead
-            if (image.IsIndexed)
+            var bmp = IconBitmapBuilder.FromImage(image);
+            if (bmp == null)
             {
-                byte[] palette = image.GetPaletteRGBA();
-                byte[] indexData = rgba;
-                rgba = new byte[w * h * 4];
-                for (int i = 0; i < w * h; i++)
-                {
-                    int palIdx = indexData[i];
-                    if (palIdx * 4 + 3 < palette.Length)
-                    {
-                        rgba[i * 4 + 0] = palette[palIdx * 4 + 0];
-                        rgba[i * 4 + 1] = palette[palIdx * 4 + 1];
-                        rgba[i * 4 + 2] = palette[palIdx * 4 + 2];
-                        rgba[i * 4 + 3] = palIdx == 0 ? (byte)0 : palette[palIdx * 4 + 3];
-                    }
-                }
+                // Builder rejected the image (invalid dimensions, etc.) — clear
+                // the surface so ImageDisplay.Source doesn't keep showing a
+                // stale bitmap while HasImage reports false (issue #351 review).
+                ClearDisplay();
+                return;
             }
-
-            SetRgbaData(rgba, w, h);
+            _bitmap = bmp;
+            UpdateDisplay();
         }
 
         /// <summary>Display raw RGBA pixel data.</summary>
         public void SetRgbaData(byte[] rgba, int width, int height)
         {
-            if (rgba == null || rgba.Length < width * height * 4) return;
-
-            _bitmap = new WriteableBitmap(
-                new PixelSize(width, height),
-                new Vector(96, 96),
-                global::Avalonia.Platform.PixelFormat.Rgba8888,
-                global::Avalonia.Platform.AlphaFormat.Premul);
-
-            using (var fb = _bitmap.Lock())
+            var bmp = IconBitmapBuilder.FromRgba(rgba, width, height);
+            if (bmp == null)
             {
-                unsafe
-                {
-                    var ptr = (byte*)fb.Address;
-                    int stride = fb.RowBytes;
-                    for (int y = 0; y < height; y++)
-                    {
-                        for (int x = 0; x < width; x++)
-                        {
-                            int srcIdx = (y * width + x) * 4;
-                            int dstIdx = y * stride + x * 4;
-                            byte a = rgba[srcIdx + 3];
-                            if (a == 0)
-                            {
-                                // Premul: alpha=0 → all channels must be 0
-                                ptr[dstIdx] = 0;
-                                ptr[dstIdx + 1] = 0;
-                                ptr[dstIdx + 2] = 0;
-                                ptr[dstIdx + 3] = 0;
-                            }
-                            else
-                            {
-                                ptr[dstIdx] = rgba[srcIdx];
-                                ptr[dstIdx + 1] = rgba[srcIdx + 1];
-                                ptr[dstIdx + 2] = rgba[srcIdx + 2];
-                                ptr[dstIdx + 3] = a;
-                            }
-                        }
-                    }
-                }
+                ClearDisplay();
+                return;
             }
-
+            _bitmap = bmp;
             UpdateDisplay();
+        }
+
+        void ClearDisplay()
+        {
+            _bitmap = null;
+            if (ImageDisplay != null)
+            {
+                ImageDisplay.Source = null;
+                ImageDisplay.Width = double.NaN;
+                ImageDisplay.Height = double.NaN;
+            }
         }
 
         void UpdateDisplay()
