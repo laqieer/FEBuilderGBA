@@ -209,10 +209,16 @@ public class ClassEditorMoveCostJumpTests : IClassFixture<RomFixture>
     /// the safety-offset guard, allowing an in-range-but-out-of-ROM P56 to
     /// still open the Move Cost Editor on the current class with a dangling
     /// pointer. The restored gate is exercised here via the extracted helper.
+    ///
+    /// These run as [AvaloniaFact] with the RomFixture guard because
+    /// U.isSafetyOffset(uint) without an explicit rom parameter dereferences
+    /// CoreState.ROM.Data — they cannot run in a no-ROM environment.
     /// </summary>
-    [Fact]
+    [AvaloniaFact]
     public void ShouldJumpToMoveCost_RejectsOutOfRomPointer()
     {
+        if (!_fixture.IsAvailable) return;
+
         // 0x09FFFFFF is inside the GBA pointer range (so U.isPointer == true)
         // but its ROM offset (0x01FFFFFF) exceeds any real ROM image, so
         // U.isSafetyOffset must reject it.
@@ -223,34 +229,50 @@ public class ClassEditorMoveCostJumpTests : IClassFixture<RomFixture>
         Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x09FFFFFFu, 0x080807F4u));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ShouldJumpToMoveCost_RejectsZeroPointer()
     {
+        if (!_fixture.IsAvailable) return;
         Assert.False(ClassEditorView.ShouldJumpToMoveCost(0u, 0x080807F4u));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ShouldJumpToMoveCost_RejectsNonPointer()
     {
+        if (!_fixture.IsAvailable) return;
         // 0x00000001 is not in the GBA pointer range.
         Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x00000001u, 0x080807F4u));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ShouldJumpToMoveCost_RejectsZeroCurrentClass()
     {
+        if (!_fixture.IsAvailable) return;
+
         // Even a perfectly valid P56 must not jump when no class is loaded
         // (CurrentAddr == 0) — otherwise we'd open the editor on the previous
-        // selection.
-        Assert.False(ClassEditorView.ShouldJumpToMoveCost(0x08800000u, 0u));
+        // selection. Use a pointer whose offset is past the GBA header range
+        // (U.isSafetyOffset rejects offsets < 0x200) and within the loaded
+        // ROM, so the safety-offset check passes and we are genuinely
+        // exercising the CurrentAddr==0 gate.
+        uint inRomPtr = 0x08001000u;
+        Assert.True(U.isPointer(inRomPtr));
+        Assert.True(U.isSafetyOffset(U.toOffset(inRomPtr)));
+        Assert.False(ClassEditorView.ShouldJumpToMoveCost(inRomPtr, 0u));
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void ShouldJumpToMoveCost_AcceptsValidInputs()
     {
-        // 0x08800000 is a typical move-cost-table address in FE8U (offset
-        // 0x800000) and 0x080807F4 is the FE8U Master Lord class address.
-        // Both gates pass, so the click handler may navigate.
-        Assert.True(ClassEditorView.ShouldJumpToMoveCost(0x08800000u, 0x080807F4u));
+        if (!_fixture.IsAvailable) return;
+
+        // Use offsets that are guaranteed inside the loaded ROM. The first
+        // byte is offset 0 (pointer 0x08000000); pick a small in-ROM offset
+        // for the class address too. Both gates pass, so the click handler
+        // may navigate.
+        uint inRomPtr = 0x08001000u;
+        uint inRomClass = 0x08002000u;
+        Assert.True(U.isSafetyOffset(U.toOffset(inRomPtr)));
+        Assert.True(ClassEditorView.ShouldJumpToMoveCost(inRomPtr, inRomClass));
     }
 }
