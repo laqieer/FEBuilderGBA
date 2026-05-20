@@ -214,49 +214,69 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Find units, items, and classes that reference the given text ID in their name field.
+        /// Find units, items, and classes that reference the given text ID.
+        /// Delegates to <see cref="TextReferenceFinder.Find"/>, which correctly
+        /// dereferences ROMFEINFO pointer FIELDS (unit_pointer/class_pointer/item_pointer)
+        /// to the actual data base addresses before scanning entries.
+        ///
+        /// Text ID offsets per entry follow WinForms ROMFE*INFO definitions:
+        ///   - Unit:  +0 (name), +2 (description)
+        ///   - Class: +0 (name), +2 (description)
+        ///   - Item:  +0 (name), +2 (description), +4 (use description)
+        ///
+        /// Currently scoped to units, classes, and items. Other reference sources
+        /// (map settings, supports, events, sound room, etc.) are tracked as
+        /// follow-up parity work — see the issue tracker.
         /// </summary>
         public List<string> FindCrossReferences(uint textId)
         {
-            var refs = new List<string>();
             try
             {
                 ROM rom = CoreState.ROM;
-                if (rom?.RomInfo == null || rom.Data == null) return refs;
+                if (rom?.RomInfo == null || rom.Data == null) return new List<string>();
 
-                // Scan unit names (first u16 of each unit entry)
-                ScanTable(rom, rom.RomInfo.unit_pointer, rom.RomInfo.unit_datasize,
-                    textId, "Unit", id => NameResolver.GetUnitName(id), refs);
-
-                // Scan class names (first u16 of each class entry)
-                ScanTable(rom, rom.RomInfo.class_pointer, rom.RomInfo.class_datasize,
-                    textId, "Class", id => NameResolver.GetClassName(id), refs);
-
-                // Scan item names (first u16 of each item entry)
-                ScanTable(rom, rom.RomInfo.item_pointer, rom.RomInfo.item_datasize,
-                    textId, "Item", id => NameResolver.GetItemName(id), refs);
-            }
-            catch (Exception ex) { Log.Error("TextViewerViewModel.FindCrossReferences: {0}", ex.Message); }
-            return refs;
-        }
-
-        static void ScanTable(ROM rom, uint baseAddr, uint dataSize, uint textId,
-            string kind, Func<uint, string> nameFunc, List<string> refs)
-        {
-            if (baseAddr == 0 || dataSize == 0) return;
-            if (rom?.Data == null) return;
-            for (uint i = 0; i < 0x200; i++)
-            {
-                uint entryAddr = baseAddr + (i * dataSize);
-                // Bounds check: need at least 2 bytes for u16 read
-                if (entryAddr + 2 > (uint)rom.Data.Length) break;
-                if (!U.isSafetyOffset(entryAddr + 1, rom)) break;
-                uint nameTextId = rom.u16(entryAddr);
-                if (nameTextId == textId)
+                var info = rom.RomInfo;
+                // ROMFEINFO only declares unit_maxcount; class/item tables don't have explicit
+                // counts in the schema. Use 0x100 (256) as a reasonable upper bound — the same
+                // value used by ItemEditorViewModel.LoadItemList and NameResolver.ResolvePortraitName.
+                uint unitCount = info.unit_maxcount != 0 ? info.unit_maxcount : 0x100u;
+                var tables = new[]
                 {
-                    string name = nameFunc(i);
-                    refs.Add($"{kind} 0x{i:X02} ({name})");
-                }
+                    new TextRefTableDescriptor
+                    {
+                        Kind = "Unit",
+                        PointerField = info.unit_pointer,
+                        EntrySize = info.unit_datasize,
+                        MaxCount = unitCount,
+                        TextIdOffsets = new uint[] { 0, 2 },
+                        NameResolver = id => NameResolver.GetUnitName(id),
+                    },
+                    new TextRefTableDescriptor
+                    {
+                        Kind = "Class",
+                        PointerField = info.class_pointer,
+                        EntrySize = info.class_datasize,
+                        MaxCount = 0x100u,
+                        TextIdOffsets = new uint[] { 0, 2 },
+                        NameResolver = id => NameResolver.GetClassName(id),
+                    },
+                    new TextRefTableDescriptor
+                    {
+                        Kind = "Item",
+                        PointerField = info.item_pointer,
+                        EntrySize = info.item_datasize,
+                        MaxCount = 0x100u,
+                        TextIdOffsets = new uint[] { 0, 2, 4 },
+                        NameResolver = id => NameResolver.GetItemName(id),
+                    },
+                };
+
+                return TextReferenceFinder.Find(rom, textId, tables);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerViewModel.FindCrossReferences: {0}", ex.Message);
+                return new List<string>();
             }
         }
 
