@@ -393,7 +393,7 @@ python -m venv .venv
 .venv/Scripts/python server.py
 ```
 
-The `.mcp.json` at the repo root auto-configures Claude Code to use the server. After setup, the `computer-use` tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
+The `.mcp.json` at the repo root auto-configures Claude Code to use the server as `febuildergba-computer-use`. After setup, its tools (screenshot, click, type_text, key_press, mouse_move, scroll, drag, get_screen_size, wait, find_window, focus_window) appear in Claude Code sessions opened from this repo.
 
 README for Korean character table
 ===
