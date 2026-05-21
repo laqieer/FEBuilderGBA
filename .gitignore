@@ -19,6 +19,8 @@ FEBuilderGBA.E2ETests/bin/
 FEBuilderGBA.E2ETests/obj/
 FEBuilderGBA.Core.Tests/bin/
 FEBuilderGBA.Core.Tests/obj/
+FEBuilderGBA.Avalonia.Tests/bin/
+FEBuilderGBA.Avalonia.Tests/obj/
 
 # CLI build outputs
 FEBuilderGBA.CLI/bin/
