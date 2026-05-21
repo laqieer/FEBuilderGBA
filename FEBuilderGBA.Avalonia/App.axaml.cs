@@ -73,6 +73,15 @@ namespace FEBuilderGBA.Avalonia
         /// </summary>
         public static string? GapSweepRepoRoot { get; set; }
 
+        /// <summary>Phase 3: directory of WinForms `--screenshot-all` PNG output.</summary>
+        public static string? GapSweepWfDir { get; set; }
+
+        /// <summary>Phase 3: directory of Avalonia `--screenshot-all` PNG output.</summary>
+        public static string? GapSweepAvDir { get; set; }
+
+        /// <summary>Phase 3: ROM tag used as filename suffix (e.g. "FE8U") on both runners.</summary>
+        public static string? GapSweepRomTag { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -166,6 +175,15 @@ namespace FEBuilderGBA.Avalonia
 
                     case "labels":
                         return RunLabelsSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
+
+                    case "gallery":
+                        return RunGalleryBuild(
+                            repoRoot,
+                            GapSweepWfDir,
+                            GapSweepAvDir,
+                            GapSweepRomTag,
+                            GapSweepOut!,
+                            GapSweepDryRun);
 
                     case "jumps":
                     case "undo":
@@ -284,6 +302,126 @@ namespace FEBuilderGBA.Avalonia
             ReportWriter.WriteReport(outPath, "labels", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[labels]: report written to {outPath}");
             return 0;
+        }
+
+        /// <summary>
+        /// Phase 3: side-by-side screenshot gallery. Pairs PNGs emitted by the
+        /// two `--screenshot-all` runners (WinForms in
+        /// `FEBuilderGBA/ScreenshotAllRunner.cs`, Avalonia in
+        /// `FEBuilderGBA.Avalonia/Views/MainWindow.axaml.cs:RunScreenshotAll`)
+        /// and emits a `| Editor | WinForms | Avalonia |` Markdown table.
+        ///
+        /// Dry-run is intentionally relaxed: writes a header-only file (just
+        /// the YAML front-matter) without requiring the wf/av dirs or the ROM
+        /// tag, so callers can verify the CLI plumbing and write permissions
+        /// before doing a full capture run. The non-dry-run path requires all
+        /// four of <paramref name="wfDir"/>, <paramref name="avDir"/>,
+        /// <paramref name="romTag"/>, and <paramref name="outPath"/>.
+        /// </summary>
+        static int RunGalleryBuild(
+            string repoRoot,
+            string? wfDir,
+            string? avDir,
+            string? romTag,
+            string outPath,
+            bool dryRun)
+        {
+            if (dryRun)
+            {
+                // Header-only — identical pattern to the other dry-run paths.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("gallery", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[gallery]: dry-run header written.");
+                return 0;
+            }
+
+            // Full run requires the three capture-driven args.
+            var missing = new List<string>();
+            if (string.IsNullOrEmpty(wfDir)) missing.Add("--wf-dir");
+            if (string.IsNullOrEmpty(avDir)) missing.Add("--av-dir");
+            if (string.IsNullOrEmpty(romTag)) missing.Add("--rom-tag");
+            if (missing.Count > 0)
+            {
+                Console.Error.WriteLine($"--gap-sweep-gallery requires: {string.Join(", ", missing)}");
+                return 2;
+            }
+
+            // Capture-summary metadata (Copilot Phase 3 plan v2 concern #2 / PR review).
+            // Computing total PNG count per side BEFORE pairing lets the
+            // front-matter distinguish "fully-paired full capture" from
+            // "non-Windows host: AV-only" from "WinForms captured nothing".
+            // The runners mask exit codes (WinForms always exits 0 even when
+            // the inner ScreenshotAllRunner sets ExitCode); these counts
+            // surface the discrepancy in the committed manifest.
+            int wfCaptured = SafePngCount(wfDir);
+            int avCaptured = SafePngCount(avDir);
+            string status = ComputeGalleryStatus(wfCaptured, avCaptured);
+
+            // Cross-check expected editors against the project's coverage doc so
+            // the gallery's MissingFromExpected section surfaces docs/runtime drift.
+            var expected = GalleryBuilder.LoadExpectedEditorsFromDoc(repoRoot);
+            Console.WriteLine($"GAPSWEEP[gallery]: loaded {expected.Count} expected editor names from docs/avalonia-gui-forms.md.");
+            Console.WriteLine($"GAPSWEEP[gallery]: PNG counts — wf={wfCaptured} av={avCaptured} status={status}");
+
+            var report = GalleryBuilder.BuildGallery(wfDir!, avDir!, romTag!, expected);
+            Console.WriteLine($"GAPSWEEP[gallery]: paired={report.Pairs.Count} av-only={report.AvOnly.Count} wf-only={report.WfOnly.Count} missing={report.MissingFromExpected.Count}");
+
+            // Image links use "wf"/"av" relative dirs — same names the
+            // make-screenshots.ps1 wrapper creates beside the index.md.
+            string body = GalleryBuilder.FormatIndexMarkdown(report, "wf", "av");
+            var extras = new Dictionary<string, string>
+            {
+                ["rom"] = romTag!,
+                ["status"] = status,
+                ["wf-captured"] = wfCaptured.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["av-captured"] = avCaptured.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["paired"] = report.Pairs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["av-only"] = report.AvOnly.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["wf-only"] = report.WfOnly.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["missing-from-expected"] = report.MissingFromExpected.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            };
+            ReportWriter.WriteReport(outPath, "gallery", new[] { body }, extras, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[gallery]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Count `*.png` files in <paramref name="dir"/>. Returns 0 (not -1)
+        /// for missing or unreadable directories so the JSON-like front-matter
+        /// stays clean. The companion `status` field encodes WHY the count
+        /// might be zero (no-windows, capture-fail, etc.).
+        /// </summary>
+        static int SafePngCount(string? dir)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return 0;
+            try
+            {
+                return Directory.EnumerateFiles(dir, "*.png", SearchOption.TopDirectoryOnly).Count();
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Classify the gallery run for the front-matter `status:` field. The
+        /// values are machine-readable so downstream tooling (Phase 7 CI) can
+        /// gate on `status: complete` and surface partial / failed runs as
+        /// warnings rather than treating them as successful baselines.
+        /// </summary>
+        static string ComputeGalleryStatus(int wfCount, int avCount)
+        {
+            if (wfCount == 0 && avCount == 0)
+                return "empty";
+            if (wfCount == 0)
+                return "av-only";
+            if (avCount == 0)
+                return "wf-only";
+            return "complete";
         }
 
         /// <summary>
@@ -491,6 +629,11 @@ namespace FEBuilderGBA.Avalonia
                     SmokeTestMode = true;
                     GapSweepMode = "all";
                 }
+                else if (args[i] == "--gap-sweep-gallery")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "gallery";
+                }
                 else if (args[i] == "--dry-run")
                 {
                     GapSweepDryRun = true;
@@ -502,6 +645,18 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--repo-root="))
                 {
                     GapSweepRepoRoot = args[i].Substring("--repo-root=".Length);
+                }
+                else if (args[i].StartsWith("--wf-dir="))
+                {
+                    GapSweepWfDir = args[i].Substring("--wf-dir=".Length);
+                }
+                else if (args[i].StartsWith("--av-dir="))
+                {
+                    GapSweepAvDir = args[i].Substring("--av-dir=".Length);
+                }
+                else if (args[i].StartsWith("--rom-tag="))
+                {
+                    GapSweepRomTag = args[i].Substring("--rom-tag=".Length);
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {

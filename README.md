@@ -160,12 +160,19 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-i
 # Import: format auto-detected from file content/header, then extension, then GBA raw fallback
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-palette
 
-# Avalonia ↔ WinForms gap-sweep (no ROM needed — static analysis)
+# Avalonia ↔ WinForms gap-sweep — Phase 1+2 (static analysis, no ROM needed)
 # Generates markdown reports under docs/avalonia-gaps/ ranking every paired editor
-# by control-count delta. See docs/avalonia-gaps/README.md for the multi-axis
-# methodology (Phase 1 = density, Phases 2-7 = label diff, jumps, undo, l10n, …).
+# by control-count delta and label-set diff. See docs/avalonia-gaps/README.md for
+# the multi-axis methodology (Phase 1 = density, Phase 2 = label diff,
+# Phase 3 = side-by-side screenshot gallery, Phases 4-7 = jumps, undo, l10n, …).
 dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --out=docs/avalonia-gaps/$(date +%F)-density-sweep.md
+dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-labels  --out=docs/avalonia-gaps/$(date +%F)-labels-sweep.md
 dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --dry-run --out=tmp/density.md
+
+# Avalonia ↔ WinForms gap-sweep — Phase 3 (requires ROM — drives both
+# --screenshot-all runners against the chosen ROM then pairs the captured
+# PNGs). PNGs are gitignored; only the index.md manifest is committed.
+./scripts/make-screenshots.ps1 -Rom roms/FE8U.gba
 
 # Cross-platform publish (self-contained)
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
