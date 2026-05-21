@@ -82,6 +82,14 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>Phase 3: ROM tag used as filename suffix (e.g. "FE8U") on both runners.</summary>
         public static string? GapSweepRomTag { get; set; }
 
+        /// <summary>
+        /// Phase 6: comma-separated list of target-language codes to join the AXAML
+        /// literal inventory against (e.g. "ja,zh,ko"). Defaults to
+        /// <see cref="L10nScanner.DefaultLanguages"/> when not supplied. English is
+        /// the source for AXAML literals so it never appears here.
+        /// </summary>
+        public static string? GapSweepLanguages { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -192,6 +200,8 @@ namespace FEBuilderGBA.Avalonia
                         return RunUndoSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
 
                     case "l10n":
+                        return RunL10nSweep(repoRoot, GapSweepOut!, GapSweepDryRun, GapSweepLanguages);
+
                     case "all":
                         // Phases 2-7 land in follow-up PRs. For Phase 0 we just
                         // write a header-only stub so callers can wire up CI now
@@ -373,6 +383,65 @@ namespace FEBuilderGBA.Avalonia
             string body = UndoCoverageScanner.FormatReport(rows);
             ReportWriter.WriteReport(outPath, "undo", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[undo]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Phase 6: localisation sweep. Inventories every English-looking AXAML
+        /// literal under `FEBuilderGBA.Avalonia/Views/` and joins it against the
+        /// translation tables in `config/translate/<lang>.txt`. Returns 0 on
+        /// success.
+        ///
+        /// In dry-run mode we write only the YAML front-matter header (mirrors
+        /// every other sweep's dry-run shape) so callers can verify the CLI
+        /// plumbing without paying the XML-scan cost. The `languages` arg is a
+        /// comma-separated list (e.g. "ja,zh,ko"); when null we use
+        /// <see cref="L10nScanner.DefaultLanguages"/>.
+        /// </summary>
+        static int RunL10nSweep(string repoRoot, string outPath, bool dryRun, string? languagesArg)
+        {
+            // Parse the languages list once. Empty / null falls back to the
+            // default; we filter blank entries so "ja,,zh" still works.
+            IReadOnlyList<string> languages = string.IsNullOrEmpty(languagesArg)
+                ? L10nScanner.DefaultLanguages
+                : languagesArg.Split(',')
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0)
+                    .ToList();
+            if (languages.Count == 0)
+                languages = L10nScanner.DefaultLanguages;
+
+            // Front-matter extras: surface the languages set in the metadata so
+            // downstream tooling (Phase 7 CI) can introspect which targets the
+            // report covered without re-parsing the markdown body.
+            var extras = new Dictionary<string, string>
+            {
+                ["languages"] = string.Join(",", languages),
+            };
+
+            if (dryRun)
+            {
+                // Header-only — identical pattern to other dry-run paths.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("l10n", extras, gitWorkingDir: repoRoot));
+                Console.WriteLine($"GAPSWEEP[l10n]: dry-run header written (langs={string.Join(",", languages)}).");
+                return 0;
+            }
+
+            var findings = L10nScanner.Scan(repoRoot, languages);
+            int translated = findings.Count(f => f.Verdict == L10nVerdict.Translated);
+            int partial = findings.Count(f => f.Verdict == L10nVerdict.PartiallyTranslated);
+            int untranslated = findings.Count(f => f.Verdict == L10nVerdict.Untranslated);
+            int nonEnglish = findings.Count(f => f.Verdict == L10nVerdict.NonEnglish);
+            Console.WriteLine($"GAPSWEEP[l10n]: scanned {findings.Count} literals " +
+                $"(translated={translated} partial={partial} untranslated={untranslated} non-english={nonEnglish}; " +
+                $"langs={string.Join(",", languages)}).");
+
+            string body = L10nScanner.FormatReport(findings, languages);
+            ReportWriter.WriteReport(outPath, "l10n", new[] { body }, extras, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[l10n]: report written to {outPath}");
             return 0;
         }
 
@@ -729,6 +798,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--rom-tag="))
                 {
                     GapSweepRomTag = args[i].Substring("--rom-tag=".Length);
+                }
+                else if (args[i].StartsWith("--languages="))
+                {
+                    GapSweepLanguages = args[i].Substring("--languages=".Length);
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {
