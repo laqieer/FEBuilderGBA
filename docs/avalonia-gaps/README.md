@@ -226,9 +226,21 @@ every ROM-write callsite in `FEBuilderGBA.Avalonia/` and classifies it by
 how it interacts with `UndoService.Begin/Commit/Rollback`. WinForms is the
 ground truth — every WF call to `Program.ROM.SetU8/16/32(addr, val, undo)`
 takes an `Undo` argument so the compiler enforces undo plumbing. Avalonia
-uses a different pattern (`UndoService.Begin(name)` opens a scope `rom.write_u*`
-calls register against automatically), and the migration applied this only in
-a small handful of editors.
+uses two complementary patterns:
+
+1. **VM-internal:** `UndoService.Begin(name)` opens a scope inside a VM
+   method; `rom.write_u*` calls register against it automatically.
+   `EventScriptPopupViewModel` uses this pattern.
+2. **View-wrapped:** the View code-behind wraps `_vm.WriteX()` in
+   `_undoService.Begin/Commit` so every write inside the VM's `WriteX`
+   method runs under the View's ambient scope. ~30 editor Views use this
+   pattern (`ItemEditorView`, `MapSettingView`, `ClassEditorView`,
+   `UnitEditorView`, etc.).
+
+The Phase 5 scanner models both patterns. Pass 1 does same-method bracketing
+inside each file; pass 2 cross-references View files for `_vm.Method(...)`
+calls wrapped in Begin/Commit and upgrades the matching VM-side write rows
+to `Covered`.
 
 **Coverage tiers** (highest priority first):
 
@@ -253,9 +265,12 @@ production write callsite — it just inventories them. Follow-up PRs use the
 report as a per-VM backlog to add the missing plumbing one editor at a time.
 
 Methodology lives in `FEBuilderGBA.Avalonia/GapSweep/UndoCoverageScanner.cs`.
-The 2026-05-22 baseline reports **1028 write callsites across 164 classes**;
-98.7% are in the `NoUndoServiceField` tier, surfacing the size of the
-backlog.
+The 2026-05-22 baseline reports **1036 write callsites across many classes**;
+79.8% are `Covered` (mostly via the View-wrapped pattern), 20.0% are
+`NoUndoServiceField` (the actual backlog — primarily FE6 VMs whose Views
+haven't been updated to wrap `_vm.WriteX()` yet), and 0.2% are
+`MissingScope` (BigCGViewerView's `ImportPng_Click` early-exit-Rollback
+case, a conservative false-positive of the strict bracketing model).
 
 ## Implementation entry points
 

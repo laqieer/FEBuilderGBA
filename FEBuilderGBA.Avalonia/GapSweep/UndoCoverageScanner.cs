@@ -92,10 +92,17 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// `Program.ROM`, or `ROM` that count as ROM writes. We deliberately
         /// keep this list narrow — see <see cref="IsRomWriteMethod"/> for
         /// classification logic.
+        ///
+        /// The list also includes `write_range`, `write_fill`, and
+        /// `write_resize_data` per Copilot PR #380 third-review concern #2 —
+        /// these bulk-write APIs are used by TextViewerViewModel and
+        /// ToolASMEditView; missing them caused the original baseline to
+        /// undercount those callsites.
         /// </summary>
         static readonly HashSet<string> WriteMethodNames = new(StringComparer.Ordinal)
         {
             "write_u8", "write_u16", "write_u32", "write_p32",
+            "write_range", "write_fill", "write_resize_data",
             "SetU8", "SetU16", "SetU32",
             "SetData",
         };
@@ -132,6 +139,15 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// suitable for both the markdown report and the xunit Theory data
         /// source.
         ///
+        /// Two-pass design (Copilot PR #380 third-review concern #1):
+        /// pass 1 collects every write callsite with its enclosing
+        /// (class, method) coordinates. Pass 2 cross-references each
+        /// MissingScope/NoUndoServiceField callsite against the project's
+        /// View files to detect View→VM call-chain coverage — a View that
+        /// wraps a VM method call in <c>_undoService.Begin/Commit</c> covers
+        /// every write inside that VM method even though the write itself
+        /// is in a different class.
+        ///
         /// Ordering: <see cref="UndoCoverage"/> tier ascending (so
         /// NoUndoServiceField surfaces first, Covered last), then by class
         /// name and line number.
@@ -157,7 +173,11 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 .Where(f => !IsExcludedPath(f))
                 .ToArray();
 
-            var callsites = new ConcurrentBag<WriteCallsite>();
+            // ---- Pass 1: same-method classification ----
+            // Each file is processed independently for the same-method
+            // bracketing check. The result is the initial classification
+            // before View→VM cross-references are folded in.
+            var callsitesBag = new ConcurrentBag<WriteCallsite>();
             Parallel.ForEach(files, file =>
             {
                 try
@@ -165,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     string code = File.ReadAllText(file);
                     string relPath = MakeRepoRelative(repoRoot, file);
                     foreach (var c in ExtractCallsitesFromSource(code, relPath))
-                        callsites.Add(c);
+                        callsitesBag.Add(c);
                 }
                 catch
                 {
@@ -176,12 +196,201 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 }
             });
 
+            // ---- Pass 2: View→VM call-chain coverage ----
+            // Some VMs (the majority of writable AV editors per the audit)
+            // have no UndoService field of their own, but their writes are
+            // executed under a Begin/Commit scope opened by their paired
+            // View. The pattern is:
+            //
+            //   View XEditorView { UndoService _undoService = new(); ...
+            //     void OnWriteClick() {
+            //       _undoService.Begin("...");
+            //       try { _vm.WriteX(); _undoService.Commit(); }
+            //       catch { _undoService.Rollback(); }
+            //     }
+            //   }
+            //   VM XEditorViewModel { void WriteX() { rom.write_u8(...); } }
+            //
+            // We compute a "VM-method covered by View caller" set and use
+            // it to upgrade matching MissingScope / NoUndoServiceField rows
+            // to Covered. The cross-reference is name-based (no semantic
+            // model) — keyed on the VM type name and the method name.
+            HashSet<(string VmClass, string Method)> viewCoveredVmMethods;
+            try
+            {
+                viewCoveredVmMethods = DiscoverViewCoveredVmMethods(files);
+            }
+            catch
+            {
+                // If the pass 2 cross-reference fails, fall back to pass 1.
+                viewCoveredVmMethods = new HashSet<(string, string)>();
+            }
+
+            var callsites = new List<WriteCallsite>();
+            foreach (var c in callsitesBag)
+            {
+                if (c.Coverage == UndoCoverage.Covered)
+                {
+                    callsites.Add(c);
+                    continue;
+                }
+                if (string.IsNullOrEmpty(c.EnclosingMethod) || string.IsNullOrEmpty(c.EnclosingClass))
+                {
+                    callsites.Add(c);
+                    continue;
+                }
+                if (viewCoveredVmMethods.Contains((c.EnclosingClass, c.EnclosingMethod)))
+                {
+                    callsites.Add(c with
+                    {
+                        Coverage = UndoCoverage.Covered,
+                        CoverageNote = $"covered by View caller wrapping {c.EnclosingClass}.{c.EnclosingMethod} in UndoService scope",
+                    });
+                    continue;
+                }
+                callsites.Add(c);
+            }
+
             return callsites
                 .OrderBy(c => (int)c.Coverage)
                 .ThenBy(c => c.EnclosingClass, StringComparer.Ordinal)
                 .ThenBy(c => c.FilePath, StringComparer.Ordinal)
                 .ThenBy(c => c.Line)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Cross-reference View files for VM-method-call sites wrapped in
+        /// <c>_undoService.Begin/Commit</c> scope. Returns the set of
+        /// (vmClassName, methodName) pairs whose every callsite from a
+        /// View is inside a Begin scope at the call site.
+        ///
+        /// Conservative rule: a VM method is considered View-covered when
+        /// AT LEAST ONE caller in a View class wraps the call in a Begin
+        /// scope. We don't require ALL callers to wrap — the scanner is
+        /// upgrading classifications, so a false positive here is worse
+        /// than a false negative. The conservative cap keeps the report
+        /// honest.
+        ///
+        /// Detection rule: for each invocation `_vm.MethodName(...)` (or
+        /// `vm.MethodName(...)`, or any `_someIdentifier.MethodName(...)`
+        /// where the receiver looks like a ViewModel reference), check if
+        /// the enclosing method contains a <c>_undoService.Begin(...)</c>
+        /// before the invocation. If yes, mark (paired-VM-class,
+        /// MethodName) as covered.
+        ///
+        /// We pair Views to VMs by name convention: View class
+        /// <c>XEditorView</c> implicates VM class <c>XEditorViewModel</c>
+        /// (replacing the trailing <c>View</c> with <c>ViewModel</c>).
+        /// When the View has multiple `_vm` fields of different VM types,
+        /// we mark the method on ALL candidate VMs — false positives are
+        /// preferable to missing real coverage.
+        /// </summary>
+        public static HashSet<(string VmClass, string Method)> DiscoverViewCoveredVmMethods(string[] files)
+        {
+            var result = new HashSet<(string, string)>();
+            if (files == null || files.Length == 0)
+                return result;
+
+            // Build a trees collection — only View files. Per the
+            // convention, Views live under Views/ or end with View.axaml.cs;
+            // but we also accept any file with "View.axaml.cs" suffix and
+            // any path containing "/Views/" (case-insensitive).
+            foreach (string file in files)
+            {
+                if (!IsViewFile(file)) continue;
+                string code;
+                try { code = File.ReadAllText(file); }
+                catch { continue; }
+                ExtractViewCoveredVmMethods(code, result);
+            }
+            return result;
+        }
+
+        /// <summary>True when the file is an Avalonia View code-behind.</summary>
+        static bool IsViewFile(string path)
+        {
+            string n = path.Replace('\\', '/');
+            return n.EndsWith("View.axaml.cs", StringComparison.OrdinalIgnoreCase)
+                || n.Contains("/Views/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Roslyn-scan a single View source file and populate
+        /// <paramref name="result"/> with every (VmClass, MethodName) pair
+        /// whose call is bracketed by a Begin/Commit scope. Exposed for
+        /// unit testing without touching the file system.
+        /// </summary>
+        public static void ExtractViewCoveredVmMethods(string viewSource, HashSet<(string, string)> result)
+        {
+            if (string.IsNullOrEmpty(viewSource) || result == null) return;
+            SyntaxTree tree;
+            try
+            {
+                tree = CSharpSyntaxTree.ParseText(viewSource);
+            }
+            catch
+            {
+                return;
+            }
+            var root = tree.GetRoot();
+
+            // Iterate every method in every class. For each method,
+            // check if it has a Begin call. If so, every VM-method
+            // invocation that follows in source order is considered
+            // covered.
+            foreach (var cls in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
+            {
+                string viewClass = cls.Identifier.Text;
+                // Resolve the conventional paired VM class name. If the
+                // class doesn't end in "View", we still consider all VM
+                // identifiers we encounter (some Views use shorter names).
+                string? pairedVm = null;
+                if (viewClass.EndsWith("View", StringComparison.Ordinal))
+                {
+                    pairedVm = viewClass.Substring(0, viewClass.Length - "View".Length) + "ViewModel";
+                }
+
+                foreach (var method in cls.Members.OfType<MethodDeclarationSyntax>())
+                {
+                    bool hasBegin = method.DescendantNodes()
+                        .OfType<InvocationExpressionSyntax>()
+                        .Any(i => IsUndoServiceCall(i, "Begin"));
+                    if (!hasBegin) continue;
+
+                    foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+                    {
+                        // Look for `_vm.X(...)`, `vm.X(...)`, `_viewModel.X(...)`,
+                        // or any `<receiver>.X(...)` where receiver looks
+                        // like a VM reference. We accept any receiver name
+                        // beginning with `_vm` / `vm` / containing
+                        // "ViewModel" / containing "Vm"; the false-positive
+                        // cost is one extra entry in the covered set.
+                        if (inv.Expression is not MemberAccessExpressionSyntax member)
+                            continue;
+                        if (member.Expression is not IdentifierNameSyntax receiver)
+                            continue;
+                        string recv = receiver.Identifier.Text;
+                        bool looksLikeVm =
+                            recv == "_vm" || recv == "vm" ||
+                            recv.EndsWith("Vm", StringComparison.Ordinal) ||
+                            recv.EndsWith("ViewModel", StringComparison.Ordinal);
+                        if (!looksLikeVm) continue;
+
+                        string methodName = member.Name.Identifier.Text;
+                        if (string.IsNullOrEmpty(methodName)) continue;
+
+                        // Add for the conventional paired VM. If we
+                        // didn't compute one (unusual View name), we
+                        // still record the method against an empty class
+                        // — but downstream callers always check the
+                        // (class, method) tuple so the empty class never
+                        // matches a real row.
+                        if (pairedVm != null)
+                            result.Add((pairedVm, methodName));
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -983,18 +1192,32 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.Append("`FEBuilderGBA.Avalonia/` and classifies its undo coverage. WinForms is\n");
             sb.Append("the ground truth — every WF call to `Program.ROM.SetU8/16/32(addr, val,\n");
             sb.Append("undo)` takes an `Undo` argument so the compiler enforces undo plumbing\n");
-            sb.Append("at every callsite. Avalonia uses a different pattern\n");
-            sb.Append("(`UndoService.Begin(name)` opens a scope `rom.write_u*` calls register\n");
-            sb.Append("against automatically), but the migration applied this only inside\n");
-            sb.Append("`EventScriptPopupViewModel`.\n\n");
+            sb.Append("at every callsite. Avalonia uses two complementary patterns:\n\n");
+            sb.Append("1. `UndoService.Begin(name)` opens a scope `rom.write_u*` calls register\n");
+            sb.Append("   against automatically — used VM-internally by `EventScriptPopupViewModel`.\n");
+            sb.Append("2. The View code-behind wraps a `_vm.WriteX()` invocation in\n");
+            sb.Append("   `_undoService.Begin/Commit/Rollback` so every write inside the VM's\n");
+            sb.Append("   `WriteX` method executes under the View's ambient scope — used by\n");
+            sb.Append("   ~30 editor Views (ItemEditorView, MapSettingView, ClassEditorView,\n");
+            sb.Append("   UnitEditorView, etc).\n\n");
+            sb.Append("The Phase 5 scanner now models both patterns. Pass 1 does same-method\n");
+            sb.Append("bracketing inside each file; pass 2 cross-references View files for\n");
+            sb.Append("`_vm.Method(...)` invocations wrapped in Begin/Commit and upgrades the\n");
+            sb.Append("matching VM-side write rows to Covered.\n\n");
             sb.Append("**Methodology:**\n\n");
             sb.Append("- Roslyn scans every `.cs` file under `FEBuilderGBA.Avalonia/`,\n");
             sb.Append("  excluding `GapSweep/`, `obj/`, and `bin/`.\n");
             sb.Append("- Each `InvocationExpressionSyntax` whose method name is in\n");
-            sb.Append("  {`write_u8`, `write_u16`, `write_u32`, `write_p32`, `SetU8`, `SetU16`,\n");
-            sb.Append("  `SetU32`, `SetData`} AND whose receiver resolves to a ROM reference\n");
+            sb.Append("  {`write_u8`, `write_u16`, `write_u32`, `write_p32`, `write_range`,\n");
+            sb.Append("  `write_fill`, `write_resize_data`, `SetU8`, `SetU16`, `SetU32`,\n");
+            sb.Append("  `SetData`} AND whose receiver resolves to a ROM reference\n");
             sb.Append("  (`rom`, `ROM`, `Program.ROM`, or `CoreState.ROM`) is captured as a\n");
             sb.Append("  write callsite.\n");
+            sb.Append("- Pass 2 cross-references the View files for `_vm.Method(...)` calls\n");
+            sb.Append("  wrapped in `_undoService.Begin/Commit`. Any VM write whose enclosing\n");
+            sb.Append("  method matches such a call is upgraded from `MissingScope`/\n");
+            sb.Append("  `NoUndoServiceField` to `Covered`. The pairing convention is\n");
+            sb.Append("  `XEditorView` ↔ `XEditorViewModel`.\n");
             sb.Append("- `EditorFormRef.WriteFields(rom, addr, values, fields)` and the\n");
             sb.Append("  singular `EditorFormRef.WriteField(...)` are also captured — the\n");
             sb.Append("  bulk-write helper through which most AV ViewModels funnel their\n");

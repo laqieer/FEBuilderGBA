@@ -405,6 +405,30 @@ namespace X {
     }
 
     [Fact]
+    public void Recognises_WriteRange_WriteFill_WriteResizeData()
+    {
+        // Copilot PR #380 third-review concern #2: rom.write_range,
+        // rom.write_fill, rom.write_resize_data are bulk-write APIs used
+        // by TextViewerViewModel and ToolASMEditView. The original
+        // pattern set missed them; this test locks them in.
+        string src = @"
+namespace X {
+    class FooViewModel {
+        public void Write() {
+            rom.write_range(0x100, data);
+            rom.write_fill(0x200, 16, 0);
+            rom.write_resize_data(0x300, data);
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
+        Assert.Equal(3, rows.Count);
+        Assert.Contains(rows, r => r.WriteExpression.Contains("write_range"));
+        Assert.Contains(rows, r => r.WriteExpression.Contains("write_fill"));
+        Assert.Contains(rows, r => r.WriteExpression.Contains("write_resize_data"));
+    }
+
+    [Fact]
     public void Recognises_EditorFormRefWriteFields()
     {
         // ~100 AV ViewModels funnel writes through EditorFormRef.WriteFields.
@@ -445,11 +469,15 @@ namespace X {
     [Fact]
     public void RecognisesAllWriteMethods()
     {
-        // write_u8/16/32, write_p32, SetU8/16/32, SetData all qualify.
+        // write_u8/16/32, write_p32, write_range, write_fill,
+        // write_resize_data, SetU8/16/32, SetData all qualify.
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_u8"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_u16"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_u32"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_p32"));
+        Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_range"));
+        Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_fill"));
+        Assert.True(UndoCoverageScanner.IsRomWriteMethod("write_resize_data"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("SetU8"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("SetU16"));
         Assert.True(UndoCoverageScanner.IsRomWriteMethod("SetU32"));
@@ -458,6 +486,110 @@ namespace X {
         Assert.False(UndoCoverageScanner.IsRomWriteMethod("u8"));
         Assert.False(UndoCoverageScanner.IsRomWriteMethod("write_unrelated"));
         Assert.False(UndoCoverageScanner.IsRomWriteMethod(""));
+    }
+
+    // ===================================================================
+    // View→VM call-chain coverage (Pass 2 cross-reference).
+    // ===================================================================
+
+    [Fact]
+    public void ExtractViewCoveredVmMethods_FindsPairedVmMethodWrappedByView()
+    {
+        // Copilot PR #380 third-review concern #1: the canonical Avalonia
+        // pattern is View wraps `_vm.WriteX()` in `_undoService.Begin/Commit`.
+        // The cross-reference must surface this so the VM-side write rows
+        // upgrade to Covered.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class ItemEditorView {
+        readonly ItemEditorViewModel _vm = new();
+        UndoService _undoService = new();
+        void OnWriteClick() {
+            _undoService.Begin(""Edit Item"");
+            try {
+                _vm.WriteItem();
+                _undoService.Commit();
+            } catch {
+                _undoService.Rollback();
+            }
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        Assert.Contains(("ItemEditorViewModel", "WriteItem"), result);
+    }
+
+    [Fact]
+    public void ExtractViewCoveredVmMethods_SkipsCallsWithoutBeginScope()
+    {
+        // A View method that calls `_vm.WriteX()` WITHOUT Begin/Commit
+        // must NOT register the VM method as covered.
+        string viewSrc = @"
+namespace X {
+    class FooView {
+        readonly FooViewModel _vm = new();
+        void OnButtonClick() {
+            _vm.WriteFoo();  // no Begin
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        Assert.DoesNotContain(("FooViewModel", "WriteFoo"), result);
+    }
+
+    [Fact]
+    public void ExtractViewCoveredVmMethods_AcceptsAlternateVmIdentifiers()
+    {
+        // Receiver patterns: `vm.`, `_viewModel.`, `_vm.`, `MyVm.` etc.
+        // are all accepted as ViewModel references.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class BarView {
+        BarViewModel vm = new();
+        UndoService _undoService = new();
+        void OnWrite() {
+            _undoService.Begin(""Edit"");
+            vm.WriteBar();
+            _undoService.Commit();
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        Assert.Contains(("BarViewModel", "WriteBar"), result);
+    }
+
+    [Fact]
+    public void Scan_AgainstLiveWorktree_ItemEditorVmWritesAreCovered()
+    {
+        // Sanity check: ItemEditorView wraps _vm.WriteItem() in
+        // _undoService.Begin/Commit. After Pass 2 cross-reference, the
+        // VM-side writes inside ItemEditorViewModel.WriteItem must
+        // surface as Covered (or AmbiguousScope at worst).
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null) return;
+
+        var rows = UndoCoverageScanner.Scan(repoRoot);
+        var itemEditorWrites = rows
+            .Where(r => r.EnclosingClass == "ItemEditorViewModel"
+                        && r.EnclosingMethod == "WriteItem")
+            .ToList();
+
+        if (itemEditorWrites.Count == 0)
+        {
+            // VM may have evolved; the test is robust against the VM not
+            // having WriteItem anymore — but it should have SOME write
+            // method that the View wraps.
+            return;
+        }
+
+        // ALL writes inside WriteItem should be Covered via the View
+        // caller pattern.
+        Assert.All(itemEditorWrites, r => Assert.Equal(UndoCoverage.Covered, r.Coverage));
     }
 
     [Fact]
