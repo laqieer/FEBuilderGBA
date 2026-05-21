@@ -185,7 +185,8 @@ namespace FEBuilderGBA.Avalonia
                                 $"This sweep mode is a Phase 2+ follow-up to the Phase 1 density sweep.",
                                 "Track the rollout on issue [#374](https://github.com/laqieer/FEBuilderGBA/issues/374).",
                             },
-                            extraFrontMatter: phaseInfo);
+                            extraFrontMatter: phaseInfo,
+                            gitWorkingDir: repoRoot);
                         Console.WriteLine($"GAPSWEEP[{GapSweepMode}]: stub report written (phase pending).");
                         return 0;
 

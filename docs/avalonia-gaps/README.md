@@ -21,8 +21,8 @@ them as backlog instead of waiting for users to file them one at a time.
 
 | # | Sweep | CLI flag | Status |
 |---|---|---|---|
-| 0 | Bootstrap (pair matcher + report writer) | (infrastructure) | [x] PR #1 |
-| 1 | Control-density delta | `--gap-sweep-density` | [x] PR #1 |
+| 0 | Bootstrap (pair matcher + report writer) | (infrastructure) | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
+| 1 | Control-density delta | `--gap-sweep-density` | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
 | 2 | Field-label diff | `--gap-sweep-labels` | [ ] |
 | 3 | Side-by-side screenshot gallery | (uses existing `--screenshot-all` × 2) | [ ] |
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [ ] |

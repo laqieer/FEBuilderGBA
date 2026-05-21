@@ -77,8 +77,11 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             IDictionary<string, string>? extras = null,
             string? gitWorkingDir = null)
         {
+            // Use LF consistently (no Environment.NewLine, no AppendLine) so the
+            // emitted YAML block has identical line endings across Windows/Linux/macOS.
+            // Mixing CRLF and LF would dirty up committed reports on Windows checkouts.
             var sb = new StringBuilder();
-            sb.AppendLine("---");
+            sb.Append("---\n");
             sb.Append("generated: ").Append(EscapeYamlScalar(DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"))).Append('\n');
             sb.Append("git-sha: ").Append(EscapeYamlScalar(TryGetGitSha(gitWorkingDir))).Append('\n');
             sb.Append("sweep-type: ").Append(EscapeYamlScalar(sweepType)).Append('\n');
@@ -93,8 +96,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     sb.Append(EscapeYamlKey(kv.Key)).Append(": ").Append(EscapeYamlScalar(kv.Value)).Append('\n');
                 }
             }
-            sb.AppendLine("---");
-            sb.AppendLine();
+            sb.Append("---\n\n");
             return sb.ToString();
         }
 
@@ -158,22 +160,23 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             return key;
         }
 
-        /// <summary>YAML 1.1 reserved boolean-y words that must be quoted.</summary>
-        static bool IsYamlReservedWord(string value)
-        {
-            // Only the unquoted lowercase forms can be misparsed as YAML 1.1
-            // booleans / nulls. Quoting them avoids the trap.
-            switch (value)
+        /// <summary>
+        /// YAML 1.1 boolean / null lookalikes that must be quoted. We accept any
+        /// case fold (`True`, `FALSE`, `On`, etc.) because most YAML 1.1 parsers
+        /// treat the keywords case-insensitively — `True` would still be coerced
+        /// to a boolean, defeating the safety net.
+        /// </summary>
+        static readonly HashSet<string> YamlReservedWords =
+            new(StringComparer.OrdinalIgnoreCase)
             {
-                case "true": case "false":
-                case "yes": case "no":
-                case "on": case "off":
-                case "null": case "~":
-                    return true;
-                default:
-                    return false;
-            }
-        }
+                "true", "false",
+                "yes", "no",
+                "on", "off",
+                "y", "n",
+                "null", "~",
+            };
+
+        static bool IsYamlReservedWord(string value) => YamlReservedWords.Contains(value);
 
         /// <summary>
         /// Best-effort `git rev-parse --short HEAD`. CI sometimes runs without a

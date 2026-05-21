@@ -111,15 +111,22 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         const double MediumDeltaPctThreshold = 25.0;
 
         /// <summary>
-        /// Run the scan over <paramref name="pairs"/>. <paramref name="repoRoot"/>
-        /// is used only to resolve sibling Designer.cs files when WfPath is set.
+        /// Run the scan over <paramref name="pairs"/>. The pair's absolute
+        /// `WfPath` / `AvPath` are the only inputs needed — file resolution is
+        /// path-driven, not repo-root-driven — but we accept an optional
+        /// <paramref name="repoRoot"/> hint so callers can declare the analysed
+        /// worktree for diagnostic / future-use purposes (e.g. relative-path
+        /// rendering in error rows planned for Phase 7).  Currently unused at
+        /// runtime; passing it is a no-op.
+        ///
         /// Pairs with both counts == 0 are dropped (they carry no signal — e.g.
         /// a stub view paired with a stub form).
         /// </summary>
-        public static IReadOnlyList<DensityRow> Scan(IReadOnlyList<EditorPair> pairs, string repoRoot)
+        public static IReadOnlyList<DensityRow> Scan(IReadOnlyList<EditorPair> pairs, string? repoRoot = null)
         {
             if (pairs == null) throw new ArgumentNullException(nameof(pairs));
-            if (string.IsNullOrEmpty(repoRoot)) throw new ArgumentException("repoRoot required", nameof(repoRoot));
+            // repoRoot is informational only — accepted, but never required.
+            _ = repoRoot;
 
             var rows = new ConcurrentBag<DensityRow>();
             // Parallel.ForEach because Roslyn parsing is CPU-bound and per-file
@@ -527,17 +534,23 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         }
 
         /// <summary>
-        /// Strip any leading directory prefix from <paramref name="absolute"/> so the
-        /// path printed in the report is relative to the repo root (independent of
-        /// where the user generated it from).
+        /// Strip the host directory prefix from <paramref name="absolute"/> so the
+        /// path printed in the report is relative to the repo root, independent of
+        /// where the user generated it from.
+        ///
+        /// Worktree-aware: a worktree-internal absolute path looks like
+        ///   .../{host-checkout}/.claude/worktrees/{agent}/FEBuilderGBA/UnitForm.cs
+        /// so we slice from the LAST occurrence of "/FEBuilderGBA" (or
+        /// "/FEBuilderGBA.Avalonia") to ensure the slice is the inner repo-root
+        /// directory rather than any same-named ancestor.
         /// </summary>
         static string MakeRepoRelative(string absolute)
         {
-            // Find the first "FEBuilderGBA" segment and slice from there.
-            int idx = absolute.Replace('\\', '/').LastIndexOf("/FEBuilderGBA", StringComparison.Ordinal);
+            string slashed = absolute.Replace('\\', '/');
+            int idx = slashed.LastIndexOf("/FEBuilderGBA", StringComparison.Ordinal);
             if (idx < 0)
-                return absolute.Replace('\\', '/');
-            return absolute.Substring(idx + 1).Replace('\\', '/');
+                return slashed;
+            return slashed.Substring(idx + 1);
         }
     }
 }

@@ -98,7 +98,30 @@ public class ReportWriterTests : IDisposable
         Assert.Contains("generated:", fm);
         Assert.Contains("git-sha:", fm);
         Assert.Contains("sweep-type: density", fm);
-        Assert.EndsWith($"---{Environment.NewLine}{Environment.NewLine}", fm);
+        // Front-matter uses literal LF throughout so generated reports are byte-
+        // identical across Windows/Linux/macOS checkouts (per Copilot review of
+        // PR #375 — no Environment.NewLine mixing).
+        Assert.EndsWith("---\n\n", fm);
+        Assert.DoesNotContain("\r", fm);
+    }
+
+    [Theory]
+    [InlineData("True")]
+    [InlineData("FALSE")]
+    [InlineData("Yes")]
+    [InlineData("ON")]
+    [InlineData("Off")]
+    [InlineData("Y")]
+    [InlineData("N")]
+    [InlineData("Null")]
+    public void EscapeYamlScalar_CaseInsensitiveReservedWords_AreQuoted(string input)
+    {
+        // YAML 1.1 parsers treat boolean / null keywords case-insensitively;
+        // an unquoted `True` still coerces to boolean. Per Copilot review of
+        // PR #375 — match the reserved set OrdinalIgnoreCase.
+        string result = ReportWriter.EscapeYamlScalar(input);
+        Assert.StartsWith("\"", result);
+        Assert.EndsWith("\"", result);
     }
 
     [Fact]
