@@ -832,6 +832,10 @@ class FooViewModel {
         Assert.Contains("# Avalonia vs WinForms — Undo Coverage Sweep", report);
         Assert.Contains("## Summary", report);
         Assert.Contains("Total write callsites | 0", report);
+        // Copilot PR #380 fifth-pass concern: when total=0 the total row
+        // must render "—" for the % column, not the literal "100%".
+        Assert.DoesNotContain("Total write callsites | 0 | 100%", report);
+        Assert.Contains("Total write callsites | 0 | —", report);
         // All four section headings must appear with empty placeholders.
         Assert.Contains("NO undo plumbing", report);
         Assert.Contains("Missing scope", report);

@@ -1301,7 +1301,11 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.Append("## Summary\n\n");
             sb.Append("| Tier | Count | % of total |\n");
             sb.Append("|---|---:|---:|\n");
-            sb.Append("| Total write callsites | ").Append(total).Append(" | 100% |\n");
+            // Total row: when there are no callsites at all, render "—"
+            // for the percent column instead of a literal "100%" (Copilot
+            // PR #380 fifth-pass review concern).
+            sb.Append("| Total write callsites | ").Append(total).Append(" | ")
+              .Append(total == 0 ? "—" : "100%").Append(" |\n");
             AppendTierRow(sb, "NoUndoServiceField (no plumbing)", noField, total);
             AppendTierRow(sb, "MissingScope (unwrapped)", missing, total);
             AppendTierRow(sb, "AmbiguousScope (verify)", ambiguous, total);
