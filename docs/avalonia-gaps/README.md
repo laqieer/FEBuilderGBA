@@ -28,7 +28,7 @@ them as backlog instead of waiting for users to file them one at a time.
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-22 baseline](2026-05-22-jumps-sweep.md) |
 | 5 | Undo coverage | `--gap-sweep-undo` | [x] [2026-05-22 baseline](2026-05-22-undo-sweep.md) |
 | 6 | Localisation sweep | `--gap-sweep-l10n` | [x] [2026-05-22 baseline](2026-05-22-l10n-sweep.md) |
-| 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [ ] |
+| 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [x] [#374 closes this issue](https://github.com/laqieer/FEBuilderGBA/issues/374) |
 
 Each phase produces a markdown report under `docs/avalonia-gaps/<YYYY-MM-DD>-<sweep>.md`.
 
@@ -77,6 +77,15 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 # is committed.
 ./scripts/make-screenshots.ps1 -Rom roms/FE8U.gba
 
+# Phase 7 — composite: every static-analysis sweep in one shot. The --out=
+# argument is a DIRECTORY (no extension); each sub-sweep writes to
+# <out>/<YYYY-MM-DD>-<sweep>-sweep.md. Skips Phase 3 (gallery) because the
+# gallery requires both --screenshot-all runners to have produced PNGs first
+# (Windows + ROM dependent). Suitable for advisory CI runs and weekly local
+# refreshes.
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-all --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)
+
 # Phase 3 — direct gallery build (when you already have wf/ and av/ PNG
 # directories from a previous --screenshot-all run)
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
@@ -106,6 +115,14 @@ The `--gap-sweep-gallery` flag additionally requires:
 The `--gap-sweep-l10n` flag accepts:
 
 - `--languages=<comma-list>` — target-language codes the translation join runs against. Defaults to `ja,zh,ko` (English is the source for AXAML literals so it never appears here).
+
+The `--gap-sweep-all` composite flag:
+
+- Runs the five static-analysis sweeps (`density`, `labels`, `jumps`, `undo`, `l10n`) in sequence and writes each to `<outDir>/<YYYY-MM-DD>-<sweep>-sweep.md`.
+- `--out=` MUST be a directory path without an extension; passing a file path (e.g. `foo.md`) is rejected with exit code 2.
+- Per-sweep failures are isolated — a single scanner crash does NOT abort the other four sweeps. A console summary table at the end shows the per-sweep exit codes and the file each one wrote.
+- Returns 0 when ≥1 sub-sweep succeeded (advisory mode); 1 only when all five failed.
+- The Phase 3 `gallery` sweep is intentionally NOT part of the composite — it requires both `--screenshot-all` runners to have produced PNGs first (Windows + ROM dependent) and is driven separately by `scripts/make-screenshots.ps1`.
 
 ## Reading the density report
 
