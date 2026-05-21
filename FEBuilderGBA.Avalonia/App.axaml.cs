@@ -186,6 +186,8 @@ namespace FEBuilderGBA.Avalonia
                             GapSweepDryRun);
 
                     case "jumps":
+                        return RunJumpsSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
+
                     case "undo":
                     case "l10n":
                     case "all":
@@ -301,6 +303,40 @@ namespace FEBuilderGBA.Avalonia
             string body = LabelDiffScanner.FormatReport(rows, densityRows, densityLink);
             ReportWriter.WriteReport(outPath, "labels", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[labels]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Phase 4: headless jump/navigation parity sweep. Returns 0 on success.
+        /// In dry-run mode we write only the YAML front-matter header (mirrors
+        /// RunDensitySweep / RunLabelsSweep dry-run shape) so callers can verify
+        /// the CLI plumbing and write permissions without paying the Roslyn /
+        /// reflection scan cost.
+        /// </summary>
+        static int RunJumpsSweep(string repoRoot, string outPath, bool dryRun)
+        {
+            if (dryRun)
+            {
+                // Header-only — identical pattern to other dry-run paths.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("jumps", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[jumps]: dry-run header written.");
+                return 0;
+            }
+
+            var rows = JumpParityScanner.Scan(repoRoot);
+            int countMatch = rows.Count(r => r.Status == JumpRowStatus.Match);
+            int countMissing = rows.Count(r => r.Status == JumpRowStatus.MissingAvManifest);
+            int countNoWf = rows.Count(r => r.Status == JumpRowStatus.NoWfCallsite);
+            int countKnown = rows.Count(r => r.Status == JumpRowStatus.KnownGap);
+            Console.WriteLine($"GAPSWEEP[jumps]: scanned {rows.Count} rows " +
+                $"(match={countMatch} missing={countMissing} no-wf={countNoWf} known-gap={countKnown}).");
+
+            string body = JumpParityScanner.FormatReport(rows);
+            ReportWriter.WriteReport(outPath, "jumps", new[] { body }, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[jumps]: report written to {outPath}");
             return 0;
         }
 

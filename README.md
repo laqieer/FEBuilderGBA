@@ -160,13 +160,15 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-i
 # Import: format auto-detected from file content/header, then extension, then GBA raw fallback
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-palette
 
-# Avalonia ↔ WinForms gap-sweep — Phase 1+2 (static analysis, no ROM needed)
+# Avalonia ↔ WinForms gap-sweep — Phases 1/2/4 (static analysis, no ROM needed)
 # Generates markdown reports under docs/avalonia-gaps/ ranking every paired editor
-# by control-count delta and label-set diff. See docs/avalonia-gaps/README.md for
-# the multi-axis methodology (Phase 1 = density, Phase 2 = label diff,
-# Phase 3 = side-by-side screenshot gallery, Phases 4-7 = jumps, undo, l10n, …).
+# by control-count delta, label-set diff, and cross-editor navigation parity. See
+# docs/avalonia-gaps/README.md for the multi-axis methodology (Phase 1 = density,
+# Phase 2 = label diff, Phase 3 = side-by-side screenshot gallery,
+# Phase 4 = headless jump/navigation parity, Phases 5-7 = undo, l10n, meta-CI).
 dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --out=docs/avalonia-gaps/$(date +%F)-density-sweep.md
 dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-labels  --out=docs/avalonia-gaps/$(date +%F)-labels-sweep.md
+dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-jumps   --out=docs/avalonia-gaps/$(date +%F)-jumps-sweep.md
 dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --dry-run --out=tmp/density.md
 
 # Avalonia ↔ WinForms gap-sweep — Phase 3 (requires ROM — drives both

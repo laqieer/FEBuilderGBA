@@ -4,7 +4,7 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ItemEditorViewModel : ViewModelBase, IDataVerifiable
+    public partial class ItemEditorViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         string _name = "";
