@@ -1,0 +1,41 @@
+$ ./scripts/make-screenshots.ps1 -Rom roms/FE8U.gba -Out docs/avalonia-gaps/2026-05-22-screenshots/FE8U -RomTag FE8U
+
+=== Step 1/3: WinForms --screenshot-all ===
+SCREENSHOT: Capturing 310 forms...
+... (310 captures) ...
+SCREENSHOT: Results: 304 captured, 6 failed out of 310
+SCREENSHOT: Failures: ImageMagicFEditorView, ImageMagicCSACreatorView, ImageMapActionAnimationView, FE8SpellMenuExtendsView, ToolCustomBuildView, ToolROMRebuildView
+WinForms captured: 304 PNGs
+
+=== Step 2/3: Avalonia --screenshot-all ===
+SCREENSHOT: Capturing 325 editors...
+... (325 captures) ...
+SCREENSHOT: Results: 325 captured, 0 failed out of 325
+Avalonia captured: 325 PNGs
+
+=== Step 3/3: gallery build ===
+GAPSWEEP[gallery]: repo-root=C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA
+GAPSWEEP[gallery]: loaded 325 expected editor names from docs/avalonia-gui-forms.md.
+GAPSWEEP[gallery]: paired=304 av-only=21 wf-only=0 missing=0
+GAPSWEEP[gallery]: report written to docs/avalonia-gaps/2026-05-22-screenshots/FE8U/index.md
+
+=== Done ===
+Gallery manifest: docs/avalonia-gaps/2026-05-22-screenshots/FE8U/index.md
+  WinForms PNGs:  docs/avalonia-gaps/2026-05-22-screenshots/FE8U/wf
+  Avalonia PNGs:  docs/avalonia-gaps/2026-05-22-screenshots/FE8U/av
+
+Index manifest excerpt:
+```markdown
+| Editor | WinForms | Avalonia |
+|---|---|---|
+| `AIASMCALLTALKView` | ![WF](wf/WinForms_AIASMCALLTALKView_FE8U.png) | ![AV](av/Avalonia_AIASMCALLTALKView_FE8U.png) |
+| `AIMapSettingView` | ![WF](wf/WinForms_AIMapSettingView_FE8U.png) | ![AV](av/Avalonia_AIMapSettingView_FE8U.png) |
+...
+| `UnitEditorView` | ![WF](wf/WinForms_UnitEditorView_FE8U.png) | ![AV](av/Avalonia_UnitEditorView_FE8U.png) |
+| `ItemEditorView` | ![WF](wf/WinForms_ItemEditorView_FE8U.png) | ![AV](av/Avalonia_ItemEditorView_FE8U.png) |
+...
+```
+
+Test counts:
+- FEBuilderGBA.Avalonia.Tests: 4385 passed (was 4362 before this PR; +23 new GapSweep gallery tests)
+- FEBuilderGBA.Core.Tests:     1293 passed (unchanged)
