@@ -1,6 +1,6 @@
 ---
-generated: 2026-05-21T14:26:51Z
-git-sha: aa4b0ed94
+generated: "2026-05-21T15:13:04Z"
+git-sha: 17bce3e10
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 245 |
+| HIGH | |Δ%| ≥ 50 | 242 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 80 |
-| LOW | |Δ%| < 25 | 47 |
+| LOW | |Δ%| < 25 | 48 |
 
 ## Ranked Density Deltas
 
@@ -31,9 +31,10 @@ Positive = Avalonia has *more* (often fine — refactoring or richer UI).
 Rows are sorted by signed `Δ%` ascending so the biggest gaps come first.
 
 Rows with WF=0 (no on-disk Designer.cs for the named form) live in
-[Unmatched WinForms Counterparts](#unmatched-winforms-counterparts) below — they
-represent ListParityHelper mappings whose WF file is renamed/missing rather
-than a real migration gap.
+[Unmatched WinForms Counterparts](#unmatched-winforms-counterparts) below;
+rows with AV=0 (no on-disk .axaml for the named view, or AXAML parse failure)
+live in [Unmatched Avalonia Counterparts](#unmatched-avalonia-counterparts).
+Both represent pairing artifacts rather than real migration gaps.
 
 | Verdict | WF Form | AV View | WF | AV | Δ | Δ% | Match |
 |---|---|---|---:|---:|---:|---:|---|
@@ -45,8 +46,8 @@ than a real migration gap.
 | High | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 3 | -96 | -97.0% | Heuristic |
 | High | `ImagePalletForm` | `ImagePalletView` | 98 | 3 | -95 | -96.9% | Heuristic |
 | High | `EDFE7Form` | `EDFE7View` | 81 | 3 | -78 | -96.3% | Heuristic |
-| High | `ClassForm` | `ClassFE6View` | 211 | 8 | -203 | -96.2% | ListParityHelper |
-| High | `OPClassDemoForm` | `ClassOPDemoView` | 63 | 3 | -60 | -95.2% | ListParityHelper |
+| High | `ClassOPDemoForm` | `ClassOPDemoView` | 71 | 3 | -68 | -95.8% | Heuristic |
+| High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
 | High | `EventHaikuFE7Form` | `EventHaikuFE7View` | 60 | 3 | -57 | -95.0% | ListParityHelper |
@@ -71,6 +72,7 @@ than a real migration gap.
 | High | `MoveCostForm` | `MoveCostEditorView` | 72 | 8 | -64 | -88.9% | ListParityHelper |
 | High | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 166 | 19 | -147 | -88.6% | Heuristic |
 | High | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 17 | -119 | -87.5% | Heuristic |
+| High | `WorldMapPathForm` | `WorldMapPathEditorView` | 24 | 3 | -21 | -87.5% | Heuristic |
 | High | `SongTrackImportWaveForm` | `SongTrackImportWaveView` | 23 | 3 | -20 | -87.0% | Heuristic |
 | High | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | 23 | 3 | -20 | -87.0% | Heuristic |
 | High | `EventBattleDataFE7Form` | `EventBattleDataFE7View` | 21 | 3 | -18 | -85.7% | Heuristic |
@@ -93,10 +95,10 @@ than a real migration gap.
 | High | `MantAnimationForm` | `MantAnimationView` | 17 | 3 | -14 | -82.4% | ListParityHelper |
 | High | `ToolROMRebuildForm` | `ToolROMRebuildView` | 17 | 3 | -14 | -82.4% | Heuristic |
 | High | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` | 17 | 3 | -14 | -82.4% | ListParityHelper |
+| High | `ClassOPFontForm` | `ClassOPFontView` | 16 | 3 | -13 | -81.3% | Heuristic |
 | High | `EventFinalSerifFE7Form` | `EventFinalSerifFE7View` | 16 | 3 | -13 | -81.3% | ListParityHelper |
 | High | `MainSimpleMenuImageSubForm` | `MainSimpleMenuImageSubView` | 16 | 3 | -13 | -81.3% | Heuristic |
 | High | `MapExitPointForm` | `MapExitPointView` | 32 | 6 | -26 | -81.3% | ListParityHelper |
-| High | `OPClassFontForm` | `ClassOPFontView` | 16 | 3 | -13 | -81.3% | ListParityHelper |
 | High | `SkillConfigFE8NSkillForm` | `SkillConfigFE8NSkillView` | 169 | 33 | -136 | -80.5% | Heuristic |
 | High | `EDForm` | `EDView` | 65 | 13 | -52 | -80.0% | ListParityHelper |
 | High | `SkillAssignmentUnitCSkillSysForm` | `SkillAssignmentUnitCSkillSysView` | 35 | 7 | -28 | -80.0% | Heuristic |
@@ -128,7 +130,6 @@ than a real migration gap.
 | High | `MapSettingDifficultyForm` | `MapSettingDifficultyView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `ToolCustomBuildForm` | `ToolCustomBuildView` | 10 | 3 | -7 | -70.0% | Heuristic |
-| High | `WorldMapPathEditorForm` | `WorldMapPathEditorView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | 23 | 7 | -16 | -69.6% | ListParityHelper |
 | High | `SkillConfigFE8UCSkillSys09xForm` | `SkillConfigFE8UCSkillSys09xView` | 29 | 9 | -20 | -69.0% | Heuristic |
 | High | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | 22 | 7 | -15 | -68.2% | ListParityHelper |
@@ -164,6 +165,7 @@ than a real migration gap.
 | High | `ItemPromotionForm` | `ItemPromotionViewerView` | 16 | 7 | -9 | -56.3% | ListParityHelper |
 | High | `MapPointerForm` | `MapPointerView` | 16 | 7 | -9 | -56.3% | ListParityHelper |
 | High | `OPClassFontFE8UForm` | `OPClassFontFE8UView` | 16 | 7 | -9 | -56.3% | ListParityHelper |
+| High | `OPClassFontForm` | `OPClassFontViewerView` | 16 | 7 | -9 | -56.3% | Heuristic |
 | High | `ItemFE6Form` | `ItemFE6View` | 121 | 53 | -68 | -56.2% | Heuristic |
 | High | `TextDicForm` | `TextDicView` | 60 | 27 | -33 | -55.0% | ListParityHelper |
 | High | `ImageItemIconForm` | `ItemIconViewerView` | 22 | 10 | -12 | -54.5% | ListParityHelper |
@@ -171,6 +173,7 @@ than a real migration gap.
 | High | `EDStaffRollForm` | `EDStaffRollView` | 17 | 8 | -9 | -52.9% | ListParityHelper |
 | High | `CCBranchForm` | `CCBranchEditorView` | 25 | 12 | -13 | -52.0% | ListParityHelper |
 | High | `PaletteChangeColorsForm` | `PaletteChangeColorsView` | 25 | 12 | -13 | -52.0% | Heuristic |
+| High | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 31 | -32 | -50.8% | Heuristic |
 | High | `AIUnitsForm` | `AIUnitsView` | 16 | 8 | -8 | -50.0% | Heuristic |
 | High | `EventTalkGroupFE7Form` | `EventTalkGroupFE7View` | 14 | 7 | -7 | -50.0% | Heuristic |
 | High | `EventTemplate5Form` | `EventTemplate5View` | 6 | 3 | -3 | -50.0% | Heuristic |
@@ -252,6 +255,7 @@ than a real migration gap.
 | Low | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` | 5 | 4 | -1 | -20.0% | Heuristic |
 | Low | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` | 35 | 28 | -7 | -20.0% | ListParityHelper |
 | Low | `MapTerrainNameForm` | `TerrainNameEditorView` | 10 | 8 | -2 | -20.0% | ListParityHelper |
+| Low | `MapTerrainNameForm` | `MapTerrainNameView` | 10 | 8 | -2 | -20.0% | Heuristic |
 | Low | `MenuDefinitionForm` | `MenuDefinitionView` | 35 | 28 | -7 | -20.0% | ListParityHelper |
 | Low | `SongInstrumentDirectSoundForm` | `SongInstrumentDirectSoundView` | 15 | 12 | -3 | -20.0% | Heuristic |
 | Low | `WorldMapPointForm` | `WorldMapPointView` | 51 | 41 | -10 | -19.6% | ListParityHelper |
@@ -337,17 +341,25 @@ happens to lack a directly-named WF counterpart on disk.
 | WF Form (claimed) | AV View | AV controls | Match |
 |---|---|---:|---|
 | `BattleTerrainForm` | `BattleTerrainViewerView` | 40 | ListParityHelper |
-| `OPClassDemoViewerForm` | `OPClassDemoViewerView` | 31 | ListParityHelper |
 | `BattleBGForm` | `BattleBGViewerView` | 14 | ListParityHelper |
 | `MapTileAnimationView(Avalonia)` | `MapTileAnimationView` | 12 | ListParityHelper |
 | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | 11 | Heuristic |
 | `EventScriptForm` | `EventScriptView` | 10 | Heuristic |
 | `DisASMForm` | `DisASMView` | 8 | Heuristic |
-| `OPClassFontViewerForm` | `OPClassFontViewerView` | 7 | ListParityHelper |
 | `ToolSubtitleOverlayForm` | `ToolSubtitleOverlayView` | 7 | Heuristic |
 | `ToolDecompileResultForm` | `ToolDecompileResultView` | 4 | Heuristic |
 | `ImageUnitMoveIconForm` | `ImageUnitMoveIconView` | 3 | ListParityHelper |
 | `ImageUnitWaitIconForm` | `ImageUnitWaitIconView` | 3 | ListParityHelper |
+
+## Unmatched Avalonia Counterparts
+
+Paired by name/heuristic but the AV .axaml is either missing on disk or failed
+to parse (System.Xml.Linq returned no controls). Not a real density gap — the
+scanner could not measure the AV side at all. Investigate the AV file before
+treating these as actual migration deficits.
+
+| WF Form | AV View (claimed) | WF controls | Match |
+|---|---|---:|---|
 
 ## Top-20 HIGH Gaps — Triage Notes
 
@@ -423,21 +435,21 @@ WF count: **81** · AV count: **3** · Δ: **-78** (-96.3%).
 text picker, epithet selector, optional spouse linkage, sprite frame
 selection). AV view is the address-list shell.
 
-### ClassForm
-WF count: **211** · AV count: **8** · Δ: **-203** (-96.2%).
-
-**Status: pair-via-`ClassFE6View`.** `ClassForm` is mapped twice in
-`ListParityHelper`: once to the rich `ClassEditorView` (-31 % delta, healthy)
-and once to the FE6-stub `ClassFE6View`. This row is the FE6 stub, which is
-the same chrome-only shell as the other FE6 stubs. The base ClassEditorView
-side is healthy; only the FE6-tail variant is outstanding.
-
-### OPClassDemoForm
-WF count: **63** · AV count: **3** · Δ: **-60** (-95.2%).
+### ClassOPDemoForm
+WF count: **71** · AV count: **3** · Δ: **-68** (-95.8%).
 
 **Status: stub.** Opening cinematic class-demo editor — frame selection,
 class id picker, position offsets, mounted-vs-foot variant. AV
 `ClassOPDemoView` is the address-list shell.
+
+### ClassFE6Form
+WF count: **173** · AV count: **8** · Δ: **-165** (-95.4%).
+
+**Status: stub.** FE6-specific class editor. The base `ClassForm ↔ ClassEditorView`
+pair (FE7/FE8) sits at -31.3 % and is healthy; only the FE6 variant is
+outstanding. Same pattern as MapSettingFE6 — the FE6 base form was forked from
+ClassForm to handle FE6's distinct field layout (no S-rank weapon support,
+different growth columns) and the AV side never got the version-specific port.
 
 ### EventBattleTalkFE7Form
 WF count: **62** · AV count: **3** · Δ: **-59** (-95.2%).
@@ -514,13 +526,10 @@ These editors have only one side; they need manual triage to decide whether
 the missing counterpart is expected (e.g., FE6-only forms not yet ported) or
 a genuine gap.
 
-### WinForms-only (15)
+### WinForms-only (13)
 
 | WF Form | WF controls |
 |---|---:|
-| `ClassFE6Form` | 173 |
-| `ClassOPDemoForm` | 71 |
-| `ClassOPFontForm` | 16 |
 | `EventScriptFormCategorySelectForm` | 4 |
 | `FERepoMusicBrowserForm` | 4 |
 | `FERepoResourceBrowserForm` | 4 |
@@ -533,8 +542,9 @@ a genuine gap.
 | `PatchForm` | 102 |
 | `TextScriptFormCategorySelectForm` | 3 |
 | `ToolSubtitleSetingDialogForm` | 9 |
+| `WorldMapPathEditorForm` | 10 |
 
-### Avalonia-only (55)
+### Avalonia-only (54)
 
 | AV View | AV controls |
 |---|---:|
@@ -573,7 +583,6 @@ a genuine gap.
 | `MapStyleEditorWarningView` | 3 |
 | `MapTerrainBGLookupView` | 6 |
 | `MapTerrainFloorLookupView` | 6 |
-| `MapTerrainNameView` | 8 |
 | `MoveToFreeSpaceView` | 10 |
 | `NotifyDirectInjectionView` | 3 |
 | `NotifyPleaseWaitView` | 3 |

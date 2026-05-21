@@ -321,9 +321,61 @@ class F {
         Assert.Contains("## Ranked Density Deltas", md);
         Assert.Contains("## Top-20 HIGH Gaps", md);
         Assert.Contains("## Unmatched WinForms Counterparts", md);
+        Assert.Contains("## Unmatched Avalonia Counterparts", md);
         Assert.Contains("## Unpaired Orphans", md);
         Assert.Contains("`FooForm`", md);
         Assert.Contains("-70.0%", md);
+    }
+
+    [Fact]
+    public void FormatReport_AvZeroRows_GoToUnmatchedAvSection_NotRankedTable()
+    {
+        // A row with AV count == 0 (e.g. AXAML parse failure) must NOT appear in
+        // the ranked-deltas table (where it would look like a -100 % gap) and
+        // must NOT appear in any Top-20 triage subsection. It belongs in the
+        // dedicated "Unmatched Avalonia Counterparts" table.
+        var rankedPair = new EditorPair(
+            WfFormName: "RankedForm",
+            WfPath: "/tmp/RankedForm.cs",
+            AvViewName: "RankedView",
+            AvPath: "/tmp/RankedView.axaml",
+            Match: MatchMethod.ListParityHelper,
+            Confidence: Confidence.High);
+        var avMissingPair = new EditorPair(
+            WfFormName: "AvMissingForm",
+            WfPath: "/tmp/AvMissingForm.cs",
+            AvViewName: "AvMissingView",
+            AvPath: "/tmp/AvMissingView.axaml", // path present, but count 0 simulates parse failure
+            Match: MatchMethod.ListParityHelper,
+            Confidence: Confidence.High);
+
+        var rows = new List<DensityRow>
+        {
+            new DensityRow(rankedPair, WfControlCount: 100, AvControlCount: 50, DeltaPct: -50.0, Verdict: Verdict.High),
+            new DensityRow(avMissingPair, WfControlCount: 80, AvControlCount: 0, DeltaPct: -100.0, Verdict: Verdict.High),
+        };
+        string md = ControlDensityScanner.FormatReport(rows);
+
+        // Locate the ranked-deltas section and the unmatched-AV section.
+        int ranked = md.IndexOf("## Ranked Density Deltas", StringComparison.Ordinal);
+        int unmatchedAv = md.IndexOf("## Unmatched Avalonia Counterparts", StringComparison.Ordinal);
+        Assert.True(ranked > 0 && unmatchedAv > ranked);
+
+        string rankedSection = md.Substring(ranked, unmatchedAv - ranked);
+        Assert.Contains("`RankedForm`", rankedSection);
+        Assert.DoesNotContain("`AvMissingForm`", rankedSection);
+
+        string unmatchedAvSection = md.Substring(unmatchedAv);
+        Assert.Contains("`AvMissingForm`", unmatchedAvSection);
+
+        // Top-20 triage subsections must not pick up the AV==0 row either.
+        int triage = md.IndexOf("## Top-20 HIGH Gaps", StringComparison.Ordinal);
+        int unmatchedWf = md.IndexOf("## Unmatched WinForms Counterparts", StringComparison.Ordinal);
+        string triageSection = md.Substring(triage, unmatchedWf > triage ? unmatchedWf - triage : md.Length - triage);
+        // No `### AvMissingForm` heading should exist.
+        Assert.DoesNotContain("### AvMissingForm", triageSection);
+        // The normal ranked row is the only HIGH row that qualifies.
+        Assert.Contains("### RankedForm", triageSection);
     }
 
     /// <summary>

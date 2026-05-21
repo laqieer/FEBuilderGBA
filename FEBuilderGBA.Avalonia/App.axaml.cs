@@ -138,8 +138,12 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>
         /// Execute the gap-sweep flow chosen by <see cref="GapSweepMode"/>. Returns
         /// the process exit code (0 success, 2 missing required argument, 1 fatal).
-        /// Wraps each scanner in try/catch so a single bad file doesn't crash the
-        /// whole sweep — the report itself surfaces any errors.
+        /// Wraps each scanner in an outer try/catch so a fatal exception terminates
+        /// the run with code 1 rather than crashing the entire app. NOTE: the per-
+        /// file scanners themselves currently swallow individual file-level parse
+        /// / I/O failures and record 0 for the affected count; Phase 7 will add
+        /// explicit error rows to the report so silent zero-counts don't masquerade
+        /// as real migration gaps.
         /// </summary>
         static int RunGapSweep()
         {
@@ -200,9 +204,10 @@ namespace FEBuilderGBA.Avalonia
 
         /// <summary>
         /// Phase 1: control-density delta sweep. Returns 0 on success.
-        /// In dry-run mode we still discover pairs (cheap) but skip the actual
-        /// Roslyn / XML scan; the report carries just a header + a "dry run"
-        /// note so callers can verify file-system permissions etc.
+        /// In dry-run mode we still discover pairs (cheap) so we can log a count,
+        /// but we write a truly header-only file (no markdown body, just the YAML
+        /// front-matter) — callers use this to verify file-system permissions and
+        /// the CLI plumbing without paying the Roslyn / XML scan cost.
         /// </summary>
         static int RunDensitySweep(string repoRoot, string outPath, bool dryRun)
         {
@@ -211,8 +216,13 @@ namespace FEBuilderGBA.Avalonia
 
             if (dryRun)
             {
-                ReportWriter.WriteReport(outPath, "density",
-                    new[] { $"<!-- dry-run: {pairs.Count} pairs discovered, scan skipped -->" });
+                // Header-only: no body sections. The front-matter alone proves
+                // the writer can reach the path and emits valid YAML; that is the
+                // entirety of what dry-run is meant to test.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("density", gitWorkingDir: repoRoot));
                 Console.WriteLine("GAPSWEEP[density]: dry-run header written.");
                 return 0;
             }
@@ -221,7 +231,7 @@ namespace FEBuilderGBA.Avalonia
             Console.WriteLine($"GAPSWEEP[density]: scanned {rows.Count} non-empty rows.");
 
             string body = ControlDensityScanner.FormatReport(rows);
-            ReportWriter.WriteReport(outPath, "density", new[] { body });
+            ReportWriter.WriteReport(outPath, "density", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[density]: report written to {outPath}");
             return 0;
         }

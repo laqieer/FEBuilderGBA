@@ -72,25 +72,69 @@ public class GapSweepPairMatcherTests
     public void Heuristic_StripsFormSuffixAndMatchesViewSuffix()
     {
         var pairs = PairMatcher.DiscoverAll(FindRepoRoot());
-        // EventScriptForm has no ListParityHelper mapping; the heuristic should
-        // match it to EventScriptView (View suffix).
+        // EventScriptForm has no ListParityHelper mapping. Because the on-disk
+        // form base name (EventScript) matches the on-disk view base name
+        // (EventScript → EventScriptView), the exact-name pre-pass picks it up
+        // with Heuristic match + High confidence (the names line up exactly).
         var pair = pairs.SingleOrDefault(p => p.WfFormName == "EventScriptForm" && p.AvViewName == "EventScriptView");
         Assert.NotNull(pair);
         Assert.Equal(MatchMethod.Heuristic, pair!.Match);
-        Assert.Equal(Confidence.Medium, pair.Confidence);
+        Assert.Equal(Confidence.High, pair.Confidence);
     }
 
     [Fact]
     public void Heuristic_HandlesVersionSuffixForm_ItemFE6Form()
     {
         var pairs = PairMatcher.DiscoverAll(FindRepoRoot());
-        // ItemFE6Form is not in ListParityHelper directly; heuristic strips
-        // Form → ItemFE6, then tries {ItemFE6EditorView, ItemFE6ViewerView,
-        // ItemFE6View} in order. ItemFE6View exists.
+        // ItemFE6Form has no ListParityHelper mapping. The exact-name pre-pass
+        // matches `ItemFE6View` → strip "View" → `ItemFE6` → on-disk `ItemFE6Form`
+        // exists → emit pair as Heuristic + High (exact-name matches earn High).
         var pair = pairs.SingleOrDefault(p => p.WfFormName == "ItemFE6Form" && p.AvViewName == "ItemFE6View");
         Assert.NotNull(pair);
         Assert.Equal(MatchMethod.Heuristic, pair!.Match);
-        Assert.Equal(Confidence.Medium, pair.Confidence);
+        Assert.Equal(Confidence.High, pair.Confidence);
+    }
+
+    // ---- Regression: exact same-base-name wins over ListParityHelper cross-map ----
+
+    [Fact]
+    public void ExactBaseName_ClassFE6_PrefersDirectPairing()
+    {
+        // ListParityHelper maps `ClassFE6View` to `ClassForm` (shared-impl form),
+        // but `ClassFE6Form.cs` ALSO exists on disk. The natural pairing is
+        // ClassFE6Form ↔ ClassFE6View; the cross-map to ClassForm would put
+        // ClassFE6Form into the WF-orphan section and double-count ClassForm
+        // (it's separately mapped to ClassEditorView too). PR #375 review (#374
+        // tracking) caught this — the pair matcher must prefer the on-disk
+        // same-base-name match.
+        var pairs = PairMatcher.DiscoverAll(FindRepoRoot());
+
+        // Direct pair must exist.
+        var direct = pairs.SingleOrDefault(p => p.WfFormName == "ClassFE6Form" && p.AvViewName == "ClassFE6View");
+        Assert.NotNull(direct);
+        Assert.True(direct!.Match == MatchMethod.ListParityHelper || direct.Match == MatchMethod.Heuristic);
+        Assert.Equal(Confidence.High, direct.Confidence);
+
+        // ClassFE6Form should NOT appear as a WF-only orphan.
+        var orphan = pairs.FirstOrDefault(p =>
+            p.WfFormName == "ClassFE6Form" && p.AvViewName == null && p.Match == MatchMethod.Orphan);
+        Assert.Null(orphan);
+
+        // And no row should map ClassForm to ClassFE6View any more.
+        var crossMap = pairs.FirstOrDefault(p => p.WfFormName == "ClassForm" && p.AvViewName == "ClassFE6View");
+        Assert.Null(crossMap);
+    }
+
+    [Theory]
+    [InlineData("UnitEditorView", "Unit")]
+    [InlineData("ItemEditorView", "Item")]
+    [InlineData("PortraitViewerView", "Portrait")]
+    [InlineData("UnitFE6View", "UnitFE6")]
+    [InlineData("ClassFE6View", "ClassFE6")]
+    [InlineData("MainWindow", null)] // no view suffix
+    public void StripViewSuffix_ReturnsExpectedBaseName(string viewName, string? expectedBase)
+    {
+        Assert.Equal(expectedBase, PairMatcher.StripViewSuffix(viewName));
     }
 
     // ---------------- Main forms excluded ----------------
@@ -179,19 +223,25 @@ public class GapSweepPairMatcherTests
     }
 
     [Fact]
-    public void AllListParityHelperEditors_AreRepresentedAsListParityPairs()
+    public void AllListParityHelperEditors_AppearInPairDiscovery()
     {
-        // Every entry registered in ListParityHelper must appear in the pair list
-        // with MatchMethod.ListParityHelper (modulo excluded main views).
+        // Every AV view name registered in ListParityHelper must appear in the
+        // pair list with High confidence (whether the match was applied via the
+        // exact-base-name pre-pass — which can shadow the helper's cross-mapping
+        // when both XForm.cs and XView.axaml exist — or via the helper itself).
+        // We don't require MatchMethod == ListParityHelper anymore because the
+        // exact-name pre-pass is allowed to shadow the helper when its WF target
+        // and the AV view's base name diverge.
         var pairs = PairMatcher.DiscoverAll(FindRepoRoot()).ToList();
         var listParityNames = ListParityHelper.GetAllMappedEditors()
             .Where(n => n != "MainWindow")
             .ToList();
         foreach (string name in listParityNames)
         {
-            var entry = pairs.FirstOrDefault(p => p.AvViewName == name && p.Match == MatchMethod.ListParityHelper);
+            var entry = pairs.FirstOrDefault(p => p.AvViewName == name && p.Match != MatchMethod.Orphan);
             Assert.True(entry != null,
-                $"ListParityHelper editor '{name}' missing from pair discovery (must seed with MatchMethod.ListParityHelper).");
+                $"ListParityHelper editor '{name}' missing from pair discovery.");
+            Assert.Equal(Confidence.High, entry!.Confidence);
         }
     }
 

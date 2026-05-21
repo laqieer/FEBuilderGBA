@@ -339,12 +339,13 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.AppendLine();
 
             // ---- Ranked table ----
-            // The "ranked" section only includes rows where BOTH sides had files
-            // present (WF count > 0 and AV count > 0). Rows where WF has 0 controls
-            // are either real orphans (no file on disk for the form ListParityHelper
-            // names) or trivial-stub forms — neither tells us about "missing AV
-            // fields in a real WF→AV migration", which is the question this sweep
-            // is built to answer.
+            // The "ranked" section only includes rows where BOTH sides have at
+            // least one recognised control (WF count > 0 AND AV count > 0).
+            // Rows with WF==0 or AV==0 are either (a) ListParityHelper mappings
+            // whose WF file was renamed / removed (typo), or (b) scan failures
+            // (file missing, AXAML parse error). Either way they're not "missing
+            // AV fields in a real migration" — they live in the dedicated
+            // Unmatched-Counterparts sections below.
             //
             // Sort by signed Δ% ascending so the most-negative deltas (biggest gaps
             // where AV is missing controls relative to WF) bubble to the top.
@@ -355,15 +356,16 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.AppendLine("Rows are sorted by signed `Δ%` ascending so the biggest gaps come first.");
             sb.AppendLine();
             sb.AppendLine("Rows with WF=0 (no on-disk Designer.cs for the named form) live in");
-            sb.AppendLine("[Unmatched WinForms Counterparts](#unmatched-winforms-counterparts) below — they");
-            sb.AppendLine("represent ListParityHelper mappings whose WF file is renamed/missing rather");
-            sb.AppendLine("than a real migration gap.");
+            sb.AppendLine("[Unmatched WinForms Counterparts](#unmatched-winforms-counterparts) below;");
+            sb.AppendLine("rows with AV=0 (no on-disk .axaml for the named view, or AXAML parse failure)");
+            sb.AppendLine("live in [Unmatched Avalonia Counterparts](#unmatched-avalonia-counterparts).");
+            sb.AppendLine("Both represent pairing artifacts rather than real migration gaps.");
             sb.AppendLine();
             sb.AppendLine("| Verdict | WF Form | AV View | WF | AV | Δ | Δ% | Match |");
             sb.AppendLine("|---|---|---|---:|---:|---:|---:|---|");
             var rankableRows = rows
                 .Where(r => r.Pair.Match != MatchMethod.Orphan)
-                .Where(r => r.WfControlCount > 0)
+                .Where(r => r.WfControlCount > 0 && r.AvControlCount > 0)
                 .OrderBy(r => r.DeltaPct)
                 .ThenBy(r => r.Pair.WfFormName ?? r.Pair.AvViewName ?? "", StringComparer.Ordinal)
                 .ToList();
@@ -384,7 +386,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             // ---- Pseudo-orphan rows: WF count = 0 (AV view exists, WF file missing) ----
             var unmatchedWfRows = rows
                 .Where(r => r.Pair.Match != MatchMethod.Orphan)
-                .Where(r => r.WfControlCount == 0)
+                .Where(r => r.WfControlCount == 0 && r.AvControlCount > 0)
                 .OrderByDescending(r => r.AvControlCount)
                 .ThenBy(r => r.Pair.WfFormName ?? r.Pair.AvViewName ?? "", StringComparer.Ordinal)
                 .ToList();
@@ -406,10 +408,39 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             }
             sb.AppendLine();
 
+            // ---- Pseudo-orphan rows: AV count = 0 (WF form exists, AV view missing or parse-failed) ----
+            var unmatchedAvRows = rows
+                .Where(r => r.Pair.Match != MatchMethod.Orphan)
+                .Where(r => r.WfControlCount > 0 && r.AvControlCount == 0)
+                .OrderByDescending(r => r.WfControlCount)
+                .ThenBy(r => r.Pair.WfFormName ?? r.Pair.AvViewName ?? "", StringComparer.Ordinal)
+                .ToList();
+            sb.AppendLine("## Unmatched Avalonia Counterparts");
+            sb.AppendLine();
+            sb.AppendLine("Paired by name/heuristic but the AV .axaml is either missing on disk or failed");
+            sb.AppendLine("to parse (System.Xml.Linq returned no controls). Not a real density gap — the");
+            sb.AppendLine("scanner could not measure the AV side at all. Investigate the AV file before");
+            sb.AppendLine("treating these as actual migration deficits.");
+            sb.AppendLine();
+            sb.AppendLine("| WF Form | AV View (claimed) | WF controls | Match |");
+            sb.AppendLine("|---|---|---:|---|");
+            foreach (var r in unmatchedAvRows)
+            {
+                sb.Append("| `").Append(r.Pair.WfFormName ?? "—").Append("`")
+                  .Append(" | `").Append(r.Pair.AvViewName ?? "—").Append("`")
+                  .Append(" | ").Append(r.WfControlCount)
+                  .Append(" | ").Append(r.Pair.Match)
+                  .AppendLine(" |");
+            }
+            sb.AppendLine();
+
             // ---- Top-20 HIGH subsections ----
-            // "Top-20" = top 20 negative-delta HIGH rows where BOTH sides have files
-            // and counts (so the gap is real, not a pairing artifact). The unmatched-
-            // WF section above carries the +∞ / WF==0 cases.
+            // "Top-20" = top 20 negative-delta HIGH rows where BOTH sides have a
+            // scannable file with at least one recognised control. AV==0 rows are
+            // explicitly excluded (they're either missing .axaml or parse failures —
+            // not real migration gaps; the dedicated Unmatched-AV-Counterparts section
+            // catches them). This guarantees every triage subsection points at a
+            // pair where a concrete WF→AV control delta is the actual finding.
             sb.AppendLine("## Top-20 HIGH Gaps — Triage Notes");
             sb.AppendLine();
             sb.AppendLine("Manual notes below each heading describe what specific labels / controls");
@@ -420,7 +451,8 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             int triaged = 0;
             foreach (var r in rows
                 .Where(r => r.Verdict == Verdict.High && r.Pair.Match != MatchMethod.Orphan)
-                .Where(r => r.WfControlCount > 0 && r.DeltaPct < 0)
+                .Where(r => r.WfControlCount > 0 && r.AvControlCount > 0 && r.DeltaPct < 0)
+                .Where(r => r.Pair.WfPath != null && r.Pair.AvPath != null)
                 .OrderBy(r => r.DeltaPct))
             {
                 if (triaged++ >= 20)

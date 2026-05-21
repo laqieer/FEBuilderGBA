@@ -138,10 +138,64 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             var consumedViews = new HashSet<string>(StringComparer.Ordinal);
             var pairs = new List<EditorPair>();
 
-            // ---- 3. Seed authoritative pairs from ListParityHelper ----
+            // ---- 3a. EXACT same-base-name pairs first ----
+            // If both XForm.cs and XView.axaml exist on disk, prefer pairing
+            // them directly even if ListParityHelper would map one of the sides
+            // to a different form. This avoids the false report-row produced
+            // when (e.g.) ListParityHelper says "ClassFE6View ↔ ClassForm"
+            // while ClassFE6Form.cs exists on disk and would be the natural
+            // counterpart. Without this step ClassFE6Form ends up as a
+            // WF-orphan and the ClassFE6View row mis-attributes its delta
+            // to the much bigger ClassForm.
+            foreach ((string viewName, string viewPath) in avViews.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            {
+                if (consumedViews.Contains(viewName))
+                    continue;
+                string? baseName = StripViewSuffix(viewName);
+                if (baseName == null)
+                    continue;
+                string candidateFormName = baseName + "Form";
+                if (!wfForms.TryGetValue(candidateFormName, out string? formPath))
+                    continue;
+                if (consumedForms.Contains(candidateFormName))
+                    continue;
+                if (ExcludedFormNames.Contains(candidateFormName))
+                    continue;
+
+                // Prefer this exact-match unless ListParityHelper would map this
+                // AV view to the SAME form (in which case High confidence still
+                // wins). We classify this match as ListParityHelper-grade when
+                // it agrees with the helper, otherwise High-confidence exact.
+                var helperMapping = ListParityHelper.GetMapping(viewName);
+                MatchMethod method = (helperMapping is { } hm && hm.FormType == candidateFormName)
+                    ? MatchMethod.ListParityHelper
+                    : MatchMethod.Heuristic;
+                Confidence conf = method == MatchMethod.ListParityHelper
+                    ? Confidence.High
+                    : Confidence.High; // exact-filename matches are also High
+
+                pairs.Add(new EditorPair(
+                    WfFormName: candidateFormName,
+                    WfPath: formPath,
+                    AvViewName: viewName,
+                    AvPath: viewPath,
+                    Match: method,
+                    Confidence: conf));
+                consumedForms.Add(candidateFormName);
+                consumedViews.Add(viewName);
+            }
+
+            // ---- 3b. Seed authoritative pairs from ListParityHelper (remaining) ----
+            // Note: a form can legitimately be re-paired here even if the exact-name
+            // pre-pass already consumed it (e.g. ClassForm maps to both ClassEditorView
+            // AND ClassFE6View; ImagePortraitForm maps to both ImagePortraitView AND
+            // PortraitViewerView). What MUST stay unique is the AV view side — each
+            // AV view appears in exactly one pair.
             foreach (string avName in ListParityHelper.GetAllMappedEditors())
             {
                 if (ExcludedViewNames.Contains(avName))
+                    continue;
+                if (consumedViews.Contains(avName))
                     continue;
 
                 var mapping = ListParityHelper.GetMapping(avName);
@@ -162,7 +216,10 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     Match: MatchMethod.ListParityHelper,
                     Confidence: Confidence.High));
 
-                consumedForms.Add(formName);
+                // Mark the AV view consumed (unique), but do NOT mark the WF form
+                // consumed here — another ListParityHelper mapping may legitimately
+                // reuse it. Step 5 (WF-orphan) checks "did any pair use this form"
+                // by inspecting the pair list directly.
                 consumedViews.Add(avName);
             }
 
@@ -188,8 +245,20 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             }
 
             // ---- 5. WinForms-side orphans ----
+            // A form is orphaned when no pair references it at all. We compute this
+            // by querying the pair list directly rather than reusing `consumedForms`,
+            // because step 3b deliberately does NOT mark forms consumed when a single
+            // form maps to multiple AV views (ClassForm, ImagePortraitForm) — both
+            // pairs are real, but only one entry in `consumedForms` would have been
+            // recorded.
+            var formsInAnyPair = pairs
+                .Where(p => p.WfFormName != null)
+                .Select(p => p.WfFormName!)
+                .ToHashSet(StringComparer.Ordinal);
             foreach ((string formName, string formPath) in wfForms.OrderBy(kv => kv.Key, StringComparer.Ordinal))
             {
+                if (formsInAnyPair.Contains(formName))
+                    continue;
                 if (consumedForms.Contains(formName))
                     continue;
 
@@ -255,6 +324,27 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     continue;
                 if (avViews.ContainsKey(candidate))
                     return candidate;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Inverse of TryHeuristicMatch's suffix-strip: given an AV view name,
+        /// return the base name that the WF side would carry (the part before
+        /// the conventional View / ViewerView / EditorView suffix).  Used by the
+        /// "exact same-base-name" pre-pass so we can detect when an AV view has
+        /// an obvious WF counterpart on disk even though ListParityHelper would
+        /// map it to a different (often shared-implementation) form.
+        /// </summary>
+        public static string? StripViewSuffix(string viewName)
+        {
+            // Order matters: longest suffix first so "ItemEditorView" → "Item" not
+            // "ItemEditor".
+            string[] suffixes = { "EditorView", "ViewerView", "View" };
+            foreach (string suffix in suffixes)
+            {
+                if (viewName.EndsWith(suffix, StringComparison.Ordinal))
+                    return viewName.Substring(0, viewName.Length - suffix.Length);
             }
             return null;
         }
