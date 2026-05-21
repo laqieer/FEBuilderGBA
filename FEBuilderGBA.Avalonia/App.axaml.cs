@@ -348,10 +348,22 @@ namespace FEBuilderGBA.Avalonia
                 return 2;
             }
 
+            // Capture-summary metadata (Copilot Phase 3 plan v2 concern #2 / PR review).
+            // Computing total PNG count per side BEFORE pairing lets the
+            // front-matter distinguish "fully-paired full capture" from
+            // "non-Windows host: AV-only" from "WinForms captured nothing".
+            // The runners mask exit codes (WinForms always exits 0 even when
+            // the inner ScreenshotAllRunner sets ExitCode); these counts
+            // surface the discrepancy in the committed manifest.
+            int wfCaptured = SafePngCount(wfDir);
+            int avCaptured = SafePngCount(avDir);
+            string status = ComputeGalleryStatus(wfCaptured, avCaptured);
+
             // Cross-check expected editors against the project's coverage doc so
             // the gallery's MissingFromExpected section surfaces docs/runtime drift.
             var expected = GalleryBuilder.LoadExpectedEditorsFromDoc(repoRoot);
             Console.WriteLine($"GAPSWEEP[gallery]: loaded {expected.Count} expected editor names from docs/avalonia-gui-forms.md.");
+            Console.WriteLine($"GAPSWEEP[gallery]: PNG counts — wf={wfCaptured} av={avCaptured} status={status}");
 
             var report = GalleryBuilder.BuildGallery(wfDir!, avDir!, romTag!, expected);
             Console.WriteLine($"GAPSWEEP[gallery]: paired={report.Pairs.Count} av-only={report.AvOnly.Count} wf-only={report.WfOnly.Count} missing={report.MissingFromExpected.Count}");
@@ -362,6 +374,9 @@ namespace FEBuilderGBA.Avalonia
             var extras = new Dictionary<string, string>
             {
                 ["rom"] = romTag!,
+                ["status"] = status,
+                ["wf-captured"] = wfCaptured.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["av-captured"] = avCaptured.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["paired"] = report.Pairs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["av-only"] = report.AvOnly.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["wf-only"] = report.WfOnly.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -370,6 +385,43 @@ namespace FEBuilderGBA.Avalonia
             ReportWriter.WriteReport(outPath, "gallery", new[] { body }, extras, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[gallery]: report written to {outPath}");
             return 0;
+        }
+
+        /// <summary>
+        /// Count `*.png` files in <paramref name="dir"/>. Returns 0 (not -1)
+        /// for missing or unreadable directories so the JSON-like front-matter
+        /// stays clean. The companion `status` field encodes WHY the count
+        /// might be zero (no-windows, capture-fail, etc.).
+        /// </summary>
+        static int SafePngCount(string? dir)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return 0;
+            try
+            {
+                return Directory.EnumerateFiles(dir, "*.png", SearchOption.TopDirectoryOnly).Count();
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Classify the gallery run for the front-matter `status:` field. The
+        /// values are machine-readable so downstream tooling (Phase 7 CI) can
+        /// gate on `status: complete` and surface partial / failed runs as
+        /// warnings rather than treating them as successful baselines.
+        /// </summary>
+        static string ComputeGalleryStatus(int wfCount, int avCount)
+        {
+            if (wfCount == 0 && avCount == 0)
+                return "empty";
+            if (wfCount == 0)
+                return "av-only";
+            if (avCount == 0)
+                return "wf-only";
+            return "complete";
         }
 
         /// <summary>

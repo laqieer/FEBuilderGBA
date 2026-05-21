@@ -82,8 +82,14 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// <paramref name="romTag"/> is the trailing suffix that gets stripped from
         /// each filename to recover the bare editor name (e.g. "FE8U" turns
         /// "WinForms_UnitEditorView_FE8U.png" into "UnitEditorView"). Pass the
-        /// exact ROM tag that the runners used; mismatched tags will fall back
-        /// to "skip the literal _RomTag.png suffix if present".
+        /// EXACT ROM tag the runners used — both `--screenshot-all` flows
+        /// derive it from `Program.ROM.RomInfo.VersionToFilename`
+        /// (binary-signature-detected version, NOT the ROM filename). When the
+        /// passed tag does not match the runner-derived tag, files with a
+        /// different `_{tag}.png` suffix are silently skipped — the gallery
+        /// will look empty. `scripts/make-screenshots.ps1` infers the tag from
+        /// the captured PNG filenames after running the runners; pass an
+        /// explicit `--rom-tag=` when invoking the CLI directly.
         ///
         /// <paramref name="expectedEditors"/> is the optional coverage source
         /// (typically `LoadExpectedEditorsFromDoc(repoRoot)`). When non-null /

@@ -1,8 +1,11 @@
 ---
-generated: "2026-05-21T17:36:20Z"
-git-sha: bf607fb66
+generated: "2026-05-21T18:10:42Z"
+git-sha: 0c8c82a18
 sweep-type: gallery
 rom: FE8U
+status: complete
+wf-captured: 304
+av-captured: 325
 paired: 304
 av-only: 21
 wf-only: 0

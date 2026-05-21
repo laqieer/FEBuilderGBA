@@ -13,8 +13,8 @@ SCREENSHOT: Capturing 325 editors...
 SCREENSHOT: Results: 325 captured, 0 failed out of 325
 Avalonia captured: 325 PNGs
 
-=== Step 3/3: gallery build ===
-GAPSWEEP[gallery]: repo-root=C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA
+=== Step 3/3: gallery build (rom-tag=FE8U) ===
+GAPSWEEP[gallery]: repo-root=<repo-root> out=docs/avalonia-gaps/2026-05-22-screenshots/FE8U/index.md dry-run=False
 GAPSWEEP[gallery]: loaded 325 expected editor names from docs/avalonia-gui-forms.md.
 GAPSWEEP[gallery]: paired=304 av-only=21 wf-only=0 missing=0
 GAPSWEEP[gallery]: report written to docs/avalonia-gaps/2026-05-22-screenshots/FE8U/index.md

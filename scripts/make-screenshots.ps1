@@ -47,20 +47,25 @@ if (-not $romPath) {
 }
 $romPath = $romPath.Path
 
-# Derive ROM tag from filename if not provided. Mirrors the runner naming:
-# both --screenshot-all flows use Program.ROM.RomInfo.VersionToFilename, which
-# is typically "FE6JP", "FE7U", "FE8U", etc. When the user passes a custom ROM
-# filename we still let them override via -RomTag.
-if (-not $RomTag) {
-    $RomTag = [System.IO.Path]::GetFileNameWithoutExtension($romPath)
-    Write-Host "Derived ROM tag from filename: $RomTag"
+# NOTE: ROM tag derivation. Both --screenshot-all runners suffix screenshots
+# with `Program.ROM.RomInfo.VersionToFilename` (e.g. "FE6JP", "FE7U", "FE8U"),
+# which is the binary-signature-detected version — NOT the filename. We
+# defer the derivation until AFTER the captures land so we can infer the
+# real tag from the produced PNG names. The -RomTag override stays available
+# for users who know it up front.
+if ($RomTag) {
+    Write-Host "Using explicit ROM tag: $RomTag"
 }
 
-# Derive output directory if not provided.
+# Derive output directory if not provided. When -RomTag isn't given we use
+# the ROM filename for the directory name (not for the gallery's --rom-tag);
+# the actual --rom-tag is inferred from the PNG filenames after the captures
+# land.
 if (-not $Out) {
     $today = Get-Date -Format "yyyy-MM-dd"
+    $outRomTag = if ($RomTag) { $RomTag } else { [System.IO.Path]::GetFileNameWithoutExtension($romPath) }
     $Out = Join-Path $repoRoot "docs" | Join-Path -ChildPath "avalonia-gaps" `
-        | Join-Path -ChildPath "$today-screenshots" | Join-Path -ChildPath $RomTag
+        | Join-Path -ChildPath "$today-screenshots" | Join-Path -ChildPath $outRomTag
     Write-Host "Derived output directory: $Out"
 }
 
@@ -131,14 +136,49 @@ Write-Host ""
 Write-Host "=== Step 2/3: Avalonia --screenshot-all ==="
 & dotnet run --project (Join-Path $repoRoot "FEBuilderGBA.Avalonia" | Join-Path -ChildPath "FEBuilderGBA.Avalonia.csproj") `
     -c $Configuration -- --rom $romPath --screenshot-all --screenshot-dir=$avDir
+# $ErrorActionPreference="Stop" does NOT halt on native-process nonzero exits
+# (Copilot review point); we must check $LASTEXITCODE explicitly. We treat a
+# nonzero exit as fatal because the gallery against a partially-captured AV
+# directory would silently mis-classify rows as "missing".
+$avExitCode = $LASTEXITCODE
+if ($avExitCode -ne 0) {
+    Write-Error "Avalonia --screenshot-all exited with code $avExitCode — gallery build aborted to avoid masking the capture failure."
+    exit $avExitCode
+}
 $avPngCount = (Get-ChildItem -Path $avDir -Filter "*.png" -File -ErrorAction SilentlyContinue | Measure-Object).Count
 Write-Host "Avalonia captured: $avPngCount PNGs"
+
+# ---------------------------------------------------------------------------
+# Derive the real ROM tag from the captured PNGs if the caller didn't pass
+# one explicitly. The runners emit `{Prefix}{ViewName}_{RomTag}.png`, so
+# stripping the prefix + view-name leaves `_<RomTag>.png` — the segment
+# AFTER the LAST underscore. View names may contain underscores (e.g.
+# `ToolWorkSupport_SelectUPSView`), so we must rsplit, not lsplit.
+if (-not $RomTag) {
+    # Prefer Avalonia PNGs (always present); fall back to WinForms PNGs when
+    # the AV step somehow produced nothing.
+    $sampleDir = if ((Get-ChildItem -Path $avDir -Filter "*.png" -File -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0) { $avDir } else { $wfDir }
+    $sampleFile = Get-ChildItem -Path $sampleDir -Filter "*.png" -File -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($sampleFile) {
+        $bareName = [System.IO.Path]::GetFileNameWithoutExtension($sampleFile.Name)
+        # Last underscore-separated segment is the ROM tag the runner used.
+        $lastUnderscore = $bareName.LastIndexOf('_')
+        if ($lastUnderscore -gt 0 -and $lastUnderscore -lt ($bareName.Length - 1)) {
+            $RomTag = $bareName.Substring($lastUnderscore + 1)
+            Write-Host "Inferred ROM tag from captured PNG filename: $RomTag"
+        }
+    }
+    if (-not $RomTag) {
+        Write-Warning "Could not infer ROM tag from captured PNGs; falling back to ROM filename."
+        $RomTag = [System.IO.Path]::GetFileNameWithoutExtension($romPath)
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Step 3: --gap-sweep-gallery
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "=== Step 3/3: gallery build ==="
+Write-Host "=== Step 3/3: gallery build (rom-tag=$RomTag) ==="
 & dotnet run --project (Join-Path $repoRoot "FEBuilderGBA.Avalonia" | Join-Path -ChildPath "FEBuilderGBA.Avalonia.csproj") `
     -c $Configuration -- --gap-sweep-gallery `
         --wf-dir=$wfDir --av-dir=$avDir --rom-tag=$RomTag --out=$indexMd

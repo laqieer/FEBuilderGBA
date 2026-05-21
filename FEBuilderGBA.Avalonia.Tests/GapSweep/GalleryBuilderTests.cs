@@ -487,6 +487,57 @@ public class GalleryBuilderTests : IDisposable
         Assert.Throws<ArgumentException>(() => GalleryBuilder.BuildGallery("", "", ""));
     }
 
+    // =====================================================================
+    // End-to-end capture-summary scenario covering all four status states
+    // (complete, av-only, wf-only, empty) — Copilot v2 review concern #5
+    // requested an integration case proving paired/WF-only/AV-only/missing
+    // all surface simultaneously.
+    // =====================================================================
+
+    [Fact]
+    public void BuildGallery_EndToEnd_AllFourCategoriesPopulate()
+    {
+        string wf = MakeDir("wf");
+        string av = MakeDir("av");
+
+        // Symmetric: both sides capture
+        TouchPng(wf, "WinForms_PairedView_FE8U.png");
+        TouchPng(av, "Avalonia_PairedView_FE8U.png");
+        TouchPng(wf, "WinForms_Paired2View_FE8U.png");
+        TouchPng(av, "Avalonia_Paired2View_FE8U.png");
+        // Asymmetric: AV captured, WF did not
+        TouchPng(av, "Avalonia_AvOrphanView_FE8U.png");
+        // Asymmetric: WF captured, AV did not
+        TouchPng(wf, "WinForms_WfOrphanView_FE8U.png");
+
+        var expected = new[]
+        {
+            "PairedView",
+            "Paired2View",
+            "AvOrphanView",
+            "WfOrphanView",
+            "TotallyMissingView",
+        };
+
+        var report = GalleryBuilder.BuildGallery(wf, av, "FE8U", expected);
+
+        Assert.Equal(2, report.Pairs.Count);
+        Assert.Single(report.AvOnly);
+        Assert.Equal("AvOrphanView", report.AvOnly[0]);
+        Assert.Single(report.WfOnly);
+        Assert.Equal("WfOrphanView", report.WfOnly[0]);
+        Assert.Single(report.MissingFromExpected);
+        Assert.Equal("TotallyMissingView", report.MissingFromExpected[0]);
+
+        // Format the markdown and verify all four categories surface.
+        string md = GalleryBuilder.FormatIndexMarkdown(report, "wf", "av");
+        Assert.Contains("| `Paired2View` |", md);
+        Assert.Contains("| `PairedView` |", md);
+        Assert.Contains("`AvOrphanView`", md);
+        Assert.Contains("`WfOrphanView`", md);
+        Assert.Contains("`TotallyMissingView`", md);
+    }
+
     // -----------------------------------------------------------------------
 
     /// <summary>
