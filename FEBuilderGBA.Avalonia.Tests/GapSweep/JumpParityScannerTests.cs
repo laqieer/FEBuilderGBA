@@ -171,6 +171,71 @@ class FooForm {
         Assert.Equal("TargetForm", rows[0].TargetForm);
     }
 
+    [Fact]
+    public void ExtractCallsites_FiltersDispatcherClass_InputFormRef()
+    {
+        // Per Copilot PR #379 review concern #1: InputFormRef's own callsites
+        // (~130 of them) are the dispatcher itself, not real navigation
+        // sources. They must be filtered out so the report focuses on
+        // editor-to-editor jumps.
+        string src = @"
+namespace X {
+    class InputFormRef {
+        void DispatchByLinkType() {
+            InputFormRef.JumpForm<UnitForm>(value);
+            InputFormRef.JumpForm<ClassForm>(value);
+        }
+    }
+}";
+        var rows = JumpParityScanner.ExtractCallsitesFromSource(src);
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public void ExtractCallsites_FiltersShellClass_MainFEForm()
+    {
+        // Main shell forms open editors at startup — no source-editor context.
+        string src = @"
+class MainFE8Form {
+    void OnButton() {
+        InputFormRef.JumpForm<ClassForm>();
+    }
+}";
+        var rows = JumpParityScanner.ExtractCallsitesFromSource(src);
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public void ExtractCallsites_KeepsRealEditorClass()
+    {
+        // A real editor Form whose code-behind navigates to another editor
+        // MUST be kept — this is the canonical cross-editor jump.
+        string src = @"
+class ItemForm {
+    void OnJumpToEffectiveness() {
+        InputFormRef.JumpForm<ItemEffectivenessForm>(addr);
+    }
+}";
+        var rows = JumpParityScanner.ExtractCallsitesFromSource(src);
+        Assert.Single(rows);
+        Assert.Equal("ItemForm", rows[0].SourceForm);
+        Assert.Equal("ItemEffectivenessForm", rows[0].TargetForm);
+    }
+
+    [Fact]
+    public void IsDispatcherOrShellClass_KnownDispatchers()
+    {
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("InputFormRef"));
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("SkillUtil"));
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("MainFE6Form"));
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("MainFE7Form"));
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("MainFE8Form"));
+        Assert.True(JumpParityScanner.IsDispatcherOrShellClass("MainSimpleMenuForm"));
+        Assert.False(JumpParityScanner.IsDispatcherOrShellClass("ItemForm"));
+        Assert.False(JumpParityScanner.IsDispatcherOrShellClass("ClassForm"));
+        Assert.False(JumpParityScanner.IsDispatcherOrShellClass(""));
+    }
+
     // =====================================================================
     // DeriveViewNameFromVmName — VM→View name conversion.
     // =====================================================================
@@ -348,6 +413,23 @@ class FooForm {
         // ClassForm should expand to multiple AV views (ClassEditorView +
         // ClassFE6View) — the multi-mapping is what makes this map useful.
         Assert.Contains("ClassEditorView", map["ClassForm"]);
+    }
+
+    [Fact]
+    public void BuildWfFormToAvViewsMap_WithRepoRoot_HasBroaderCoverage()
+    {
+        // Per Copilot PR #379 review concern #2: when given a repo root, the
+        // PairMatcher discovery layer adds more form↔view pairs beyond what
+        // ListParityHelper tracks. Compare the two maps' key counts.
+        string? repoRoot = FindRepoRoot();
+        if (repoRoot == null)
+            return;
+        var withoutPairMatcher = JumpParityScanner.BuildWfFormToAvViewsMap();
+        var withPairMatcher = JumpParityScanner.BuildWfFormToAvViewsMap(repoRoot);
+        // The PairMatcher layer is additive — it never removes entries, only
+        // adds them. So withPairMatcher should have >= keys.
+        Assert.True(withPairMatcher.Count >= withoutPairMatcher.Count,
+            $"PairMatcher layer should add entries. Without={withoutPairMatcher.Count}, With={withPairMatcher.Count}");
     }
 
     // =====================================================================

@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
 
             IReadOnlyList<AvManifestEntry> avManifests = ScanAvManifests(typeof(INavigationTargetSource).Assembly);
 
-            return ComputeJumpRows(wfCallsites, avManifests);
+            return ComputeJumpRows(wfCallsites, avManifests, repoRoot);
         }
 
         /// <summary>
@@ -257,11 +257,46 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 string sourceForm = FindEnclosingClassName(inv);
                 if (string.IsNullOrEmpty(sourceForm))
                     continue;
+                // Filter out dispatcher / shell classes whose callsites don't
+                // represent real cross-editor navigation events (per Copilot
+                // PR #379 review concern #1):
+                //   - InputFormRef.cs hosts ~130 callsites that are the
+                //     dispatcher itself routing linktype→target lookups; they
+                //     are infrastructure, not a "navigation FROM this editor".
+                //   - MainFE*Form / MainSimpleMenu* are top-level shells whose
+                //     callsites open editors at app startup (no source-editor
+                //     context).
+                //   - SkillUtil is a static helper that resolves
+                //     skill-type→view; same dispatcher pattern as InputFormRef.
+                if (IsDispatcherOrShellClass(sourceForm))
+                    continue;
 
                 bool hasAddress = inv.ArgumentList.Arguments.Count > 0;
                 list.Add(new WfJumpCallsite(sourceForm, targetForm, hasAddress));
             }
             return list;
+        }
+
+        /// <summary>
+        /// True for classes whose `InputFormRef.JumpForm&lt;T&gt;` callsites are
+        /// infrastructure (dispatcher / shell), not real cross-editor navigation.
+        /// Filtering these out keeps the report focused on EDITOR-to-EDITOR
+        /// jumps. The list is hand-maintained — when a new dispatcher class is
+        /// added, add it here. The cost of missing one is a few extra rows in
+        /// the report, not a correctness bug.
+        /// </summary>
+        public static bool IsDispatcherOrShellClass(string sourceClass)
+        {
+            if (string.IsNullOrEmpty(sourceClass))
+                return false;
+            // Top-level main shells.
+            if (sourceClass.StartsWith("MainFE", StringComparison.Ordinal) ||
+                sourceClass.StartsWith("MainSimple", StringComparison.Ordinal))
+                return true;
+            // The two dispatcher helpers that route linktype→target.
+            if (sourceClass == "InputFormRef" || sourceClass == "SkillUtil")
+                return true;
+            return false;
         }
 
         /// <summary>
@@ -432,15 +467,15 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// </summary>
         public static IReadOnlyList<JumpRow> ComputeJumpRows(
             IReadOnlyList<WfJumpCallsite> wfCallsites,
-            IReadOnlyList<AvManifestEntry> avManifests)
+            IReadOnlyList<AvManifestEntry> avManifests,
+            string? repoRoot = null)
         {
-            // Build inverse WF-form → AV-view name map by walking the
-            // ListParityHelper full mapping list. The helper's authoritative
-            // direction is AV-view → WF-form; we invert here once.
+            // Build inverse WF-form → AV-view name map. Two layers
+            // (ListParityHelper seed + PairMatcher discovery — see method doc).
             // Note: multiple AV views can map to the same WF form
             // (e.g. ClassForm ↔ {ClassEditorView, ClassFE6View}); we collect
             // ALL such views so callers can find the right one when needed.
-            var formToViews = BuildWfFormToAvViewsMap();
+            var formToViews = BuildWfFormToAvViewsMap(repoRoot);
 
             // Index AV manifests by source-view for quick lookup during the
             // cross-ref pass. One source view may have many entries (one per
@@ -575,12 +610,24 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// Build a WF-form-name → list-of-AV-view-names map. Used to expand WF
         /// callsites whose (source, target) form pair has multiple AV view
         /// counterparts (e.g. ClassForm ↔ ClassEditorView AND ClassFE6View).
-        /// Uses <see cref="ListParityHelper.GetAllMappedEditors"/> as the
-        /// authoritative source — no reflection / no string parsing.
+        ///
+        /// Two layers (per Copilot PR #379 review concern #2):
+        /// <list type="number">
+        ///   <item><see cref="ListParityHelper"/> — authoritative ~140-entry seed.</item>
+        ///   <item><see cref="PairMatcher"/> — exact-name + heuristic discovery
+        ///     across the file system. This recovers form↔view pairs that
+        ///     ListParityHelper doesn't track (forms without a list-backed view,
+        ///     1:1 pairs identifiable by suffix convention) so the jump report
+        ///     resolves SourceView / TargetAvType columns more completely.</item>
+        /// </list>
+        ///
+        /// <paramref name="repoRoot"/> is optional — when null the PairMatcher
+        /// layer is skipped (used by unit tests that don't have a worktree).
         /// </summary>
-        public static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildWfFormToAvViewsMap()
+        public static IReadOnlyDictionary<string, IReadOnlyList<string>> BuildWfFormToAvViewsMap(string? repoRoot = null)
         {
             var map = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            // Layer 1: ListParityHelper authoritative seed.
             foreach (string avName in ListParityHelper.GetAllMappedEditors())
             {
                 var mapping = ListParityHelper.GetMapping(avName);
@@ -593,6 +640,34 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 }
                 if (!list.Contains(avName))
                     list.Add(avName);
+            }
+            // Layer 2: PairMatcher heuristic + exact-name pairs (broader coverage).
+            // Skip when no repo root — unit tests that don't need this layer.
+            if (!string.IsNullOrEmpty(repoRoot) && Directory.Exists(repoRoot))
+            {
+                try
+                {
+                    var pairs = PairMatcher.DiscoverAll(repoRoot);
+                    foreach (var pair in pairs)
+                    {
+                        if (pair.WfFormName == null || pair.AvViewName == null)
+                            continue;
+                        if (!map.TryGetValue(pair.WfFormName, out var list))
+                        {
+                            list = new List<string>();
+                            map[pair.WfFormName] = list;
+                        }
+                        if (!list.Contains(pair.AvViewName))
+                            list.Add(pair.AvViewName);
+                    }
+                }
+                catch
+                {
+                    // PairMatcher I/O failures degrade gracefully — the
+                    // ListParityHelper layer above already provides a baseline
+                    // map; the worst case here is fewer resolved view names
+                    // in the report.
+                }
             }
             return map.ToDictionary(
                 kv => kv.Key,
