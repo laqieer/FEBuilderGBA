@@ -26,7 +26,7 @@ them as backlog instead of waiting for users to file them one at a time.
 | 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-22 baseline](2026-05-22-labels-sweep.md) |
 | 3 | Side-by-side screenshot gallery | `--gap-sweep-gallery` + `--screenshot-all` × 2 | [x] [2026-05-22 FE8U baseline](2026-05-22-screenshots/FE8U/index.md) |
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-22 baseline](2026-05-22-jumps-sweep.md) |
-| 5 | Undo coverage | `--gap-sweep-undo` | [ ] |
+| 5 | Undo coverage | `--gap-sweep-undo` | [x] [2026-05-22 baseline](2026-05-22-undo-sweep.md) |
 | 6 | Localisation sweep | `--gap-sweep-l10n` | [ ] |
 | 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [ ] |
 
@@ -60,6 +60,11 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 # manifests; no UIA/FlaUI, no app launch).
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-jumps --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-jumps-sweep.md
+
+# Phase 5 — undo coverage sweep (Roslyn scan over every Avalonia
+# ROM-write callsite; classifies into 4 coverage tiers).
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-undo --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-undo-sweep.md
 
 # Phase 3 — full side-by-side screenshot gallery (drives both --screenshot-all
 # runners then pairs the captured PNGs). PNGs are gitignored; only index.md
@@ -214,6 +219,59 @@ candidate-missing-field counts surface first. Top of the first labels baseline
 `MapSettingFE7UForm` (90), `SkillConfigFE8NSkillForm` (84), `EventCondForm` (81),
 `MapSettingForm` (78).
 
+## Reading the undo report
+
+Phase 5 emits `docs/avalonia-gaps/<date>-undo-sweep.md`. The report inventories
+every ROM-write callsite in `FEBuilderGBA.Avalonia/` and classifies it by
+how it interacts with `UndoService.Begin/Commit/Rollback`. WinForms is the
+ground truth — every WF call to `Program.ROM.SetU8/16/32(addr, val, undo)`
+takes an `Undo` argument so the compiler enforces undo plumbing. Avalonia
+uses two complementary patterns:
+
+1. **VM-internal:** `UndoService.Begin(name)` opens a scope inside a VM
+   method; `rom.write_u*` calls register against it automatically.
+   `EventScriptPopupViewModel` uses this pattern.
+2. **View-wrapped:** the View code-behind wraps `_vm.WriteX()` in
+   `_undoService.Begin/Commit` so every write inside the VM's `WriteX`
+   method runs under the View's ambient scope. ~30 editor Views use this
+   pattern (`ItemEditorView`, `MapSettingView`, `ClassEditorView`,
+   `UnitEditorView`, etc.).
+
+The Phase 5 scanner models both patterns. Pass 1 does same-method bracketing
+inside each file; pass 2 cross-references View files for `_vm.Method(...)`
+calls wrapped in Begin/Commit and upgrades the matching VM-side write rows
+to `Covered`.
+
+**Coverage tiers** (highest priority first):
+
+- `NoUndoServiceField` — VM has no `UndoService` field/property/local at all.
+  The whole VM is unplumbed; the fix sequence is (1) add a
+  `UndoService _undoService = new();` field, (2) wrap each Save / Write
+  handler in `_undoService.Begin/Commit`. This is the deepest gap and
+  surfaces first in the report.
+- `MissingScope` — class already has `UndoService` plumbing but a specific
+  write is not surrounded by a `Begin(...)` call. The fix is local: add
+  `_undoService.Begin("…")` before the write and `_undoService.Commit()`
+  (plus rollback in catch) after.
+- `AmbiguousScope` — write lives in a helper method whose caller may wrap
+  a Begin/Commit scope around it. The scanner's one-level name-match
+  heuristic surfaces this as a row to verify manually.
+- `Covered` — write is inside a `Begin/Commit` (or `Begin/Rollback`) scope
+  in the same method body, OR passes an explicit `Undo` trailing argument
+  (WinForms-style).
+
+Phase 5 is intentionally a **static analyzer**. It does NOT modify any
+production write callsite — it just inventories them. Follow-up PRs use the
+report as a per-VM backlog to add the missing plumbing one editor at a time.
+
+Methodology lives in `FEBuilderGBA.Avalonia/GapSweep/UndoCoverageScanner.cs`.
+The 2026-05-22 baseline reports **1036 write callsites across many classes**;
+79.8% are `Covered` (mostly via the View-wrapped pattern), 20.0% are
+`NoUndoServiceField` (the actual backlog — primarily FE6 VMs whose Views
+haven't been updated to wrap `_vm.WriteX()` yet), and 0.2% are
+`MissingScope` (BigCGViewerView's `ImportPng_Click` early-exit-Rollback
+case, a conservative false-positive of the strict bracketing model).
+
 ## Implementation entry points
 
 | File | Role |
@@ -225,6 +283,7 @@ candidate-missing-field counts surface first. Top of the first labels baseline
 | `FEBuilderGBA.Avalonia/GapSweep/GalleryBuilder.cs` | Phase 3 pair-and-emit gallery |
 | `FEBuilderGBA.Avalonia/GapSweep/JumpParityScanner.cs` | Phase 4 scanner |
 | `FEBuilderGBA.Avalonia/Services/INavigationTargetSource.cs` | Phase 4 manifest seam |
+| `FEBuilderGBA.Avalonia/GapSweep/UndoCoverageScanner.cs` | Phase 5 scanner |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
 | `scripts/make-screenshots.ps1` | Phase 3 wrapper — drives both `--screenshot-all` runners then `--gap-sweep-gallery` |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |
