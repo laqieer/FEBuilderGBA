@@ -64,6 +64,13 @@ cli-logs/
 # Prevent screenshots in project root (use pr-screenshots/ instead)
 /*.png
 
+# Gap-sweep Phase 3 — per-ROM screenshot manifests commit only index.md;
+# the captured PNGs and per-side directories stay local (see
+# docs/avalonia-gaps/README.md for the report-churn policy).
+docs/avalonia-gaps/*-screenshots/**/*.png
+docs/avalonia-gaps/*-screenshots/**/wf/
+docs/avalonia-gaps/*-screenshots/**/av/
+
 # IDE / editor
 .vs/
 .claude/*

@@ -24,7 +24,7 @@ them as backlog instead of waiting for users to file them one at a time.
 | 0 | Bootstrap (pair matcher + report writer) | (infrastructure) | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
 | 1 | Control-density delta | `--gap-sweep-density` | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
 | 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-22 baseline](2026-05-22-labels-sweep.md) |
-| 3 | Side-by-side screenshot gallery | (uses existing `--screenshot-all` × 2) | [ ] |
+| 3 | Side-by-side screenshot gallery | `--gap-sweep-gallery` + `--screenshot-all` × 2 | [x] [2026-05-22 FE8U baseline](2026-05-22-screenshots/FE8U/index.md) |
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [ ] |
 | 5 | Undo coverage | `--gap-sweep-undo` | [ ] |
 | 6 | Localisation sweep | `--gap-sweep-l10n` | [ ] |
@@ -55,6 +55,20 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-labels --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-labels-sweep.md
 
+# Phase 3 — full side-by-side screenshot gallery (drives both --screenshot-all
+# runners then pairs the captured PNGs). PNGs are gitignored; only index.md
+# is committed.
+./scripts/make-screenshots.ps1 -Rom roms/FE8U.gba
+
+# Phase 3 — direct gallery build (when you already have wf/ and av/ PNG
+# directories from a previous --screenshot-all run)
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-gallery `
+       --wf-dir=docs/avalonia-gaps/2026-05-22-screenshots/FE8U/wf `
+       --av-dir=docs/avalonia-gaps/2026-05-22-screenshots/FE8U/av `
+       --rom-tag=FE8U `
+       --out=docs/avalonia-gaps/2026-05-22-screenshots/FE8U/index.md
+
 # Dry-run (writes only the YAML front-matter — useful for checking write perms / CI plumbing)
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-density --dry-run --out=tmp/density-dry.md
@@ -63,8 +77,14 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 All flags accept:
 
 - `--out=<path>` — required: where the report goes.
-- `--dry-run` — header-only; skips the actual scan.
+- `--dry-run` — header-only; skips the actual scan. For `--gap-sweep-gallery`, dry-run also relaxes the `--wf-dir` / `--av-dir` / `--rom-tag` requirement.
 - `--repo-root=<path>` — override the repo-root auto-discovery (defaults to walking up from the executable until `FEBuilderGBA.sln` is found).
+
+The `--gap-sweep-gallery` flag additionally requires:
+
+- `--wf-dir=<path>` — directory of WinForms `--screenshot-all` PNG output.
+- `--av-dir=<path>` — directory of Avalonia `--screenshot-all` PNG output.
+- `--rom-tag=<name>` — ROM tag suffix that both runners used (e.g. `FE8U`); pairs filenames by `WinForms_<editor>_<tag>.png` ↔ `Avalonia_<editor>_<tag>.png`.
 
 ## Reading the density report
 
@@ -77,6 +97,34 @@ The density report ranks every paired editor by `(AV controls - WF controls) / W
 The "Top-20 HIGH Gaps" subsections are placeholders for hand-written triage
 notes — fill them per the suggested `grep` snippets so each subsequent
 fix-PR can crib the field list directly from the baseline.
+
+## Reading the screenshot gallery
+
+Phase 3 emits a per-ROM Markdown manifest under
+`docs/avalonia-gaps/<YYYY-MM-DD>-screenshots/<ROM>/index.md`. The committed
+`index.md` references PNGs that live alongside it in the same folder — those
+PNGs are **gitignored** (see the report-churn policy above). Image links in
+the committed manifest resolve only when the PNGs have been regenerated
+locally with `scripts/make-screenshots.ps1`.
+
+The 2026-05-22 FE8U baseline has 304 paired editors (both sides captured) and
+21 AV-only entries (Avalonia editors with no `ScreenshotFormRegistry`
+mapping — these are mostly viewers / no-WinForms-counterpart utilities; the
+report's "Avalonia-only captures" section lists them).
+
+Sections:
+
+- **Side-by-side gallery** — `| Editor | WinForms | Avalonia |` table for
+  every editor that BOTH runners captured. Visual layout / control-omission
+  deltas surface immediately on a quick scroll-through.
+- **Avalonia-only captures** — Avalonia captured but WinForms did not.
+  Either no WinForms counterpart exists (legitimate AV-only) or the
+  WinForms `ScreenshotFormRegistry` needs a new entry.
+- **WinForms-only captures** — WinForms captured but Avalonia did not.
+  Either the AV editor is missing from `GetAllEditorFactories` or its
+  capture failed silently.
+- **Expected editors not captured** — editors listed in
+  `docs/avalonia-gui-forms.md` that neither runner captured.
 
 ## Reading the labels report
 
@@ -107,7 +155,9 @@ candidate-missing-field counts surface first. Top of the first labels baseline
 | `FEBuilderGBA.Avalonia/GapSweep/ReportWriter.cs` | YAML front-matter + body emit |
 | `FEBuilderGBA.Avalonia/GapSweep/ControlDensityScanner.cs` | Phase 1 scanner |
 | `FEBuilderGBA.Avalonia/GapSweep/LabelDiffScanner.cs` | Phase 2 scanner |
+| `FEBuilderGBA.Avalonia/GapSweep/GalleryBuilder.cs` | Phase 3 pair-and-emit gallery |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
+| `scripts/make-screenshots.ps1` | Phase 3 wrapper — drives both `--screenshot-all` runners then `--gap-sweep-gallery` |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |
 
 ## Tracking
