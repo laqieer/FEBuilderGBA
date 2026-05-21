@@ -23,7 +23,7 @@ them as backlog instead of waiting for users to file them one at a time.
 |---|---|---|---|
 | 0 | Bootstrap (pair matcher + report writer) | (infrastructure) | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
 | 1 | Control-density delta | `--gap-sweep-density` | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
-| 2 | Field-label diff | `--gap-sweep-labels` | [ ] |
+| 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-22 baseline](2026-05-22-labels-sweep.md) |
 | 3 | Side-by-side screenshot gallery | (uses existing `--screenshot-all` × 2) | [ ] |
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [ ] |
 | 5 | Undo coverage | `--gap-sweep-undo` | [ ] |
@@ -51,6 +51,10 @@ Each phase produces a markdown report under `docs/avalonia-gaps/<YYYY-MM-DD>-<sw
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-density --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-density-sweep.md
 
+# Phase 2 — field-label diff against the current worktree
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-labels --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-labels-sweep.md
+
 # Dry-run (writes only the YAML front-matter — useful for checking write perms / CI plumbing)
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-density --dry-run --out=tmp/density-dry.md
@@ -74,6 +78,27 @@ The "Top-20 HIGH Gaps" subsections are placeholders for hand-written triage
 notes — fill them per the suggested `grep` snippets so each subsequent
 fix-PR can crib the field list directly from the baseline.
 
+## Reading the labels report
+
+The labels report complements the density report — density tells you WHICH
+pairs probably have gaps, labels tells you WHAT specific labels appear in
+the WinForms designer but are missing from the Avalonia view.
+
+- **WF-only labels** = candidates for missing fields in the AV migration.
+- **AV-only labels** = usually fine (rewording, language polish, layout change).
+- **Common labels** = labels that survived normalisation on both sides.
+
+Normalisation collapses whitespace, strips trailing colons, removes mnemonic
+markers (`&` for WinForms, `_` for Avalonia), and lowercases — so `Name:` /
+`&Name` / `_Name` / `Name` all collide to the same set key. The report
+preserves the original casing/punctuation; only the diff key is normalised.
+
+Per-pair sections are sorted by WF-only count descending so the biggest
+candidate-missing-field counts surface first. Top of the first labels baseline
+([2026-05-22](2026-05-22-labels-sweep.md)): `EmulatorMemoryForm` (174 WF-only),
+`MapSettingFE7UForm` (90), `SkillConfigFE8NSkillForm` (84), `EventCondForm` (81),
+`MapSettingForm` (78).
+
 ## Implementation entry points
 
 | File | Role |
@@ -81,6 +106,7 @@ fix-PR can crib the field list directly from the baseline.
 | `FEBuilderGBA.Avalonia/GapSweep/GapSweepCommon.cs` | `EditorPair` record + `PairMatcher.DiscoverAll` |
 | `FEBuilderGBA.Avalonia/GapSweep/ReportWriter.cs` | YAML front-matter + body emit |
 | `FEBuilderGBA.Avalonia/GapSweep/ControlDensityScanner.cs` | Phase 1 scanner |
+| `FEBuilderGBA.Avalonia/GapSweep/LabelDiffScanner.cs` | Phase 2 scanner |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |
 
