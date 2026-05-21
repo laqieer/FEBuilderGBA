@@ -1,2 +1,0 @@
-29020300	//SetFlag03
-400A0000XXXXXXXX	//Call Event
