@@ -672,29 +672,26 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// <summary>
         /// True when <paramref name="writeNode"/> falls inside an OPEN
         /// Begin/(Commit|Rollback) region in source order. The check uses
-        /// the "bracketing" interpretation:
+        /// a strict "no intervening close" bracketing interpretation:
         /// <list type="bullet">
         ///   <item>Find the LATEST <c>Begin(...)</c> BEFORE the write.</item>
-        ///   <item>Find the EARLIEST <c>Commit()</c> or <c>Rollback()</c>
-        ///     AFTER the write that is also AFTER the latest pre-write
-        ///     Begin.</item>
-        ///   <item>If both exist, the write is bracketed by a Begin and a
-        ///     matching close — it's inside an active scope.</item>
+        ///   <item>Verify NO <c>Commit()</c> or <c>Rollback()</c> sits
+        ///     between that Begin and the write (a pre-write close
+        ///     terminates the scope).</item>
+        ///   <item>Verify at least one <c>Commit()</c> or <c>Rollback()</c>
+        ///     exists AFTER the write (closes the active scope).</item>
+        ///   <item>If all three hold, the write is bracketed by an active
+        ///     Begin/close pair.</item>
         /// </list>
         ///
-        /// This interpretation correctly handles the common try/catch
-        /// pattern: <c>Begin → early-exit Rollback (in an if/return
-        /// branch) → main-path writes → Commit → catch { Rollback }</c>.
-        /// The intermediate Rollbacks are inside conditional branches; a
-        /// pure event-counting approach would mistakenly mark the
-        /// main-path writes as outside-scope. The bracketing approach
-        /// follows the natural Begin/Commit pairing used by the codebase.
-        ///
-        /// It also correctly rejects the post-Commit-write pattern Copilot
-        /// PR #380 review concern #2 flagged:
-        /// <c>Begin; write1; Commit; write2;</c> — write2 has Begin@0
-        /// before it AND Commit@2 before it, but NO Commit/Rollback AFTER
-        /// the write @3. So write2 is NOT bracketed → MissingScope.
+        /// The "no intervening close" requirement was added per Copilot CLI
+        /// PR #380 review concern #1: the previous version classified the
+        /// leaked write in
+        /// <c>try { Begin; write; Commit; leakedWrite; } catch { Rollback }</c>
+        /// as Covered because the catch's later Rollback satisfied the
+        /// "some close after" test. With the strict check, the Commit
+        /// between Begin and leakedWrite terminates the scope and the
+        /// leakedWrite is correctly surfaced as MissingScope.
         ///
         /// Returns a tuple: (insideOpenScope, hadAnyScope). The second
         /// flag tells the caller whether the method has ANY scope at all
@@ -704,12 +701,16 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// Limitations (acknowledged):
         /// <list type="bullet">
         ///   <item>Source-order analysis does not follow actual control
-        ///     flow. <c>if (false) { Begin(); } write;</c> would still
-        ///     count Begin as bracketing. Real codebases don't write this.</item>
+        ///     flow. An early-exit Rollback inside an <c>if (cond) { ... return; }</c>
+        ///     branch will be treated as terminating the scope for a
+        ///     later main-path write. This is the conservative direction
+        ///     — false MissingScope rather than false Covered — so the
+        ///     report errs toward surfacing real gaps. Reviewers can mark
+        ///     those rows as known-good when the surrounding control-flow
+        ///     actually skips the early-exit.</item>
         ///   <item>Nested Begin scopes (Begin → Begin → write) are
         ///     accepted as Covered — UndoService.Begin replaces rather
-        ///     than stacks in practice, so the inner scope is the active
-        ///     one. The bracketing test is correct for the common case.</item>
+        ///     than stacks in practice.</item>
         /// </list>
         /// </summary>
         public static (bool InsideOpenScope, bool HadAnyScope) IsWriteInsideOpenUndoScope(
@@ -720,8 +721,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             int writeColumn = writeNode.GetLocation().GetLineSpan().StartLinePosition.Character;
 
             // Collect all Begin / Commit / Rollback invocations with their
-            // source positions. We separate Begin from close events because
-            // the bracketing test cares about each independently.
+            // source positions.
             var beginPositions = new List<(int Line, int Column)>();
             var closePositions = new List<(int Line, int Column)>();
             bool hadAnyScope = false;
@@ -757,6 +757,18 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             }
             if (latestBeginBefore == null) return (false, true);
 
+            // Strict pre-write close check (Copilot PR #380 review concern #1):
+            // any Commit/Rollback between the latest pre-write Begin and the
+            // write terminates the scope. If we find one, the write is OUTSIDE
+            // the active scope regardless of any later close in a catch/finally.
+            foreach (var c in closePositions)
+            {
+                bool afterBegin = ComparePos(c.Line, c.Column, latestBeginBefore.Value.Line, latestBeginBefore.Value.Column) > 0;
+                bool beforeWrite = ComparePos(c.Line, c.Column, writeLine, writeColumn) < 0;
+                if (afterBegin && beforeWrite)
+                    return (false, true);
+            }
+
             // Find any Commit/Rollback AFTER the write.
             (int Line, int Column)? earliestCloseAfter = null;
             foreach (var c in closePositions)
@@ -772,8 +784,8 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             }
             if (earliestCloseAfter == null) return (false, true);
 
-            // Both bracket positions exist; the write is inside an active
-            // scope.
+            // Pre-write Begin exists, no intervening close, and a later close
+            // exists. The write is bracketed by an active scope.
             return (true, true);
         }
 

@@ -228,6 +228,41 @@ namespace X {
     }
 
     [Fact]
+    public void Classifies_LeakedWriteAfterCommitInTryWithCatchRollback_AsMissingScope()
+    {
+        // Copilot PR #380 review concern #1 (re-review): the previous
+        // bracketing implementation marked the leaked write as Covered
+        // because the catch's later Rollback satisfied the "some close
+        // after the write" check. With the strict pre-write-close check
+        // (no intervening Commit/Rollback between latest pre-write Begin
+        // and the write), the leaked write is correctly flagged.
+        string src = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooViewModel {
+        UndoService _undoService = new();
+        public void Save() {
+            try {
+                _undoService.Begin(""Edit"");
+                rom.write_u8(0x10, 1);     // inside scope — Covered
+                _undoService.Commit();
+                rom.write_u8(0x20, 2);     // LEAKED (after Commit) — MissingScope
+            } catch {
+                _undoService.Rollback();   // catch close — must NOT cover the leak
+                throw;
+            }
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
+        Assert.Equal(2, rows.Count);
+        var ordered = rows.OrderBy(r => r.Line).ToList();
+        Assert.Equal(UndoCoverage.Covered, ordered[0].Coverage);
+        Assert.Equal(UndoCoverage.MissingScope, ordered[1].Coverage);
+        Assert.Contains("OUTSIDE", ordered[1].CoverageNote);
+    }
+
+    [Fact]
     public void Classifies_WriteBeforeAndInsideScope_PreWriteFlagged()
     {
         // Defensive: write BEFORE any Begin in the method must be

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-21T20:10:03Z"
-git-sha: faa4cc8ac
+generated: "2026-05-21T20:28:15Z"
+git-sha: df3063e51
 sweep-type: undo
 ---
 
@@ -59,9 +59,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-undo --out=<path>`.
 |---|---:|---:|
 | Total write callsites | 1030 | 100% |
 | NoUndoServiceField (no plumbing) | 1017 | 98.7% |
-| MissingScope (unwrapped) | 0 | 0.0% |
+| MissingScope (unwrapped) | 2 | 0.2% |
 | AmbiguousScope (verify) | 0 | 0.0% |
-| Covered (healthy) | 13 | 1.3% |
+| Covered (healthy) | 11 | 1.1% |
 
 ## Highest priority — VMs with NO undo plumbing at all
 
@@ -1893,7 +1893,12 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 
 These classes already carry UndoService plumbing but a particular write was added without wrapping it. The fix is local: add `_undoService.Begin("...")` before the write and `_undoService.Commit()` after.
 
-_None._
+### `BigCGViewerView` — 2 callsites
+
+| File | Line | Method | Write | Note |
+|---|---:|---|---|---|
+| `FEBuilderGBA.Avalonia/Views/BigCGViewerView.axaml.cs` | 126 | `ImportPng_Click` | `rom.write_p32(tableAddr, tileAddr)` | method 'ImportPng_Click' has an UndoService scope but this write is OUTSIDE it |
+| `FEBuilderGBA.Avalonia/Views/BigCGViewerView.axaml.cs` | 129 | `ImportPng_Click` | `rom.write_u32(tableAddr + (uint)(i * 4), 0)` | method 'ImportPng_Click' has an UndoService scope but this write is OUTSIDE it |
 
 ## Ambiguous — covered by caller, please verify
 
@@ -1903,7 +1908,7 @@ _None._
 
 ## Covered (healthy)
 
-`13` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `EventScriptPopupViewModel` (6), `ImagePortraitView` (4), `BigCGViewerView` (2), `OPPrologueViewerView` (1).
+`11` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `EventScriptPopupViewModel` (6), `ImagePortraitView` (4), `OPPrologueViewerView` (1).
 
 ## Registry cross-check
 
