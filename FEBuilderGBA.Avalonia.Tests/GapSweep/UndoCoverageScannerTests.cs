@@ -168,18 +168,11 @@ namespace X {
     [Fact]
     public void Classifies_MultipleWritesInSameMethod_OnlyUnwrapped_IsFlagged()
     {
-        // A method with two writes: one inside Begin/Commit, another after
-        // Commit. The post-commit one should be Covered too (the Begin
-        // appeared earlier in source order — the scanner's check is "Begin
-        // at-or-before this write" which both writes satisfy).
-        //
-        // This documents the scanner's source-order simplification: rows
-        // are Covered when ANY Begin precedes them and ANY Commit follows
-        // in the method. In practice this is fine because the Avalonia
-        // convention writes the entire Save flow inside a single Begin
-        // scope; we explicitly do NOT try to model the more sophisticated
-        // "this Commit closed the scope so subsequent writes are leaked"
-        // case.
+        // A method with two writes: one inside Begin/Commit, another
+        // AFTER the Commit. Per Copilot PR #380 review concern #2,
+        // the second write is outside the active scope and MUST be
+        // surfaced as MissingScope — not silently classified as Covered
+        // because "some Begin appeared earlier in the method".
         string src = @"
 namespace X {
     using FEBuilderGBA.Avalonia.Services;
@@ -187,18 +180,78 @@ namespace X {
         UndoService _undoService = new();
         public void Save() {
             _undoService.Begin(""Edit"");
-            rom.write_u8(0x10, 1);
+            rom.write_u8(0x10, 1);    // inside scope — Covered
             _undoService.Commit();
-            rom.write_u8(0x20, 2);
+            rom.write_u8(0x20, 2);    // AFTER Commit — MissingScope
         }
     }
 }";
         var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
         Assert.Equal(2, rows.Count);
-        // Both rows are Covered per the documented simplification. The
-        // test asserts the actual scanner behavior so the implementation
-        // and the test agree.
+
+        // Order by line so the assertions read top-down.
+        var ordered = rows.OrderBy(r => r.Line).ToList();
+
+        // First write — inside the Begin/Commit region.
+        Assert.Equal(UndoCoverage.Covered, ordered[0].Coverage);
+
+        // Second write — after the Commit; the scope is closed.
+        Assert.Equal(UndoCoverage.MissingScope, ordered[1].Coverage);
+        Assert.Contains("OUTSIDE", ordered[1].CoverageNote);
+    }
+
+    [Fact]
+    public void Classifies_TwoSequentialScopes_BothWritesCovered()
+    {
+        // Defensive: Begin → write → Commit → Begin → write → Commit.
+        // Each write is inside its own active scope; both must be Covered.
+        // This documents the scope-tracking model: scopes can re-open
+        // legitimately and writes inside the second scope are healthy.
+        string src = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooViewModel {
+        UndoService _undoService = new();
+        public void Save() {
+            _undoService.Begin(""First"");
+            rom.write_u8(0x10, 1);
+            _undoService.Commit();
+            _undoService.Begin(""Second"");
+            rom.write_u8(0x20, 2);
+            _undoService.Commit();
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
+        Assert.Equal(2, rows.Count);
         Assert.All(rows, r => Assert.Equal(UndoCoverage.Covered, r.Coverage));
+    }
+
+    [Fact]
+    public void Classifies_WriteBeforeAndInsideScope_PreWriteFlagged()
+    {
+        // Defensive: write BEFORE any Begin in the method must be
+        // flagged. The post-Begin write must be Covered. This catches the
+        // canary "write at line 10, Begin at line 15, Commit at line 20"
+        // case which would otherwise leak.
+        string src = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooViewModel {
+        UndoService _undoService = new();
+        public void Save() {
+            rom.write_u8(0x10, 1);    // BEFORE Begin — MissingScope
+            _undoService.Begin(""Edit"");
+            rom.write_u8(0x20, 2);    // inside scope — Covered
+            _undoService.Commit();
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
+        Assert.Equal(2, rows.Count);
+        var ordered = rows.OrderBy(r => r.Line).ToList();
+        Assert.Equal(UndoCoverage.MissingScope, ordered[0].Coverage);
+        Assert.Equal(UndoCoverage.Covered, ordered[1].Coverage);
     }
 
     [Fact]
@@ -292,6 +345,28 @@ namespace X {
         var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "Test.cs");
         var row = Assert.Single(rows);
         Assert.Equal(UndoCoverage.NoUndoServiceField, row.Coverage);
+    }
+
+    [Fact]
+    public void RecognisesCoreStateRomQualified()
+    {
+        // `CoreState.ROM.write_u8(...)` — the Avalonia-native global
+        // accessor used by VMs that don't hoist into a local. Copilot
+        // PR #380 review concern #1: SMEPromoListViewModel writes through
+        // this receiver and the original scanner missed those rows.
+        string src = @"
+namespace X {
+    class SMEPromoListViewModel {
+        public void Write() {
+            CoreState.ROM.write_u8(0x10, 1);
+            CoreState.ROM.write_u8(0x11, 2);
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "SMEPromoListViewModel.cs");
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, r => Assert.Equal(UndoCoverage.NoUndoServiceField, r.Coverage));
+        Assert.Contains(rows, r => r.WriteExpression.Contains("CoreState.ROM.write_u8"));
     }
 
     [Fact]
@@ -493,6 +568,50 @@ class FooViewModel {
     }
 
     [Fact]
+    public void DiscoverWritableViewModelNames_AgreesWithTestRegistry()
+    {
+        // The scanner mirrors WritableViewModelRegistry's discovery rule
+        // internally so the report can self-audit. The two should agree
+        // exactly when run against the same assembly — if they diverge,
+        // either the registry's reflection convention changed or the
+        // scanner's mirror was not kept in sync. Either way, the report's
+        // "zero-write writable VMs" warning section depends on this
+        // agreement, so we assert it.
+        var scannerNames = new HashSet<string>(
+            UndoCoverageScanner.DiscoverWritableViewModelNames(),
+            StringComparer.Ordinal);
+        var registryNames = new HashSet<string>(
+            WritableViewModelRegistry.WritableViewModels()
+                .Select(entry => ((Type)entry[0]).Name),
+            StringComparer.Ordinal);
+
+        // Symmetric difference must be empty.
+        var onlyInScanner = scannerNames.Except(registryNames).ToList();
+        var onlyInRegistry = registryNames.Except(scannerNames).ToList();
+        Assert.True(onlyInScanner.Count == 0,
+            "Names discovered by the scanner but not the registry: " + string.Join(", ", onlyInScanner));
+        Assert.True(onlyInRegistry.Count == 0,
+            "Names discovered by the registry but not the scanner: " + string.Join(", ", onlyInRegistry));
+    }
+
+    [Fact]
+    public void FormatReport_RegistryWarning_RendersTableWhenMissing()
+    {
+        // When DiscoverWritableViewModelNames yields some names that the
+        // scanner rows DO contain (and presumably others it does not),
+        // the report should render a Writable VMs / per-VM warning table.
+        // We trigger this with empty rows so EVERY writable VM appears as
+        // a missing warning.
+        string report = UndoCoverageScanner.FormatReport(Array.Empty<WriteCallsite>());
+        // The scanner's reflection discovers ~100 writable VMs on the
+        // live assembly; with zero rows in the input, every single one
+        // should surface in the warning table.
+        Assert.Contains("Writable VMs with zero detected ROM writes", report);
+        // The warning table should be rendered.
+        Assert.Contains("Verify ROM-write API; extend scanner pattern set if needed", report);
+    }
+
+    [Fact]
     public void FormatReport_NullInput_Throws()
     {
         Assert.Throws<ArgumentNullException>(() => UndoCoverageScanner.FormatReport(null!));
@@ -614,7 +733,11 @@ class Foo {
         // If a VM is in WritableViewModelRegistry but the scanner finds
         // zero ROM writes for it, our pattern set is missing something.
         // This test is the comprehensive audit referenced in the report's
-        // "Registry cross-check" section.
+        // "Registry cross-check" section. After the EditorFormRef
+        // bulk-write helper recognition was added, the registry list and
+        // the scanner output should be in close agreement; any VM that
+        // funnels writes through a Core-side helper the scanner can't
+        // see is tolerated up to a small drift budget.
         string? repoRoot = FindRepoRoot();
         if (repoRoot == null)
             return;
@@ -636,12 +759,12 @@ class Foo {
                 missing.Add(vmName);
         }
         // We allow up to a small number of misses to tolerate VMs whose
-        // Write() method dispatches through a service rather than a
-        // direct rom.write_u* call — the scanner's pattern set can't
-        // see through that. The test fails loudly when this drift grows
-        // past a sensible threshold so a follow-up PR has to investigate.
-        Assert.True(missing.Count <= 10,
-            "WritableViewModelRegistry lists more VMs without detected writes than expected: " +
+        // Write() method dispatches through a Core-side service the
+        // scanner's static pattern set can't see. Drift past the budget
+        // fails this test loudly so a follow-up PR investigates.
+        const int driftBudget = 10;
+        Assert.True(missing.Count <= driftBudget,
+            $"WritableViewModelRegistry lists {missing.Count} VMs without detected writes (budget={driftBudget}): " +
             string.Join(", ", missing));
     }
 

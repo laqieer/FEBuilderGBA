@@ -424,34 +424,53 @@ namespace FEBuilderGBA.Avalonia.GapSweep
 
         /// <summary>
         /// True when <paramref name="receiver"/> appears to refer to a ROM
-        /// instance. Matches `rom` (local/field/property of any type named
-        /// "rom"), `ROM` (bare static), and `Program.ROM` (qualified
-        /// global). Anything else returns false — a generic
-        /// `foo.bar.SetData(...)` is NOT a ROM write.
+        /// instance. Matches:
+        /// <list type="bullet">
+        ///   <item><c>rom</c> — local/field/property of any type named "rom".</item>
+        ///   <item><c>ROM</c> — bare static accessor (uncommon).</item>
+        ///   <item><c>Program.ROM</c> — WinForms-style global (legacy).</item>
+        ///   <item><c>CoreState.ROM</c> — the Avalonia-native global accessor
+        ///     used by VMs that don't hoist into a local. Identified after
+        ///     Copilot PR #380 review concern #1 — Avalonia's
+        ///     <c>SMEPromoListViewModel</c> writes through this receiver and
+        ///     the original scanner missed those rows.</item>
+        /// </list>
+        /// Anything else returns false — a generic <c>foo.bar.SetData(...)</c>
+        /// is NOT a ROM write.
         /// </summary>
         public static bool IsRomReceiver(ExpressionSyntax receiver)
         {
             return receiver switch
             {
                 IdentifierNameSyntax id => RomReceiverNames.Contains(id.Identifier.Text),
-                // `Program.ROM` — outer = Program, inner identifier = ROM.
-                MemberAccessExpressionSyntax m => IsProgramRom(m),
+                // `Program.ROM` / `CoreState.ROM` — outer = the holder
+                // identifier, inner identifier = ROM.
+                MemberAccessExpressionSyntax m => IsRomMemberAccess(m),
                 _ => false,
             };
         }
 
-        /// <summary>True when `Program.ROM` (the WinForms-style global).</summary>
-        static bool IsProgramRom(MemberAccessExpressionSyntax m)
+        /// <summary>
+        /// True when the member-access names <c>{X}.ROM</c> where X is one
+        /// of the recognised ROM-host identifiers (<c>Program</c>,
+        /// <c>CoreState</c>). The host-identifier check accepts both bare
+        /// <c>Program.ROM</c> and fully-qualified
+        /// <c>FEBuilderGBA.Program.ROM</c> / <c>FEBuilderGBA.CoreState.ROM</c>.
+        /// </summary>
+        static bool IsRomMemberAccess(MemberAccessExpressionSyntax m)
         {
             string name = m.Name.Identifier.Text;
             if (name != "ROM") return false;
-            // Receiver of `.ROM` should be `Program`.
-            return m.Expression switch
+            // Receiver of `.ROM` should be one of the recognised host
+            // identifiers. The trailing identifier of a possibly-qualified
+            // receiver is what matters.
+            string holder = m.Expression switch
             {
-                IdentifierNameSyntax id => id.Identifier.Text == "Program",
-                MemberAccessExpressionSyntax inner => inner.Name.Identifier.Text == "Program",
-                _ => false,
+                IdentifierNameSyntax id => id.Identifier.Text,
+                MemberAccessExpressionSyntax inner => inner.Name.Identifier.Text,
+                _ => "",
             };
+            return holder == "Program" || holder == "CoreState";
         }
 
         /// <summary>
@@ -515,16 +534,29 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     $"class '{cls.Identifier.Text}' has no UndoService field/property/local");
             }
 
-            // Look for Begin(...) before the write, and Commit/Rollback
-            // somewhere in the same method body.
-            bool hasBegin = HasUndoBeginBefore(method, inv);
-            bool hasCommit = HasUndoCommit(method);
-            bool hasRollback = HasUndoRollback(method);
-            if (hasBegin && (hasCommit || hasRollback))
-                return (UndoCoverage.Covered,
-                    hasRollback && !hasCommit
-                        ? "Begin + Rollback in method"
-                        : "Begin + Commit in method");
+            // Determine whether the write is INSIDE an open Begin/Commit (or
+            // Begin/Rollback) region in source order. The previous
+            // implementation accepted "Begin before write AND any Commit
+            // anywhere" — but that classified a write AFTER an already-
+            // committed scope as Covered, which hides real gaps. Copilot
+            // PR #380 review concern #2 caught this; the new check
+            // tracks Begin/Commit/Rollback positions in source order and
+            // verifies the write falls between an open Begin and its
+            // next-following Commit or Rollback.
+            var (insideOpenScope, hadScope) = IsWriteInsideOpenUndoScope(method, inv);
+            if (insideOpenScope)
+            {
+                return (UndoCoverage.Covered, "write is inside an active Begin/Commit scope");
+            }
+            // If the method has any UndoService activity at all
+            // (Begin/Commit/Rollback) but this particular write is outside
+            // every scope, it's a leak — surface as MissingScope rather
+            // than falling through to the caller-helper check.
+            if (hadScope)
+            {
+                return (UndoCoverage.MissingScope,
+                    $"method '{method.Identifier.Text}' has an UndoService scope but this write is OUTSIDE it");
+            }
 
             // Caller-helper heuristic: this method has no Begin, but is it
             // called by another method in the same class that itself wraps
@@ -635,6 +667,124 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// True when <paramref name="writeNode"/> falls inside an OPEN
+        /// Begin/(Commit|Rollback) region in source order. The check uses
+        /// the "bracketing" interpretation:
+        /// <list type="bullet">
+        ///   <item>Find the LATEST <c>Begin(...)</c> BEFORE the write.</item>
+        ///   <item>Find the EARLIEST <c>Commit()</c> or <c>Rollback()</c>
+        ///     AFTER the write that is also AFTER the latest pre-write
+        ///     Begin.</item>
+        ///   <item>If both exist, the write is bracketed by a Begin and a
+        ///     matching close — it's inside an active scope.</item>
+        /// </list>
+        ///
+        /// This interpretation correctly handles the common try/catch
+        /// pattern: <c>Begin → early-exit Rollback (in an if/return
+        /// branch) → main-path writes → Commit → catch { Rollback }</c>.
+        /// The intermediate Rollbacks are inside conditional branches; a
+        /// pure event-counting approach would mistakenly mark the
+        /// main-path writes as outside-scope. The bracketing approach
+        /// follows the natural Begin/Commit pairing used by the codebase.
+        ///
+        /// It also correctly rejects the post-Commit-write pattern Copilot
+        /// PR #380 review concern #2 flagged:
+        /// <c>Begin; write1; Commit; write2;</c> — write2 has Begin@0
+        /// before it AND Commit@2 before it, but NO Commit/Rollback AFTER
+        /// the write @3. So write2 is NOT bracketed → MissingScope.
+        ///
+        /// Returns a tuple: (insideOpenScope, hadAnyScope). The second
+        /// flag tells the caller whether the method has ANY scope at all
+        /// (so a write outside every scope can be classified MissingScope
+        /// rather than NoUndoServiceField when the class IS plumbed).
+        ///
+        /// Limitations (acknowledged):
+        /// <list type="bullet">
+        ///   <item>Source-order analysis does not follow actual control
+        ///     flow. <c>if (false) { Begin(); } write;</c> would still
+        ///     count Begin as bracketing. Real codebases don't write this.</item>
+        ///   <item>Nested Begin scopes (Begin → Begin → write) are
+        ///     accepted as Covered — UndoService.Begin replaces rather
+        ///     than stacks in practice, so the inner scope is the active
+        ///     one. The bracketing test is correct for the common case.</item>
+        /// </list>
+        /// </summary>
+        public static (bool InsideOpenScope, bool HadAnyScope) IsWriteInsideOpenUndoScope(
+            MethodDeclarationSyntax method, SyntaxNode writeNode)
+        {
+            if (method == null || writeNode == null) return (false, false);
+            int writeLine = writeNode.GetLocation().GetLineSpan().StartLinePosition.Line;
+            int writeColumn = writeNode.GetLocation().GetLineSpan().StartLinePosition.Character;
+
+            // Collect all Begin / Commit / Rollback invocations with their
+            // source positions. We separate Begin from close events because
+            // the bracketing test cares about each independently.
+            var beginPositions = new List<(int Line, int Column)>();
+            var closePositions = new List<(int Line, int Column)>();
+            bool hadAnyScope = false;
+            foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                var pos = inv.GetLocation().GetLineSpan().StartLinePosition;
+                if (IsUndoServiceCall(inv, "Begin"))
+                {
+                    beginPositions.Add((pos.Line, pos.Character));
+                    hadAnyScope = true;
+                }
+                else if (IsUndoServiceCall(inv, "Commit") || IsUndoServiceCall(inv, "Rollback"))
+                {
+                    closePositions.Add((pos.Line, pos.Character));
+                    hadAnyScope = true;
+                }
+            }
+
+            if (!hadAnyScope) return (false, false);
+
+            // Find latest Begin BEFORE the write.
+            (int Line, int Column)? latestBeginBefore = null;
+            foreach (var b in beginPositions)
+            {
+                if (ComparePos(b.Line, b.Column, writeLine, writeColumn) < 0)
+                {
+                    if (latestBeginBefore == null ||
+                        ComparePos(b.Line, b.Column, latestBeginBefore.Value.Line, latestBeginBefore.Value.Column) > 0)
+                    {
+                        latestBeginBefore = b;
+                    }
+                }
+            }
+            if (latestBeginBefore == null) return (false, true);
+
+            // Find any Commit/Rollback AFTER the write.
+            (int Line, int Column)? earliestCloseAfter = null;
+            foreach (var c in closePositions)
+            {
+                if (ComparePos(c.Line, c.Column, writeLine, writeColumn) > 0)
+                {
+                    if (earliestCloseAfter == null ||
+                        ComparePos(c.Line, c.Column, earliestCloseAfter.Value.Line, earliestCloseAfter.Value.Column) < 0)
+                    {
+                        earliestCloseAfter = c;
+                    }
+                }
+            }
+            if (earliestCloseAfter == null) return (false, true);
+
+            // Both bracket positions exist; the write is inside an active
+            // scope.
+            return (true, true);
+        }
+
+        /// <summary>
+        /// Compare two source positions. Returns negative when (l1,c1) is
+        /// before (l2,c2), zero when equal, positive when after.
+        /// </summary>
+        static int ComparePos(int l1, int c1, int l2, int c2)
+        {
+            int cmp = l1.CompareTo(l2);
+            return cmp != 0 ? cmp : c1.CompareTo(c2);
         }
 
         /// <summary>True when the method body contains any <c>...Commit()</c> on an UndoService.</summary>
@@ -831,7 +981,8 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.Append("- Each `InvocationExpressionSyntax` whose method name is in\n");
             sb.Append("  {`write_u8`, `write_u16`, `write_u32`, `write_p32`, `SetU8`, `SetU16`,\n");
             sb.Append("  `SetU32`, `SetData`} AND whose receiver resolves to a ROM reference\n");
-            sb.Append("  (`rom`, `ROM`, `Program.ROM`) is captured as a write callsite.\n");
+            sb.Append("  (`rom`, `ROM`, `Program.ROM`, or `CoreState.ROM`) is captured as a\n");
+            sb.Append("  write callsite.\n");
             sb.Append("- `EditorFormRef.WriteFields(rom, addr, values, fields)` and the\n");
             sb.Append("  singular `EditorFormRef.WriteField(...)` are also captured — the\n");
             sb.Append("  bulk-write helper through which most AV ViewModels funnel their\n");
@@ -1012,55 +1163,161 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         }
 
         /// <summary>
-        /// Cross-check against <c>WritableViewModelRegistry</c> (in the
-        /// Tests project). The registry uses reflection to find every VM
-        /// matching the writable-triplet convention. If a VM is listed
-        /// there but the scanner found ZERO write callsites, our pattern
-        /// set is likely missing something — surface this as a warning row
-        /// so the next iteration can investigate.
+        /// Cross-check the scanner output against a reflection-based discovery
+        /// of every concrete ViewModelBase subclass in the loaded Avalonia
+        /// assembly that exposes both a <c>Load*List()</c> and a <c>Write*()</c>
+        /// method. This mirrors <c>WritableViewModelRegistry</c>'s discovery
+        /// rule from the Tests project (we re-derive it here so the scanner
+        /// can self-audit without taking a Tests-&gt;Avalonia dependency).
         ///
-        /// We don't read the Tests project directly (that would create a
-        /// cyclic dependency); instead we look at the public assembly type
-        /// names by name pattern (ending in "ViewModel") which matches what
-        /// the registry would discover.
+        /// For every discovered writable VM whose name does NOT appear in the
+        /// scanner's row set, emit a warning row in the report. A non-zero
+        /// "writable but no detected write" count almost always means the
+        /// scanner's pattern set has missed a real write API — Copilot PR #380
+        /// review concern #1 (the <c>CoreState.ROM.write_u*</c> miss) is the
+        /// canonical example of why this audit matters.
+        ///
+        /// Reflection uses <see cref="DiscoverWritableViewModelNames"/> and
+        /// degrades gracefully when the Avalonia assembly cannot be loaded
+        /// (test isolation, headless build) — in that case the section just
+        /// emits the "classes with writes" count and skips the warning table.
         /// </summary>
         static string BuildRegistryCrossCheckSection(IReadOnlyList<WriteCallsite> rows)
         {
-            // Hand-maintained list mirroring the WritableViewModelRegistry
-            // discovery rule: a VM whose name ends with "ViewModel" and
-            // has Save/Write* methods is considered writable. We list ones
-            // we know to be writable from the registry's reflection
-            // semantics; any of these that appear with 0 detected writes
-            // gets surfaced as a warning.
-            //
-            // The reference list lives in the Tests assembly; we cannot
-            // load it here without taking a Tests->Avalonia dependency
-            // (and the reverse). So this section is a guard against
-            // pattern regressions rather than a comprehensive audit. The
-            // dedicated test `Scan_AgainstLiveWorktree_*` provides the
-            // comprehensive audit via the actual registry types.
             var sb = new StringBuilder();
             sb.Append("## Registry cross-check\n\n");
-            sb.Append("The companion `WritableViewModelRegistry` (in `FEBuilderGBA.Avalonia.Tests`)\n");
-            sb.Append("discovers every VM that matches the writable-triplet convention via\n");
-            sb.Append("reflection. The Phase 5 test `UndoCoverageScannerTests` cross-references\n");
-            sb.Append("that registry against the scanner output and surfaces any VM listed\n");
-            sb.Append("there with zero detected ROM writes — that combination would indicate a\n");
-            sb.Append("pattern-set gap in the scanner. Run the test to refresh:\n\n");
-            sb.Append("```bash\n");
-            sb.Append("dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj --filter UndoCoverageScannerTests\n");
-            sb.Append("```\n\n");
-            // Distinct classes with at least one detected write — useful
-            // for orienting reviewers who want to scan the coverage at a
-            // glance without reading every row.
-            var classesWithWrites = rows
-                .Select(r => r.EnclosingClass)
-                .Where(c => !string.IsNullOrEmpty(c))
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(c => c, StringComparer.Ordinal)
-                .ToList();
+            sb.Append("This section mirrors the writable-triplet convention used by\n");
+            sb.Append("`WritableViewModelRegistry` (in `FEBuilderGBA.Avalonia.Tests`): every\n");
+            sb.Append("concrete `ViewModelBase` subclass that exposes both a `Load*List()` and a\n");
+            sb.Append("`Write*()` method is considered a writable VM. The Phase 5 scanner\n");
+            sb.Append("reflects over the loaded Avalonia assembly to derive that list and\n");
+            sb.Append("flags any VM that the static scan did NOT detect ANY ROM write for —\n");
+            sb.Append("such a row almost always indicates the scanner's pattern set has missed a\n");
+            sb.Append("real write API (e.g. PR #380 review caught a `CoreState.ROM.write_u*`\n");
+            sb.Append("miss that surfaced as an unjustified zero-row warning before the fix).\n\n");
+
+            var classesWithWrites = new HashSet<string>(
+                rows.Select(r => r.EnclosingClass)
+                    .Where(c => !string.IsNullOrEmpty(c)),
+                StringComparer.Ordinal);
+
             sb.Append("Classes with at least one detected write: ").Append(classesWithWrites.Count).Append(".\n\n");
+
+            // Reflection-based VM discovery. Wrapped in try/catch because
+            // the assembly may not be loadable in headless / test-isolation
+            // contexts (the unit tests construct FormatReport with synthetic
+            // rows that don't require the runtime to be present).
+            IReadOnlyList<string> writableVms;
+            try
+            {
+                writableVms = DiscoverWritableViewModelNames();
+            }
+            catch
+            {
+                sb.Append("_Reflection-based VM discovery skipped: Avalonia assembly not loadable in this context._\n\n");
+                return sb.ToString();
+            }
+
+            // VMs in the registry but with zero detected writes.
+            var missing = writableVms
+                .Where(name => !classesWithWrites.Contains(name))
+                .OrderBy(n => n, StringComparer.Ordinal)
+                .ToList();
+
+            sb.Append("Writable VMs (matching the triplet convention): ").Append(writableVms.Count).Append(".  \n");
+            sb.Append("Writable VMs with zero detected ROM writes: ").Append(missing.Count).Append(".\n\n");
+
+            if (missing.Count == 0)
+            {
+                sb.Append("_No writable VM is missing from the scanner output — pattern coverage is healthy._\n\n");
+                return sb.ToString();
+            }
+
+            sb.Append("### Writable VMs with zero detected ROM writes (warning)\n\n");
+            sb.Append("Each row below names a ViewModel that the writable-triplet reflection\n");
+            sb.Append("discovers but the scanner did NOT capture any ROM-write callsite for.\n");
+            sb.Append("If this list is non-empty after Phase 5 ships, investigate the missing\n");
+            sb.Append("pattern (the most likely cause is a write API the scanner doesn't yet\n");
+            sb.Append("recognise — see `WriteMethodNames` + `IsRomReceiver` in\n");
+            sb.Append("`UndoCoverageScanner.cs`).\n\n");
+            sb.Append("| ViewModel | Action |\n");
+            sb.Append("|---|---|\n");
+            foreach (string name in missing)
+            {
+                sb.Append("| `").Append(EscapeMd(name)).Append("` | Verify ROM-write API; extend scanner pattern set if needed |\n");
+            }
+            sb.Append('\n');
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Mirror of <c>WritableViewModelRegistry.WritableViewModels</c>'s
+        /// discovery rule, but run from inside the Avalonia assembly so the
+        /// scanner can self-audit without a Tests-&gt;Avalonia dependency.
+        /// A VM qualifies when:
+        /// <list type="bullet">
+        ///   <item>it's a concrete (non-abstract, non-interface) subclass of
+        ///     <c>ViewModelBase</c>;</item>
+        ///   <item>it exposes a public parameterless method whose name starts
+        ///     with <c>Load</c> and returns <c>List&lt;AddrResult&gt;</c>; and</item>
+        ///   <item>it exposes a public parameterless <c>void</c> method whose
+        ///     name starts with <c>Write</c>.</item>
+        /// </list>
+        /// </summary>
+        public static IReadOnlyList<string> DiscoverWritableViewModelNames()
+        {
+            var assembly = typeof(UndoCoverageScanner).Assembly;
+            var baseType = assembly.GetType("FEBuilderGBA.Avalonia.ViewModels.ViewModelBase");
+            if (baseType == null)
+                return Array.Empty<string>();
+
+            // Resolve the AddrResult type by name. AddrResult lives in the
+            // top-level FEBuilderGBA namespace (in Core), so we have to look
+            // across loaded assemblies. The Avalonia assembly references
+            // Core so the AddrResult type WILL be loaded once anything in
+            // Core is referenced — the scanner itself triggers that load.
+            Type? addrResultType = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType("FEBuilderGBA.AddrResult");
+                if (t != null) { addrResultType = t; break; }
+            }
+            if (addrResultType == null)
+                return Array.Empty<string>();
+            var listOfAddrResult = typeof(List<>).MakeGenericType(addrResultType);
+
+            var names = new List<string>();
+            Type[] allTypes;
+            try
+            {
+                allTypes = assembly.GetTypes();
+            }
+            catch (System.Reflection.ReflectionTypeLoadException ex)
+            {
+                allTypes = ex.Types.Where(t => t != null).Cast<Type>().ToArray();
+            }
+
+            foreach (var t in allTypes)
+            {
+                if (t.IsAbstract || t.IsInterface) continue;
+                if (!baseType.IsAssignableFrom(t)) continue;
+
+                bool hasWrite = t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                    .Any(m => m.Name.StartsWith("Write", StringComparison.Ordinal)
+                              && m.ReturnType == typeof(void)
+                              && m.GetParameters().Length == 0);
+                if (!hasWrite) continue;
+
+                bool hasList = t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                    .Any(m => m.Name.StartsWith("Load", StringComparison.Ordinal)
+                              && m.ReturnType == listOfAddrResult
+                              && m.GetParameters().Length == 0);
+                if (!hasList) continue;
+
+                names.Add(t.Name);
+            }
+            names.Sort(StringComparer.Ordinal);
+            return names;
         }
 
         /// <summary>

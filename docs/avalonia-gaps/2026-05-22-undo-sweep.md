@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-21T19:47:38Z"
-git-sha: a23c572b9
+generated: "2026-05-21T20:10:03Z"
+git-sha: faa4cc8ac
 sweep-type: undo
 ---
 
@@ -22,7 +22,8 @@ against automatically), but the migration applied this only inside
 - Each `InvocationExpressionSyntax` whose method name is in
   {`write_u8`, `write_u16`, `write_u32`, `write_p32`, `SetU8`, `SetU16`,
   `SetU32`, `SetData`} AND whose receiver resolves to a ROM reference
-  (`rom`, `ROM`, `Program.ROM`) is captured as a write callsite.
+  (`rom`, `ROM`, `Program.ROM`, or `CoreState.ROM`) is captured as a
+  write callsite.
 - `EditorFormRef.WriteFields(rom, addr, values, fields)` and the
   singular `EditorFormRef.WriteField(...)` are also captured — the
   bulk-write helper through which most AV ViewModels funnel their
@@ -56,8 +57,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-undo --out=<path>`.
 
 | Tier | Count | % of total |
 |---|---:|---:|
-| Total write callsites | 1028 | 100% |
-| NoUndoServiceField (no plumbing) | 1015 | 98.7% |
+| Total write callsites | 1030 | 100% |
+| NoUndoServiceField (no plumbing) | 1017 | 98.7% |
 | MissingScope (unwrapped) | 0 | 0.0% |
 | AmbiguousScope (verify) | 0 | 0.0% |
 | Covered (healthy) | 13 | 1.3% |
@@ -1123,6 +1124,13 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 | `FEBuilderGBA.Avalonia/ViewModels/MoveToFreeSpaceViewViewModel.cs` | 110 | `ExecuteMove` | `rom.write_u8(dst + i, rom.u8(srcAddr + i))` | class 'MoveToFreeSpaceViewViewModel' has no UndoService field/property/local |
 | `FEBuilderGBA.Avalonia/ViewModels/MoveToFreeSpaceViewViewModel.cs` | 114 | `ExecuteMove` | `rom.write_u8(srcAddr + i, 0xFF)` | class 'MoveToFreeSpaceViewViewModel' has no UndoService field/property/local |
 
+### `SMEPromoListViewModel` — 2 callsites
+
+| File | Line | Method | Write | Note |
+|---|---:|---|---|---|
+| `FEBuilderGBA.Avalonia/ViewModels/SMEPromoListViewModel.cs` | 134 | `WriteEntry` | `CoreState.ROM.write_u8(addr, (uint)B0)` | class 'SMEPromoListViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/SMEPromoListViewModel.cs` | 135 | `WriteEntry` | `CoreState.ROM.write_u8(addr + 1, (uint)B1)` | class 'SMEPromoListViewModel' has no UndoService field/property/local |
+
 ### `SongTableViewModel` — 2 callsites
 
 | File | Line | Method | Write | Note |
@@ -1899,15 +1907,19 @@ _None._
 
 ## Registry cross-check
 
-The companion `WritableViewModelRegistry` (in `FEBuilderGBA.Avalonia.Tests`)
-discovers every VM that matches the writable-triplet convention via
-reflection. The Phase 5 test `UndoCoverageScannerTests` cross-references
-that registry against the scanner output and surfaces any VM listed
-there with zero detected ROM writes — that combination would indicate a
-pattern-set gap in the scanner. Run the test to refresh:
+This section mirrors the writable-triplet convention used by
+`WritableViewModelRegistry` (in `FEBuilderGBA.Avalonia.Tests`): every
+concrete `ViewModelBase` subclass that exposes both a `Load*List()` and a
+`Write*()` method is considered a writable VM. The Phase 5 scanner
+reflects over the loaded Avalonia assembly to derive that list and
+flags any VM that the static scan did NOT detect ANY ROM write for —
+such a row almost always indicates the scanner's pattern set has missed a
+real write API (e.g. PR #380 review caught a `CoreState.ROM.write_u*`
+miss that surfaced as an unjustified zero-row warning before the fix).
 
-```bash
-dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj --filter UndoCoverageScannerTests
-```
+Classes with at least one detected write: 165.
 
-Classes with at least one detected write: 164.
+Writable VMs (matching the triplet convention): 139.  
+Writable VMs with zero detected ROM writes: 0.
+
+_No writable VM is missing from the scanner output — pattern coverage is healthy._
