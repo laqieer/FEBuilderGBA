@@ -525,7 +525,16 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         {
             if (map.TryGetValue(raw, out value!))
                 return true;
-            if (!ReferenceEquals(raw, normalised) && map.TryGetValue(normalised, out value!))
+            // Skip the normalised retry when the normalisation was a no-op
+            // (raw and normalised carry the same content) — saves a second
+            // dictionary probe in the common case where the AXAML literal
+            // had no trailing whitespace / colon. Use ordinal content
+            // comparison: most callers DO pass `NormalizeKey(raw)` so the
+            // common path has DIFFERENT references with EQUAL content, and
+            // a `ReferenceEquals` skip would always be false (Copilot review
+            // PR #381 caught this).
+            if (!string.Equals(raw, normalised, StringComparison.Ordinal) &&
+                map.TryGetValue(normalised, out value!))
                 return true;
             value = string.Empty;
             return false;
