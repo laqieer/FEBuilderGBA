@@ -262,47 +262,53 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// <summary>
         /// Cross-reference View files for VM-method-call sites wrapped in
         /// <c>_undoService.Begin/Commit</c> scope. Returns the set of
-        /// (vmClassName, methodName) pairs whose every callsite from a
-        /// View is inside a Begin scope at the call site.
+        /// (vmClassName, methodName) pairs that are SAFE to upgrade.
         ///
-        /// Conservative rule: a VM method is considered View-covered when
-        /// AT LEAST ONE caller in a View class wraps the call in a Begin
-        /// scope. We don't require ALL callers to wrap — the scanner is
-        /// upgrading classifications, so a false positive here is worse
-        /// than a false negative. The conservative cap keeps the report
-        /// honest.
+        /// Strict conservative rule (Copilot PR #380 fourth-pass review
+        /// concerns #1+#2): a (VM, method) pair is considered View-covered
+        /// ONLY when:
         ///
-        /// Detection rule: for each invocation `_vm.MethodName(...)` (or
-        /// `vm.MethodName(...)`, or any `_someIdentifier.MethodName(...)`
-        /// where the receiver looks like a ViewModel reference), check if
-        /// the enclosing method contains a <c>_undoService.Begin(...)</c>
-        /// before the invocation. If yes, mark (paired-VM-class,
-        /// MethodName) as covered.
+        /// 1. At least one View callsite to that VM method is bracketed
+        ///    by an active Begin/Commit (or Begin/Rollback) scope using
+        ///    the SAME strict bracketing model as the same-method pass
+        ///    (Begin-before + close-after + no intervening close).
+        /// 2. EVERY other View callsite to the same (VM, method) pair is
+        ///    ALSO bracketed by an active scope. A single unwrapped View
+        ///    callsite vetoes the upgrade — false positives would hide
+        ///    real undo gaps from the report.
         ///
         /// We pair Views to VMs by name convention: View class
         /// <c>XEditorView</c> implicates VM class <c>XEditorViewModel</c>
         /// (replacing the trailing <c>View</c> with <c>ViewModel</c>).
-        /// When the View has multiple `_vm` fields of different VM types,
-        /// we mark the method on ALL candidate VMs — false positives are
-        /// preferable to missing real coverage.
+        /// When a View doesn't end in "View" we don't pair (the call
+        /// won't propagate to any VM rows).
         /// </summary>
         public static HashSet<(string VmClass, string Method)> DiscoverViewCoveredVmMethods(string[] files)
         {
-            var result = new HashSet<(string, string)>();
+            // First pass: accumulate per-(VM, Method) callsite stats
+            // across all View files. We track wrapped vs unwrapped count
+            // separately so the veto rule (any unwrapped => no upgrade)
+            // can be applied at the end.
+            var stats = new Dictionary<(string, string), (int Wrapped, int Unwrapped)>();
             if (files == null || files.Length == 0)
-                return result;
+                return new HashSet<(string, string)>();
 
-            // Build a trees collection — only View files. Per the
-            // convention, Views live under Views/ or end with View.axaml.cs;
-            // but we also accept any file with "View.axaml.cs" suffix and
-            // any path containing "/Views/" (case-insensitive).
             foreach (string file in files)
             {
                 if (!IsViewFile(file)) continue;
                 string code;
                 try { code = File.ReadAllText(file); }
                 catch { continue; }
-                ExtractViewCoveredVmMethods(code, result);
+                AccumulateViewVmCallStats(code, stats);
+            }
+
+            // Second pass: emit only the pairs that have at least one
+            // wrapped callsite AND zero unwrapped callsites.
+            var result = new HashSet<(string, string)>();
+            foreach (var kv in stats)
+            {
+                if (kv.Value.Wrapped > 0 && kv.Value.Unwrapped == 0)
+                    result.Add(kv.Key);
             }
             return result;
         }
@@ -318,12 +324,44 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// <summary>
         /// Roslyn-scan a single View source file and populate
         /// <paramref name="result"/> with every (VmClass, MethodName) pair
-        /// whose call is bracketed by a Begin/Commit scope. Exposed for
-        /// unit testing without touching the file system.
+        /// whose call is bracketed by an active Begin/Commit scope at the
+        /// call site. The signature is kept for backwards compatibility
+        /// with existing unit tests — internally it delegates to the new
+        /// veto-aware <see cref="AccumulateViewVmCallStats"/>.
+        ///
+        /// This method does NOT apply the global veto (a method that
+        /// has bracket-wrapped callsites here AND unwrapped callsites in
+        /// some OTHER View file would still be added). To get the veto
+        /// behavior, use <see cref="DiscoverViewCoveredVmMethods"/>.
         /// </summary>
         public static void ExtractViewCoveredVmMethods(string viewSource, HashSet<(string, string)> result)
         {
             if (string.IsNullOrEmpty(viewSource) || result == null) return;
+            // Accumulate stats just for this file, then emit any pair
+            // with at least one wrapped callsite and zero unwrapped ones.
+            var stats = new Dictionary<(string, string), (int Wrapped, int Unwrapped)>();
+            AccumulateViewVmCallStats(viewSource, stats);
+            foreach (var kv in stats)
+            {
+                if (kv.Value.Wrapped > 0 && kv.Value.Unwrapped == 0)
+                    result.Add(kv.Key);
+            }
+        }
+
+        /// <summary>
+        /// Scan one View source file and tally wrapped vs unwrapped
+        /// callsites to VM methods. A callsite is "wrapped" when there's
+        /// an active Begin/Commit scope around it (the same strict
+        /// bracketing model used by <see cref="IsWriteInsideOpenUndoScope"/>:
+        /// a Begin appears BEFORE the call site, a Commit/Rollback appears
+        /// AFTER it, and no Commit/Rollback sits between the Begin and the
+        /// call site).
+        /// </summary>
+        public static void AccumulateViewVmCallStats(
+            string viewSource,
+            Dictionary<(string VmClass, string Method), (int Wrapped, int Unwrapped)> stats)
+        {
+            if (string.IsNullOrEmpty(viewSource) || stats == null) return;
             SyntaxTree tree;
             try
             {
@@ -335,70 +373,79 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             }
             var root = tree.GetRoot();
 
-            // Iterate every method in every class. For each method,
-            // check if it has a Begin call. If so, every VM-method
-            // invocation that follows in source order is considered
-            // covered.
             foreach (var cls in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
             {
                 string viewClass = cls.Identifier.Text;
-                // Resolve the conventional paired VM class name. If the
-                // class doesn't end in "View", we still consider all VM
-                // identifiers we encounter (some Views use shorter names).
-                string? pairedVm = null;
-                if (viewClass.EndsWith("View", StringComparison.Ordinal))
-                {
-                    pairedVm = viewClass.Substring(0, viewClass.Length - "View".Length) + "ViewModel";
-                }
+                if (!viewClass.EndsWith("View", StringComparison.Ordinal))
+                    continue; // Only XView -> XViewModel pairs propagate.
+                string pairedVm = viewClass.Substring(0, viewClass.Length - "View".Length) + "ViewModel";
 
                 foreach (var method in cls.Members.OfType<MethodDeclarationSyntax>())
                 {
-                    bool hasBegin = method.DescendantNodes()
-                        .OfType<InvocationExpressionSyntax>()
-                        .Any(i => IsUndoServiceCall(i, "Begin"));
-                    if (!hasBegin) continue;
-
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        // Look for `_vm.X(...)`, `vm.X(...)`, `_viewModel.X(...)`,
-                        // or any `<receiver>.X(...)` where receiver looks
-                        // like a VM reference. We accept any receiver name
-                        // beginning with `_vm` / `vm` / containing
-                        // "ViewModel" / containing "Vm"; the false-positive
-                        // cost is one extra entry in the covered set.
-                        if (inv.Expression is not MemberAccessExpressionSyntax member)
+                        if (!TryGetVmCall(inv, out string methodName))
                             continue;
-                        if (member.Expression is not IdentifierNameSyntax receiver)
-                            continue;
-                        string recv = receiver.Identifier.Text;
-                        bool looksLikeVm =
-                            recv == "_vm" || recv == "vm" ||
-                            recv.EndsWith("Vm", StringComparison.Ordinal) ||
-                            recv.EndsWith("ViewModel", StringComparison.Ordinal);
-                        if (!looksLikeVm) continue;
-
-                        string methodName = member.Name.Identifier.Text;
                         if (string.IsNullOrEmpty(methodName)) continue;
 
-                        // Add for the conventional paired VM. If we
-                        // didn't compute one (unusual View name), we
-                        // still record the method against an empty class
-                        // — but downstream callers always check the
-                        // (class, method) tuple so the empty class never
-                        // matches a real row.
-                        if (pairedVm != null)
-                            result.Add((pairedVm, methodName));
+                        // Use the same strict bracketing as same-method
+                        // pass: a Begin before the call, a close after,
+                        // and no close in between.
+                        var (inside, _) = IsWriteInsideOpenUndoScope(method, inv);
+                        var key = (pairedVm, methodName);
+                        stats.TryGetValue(key, out var counts);
+                        if (inside)
+                            counts.Wrapped++;
+                        else
+                            counts.Unwrapped++;
+                        stats[key] = counts;
                     }
                 }
             }
         }
 
         /// <summary>
-        /// True for files we deliberately skip during the scan. Currently:
-        /// GapSweep scanners (they don't write to ROM by construction),
-        /// build output (obj/, bin/), Designer.cs (Avalonia doesn't have
-        /// these but be defensive), and the GapSweep namespace itself
-        /// regardless of physical path.
+        /// Detect a VM-method invocation: <c>_vm.X(...)</c>, <c>vm.X(...)</c>,
+        /// <c>_viewModel.X(...)</c>, or any <c>receiver.X(...)</c> where
+        /// receiver looks like a ViewModel reference. Sets
+        /// <paramref name="methodName"/> to the called method's name.
+        /// </summary>
+        static bool TryGetVmCall(InvocationExpressionSyntax inv, out string methodName)
+        {
+            methodName = "";
+            if (inv.Expression is not MemberAccessExpressionSyntax member)
+                return false;
+            if (member.Expression is not IdentifierNameSyntax receiver)
+                return false;
+            string recv = receiver.Identifier.Text;
+            bool looksLikeVm =
+                recv == "_vm" || recv == "vm" ||
+                recv.EndsWith("Vm", StringComparison.Ordinal) ||
+                recv.EndsWith("ViewModel", StringComparison.Ordinal);
+            if (!looksLikeVm) return false;
+            methodName = member.Name.Identifier.Text;
+            return !string.IsNullOrEmpty(methodName);
+        }
+
+        /// <summary>
+        /// True for files we deliberately skip during the scan. The
+        /// implementation checks path segments only — it does NOT inspect
+        /// file contents or namespace declarations. Per Copilot PR #380
+        /// fourth-pass review concern #3, the comment is kept honest
+        /// about exactly what the path filter does:
+        /// <list type="bullet">
+        ///   <item><c>/GapSweep/</c> — the scanner sources themselves; they
+        ///     don't write to ROM by construction. Excluding the directory
+        ///     also conveniently excludes types in the
+        ///     <c>FEBuilderGBA.Avalonia.GapSweep</c> namespace because
+        ///     they all live under this directory.</item>
+        ///   <item><c>/obj/</c> and <c>/bin/</c> — MSBuild output, not
+        ///     source. Including them would double-count via generated
+        ///     intermediate files.</item>
+        /// </list>
+        /// Avalonia doesn't use Designer.cs files (those are WinForms-
+        /// specific), so we don't include a Designer.cs filter — adding
+        /// one would be dead code.
         /// </summary>
         static bool IsExcludedPath(string path)
         {

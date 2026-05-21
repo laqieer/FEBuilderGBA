@@ -541,6 +541,143 @@ namespace X {
     }
 
     [Fact]
+    public void ExtractViewCoveredVmMethods_BeginAfterCall_NotCovered()
+    {
+        // Copilot PR #380 fourth-pass review concern #2: the Pass 2
+        // bracketing must use the same strict model as the same-method
+        // pass — Begin BEFORE the call, close AFTER. A Begin AFTER the
+        // VM call must NOT register as covered.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        readonly FooViewModel _vm = new();
+        UndoService _undoService = new();
+        void OnButtonClick() {
+            _vm.WriteFoo();         // BEFORE Begin — not covered
+            _undoService.Begin(""Late"");
+            _undoService.Commit();
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        Assert.DoesNotContain(("FooViewModel", "WriteFoo"), result);
+    }
+
+    [Fact]
+    public void ExtractViewCoveredVmMethods_BeginWithoutClose_NotCovered()
+    {
+        // Strict bracketing: a Begin with no matching Commit/Rollback
+        // after the call must NOT register as covered.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        readonly FooViewModel _vm = new();
+        UndoService _undoService = new();
+        void OnButtonClick() {
+            _undoService.Begin(""Edit"");
+            _vm.WriteFoo();        // no close after — not covered
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        Assert.DoesNotContain(("FooViewModel", "WriteFoo"), result);
+    }
+
+    [Fact]
+    public void DiscoverViewCoveredVmMethods_UnwrappedCallsiteVetoesUpgrade()
+    {
+        // Copilot PR #380 fourth-pass review concern #1: if one method
+        // wraps the VM call in Begin/Commit AND another method in the
+        // same View calls the same VM method WITHOUT a scope, the
+        // upgrade should NOT happen — a single unwrapped callsite would
+        // hide a real gap.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        readonly FooViewModel _vm = new();
+        UndoService _undoService = new();
+
+        void OnWriteClick() {
+            _undoService.Begin(""Edit"");
+            _vm.WriteFoo();         // wrapped — Covered
+            _undoService.Commit();
+        }
+
+        void OnAuxClick() {
+            _vm.WriteFoo();         // UNWRAPPED — vetoes the upgrade
+        }
+    }
+}";
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"undo-cov-{Guid.NewGuid():N}", "Views");
+        Directory.CreateDirectory(tmpDir);
+        string tmp = Path.Combine(tmpDir, "FooView.axaml.cs");
+        try
+        {
+            File.WriteAllText(tmp, viewSrc);
+            var result = UndoCoverageScanner.DiscoverViewCoveredVmMethods(new[] { tmp });
+            // The unwrapped OnAuxClick call must veto the upgrade.
+            Assert.DoesNotContain(("FooViewModel", "WriteFoo"), result);
+        }
+        finally
+        {
+            try { Directory.Delete(Path.GetDirectoryName(tmpDir)!, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void DiscoverViewCoveredVmMethods_AllWrappedCallsitesUpgrades()
+    {
+        // Two Views both wrap the VM call in Begin/Commit. Result must
+        // include the (VM, method) pair.
+        string viewA = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        readonly FooViewModel _vm = new();
+        UndoService _undoService = new();
+        void OnWriteClick() {
+            _undoService.Begin(""Edit"");
+            _vm.WriteFoo();
+            _undoService.Commit();
+        }
+    }
+}";
+        string viewB = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooDuplicateView {
+        readonly FooViewModel _vm = new();
+        UndoService _undoService = new();
+        void OnWriteClick() {
+            _undoService.Begin(""Edit"");
+            _vm.WriteFoo();
+            _undoService.Commit();
+        }
+    }
+}";
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"undo-cov-{Guid.NewGuid():N}", "Views");
+        Directory.CreateDirectory(tmpDir);
+        string tmpA = Path.Combine(tmpDir, "FooView.axaml.cs");
+        string tmpB = Path.Combine(tmpDir, "FooDuplicateView.axaml.cs");
+        try
+        {
+            File.WriteAllText(tmpA, viewA);
+            File.WriteAllText(tmpB, viewB);
+            var result = UndoCoverageScanner.DiscoverViewCoveredVmMethods(new[] { tmpA, tmpB });
+            Assert.Contains(("FooViewModel", "WriteFoo"), result);
+        }
+        finally
+        {
+            try { Directory.Delete(Path.GetDirectoryName(tmpDir)!, recursive: true); } catch { }
+        }
+    }
+
+    [Fact]
     public void ExtractViewCoveredVmMethods_AcceptsAlternateVmIdentifiers()
     {
         // Receiver patterns: `vm.`, `_viewModel.`, `_vm.`, `MyVm.` etc.
