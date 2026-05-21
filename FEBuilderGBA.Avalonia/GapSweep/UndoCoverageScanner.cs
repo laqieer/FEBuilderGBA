@@ -121,14 +121,18 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         };
 
         /// <summary>
-        /// Names the scanner accepts as UndoService field/property/local
-        /// identifiers when resolving a Begin/Commit/Rollback receiver.
-        /// The intent is to mirror the codebase convention without
-        /// requiring a semantic model: VMs either expose `_undoService` (a
-        /// private field), `UndoService` (a property/local), or
-        /// `undoService` (a local — used by EventScriptPopupViewModel).
+        /// Fallback identifier names accepted as UndoService references
+        /// when the class context isn't available to derive them by type
+        /// (e.g. when classifying a raw invocation outside any class).
+        /// In normal flow, the scanner now collects field/property names
+        /// by walking the class for declarations whose Type is
+        /// <c>UndoService</c> (see <see cref="CollectUndoServiceNames"/>),
+        /// which handles arbitrary identifiers like <c>_undo</c>,
+        /// <c>_undoService</c>, <c>undo</c>, etc. — Copilot PR #380
+        /// fourth-pass review concern: <c>MapEditorView</c> uses
+        /// <c>_undo</c>, which the hardcoded set missed.
         /// </summary>
-        static readonly HashSet<string> UndoServiceMemberNames = new(StringComparer.Ordinal)
+        static readonly HashSet<string> FallbackUndoServiceMemberNames = new(StringComparer.Ordinal)
         {
             "_undoService", "undoService", "UndoService",
         };
@@ -379,12 +383,18 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 if (!viewClass.EndsWith("View", StringComparison.Ordinal))
                     continue; // Only XView -> XViewModel pairs propagate.
                 string pairedVm = viewClass.Substring(0, viewClass.Length - "View".Length) + "ViewModel";
+                // Collect the View's actual VM field/property/local names
+                // by declared TYPE (Copilot PR #380 fourth-pass concern #2).
+                // The previous version hardcoded {_vm, vm, *Vm,
+                // *ViewModel}, case-sensitive — missing legitimate names
+                // like `_model`, `_viewModel`, `_main`, etc.
+                var vmReceiverNames = CollectViewModelReceiverNames(cls);
 
                 foreach (var method in cls.Members.OfType<MethodDeclarationSyntax>())
                 {
                     foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
                     {
-                        if (!TryGetVmCall(inv, out string methodName))
+                        if (!TryGetVmCall(inv, vmReceiverNames, out string methodName))
                             continue;
                         if (string.IsNullOrEmpty(methodName)) continue;
 
@@ -405,24 +415,112 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         }
 
         /// <summary>
-        /// Detect a VM-method invocation: <c>_vm.X(...)</c>, <c>vm.X(...)</c>,
-        /// <c>_viewModel.X(...)</c>, or any <c>receiver.X(...)</c> where
-        /// receiver looks like a ViewModel reference. Sets
-        /// <paramref name="methodName"/> to the called method's name.
+        /// Collect every identifier on <paramref name="cls"/> that is
+        /// declared with a ViewModel-shaped type — any field/property/
+        /// local whose declared Type identifier ends with "ViewModel"
+        /// (case-insensitive), or matches the bare conventional names
+        /// (<c>_vm</c>, <c>vm</c>).
+        ///
+        /// Per Copilot PR #380 fourth-pass concern #2: the previous
+        /// design only matched receivers whose identifier name ended in
+        /// "ViewModel" or "Vm" case-sensitively, missing patterns like
+        /// <c>_model</c> or <c>_viewModel</c>. The new design infers from
+        /// the declared TYPE so any conventional name is recognised.
         /// </summary>
-        static bool TryGetVmCall(InvocationExpressionSyntax inv, out string methodName)
+        public static HashSet<string> CollectViewModelReceiverNames(ClassDeclarationSyntax? cls)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal)
+            {
+                // Bare conventional names always recognised so we don't
+                // regress on Views that use a local var rather than a
+                // declared field.
+                "_vm", "vm",
+            };
+            if (cls == null) return names;
+
+            foreach (var field in cls.Members.OfType<FieldDeclarationSyntax>())
+            {
+                if (!IsViewModelLikeType(field.Declaration.Type)) continue;
+                foreach (var v in field.Declaration.Variables)
+                    names.Add(v.Identifier.Text);
+            }
+            foreach (var prop in cls.Members.OfType<PropertyDeclarationSyntax>())
+            {
+                if (!IsViewModelLikeType(prop.Type)) continue;
+                names.Add(prop.Identifier.Text);
+            }
+            // Method-body locals declared as `XViewModel _foo = new()` or
+            // `var _foo = new XViewModel(...)`.
+            foreach (var decl in cls.DescendantNodes().OfType<VariableDeclarationSyntax>())
+            {
+                bool typeMatches = IsViewModelLikeType(decl.Type);
+                foreach (var v in decl.Variables)
+                {
+                    if (typeMatches)
+                    {
+                        names.Add(v.Identifier.Text);
+                        continue;
+                    }
+                    if (v.Initializer?.Value is ObjectCreationExpressionSyntax oc &&
+                        IsViewModelLikeType(oc.Type))
+                    {
+                        names.Add(v.Identifier.Text);
+                    }
+                }
+            }
+            return names;
+        }
+
+        /// <summary>
+        /// True when the TypeSyntax's trailing identifier ends with
+        /// "ViewModel" case-INsensitively. Lets us match
+        /// <c>ItemEditorViewModel</c>, <c>itemEditorViewModel</c>, custom
+        /// suffixes like <c>FooViewModel</c>, and any other VM-shaped
+        /// type. Excludes <c>ViewModelBase</c>-style abstracts only by
+        /// virtue of ending with "ViewModel" plus something — those types
+        /// also end with "ViewModel" so they ARE matched, which is fine
+        /// because we're collecting field/property names, not type names.
+        /// </summary>
+        static bool IsViewModelLikeType(TypeSyntax type)
+        {
+            string n = type switch
+            {
+                IdentifierNameSyntax id => id.Identifier.Text,
+                QualifiedNameSyntax q => q.Right.Identifier.Text,
+                GenericNameSyntax g => g.Identifier.Text,
+                _ => "",
+            };
+            return !string.IsNullOrEmpty(n)
+                && n.EndsWith("ViewModel", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Detect a VM-method invocation given the View's actual VM
+        /// receiver names (collected via
+        /// <see cref="CollectViewModelReceiverNames"/>). The receiver
+        /// identifier must be an exact member-name match against the
+        /// collected set, OR fall back to the canonical bare names
+        /// <c>_vm</c> / <c>vm</c> for Views that don't declare a typed
+        /// field. Sets <paramref name="methodName"/> to the called
+        /// method's name.
+        /// </summary>
+        static bool TryGetVmCall(
+            InvocationExpressionSyntax inv,
+            HashSet<string> allowedReceiverNames,
+            out string methodName)
         {
             methodName = "";
             if (inv.Expression is not MemberAccessExpressionSyntax member)
                 return false;
-            if (member.Expression is not IdentifierNameSyntax receiver)
-                return false;
-            string recv = receiver.Identifier.Text;
-            bool looksLikeVm =
-                recv == "_vm" || recv == "vm" ||
-                recv.EndsWith("Vm", StringComparison.Ordinal) ||
-                recv.EndsWith("ViewModel", StringComparison.Ordinal);
-            if (!looksLikeVm) return false;
+            string recv = member.Expression switch
+            {
+                IdentifierNameSyntax id => id.Identifier.Text,
+                _ => "",
+            };
+            if (string.IsNullOrEmpty(recv)) return false;
+            // Strict exact-match against the View's declared VM names
+            // plus the canonical fallbacks (_vm / vm).
+            if (!allowedReceiverNames.Contains(recv)) return false;
             methodName = member.Name.Identifier.Text;
             return !string.IsNullOrEmpty(methodName);
         }
@@ -899,10 +997,11 @@ namespace FEBuilderGBA.Avalonia.GapSweep
 
         /// <summary>
         /// True when <paramref name="method"/> contains an invocation of
-        /// <c>Begin(...)</c> on a recognised UndoService identifier
-        /// (<c>_undoService</c>, <c>undoService</c>, or <c>UndoService</c>)
-        /// AT OR BEFORE the position of <paramref name="writeNode"/> in
-        /// source order.
+        /// <c>Begin(...)</c> on a recognised UndoService identifier (any
+        /// field/property/local of type <c>UndoService</c> declared on
+        /// the enclosing class, plus the canonical fallback names) AT OR
+        /// BEFORE the position of <paramref name="writeNode"/> in source
+        /// order.
         ///
         /// Source-order (line) comparison is a simplification: it doesn't
         /// follow actual control flow (e.g. an `if (false) { Begin(); }`
@@ -913,11 +1012,12 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         public static bool HasUndoBeginBefore(MethodDeclarationSyntax method, SyntaxNode writeNode)
         {
             if (method == null || writeNode == null) return false;
+            var allowed = CollectUndoServiceNames(FindEnclosingClass(method));
             int writeLine = writeNode.GetLocation().GetLineSpan().StartLinePosition.Line;
             foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
             {
                 if (inv == writeNode) continue;
-                if (!IsUndoServiceCall(inv, "Begin")) continue;
+                if (!IsUndoServiceCall(inv, "Begin", allowed)) continue;
                 int beginLine = inv.GetLocation().GetLineSpan().StartLinePosition.Line;
                 if (beginLine <= writeLine)
                     return true;
@@ -975,6 +1075,10 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             if (method == null || writeNode == null) return (false, false);
             int writeLine = writeNode.GetLocation().GetLineSpan().StartLinePosition.Line;
             int writeColumn = writeNode.GetLocation().GetLineSpan().StartLinePosition.Character;
+            // Type-driven UndoService identifier set — any field/property/
+            // local of type UndoService on the enclosing class is
+            // recognised, plus the canonical fallback names.
+            var allowed = CollectUndoServiceNames(FindEnclosingClass(method));
 
             // Collect all Begin / Commit / Rollback invocations with their
             // source positions.
@@ -984,12 +1088,12 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             foreach (var inv in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
             {
                 var pos = inv.GetLocation().GetLineSpan().StartLinePosition;
-                if (IsUndoServiceCall(inv, "Begin"))
+                if (IsUndoServiceCall(inv, "Begin", allowed))
                 {
                     beginPositions.Add((pos.Line, pos.Character));
                     hadAnyScope = true;
                 }
-                else if (IsUndoServiceCall(inv, "Commit") || IsUndoServiceCall(inv, "Rollback"))
+                else if (IsUndoServiceCall(inv, "Commit", allowed) || IsUndoServiceCall(inv, "Rollback", allowed))
                 {
                     closePositions.Add((pos.Line, pos.Character));
                     hadAnyScope = true;
@@ -1059,24 +1163,41 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         public static bool HasUndoCommit(MethodDeclarationSyntax method)
         {
             if (method == null) return false;
+            var allowed = CollectUndoServiceNames(FindEnclosingClass(method));
             return method.DescendantNodes().OfType<InvocationExpressionSyntax>()
-                .Any(i => IsUndoServiceCall(i, "Commit"));
+                .Any(i => IsUndoServiceCall(i, "Commit", allowed));
         }
 
         /// <summary>True when the method body contains any <c>...Rollback()</c> on an UndoService.</summary>
         public static bool HasUndoRollback(MethodDeclarationSyntax method)
         {
             if (method == null) return false;
+            var allowed = CollectUndoServiceNames(FindEnclosingClass(method));
             return method.DescendantNodes().OfType<InvocationExpressionSyntax>()
-                .Any(i => IsUndoServiceCall(i, "Rollback"));
+                .Any(i => IsUndoServiceCall(i, "Rollback", allowed));
         }
 
         /// <summary>
         /// Recognise an invocation as <c>&lt;undoService&gt;.{methodName}(...)</c>
         /// where the receiver is one of the recognised UndoService
-        /// identifiers (see <see cref="UndoServiceMemberNames"/>).
+        /// identifiers. When <paramref name="allowedNames"/> is provided
+        /// (collected via <see cref="CollectUndoServiceNames"/> over the
+        /// enclosing class), the receiver must match one of those names.
+        /// Otherwise the fallback set (<see cref="FallbackUndoServiceMemberNames"/>)
+        /// is used — kept narrow on purpose because the type-driven set
+        /// is more accurate when available.
+        ///
+        /// Per Copilot PR #380 fourth-pass concern: this method previously
+        /// required the receiver name to be in a HARDCODED 3-element set,
+        /// missing legitimate names like <c>_undo</c> (MapEditorView). The
+        /// new design derives the set from declared TYPE, so any field/
+        /// property of type <c>UndoService</c> is recognised regardless of
+        /// its identifier.
         /// </summary>
-        static bool IsUndoServiceCall(InvocationExpressionSyntax inv, string methodName)
+        static bool IsUndoServiceCall(
+            InvocationExpressionSyntax inv,
+            string methodName,
+            HashSet<string>? allowedNames = null)
         {
             if (inv.Expression is not MemberAccessExpressionSyntax memberAccess)
                 return false;
@@ -1095,7 +1216,67 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             {
                 receiverName = inner.Name.Identifier.Text;
             }
-            return UndoServiceMemberNames.Contains(receiverName);
+            HashSet<string> recogniser = allowedNames ?? FallbackUndoServiceMemberNames;
+            return recogniser.Contains(receiverName);
+        }
+
+        /// <summary>
+        /// Walk <paramref name="cls"/> and collect every field/property/
+        /// local variable name whose declared type is <c>UndoService</c>.
+        /// This replaces the previous hardcoded "names we accept"
+        /// hashset — Copilot PR #380 fourth-pass review correctly flagged
+        /// that the hardcoded set missed valid names like <c>_undo</c>.
+        ///
+        /// The returned set always includes the
+        /// <see cref="FallbackUndoServiceMemberNames"/> entries as a
+        /// belt-and-braces fallback so callers that don't have a class
+        /// context still recognise the canonical names.
+        /// </summary>
+        public static HashSet<string> CollectUndoServiceNames(ClassDeclarationSyntax? cls)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            // Always include the canonical fallback names so call shapes
+            // without a class context (e.g. file-level diagnostics) still
+            // work.
+            foreach (var n in FallbackUndoServiceMemberNames)
+                names.Add(n);
+
+            if (cls == null) return names;
+
+            // Fields: `UndoService _foo = new();`, `UndoService _undo;`
+            foreach (var field in cls.Members.OfType<FieldDeclarationSyntax>())
+            {
+                if (!IsUndoServiceType(field.Declaration.Type)) continue;
+                foreach (var v in field.Declaration.Variables)
+                    names.Add(v.Identifier.Text);
+            }
+            // Properties: `UndoService Foo { get; }` / `... { get; set; }`
+            foreach (var prop in cls.Members.OfType<PropertyDeclarationSyntax>())
+            {
+                if (!IsUndoServiceType(prop.Type)) continue;
+                names.Add(prop.Identifier.Text);
+            }
+            // Local declarations + var x = new UndoService(...): every
+            // VariableDeclarator whose enclosing declaration is
+            // UndoService-typed OR whose initializer is `new UndoService(…)`.
+            foreach (var decl in cls.DescendantNodes().OfType<VariableDeclarationSyntax>())
+            {
+                bool typeMatches = IsUndoServiceType(decl.Type);
+                foreach (var v in decl.Variables)
+                {
+                    if (typeMatches)
+                    {
+                        names.Add(v.Identifier.Text);
+                        continue;
+                    }
+                    if (v.Initializer?.Value is ObjectCreationExpressionSyntax oc &&
+                        IsUndoServiceType(oc.Type))
+                    {
+                        names.Add(v.Identifier.Text);
+                    }
+                }
+            }
+            return names;
         }
 
         /// <summary>
@@ -1147,6 +1328,9 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             string helperName = helper.Identifier.Text;
             if (string.IsNullOrEmpty(helperName)) return false;
 
+            // Type-driven UndoService identifier set for the class.
+            var allowed = CollectUndoServiceNames(cls);
+
             foreach (var caller in cls.Members.OfType<MethodDeclarationSyntax>())
             {
                 if (caller == helper) continue;
@@ -1159,7 +1343,7 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 // is inside that scope (one-level deep).
                 bool callerHasBegin = caller.DescendantNodes()
                     .OfType<InvocationExpressionSyntax>()
-                    .Any(i => IsUndoServiceCall(i, "Begin"));
+                    .Any(i => IsUndoServiceCall(i, "Begin", allowed));
                 bool callerHasCommitOrRollback =
                     HasUndoCommit(caller) || HasUndoRollback(caller);
                 if (callerHasBegin && callerHasCommitOrRollback)
@@ -1272,11 +1456,17 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.Append("  many actual bytes the helper writes internally.\n");
             sb.Append("- For each callsite we find the enclosing class and method, then\n");
             sb.Append("  classify by walking the method body for `Begin`/`Commit`/`Rollback`\n");
-            sb.Append("  invocations on any UndoService identifier\n");
-            sb.Append("  (`_undoService`, `undoService`, `UndoService`).\n");
-            sb.Append("- UndoService discovery: simple name match on field/property/local of\n");
-            sb.Append("  type `UndoService`. No semantic model — see the AmbiguousScope tier\n");
-            sb.Append("  for the one-level helper-call disclaimer.\n\n");
+            sb.Append("  invocations on any field/property/local of declared type\n");
+            sb.Append("  `UndoService`.\n");
+            sb.Append("- UndoService receiver discovery is type-driven (not name-driven):\n");
+            sb.Append("  every field, property, or local-variable declaration whose Type\n");
+            sb.Append("  identifier is `UndoService` is recognised, regardless of the\n");
+            sb.Append("  identifier's name (so `_undo`, `_undoService`, `Tracker` all work).\n");
+            sb.Append("- View→VM receiver discovery in Pass 2 is also type-driven: every\n");
+            sb.Append("  identifier on a View class declared with a `*ViewModel`-shaped\n");
+            sb.Append("  type (case-insensitive trailing-identifier match) is recognised.\n");
+            sb.Append("  No semantic model — see the AmbiguousScope tier for the\n");
+            sb.Append("  one-level helper-call disclaimer.\n\n");
             sb.Append("**Coverage tiers** (highest priority first):\n\n");
             sb.Append("- `NoUndoServiceField` — class has no UndoService field at all. The\n");
             sb.Append("  whole VM is unplumbed; the fix requires introducing a service field\n");

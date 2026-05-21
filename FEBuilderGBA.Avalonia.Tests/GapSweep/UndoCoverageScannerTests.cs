@@ -54,6 +54,64 @@ namespace X {
     }
 
     [Fact]
+    public void Classifies_UndoIdentifierByType_NotHardcodedName()
+    {
+        // Copilot PR #380 fourth-pass concern #1: MapEditorView declares
+        // `readonly UndoService _undo = new();` — the previous hardcoded
+        // {_undoService, undoService, UndoService} member-name set
+        // missed `_undo`, classifying its writes as MissingScope. The
+        // new type-driven detection looks at the declared TYPE
+        // (UndoService), so any field name is recognised.
+        string src = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class MapEditorView {
+        readonly UndoService _undo = new();
+        public void OnWriteClick() {
+            _undo.Begin(""Edit Map"");
+            try {
+                rom.write_u8(0x10, 1);
+                _undo.Commit();
+            } catch {
+                _undo.Rollback();
+                throw;
+            }
+        }
+    }
+}";
+        var rows = UndoCoverageScanner.ExtractCallsitesFromSource(src, "MapEditorView.axaml.cs");
+        var row = Assert.Single(rows);
+        Assert.Equal(UndoCoverage.Covered, row.Coverage);
+    }
+
+    [Fact]
+    public void CollectUndoServiceNames_FindsArbitraryFieldNames()
+    {
+        // Direct test of the type-driven name collection. A class with
+        // an UndoService field named `_undo` (or `_history`, or `s_undo`)
+        // should surface that name in the collected set.
+        string src = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        UndoService _undo = new();
+        UndoService _history;
+        public UndoService Tracker { get; } = new();
+    }
+}";
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(src);
+        var cls = tree.GetRoot().DescendantNodes()
+            .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>()
+            .Single();
+        var names = UndoCoverageScanner.CollectUndoServiceNames(cls);
+        Assert.Contains("_undo", names);
+        Assert.Contains("_history", names);
+        Assert.Contains("Tracker", names);
+        // Canonical fallback names must still be present.
+        Assert.Contains("_undoService", names);
+    }
+
+    [Fact]
     public void Classifies_TryCatchRollbackPattern_AsCovered()
     {
         // The full Begin/Commit + try/catch/Rollback pattern used by
@@ -675,6 +733,62 @@ namespace X {
         {
             try { Directory.Delete(Path.GetDirectoryName(tmpDir)!, recursive: true); } catch { }
         }
+    }
+
+    [Fact]
+    public void ExtractViewCoveredVmMethods_DetectsVmByDeclaredType_NotByName()
+    {
+        // Copilot PR #380 fourth-pass concern #2: TryGetVmCall used to
+        // accept receivers whose identifier ended in "ViewModel" or
+        // "Vm" case-sensitively, missing names like `_model`, `_main`,
+        // `_viewModel`. The new design infers from the declared TYPE
+        // (any field/property/local of a ViewModel-shaped type) so
+        // arbitrary identifier names are recognised.
+        string viewSrc = @"
+namespace X {
+    using FEBuilderGBA.Avalonia.Services;
+    class FooView {
+        readonly FooViewModel _model = new();   // unconventional name
+        UndoService _undoService = new();
+        void OnSave() {
+            _undoService.Begin(""Edit"");
+            _model.WriteFoo();                  // receiver = `_model`
+            _undoService.Commit();
+        }
+    }
+}";
+        var result = new HashSet<(string, string)>();
+        UndoCoverageScanner.ExtractViewCoveredVmMethods(viewSrc, result);
+        // Even though `_model` doesn't end with "ViewModel" or "Vm",
+        // its declared type IS FooViewModel, so the call is recognised.
+        Assert.Contains(("FooViewModel", "WriteFoo"), result);
+    }
+
+    [Fact]
+    public void CollectViewModelReceiverNames_FindsArbitraryFieldNames()
+    {
+        // Type-driven VM receiver collection: any field whose declared
+        // type ends with "ViewModel" (case-INsensitive) is recognised
+        // regardless of the identifier's casing or prefix.
+        string src = @"
+namespace X {
+    class FooView {
+        readonly FooViewModel _model;
+        BarViewModel _main;
+        public BazViewModel Inner { get; }
+    }
+}";
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(src);
+        var cls = tree.GetRoot().DescendantNodes()
+            .OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>()
+            .Single();
+        var names = UndoCoverageScanner.CollectViewModelReceiverNames(cls);
+        Assert.Contains("_model", names);
+        Assert.Contains("_main", names);
+        Assert.Contains("Inner", names);
+        // Canonical bare names always included.
+        Assert.Contains("_vm", names);
+        Assert.Contains("vm", names);
     }
 
     [Fact]
