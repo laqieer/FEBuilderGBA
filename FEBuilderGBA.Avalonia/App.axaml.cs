@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -164,6 +165,8 @@ namespace FEBuilderGBA.Avalonia
                         return RunDensitySweep(repoRoot, GapSweepOut!, GapSweepDryRun);
 
                     case "labels":
+                        return RunLabelsSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
+
                     case "jumps":
                     case "undo":
                     case "l10n":
@@ -234,6 +237,40 @@ namespace FEBuilderGBA.Avalonia
             string body = ControlDensityScanner.FormatReport(rows);
             ReportWriter.WriteReport(outPath, "density", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[density]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Phase 2: field-label diff sweep. Returns 0 on success.
+        /// In dry-run mode we still discover pairs so we can log a count, but we
+        /// write a header-only file (no markdown body, just YAML front-matter) —
+        /// callers use this to verify file-system permissions and the CLI plumbing
+        /// without paying the Roslyn / XML scan cost. Mirrors RunDensitySweep's
+        /// shape exactly so the two flag handlers stay symmetrical.
+        /// </summary>
+        static int RunLabelsSweep(string repoRoot, string outPath, bool dryRun)
+        {
+            var pairs = PairMatcher.DiscoverAll(repoRoot);
+            Console.WriteLine($"GAPSWEEP[labels]: discovered {pairs.Count} editor pairs.");
+
+            if (dryRun)
+            {
+                // Header-only: identical pattern to RunDensitySweep's dry-run.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("labels", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[labels]: dry-run header written.");
+                return 0;
+            }
+
+            var rows = LabelDiffScanner.Scan(pairs);
+            int pairsWithGap = rows.Count(r => r.WfOnlyLabels.Count > 0);
+            Console.WriteLine($"GAPSWEEP[labels]: scanned {rows.Count} pairs with both files; {pairsWithGap} have >=1 WF-only label.");
+
+            string body = LabelDiffScanner.FormatReport(rows);
+            ReportWriter.WriteReport(outPath, "labels", new[] { body }, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[labels]: report written to {outPath}");
             return 0;
         }
 
