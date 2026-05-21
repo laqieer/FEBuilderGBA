@@ -189,6 +189,8 @@ namespace FEBuilderGBA.Avalonia
                         return RunJumpsSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
 
                     case "undo":
+                        return RunUndoSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
+
                     case "l10n":
                     case "all":
                         // Phases 2-7 land in follow-up PRs. For Phase 0 we just
@@ -337,6 +339,40 @@ namespace FEBuilderGBA.Avalonia
             string body = JumpParityScanner.FormatReport(rows);
             ReportWriter.WriteReport(outPath, "jumps", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[jumps]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Phase 5: undo coverage sweep. Returns 0 on success.
+        /// In dry-run mode we write only the YAML front-matter header (mirrors
+        /// RunDensitySweep / RunLabelsSweep / RunJumpsSweep dry-run shape) so
+        /// callers can verify the CLI plumbing and write permissions without
+        /// paying the Roslyn scan cost.
+        /// </summary>
+        static int RunUndoSweep(string repoRoot, string outPath, bool dryRun)
+        {
+            if (dryRun)
+            {
+                // Header-only — identical pattern to other dry-run paths.
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("undo", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[undo]: dry-run header written.");
+                return 0;
+            }
+
+            var rows = UndoCoverageScanner.Scan(repoRoot);
+            int noField = rows.Count(r => r.Coverage == UndoCoverage.NoUndoServiceField);
+            int missing = rows.Count(r => r.Coverage == UndoCoverage.MissingScope);
+            int ambiguous = rows.Count(r => r.Coverage == UndoCoverage.AmbiguousScope);
+            int covered = rows.Count(r => r.Coverage == UndoCoverage.Covered);
+            Console.WriteLine($"GAPSWEEP[undo]: scanned {rows.Count} write callsites " +
+                $"(no-field={noField} missing-scope={missing} ambiguous={ambiguous} covered={covered}).");
+
+            string body = UndoCoverageScanner.FormatReport(rows);
+            ReportWriter.WriteReport(outPath, "undo", new[] { body }, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[undo]: report written to {outPath}");
             return 0;
         }
 
