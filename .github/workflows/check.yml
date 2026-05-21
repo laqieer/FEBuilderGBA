@@ -95,3 +95,72 @@ jobs:
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         path: coverage-report/SummaryGithub.md
+
+  # Phase 7 of the gap-sweep methodology (#374). Runs every static-analysis
+  # sweep on every PR / push and uploads the reports as workflow artifacts +
+  # a job-summary preview. continue-on-error: true → does NOT block merge;
+  # this is purely advisory while the baseline stabilises. Once the baseline
+  # has been clean for ≥2 weekly refreshes the maintainer flips it to
+  # blocking via a follow-up PR (per docs/avalonia-gaps/README.md).
+  #
+  # Independent of the Windows `build` job above — runs on ubuntu-latest
+  # against the cross-platform FEBuilderGBA.Avalonia project (net9.0). No
+  # ROM, no Windows-only dependency, no MSBuild — just `dotnet run` and
+  # static analysis. ~1-2 minutes total based on local timings.
+  gap-sweep-advisory:
+    name: Gap-sweep (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore + build FEBuilderGBA.Avalonia
+        run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release
+
+      - name: Run static-analysis sweeps
+        shell: bash
+        run: |
+          OUT="${RUNNER_TEMP:-/tmp}/gap-sweep-$(date -u +%F)"
+          mkdir -p "$OUT"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-density --out="$OUT/density.md"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-labels  --out="$OUT/labels.md"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-jumps   --out="$OUT/jumps.md"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-undo    --out="$OUT/undo.md"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-l10n    --out="$OUT/l10n.md"
+          echo "OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Post job summary (top-50 lines per sweep)
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Gap-sweep advisory"
+            echo
+            echo "Static-analysis reports for the Avalonia vs WinForms parity sweep (issue #374)."
+            echo "These reports are uploaded as a workflow artifact below for full inspection."
+            echo
+            for sw in density labels jumps undo l10n; do
+              echo "### $sw"
+              echo
+              if [ -f "$OUT/$sw.md" ]; then
+                echo '```markdown'
+                head -50 "$OUT/$sw.md"
+                echo '```'
+              else
+                echo "_(no report — sweep failed)_"
+              fi
+              echo
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload sweep reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gap-sweep-reports
+          path: ${{ env.OUT }}/*.md
+          if-no-files-found: warn

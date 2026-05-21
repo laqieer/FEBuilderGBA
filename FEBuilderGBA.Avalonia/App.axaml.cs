@@ -203,27 +203,7 @@ namespace FEBuilderGBA.Avalonia
                         return RunL10nSweep(repoRoot, GapSweepOut!, GapSweepDryRun, GapSweepLanguages);
 
                     case "all":
-                        // Phases 2-7 land in follow-up PRs. For Phase 0 we just
-                        // write a header-only stub so callers can wire up CI now
-                        // and have a file to look at when the phase ships.
-                        var phaseInfo = new Dictionary<string, string>
-                        {
-                            ["status"] = "not-yet-implemented",
-                        };
-                        ReportWriter.WriteReport(
-                            GapSweepOut!,
-                            GapSweepMode!,
-                            sections: new[]
-                            {
-                                $"# Gap-sweep `{GapSweepMode}` — not yet implemented",
-                                "",
-                                $"This sweep mode is a Phase 2+ follow-up to the Phase 1 density sweep.",
-                                "Track the rollout on issue [#374](https://github.com/laqieer/FEBuilderGBA/issues/374).",
-                            },
-                            extraFrontMatter: phaseInfo,
-                            gitWorkingDir: repoRoot);
-                        Console.WriteLine($"GAPSWEEP[{GapSweepMode}]: stub report written (phase pending).");
-                        return 0;
+                        return RunAllSweep(repoRoot, GapSweepOut!, GapSweepDryRun);
 
                     default:
                         Console.Error.WriteLine($"Unknown gap-sweep mode: {GapSweepMode}");
@@ -563,6 +543,122 @@ namespace FEBuilderGBA.Avalonia
             if (avCount == 0)
                 return "wf-only";
             return "complete";
+        }
+
+        /// <summary>
+        /// Phase 7: composite sweep — runs every static-analysis sub-sweep
+        /// (density, labels, jumps, undo, l10n) and writes each report into
+        /// <paramref name="outDir"/> with a date-prefixed file name. Skipped:
+        /// the Phase 3 `gallery` sweep, which requires both `--screenshot-all`
+        /// runners to have produced PNGs first (Windows + ROM dependent — not
+        /// something the composite flag drives on its own).
+        ///
+        /// `outDir` MUST be a directory (no file extension). The current
+        /// `--out=` parser unpacks a single path string; we apply a heuristic
+        /// here: anything with an extension is treated as a file-path mistake
+        /// and rejected with a clear error so callers can correct the CLI
+        /// invocation instead of silently writing five reports beside their
+        /// intended single-file path.
+        ///
+        /// Sub-sweep failures do NOT abort the composite. Each scanner runs
+        /// inside its own try/catch and its outcome is recorded in the
+        /// summary table; the composite returns 0 as long as ANY sub-sweep
+        /// succeeded, and 1 only when all five failed. Advisory CI uses this
+        /// directly — a single transient scanner failure should not block the
+        /// other four sweeps' artifacts from publishing.
+        ///
+        /// Returns 0 on overall success (≥1 sub-sweep succeeded), 1 when all
+        /// sub-sweeps failed, 2 on argument validation errors.
+        /// </summary>
+        internal static int RunAllSweep(string repoRoot, string outDir, bool dryRun)
+        {
+            // Reject `--out=foo.md`-style file paths — the composite needs a
+            // directory because it emits five reports. We use HasExtension as
+            // the heuristic because directory paths without an extension are
+            // the dominant idiom in the existing CLI examples
+            // (`docs/avalonia-gaps/2026-05-22-...`).
+            if (Path.HasExtension(outDir))
+            {
+                Console.Error.WriteLine(
+                    $"--gap-sweep-all --out=<dir> requires a directory path; got '{outDir}' (looks like a file). " +
+                    "Pass a directory without an extension (e.g. --out=docs/avalonia-gaps/2026-05-22).");
+                return 2;
+            }
+
+            // Materialise the output directory up-front so per-sweep handlers
+            // don't all race to create it. CreateDirectory is idempotent.
+            try
+            {
+                Directory.CreateDirectory(outDir);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"--gap-sweep-all: cannot create output directory '{outDir}': {ex.Message}");
+                return 2;
+            }
+
+            string datePrefix = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            // Each sub-sweep is invoked via its own Run* method so behaviour
+            // matches single-flag CLI invocations exactly (same dry-run shape,
+            // same scanner code path, same front-matter). The lambdas pin
+            // GapSweepLanguages for the l10n sweep to the same default the
+            // single-flag handler picks up — explicit so the composite can be
+            // reasoned about without spelunking the parser.
+            var subs = new (string Name, Func<string, int> Run)[]
+            {
+                ("density", path => RunDensitySweep(repoRoot, path, dryRun)),
+                ("labels",  path => RunLabelsSweep (repoRoot, path, dryRun)),
+                ("jumps",   path => RunJumpsSweep  (repoRoot, path, dryRun)),
+                ("undo",    path => RunUndoSweep   (repoRoot, path, dryRun)),
+                ("l10n",    path => RunL10nSweep   (repoRoot, path, dryRun, GapSweepLanguages)),
+            };
+
+            // Run each sub-sweep and track success/failure for the summary.
+            // We deliberately swallow exceptions per-sweep so one transient
+            // scanner failure (e.g. a corrupt AXAML during a flaky CI build)
+            // doesn't suppress the other four sweeps' artifacts.
+            var results = new List<(string Name, string Path, int ExitCode, string? Error)>();
+            foreach (var (name, run) in subs)
+            {
+                string fileName = $"{datePrefix}-{name}-sweep.md";
+                string fullPath = Path.Combine(outDir, fileName);
+                Console.WriteLine($"GAPSWEEP[all]: running {name} → {fullPath}");
+                try
+                {
+                    int code = run(fullPath);
+                    results.Add((name, fullPath, code, null));
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"GAPSWEEP[all]: {name} sweep failed: {ex.Message}");
+                    results.Add((name, fullPath, 1, ex.Message));
+                }
+            }
+
+            // Emit a console summary table so CI logs surface the per-sweep
+            // outcomes at a glance. Format mirrors the per-sweep `scanned N
+            // rows` lines so the same grep on the workflow log keeps working.
+            Console.WriteLine();
+            Console.WriteLine("GAPSWEEP[all]: summary");
+            Console.WriteLine("| sweep    | exit | wrote                                |");
+            Console.WriteLine("|----------|-----:|--------------------------------------|");
+            foreach (var (name, path, code, _) in results)
+            {
+                bool wrote = File.Exists(path);
+                string wroteCell = wrote ? Path.GetFileName(path) : "(missing)";
+                Console.WriteLine(
+                    $"| {name,-8} | {code,4} | {wroteCell,-36} |");
+            }
+
+            int successes = results.Count(r => r.ExitCode == 0);
+            int failures = results.Count - successes;
+            Console.WriteLine();
+            Console.WriteLine($"GAPSWEEP[all]: {successes}/{results.Count} sub-sweeps succeeded ({failures} failed).");
+
+            // Overall exit code: 0 if ANY sub-sweep succeeded (advisory mode);
+            // 1 only when every sub-sweep failed (the composite produced no
+            // useful artifacts).
+            return successes > 0 ? 0 : 1;
         }
 
         /// <summary>

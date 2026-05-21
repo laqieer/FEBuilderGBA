@@ -472,6 +472,41 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 
 ---
 
+## Gap-sweep refresh
+
+The `--gap-sweep-*` family (issue [#374](https://github.com/laqieer/FEBuilderGBA/issues/374)) produces static-analysis reports under
+`docs/avalonia-gaps/`. Baselines are committed on phase PRs and on fix PRs
+that explicitly close one or more gaps. Between baselines, the advisory CI
+job (`gap-sweep-advisory` in `.github/workflows/check.yml`) regenerates the
+static-analysis reports on every PR and uploads them as workflow artifacts +
+posts a job summary — those artifact runs do NOT re-commit.
+
+### When to re-baseline
+
+Re-commit a baseline when ANY of:
+- A new sweep phase ships
+- A fix PR removes ≥1 entry from the previous baseline
+- A scanner heuristic improves (false-positive/false-negative correction)
+
+### Local regeneration
+
+```powershell
+# All static-analysis sweeps in one shot:
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-all --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)
+# Individual sweeps:
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-density --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-density-sweep.md
+```
+
+### CI advisory job
+
+`gap-sweep-advisory` runs on every PR with `continue-on-error: true`. It does
+NOT block merge today; once the baseline has been clean for ≥2 weekly
+refreshes the maintainer flips it to blocking via a follow-up PR.
+
+---
+
 ## ANTI-PATTERNS (Learned from Experience)
 
 ### Don't: Batch-merge and hope for the best
