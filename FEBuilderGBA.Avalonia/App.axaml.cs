@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Avalonia;
@@ -6,6 +7,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Styling;
+using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.Avalonia
@@ -54,6 +56,22 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
+        /// <summary>Gap-sweep mode (Phase 1 density, Phase 2 labels, …) or null if no gap-sweep flag was passed.</summary>
+        public static string? GapSweepMode { get; set; }
+
+        /// <summary>Output path for gap-sweep reports. Required when GapSweepMode != null.</summary>
+        public static string? GapSweepOut { get; set; }
+
+        /// <summary>When true, gap-sweep writes only the YAML front-matter header (no body).</summary>
+        public static bool GapSweepDryRun { get; set; }
+
+        /// <summary>
+        /// Repo root override for gap-sweep scanning. Defaults to walking up from the
+        /// executable directory until a `FEBuilderGBA.sln` is found, or the current
+        /// directory if no solution file is found.
+        /// </summary>
+        public static string? GapSweepRepoRoot { get; set; }
+
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
@@ -100,10 +118,128 @@ namespace FEBuilderGBA.Avalonia
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 ParseArgs(desktop.Args);
+
+                // Gap-sweep flags are pure static-analysis (no ROM, no UI required).
+                // Execute them BEFORE creating MainWindow and exit immediately so
+                // they're fast (~1-2 seconds total) and don't pop a window in CI.
+                if (GapSweepMode != null)
+                {
+                    int code = RunGapSweep();
+                    Environment.Exit(code);
+                    return;
+                }
+
                 desktop.MainWindow = new Views.MainWindow();
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// Execute the gap-sweep flow chosen by <see cref="GapSweepMode"/>. Returns
+        /// the process exit code (0 success, 2 missing required argument, 1 fatal).
+        /// Wraps each scanner in try/catch so a single bad file doesn't crash the
+        /// whole sweep — the report itself surfaces any errors.
+        /// </summary>
+        static int RunGapSweep()
+        {
+            if (string.IsNullOrEmpty(GapSweepOut))
+            {
+                Console.Error.WriteLine("--gap-sweep-* requires --out=<path>");
+                return 2;
+            }
+
+            string repoRoot = GapSweepRepoRoot ?? FindRepoRoot();
+            Console.WriteLine($"GAPSWEEP[{GapSweepMode}]: repo-root={repoRoot} out={GapSweepOut} dry-run={GapSweepDryRun}");
+
+            try
+            {
+                switch (GapSweepMode)
+                {
+                    case "density":
+                        return RunDensitySweep(repoRoot, GapSweepOut!, GapSweepDryRun);
+
+                    case "labels":
+                    case "jumps":
+                    case "undo":
+                    case "l10n":
+                    case "all":
+                        // Phases 2-7 land in follow-up PRs. For Phase 0 we just
+                        // write a header-only stub so callers can wire up CI now
+                        // and have a file to look at when the phase ships.
+                        var phaseInfo = new Dictionary<string, string>
+                        {
+                            ["status"] = "not-yet-implemented",
+                        };
+                        ReportWriter.WriteReport(
+                            GapSweepOut!,
+                            GapSweepMode!,
+                            sections: new[]
+                            {
+                                $"# Gap-sweep `{GapSweepMode}` — not yet implemented",
+                                "",
+                                $"This sweep mode is a Phase 2+ follow-up to the Phase 1 density sweep.",
+                                "Track the rollout on issue [#374](https://github.com/laqieer/FEBuilderGBA/issues/374).",
+                            },
+                            extraFrontMatter: phaseInfo);
+                        Console.WriteLine($"GAPSWEEP[{GapSweepMode}]: stub report written (phase pending).");
+                        return 0;
+
+                    default:
+                        Console.Error.WriteLine($"Unknown gap-sweep mode: {GapSweepMode}");
+                        return 2;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"GAPSWEEP[{GapSweepMode}]: fatal: {ex.Message}");
+                Console.Error.WriteLine(ex.StackTrace);
+                return 1;
+            }
+        }
+
+        /// <summary>
+        /// Phase 1: control-density delta sweep. Returns 0 on success.
+        /// In dry-run mode we still discover pairs (cheap) but skip the actual
+        /// Roslyn / XML scan; the report carries just a header + a "dry run"
+        /// note so callers can verify file-system permissions etc.
+        /// </summary>
+        static int RunDensitySweep(string repoRoot, string outPath, bool dryRun)
+        {
+            var pairs = PairMatcher.DiscoverAll(repoRoot);
+            Console.WriteLine($"GAPSWEEP[density]: discovered {pairs.Count} editor pairs.");
+
+            if (dryRun)
+            {
+                ReportWriter.WriteReport(outPath, "density",
+                    new[] { $"<!-- dry-run: {pairs.Count} pairs discovered, scan skipped -->" });
+                Console.WriteLine("GAPSWEEP[density]: dry-run header written.");
+                return 0;
+            }
+
+            var rows = ControlDensityScanner.Scan(pairs, repoRoot);
+            Console.WriteLine($"GAPSWEEP[density]: scanned {rows.Count} non-empty rows.");
+
+            string body = ControlDensityScanner.FormatReport(rows);
+            ReportWriter.WriteReport(outPath, "density", new[] { body });
+            Console.WriteLine($"GAPSWEEP[density]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Walk up from the executable directory looking for `FEBuilderGBA.sln`.
+        /// Falls back to the current working directory if no solution is found
+        /// (e.g. running a published binary outside the source tree).
+        /// </summary>
+        static string FindRepoRoot()
+        {
+            string start = AppDomain.CurrentDomain.BaseDirectory;
+            for (DirectoryInfo? dir = new DirectoryInfo(start); dir != null; dir = dir.Parent)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
+            }
+            return Directory.GetCurrentDirectory();
         }
 
         /// <summary>Toggle between light and dark mode, updating dynamic resources and persisting the choice.</summary>
@@ -264,6 +400,48 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ListParityMode = true;
+                }
+                else if (args[i] == "--gap-sweep-density")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "density";
+                }
+                else if (args[i] == "--gap-sweep-labels")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "labels";
+                }
+                else if (args[i] == "--gap-sweep-jumps")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "jumps";
+                }
+                else if (args[i] == "--gap-sweep-undo")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "undo";
+                }
+                else if (args[i] == "--gap-sweep-l10n")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "l10n";
+                }
+                else if (args[i] == "--gap-sweep-all")
+                {
+                    SmokeTestMode = true;
+                    GapSweepMode = "all";
+                }
+                else if (args[i] == "--dry-run")
+                {
+                    GapSweepDryRun = true;
+                }
+                else if (args[i].StartsWith("--out="))
+                {
+                    GapSweepOut = args[i].Substring("--out=".Length);
+                }
+                else if (args[i].StartsWith("--repo-root="))
+                {
+                    GapSweepRepoRoot = args[i].Substring("--repo-root=".Length);
                 }
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {
