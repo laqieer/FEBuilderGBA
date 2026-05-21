@@ -570,4 +570,220 @@ namespace X {
             try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
         }
     }
+
+    // =====================================================================
+    // Review-fix regression tests (PR #377 round 2)
+    // =====================================================================
+
+    [Fact]
+    public void ExtractAvLabels_HarvestsToolTipTipAttachedProperty()
+    {
+        // Avalonia's tooltip uses the attached-property syntax `ToolTip.Tip="..."`.
+        // XDocument exposes the local-name verbatim including the dot, so the
+        // scanner must include `ToolTip.Tip` in its attribute allow-list.
+        // Regression for PR #377 review comment 1.
+        string xml = @"<UserControl xmlns='https://github.com/avaloniaui'>
+  <TextBox ToolTip.Tip='Helpful hint' />
+</UserControl>";
+        var labels = LabelDiffScanner.ExtractAvLabelsFromDocument(XDocument.Parse(xml));
+        Assert.Single(labels);
+        Assert.Equal("Helpful hint", labels[0]);
+    }
+
+    [Fact]
+    public void ExtractAvLabels_ToolTipTipBindingSkipped()
+    {
+        // Same attached-property name, but the value is a `{Binding}` —
+        // markup-extension values must STILL be skipped on attached properties.
+        string xml = @"<UserControl xmlns='https://github.com/avaloniaui'>
+  <TextBox ToolTip.Tip='{Binding TipText}' />
+</UserControl>";
+        var labels = LabelDiffScanner.ExtractAvLabelsFromDocument(XDocument.Parse(xml));
+        Assert.Empty(labels);
+    }
+
+    [Fact]
+    public void ExtractWfLabelsFromSource_ResolvesResourcesGetString()
+    {
+        // PR #377 review comment 3: some Designer.cs files use
+        // `this.label1.Text = resources.GetString("label1.Text");` instead of
+        // an inline literal. The scanner must resolve those via a sibling
+        // .resx (or an injected lookup dictionary in tests).
+        string src = @"
+namespace X {
+    partial class F {
+        private System.Windows.Forms.Label label1;
+        void Init() {
+            this.label1 = new System.Windows.Forms.Label();
+            this.label1.Text = resources.GetString(""label1.Text"");
+        }
+    }
+}";
+        var resx = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["label1.Text"] = "From RESX",
+        };
+        var labels = LabelDiffScanner.ExtractWfLabelsFromSource(src, resx);
+        Assert.Single(labels);
+        Assert.Equal("From RESX", labels[0]);
+    }
+
+    [Fact]
+    public void ExtractWfLabelsFromSource_ResourcesGetStringMissingKeyProducesNoLabel()
+    {
+        // If the resx is missing or the key doesn't exist, the scanner must
+        // silently drop the assignment rather than produce a fake label.
+        string src = @"
+namespace X {
+    partial class F {
+        private System.Windows.Forms.Label label1;
+        void Init() {
+            this.label1 = new System.Windows.Forms.Label();
+            this.label1.Text = resources.GetString(""label1.Text"");
+        }
+    }
+}";
+        // No resx provided.
+        var labels = LabelDiffScanner.ExtractWfLabelsFromSource(src, resourceLookup: null);
+        Assert.Empty(labels);
+        // Empty resx provided.
+        labels = LabelDiffScanner.ExtractWfLabelsFromSource(src, new Dictionary<string, string>());
+        Assert.Empty(labels);
+    }
+
+    [Fact]
+    public void FormatReport_EscapesMultilineLabelsAndTruncatesVeryLongOnes()
+    {
+        // PR #377 review comment 4: multi-line label literals would break the
+        // markdown bullet (renderer treats the second line as a sibling).
+        // Newlines must be escaped to `\\n` so the label stays on one line.
+        // Very long labels (>200 chars) should be truncated with an ellipsis
+        // so the report stays readable.
+        string multiline = "First line\r\nSecond line";
+        string verylong = new string('x', 250) + "TAIL";
+        var rows = new[]
+        {
+            new LabelDiffRow(
+                new EditorPair("MultilineForm", null, "MultilineView", null, MatchMethod.Heuristic, Confidence.High),
+                new[] { multiline, verylong },
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+        };
+        string report = LabelDiffScanner.FormatReport(rows);
+        // The original CR/LF must NOT appear inside the bullet — only the
+        // escaped form (`\\r`, `\\n`).
+        // The escape sequence we emit is the two-character literal `\\n`;
+        // we test by searching for the literal "First line\\r\\n" (which is
+        // `First line\r\n` in source).
+        Assert.Contains(@"First line\r\nSecond line", report);
+        // The very-long label is truncated with the ellipsis marker.
+        Assert.Contains("… (truncated; see designer file)", report);
+        // No raw line-break inside a bullet — that would split it into two.
+        int bulletIdx = report.IndexOf("- `First line", StringComparison.Ordinal);
+        Assert.True(bulletIdx >= 0);
+        int endOfLine = report.IndexOf('\n', bulletIdx);
+        Assert.True(endOfLine >= 0);
+        string bulletText = report.Substring(bulletIdx, endOfLine - bulletIdx);
+        Assert.DoesNotContain('\r', bulletText);
+    }
+
+    [Fact]
+    public void FormatReport_NoTrailingBlankLine()
+    {
+        // PR #377 review comment 3 also flagged `git diff --check` reporting
+        // a trailing blank line. The report body must end in exactly one
+        // newline (not two).
+        var rows = new[]
+        {
+            new LabelDiffRow(
+                new EditorPair("AForm", null, "AView", null, MatchMethod.Heuristic, Confidence.High),
+                new[] { "x" },
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+        };
+        string report = LabelDiffScanner.FormatReport(rows);
+        Assert.True(report.Length > 0);
+        // Must end in exactly one '\n', not two.
+        Assert.Equal('\n', report[^1]);
+        Assert.NotEqual('\n', report[^2]);
+    }
+
+    [Fact]
+    public void FormatReport_OmitsDensityLinkWhenNoneProvided()
+    {
+        // PR #377 review comment 5: the density-link path was hardcoded
+        // (`2026-05-21-density-sweep.md`). The fix: accept null and emit
+        // a generic pointer in that case.
+        var rows = new[]
+        {
+            new LabelDiffRow(
+                new EditorPair("X", null, "Y", null, MatchMethod.Heuristic, Confidence.High),
+                new[] { "z" },
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+        };
+        string report = LabelDiffScanner.FormatReport(rows, densityRows: null, densityReportLink: null);
+        Assert.DoesNotContain("2026-05-21-density-sweep.md", report);
+        Assert.Contains("latest density baseline", report);
+    }
+
+    [Fact]
+    public void FormatReport_UsesProvidedDensityLink()
+    {
+        var rows = new[]
+        {
+            new LabelDiffRow(
+                new EditorPair("X", null, "Y", null, MatchMethod.Heuristic, Confidence.High),
+                new[] { "z" },
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+        };
+        string report = LabelDiffScanner.FormatReport(rows, densityRows: null, densityReportLink: "2099-12-31-density-sweep.md");
+        Assert.Contains("2099-12-31-density-sweep.md", report);
+        Assert.DoesNotContain("2026-05-21-density-sweep.md", report);
+    }
+
+    [Fact]
+    public void FindLatestDensityReport_PicksLexicographicallyMaxFilename()
+    {
+        // ISO-8601 dates sort naturally as strings, so picking the lex max
+        // gives the newest density report.
+        string tempDir = Path.Combine(Path.GetTempPath(), "fbgba-finddensity-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "2026-05-21-density-sweep.md"), "old");
+            File.WriteAllText(Path.Combine(tempDir, "2026-05-22-density-sweep.md"), "newer");
+            File.WriteAllText(Path.Combine(tempDir, "2026-06-01-density-sweep.md"), "newest");
+            File.WriteAllText(Path.Combine(tempDir, "ignore-me.md"), "decoy");
+            // Place the labels report in the same dir; FindLatestDensityReport
+            // reads from the labels report's parent directory.
+            string labelsPath = Path.Combine(tempDir, "2026-06-01-labels-sweep.md");
+            File.WriteAllText(labelsPath, "");
+
+            string? picked = LabelDiffScanner.FindLatestDensityReport(labelsPath);
+            Assert.Equal("2026-06-01-density-sweep.md", picked);
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+        }
+    }
+
+    [Fact]
+    public void FindLatestDensityReport_ReturnsNullWhenNoDensityReports()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "fbgba-finddensity-empty-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            string labelsPath = Path.Combine(tempDir, "2026-06-01-labels-sweep.md");
+            File.WriteAllText(labelsPath, "");
+            Assert.Null(LabelDiffScanner.FindLatestDensityReport(labelsPath));
+        }
+        finally
+        {
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* best effort */ }
+        }
+    }
 }

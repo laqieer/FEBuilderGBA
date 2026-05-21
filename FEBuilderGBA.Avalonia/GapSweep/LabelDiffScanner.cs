@@ -21,16 +21,21 @@
 // generates `this.foo.Text = "..."` assignments for every Label/Button/etc.).
 // We collect string-literal assignments to `.Text` whose enclosing object-
 // creation type is in a known control allow-list, plus property-initialiser
-// syntax `new Label { Text = "..." }` for hand-coded forms.
+// syntax `new Label { Text = "..." }` for hand-coded forms. Designers that
+// use VS's localisation-aware emit mode (`resources.GetString("key")`) are
+// resolved by parsing the sibling *.resx file.
 //
 // Avalonia side: System.Xml.Linq parses *View.axaml. We walk every element
 // and harvest literal values from `Text`, `Content`, `Header`, `ToolTip`,
-// `Watermark` attributes (and the property-element forms). Values that start
-// with `{` are markup extensions (`{Binding ...}`, `{StaticResource ...}`,
-// `{DynamicResource ...}`, `{x:Static ...}`, etc.) and are skipped. Elements
-// inside templating containers (Style/Styles/DataTemplate/ControlTemplate/
-// Design.DataContext) are also skipped — they describe templates, not the
-// realised layout.
+// `ToolTip.Tip` (the attached-property form, which this codebase uses ~55
+// times), `Watermark` attributes. The implementation reads ATTRIBUTES only,
+// not property-element forms (`<Button.Content>Save</Button.Content>`); the
+// repo's views never use that syntax so handling it would add complexity
+// for no real signal. Values that start with `{` are markup extensions
+// (`{Binding ...}`, `{StaticResource ...}`, `{DynamicResource ...}`,
+// `{x:Static ...}`, etc.) and are skipped. Elements inside templating
+// containers (Style/Styles/DataTemplate/ControlTemplate/Design.DataContext)
+// are also skipped — they describe templates, not the realised layout.
 //
 // Normalisation strips trailing colons (UI convention "Name:" vs AXAML "Name"),
 // collapses whitespace, lowercases, and removes mnemonic markers (`&` for
@@ -93,15 +98,23 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         };
 
         /// <summary>
-        /// AXAML attribute names we treat as literal-label sources. Property-
-        /// element forms (`&lt;Button.Content&gt;Save&lt;/Button.Content&gt;`)
-        /// are handled by inspecting every XElement's child text nodes for
-        /// these names — but the attribute form (the common case) is what
-        /// the scanner harvests.
+        /// AXAML attribute local-names we treat as literal-label sources. Only the
+        /// attribute form is harvested — property-element syntax
+        /// (`&lt;Button.Content&gt;Save&lt;/Button.Content&gt;`) is rare across
+        /// this codebase's views (a `grep -r '\.Content&gt;' Views/` finds zero
+        /// matches), so the implementation deliberately skips that path to keep
+        /// the scanner simple.
+        ///
+        /// `ToolTip.Tip` is included for Avalonia's attached-property form
+        /// `ToolTip.Tip="..."` — the codebase has ~55 such usages across
+        /// ClassEditorView / ItemEditorView / etc. XDocument exposes the
+        /// attribute's local-name verbatim including the dot, so we match
+        /// `ToolTip.Tip` literally (NOT just `Tip`, which would over-match any
+        /// element with a `Tip` attribute).
         /// </summary>
         static readonly HashSet<string> AvLabelAttributes = new(StringComparer.Ordinal)
         {
-            "Text", "Content", "Header", "ToolTip", "Watermark",
+            "Text", "Content", "Header", "ToolTip", "ToolTip.Tip", "Watermark",
         };
 
         /// <summary>
@@ -200,6 +213,12 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// because a designer can legitimately emit the same label twice
         /// (e.g. two "Name:" group headers for distinct sections); the
         /// caller's normalised set takes care of de-duplication.
+        ///
+        /// Some designer files use `resources.GetString("label1.Text")`
+        /// instead of inline literals. We resolve those by parsing the sibling
+        /// .resx file when present so the WF inventory isn't silently under-
+        /// counted for forms that route through ComponentResourceManager (the
+        /// VS Designer's localisation-aware emit mode).
         /// </summary>
         public static IReadOnlyList<string> ExtractWfLabels(string designerCsPath)
         {
@@ -208,7 +227,14 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 if (!File.Exists(designerCsPath))
                     return Array.Empty<string>();
                 string code = File.ReadAllText(designerCsPath);
-                return ExtractWfLabelsFromSource(code);
+                // Look up the sibling .resx so resources.GetString(...) calls
+                // resolve to concrete strings. The .resx sits next to the
+                // *Form.Designer.cs OR next to the *Form.cs (one of the two);
+                // try both. Missing .resx is fine — the resolver just returns
+                // an empty dictionary and `resources.GetString` calls produce
+                // no labels.
+                Dictionary<string, string>? resx = TryLoadSiblingResx(designerCsPath);
+                return ExtractWfLabelsFromSource(code, resx);
             }
             catch
             {
@@ -217,10 +243,51 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         }
 
         /// <summary>
-        /// In-memory variant for unit tests — same logic as
-        /// <see cref="ExtractWfLabels"/> but takes a source string.
+        /// Locate a sibling .resx file for a *.cs designer file and parse it
+        /// into a name→value dictionary. Designer convention is the .resx
+        /// shares the form's base name (e.g. `Foo.Designer.cs` ↔ `Foo.resx`).
+        /// Returns null if no .resx exists.
         /// </summary>
-        public static IReadOnlyList<string> ExtractWfLabelsFromSource(string sourceCode)
+        static Dictionary<string, string>? TryLoadSiblingResx(string csPath)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(csPath) ?? "";
+                string baseName = Path.GetFileNameWithoutExtension(csPath);
+                // Strip ".Designer" if present so "Foo.Designer.cs" → "Foo".
+                if (baseName.EndsWith(".Designer", StringComparison.Ordinal))
+                    baseName = baseName.Substring(0, baseName.Length - ".Designer".Length);
+                string candidate = Path.Combine(dir, baseName + ".resx");
+                if (!File.Exists(candidate))
+                    return null;
+                var dict = new Dictionary<string, string>(StringComparer.Ordinal);
+                XDocument doc = XDocument.Load(candidate);
+                foreach (XElement data in doc.Descendants("data"))
+                {
+                    XAttribute? nameAttr = data.Attribute("name");
+                    XElement? valueEl = data.Element("value");
+                    if (nameAttr == null || valueEl == null)
+                        continue;
+                    dict[nameAttr.Value] = valueEl.Value;
+                }
+                return dict;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// In-memory variant for unit tests — same logic as
+        /// <see cref="ExtractWfLabels"/> but takes a source string. If
+        /// <paramref name="resourceLookup"/> is provided, `resources.GetString("k")`
+        /// callsites resolve to `resourceLookup["k"]` so .resx-backed
+        /// localisations participate in the inventory.
+        /// </summary>
+        public static IReadOnlyList<string> ExtractWfLabelsFromSource(
+            string sourceCode,
+            IReadOnlyDictionary<string, string>? resourceLookup = null)
         {
             if (string.IsNullOrEmpty(sourceCode))
                 return Array.Empty<string>();
@@ -237,6 +304,9 @@ namespace FEBuilderGBA.Avalonia.GapSweep
 
             // ---- 1. Pattern: `this.foo.Text = "Hello";` (designer-style) ----
             //    or  `foo.Text = "Hello";` (rare but legal)
+            // ---- 1b. Pattern: `this.foo.Text = resources.GetString("foo.Text");` ----
+            //    (VS Designer's localisation-aware emit mode — resolved via the
+            //     sibling .resx when one is provided.)
             // We collect string-literal assignments and resolve the LHS variable's
             // host type via the map.
             foreach (var assign in root.DescendantNodes().OfType<AssignmentExpressionSyntax>())
@@ -247,10 +317,6 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     continue;
                 if (memberAccess.Name.Identifier.Text != "Text")
                     continue;
-                if (assign.Right is not LiteralExpressionSyntax literal)
-                    continue;
-                if (!literal.IsKind(SyntaxKind.StringLiteralExpression))
-                    continue;
 
                 string? owner = ExtractWfOwnerVariable(memberAccess.Expression);
                 if (owner == null)
@@ -260,10 +326,28 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 if (!WfLabelHostTypes.Contains(hostType))
                     continue;
 
-                string text = (string?)literal.Token.Value ?? "";
-                if (text.Length == 0)
+                // Case A: RHS is a string literal.
+                if (assign.Right is LiteralExpressionSyntax literal &&
+                    literal.IsKind(SyntaxKind.StringLiteralExpression))
+                {
+                    string text = (string?)literal.Token.Value ?? "";
+                    if (text.Length > 0)
+                        labels.Add(text);
                     continue;
-                labels.Add(text);
+                }
+
+                // Case B: RHS is `resources.GetString("key")` — look up in the
+                // provided dictionary. We accept any callable whose method-name
+                // identifier is `GetString` (handles both ComponentResourceManager
+                // and ResourceManager subclasses) and a single string-literal arg.
+                if (resourceLookup != null &&
+                    assign.Right is InvocationExpressionSyntax inv &&
+                    TryGetResourceKey(inv) is { } key &&
+                    resourceLookup.TryGetValue(key, out string? resolved) &&
+                    !string.IsNullOrEmpty(resolved))
+                {
+                    labels.Add(resolved);
+                }
             }
 
             // ---- 2. Pattern: `new Label { Text = "Hello" }` (object initialiser) ----
@@ -391,6 +475,34 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     => ((IdentifierNameSyntax)m.Expression).Identifier.Text + "." + m.Name.Identifier.Text,
                 _ => null,
             };
+        }
+
+        /// <summary>
+        /// Recognise `resources.GetString("key")` (or any other
+        /// invocation whose method-name is `GetString` and which carries a
+        /// single string-literal argument) and return the literal key. The
+        /// receiver-name match (`resources`) would be too brittle — the
+        /// designer sometimes uses a different identifier — so we go by the
+        /// method-name + single-string-literal-arg signature instead. Returns
+        /// null if the invocation doesn't fit.
+        /// </summary>
+        static string? TryGetResourceKey(InvocationExpressionSyntax inv)
+        {
+            string methodName = inv.Expression switch
+            {
+                MemberAccessExpressionSyntax m => m.Name.Identifier.Text,
+                IdentifierNameSyntax id => id.Identifier.Text,
+                _ => "",
+            };
+            if (methodName != "GetString")
+                return null;
+            if (inv.ArgumentList.Arguments.Count != 1)
+                return null;
+            if (inv.ArgumentList.Arguments[0].Expression is not LiteralExpressionSyntax lit)
+                return null;
+            if (!lit.IsKind(SyntaxKind.StringLiteralExpression))
+                return null;
+            return (string?)lit.Token.Value;
         }
 
         /// <summary>Pull the trailing identifier out of a TypeSyntax (e.g. <c>System.Windows.Forms.Button</c> → <c>Button</c>).</summary>
@@ -605,10 +717,16 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// If <paramref name="densityRows"/> is supplied, each per-pair section
         /// cross-links to that pair's density verdict (provides quantitative
         /// context for the qualitative label list).
+        ///
+        /// <paramref name="densityReportLink"/> is the path (relative to this
+        /// report's location) of the latest density baseline to cross-link from
+        /// the "Top 20" section. Pass null/empty to suppress the link entirely;
+        /// callers normally derive this from `FindLatestDensityReport(outDir)`.
         /// </summary>
         public static string FormatReport(
             IReadOnlyList<LabelDiffRow> rows,
-            IReadOnlyList<DensityRow>? densityRows = null)
+            IReadOnlyList<DensityRow>? densityRows = null,
+            string? densityReportLink = null)
         {
             if (rows == null) throw new ArgumentNullException(nameof(rows));
             // Density lookup keyed by (WfFormName, AvViewName) so each labels
@@ -631,11 +749,13 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             sb.Append("to the Phase 1 control-density sweep.\n\n");
             sb.Append("WinForms side: Roslyn extracts `.Text = \"...\"` assignments on\n");
             sb.Append("`Label`, `GroupBox`, `Button`, `CheckBox`, `RadioButton`, `TabPage`\n");
-            sb.Append("controls (plus property-initialiser syntax for hand-coded forms).\n");
+            sb.Append("controls (plus property-initialiser syntax for hand-coded forms, and\n");
+            sb.Append("`resources.GetString(\"key\")` calls resolved via the sibling .resx).\n");
             sb.Append("Avalonia side: `XDocument` parses every view, harvests literal values from\n");
-            sb.Append("`Text` / `Content` / `Header` / `ToolTip` / `Watermark` attributes,\n");
-            sb.Append("skipping markup-extension values (`{Binding ...}`, `{StaticResource ...}`)\n");
-            sb.Append("and elements nested inside template containers (`Style`, `DataTemplate`, ...).\n\n");
+            sb.Append("`Text` / `Content` / `Header` / `ToolTip` / `ToolTip.Tip` / `Watermark`\n");
+            sb.Append("attributes, skipping markup-extension values (`{Binding ...}`,\n");
+            sb.Append("`{StaticResource ...}`) and elements nested inside template containers\n");
+            sb.Append("(`Style`, `DataTemplate`, ...).\n\n");
             sb.Append("Normalisation collapses whitespace, strips trailing colons, removes mnemonic\n");
             sb.Append("markers (`&` for WF, `_` for AV), and lowercases — so `Name:` / `&Name` /\n");
             sb.Append("`_Name` / `Name` all collide to the same set key. Original casing is preserved\n");
@@ -662,7 +782,16 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             // ---- Top-20 candidate-missing-field counts ----
             sb.Append("## Top 20 Forms by WF-only Label Count\n\n");
             sb.Append("Each row's WF-only count is the upper bound on missing fields in the AV view.\n");
-            sb.Append("Cross-link to the [density sweep](2026-05-21-density-sweep.md) for quantitative context.\n\n");
+            if (!string.IsNullOrEmpty(densityReportLink))
+            {
+                sb.Append("Cross-link to the [density sweep](")
+                  .Append(densityReportLink)
+                  .Append(") for quantitative context.\n\n");
+            }
+            else
+            {
+                sb.Append("See the latest density baseline (under `docs/avalonia-gaps/`) for quantitative context.\n\n");
+            }
             sb.Append("| Rank | WF Form | AV View | WF-only | AV-only | Common |\n");
             sb.Append("|---:|---|---|---:|---:|---:|\n");
             int rank = 0;
@@ -728,21 +857,81 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 }
             }
 
+            // Trim any trailing blank lines so the body ends in a single `\n`.
+            // ReportWriter then adds at most one terminal newline, giving a
+            // clean EOF with no `git diff --check`-flagged extra blank lines.
+            // (Phase 1's density report had the same issue — fixed in #375's
+            // follow-up commit `e803555e6`; we apply the same discipline here.)
+            while (sb.Length >= 2 && sb[sb.Length - 1] == '\n' && sb[sb.Length - 2] == '\n')
+                sb.Length--;
             return sb.ToString();
         }
 
         /// <summary>
-        /// Render a label literal as inline-code markdown. If the literal
-        /// itself contains a backtick (rare for UI labels but possible), we
-        /// emit the double-backtick variant with surrounding spaces per the
-        /// CommonMark rule so the markdown renders correctly.
+        /// Render a label literal as inline-code markdown safely.
+        ///
+        /// Three concerns:
+        ///   1. Embedded backticks would break a single-backtick code span.
+        ///      Use double-backticks with leading/trailing space per CommonMark.
+        ///   2. Embedded CR/LF would break the markdown bullet (the renderer
+        ///      sees the second line as a sibling bullet or paragraph). We
+        ///      escape `\r` and `\n` as literal `\\r` / `\\n` sequences so the
+        ///      whole label stays on one line. The original label is still
+        ///      identifiable; readers can recover it by reversing the escape.
+        ///   3. Very long labels (≥ 200 chars) bloat the report; we truncate
+        ///      with an explicit ellipsis marker so the report stays scannable
+        ///      while still telling the reader "there's a long explanatory
+        ///      label here, dig into the designer file if you need the full
+        ///      text".
         /// </summary>
         static string RenderLabelLiteral(string label)
         {
-            if (label.IndexOf('`') < 0)
-                return "`" + label + "`";
-            // Use the double-backtick fence with leading/trailing space.
-            return "`` " + label + " ``";
+            // Step 1: escape embedded CR/LF so the bullet stays on one line.
+            string escaped = label.Replace("\r", "\\r").Replace("\n", "\\n");
+
+            // Step 2: truncate very long labels (these are typically
+            // explanatory paragraphs, not field labels).
+            const int MaxLen = 200;
+            if (escaped.Length > MaxLen)
+                escaped = escaped.Substring(0, MaxLen) + "… (truncated; see designer file)";
+
+            // Step 3: choose the safe code-fence (double-backtick with padding
+            // if the value itself contains a backtick).
+            if (escaped.IndexOf('`') < 0)
+                return "`" + escaped + "`";
+            return "`` " + escaped + " ``";
+        }
+
+        /// <summary>
+        /// Pick the latest density-sweep report (by filename date prefix) sitting
+        /// next to <paramref name="labelsReportPath"/>. Returns the file name
+        /// (no directory) so the link is portable across worktree paths. Returns
+        /// null when no density report exists.
+        ///
+        /// Convention: reports are named `YYYY-MM-DD-{type}-sweep.md`. We pick
+        /// the lexicographic max of `*-density-sweep.md` files because ISO-8601
+        /// dates sort naturally as strings.
+        /// </summary>
+        public static string? FindLatestDensityReport(string labelsReportPath)
+        {
+            try
+            {
+                string? dir = Path.GetDirectoryName(Path.GetFullPath(labelsReportPath));
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                    return null;
+                string? latest = null;
+                foreach (string path in Directory.EnumerateFiles(dir, "*-density-sweep.md", SearchOption.TopDirectoryOnly))
+                {
+                    string name = Path.GetFileName(path);
+                    if (latest == null || string.CompareOrdinal(name, latest) > 0)
+                        latest = name;
+                }
+                return latest;
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

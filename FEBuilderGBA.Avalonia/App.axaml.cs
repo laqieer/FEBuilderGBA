@@ -268,7 +268,19 @@ namespace FEBuilderGBA.Avalonia
             int pairsWithGap = rows.Count(r => r.WfOnlyLabels.Count > 0);
             Console.WriteLine($"GAPSWEEP[labels]: scanned {rows.Count} pairs with both files; {pairsWithGap} have >=1 WF-only label.");
 
-            string body = LabelDiffScanner.FormatReport(rows);
+            // Also run the density scan in-memory so the labels report can
+            // cross-link each per-pair section to its density verdict. The
+            // density scan is cheap (~1-2 s with the parallel scanner) and
+            // gives reviewers the quantitative context for each qualitative
+            // gap row.
+            var densityRows = ControlDensityScanner.Scan(pairs, repoRoot);
+            // Pick the latest density baseline (file name only, no directory
+            // prefix) sitting in the same docs folder so the top-of-report
+            // cross-link works regardless of the date of THIS report.
+            string? densityLink = LabelDiffScanner.FindLatestDensityReport(outPath);
+            Console.WriteLine($"GAPSWEEP[labels]: density cross-link → {densityLink ?? "(none found)"}");
+
+            string body = LabelDiffScanner.FormatReport(rows, densityRows, densityLink);
             ReportWriter.WriteReport(outPath, "labels", new[] { body }, gitWorkingDir: repoRoot);
             Console.WriteLine($"GAPSWEEP[labels]: report written to {outPath}");
             return 0;
