@@ -154,6 +154,40 @@ namespace FEBuilderGBA.Avalonia
         }
 
         /// <summary>
+        /// Pre-Avalonia entry point for the gap-sweep flags (called by
+        /// <see cref="Program.Main"/>). Returns the exit code to use, or
+        /// <c>null</c> when no `--gap-sweep-*` flag is present (in which case
+        /// the caller continues with the normal Avalonia boot).
+        ///
+        /// This runs BEFORE Skia / Avalonia initialise so headless CI
+        /// runners (where libSkiaSharp's version can mismatch the managed
+        /// NuGet) can still publish reports without crashing in the Skia
+        /// font-manager static constructor. Gap-sweep is pure static
+        /// analysis — Roslyn syntax-trees + XDocument XML scans — and needs
+        /// nothing from the windowing stack.
+        ///
+        /// Wires only the minimum CoreState the scanners require:
+        /// <see cref="CoreState.BaseDirectory"/> (used to walk up to the
+        /// repo root) and nothing else. The headless caches and Skia
+        /// services that <see cref="OnFrameworkInitializationCompleted"/>
+        /// installs are not touched by the scanners.
+        /// </summary>
+        internal static int? RunGapSweepStandalone(string[] args)
+        {
+            ParseArgs(args);
+            if (GapSweepMode == null)
+                return null;
+            // Encoding.RegisterProvider for Shift-JIS isn't required by the
+            // scanners (Roslyn handles source encoding via BOM detection,
+            // and Phase 6 reads UTF-8 translate/*.txt). We register anyway
+            // to keep behavioural parity with the main-form boot path in
+            // case a future scanner does need it.
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            CoreState.BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            return RunGapSweep();
+        }
+
+        /// <summary>
         /// Execute the gap-sweep flow chosen by <see cref="GapSweepMode"/>. Returns
         /// the process exit code (0 success, 2 missing required argument, 1 fatal).
         /// Wraps each scanner in an outer try/catch so a fatal exception terminates
@@ -597,21 +631,12 @@ namespace FEBuilderGBA.Avalonia
                 return 2;
             }
 
+            // Allow tests to override which sub-sweeps run (and how) so they
+            // can inject a deliberately-failing sweep to exercise the
+            // per-sweep try/catch isolation. Production path uses the
+            // default set built by BuildDefaultSubSweeps below.
+            var subs = SubSweepsOverride ?? BuildDefaultSubSweeps(repoRoot, dryRun);
             string datePrefix = DateTime.UtcNow.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-            // Each sub-sweep is invoked via its own Run* method so behaviour
-            // matches single-flag CLI invocations exactly (same dry-run shape,
-            // same scanner code path, same front-matter). The lambdas pin
-            // GapSweepLanguages for the l10n sweep to the same default the
-            // single-flag handler picks up — explicit so the composite can be
-            // reasoned about without spelunking the parser.
-            var subs = new (string Name, Func<string, int> Run)[]
-            {
-                ("density", path => RunDensitySweep(repoRoot, path, dryRun)),
-                ("labels",  path => RunLabelsSweep (repoRoot, path, dryRun)),
-                ("jumps",   path => RunJumpsSweep  (repoRoot, path, dryRun)),
-                ("undo",    path => RunUndoSweep   (repoRoot, path, dryRun)),
-                ("l10n",    path => RunL10nSweep   (repoRoot, path, dryRun, GapSweepLanguages)),
-            };
 
             // Run each sub-sweep and track success/failure for the summary.
             // We deliberately swallow exceptions per-sweep so one transient
@@ -622,7 +647,7 @@ namespace FEBuilderGBA.Avalonia
             {
                 string fileName = $"{datePrefix}-{name}-sweep.md";
                 string fullPath = Path.Combine(outDir, fileName);
-                Console.WriteLine($"GAPSWEEP[all]: running {name} → {fullPath}");
+                Console.WriteLine($"GAPSWEEP[all]: running {name} -> {fullPath}");
                 try
                 {
                     int code = run(fullPath);
@@ -660,6 +685,140 @@ namespace FEBuilderGBA.Avalonia
             // useful artifacts).
             return successes > 0 ? 0 : 1;
         }
+
+        /// <summary>
+        /// Build the default sub-sweep set for the production composite run.
+        /// Density is computed ONCE here and passed in to the labels sweep
+        /// (which would otherwise re-run its own in-memory density scan to
+        /// annotate label gaps — wasteful when we're about to compute it
+        /// for the explicit density sub-sweep anyway). The labels sub-sweep
+        /// then takes the precomputed density rows and skips the redundant
+        /// scan. All other sub-sweeps stay as direct calls to their Run*
+        /// handlers because they don't share work with each other.
+        ///
+        /// Each tuple is (sweep-name, run-function); the run-function takes
+        /// the report file path and returns the per-sweep exit code.
+        /// </summary>
+        static IReadOnlyList<(string Name, Func<string, int> Run)> BuildDefaultSubSweeps(
+            string repoRoot, bool dryRun)
+        {
+            // Cache the pairs and density rows so labels and density don't
+            // each re-discover them. Lazy so dry-run (which doesn't need the
+            // scanner output) stays fast.
+            IReadOnlyList<GapSweep.EditorPair>? cachedPairs = null;
+            IReadOnlyList<GapSweep.DensityRow>? cachedDensityRows = null;
+
+            IReadOnlyList<GapSweep.EditorPair> EnsurePairs()
+            {
+                cachedPairs ??= GapSweep.PairMatcher.DiscoverAll(repoRoot);
+                return cachedPairs;
+            }
+            IReadOnlyList<GapSweep.DensityRow> EnsureDensityRows()
+            {
+                cachedDensityRows ??= GapSweep.ControlDensityScanner.Scan(EnsurePairs(), repoRoot);
+                return cachedDensityRows;
+            }
+
+            return new (string, Func<string, int>)[]
+            {
+                ("density", path => RunDensitySweepShared(repoRoot, path, dryRun, EnsurePairs, EnsureDensityRows)),
+                ("labels",  path => RunLabelsSweepShared (repoRoot, path, dryRun, EnsurePairs, EnsureDensityRows)),
+                ("jumps",   path => RunJumpsSweep        (repoRoot, path, dryRun)),
+                ("undo",    path => RunUndoSweep         (repoRoot, path, dryRun)),
+                ("l10n",    path => RunL10nSweep         (repoRoot, path, dryRun, GapSweepLanguages)),
+            };
+        }
+
+        /// <summary>
+        /// Density sub-sweep variant that consumes the shared
+        /// pairs / rows caches built by <see cref="BuildDefaultSubSweeps"/>.
+        /// Behaviour is identical to <see cref="RunDensitySweep"/> for the
+        /// single-flag CLI path; only the caching pattern differs.
+        /// </summary>
+        static int RunDensitySweepShared(
+            string repoRoot,
+            string outPath,
+            bool dryRun,
+            Func<IReadOnlyList<GapSweep.EditorPair>> ensurePairs,
+            Func<IReadOnlyList<GapSweep.DensityRow>> ensureDensityRows)
+        {
+            if (dryRun)
+            {
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("density", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[density]: dry-run header written.");
+                return 0;
+            }
+
+            var pairs = ensurePairs();
+            Console.WriteLine($"GAPSWEEP[density]: discovered {pairs.Count} editor pairs.");
+            var rows = ensureDensityRows();
+            Console.WriteLine($"GAPSWEEP[density]: scanned {rows.Count} non-empty rows.");
+
+            string body = GapSweep.ControlDensityScanner.FormatReport(rows);
+            ReportWriter.WriteReport(outPath, "density", new[] { body }, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[density]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Labels sub-sweep variant that consumes the shared pairs / density
+        /// rows caches so the composite path doesn't run the density scan
+        /// twice. Behaviour is identical to <see cref="RunLabelsSweep"/> for
+        /// the single-flag CLI path; only the caching pattern differs.
+        /// </summary>
+        static int RunLabelsSweepShared(
+            string repoRoot,
+            string outPath,
+            bool dryRun,
+            Func<IReadOnlyList<GapSweep.EditorPair>> ensurePairs,
+            Func<IReadOnlyList<GapSweep.DensityRow>> ensureDensityRows)
+        {
+            if (dryRun)
+            {
+                string dir = Path.GetDirectoryName(Path.GetFullPath(outPath)) ?? "";
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                File.WriteAllText(outPath, ReportWriter.BuildFrontMatter("labels", gitWorkingDir: repoRoot));
+                Console.WriteLine("GAPSWEEP[labels]: dry-run header written.");
+                return 0;
+            }
+
+            var pairs = ensurePairs();
+            Console.WriteLine($"GAPSWEEP[labels]: discovered {pairs.Count} editor pairs.");
+
+            var rows = GapSweep.LabelDiffScanner.Scan(pairs);
+            int pairsWithGap = rows.Count(r => r.WfOnlyLabels.Count > 0);
+            Console.WriteLine($"GAPSWEEP[labels]: scanned {rows.Count} pairs with both files; {pairsWithGap} have >=1 WF-only label.");
+
+            // Reuse the cached density rows that the density sub-sweep
+            // already computed (or compute them now if labels runs first,
+            // e.g. through SubSweepsOverride). The Func indirection keeps
+            // the work lazy in the dry-run path above.
+            var densityRows = ensureDensityRows();
+            string? densityLink = GapSweep.LabelDiffScanner.FindLatestDensityReport(outPath);
+            Console.WriteLine($"GAPSWEEP[labels]: density cross-link -> {densityLink ?? "(none found)"}");
+
+            string body = GapSweep.LabelDiffScanner.FormatReport(rows, densityRows, densityLink);
+            ReportWriter.WriteReport(outPath, "labels", new[] { body }, gitWorkingDir: repoRoot);
+            Console.WriteLine($"GAPSWEEP[labels]: report written to {outPath}");
+            return 0;
+        }
+
+        /// <summary>
+        /// Test hook: when non-null, <see cref="RunAllSweep"/> uses this
+        /// list of sub-sweeps instead of <see cref="BuildDefaultSubSweeps"/>.
+        /// Tests use this to inject a deliberately-failing sweep and verify
+        /// per-sweep try/catch isolation (one sweep throws → other sweeps
+        /// still run and the composite still returns 0).
+        ///
+        /// Production code MUST NOT set this — the field is internal so
+        /// only the same-assembly tests reach it via
+        /// `InternalsVisibleTo("FEBuilderGBA.Avalonia.Tests")`.
+        /// </summary>
+        internal static IReadOnlyList<(string Name, Func<string, int> Run)>? SubSweepsOverride { get; set; }
 
         /// <summary>
         /// Walk up from the executable directory looking for `FEBuilderGBA.sln`.

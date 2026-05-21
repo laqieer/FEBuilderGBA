@@ -9,6 +9,7 @@
 // per-scanner correctness lives in the existing density / labels / jumps /
 // undo / l10n test suites.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -27,6 +28,7 @@ namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
 /// - Dry-run produces header-only files (front-matter only, no body)
 /// - The `--out=` validation rejects file paths and accepts directories
 /// - The exit code reflects success / failure aggregation correctly
+/// - One sub-sweep failure does not abort the others (per-sweep try/catch)
 /// </summary>
 public class RunAllSweepTests : IDisposable
 {
@@ -40,6 +42,10 @@ public class RunAllSweepTests : IDisposable
 
     public void Dispose()
     {
+        // Always restore the SubSweepsOverride to null so a test that sets
+        // it doesn't leak the override into the next test. Belt-and-braces
+        // because each test is supposed to clean up its own override.
+        App.SubSweepsOverride = null;
         try { Directory.Delete(_tempDir, recursive: true); }
         catch { /* best effort */ }
     }
@@ -63,6 +69,33 @@ public class RunAllSweepTests : IDisposable
 
     static readonly string[] ExpectedSweepNames = { "density", "labels", "jumps", "undo", "l10n" };
 
+    /// <summary>
+    /// Build a minimal sub-sweep set that writes a one-line header-only
+    /// file per sweep and returns 0. Used by tests that don't want to pay
+    /// the full Roslyn / XML scan cost just to exercise orchestration.
+    /// </summary>
+    static IReadOnlyList<(string Name, Func<string, int> Run)> NoOpSubSweeps()
+    {
+        Func<string, string, int> writer = (sweep, path) =>
+        {
+            string dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? "";
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            // Minimal "header-only" — caller assertions only look for the
+            // YAML front-matter markers, not real scanner output.
+            File.WriteAllText(path, $"---\nsweep-type: {sweep}\n---\n");
+            return 0;
+        };
+        return new (string, Func<string, int>)[]
+        {
+            ("density", path => writer("density", path)),
+            ("labels",  path => writer("labels",  path)),
+            ("jumps",   path => writer("jumps",   path)),
+            ("undo",    path => writer("undo",    path)),
+            ("l10n",    path => writer("l10n",    path)),
+        };
+    }
+
     // ---------------- Argument validation ----------------
 
     [Fact]
@@ -71,7 +104,9 @@ public class RunAllSweepTests : IDisposable
         // `--out=foo.md` is the standard single-sweep form — when used with
         // --gap-sweep-all it would silently write five reports beside the
         // intended single file. The composite explicitly rejects that to
-        // catch CLI typos at the boundary.
+        // catch CLI typos at the boundary. Use the no-op overrides so this
+        // doesn't accidentally drive the real scanners.
+        App.SubSweepsOverride = NoOpSubSweeps();
         string filePath = Path.Combine(_tempDir, "report.md");
         int code = App.RunAllSweep(FindRepoRoot(), filePath, dryRun: true);
         Assert.Equal(2, code);
@@ -82,7 +117,8 @@ public class RunAllSweepTests : IDisposable
     public void RunAllSweep_DirectoryWithoutExtension_Accepted()
     {
         // The composite happily writes into a freshly-named subdirectory.
-        // Dry-run keeps the test fast (no Roslyn / XML scans).
+        // No-op overrides keep the test fast (no Roslyn / XML scans).
+        App.SubSweepsOverride = NoOpSubSweeps();
         string outDir = Path.Combine(_tempDir, "2026-05-22");
         int code = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: true);
         Assert.Equal(0, code);
@@ -94,29 +130,45 @@ public class RunAllSweepTests : IDisposable
     [Fact]
     public void RunAllSweep_DryRun_ProducesFiveDatePrefixedReports()
     {
+        App.SubSweepsOverride = NoOpSubSweeps();
         string outDir = Path.Combine(_tempDir, "drysweep");
+        // Snapshot today's UTC date BEFORE the call so we can compare
+        // afterwards against an exact set (today or, in case the test
+        // straddles midnight UTC, yesterday — both must be accepted).
+        DateTime utcBefore = DateTime.UtcNow;
         int code = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: true);
+        DateTime utcAfter = DateTime.UtcNow;
         Assert.Equal(0, code);
 
-            var files = Directory.GetFiles(outDir, "*.md").Select(Path.GetFileName).OrderBy(s => s).ToList();
-            // The composite must produce one report per sweep — no more, no less.
-            Assert.Equal(5, files.Count);
+        var files = Directory.GetFiles(outDir, "*.md").Select(Path.GetFileName).OrderBy(s => s).ToList();
+        // The composite must produce one report per sweep — no more, no less.
+        Assert.Equal(5, files.Count);
 
+        // Build the set of acceptable date prefixes — every date the
+        // composite could have observed between utcBefore and utcAfter
+        // (inclusive). Almost always just one date; the two-date set only
+        // matters across a midnight-UTC rollover. We do NOT accept
+        // "tomorrow" — that would mask a real bug where the composite
+        // picked up the local-time date instead of UTC.
+        var acceptableDates = new HashSet<string>();
+        for (DateTime d = utcBefore.Date; d <= utcAfter.Date; d = d.AddDays(1))
+            acceptableDates.Add(d.ToString("yyyy-MM-dd"));
+
+        foreach (string? f in files)
+        {
+            Assert.NotNull(f);
             // Each filename follows the YYYY-MM-DD-<sweep>-sweep.md template.
-            // The date is the UTC date at composite invocation time; we accept
-            // either today or yesterday/tomorrow to dodge a midnight-rollover
-            // false-positive on slow machines.
-            foreach (string? f in files)
-            {
-                Assert.NotNull(f);
-                Assert.Matches(@"^\d{4}-\d{2}-\d{2}-(density|labels|jumps|undo|l10n)-sweep\.md$", f!);
-            }
+            Assert.Matches(@"^\d{4}-\d{2}-\d{2}-(density|labels|jumps|undo|l10n)-sweep\.md$", f!);
+            // The date prefix must be in the allowed window.
+            string prefix = f!.Substring(0, 10);
+            Assert.Contains(prefix, acceptableDates);
+        }
 
-            // Every expected sweep must appear exactly once in the directory listing.
-            foreach (string expected in ExpectedSweepNames)
-            {
-                Assert.Single(files, f => f!.EndsWith($"-{expected}-sweep.md", StringComparison.Ordinal));
-            }
+        // Every expected sweep must appear exactly once in the directory listing.
+        foreach (string expected in ExpectedSweepNames)
+        {
+            Assert.Single(files, f => f!.EndsWith($"-{expected}-sweep.md", StringComparison.Ordinal));
+        }
     }
 
     [Fact]
@@ -125,6 +177,10 @@ public class RunAllSweepTests : IDisposable
         // Dry-run shape: each per-sweep handler writes only the YAML
         // front-matter (between `---` markers) and nothing below. The
         // composite must preserve that invariant for every sub-sweep.
+        // Use the real (default) sub-sweep set in dry-run mode — the
+        // real handlers are the ones that have to honour the no-body
+        // promise, so this test exercises them directly. Dry-run keeps
+        // it cheap because no scanner code path actually runs.
         string outDir = Path.Combine(_tempDir, "drypayload");
         int code = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: true);
         Assert.Equal(0, code);
@@ -166,46 +222,79 @@ public class RunAllSweepTests : IDisposable
         }
     }
 
-    // ---------------- Independence: one failure doesn't abort the others ----------------
+    // ---------------- Per-sweep isolation: one failure doesn't abort the others ----------------
 
     [Fact]
     public void RunAllSweep_OneSubSweepFailure_OtherSweepsStillProduceReports()
     {
-        // We can't easily mock a transient failure inside a single scanner
-        // (the scanners are static and read the repo state directly), so we
-        // exercise the recovery path indirectly: a successful dry-run
-        // produces all five files. We then run the composite a second time
-        // against a directory the first run already populated — the
-        // composite must overwrite cleanly without aborting partway
-        // through. This is a regression check on the per-sweep try/catch
-        // structure (sub-sweep failures must not propagate out and abort
-        // the remaining sweeps).
-        string outDir = Path.Combine(_tempDir, "rerun");
-        int firstCode = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: true);
-        Assert.Equal(0, firstCode);
-        Assert.Equal(5, Directory.GetFiles(outDir, "*.md").Length);
-
-        // Capture the first-run timestamps so we can prove the second run
-        // re-wrote every file.
-        var firstWrites = Directory.GetFiles(outDir, "*.md")
-            .ToDictionary(f => Path.GetFileName(f)!, File.GetLastWriteTimeUtc);
-
-        // Tiny sleep so the timestamp comparison has resolution to work
-        // with on filesystems with second-level mtime granularity.
-        System.Threading.Thread.Sleep(1100);
-
-        int secondCode = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: true);
-        Assert.Equal(0, secondCode);
-
-        var secondWrites = Directory.GetFiles(outDir, "*.md")
-            .ToDictionary(f => Path.GetFileName(f)!, File.GetLastWriteTimeUtc);
-
-        Assert.Equal(firstWrites.Count, secondWrites.Count);
-        foreach (var kv in firstWrites)
+        // Inject a sub-sweep set where the middle entry ("jumps") throws.
+        // The per-sweep try/catch in RunAllSweep must record that failure
+        // and continue with undo + l10n, AND the composite must still
+        // return 0 because four other sub-sweeps succeeded.
+        var attempted = new List<string>();
+        Func<string, string, int> ok = (sweep, path) =>
         {
-            Assert.True(secondWrites.ContainsKey(kv.Key), $"missing {kv.Key} after rerun");
-            Assert.True(secondWrites[kv.Key] >= kv.Value, $"{kv.Key} mtime regressed across rerun");
-        }
+            attempted.Add(sweep);
+            string dir = Path.GetDirectoryName(Path.GetFullPath(path)) ?? "";
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+            File.WriteAllText(path, $"---\nsweep-type: {sweep}\n---\n");
+            return 0;
+        };
+        Func<string, int> boom = path =>
+        {
+            attempted.Add("jumps");
+            throw new InvalidOperationException("simulated transient scanner failure");
+        };
+        App.SubSweepsOverride = new (string, Func<string, int>)[]
+        {
+            ("density", path => ok("density", path)),
+            ("labels",  path => ok("labels",  path)),
+            ("jumps",   boom),
+            ("undo",    path => ok("undo",    path)),
+            ("l10n",    path => ok("l10n",    path)),
+        };
+
+        string outDir = Path.Combine(_tempDir, "isolation");
+        int code = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: false);
+
+        // Per the composite's contract: 0 when ≥1 sub-sweep succeeded,
+        // even if some failed. 4 of 5 succeeded → expect 0.
+        Assert.Equal(0, code);
+
+        // Every sub-sweep was attempted (proves the loop didn't abort on
+        // the jumps failure). Order matches the override list.
+        Assert.Equal(new[] { "density", "labels", "jumps", "undo", "l10n" }, attempted);
+
+        // The four successful sub-sweeps wrote their files; the failing
+        // one did not.
+        var files = Directory.GetFiles(outDir, "*.md").Select(Path.GetFileName).ToList();
+        Assert.Equal(4, files.Count);
+        Assert.Contains(files, f => f!.EndsWith("-density-sweep.md", StringComparison.Ordinal));
+        Assert.Contains(files, f => f!.EndsWith("-labels-sweep.md",  StringComparison.Ordinal));
+        Assert.Contains(files, f => f!.EndsWith("-undo-sweep.md",    StringComparison.Ordinal));
+        Assert.Contains(files, f => f!.EndsWith("-l10n-sweep.md",    StringComparison.Ordinal));
+        Assert.DoesNotContain(files, f => f!.EndsWith("-jumps-sweep.md", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RunAllSweep_AllSubSweepsFail_ReturnsExitCodeOne()
+    {
+        // Companion to the isolation test: when EVERY sub-sweep fails, the
+        // composite produced no useful artifacts and must surface that as
+        // exit code 1 so CI / callers can distinguish "advisory yielded
+        // nothing" from "all five reports published".
+        Func<string, int> boom = path =>
+            throw new InvalidOperationException("simulated total failure");
+        App.SubSweepsOverride = new (string, Func<string, int>)[]
+        {
+            ("density", boom), ("labels", boom), ("jumps", boom), ("undo", boom), ("l10n", boom),
+        };
+        string outDir = Path.Combine(_tempDir, "allfail");
+        int code = App.RunAllSweep(FindRepoRoot(), outDir, dryRun: false);
+        Assert.Equal(1, code);
+        // No reports were produced because every sub-sweep threw.
+        Assert.Empty(Directory.GetFiles(outDir, "*.md"));
     }
 
     // ---------------- Output directory creation ----------------
@@ -217,6 +306,7 @@ public class RunAllSweepTests : IDisposable
         // most of the time; we must auto-create it (and any missing
         // intermediate dirs) rather than failing with "directory not
         // found".
+        App.SubSweepsOverride = NoOpSubSweeps();
         string nestedDir = Path.Combine(_tempDir, "a", "b", "2026-05-22");
         int code = App.RunAllSweep(FindRepoRoot(), nestedDir, dryRun: true);
         Assert.Equal(0, code);

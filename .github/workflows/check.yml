@@ -123,20 +123,45 @@ jobs:
 
       - name: Run static-analysis sweeps
         shell: bash
+        # GitHub Actions runs bash with `-e -o pipefail` by default — the
+        # first failing `dotnet run` would abort this step before later
+        # sweeps + the OUT export ran. Each sweep needs to be independently
+        # non-fatal so the advisory job stays advisory (per Copilot PR #382
+        # review). Strategy:
+        #   1. Export OUT to $GITHUB_ENV BEFORE running any sweep so the
+        #      summary + upload steps below can find the directory even if
+        #      every sub-sweep returns non-zero.
+        #   2. Run each sweep with `|| true` so the step itself never
+        #      aborts; per-sweep exit codes show up in the workflow log.
+        #   3. Use the new composite `--gap-sweep-all` flag, which has its
+        #      own try/catch around each scanner and itself returns 0 as
+        #      long as ≥1 sub-sweep succeeded. The composite writes the
+        #      reports in the standard YYYY-MM-DD-<sweep>-sweep.md shape.
         run: |
+          set +e
           OUT="${RUNNER_TEMP:-/tmp}/gap-sweep-$(date -u +%F)"
           mkdir -p "$OUT"
-          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-density --out="$OUT/density.md"
-          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-labels  --out="$OUT/labels.md"
-          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-jumps   --out="$OUT/jumps.md"
-          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-undo    --out="$OUT/undo.md"
-          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-l10n    --out="$OUT/l10n.md"
           echo "OUT=$OUT" >> "$GITHUB_ENV"
+          dotnet run --no-build --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -- --gap-sweep-all --out="$OUT" || true
+          # Normalise the date-prefixed composite output (YYYY-MM-DD-<sweep>-sweep.md)
+          # into stable <sweep>.md names so the summary + artifact steps don't have
+          # to chase the date. Idempotent: skips silently if the file isn't there
+          # (e.g. a single sub-sweep failed).
+          for sw in density labels jumps undo l10n; do
+            f="$(ls "$OUT"/*-"$sw"-sweep.md 2>/dev/null | head -n 1)"
+            if [ -n "$f" ]; then cp -f "$f" "$OUT/$sw.md"; fi
+          done
+          ls -la "$OUT"
 
       - name: Post job summary (top-50 lines per sweep)
         if: always()
         shell: bash
+        # `set +e` so the for-loop keeps running across sweeps that
+        # didn't produce output (e.g. one scanner threw); we always want
+        # the GITHUB_STEP_SUMMARY to be a complete table, with "(no
+        # report)" placeholders where appropriate.
         run: |
+          set +e
           {
             echo "## Gap-sweep advisory"
             echo
@@ -146,7 +171,7 @@ jobs:
             for sw in density labels jumps undo l10n; do
               echo "### $sw"
               echo
-              if [ -f "$OUT/$sw.md" ]; then
+              if [ -f "${OUT:-}/$sw.md" ]; then
                 echo '```markdown'
                 head -50 "$OUT/$sw.md"
                 echo '```'
@@ -162,5 +187,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: gap-sweep-reports
+          # Upload BOTH the date-prefixed composite outputs and the
+          # normalised <sweep>.md aliases so the artifact is
+          # self-documenting (date-prefixed = canonical baseline; flat
+          # alias = easy ad-hoc browse on the PR's Files page).
           path: ${{ env.OUT }}/*.md
           if-no-files-found: warn
