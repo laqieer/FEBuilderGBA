@@ -27,7 +27,7 @@ them as backlog instead of waiting for users to file them one at a time.
 | 3 | Side-by-side screenshot gallery | `--gap-sweep-gallery` + `--screenshot-all` × 2 | [x] [2026-05-22 FE8U baseline](2026-05-22-screenshots/FE8U/index.md) |
 | 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-22 baseline](2026-05-22-jumps-sweep.md) |
 | 5 | Undo coverage | `--gap-sweep-undo` | [x] [2026-05-22 baseline](2026-05-22-undo-sweep.md) |
-| 6 | Localisation sweep | `--gap-sweep-l10n` | [ ] |
+| 6 | Localisation sweep | `--gap-sweep-l10n` | [x] [2026-05-22 baseline](2026-05-22-l10n-sweep.md) |
 | 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [ ] |
 
 Each phase produces a markdown report under `docs/avalonia-gaps/<YYYY-MM-DD>-<sweep>.md`.
@@ -66,6 +66,12 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-undo --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-undo-sweep.md
 
+# Phase 6 — localisation sweep (XDocument scan over Views/**/*.axaml;
+# joins each English-looking literal against config/translate/<lang>.txt).
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-l10n --languages=ja,zh,ko `
+       --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-l10n-sweep.md
+
 # Phase 3 — full side-by-side screenshot gallery (drives both --screenshot-all
 # runners then pairs the captured PNGs). PNGs are gitignored; only index.md
 # is committed.
@@ -96,6 +102,10 @@ The `--gap-sweep-gallery` flag additionally requires:
 - `--wf-dir=<path>` — directory of WinForms `--screenshot-all` PNG output.
 - `--av-dir=<path>` — directory of Avalonia `--screenshot-all` PNG output.
 - `--rom-tag=<name>` — ROM tag suffix that both runners used (e.g. `FE8U`); pairs filenames by `WinForms_<editor>_<tag>.png` ↔ `Avalonia_<editor>_<tag>.png`.
+
+The `--gap-sweep-l10n` flag accepts:
+
+- `--languages=<comma-list>` — target-language codes the translation join runs against. Defaults to `ja,zh,ko` (English is the source for AXAML literals so it never appears here).
 
 ## Reading the density report
 
@@ -272,6 +282,60 @@ haven't been updated to wrap `_vm.WriteX()` yet), and 0.2% are
 `MissingScope` (BigCGViewerView's `ImportPng_Click` early-exit-Rollback
 case, a conservative false-positive of the strict bracketing model).
 
+## Reading the localisation report
+
+Phase 6 emits `docs/avalonia-gaps/<date>-l10n-sweep.md`. The report
+inventories every English-looking AXAML literal under
+`FEBuilderGBA.Avalonia/Views/` that isn't bound to a localized resource AND
+isn't already present in the project's translation tables. Issue
+[#356](https://github.com/laqieer/FEBuilderGBA/issues/356) traces the
+user-visible symptom (Avalonia GUI labels stay in English when the
+application language is set to Japanese or Chinese); this report is the
+mechanical inventory of every literal that needs a translation entry.
+
+**Methodology:**
+
+- `XDocument` parses each `*.axaml` with `LoadOptions.SetLineInfo` so we
+  get per-attribute line numbers.
+- Inspect attribute values for `Text` / `Content` / `Header` / `ToolTip` /
+  `Watermark` / `ToolTip.Tip` (the Avalonia attached-property form, also
+  consumed by the Phase 2 label-diff scanner).
+- Skip markup extensions (`{Binding ...}`, `{StaticResource ...}`,
+  `{x:Static ...}`, `{DynamicResource ...}`, `{TemplateBinding ...}`) and
+  elements nested inside `Style` / `DataTemplate` / `ControlTemplate` /
+  `ItemTemplate` / `Design.DataContext`.
+- Heuristic accepts: any value starting with an ASCII letter, length ≥ 2,
+  containing at least one space OR ≥ 4 chars with ≥ 80 % ASCII-letter
+  density.
+- Translation join: for each candidate literal, look it up in each target
+  language's `config/translate/<lang>.txt` table via the same reverse-English
+  chain the runtime uses (`MyTranslateResourceLow.LoadReverseEnglishMap` →
+  English value → Japanese key → forward map → translated value). Both raw
+  and trim-trailing-colon normalised forms are tried.
+
+**Verdict tiers:**
+
+- `Untranslated` — no target language has a translation. The backlog.
+- `PartiallyTranslated` — some languages have it, others don't (typical
+  for `ja.txt` (English-keyed, menu only) ↔ `zh.txt` (Japanese-keyed, much
+  larger).
+- `Translated` — every target language has a translation.
+- `NonEnglish` — source literal already contains CJK / Hangul (out of scope
+  sanity row).
+
+Phase 6 is intentionally a **static analyzer**. It does NOT modify any AXAML
+or translation file — it just inventories them. Follow-up PRs use the report
+as a per-file backlog to add the missing translation entries one editor at a
+time.
+
+Methodology lives in `FEBuilderGBA.Avalonia/GapSweep/L10nScanner.cs`.
+The 2026-05-22 baseline reports **3099 literals** across all AXAML views;
+`Untranslated`, `PartiallyTranslated`, `Translated`, `NonEnglish` counts plus
+per-language coverage percentages are in the summary tables at the top of
+the report. Top files by untranslated count: `ClassEditorView.axaml`,
+`ItemEditorView.axaml`, `UnitEditorView.axaml` — the same three editors
+where the original issue #356 screenshot showed the symptom.
+
 ## Implementation entry points
 
 | File | Role |
@@ -284,6 +348,7 @@ case, a conservative false-positive of the strict bracketing model).
 | `FEBuilderGBA.Avalonia/GapSweep/JumpParityScanner.cs` | Phase 4 scanner |
 | `FEBuilderGBA.Avalonia/Services/INavigationTargetSource.cs` | Phase 4 manifest seam |
 | `FEBuilderGBA.Avalonia/GapSweep/UndoCoverageScanner.cs` | Phase 5 scanner |
+| `FEBuilderGBA.Avalonia/GapSweep/L10nScanner.cs` | Phase 6 scanner |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
 | `scripts/make-screenshots.ps1` | Phase 3 wrapper — drives both `--screenshot-all` runners then `--gap-sweep-gallery` |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |
