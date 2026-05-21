@@ -4,7 +4,7 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ArenaClassViewerViewModel : ViewModelBase, IDataVerifiable
+    public partial class ArenaClassViewerViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "B0" });

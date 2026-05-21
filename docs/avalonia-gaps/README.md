@@ -25,7 +25,7 @@ them as backlog instead of waiting for users to file them one at a time.
 | 1 | Control-density delta | `--gap-sweep-density` | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
 | 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-22 baseline](2026-05-22-labels-sweep.md) |
 | 3 | Side-by-side screenshot gallery | `--gap-sweep-gallery` + `--screenshot-all` × 2 | [x] [2026-05-22 FE8U baseline](2026-05-22-screenshots/FE8U/index.md) |
-| 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [ ] |
+| 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-22 baseline](2026-05-22-jumps-sweep.md) |
 | 5 | Undo coverage | `--gap-sweep-undo` | [ ] |
 | 6 | Localisation sweep | `--gap-sweep-l10n` | [ ] |
 | 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [ ] |
@@ -54,6 +54,12 @@ dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Relea
 # Phase 2 — field-label diff against the current worktree
 dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
     -- --gap-sweep-labels --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-labels-sweep.md
+
+# Phase 4 — headless jump/navigation parity (cross-references WF
+# `InputFormRef.JumpForm<T>` callsites against AV `INavigationTargetSource`
+# manifests; no UIA/FlaUI, no app launch).
+dotnet run --project FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release `
+    -- --gap-sweep-jumps --out=docs/avalonia-gaps/$(Get-Date -Format yyyy-MM-dd)-jumps-sweep.md
 
 # Phase 3 — full side-by-side screenshot gallery (drives both --screenshot-all
 # runners then pairs the captured PNGs). PNGs are gitignored; only index.md
@@ -126,6 +132,67 @@ Sections:
 - **Expected editors not captured** — editors listed in
   `docs/avalonia-gui-forms.md` that neither runner captured.
 
+## Reading the jumps report
+
+Phase 4 emits `docs/avalonia-gaps/<date>-jumps-sweep.md`. The report
+cross-references WinForms `InputFormRef.JumpForm<T>(addr)` callsites
+against Avalonia `INavigationTargetSource` manifests and classifies each
+pair:
+
+- **Match** — WF + AV agree on the (source, target) pair (clean).
+- **MissingAvManifest** — WF has the jump, AV does not (the actionable
+  backlog).
+- **NoWfCallsite** — AV manifest declares a jump WF doesn't have (rarer,
+  usually richer AV UX).
+- **KnownGap** — AV manifest row carries an open-issue `IssueRef` (e.g.
+  #359, #360, #362, #363, #365 — tracked-broken navigation).
+
+Phase 4 is intentionally headless — no UIAutomation, no FlaUI, no live
+clicking. Tests in `FEBuilderGBA.Avalonia.Tests/GapSweep/` drive
+verification through the same scanner + manifest seam.
+
+### How to add `INavigationTargetSource` to a VM
+
+1. Mark the VM as `partial` in its main `.cs` file.
+2. Add a sibling file named `<VmName>.NavigationTargets.cs`.
+3. In that file, declare the partial class once more with the interface:
+
+   ```csharp
+   using System.Collections.Generic;
+   using FEBuilderGBA.Avalonia.Services;
+   using FEBuilderGBA.Avalonia.Views;
+
+   namespace FEBuilderGBA.Avalonia.ViewModels
+   {
+       public partial class FooViewModel : INavigationTargetSource
+       {
+           public IReadOnlyList<NavigationTarget> GetNavigationTargets()
+           {
+               return new[]
+               {
+                   new NavigationTarget(
+                       CommandName: "JumpToBar",
+                       TargetViewType: typeof(BarView),
+                       TargetAddress: null),
+                   // For tracked-broken jumps, set IssueRef:
+                   new NavigationTarget(
+                       CommandName: "JumpToBroken",
+                       TargetViewType: typeof(BrokenView),
+                       TargetAddress: null,
+                       IssueRef: "#NNN"),
+               };
+           }
+       }
+   }
+   ```
+
+4. Each entry should mirror an actual `WindowManager.Navigate<T>(addr)`
+   callsite in the paired View code-behind. Do NOT change any navigation
+   behavior — the manifest is a declarative parallel record.
+
+The Phase 4 scanner discovers implementations via reflection over the
+loaded Avalonia assembly; no registration is required.
+
 ## Reading the labels report
 
 The labels report complements the density report — density tells you WHICH
@@ -156,6 +223,8 @@ candidate-missing-field counts surface first. Top of the first labels baseline
 | `FEBuilderGBA.Avalonia/GapSweep/ControlDensityScanner.cs` | Phase 1 scanner |
 | `FEBuilderGBA.Avalonia/GapSweep/LabelDiffScanner.cs` | Phase 2 scanner |
 | `FEBuilderGBA.Avalonia/GapSweep/GalleryBuilder.cs` | Phase 3 pair-and-emit gallery |
+| `FEBuilderGBA.Avalonia/GapSweep/JumpParityScanner.cs` | Phase 4 scanner |
+| `FEBuilderGBA.Avalonia/Services/INavigationTargetSource.cs` | Phase 4 manifest seam |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
 | `scripts/make-screenshots.ps1` | Phase 3 wrapper — drives both `--screenshot-all` runners then `--gap-sweep-gallery` |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |

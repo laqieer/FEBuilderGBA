@@ -5,7 +5,7 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class CCBranchEditorViewModel : ViewModelBase, IDataVerifiable
+    public partial class CCBranchEditorViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "B0", "B1" });
