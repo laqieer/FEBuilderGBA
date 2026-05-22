@@ -106,7 +106,7 @@
           <Grid Grid.Row="2" Margin="0,8,0,8" RowDefinitions="Auto,*">
             <TextBlock Grid.Row="0" Text="Items sharing this effectiveness list" FontWeight="Bold" />
             <ListBox Grid.Row="1" Name="ItemListBox" Height="120"
-                     AutomationProperties.AutomationId="ItemEffectivenessViewer_ItemList_Box"
+                     AutomationProperties.AutomationId="ItemEffectivenessViewer_SharedOwners_List"
                      SelectionChanged="ItemListBox_SelectionChanged">
               <ListBox.ItemTemplate>
                 <DataTemplate>
