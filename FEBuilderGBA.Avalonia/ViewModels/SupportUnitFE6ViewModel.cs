@@ -13,7 +13,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///   B30     : Support partner count
     ///   B31     : Separator / padding
     /// </summary>
-    public class SupportUnitFE6ViewModel : ViewModelBase, IDataVerifiable
+    public partial class SupportUnitFE6ViewModel : ViewModelBase, IDataVerifiable
     {
         const uint BLOCK_SIZE = 32;
 
@@ -40,8 +40,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Partner count + separator
         uint _partnerCount, _separator;
 
+        // Owner unit (read-only). #358 — the unit whose support pointer (+44)
+        // matches CurrentAddr.  Empty / 0 when no unit owns this row.
+        uint _sourceUnitId1Based; // 0 = unowned
+        string _sourceUnitName = "";
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+
+        public uint SourceUnitId1Based { get => _sourceUnitId1Based; set => SetField(ref _sourceUnitId1Based, value); }
+        public string SourceUnitName { get => _sourceUnitName; set => SetField(ref _sourceUnitName, value); }
 
         // Partner unit IDs
         public uint Partner1 { get => _partner1; set => SetField(ref _partner1, value); }
@@ -88,40 +96,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.support_unit_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr;
-            if (ptr >= 0x08000000)
-                baseAddr = ptr - 0x08000000;
-            else
-            {
-                baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-            }
-
+            // Owner-keyed enumeration mirroring WinForms SupportUnitFE6Form.Init
+            // (#358 / #436): FE6 uses u8 at +0 for the "is owned" heuristic
+            // (vs FE7/8's u16).  See SupportUnitNavigation.EnumerateSupportEntries.
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            foreach (var (addr, ownerUid) in
+                SupportUnitNavigation.EnumerateSupportEntries(rom, BLOCK_SIZE, firstFieldByteWidth: 1))
             {
-                uint addr = (uint)(baseAddr + i * BLOCK_SIZE);
-                if (addr + BLOCK_SIZE > (uint)rom.Data.Length) break;
-
-                uint first = rom.u8(addr);
-                if (first == 0 && i > 0)
+                string label;
+                uint tag;
+                if (ownerUid == null)
                 {
-                    bool hasMore = false;
-                    for (uint j = 1; j <= 4 && (i + j) < 0x100; j++)
-                    {
-                        uint checkAddr = (uint)(baseAddr + (i + j) * BLOCK_SIZE);
-                        if (checkAddr + BLOCK_SIZE > (uint)rom.Data.Length) break;
-                        if (rom.u8(checkAddr) != 0) { hasMore = true; break; }
-                    }
-                    if (!hasMore) break;
+                    label = "-EMPTY-";
+                    tag = 0;
                 }
-
-                string unitName = NameResolver.GetUnitName(i);
-                string name = $"{U.ToHexString(i)} {unitName}";
-                result.Add(new AddrResult(addr, name, i));
+                else
+                {
+                    uint oneBasedId = ownerUid.Value + 1;
+                    string unitName = NameResolver.GetUnitName(oneBasedId);
+                    label = $"{U.ToHexString(oneBasedId)} {unitName}";
+                    tag = oneBasedId;
+                }
+                result.Add(new AddrResult(addr, label, tag));
             }
             return result;
         }
@@ -153,7 +149,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             PartnerCount = v["B30"];
             Separator = v["B31"];
 
+            // #358: Resolve source unit (the owner that points at this support
+            // row via its +44 pointer).  Read-only display in this PR.
+            uint? ownerUid = SupportUnitNavigation.GetUnitIdAtSupportAddr(rom, addr);
+            if (ownerUid != null)
+            {
+                SourceUnitId1Based = ownerUid.Value + 1;
+                SourceUnitName = NameResolver.GetUnitName(SourceUnitId1Based) ?? "";
+            }
+            else
+            {
+                SourceUnitId1Based = 0;
+                SourceUnitName = "";
+            }
+
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Compute the row index whose <c>addr</c> equals
+        /// <c>U.toOffset(supportPointerOrFileOffset)</c>, mirroring
+        /// WinForms <c>SupportUnitFE6Form.JumpToAddr</c>.  Returns -1 if no
+        /// row matches.  Used by the Unit Editor's "jump to support" button.
+        /// Accepts both raw <c>0x08xxxxxx</c> pointers and file offsets.
+        /// </summary>
+        public int FindRowForAddr(List<AddrResult> list, uint supportPointerOrFileOffset)
+        {
+            uint normalized = U.toOffset(supportPointerOrFileOffset);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i].addr == normalized) return i;
+            }
+            return -1;
         }
 
         public void WriteSupportUnit()
