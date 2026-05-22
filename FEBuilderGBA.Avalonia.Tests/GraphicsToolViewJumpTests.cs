@@ -36,31 +36,60 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
-        /// imageType==1 means LZ77-compressed in the WF semantics. The
-        /// Avalonia VM's IsCompressed must flip accordingly.
+        /// WF semantics: `ImageOption.SelectedIndex == 0` means LZ77
+        /// compressed (圧縮画像 — see `GraphicsToolForm.Draw()` line 309).
+        /// Battle BG callsites pass imageType=0, so IsCompressed must be
+        /// true. (Regression test for Copilot CLI review on PR #513 —
+        /// the previous mapping was inverted and would have sent LZ77
+        /// battle-BG graphics through `DrawTiles` as raw bytes.)
         /// </summary>
         [AvaloniaFact]
-        public void Jump_ImageType1_SetsIsCompressed()
+        public void Jump_ImageType0_SetsIsCompressed_BattleBgCallsite()
+        {
+            var view = new GraphicsToolView();
+            // Exact Battle BG callsite from ImageBattleBGView.GraphicsTool_Click:
+            //   .Jump(30*8, 20*8, image, 0, tsa, 1, palette, 1, 8, 0)
+            view.Jump(width: 30 * 8, height: 20 * 8,
+                image: 0x08400000u, imageType: 0,
+                tsa: 0x08500000u, tsaType: 1,
+                palette: 0x08600000u, paletteType: 1,
+                paletteCount: 8, image2: 0);
+            var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
+            Assert.True(vm.IsCompressed,
+                "imageType=0 means LZ77-compressed (WF GraphicsToolForm.Draw line 309)");
+        }
+
+        /// <summary>
+        /// WF semantics: `ImageOption.SelectedIndex == 1` means raw
+        /// uncompressed (無圧縮 — see `GraphicsToolForm.Image_ValueChanged`
+        /// line 277). IsCompressed must be false.
+        /// </summary>
+        [AvaloniaFact]
+        public void Jump_ImageType1_ClearsIsCompressed()
         {
             var view = new GraphicsToolView();
             view.Jump(240, 160, 0x08400000u, imageType: 1,
                 0x08500000u, 1, 0x08600000u, 1, 8, 0);
             var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
-            Assert.True(vm.IsCompressed);
+            Assert.False(vm.IsCompressed);
         }
 
         /// <summary>
-        /// imageType==0 means raw (uncompressed) in WF — IsCompressed
-        /// must be false.
+        /// WF semantics: indices 2 / 3 / 4 also mean LZ77-compressed
+        /// (`GraphicsToolForm.Draw()` lines 309 + 322). Verify the
+        /// helper covers each.
         /// </summary>
-        [AvaloniaFact]
-        public void Jump_ImageType0_ClearsIsCompressed()
+        [AvaloniaTheory]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        public void Jump_ImageType_2_3_4_AllCompressed(int imageType)
         {
             var view = new GraphicsToolView();
-            view.Jump(240, 160, 0x08400000u, imageType: 0,
+            view.Jump(240, 160, 0x08400000u, imageType,
                 0x08500000u, 1, 0x08600000u, 1, 8, 0);
             var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
-            Assert.False(vm.IsCompressed);
+            Assert.True(vm.IsCompressed);
         }
 
         /// <summary>

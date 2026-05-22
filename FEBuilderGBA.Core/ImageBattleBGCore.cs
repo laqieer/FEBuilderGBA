@@ -4,7 +4,7 @@
 //
 //   1. `ExpandList`           - the 255-cap list-expansion semantics from
 //                              `InputFormRef.OnAddressListExpandsEventHandler`,
-//                              minus the interactive `MoveToFreeSapceForm`
+//                              minus the interactive `MoveToFreeSpaceForm`
 //                              UI. Allocates new space via
 //                              `ROM.FindFreeSpace`, preserves old rows,
 //                              fills new rows from row[0], repoints
@@ -46,7 +46,7 @@ namespace FEBuilderGBA
         /// entries.
         ///
         /// Mirrors the WinForms `AddressListExpandsButton_255` flow
-        /// without the interactive `MoveToFreeSapceForm` dialog:
+        /// without the interactive `MoveToFreeSpaceForm` dialog:
         /// <list type="number">
         ///   <item>Validate inputs (caps at <see cref="MaxListCount"/>,
         ///     refuses zero <paramref name="oldCount"/>, refuses shrinks).</item>
@@ -131,9 +131,11 @@ namespace FEBuilderGBA
                 rom.write_range(rowAddr, row0, undo);
             }
 
-            // 3. Repoint battle_bg_pointer to the new base (GBA-format).
-            uint newGbaPointer = newBase | 0x08000000u;
-            rom.write_u32(pointerSlot, newGbaPointer, undo);
+            // 3. Repoint battle_bg_pointer to the new base. write_p32
+            // centralises the offset→GBA pointer conversion and matches
+            // existing Core patterns (e.g. ItemShopCore — Copilot bot
+            // review on PR #513).
+            rom.write_p32(pointerSlot, newBase, undo);
 
             return newBase;
         }

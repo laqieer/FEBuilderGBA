@@ -90,7 +90,7 @@ public class ImageBattleBGCoreTests
     // -----------------------------------------------------------------
 
     [Fact]
-    public void ExpandList_RepoinsBattleBgPointer_ToNewBase()
+    public void ExpandList_RepointsBattleBgPointer_ToNewBase()
     {
         ROM rom = MakeFe8uWithBgTable(rowCount: 4);
         var prevRom = CoreState.ROM;
@@ -248,30 +248,54 @@ public class ImageBattleBGCoreTests
         {
             CoreState.ROM = rom;
             uint origPointer = rom.p32(rom.RomInfo.battle_bg_pointer);
+            uint pointerSlot = rom.RomInfo.battle_bg_pointer;
+            // Snapshot the original pointer-slot bytes so we can compare
+            // after rollback.
+            byte[] origPointerBytes = rom.getBinaryData(pointerSlot, 4);
 
             var undo = NewUndo();
             uint newBase = ImageBattleBGCore.ExpandList(rom, oldCount: 4, newCount: 10, undo);
             Assert.NotEqual(U.NOT_FOUND, newBase);
 
-        // Verify the undo data records at least the pointer write
-        // (4 bytes at battle_bg_pointer) AND the row copies. The Core
-        // helper must register every byte it wrote so a rollback
-        // restores the original state.
-        Assert.NotEmpty(undo.list);
+            // Sanity: pointer was repointed.
+            Assert.NotEqual(origPointer, rom.p32(pointerSlot));
 
-        // Check the pointer-slot is in the undo list. Match by start address.
-        uint pointerSlot = rom.RomInfo.battle_bg_pointer;
-        bool foundPointerWrite = false;
-        foreach (var pos in undo.list)
-        {
-            if (pos.addr == pointerSlot && pos.data != null && pos.data.Length >= 4)
+            // Verify the undo data records the pointer write so a rollback
+            // restores the original state.
+            Assert.NotEmpty(undo.list);
+            bool foundPointerWrite = false;
+            foreach (var pos in undo.list)
             {
-                foundPointerWrite = true;
-                break;
+                if (pos.addr == pointerSlot && pos.data != null && pos.data.Length >= 4)
+                {
+                    foundPointerWrite = true;
+                    break;
+                }
             }
-        }
-        Assert.True(foundPointerWrite,
-            "Undo data must include the battle_bg_pointer write");
+            Assert.True(foundPointerWrite,
+                "Undo data must include the battle_bg_pointer write");
+
+            // Actually perform the rollback and verify the pointer is
+            // restored to its pre-expansion value (Copilot bot review on
+            // PR #513 — the original test only asserted the undo list
+            // entry existed but never exercised the rollback path).
+            for (int i = undo.list.Count - 1; i >= 0; i--)
+            {
+                var pos = undo.list[i];
+                if (pos.data == null) continue;
+                for (int b = 0; b < pos.data.Length; b++)
+                {
+                    rom.write_u8(pos.addr + (uint)b, pos.data[b]);
+                }
+            }
+            // After replaying the undo, the pointer must match the original
+            // value byte-for-byte.
+            byte[] restoredBytes = rom.getBinaryData(pointerSlot, 4);
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.Equal(origPointerBytes[i], restoredBytes[i]);
+            }
+            Assert.Equal(origPointer, rom.p32(pointerSlot));
         }
         finally { CoreState.ROM = prevRom; }
     }

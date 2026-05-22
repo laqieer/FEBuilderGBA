@@ -293,19 +293,21 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
-            // Build an UndoData for the Core helper to record into. The
-            // UndoService wraps a fresh scope so any failure rolls back
-            // cleanly.
+            // Single source of truth for undo tracking: use the
+            // UndoService's active scope rather than creating a parallel
+            // UndoData (Copilot bot review on PR #513 — the previous code
+            // double-snapshotted into both the ambient scope and a
+            // free-standing UndoData that was never pushed/committed).
             _undoService.Begin("Expand Battle BG List");
             try
             {
-                var ud = new Undo.UndoData
+                var ud = _undoService.GetActiveUndoData();
+                if (ud == null)
                 {
-                    time = DateTime.Now,
-                    name = "ImageBattleBG.ExpandList",
-                    list = new System.Collections.Generic.List<Undo.UndoPostion>(),
-                    filesize = (uint)rom.Data.Length,
-                };
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("Internal error: undo scope not active.");
+                    return;
+                }
                 uint result = _vm.ExpandList(newCount, ud);
                 if (result == U.NOT_FOUND)
                 {

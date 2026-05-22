@@ -20531,3 +20531,6 @@ TSA
 
 :Expand List (+1 slot)
 扩展列表 (+1槽)
+
+:Reload
+重新加载

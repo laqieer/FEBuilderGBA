@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WinCapture")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+45693e2eee650cbbc24d5ebdd53784985f586ad5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c2c325dbafdc93c9f5555121f938108121d3929e")]
 [assembly: System.Reflection.AssemblyProductAttribute("WinCapture")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WinCapture")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

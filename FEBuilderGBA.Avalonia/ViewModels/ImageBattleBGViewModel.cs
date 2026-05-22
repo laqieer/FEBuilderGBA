@@ -228,10 +228,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return U.NOT_FOUND;
-            // Determine oldCount from the currently-loaded list — caller
-            // must have called LoadList() at least once so ReadCount is
-            // populated.
-            uint oldCount = (uint)Math.Max(1, ReadCount);
+            // Caller MUST have called LoadList() at least once so ReadCount
+            // is populated. Treating 0 as 1 would copy/clone uninitialised
+            // bytes — return NOT_FOUND instead (Copilot bot review on
+            // PR #513).
+            if (ReadCount <= 0)
+                return U.NOT_FOUND;
+            uint oldCount = (uint)ReadCount;
             return FEBuilderGBA.ImageBattleBGCore.ExpandList(rom, oldCount, newCount, undo);
         }
 
