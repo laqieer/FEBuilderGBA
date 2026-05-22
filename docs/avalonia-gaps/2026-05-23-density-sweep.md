@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T20:50:02Z"
-git-sha: bf386583a
+generated: "2026-05-22T20:56:51Z"
+git-sha: 4418ced46
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 236 |
+| HIGH | |Δ%| ≥ 50 | 235 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 83 |
-| LOW | |Δ%| < 25 | 51 |
+| LOW | |Δ%| < 25 | 52 |
 
 ## Ranked Density Deltas
 
@@ -81,7 +81,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ToolProblemReportForm` | `ToolProblemReportView` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 6 | -33 | -84.6% | ListParityHelper |
-| High | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `EDFE6Form` | `EDFE6View` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `ToolASMInsertForm` | `ToolASMInsertView` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 7 | -36 | -83.7% | Heuristic |
@@ -279,6 +278,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ToolEmulatorSetupMessageForm` | `ToolEmulatorSetupMessageView` | 3 | 3 | 0 | 0.0% | Heuristic |
 | Low | `ToolUndoPopupDialogForm` | `ToolUndoPopupDialogView` | 5 | 5 | 0 | 0.0% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
+| Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
