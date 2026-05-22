@@ -3,7 +3,8 @@ using System.IO;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA;                       // R, MyTranslateResource (Core types)
+using FEBuilderGBA.Avalonia.Services;     // ViewTranslationHelper
 
 namespace FEBuilderGBA.Avalonia.Tests
 {

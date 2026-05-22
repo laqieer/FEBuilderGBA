@@ -18767,9 +18767,6 @@ String 7:
 :Summoner:
 召唤者:
 
-:Support &amp; Other
-Support &amp; Other
-
 :Support / Talk:
 支援 / 对话:
 

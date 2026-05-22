@@ -3377,9 +3377,6 @@ Summon ユニットエディタ
 :Summoned Unit:
 呼びされるユニット
 
-:Support &amp; Other
-Support &amp; その他
-
 :Support / Talk:
 Support / 会話:
 
