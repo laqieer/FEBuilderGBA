@@ -114,8 +114,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             int idx = ItemListBox.SelectedIndex;
             if (idx < 0 || idx >= _sharedData.Count) return;
-            // Jump the outer list to the picked owner.
-            EntryList.SelectAddress(_sharedData[idx].addr);
+            // All shared owners point at the same effectiveness array, so the
+            // outer EntryList (keyed by that array's offset) does not change.
+            // We just rebind CurrentItemAddr on the view-model so the right
+            // panel reflects the picked owner — this lets the user fork the
+            // shared array via the IndependencePanel for the chosen item.
+            _vm.CurrentItemAddr = _sharedData[idx].addr;
+            UpdateHeader();
         }
 
         void UpdateRightPanel()
@@ -216,40 +221,65 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Navigate to a target item. The caller may pass either the ITEM
-        /// struct address (matches the outer list's stored key) OR an
-        /// effectiveness-ARRAY address (the WinForms convention; the
-        /// ItemEditorView jump button still passes the array address since
-        /// the field is exposed as an effectiveness pointer). When the array
-        /// address is given we translate it back to the owning item by
-        /// scanning the item table for the first match on <c>+16</c>.
-        /// PR #463 Copilot CLI review caught this — without the translation,
-        /// jumps from ItemEditorView silently fall back to entry 0.
+        /// Navigate to a target row. The outer EntryList is keyed by the
+        /// EFFECTIVENESS ARRAY offset (matches the source-side
+        /// <c>ItemEditorView.JumpToEffectiveness_Click</c> address, which
+        /// passes <c>ptr - 0x08000000</c>). If the caller passes an item
+        /// struct address instead (legacy / internal), we translate it to
+        /// the item's <c>+16</c> array offset before selecting. After the
+        /// outer row is selected, if the caller intended a specific item
+        /// (vs. just any owner of the shared array), <see cref="_vm"/>'s
+        /// <see cref="ItemEffectivenessViewerViewModel.CurrentItemAddr"/>
+        /// is updated to that exact item.
         /// </summary>
         public void NavigateTo(uint address)
         {
-            // First try the direct ITEM-address path (the common case from
-            // shared-owner jumps inside this editor).
+            // Direct path: address IS the effectiveness array offset
+            // (ItemEditorView convention).
             EntryList.SelectAddress(address);
             if (EntryList.SelectedItem?.addr == address) return;
 
-            // Fallback: callers from ItemEditorView pass the effectiveness
-            // array offset. Find the first item whose +16 dereferences here.
+            // Translation path: caller passed an item struct address.
+            // Resolve its +16 effectiveness array offset and re-select.
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
             uint itemBase = rom.p32(rom.RomInfo.item_pointer);
             if (!U.isSafetyOffset(itemBase)) return;
             uint dataSize = rom.RomInfo.item_datasize;
             if (dataSize == 0) return;
+
+            // First: if `address` is INSIDE the item table, treat it as an
+            // item struct address.
+            if (address >= itemBase && (address - itemBase) % dataSize == 0
+                && address + 20 <= (uint)rom.Data.Length)
+            {
+                uint critPtr = rom.u32(address + 16);
+                if (U.isPointer(critPtr))
+                {
+                    uint critOff = U.toOffset(critPtr);
+                    EntryList.SelectAddress(critOff);
+                    if (EntryList.SelectedItem?.addr == critOff)
+                    {
+                        // Pin CurrentItemAddr to the specific caller-intended item.
+                        _vm.CurrentItemAddr = address;
+                        UpdateHeader();
+                        return;
+                    }
+                }
+            }
+
+            // Final fallback: linear scan for any item whose +16 matches
+            // the address (defensive — covers exotic caller paths).
             for (uint i = 0; i < 0x200; i++)
             {
                 uint itemAddr = itemBase + i * dataSize;
                 if (itemAddr + dataSize > (uint)rom.Data.Length) break;
                 uint critPtr = rom.u32(itemAddr + 16);
                 if (!U.isPointer(critPtr)) continue;
-                if (U.toOffset(critPtr) == address)
+                uint critOff = U.toOffset(critPtr);
+                if (critOff == address)
                 {
-                    EntryList.SelectAddress(itemAddr);
+                    EntryList.SelectAddress(critOff);
                     return;
                 }
             }

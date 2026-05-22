@@ -1720,7 +1720,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
                 string itemName = NameResolver.GetItemName(i);
                 string name = $"{U.ToHexString(i)} {itemName}";
-                result.Add(new AddrResult(itemAddr, name, i));
+                // PR #463 review: addr = critOff (effectiveness array offset)
+                // to match the viewmodel's outer-list key.
+                result.Add(new AddrResult(critOff, name, i));
             }
             return result;
         }
