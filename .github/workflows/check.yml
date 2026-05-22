@@ -74,7 +74,7 @@ jobs:
       run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 
     - name: Publish Test Results
-      if: always()
+      if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: dorny/test-reporter@v1
       with:
         name: Test Results
@@ -91,7 +91,7 @@ jobs:
       run: reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report -reporttypes:"MarkdownSummaryGithub"
 
     - name: Comment PR with Coverage
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         path: coverage-report/SummaryGithub.md
