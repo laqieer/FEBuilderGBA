@@ -233,6 +233,11 @@ namespace FEBuilderGBA.CLI
                 return RunSearchText(argsDic);
             }
 
+            if (argsDic.ContainsKey("--text-refs"))
+            {
+                return RunTextRefs(argsDic);
+            }
+
             if (argsDic.ContainsKey("--export-map-settings"))
             {
                 return RunExportMapSettings(argsDic);
@@ -403,6 +408,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --length=<int>         Number of bytes to dump (default: 256)");
             Console.WriteLine("  --search-text            Search for text pattern across all ROM text entries (requires --rom, --query)");
             Console.WriteLine("    --query=<text>         Text pattern to search for (case-insensitive)");
+            Console.WriteLine("  --text-refs              List ROM entries that reference a text ID (requires --rom, --text-id)");
+            Console.WriteLine("    --text-id=<hex|dec>    Text ID to look up (e.g., 0x0213 or 531)");
             Console.WriteLine("  --list-patches           List available patches and their install status (requires --rom)");
             Console.WriteLine("    --patch-name=<name>    Filter patches by name (substring match)");
             Console.WriteLine("  --export-map-settings    Export all chapter/map settings to TSV (requires --rom, --out)");
@@ -3636,6 +3643,81 @@ namespace FEBuilderGBA.CLI
 
             Console.WriteLine();
             Console.WriteLine($"Found {matches} matches in {entries.Count} text entries.");
+            return 0;
+        }
+
+        /// <summary>
+        /// Lists every ROM entry that references the given text ID. Uses
+        /// <see cref="TextRefTableRegistry"/> (the same registry that drives
+        /// the Avalonia Text Editor cross-references panel — issue #349).
+        /// </summary>
+        static int RunTextRefs(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+            {
+                Console.Error.WriteLine("Error: --text-refs requires --rom=<rom>");
+                return 1;
+            }
+            if (!argsDic.ContainsKey("--text-id") || string.IsNullOrEmpty(argsDic["--text-id"]))
+            {
+                Console.Error.WriteLine("Error: --text-refs requires --text-id=<hex or dec text id>");
+                return 1;
+            }
+
+            string romPath = argsDic["--rom"];
+            string idStr = argsDic["--text-id"];
+            uint textId;
+            try
+            {
+                if (idStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    textId = Convert.ToUInt32(idStr.Substring(2), 16);
+                else
+                    textId = Convert.ToUInt32(idStr);
+            }
+            catch
+            {
+                Console.Error.WriteLine($"Error: invalid --text-id value: {idStr}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            if (!RomLoader.LoadRom(romPath, forceVersion))
+                return 1;
+            RomLoader.InitFull();
+
+            var rom = CoreState.ROM;
+            Console.WriteLine($"ROM:     {romPath}");
+            Console.WriteLine($"Version: {(rom?.RomInfo != null ? "FE" + rom.RomInfo.version + (rom.RomInfo.is_multibyte ? "J" : "U") : "unknown")}");
+            Console.WriteLine($"Text ID: 0x{textId:X04}");
+
+            // Show decoded text content for context. Use NameResolver.GetTextById
+            // which is the public stripped-codes entry point.
+            try
+            {
+                string decoded = NameResolver.GetTextById(textId) ?? "";
+                if (decoded.Length > 80) decoded = decoded.Substring(0, 77) + "...";
+                Console.WriteLine($"Decoded: {decoded}");
+            }
+            catch { }
+
+            Console.WriteLine();
+            Console.WriteLine("Cross-references (via TextRefTableRegistry — #349):");
+
+            var tables = TextRefTableRegistry.BuildForRom(rom);
+            Console.WriteLine($"  (scanning {tables.Count} table descriptors)");
+            var refs = TextReferenceFinder.Find(rom, textId, tables);
+            if (refs.Count == 0)
+            {
+                Console.WriteLine("  (none — text ID is not referenced by any scanned table)");
+            }
+            else
+            {
+                foreach (var r in refs)
+                    Console.WriteLine($"  - {r}");
+            }
+            Console.WriteLine();
+            Console.WriteLine($"Total: {refs.Count} reference(s).");
             return 0;
         }
 
