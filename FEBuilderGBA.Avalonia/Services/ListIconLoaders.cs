@@ -255,6 +255,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return null;
                 uint addr = items[index].addr;
+                // Validate BOTH read positions independently: U.isSafetyOffset
+                // requires >= 0x200, but a degenerate addr < 0x200 with
+                // unit2Offset=1 would pass the addr+offset check while still
+                // reading from an unsafe addr at offset 0 (Copilot review).
+                if (!U.isSafetyOffset(addr)) return null;
                 if (!U.isSafetyOffset(addr + (uint)unit2Offset)) return null;
                 uint uid1 = rom.u8(addr);
                 uint uid2 = rom.u8(addr + (uint)unit2Offset);

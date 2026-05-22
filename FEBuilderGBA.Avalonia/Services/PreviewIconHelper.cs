@@ -191,8 +191,10 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 for (int x = 0; x < 32; x++)
                 {
+                    // idx is byte (unsigned), so it is always >= 0 — only
+                    // the upper-bound check is needed (Copilot review).
                     int idx = indices[y * 32 + x];
-                    if (idx < 0 || idx >= paletteColors) continue;
+                    if (idx >= paletteColors) continue;
                     int palOff = idx * 4;
                     int dstOff = (y * canvasW + dstX + x) * 4;
                     dstRgba[dstOff]     = paletteRgba[palOff];
