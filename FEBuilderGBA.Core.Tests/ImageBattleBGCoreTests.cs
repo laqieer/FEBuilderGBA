@@ -97,13 +97,21 @@ public class ImageBattleBGCoreTests
         try
         {
             CoreState.ROM = rom;
+            // `rom.p32(addr)` returns the offset (GBA pointer with the
+            // 0x08000000 base stripped) — same shape `ImageBattleBGCore
+            // .ExpandList` returns. Compare offset-vs-offset (Copilot
+            // bot review on PR #513 — the original assertion compared
+            // origPointer offset against `newBase | 0x08000000u` and
+            // always passed because the operands were in different
+            // formats).
             uint origPointer = rom.p32(rom.RomInfo.battle_bg_pointer);
 
             var undo = NewUndo();
             uint newBase = ImageBattleBGCore.ExpandList(rom, oldCount: 4, newCount: 10, undo);
 
             Assert.NotEqual(U.NOT_FOUND, newBase);
-            Assert.NotEqual(origPointer, newBase | 0x08000000u);
+            // Repoint check — both values are offsets.
+            Assert.NotEqual(origPointer, newBase);
 
             uint finalPointer = rom.p32(rom.RomInfo.battle_bg_pointer);
             Assert.Equal(newBase, finalPointer);

@@ -20534,3 +20534,6 @@ TSA
 
 :Reload
 重新加载
+
+:Read Count
+读取数量

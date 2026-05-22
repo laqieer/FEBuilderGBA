@@ -97,8 +97,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _vm.ImageAddressText = $"0x{(image >= 0x08000000u ? image : image | 0x08000000u):X08}";
-                _vm.PaletteAddressText = $"0x{(palette >= 0x08000000u ? palette : palette | 0x08000000u):X08}";
+                // Preserve a 0 pointer as 0x00000000 — only OR the
+                // 0x08000000 base for non-zero ROM-offset values.
+                // (Copilot bot review on PR #513 — the previous code
+                // normalised 0 to 0x08000000 and would have shown a
+                // null-pointer call as a valid ROM read.)
+                _vm.ImageAddressText = $"0x{NormalizeGbaPointer(image):X08}";
+                _vm.PaletteAddressText = $"0x{NormalizeGbaPointer(palette):X08}";
 
                 // WF passes pixels; AV stores tile counts. Convert.
                 _vm.TileCountX = System.Math.Max(1, width / 8);
@@ -147,6 +152,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 || imageType == 2
                 || imageType == 3
                 || imageType == 4;
+        }
+
+        /// <summary>
+        /// Normalise a value into a GBA-format pointer for display.
+        /// Preserves 0 (null pointer) as 0x00000000 rather than rewriting
+        /// it to 0x08000000 — null pointers should not be shown as valid
+        /// ROM addresses. (Copilot bot review on PR #513.)
+        /// </summary>
+        internal static uint NormalizeGbaPointer(uint value)
+        {
+            if (value == 0) return 0;
+            if (value >= 0x08000000u) return value;
+            return value | 0x08000000u;
         }
     }
 }

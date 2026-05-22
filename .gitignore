@@ -76,3 +76,7 @@ docs/avalonia-gaps/*-screenshots/**/av/
 .claude/*
 !.claude/skills/
 FEBuilderGBA/FEBuilderGBA.csproj.user
+
+# tools/ subprojects (WinCapture, etc.) — build artifacts only
+tools/**/bin/
+tools/**/obj/
