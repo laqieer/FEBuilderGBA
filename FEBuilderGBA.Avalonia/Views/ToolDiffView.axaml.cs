@@ -1,6 +1,8 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -16,42 +18,70 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolDiffView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            DataContext = _vm;
+            _vm.Initialize();
         }
 
-        void LoadList()
+        // ---------- 2-ROM Diff tab ----------
+
+        async void OtherBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("ToolDiffView.LoadList failed: {0}", ex.Message);
-            }
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (!string.IsNullOrEmpty(path))
+                _vm.OtherPath = path;
         }
 
-        void OnSelected(uint addr)
+        async void MakeBinPatch_Click(object? sender, RoutedEventArgs e)
         {
-            try
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("ToolDiffView.OnSelected failed: {0}", ex.Message);
-            }
+                Title = R._("Save Binary Patch File"),
+                SuggestedFileName = "PATCH_diff.txt",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("Text Patch") { Patterns = new[] { "*.txt" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                },
+            });
+            var path = file?.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(path))
+                _vm.RunMakeBinPatch(path);
         }
 
-        void UpdateUI()
+        // ---------- 3-ROM Diff tab ----------
+
+        async void ABrowse_Click(object? sender, RoutedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (!string.IsNullOrEmpty(path))
+                _vm.AFilePath = path;
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        async void BBrowse_Click(object? sender, RoutedEventArgs e)
+        {
+            var path = await FileDialogHelper.OpenRomFile(this);
+            if (!string.IsNullOrEmpty(path))
+                _vm.BFilePath = path;
+        }
+
+        async void MakeBinPatch3_Click(object? sender, RoutedEventArgs e)
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Save 3-Way Binary Patch File"),
+                SuggestedFileName = "PATCH_diff3.txt",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("Text Patch") { Patterns = new[] { "*.txt" } },
+                    new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+                },
+            });
+            var path = file?.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(path))
+                _vm.RunMakeBinPatch3(path);
+        }
+
+        public void NavigateTo(uint address) { }
+        public void SelectFirstItem() { }
     }
 }
