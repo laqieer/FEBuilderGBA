@@ -1328,8 +1328,8 @@ BGM / 音楽
 :Background Image Editor
 背景 画像エディタ
 
-:Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
-背景画像セレクタ.&#10;選択 a background image from the available BG entries in the ROM.
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+背景画像セレクタ.\r\n選択 a background image from the available BG entries in the ROM.
 
 :Backup History (newest on top)
 バックアップ History (newest on top)
@@ -1706,8 +1706,8 @@ Cursor 選択 行動:
 :Dark:
 闇
 
-:Data Address&#x0a;(if pointer)
-Data アドレス&#x0a;(if pointer)
+:Data Address\r\n(if pointer)
+Data アドレス\r\n(if pointer)
 
 :Data Address:
 Data アドレス:
@@ -1718,8 +1718,8 @@ Data ポインタ:
 :Data Size:
 データ個数
 
-:Data size mismatch.&#x0a;(DataCount/2) % Width != 0
-Data size mismatch.&#x0a;(DataCount/2) % 幅 != 0
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+Data size mismatch.\r\n(DataCount/2) % 幅 != 0
 
 :Default Text ID:
 デフォルト Text ID:
@@ -2804,14 +2804,14 @@ ROMを開く
 :Other ROM Ref
 その他 ROM Ref
 
-:Other ROM&#x0a;Data Address
-その他 ROM&#x0a;Data アドレス
+:Other ROM\r\nData Address
+その他 ROM\r\nData アドレス
 
 :Other Text Strings
 その他 Text Strings
 
-:PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
-PLIST (ポインタ List) assigns a numeric ID to each map.&#x0a;選択 an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (ポインタ List) assigns a numeric ID to each map.\r\n選択 an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
 
 :PNG Image
 PNG 画像
@@ -2837,11 +2837,11 @@ Page 上
 :Palette Clipboard
 パレット Clipboard
 
-:Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
-パレット Clipboard マネージャ stores and retrieves palette data.&#10;コピー palettes between different graphics entries or save them for later use.
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+パレット Clipboard マネージャ stores and retrieves palette data.\r\nコピー palettes between different graphics entries or save them for later use.
 
-:Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
-パレット 色 エディタ allows editing individual colors in a 16-color GBA palette.&#10;選択 a palette slot to modify its RGB values.
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+パレット 色 エディタ allows editing individual colors in a 16-color GBA palette.\r\n選択 a palette slot to modify its RGB values.
 
 :Palette Data Pointer:
 パレット Data ポインタ:
@@ -2867,8 +2867,8 @@ Page 上
 :Palette Swap
 パレット Swap
 
-:Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
-パレット Swap exchanges palette assignments between entries.&#10;選択 source and destination palette slots to exchange their color data.
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+パレット Swap exchanges palette assignments between entries.\r\n選択 source and destination palette slots to exchange their color data.
 
 :Palette Transparency Error
 パレット Transparency エラー
@@ -3131,8 +3131,8 @@ Secret ショップ ポインタ:
 :Self Remaining HP Warning:
 Self Remaining HP 警告:
 
-:Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
-Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;参照: feuniverse.us difficulty stat changes
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\n参照: feuniverse.us difficulty stat changes
 
 :Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
 Sets the priority of items that thief AI will try to steal. アイテム at the top of the list have the highest priority.
@@ -3209,8 +3209,8 @@ Simple Menu (簡単モード)
 :Skill Set 2:
 スキル Set 2:
 
-:Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
-スキル system editors require a compatible skill patch to be installed.&#10;Use the パッチ マネージャ to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N スキル System
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+スキル system editors require a compatible skill patch to be installed.\r\nUse the パッチ マネージャ to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N スキル System
 
 :Skill:
 スキル
