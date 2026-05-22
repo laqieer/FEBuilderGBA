@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         bool _pendingApply;
 
-        enum PropKind { Text, Header, Content, Title, Watermark }
+        enum PropKind { Text, Header, Content, Title, Watermark, ToolTip }
 
         readonly record struct TranslationEntry(Control Control, PropKind Kind, string OriginalText);
 
@@ -187,6 +187,17 @@ namespace FEBuilderGBA.Avalonia.Services
                 _entries.Add(new TranslationEntry(control, PropKind.Watermark, textBox.Watermark!));
             }
 
+            // Check ToolTip.Tip attached property — only when it's a string.
+            // Issue #356: hundreds of AXAML `ToolTip.Tip="..."` literals never reach
+            // R._() today; this is the most common translation gap surfaced by the
+            // Phase 6 gap-sweep. Non-string tooltips (controls embedded as tooltips)
+            // are skipped — the pattern match returns false for them.
+            object? tipObj = ToolTip.GetTip(control);
+            if (tipObj is string tip && IsTranslatable(tip))
+            {
+                _entries.Add(new TranslationEntry(control, PropKind.ToolTip, tip));
+            }
+
             // Recurse into logical children
             foreach (var child in control.GetLogicalChildren())
             {
@@ -231,6 +242,13 @@ namespace FEBuilderGBA.Avalonia.Services
                     case PropKind.Watermark:
                         if (entry.Control is TextBox textBox)
                             textBox.Watermark = translated;
+                        break;
+                    case PropKind.ToolTip:
+                        // Only re-apply when the current tooltip is still a string —
+                        // if user code swapped in a control-based tooltip after the
+                        // initial scan, we preserve that and skip the string overwrite.
+                        if (ToolTip.GetTip(entry.Control) is string)
+                            ToolTip.SetTip(entry.Control, translated);
                         break;
                 }
             }

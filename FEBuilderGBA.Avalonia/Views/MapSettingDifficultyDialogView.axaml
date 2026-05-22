@@ -50,10 +50,12 @@
       <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficultyDialog_DifficultyValue_Input" FormatString="0" x:Name="DifficultyValueInput" Width="95" Height="25"
                      Minimum="0" Maximum="65535" Value="0" />
     </StackPanel>
-    <!-- Help text (WinForms textBox1 527x121 ReadOnly) -->
-    <TextBox AutomationProperties.AutomationId="MapSettingDifficultyDialog_TextBox1_Input" IsReadOnly="True" Height="121" TextWrapping="Wrap"
-             Text="Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes"
-             Margin="0,0,0,10" />
+    <!-- Help text (WinForms textBox1 527x121 ReadOnly). Use TextBlock so the
+         ViewTranslationHelper picks up the Text property (TextBox.Text was
+         intentionally excluded from the helper to protect bound output fields). -->
+    <TextBlock AutomationProperties.AutomationId="MapSettingDifficultyDialog_TextBox1_Input" Height="121" TextWrapping="Wrap"
+               Text="Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes"
+               Margin="0,0,0,10" />
     <!-- OK button (WinForms OKButton 272x43 right-aligned) -->
     <Button AutomationProperties.AutomationId="MapSettingDifficultyDialog_OK_Button" Content="Apply" Width="272" Height="43"
             HorizontalAlignment="Right" Click="OK_Click" />
