@@ -144,6 +144,30 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Stop when u32 at entry+0 is &gt;= 0xFF. Used by status-units-menu
+        /// (<c>StatusUnitsMenuForm.Init</c>: <c>order &lt; 0xFF</c>; we
+        /// stop on the negation: <c>order &gt;= 0xFF</c>).
+        /// </summary>
+        static bool StopOnU32AtLeastFF(ROM rom, uint entry, uint i)
+        {
+            if (entry + 4 > (uint)rom.Data.Length) return true;
+            return rom.u32(entry) >= 0xFFu;
+        }
+
+        /// <summary>
+        /// Stop when u32 at entry+0 is &lt; 1 OR &gt; 0xFF. Used by FE7
+        /// EventFinalSerif (<c>EventFinalSerifFE7Form.Init</c>:
+        /// <c>unit_id &lt;= 0xff &amp;&amp; unit_id &gt;= 0x1</c>; we stop on the
+        /// negation).
+        /// </summary>
+        static bool StopOnU32OutsideUnitRange(ROM rom, uint entry, uint i)
+        {
+            if (entry + 4 > (uint)rom.Data.Length) return true;
+            uint v = rom.u32(entry);
+            return v < 1 || v > 0xFFu;
+        }
+
+        /// <summary>
         /// WinForms-pattern terminator: stops when (a) the per-entry sentinel
         /// predicate hits, OR (b) we're past index 10 AND the next 10 blocks
         /// (10 × blockSize bytes from entry) are all zero (an "empty run").
@@ -477,6 +501,9 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = DefaultMaxCount,
                     TextIdOffsets = new uint[] { 4, 12 },
+                    // StatusUnitsMenuForm.Init stops on order >= 0xFF (it
+                    // returns false when the "order" u32 at +0 is >= 0xFF).
+                    Terminator = StopOnU32AtLeastFF,
                     NameResolver = id => $"UnitsMenu {id:X02}",
                 });
             }
@@ -745,11 +772,15 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = DefaultMaxCount,
                     TextIdOffsets = new uint[] { 4, 12 },
+                    // StatusUnitsMenuForm.Init stops on order >= 0xFF (it
+                    // returns false when the "order" u32 at +0 is >= 0xFF).
+                    Terminator = StopOnU32AtLeastFF,
                     NameResolver = id => $"UnitsMenu {id:X02}",
                 });
             }
 
-            // EventFinalSerif (FE7 only) — final chapter lines; size 8, offset 4
+            // EventFinalSerif (FE7 only) — final chapter lines; size 8, offset 4.
+            // EventFinalSerifFE7Form.Init stops when unit_id is outside 1..0xFF.
             if (info.event_final_serif_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -759,12 +790,14 @@ namespace FEBuilderGBA
                     EntrySize = 8,
                     MaxCount = DefaultMaxCount,
                     TextIdOffsets = new uint[] { 4 },
+                    Terminator = StopOnU32OutsideUnitRange,
                     NameResolver = id => $"FinalLine {id:X02}",
                 });
             }
 
             // EDSenseki (FE7 only) — battle-record comments; size 16, offsets {4,8,12}.
             // EDSensekiCommentForm.MakeVarsIDArray uses { 4, 8, 12 } (not just 4,8).
+            // EDSensekiCommentForm.Init stops when u16@+0 == 0.
             if (info.senseki_comment_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -774,6 +807,7 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = DefaultMaxCount,
                     TextIdOffsets = new uint[] { 4, 8, 12 },
+                    Terminator = StopOnU16Zero,
                     NameResolver = id => $"Senseki {id:X02}",
                 });
             }
