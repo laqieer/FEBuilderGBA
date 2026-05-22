@@ -282,6 +282,25 @@ public class MapTerrainBGLookupTableParityTests
     }
 
     /// <summary>
+    /// Regression test for Copilot CLI inline review point on PR #491:
+    /// the BG view must expose a `_navigationApplied` short-circuit flag so
+    /// that `InitialLoad` (registered to `Opened` in the constructor) does
+    /// NOT clobber a deep-link applied by `NavigateToFilterAndRow` before
+    /// `Opened` fired. Verified by reflection — the production code path is
+    /// otherwise hard to exercise without a real Avalonia head.
+    /// </summary>
+    [Fact]
+    public void View_HasNavigationAppliedShortCircuitField()
+    {
+        var fieldInfo = typeof(MapTerrainBGLookupTableView).GetField(
+            "_navigationApplied",
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(fieldInfo);
+        Assert.Equal(typeof(bool), fieldInfo!.FieldType);
+    }
+
+    /// <summary>
     /// Ensure CoreState.BaseDirectory points at the test bin dir so
     /// MapTerrainLookupCore.GetTerrainSetDic can locate
     /// config/data/battleterrain_set_*.txt. The Avalonia test project

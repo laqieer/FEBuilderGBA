@@ -18,6 +18,15 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MapTerrainBGLookupTableViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressFilterChange;
+        /// <summary>
+        /// Set to true the FIRST time NavigateToFilterAndRow runs. When true,
+        /// the constructor-registered InitialLoad handler short-circuits to
+        /// preserve the deep-linked filter+row selection (Copilot CLI review
+        /// point on PR #491 — InitialLoad's default filter=0 must not clobber
+        /// a deep-link that NavigateToFilterAndRow already applied before
+        /// `Opened` fired).
+        /// </summary>
+        bool _navigationApplied;
 
         public string ViewTitle => "Terrain BG Lookup Table";
         public bool IsLoaded => _vm.IsLoaded;
@@ -33,6 +42,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void InitialLoad()
         {
+            // If a deep-link already configured the view (NavigateToFilterAndRow
+            // ran before `Opened` fired), don't clobber the requested
+            // selection with the default filter-0 load. Copilot CLI review
+            // point on PR #491 — the original implementation always reset to
+            // filter 0 here, racing the deep-link path.
+            if (_navigationApplied)
+                return;
+
             _vm.IsLoading = true;
             try
             {
@@ -175,6 +192,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public void NavigateToFilterAndRow(uint filterIndex, uint rowIndex)
         {
+            // Tell InitialLoad to short-circuit if it fires after us — the
+            // deep-link wins over the default filter-0 load (Copilot CLI
+            // review point on PR #491).
+            _navigationApplied = true;
+
             // Ensure the filter combo is populated. When called via Window
             // .Show() before InitialLoad runs (e.g. JumpToRef), we have to
             // load the filter entries first so the combo selection sticks.
@@ -221,11 +243,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// null when the input doesn't match the WinForms expected shape —
         /// callers should NOT see a window pop up for malformed references.
         ///
-        /// When a valid reference IS provided, the navigation runs INSIDE
-        /// a one-shot `Opened += ` handler so the order is
-        /// `InitialLoad → NavigateToFilterAndRow` (the deep-link wins
-        /// instead of being clobbered by the constructor's default load).
-        /// This is the contract Copilot CLI flagged in plan-review point 2.
+        /// When a valid reference IS provided, we call
+        /// <see cref="NavigateToFilterAndRow"/> immediately after
+        /// <c>Open&lt;T&gt;()</c>. <c>NavigateToFilterAndRow</c> sets
+        /// <c>_navigationApplied = true</c> so that the constructor-registered
+        /// <c>Opened += InitialLoad</c> handler short-circuits when it fires
+        /// later — the deep-link wins over the default filter-0 load
+        /// (Copilot CLI review point on PR #491).
         /// </summary>
         public static MapTerrainBGLookupTableView? JumpToRef(string text)
         {
