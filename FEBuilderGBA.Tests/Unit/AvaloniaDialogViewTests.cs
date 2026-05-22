@@ -884,7 +884,9 @@ namespace FEBuilderGBA.Tests.Unit
         // PR #465 (#369) bumped ItemShopViewerView to 1280x720; sync the expected size.
         [InlineData("ItemShopViewerView.axaml", 1280, 720)]
         [InlineData("ItemWeaponTriangleViewerView.axaml", 1290, 648)]
-        [InlineData("ItemUsagePointerViewerView.axaml", 1238, 801)]
+        // #440 — Width bumped to 1253 to accommodate the dense filter/read-config
+        // bar + selection-row added by the gap-sweep parity raise.
+        [InlineData("ItemUsagePointerViewerView.axaml", 1253, 801)]
         [InlineData("ItemEffectPointerViewerView.axaml", 1185, 658)]
         [InlineData("ItemIconViewerView.axaml", 749, 358)]
         [InlineData("ArenaClassViewerView.axaml", 1201, 738)]

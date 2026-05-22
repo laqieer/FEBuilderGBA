@@ -2,27 +2,131 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemUsagePointerViewerView"
-        Title="Item Usage Pointer Editor" Width="1238" Height="801"
+        Title="Item Usage Pointer Editor" Width="1253" Height="801"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ItemUsagePointerViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Top filter / read-config bar (mirrors WinForms panel3) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Filter:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Filter_Combo"
+                  Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
+        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Selection bar (mirrors WinForms panel5) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_Item_Address_Input"
+                       FormatString="X8" Name="ItemAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Block Size:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Block_Size"
+                 Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
+        <Label Content="Selection:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_SelectedAddress"
+                 Name="SelectedAddressBox" Width="120" IsReadOnly="True" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_Write_Button"
+                Name="WriteButton" Content="Write" Click="Write_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Left: list + expand button (mirrors WinForms panel6) -->
+    <Grid Grid.Row="2" Grid.Column="0" RowDefinitions="Auto,*,Auto" Margin="4">
+      <Label Grid.Row="0" Content="Name" BorderBrush="Gray" BorderThickness="1" Padding="4,2" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ItemUsagePointerViewer_Entry_List"
+                                   Grid.Row="1" Name="EntryList" />
+      <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_SwitchListExpands_Button"
+              Grid.Row="2" Name="SwitchListExpandsButton" Content="List Expansion"
+              Click="SwitchListExpands_Click" HorizontalAlignment="Stretch" />
+    </Grid>
+
+    <!-- Right: detail panel (mirrors WinForms panel4) -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Item Usage Pointer Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Text="Function pointers for item usability checks" FontSize="12" Foreground="Gray" />
+        <Label Content="Item Usage Pointer Editor" FontSize="18" FontWeight="Bold" />
+        <Label Content="Function pointers for item usability checks" FontSize="12" Foreground="Gray" />
 
-        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ItemUsagePointerViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto">
+          <Label Grid.Row="0" Grid.Column="0" Content="ASM Pointer Address:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmPointer_Input"
+                         FormatString="X8" Grid.Row="0" Grid.Column="1"
+                         Name="AsmPointerBox" Minimum="0" Maximum="65535999"
+                         IsEnabled="False" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Usability Pointer:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_UsabilityPointer_Input" Grid.Row="1" Grid.Column="1" Name="UsabilityPointerBox" Width="120" VerticalAlignment="Center" />
+          <Label Grid.Row="1" Grid.Column="0" Content="Item ID Switch:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmSwitch"
+                   Grid.Row="1" Grid.Column="1" Name="AsmSwitchBox" Width="200"
+                   IsReadOnly="True" VerticalAlignment="Center" />
+
+          <Label Grid.Row="2" Grid.Column="0" Content="Function" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Function_Combo"
+                    Grid.Row="2" Grid.Column="1" Name="FunctionCombo" Width="640"
+                    VerticalAlignment="Center" />
+
+          <Label Grid.Row="3" Grid.Column="0" Content="Usability Pointer:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_UsabilityPointer_Input"
+                   Grid.Row="3" Grid.Column="1" Name="UsabilityPointerBox" Width="120"
+                   VerticalAlignment="Center" />
         </Grid>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+        <!-- Promotion related-link panel (visible only when current filter
+             is a promotion array). Mirrors WinForms PromotionItemExplain. -->
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_PromotionExplain_Panel"
+                Name="PromotionItemExplainPanel" BorderBrush="Gray" BorderThickness="1"
+                Padding="6" IsVisible="False">
+          <StackPanel Spacing="4">
+            <Label Content="Related: Promotion" FontWeight="Bold" />
+            <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_PromotionItemLink_Button"
+                    Name="PromotionItemLinkButton" Content="CC Item Editor"
+                    Click="PromotionItemLink_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Stat Booster related-link panel. Mirrors WinForms StatBoosterItemExplain. -->
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_StatBoosterExplain_Panel"
+                Name="StatBoosterItemExplainPanel" BorderBrush="Gray" BorderThickness="1"
+                Padding="6" IsVisible="False">
+          <StackPanel Spacing="4">
+            <Label Content="Related: Stat Booster" FontWeight="Bold" />
+            <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_StatBoosterItemLink_Button"
+                    Name="StatBoosterItemLinkButton" Content="Stat Bonuses Editor"
+                    Click="StatBoosterItemLink_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- "Not used in this FE version" red label (mirrors WF X_NOT_FOUND). -->
+        <Label AutomationProperties.AutomationId="ItemUsagePointerViewer_NotFound_Label"
+               Name="NotFoundLabel" Content="Not used in this version of FE."
+               Foreground="Red" IsVisible="False" />
+
+        <!-- IER red label + button (mirrors WF X_IER_PATCH). -->
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_IerPatch_Panel"
+                Name="IerPatchPanel" BorderBrush="Red" BorderThickness="1"
+                Padding="6" IsVisible="False">
+          <StackPanel Spacing="4">
+            <Label Content="IER patch detected — configure from Patch Manager."
+                   Foreground="Red" />
+            <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_IerPatch_Button"
+                    Name="IerPatchButton" Content="Install Patch"
+                    Click="IerPatch_Click" />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

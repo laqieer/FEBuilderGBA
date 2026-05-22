@@ -20414,3 +20414,39 @@ NightmareModule创建nmm文件
 
 :Cancel
 取消
+
+:Function
+功能
+
+:Block Size
+块大小
+
+:List Expansion
+列表扩展
+
+:Name
+名称
+
+:ASM Pointer Address
+ASM 指针地址
+
+:Item ID Switch
+物品 ID Switch
+
+:Related: Promotion
+相关项目: 转职
+
+:Related: Stat Booster
+相关项目: 能力补正
+
+:CC Item Editor
+CC 物品编辑器
+
+:Stat Bonuses Editor
+能力补正编辑器
+
+:Not used in this version of FE.
+此版本的 FE 中未使用。
+
+:IER patch detected — configure from Patch Manager.
+检测到 IER 补丁 — 从补丁管理器配置。

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Gap-sweep #440 rebuild — exposes the 10-filter dispatch, address/count
+// indicators, expand button, related-link panels, and the IER red bar
+// missing from the pre-#440 view (which only handled the Usability slot).
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -6,11 +10,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// Avalonia counterpart of WinForms <c>ItemUsagePointerForm</c>.
+    /// Phase 1 + 4 gap-fix (#440): exposes the missing FilterComboBox,
+    /// address/read indicators, list-expansion + reload buttons, two
+    /// related-link panels (Promotion / Stat Booster), and the IER
+    /// patch-install affordance — so the view density matches WinForms
+    /// within the 25% MEDIUM verdict.
+    /// </summary>
     public partial class ItemUsagePointerViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         public ViewModelBase? DataViewModel => _vm;
         readonly ItemUsagePointerViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppressFilterChange;
 
         public string ViewTitle => "Item Usage Pointer";
         public bool IsLoaded => _vm.CanWrite;
@@ -19,20 +32,107 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
+            Opened += (_, _) => InitialLoad();
         }
 
-        void LoadList()
+        void InitialLoad()
         {
+            _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadItemUsagePointerList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+                _vm.RefreshPatchState();
+                _suppressFilterChange = true;
+                FilterComboBox.ItemsSource = _vm.FilterEntries;
+                if (_vm.FilterEntries.Count > 0)
+                    FilterComboBox.SelectedIndex = 0;
+                _suppressFilterChange = false;
+
+                LoadListForFilter(0);
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.LoadList: {0}", ex.Message);
+                Log.Error("ItemUsagePointerViewerView.InitialLoad: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+            }
+        }
+
+        void LoadListForFilter(int filterIndex)
+        {
+            try
+            {
+                var items = _vm.LoadList(filterIndex);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+
+                // Refresh the read-only top/select bar indicators from VM state.
+                ReadStartAddressBox.Value = (decimal)_vm.ReadStartAddress;
+                ReadCountBox.Value = (decimal)_vm.ReadCount;
+                AsmSwitchBox.Text = _vm.AsmSwitchText;
+                BlockSizeBox.Text = _vm.BlockSize.ToString();
+                ItemAddressBox.Value = (decimal)_vm.CurrentArrayAddr;
+                AsmPointerBox.Value = (decimal)_vm.CurrentArrayAddr;
+
+                // Promotion/StatBooster panels visibility — mirrors WinForms.
+                bool isPromo = filterIndex == (int)ItemUsagePointerCore.FilterKind.Promotion1
+                            || filterIndex == (int)ItemUsagePointerCore.FilterKind.Promotion2;
+                bool isStatBooster = filterIndex == (int)ItemUsagePointerCore.FilterKind.StatBooster1
+                                  || filterIndex == (int)ItemUsagePointerCore.FilterKind.StatBooster2
+                                  || filterIndex == (int)ItemUsagePointerCore.FilterKind.ErrorMessage;
+                PromotionItemExplainPanel.IsVisible = isPromo;
+                StatBoosterItemExplainPanel.IsVisible = isStatBooster;
+
+                // IER and X_NOT_FOUND panels — mirrors WF logic.
+                if (!_vm.IsEnabledForCurrentFilter)
+                {
+                    SwitchListExpandsButton.IsVisible = false;
+                    WriteButton.IsVisible = false;
+
+                    if (_vm.IsIERPatchInstalled)
+                    {
+                        NotFoundLabel.IsVisible = false;
+                        IerPatchPanel.IsVisible = true;
+                    }
+                    else
+                    {
+                        NotFoundLabel.IsVisible = true;
+                        IerPatchPanel.IsVisible = false;
+                    }
+                }
+                else
+                {
+                    SwitchListExpandsButton.IsVisible = true;
+                    WriteButton.IsVisible = true;
+                    NotFoundLabel.IsVisible = false;
+                    IerPatchPanel.IsVisible = false;
+                }
+
+                if (items.Count > 0)
+                {
+                    EntryList.SelectFirst();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemUsagePointerViewerView.LoadListForFilter: {0}", ex.Message);
+            }
+        }
+
+        void FilterComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressFilterChange) return;
+            int idx = FilterComboBox.SelectedIndex;
+            if (idx < 0) return;
+            LoadListForFilter(idx);
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            int idx = Math.Max(0, FilterComboBox.SelectedIndex);
+            LoadListForFilter(idx);
         }
 
         void OnSelected(uint addr)
@@ -40,7 +140,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.IsLoading = true;
-                _vm.LoadItemUsagePointer(addr);
+                _vm.LoadEntry(addr);
                 UpdateUI();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
@@ -54,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressBox.Text = $"0x{_vm.CurrentSelectedAddr:X08}";
             UsabilityPointerBox.Text = $"0x{_vm.UsabilityPointer:X08}";
         }
 
@@ -65,15 +165,91 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Item Usage Pointer");
             try
             {
-                _vm.WriteItemUsagePointer();
+                _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
-                CoreState.Services.ShowInfo("Item Usage Pointer data written.");
+                CoreState.Services?.ShowInfo("Item Usage Pointer data written.");
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.Error("ItemUsagePointerViewerView.Write_Click: {0}", ex.Message);
+            }
+        }
+
+        void SwitchListExpands_Click(object? sender, RoutedEventArgs e)
+        {
+            // The full WF dialog asks the user for a target count + default
+            // function pointer. For the Avalonia parity we use a simple
+            // "expand to ItemForm.DataCount()" heuristic which mirrors the WF
+            // SwitchListExpandsButton_Click logic (newCount = ItemForm.DataCount()
+            // and defAddr = first L_0_COMBO entry). Since the Avalonia view
+            // doesn't bind a function-pointer dropdown yet, we use the current
+            // UsabilityPointer (or 0) as the default-fill pointer.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+            uint newCount = 0x100u; // Match WF ItemForm.DataCount default.
+            uint defAddr = _vm.UsabilityPointer != 0 ? _vm.UsabilityPointer : 0u;
+
+            _undoService.Begin("Item Usage Switch2 Expand");
+            try
+            {
+                var undoData = _undoService.GetActiveUndoData();
+                uint newAddr = undoData != null
+                    ? _vm.ExpandList(newCount, defAddr, undoData)
+                    : U.NOT_FOUND;
+                if (newAddr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+                LoadListForFilter(_vm.FilterIndex);
+                CoreState.Services?.ShowInfo("Switch2 array expanded.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ItemUsagePointerViewerView.SwitchListExpands_Click: {0}", ex.Message);
+            }
+        }
+
+        void PromotionItemLink_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint itemId = _vm.SelectedItemId;
+                WindowManager.Instance.Navigate<ItemPromotionViewerView>(itemId);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemUsagePointerViewerView.PromotionItemLink_Click: {0}", ex.Message);
+            }
+        }
+
+        void StatBoosterItemLink_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint itemId = _vm.SelectedItemId;
+                WindowManager.Instance.Navigate<ItemStatBonusesViewerView>(itemId);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemUsagePointerViewerView.StatBoosterItemLink_Click: {0}", ex.Message);
+            }
+        }
+
+        void IerPatch_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                WindowManager.Instance.Open<PatchManagerView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemUsagePointerViewerView.IerPatch_Click: {0}", ex.Message);
             }
         }
 

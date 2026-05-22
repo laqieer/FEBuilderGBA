@@ -2102,6 +2102,9 @@ Free Space アドレス:
 :From Unit:
 From ユニット:
 
+:Function
+機能
+
 :Function Pointer:
 関数ポインタ
 
@@ -6434,3 +6437,36 @@ NightmareModule nmmファイルの作成
 
 :Import Dumped Data
 ダンプしていたデータのインポート
+
+:Block Size
+ブロックサイズ
+
+:List Expansion
+リスト拡張
+
+:Name
+名前
+
+:ASM Pointer Address
+ASMポインタアドレス
+
+:Item ID Switch
+アイテムID Switch
+
+:Related: Promotion
+関連項目: クラスチェンジ
+
+:Related: Stat Booster
+関連項目: ステ補正
+
+:CC Item Editor
+CCアイテムエディタ
+
+:Stat Bonuses Editor
+能力補正エディタ
+
+:Not used in this version of FE.
+このバージョンのFEでは利用しません。
+
+:IER patch detected — configure from Patch Manager.
+IERパッチが検出されました — パッチマネージャから設定してください。
