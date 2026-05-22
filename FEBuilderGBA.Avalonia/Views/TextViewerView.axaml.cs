@@ -14,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TextViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextViewerViewModel _vm = new();
+        readonly ConversationViewerTabViewModel _convVm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Text Editor";
@@ -29,6 +30,8 @@ namespace FEBuilderGBA.Avalonia.Views
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
             EditTextBox.TextChanged += OnEditTextChanged;
+            // Bind the conversation viewer tab's card collection to the items control
+            ConversationCardsList.ItemsSource = _convVm.Cards;
             Opened += (_, _) => LoadList();
         }
 
@@ -61,6 +64,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 uint id = (addr - baseAddr) / 4;
                 _vm.LoadText(id);
+                // Also feed the conversation viewer tab so switching tabs is instant
+                _convVm.LoadConversation(id);
+                // Re-bind in case the VM replaced the ObservableCollection (LoadConversation
+                // assigns a new collection rather than mutating in place)
+                ConversationCardsList.ItemsSource = _convVm.Cards;
                 UpdateUI();
             }
             catch (Exception ex)
