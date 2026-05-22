@@ -117,7 +117,7 @@ The follow-up fix pass for issues `#48`-`#51` removed several false-negative val
 | UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | **40%** | ~~List stub~~ **FIXED** — BuildList with weapon/anim display. Missing: SP Names, Preview |
 | UnitIncreaseHeightForm / UnitIncreaseHeightVM | 25% | Write, Proper List, Switch2, Height Options |
 | UnitPaletteForm / UnitPaletteVM | **40%** | ~~List stub~~ **FIXED** — list from unit_palette_color_pointer with unit names. Missing: Dual Tables, Preview |
-| UnitsShortTextForm / UnitsShortTextVM | **50%** | ~~Proper List~~ **FIXED** — AddressListControl with unit names, text ID decode/preview. Missing: Alloc, Recycling |
+| UnitsShortTextForm / UnitsShortTextVM | **50%** | ~~Proper List~~ **FIXED** — AddressListControl with unit names, text ID decode/preview. Pointer-driven (no auto-init from any ROM pointer; the death-quotes fallback that displayed garbage data was removed in #372). Missing: Alloc, Recycling, event-script/FELint navigation. |
 
 ### Cross-Cutting Gaps
 - ~~**No undo**~~ **FIXED** -- All write handlers wrapped with `UndoService.Begin/Commit/Rollback`

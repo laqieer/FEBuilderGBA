@@ -2433,5 +2433,72 @@ namespace FEBuilderGBA.Tests.Unit
             }
             Assert.True(tipCount >= 5, $"Expected at least 5 ToolTip.Tip attributes in ItemEditorView, found {tipCount}");
         }
+
+        // ------------------------------------------------------------------ UnitsShortText (#372)
+
+        [Fact]
+        public void UnitsShortTextViewModel_DoesNotUseEventHaikuFallback()
+        {
+            // Issue #372: event_haiku_pointer (death quotes, 12-byte struct array) was incorrectly
+            // used as a fallback base address for unit short text (u16 text-id array). The two data
+            // structures are not compatible — reading death-quote bytes as text IDs displays nonsense.
+            // The fallback must be removed entirely; this view is pointer-driven only.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitsShortTextViewModel.cs"));
+            Assert.DoesNotContain("event_haiku_pointer", src);
+            Assert.DoesNotContain("FindDefaultBaseAddr", src);
+        }
+
+        [Fact]
+        public void UnitsShortTextViewModel_GetListCountReturnsZeroWhenNoBaseAddr()
+        {
+            // GetListCount() must return 0 when _baseAddr == 0, instead of trying to auto-discover
+            // a default base address. Standalone open with no NavigateTo() => empty list.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitsShortTextViewModel.cs"));
+            // Either an explicit early return or HasData check
+            bool hasZeroReturn = src.Contains("if (_baseAddr == 0) return 0")
+                || src.Contains("if (_baseAddr == 0)\n                return 0")
+                || src.Contains("_baseAddr == 0 ? 0");
+            Assert.True(hasZeroReturn,
+                "UnitsShortTextViewModel.GetListCount must return 0 when _baseAddr == 0");
+        }
+
+        [Fact]
+        public void UnitsShortTextViewModel_HasHasDataProperty()
+        {
+            // Public HasData property — true iff a valid base address is loaded.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "UnitsShortTextViewModel.cs"));
+            Assert.Contains("public bool HasData", src);
+        }
+
+        [Fact]
+        public void UnitsShortTextView_DoesNotHaveAutoInitEventHaiku()
+        {
+            // The AutoInitIfNeeded() shim that derived a base address from event_haiku_pointer
+            // is the bug being fixed. It must not remain in the code-behind.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitsShortTextView.axaml.cs"));
+            Assert.DoesNotContain("event_haiku_pointer", src);
+            Assert.DoesNotContain("AutoInitIfNeeded", src);
+        }
+
+        [Fact]
+        public void UnitsShortTextView_HasEmptyStateAndEditorGrid()
+        {
+            // The axaml must declare both the empty-state TextBlock and the editor grid container
+            // so the code-behind can flip visibility between them.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitsShortTextView.axaml"));
+            Assert.Contains("EmptyStateLabel", src);
+            Assert.Contains("EditorGrid", src);
+        }
+
+        [Fact]
+        public void UnitsShortTextView_HidesEditorGridWhenNoBaseAddr()
+        {
+            // Behavior assertion (Copilot review #3): when no base address is set, the editor grid
+            // and Write button are hidden; the empty-state label is shown. NavigateTo() flips them.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitsShortTextView.axaml.cs"));
+            Assert.Contains("EditorGrid.IsVisible", src);
+            Assert.Contains("EmptyStateLabel.IsVisible", src);
+            Assert.Contains("WriteButton.IsVisible", src);
+        }
     }
 }
