@@ -38,11 +38,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Outer list — items whose +16 effectiveness pointer is a real ROM
-        /// address. The <see cref="AddrResult.addr"/> field stores the ITEM
-        /// struct's address so the caller can resolve the effectiveness
-        /// pointer by reading <c>rom.p32(addr + 16)</c>.
-        /// Mirrors the iteration semantics of
-        /// <c>ItemEffectivenessSkillSystemsReworkViewModel.LoadList()</c>.
+        /// address. The <see cref="AddrResult.addr"/> field stores the
+        /// EFFECTIVENESS ARRAY offset (the dereferenced +16 pointer) so
+        /// <c>ItemEditorView.JumpToEffectiveness_Click</c> (which passes
+        /// <c>ptr - 0x08000000</c>) and the
+        /// <c>ItemEffectivenessViewerJumpTests</c> regression suite both
+        /// resolve to the correct list row directly. Matches the post-#363
+        /// data model.
         /// </summary>
         public List<AddrResult> LoadItemList()
         {
@@ -74,34 +76,101 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 string itemName = NameResolver.GetItemName(i);
                 string name = $"{U.ToHexString(i)} {itemName}";
-                // addr = ITEM struct address (so jumping back to an item works)
-                result.Add(new AddrResult(itemAddr, name, i));
+                // addr = EFFECTIVENESS ARRAY offset (matches the source-side
+                // address from ItemEditorView.JumpToEffectiveness_Click).
+                result.Add(new AddrResult(critOff, name, i));
             }
             return result;
         }
 
-        /// <summary>Load the inner class list for the selected item.</summary>
-        public List<AddrResult> LoadInnerClassList(uint itemAddr)
+        /// <summary>
+        /// Legacy alias for backward compatibility with the existing #363
+        /// regression suite (<c>ItemEffectivenessViewerJumpTests</c>) which
+        /// calls <c>LoadItemEffectivenessList()</c>.
+        /// </summary>
+        public List<AddrResult> LoadItemEffectivenessList() => LoadItemList();
+
+        /// <summary>
+        /// Legacy alias used by the #363 regression suite. Equivalent to
+        /// <see cref="CurrentEffAddr"/>.
+        /// </summary>
+        public uint CurrentAddr
+        {
+            get => _currentEffAddr;
+            set => CurrentEffAddr = value;
+        }
+
+        /// <summary>
+        /// Load the inner class list for a selected outer row. Accepts EITHER
+        /// the effectiveness ARRAY offset (preferred — matches the outer list
+        /// stored key and the #363 jump source) OR an item struct address
+        /// (back-compat for callers that still pass the item). Sets
+        /// <see cref="CurrentEffAddr"/> and resolves the owning item via
+        /// <see cref="ItemClassListCore.FindItemsSharingPointer"/>.
+        /// </summary>
+        public List<AddrResult> LoadInnerClassList(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
-            if (itemAddr + 20 > (uint)rom.Data.Length) return new List<AddrResult>();
+            if (addr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
 
-            CurrentItemAddr = itemAddr;
-            // Identify item index for shared-owner display.
-            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
-            uint dataSize = rom.RomInfo.item_datasize;
-            if (dataSize > 0 && itemAddr >= itemBase)
+            uint critOff;
+            uint itemAddr;
+
+            // Heuristic: if addr+16 is in range AND rom.u32(addr+16) is a real
+            // pointer, treat addr as an ITEM struct address (legacy path).
+            // Otherwise treat addr as an ARRAY offset directly.
+            bool looksLikeItem = false;
+            if (addr + 20 <= (uint)rom.Data.Length)
             {
-                ItemIndex = (int)((itemAddr - itemBase) / dataSize);
+                uint maybeCrit = rom.u32(addr + 16);
+                if (U.isPointer(maybeCrit) && U.isSafetyOffset(U.toOffset(maybeCrit)))
+                {
+                    // Could be item; but also could be array byte that happens
+                    // to point somewhere. Disambiguate by checking the item
+                    // table membership.
+                    uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                    uint dataSize = rom.RomInfo.item_datasize;
+                    if (dataSize > 0 && addr >= itemBase
+                        && (addr - itemBase) % dataSize == 0)
+                    {
+                        looksLikeItem = true;
+                    }
+                }
             }
 
-            uint critPtr = rom.u32(itemAddr + 16);
-            if (!U.isPointer(critPtr)) return new List<AddrResult>();
-            uint critOff = U.toOffset(critPtr);
+            if (looksLikeItem)
+            {
+                itemAddr = addr;
+                uint critPtr = rom.u32(addr + 16);
+                critOff = U.toOffset(critPtr);
+            }
+            else
+            {
+                critOff = addr;
+                // Find the first item that owns this array.
+                var owners = ItemClassListCore.FindItemsSharingPointer(rom, critOff);
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                uint dataSize = rom.RomInfo.item_datasize;
+                itemAddr = owners.Count > 0
+                    ? itemBase + owners[0] * dataSize
+                    : 0;
+            }
+
             if (!U.isSafetyOffset(critOff)) return new List<AddrResult>();
 
+            CurrentItemAddr = itemAddr;
             CurrentEffAddr = critOff;
+            if (itemAddr != 0)
+            {
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                uint dataSize = rom.RomInfo.item_datasize;
+                if (dataSize > 0 && itemAddr >= itemBase)
+                {
+                    ItemIndex = (int)((itemAddr - itemBase) / dataSize);
+                }
+            }
+
             var classes = ItemClassListCore.ScanClassList(rom, critOff);
 
             var result = new List<AddrResult>();

@@ -123,7 +123,7 @@ Editors for items, weapons, shops, and item-related data.
 | 36 | ItemEffectivenessMainView | ItemEffectivenessMainViewModel | Nested sub-view for effectiveness |
 | 37 | ItemEffectivenessSkillSystemsReworkView | ItemEffectivenessSkillSystemsReworkViewModel | Effectiveness (Skill Systems rework) |
 | 38 | ItemPromotionViewerView | ItemPromotionViewerViewModel | Promotion item table viewer |
-| 39 | ItemShopViewerView | ItemShopViewerViewModel | Item shop inventory viewer |
+| 39 | ItemShopViewerView | ItemShopViewerViewModel | Item shop editor (3-region: shop list + slot list + editor; mirrors WinForms `ItemShopForm`) |
 | 40 | ItemWeaponTriangleViewerView | ItemWeaponTriangleViewerViewModel | Weapon triangle data viewer |
 | 41 | ItemUsagePointerViewerView | ItemUsagePointerViewerViewModel | Item usage function pointer viewer |
 | 42 | ItemEffectPointerViewerView | ItemEffectPointerViewerViewModel | Item effect function pointer viewer |

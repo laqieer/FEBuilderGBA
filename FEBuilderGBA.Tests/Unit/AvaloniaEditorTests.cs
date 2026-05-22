@@ -527,6 +527,9 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         // ------------------------------------------------------------------ Item Shop Viewer
+        // After the #369 parity refactor, the VM delegates shop enumeration to
+        // ItemShopCore. The `item_shop_hensei_pointer` reference moved into
+        // ItemShopCore (covered by ItemShopCoreTests.ItemShopCore_References_HenseiPointer).
         [Fact]
         public void ItemShopView_HasSelectFirstItem()
         {
@@ -535,10 +538,42 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void ItemShopViewModel_UsesShopPointer()
+        public void ItemShopViewModel_UsesShopCore()
+        {
+            // Replaces the pre-#369 ItemShopViewModel_UsesShopPointer test —
+            // the hensei pointer reference moved into ItemShopCore.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemShopViewerViewModel.cs"));
+            Assert.Contains("ItemShopCore.MakeShopList", src);
+        }
+
+        [Fact]
+        public void ItemShopView_HasShopList()
+        {
+            // #369 parity: the view must have a dedicated ShopList control
+            // (the 3-region WinForms layout). A view that only has SlotList is
+            // the pre-#369 flat layout.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemShopViewerView.axaml"));
+            Assert.Contains("Name=\"ShopList\"", src);
+            Assert.Contains("Name=\"SlotList\"", src);
+        }
+
+        [Fact]
+        public void ItemShopView_HasSlotControls()
+        {
+            // #369 parity: Append Slot / Remove Last Slot / Reload buttons.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemShopViewerView.axaml"));
+            Assert.Contains("Name=\"AppendSlotButton\"", src);
+            Assert.Contains("Name=\"RemoveLastSlotButton\"", src);
+            Assert.Contains("Name=\"ReloadButton\"", src);
+        }
+
+        [Fact]
+        public void ItemShopViewModel_HasAppendAndRemoveSlot()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemShopViewerViewModel.cs"));
-            Assert.Contains("item_shop_hensei_pointer", src);
+            Assert.Contains("TryAppendSlotInPlace", src);
+            Assert.Contains("AppendSlotWithRelocation", src);
+            Assert.Contains("RemoveLastSlot", src);
         }
 
         // ------------------------------------------------------------------ Item Weapon Triangle Viewer

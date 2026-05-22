@@ -153,8 +153,16 @@ public class ItemEffectivenessViewerParityTests : IClassFixture<RomFixture>
             var outer = view.FindControl<AddressListControl>("EntryList");
             Assert.NotNull(outer);
             Assert.NotNull(outer!.SelectedItem);
-            // Selected item must be the OWNING item, identified by its struct address.
-            Assert.Equal(itemAddr, outer.SelectedItem!.addr);
+            // After the #461 merge, the outer list stores the EFFECTIVENESS
+            // array offset as the row's addr. Selecting via NavigateTo with
+            // the array address must therefore land on a row whose addr
+            // equals that array address.
+            Assert.Equal(effAddr.Value, outer.SelectedItem!.addr);
+            // And the view-model's CurrentItemAddr must resolve to the
+            // first owning item.
+            var vm = view.DataViewModel as ItemEffectivenessViewerViewModel;
+            Assert.NotNull(vm);
+            Assert.Equal(itemAddr, vm!.CurrentItemAddr);
         }
         finally { view.Close(); }
     }
