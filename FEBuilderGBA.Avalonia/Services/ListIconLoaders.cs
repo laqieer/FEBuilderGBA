@@ -212,6 +212,65 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a horizontally-stitched 64x32 RGBA pair containing two unit
+        /// portraits (left = unit at <c>addr+0</c>, right = unit at
+        /// <c>addr+unit2Offset</c>) read directly from ROM via
+        /// <see cref="ROM.u8(uint)"/>.
+        ///
+        /// IMPORTANT: this loader does NOT parse the list-text prefix — it
+        /// reads from <c>items[index].addr</c>. The version-specific
+        /// <paramref name="unit2Offset"/> parameter selects where partner 2
+        /// lives:
+        ///   - FE8     : <c>unit2Offset = 2</c>
+        ///   - FE6/FE7 : <c>unit2Offset = 1</c>
+        /// Matches WinForms <c>ListBoxEx.DrawUnit2AndText</c> used by
+        /// <c>SupportTalk{,FE6,FE7}Form</c>.
+        ///
+        /// Used by <c>SupportTalk{,FE6,FE7}View</c>. Issue #361.
+        /// </summary>
+        public static Bitmap? UnitPortraitPairFromAddrU8Loader(List<AddrResult> items, int index, int unit2Offset)
+        {
+            using var img = UnitPortraitPairFromAddrU8LoaderInternal(items, index, unit2Offset);
+            return ImageConversionHelper.ToAvaloniaBitmap(img);
+        }
+
+        /// <summary>
+        /// Test-visible internal helper: returns the raw <see cref="IImage"/>
+        /// produced by reading <c>uid1 = u8(addr)</c> and
+        /// <c>uid2 = u8(addr + unit2Offset)</c>, resolving each to a portrait
+        /// ID, and compositing via <see cref="PreviewIconHelper.LoadPortraitMiniPair"/>.
+        ///
+        /// Exists so tests can verify the offset-reading behavior without
+        /// requiring Avalonia headless rendering (the public method depends
+        /// on <see cref="ImageConversionHelper.ToAvaloniaBitmap"/> which
+        /// triggers PNG decode in Avalonia). Tests compare
+        /// <see cref="IImage.GetPixelData"/> directly. Issue #361.
+        /// </summary>
+        internal static IImage UnitPortraitPairFromAddrU8LoaderInternal(List<AddrResult> items, int index, int unit2Offset)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            if (unit2Offset <= 0) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                // Validate BOTH read positions independently: U.isSafetyOffset
+                // requires >= 0x200, but a degenerate addr < 0x200 with
+                // unit2Offset=1 would pass the addr+offset check while still
+                // reading from an unsafe addr at offset 0 (Copilot review).
+                if (!U.isSafetyOffset(addr)) return null;
+                if (!U.isSafetyOffset(addr + (uint)unit2Offset)) return null;
+                uint uid1 = rom.u8(addr);
+                uint uid2 = rom.u8(addr + (uint)unit2Offset);
+                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid1);
+                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid2);
+                return PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load wait icon directly by parsing the list item text as a wait icon index.
         /// For ImageUnitWaitIcon view where items represent wait icon entries.
         /// </summary>
