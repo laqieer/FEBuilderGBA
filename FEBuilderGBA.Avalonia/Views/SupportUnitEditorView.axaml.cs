@@ -44,7 +44,12 @@ namespace FEBuilderGBA.Avalonia.Views
         static string ResolvePartnerName(decimal? value)
         {
             if (value == null || value.Value == 0) return "";
-            try { return NameResolver.GetUnitName((uint)value.Value) ?? ""; }
+            // Partner ID in the support data is 1-based (matching WinForms
+            // UnitForm.GetUnitName).  ResolveUnitTableName takes 0-based
+            // table index, so subtract 1.
+            uint id = (uint)value.Value;
+            if (id == 0) return "";
+            try { return SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, id - 1); }
             catch { return ""; }
         }
 

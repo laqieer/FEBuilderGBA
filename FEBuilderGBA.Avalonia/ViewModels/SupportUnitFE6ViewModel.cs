@@ -112,10 +112,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
                 else
                 {
-                    uint oneBasedId = ownerUid.Value + 1;
-                    string unitName = NameResolver.GetUnitName(oneBasedId);
-                    label = $"{U.ToHexString(oneBasedId)} {unitName}";
-                    tag = oneBasedId;
+                    // Display "{hex(uid+1)} {Name}" — WinForms label convention.
+                    uint oneBasedDisplay = ownerUid.Value + 1;
+                    string unitName = SupportUnitNavigation.ResolveUnitTableName(rom, ownerUid.Value);
+                    label = $"{U.ToHexString(oneBasedDisplay)} {unitName}";
+                    tag = oneBasedDisplay;
                 }
                 result.Add(new AddrResult(addr, label, tag));
             }
@@ -155,7 +156,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ownerUid != null)
             {
                 SourceUnitId1Based = ownerUid.Value + 1;
-                SourceUnitName = NameResolver.GetUnitName(SourceUnitId1Based) ?? "";
+                SourceUnitName = SupportUnitNavigation.ResolveUnitTableName(rom, ownerUid.Value);
             }
             else
             {

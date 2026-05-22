@@ -110,9 +110,36 @@ namespace FEBuilderGBA
             {
                 return "-EMPTY-";
             }
-            uint oneBasedId = uid.Value + 1;
-            string name = NameResolver.GetUnitName(oneBasedId) ?? "???";
-            return U.ToHexString(oneBasedId) + " " + name;
+            // Display hex is 1-based to match WinForms label convention
+            // ("01 Eirika").  ResolveUnitTableName takes a 0-based table
+            // index (matching Avalonia UnitEditorViewModel.LoadUnitList) so
+            // the Support list rows show the same name as the Unit list
+            // rows at the same index.
+            uint oneBasedDisplay = uid.Value + 1;
+            string name = ResolveUnitTableName(rom, uid.Value);
+            return U.ToHexString(oneBasedDisplay) + " " + name;
+        }
+
+        /// <summary>
+        /// Decode the unit name at <paramref name="zeroBasedIndex"/> in the
+        /// unit table by reading the u16 text-id at offset 0 of that entry
+        /// and decoding via FETextDecode.  Mirrors what
+        /// UnitEditorViewModel.LoadUnitList does, so SupportUnit labels stay
+        /// in sync with Unit Editor labels.  Returns "" on failure.
+        /// </summary>
+        public static string ResolveUnitTableName(ROM rom, uint zeroBasedIndex)
+        {
+            if (rom?.RomInfo == null) return "";
+            uint unitBase = GetUnitTableBase(rom);
+            if (unitBase == 0) return "";
+            uint dataSize = rom.RomInfo.unit_datasize;
+            if (dataSize == 0) return "";
+            uint entryAddr = unitBase + zeroBasedIndex * dataSize;
+            if (!U.isSafetyOffset(entryAddr + 1, rom)) return "";
+            uint textId = rom.u16(entryAddr);
+            if (textId == 0) return "";
+            try { return NameResolver.GetTextById(textId) ?? ""; }
+            catch { return ""; }
         }
 
         /// <summary>

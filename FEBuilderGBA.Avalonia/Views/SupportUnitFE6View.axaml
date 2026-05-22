@@ -13,7 +13,7 @@
 
         <!-- Source unit (read-only). #358 -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,80,*,Auto" RowDefinitions="Auto">
+          <Grid ColumnDefinitions="Auto,60,150,Auto" RowDefinitions="Auto">
             <TextBlock Grid.Column="0" Text="Source Unit:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" />
             <TextBlock AutomationProperties.AutomationId="SupportUnitFE6_SourceUnitId_Label" Grid.Column="1" Name="SourceUnitIdLabel" VerticalAlignment="Center" />
             <TextBlock AutomationProperties.AutomationId="SupportUnitFE6_SourceUnitName_Label" Grid.Column="2" Name="SourceUnitNameLabel" VerticalAlignment="Center" />
@@ -23,7 +23,7 @@
 
         <!-- Partner Unit IDs (10 slots, with names + per-slot SupportTalk jump buttons) -->
         <TextBlock Text="Support Partners" FontWeight="SemiBold" Margin="0,8,0,0" />
-        <Grid ColumnDefinitions="90,100,*,80" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="90,100,150,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Partner 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitFE6_Partner1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Partner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="SupportUnitFE6_Partner1Name_Label" Grid.Row="0" Grid.Column="2" Name="Partner1NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" />
