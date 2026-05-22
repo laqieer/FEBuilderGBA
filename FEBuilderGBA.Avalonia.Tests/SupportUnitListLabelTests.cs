@@ -58,11 +58,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // -----------------------------------------------------------------
-        // Regression: name part of the label matches NameResolver.GetUnitName
-        // (#358 — names were "???" or wrong before).
+        // Regression: name part of the label matches the unit-table decoded
+        // text-id at the owner's 0-based index (matching how
+        // UnitEditorViewModel.LoadUnitList resolves its own row names — see
+        // SupportUnitNavigation.ResolveUnitTableName).
+        // (#358 — names were "???" / wrong / off-by-one before).
         // -----------------------------------------------------------------
         [Fact]
-        public void FirstRow_NameMatchesNameResolver()
+        public void FirstRow_NameMatchesResolveUnitTableName()
         {
             if (!_fixture.IsAvailable) return;
             var rom = CoreState.ROM;
@@ -74,7 +77,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             uint? ownerUid = SupportUnitNavigation.GetUnitIdAtSupportAddr(rom, list[0].addr);
             Assert.NotNull(ownerUid);
-            string resolvedName = NameResolver.GetUnitName(ownerUid!.Value + 1) ?? "";
+            // SupportUnitNavigation.GetUnitIdAtSupportAddr returns the 0-based
+            // table index; ResolveUnitTableName also takes a 0-based index.
+            string resolvedName = SupportUnitNavigation.ResolveUnitTableName(rom, ownerUid!.Value);
             _output.WriteLine($"resolvedName='{resolvedName}', label='{list[0].name}'");
             Assert.Contains(resolvedName, list[0].name);
         }

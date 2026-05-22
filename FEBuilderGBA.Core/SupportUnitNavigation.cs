@@ -125,21 +125,29 @@ namespace FEBuilderGBA
         /// unit table by reading the u16 text-id at offset 0 of that entry
         /// and decoding via FETextDecode.  Mirrors what
         /// UnitEditorViewModel.LoadUnitList does, so SupportUnit labels stay
-        /// in sync with Unit Editor labels.  Returns "" on failure.
+        /// in sync with Unit Editor labels.  Returns "???" on decode failure
+        /// or invalid input (matching NameResolver.GetUnitName's fallback)
+        /// so list rows never render as a bare "06 " trailing-space row.
         /// </summary>
         public static string ResolveUnitTableName(ROM rom, uint zeroBasedIndex)
         {
-            if (rom?.RomInfo == null) return "";
+            if (rom?.RomInfo == null) return "???";
             uint unitBase = GetUnitTableBase(rom);
-            if (unitBase == 0) return "";
+            if (unitBase == 0) return "???";
             uint dataSize = rom.RomInfo.unit_datasize;
-            if (dataSize == 0) return "";
+            if (dataSize == 0) return "???";
             uint entryAddr = unitBase + zeroBasedIndex * dataSize;
-            if (!U.isSafetyOffset(entryAddr + 1, rom)) return "";
+            if (!U.isSafetyOffset(entryAddr + 1, rom)) return "???";
             uint textId = rom.u16(entryAddr);
-            if (textId == 0) return "";
-            try { return NameResolver.GetTextById(textId) ?? ""; }
-            catch { return ""; }
+            // textId 0 is a real condition (unit slot with no name) — match
+            // NameResolver.ResolveUnitName which returns "#<id>" in that case.
+            if (textId == 0) return $"#{zeroBasedIndex}";
+            try
+            {
+                string name = NameResolver.GetTextById(textId);
+                return string.IsNullOrEmpty(name) ? "???" : name;
+            }
+            catch { return "???"; }
         }
 
         /// <summary>

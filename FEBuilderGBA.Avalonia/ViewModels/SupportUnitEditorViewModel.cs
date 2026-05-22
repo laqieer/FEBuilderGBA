@@ -94,9 +94,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Owner-keyed enumeration mirroring WinForms SupportUnitForm.Init
             // (#358 / #437): each row's label is "{hex(uid+1)} {UnitName(uid+1)}"
             // for the unit whose +44 pointer matches this support address, or
-            // "-EMPTY-" when no unit owns the row.  The 0-based owner UID is
-            // recorded in AddrResult.tag so list-icon loaders can resolve the
-            // portrait without re-doing the lookup.  This replaces the
+            // "-EMPTY-" when no unit owns the row.  The 1-based display ID is
+            // recorded in AddrResult.tag so the existing list-icon loaders
+            // (UnitPortraitByIdLoader uses U.atoh on the label which yields
+            // the same value) can resolve the portrait.  This replaces the
             // index-based label that caused the first-row portrait/name bug.
             var result = new List<AddrResult>();
             foreach (var (addr, ownerUid) in
