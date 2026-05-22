@@ -55,11 +55,19 @@ namespace FEBuilderGBA.Avalonia.Controls
         public static readonly StyledProperty<int> MaximumProperty =
             AvaloniaProperty.Register<IdFieldControl, int>(nameof(Maximum), defaultValue: 255);
 
-        /// <summary>The current id.</summary>
+        /// <summary>The current id. Setting clamps to <see cref="Maximum"/> so the
+        /// public API stays consistent with what the inner NumericUpDown displays.</summary>
         public uint Value
         {
             get => GetValue(ValueProperty);
-            set => SetValue(ValueProperty, value);
+            set
+            {
+                uint clamped = value;
+                int max = Maximum;
+                if (max >= 0 && clamped > (uint)max)
+                    clamped = (uint)max;
+                SetValue(ValueProperty, clamped);
+            }
         }
 
         /// <summary>Caption rendered as a clickable hyperlink.</summary>
@@ -147,11 +155,15 @@ namespace FEBuilderGBA.Avalonia.Controls
             string hostId = AutomationProperties.GetAutomationId(this);
             if (string.IsNullOrEmpty(hostId)) return;
 
-            // Strip a trailing "_Input" if present (CCBranchEditor_Promo1_Input →
-            // CCBranchEditor_Promo1) so derived ids stay tidy.
+            // Strip a trailing "_Input" or "_Control" if present so the derivation
+            // is idempotent — if the control is detached and reattached the second
+            // run sees "..._Control" as the host id and must NOT pile on another
+            // "_Control" / "_Input" suffix.
             string baseId = hostId;
             if (baseId.EndsWith("_Input", StringComparison.Ordinal))
                 baseId = baseId.Substring(0, baseId.Length - "_Input".Length);
+            else if (baseId.EndsWith("_Control", StringComparison.Ordinal))
+                baseId = baseId.Substring(0, baseId.Length - "_Control".Length);
 
             // Move the host id onto the actual input control. To keep the
             // "_Input" id unique in the logical tree, REPLACE the host's

@@ -180,6 +180,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // -- ClassId IdFieldControl handlers (#366) --------------------------
 
+        /// <summary>
+        /// Compute the ClassEditorView ROM address for the given class index.
+        /// Returns 0 when the class table is unavailable OR when the computed
+        /// entry address falls outside ROM bounds (i.e. the id is out of range).
+        /// </summary>
         static uint ClassAddrFor(uint classId)
         {
             var rom = CoreState.ROM;
@@ -187,10 +192,13 @@ namespace FEBuilderGBA.Avalonia.Views
             uint classPtr = rom.RomInfo.class_pointer;
             if (classPtr == 0) return 0;
             uint baseAddr = rom.p32(classPtr);
-            if (!U.isSafetyOffset(baseAddr)) return 0;
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
             uint dataSize = rom.RomInfo.class_datasize;
             if (dataSize == 0) return 0;
-            return baseAddr + classId * dataSize;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
         }
 
         void ClassId_Jump(object? sender, RoutedEventArgs e)

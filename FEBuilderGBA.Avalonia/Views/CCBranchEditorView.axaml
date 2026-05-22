@@ -16,13 +16,18 @@
           <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <!-- Promotion Class 1 — reusable IdFieldControl (#366).
-               The inner NumericUpDown is still named Promo1Box and the
-               AutomationIds are preserved so existing source-text tests
-               (AvaloniaEditorTests.CCBranchEditorView_NumericUpDownsHaveNoHexFormat
-                and AvaloniaEditorTests sibling tests checking for "Promo1Box"
-                and "NumericUpDown" substrings) still match — the actual
-                NumericUpDown lives inside IdFieldControl.axaml, which the
-                test now also covers. -->
+               Promo1Box is the IdFieldControl HOST (not a NumericUpDown);
+               the inner NumericUpDown is named ValueBox inside
+               Controls/IdFieldControl.axaml, and IdFieldControl propagates
+               the host's AutomationId (CCBranchEditor_Promo1_Input) onto
+               that inner ValueBox at attach time. The host's own
+               AutomationId is reassigned to CCBranchEditor_Promo1_Control
+               so the "_Input" id resolves uniquely to the typeable input
+               (see PropagateInnerAutomationIds). The
+               AvaloniaEditorTests.CCBranchEditorView_NumericUpDownsHaveNoHexFormat
+               source-text check is updated to scan
+               Controls/IdFieldControl.axaml where the actual NumericUpDown
+               markup now lives. -->
           <controls:IdFieldControl AutomationProperties.AutomationId="CCBranchEditor_Promo1_Input"
                                    Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                    Name="Promo1Box"

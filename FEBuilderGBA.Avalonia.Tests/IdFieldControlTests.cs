@@ -15,7 +15,7 @@
 //   - PickRequested        — event raised by Pick button click
 //   - ValueChanged         — event raised whenever the NumericUpDown value changes
 //
-// Live live-sync (ValueChanged) is critical: when the user manually types a new
+// Live sync (ValueChanged) is critical: when the user manually types a new
 // id into the NumericUpDown, the inline name preview MUST be able to refresh
 // without going through Jump or Pick. Plan v2 explicitly added this in response
 // to the Copilot CLI plan review.
@@ -164,13 +164,37 @@ public class IdFieldControlTests
     }
 
     [AvaloniaFact]
-    public void Value_NegativeRomValueClampedToZero()
+    public void Value_ZeroBoundary_RoundTrips()
     {
-        // NumericUpDown is decimal — make sure setting Value 0 keeps round-trip
-        // sane and never throws for the boundary case.
+        // Setting Value to 0 (boundary) must round-trip without throwing.
         var control = new IdFieldControl();
         control.Value = 0u;
         Assert.Equal(0u, control.Value);
+    }
+
+    [AvaloniaFact]
+    public void Value_NegativeInnerValueClampedToZero()
+    {
+        // If the inner NumericUpDown reports a negative value, the IdFieldControl
+        // Value property must clamp to 0 (Value is uint — never negative).
+        var control = new IdFieldControl();
+        var box = control.FindControl<NumericUpDown>("ValueBox");
+        Assert.NotNull(box);
+        box!.Minimum = -10m;
+        box.Value = -5m;
+        Assert.Equal(0u, control.Value);
+    }
+
+    [AvaloniaFact]
+    public void Value_AboveMaximum_ClampedOnSetter()
+    {
+        // Setting Value above Maximum via the public setter must clamp so the
+        // public API stays consistent with the inner NumericUpDown bounds. The
+        // Copilot CLI third-round review on PR #477 called this out.
+        var control = new IdFieldControl();
+        control.Maximum = 100;
+        control.Value = 500u;
+        Assert.Equal(100u, control.Value);
     }
 
     [AvaloniaFact]
@@ -219,6 +243,42 @@ public class IdFieldControlTests
             Assert.Equal("CCBranchEditor_Promo1_Name", AutomationProperties.GetAutomationId(name));
             Assert.Equal("CCBranchEditor_Promo1_Jump_Button", AutomationProperties.GetAutomationId(jump));
             Assert.Equal("CCBranchEditor_Promo1_Pick_Button", AutomationProperties.GetAutomationId(pick));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void HostAutomationId_PropagationIsIdempotent()
+    {
+        // If the control is detached and reattached, PropagateInnerAutomationIds
+        // runs again. The second run sees "{base}_Control" as the host id and
+        // must NOT pile on another "_Control" suffix (or rebuild "_Input" from
+        // it). Verifies idempotency by re-parenting the IdFieldControl.
+        var window = new Window { Width = 200, Height = 100 };
+        var host1 = new Panel();
+        var host2 = new Panel();
+        window.Content = host1;
+        var control = new IdFieldControl();
+        AutomationProperties.SetAutomationId(control, "CCBranchEditor_Promo1_Input");
+        host1.Children.Add(control);
+        window.Show();
+        try
+        {
+            // After first attach, host id should be "_Control".
+            Assert.Equal("CCBranchEditor_Promo1_Control", AutomationProperties.GetAutomationId(control));
+            // Detach and reattach.
+            host1.Children.Remove(control);
+            window.Content = host2;
+            host2.Children.Add(control);
+            // Host id MUST remain "_Control" — not "_Control_Control".
+            Assert.Equal("CCBranchEditor_Promo1_Control", AutomationProperties.GetAutomationId(control));
+            // Inner NumericUpDown still has the original "_Input" id.
+            var nud = control.FindControl<NumericUpDown>("ValueBox");
+            Assert.NotNull(nud);
+            Assert.Equal("CCBranchEditor_Promo1_Input", AutomationProperties.GetAutomationId(nud));
         }
         finally
         {
