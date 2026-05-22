@@ -31,7 +31,11 @@ namespace FEBuilderGBA
     ///     SupportAttribute, StatusParam — no text IDs in the entries.
     ///   - WorldMapEventPointer (all versions), event_haiku_tutorial_{1,2} (FE7) —
     ///     event/recursive scans, deferred.
-    ///   - TextDic — text-dictionary; deferred to a follow-up issue (see PR body).
+    ///
+    /// Tables INCLUDED beyond the original issue #349 scope:
+    ///   - TextDic (FE8) — three sub-tables (dic_main, dic_chaptor, dic_title)
+    ///     added at Copilot CLI review's suggestion (fixed-table descriptors fit
+    ///     this case cleanly).
     /// </summary>
     public static class TextRefTableRegistry
     {
@@ -66,54 +70,118 @@ namespace FEBuilderGBA
         // sentinel / past the real data).
         // -------------------------------------------------------------
 
-        /// <summary>Stop when u16 at entry+0 equals 0xFFFF. Used by support talk, haiku, battle talk in FE7/8.</summary>
-        static bool StopOnU16FFFF(ROM rom, uint entry)
+        // -------------------------------------------------------------
+        // Terminator predicates — mirror the WinForms InputFormRef stop
+        // callbacks for each form. Each predicate is (rom, entryAddr,
+        // entryIndex) and returns true when the scanner should STOP at
+        // this entry (i.e. this entry is the sentinel / past real data).
+        //
+        // WinForms forms commonly combine TWO stop conditions:
+        //   (a) sentinel byte/word/dword match (e.g. u16 == 0xFFFF), AND
+        //   (b) "i > 10 && ROM.IsEmpty(addr, blockSize * 10)" — i.e. once
+        //       we're past the first 10 entries AND the next 10 blocks
+        //       are all-zero, treat as end-of-table.
+        // The helpers here implement both. Empty-run guards are
+        // parameterized by per-descriptor blockSize.
+        // -------------------------------------------------------------
+
+        /// <summary>Stop when u16 at entry+0 equals 0xFFFF.</summary>
+        static bool StopOnU16FFFF(ROM rom, uint entry, uint i)
         {
             if (entry + 2 > (uint)rom.Data.Length) return true;
             return rom.u16(entry) == 0xFFFF;
         }
 
-        /// <summary>Stop when u16 at entry+0 equals 0x0000. Used by FE6 support talk + FE6 battle talk.</summary>
-        static bool StopOnU16Zero(ROM rom, uint entry)
+        /// <summary>Stop when u16 at entry+0 equals 0x0000.</summary>
+        static bool StopOnU16Zero(ROM rom, uint entry, uint i)
         {
             if (entry + 2 > (uint)rom.Data.Length) return true;
             return rom.u16(entry) == 0x0000;
         }
 
-        /// <summary>Stop when u8 at entry+0 equals 0x00. Used by FE6/7 haiku and FE6 battle talk N table.</summary>
-        static bool StopOnU8Zero(ROM rom, uint entry)
+        /// <summary>Stop when u8 at entry+0 equals 0x00.</summary>
+        static bool StopOnU8Zero(ROM rom, uint entry, uint i)
         {
             if (entry + 1 > (uint)rom.Data.Length) return true;
             return rom.u8(entry) == 0;
         }
 
-        /// <summary>Stop when u32 at entry+0 equals 0xFFFFFFFF or zero. Used by sound room.</summary>
-        static bool StopOnU32FFFFFFFF(ROM rom, uint entry)
+        /// <summary>Stop when u32 at entry+0 equals 0xFFFFFFFF. Used by sound room (mirrors <c>SoundRoomForm.Init</c>).</summary>
+        static bool StopOnU32FFFFFFFF(ROM rom, uint entry, uint i)
         {
             if (entry + 4 > (uint)rom.Data.Length) return true;
             return rom.u32(entry) == 0xFFFFFFFFu;
         }
 
         /// <summary>Stop when u32 at entry+0 equals zero. Used by ED screens.</summary>
-        static bool StopOnU32Zero(ROM rom, uint entry)
+        static bool StopOnU32Zero(ROM rom, uint entry, uint i)
         {
             if (entry + 4 > (uint)rom.Data.Length) return true;
             return rom.u32(entry) == 0;
         }
 
         /// <summary>Stop when u32 at entry+40 is not a valid pointer (FE7/8 status game option list terminator).</summary>
-        static bool StopOnStatusOptionEnd(ROM rom, uint entry)
+        static bool StopOnStatusOptionEnd(ROM rom, uint entry, uint i)
         {
             if (entry + 44 > (uint)rom.Data.Length) return true;
             return !U.isPointer(rom.u32(entry + 40));
         }
 
-        /// <summary>Stop when u32 at entry equals 0 (haiku FE8 / battle talk FE8 / support talk FE8 share this with FFFF gate).</summary>
-        static bool StopOnU16FFFFOrZero(ROM rom, uint entry)
+        /// <summary>
+        /// Stop when u16 at entry+0 is 0xFFFF or 0x0000. Used by FE6/FE7 battle talk
+        /// (main and 2-tables) where <c>EventBattleTalkFE{6,7}Form.Init</c> stops on
+        /// either sentinel.
+        /// </summary>
+        static bool StopOnU16FFFFOrZero(ROM rom, uint entry, uint i)
         {
             if (entry + 2 > (uint)rom.Data.Length) return true;
             ushort v = (ushort)rom.u16(entry);
             return v == 0xFFFF || v == 0x0000;
+        }
+
+        /// <summary>
+        /// Stop when u8 at entry+0 is 0x00 or 0xFF. Used by FE7 battle talk N1
+        /// table (<c>EventBattleTalkFE7Form.N1_Init</c>: <c>unit == 0 || unit == 0xFF</c>).
+        /// </summary>
+        static bool StopOnU8ZeroOrFF(ROM rom, uint entry, uint i)
+        {
+            if (entry + 1 > (uint)rom.Data.Length) return true;
+            byte v = (byte)rom.u8(entry);
+            return v == 0 || v == 0xFF;
+        }
+
+        /// <summary>
+        /// WinForms-pattern terminator: stops when (a) the per-entry sentinel
+        /// predicate hits, OR (b) we're past index 10 AND the next 10 blocks
+        /// (10 × blockSize bytes from entry) are all zero (an "empty run").
+        ///
+        /// Many WinForms <c>*Form.Init</c> callbacks follow this exact pattern:
+        /// <code>
+        ///   if (sentinelHit) return false;
+        ///   if (i &gt; 10 &amp;&amp; ROM.IsEmpty(addr, blockSize * 10)) return false;
+        ///   return true;
+        /// </code>
+        /// We package both halves into one terminator so the registry can use
+        /// it identically. <paramref name="blockSize"/> is the descriptor's
+        /// EntrySize (so IsEmpty walks the next 10 entries).
+        /// </summary>
+        static Func<ROM, uint, uint, bool> WithEmptyRunStop(
+            Func<ROM, uint, uint, bool> sentinel,
+            uint blockSize)
+        {
+            return (rom, entry, i) =>
+            {
+                if (sentinel(rom, entry, i)) return true;
+                if (i > 10)
+                {
+                    // ROM.IsEmpty is range-safe — returns true if all bytes in
+                    // [addr .. addr+count) are 0x00. We check the next 10 blocks.
+                    uint runBytes = blockSize * 10;
+                    if (entry + runBytes <= (uint)rom.Data.Length && rom.IsEmpty(entry, runBytes))
+                        return true;
+                }
+                return false;
+            };
         }
 
         /// <summary>
@@ -223,8 +291,8 @@ namespace FEBuilderGBA
             }
 
             // SupportTalk (FE8) — entry size 16, offsets {4, 6, 8}.
-            // WinForms: SupportTalkForm.cs Init() uses size 16 and
-            // MakeVarsIDArray uses { 4, 6, 8 }.
+            // WinForms SupportTalkForm.Init: stop on u16==0xFFFF OR
+            // (i > 10 && IsEmpty(addr, 16*10)).
             if (info.support_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -234,14 +302,14 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4, 6, 8 },
-                    Terminator = StopOnU16FFFF,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFF, 16),
                     NameResolver = id => $"Support {id:X02}",
                 });
             }
 
             // EventHaiku (FE8) — size 12; offset {6} only (textid path).
-            // WinForms also recurses into events when textid==0; that's deferred.
-            // Terminator: stop on u16 == 0xFFFF (EventHaikuForm.Init stop callback).
+            // WinForms EventHaikuForm.Init: stop on u16==0xFFFF OR
+            // (i > 10 && IsEmpty(addr, 12*10)).
             if (info.event_haiku_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -251,13 +319,14 @@ namespace FEBuilderGBA
                     EntrySize = 12,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 6 },
-                    Terminator = StopOnU16FFFF,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFF, 12),
                     NameResolver = id => $"Haiku {id:X02}",
                 });
             }
 
             // EventBattleTalk (FE8) — size 16, offset {8} (textid path).
-            // Terminator: u16 == 0xFFFF.
+            // WinForms EventBattleTalkForm.Init: stop on u16==0xFFFF OR
+            // (i > 10 && IsEmpty(addr, 16*10)).
             if (info.event_ballte_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -267,13 +336,14 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 8 },
-                    Terminator = StopOnU16FFFF,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFF, 16),
                     NameResolver = id => $"BattleTalk {id:X02}",
                 });
             }
 
             // SoundRoom (FE8) — size from ROMFEINFO; offset 12.
-            // Terminator: u32 at +0 == 0xFFFFFFFF (SoundRoomForm.Init).
+            // WinForms SoundRoomForm.Init: stop on u32==0xFFFFFFFF OR
+            // (i > 10 && IsEmpty(addr, datasize*10)).
             if (info.sound_room_pointer != 0 && info.sound_room_datasize != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -283,7 +353,7 @@ namespace FEBuilderGBA
                     EntrySize = info.sound_room_datasize,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 12 },
-                    Terminator = StopOnU32FFFFFFFF,
+                    Terminator = WithEmptyRunStop(StopOnU32FFFFFFFF, info.sound_room_datasize),
                     NameResolver = id => $"Track {id:X02}",
                 });
             }
@@ -426,7 +496,7 @@ namespace FEBuilderGBA
                     EntrySize = 12,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 2, 4 },
-                    Terminator = (rom, entry) =>
+                    Terminator = (rom, entry, i) =>
                     {
                         if (entry + 6 > (uint)rom.Data.Length) return true;
                         // TextDicForm.Init stops when either u16@+2 or u16@+4 == 0.
@@ -488,6 +558,8 @@ namespace FEBuilderGBA
             }
 
             // SupportTalk (FE7) — size 20, offsets 4,8,12 (SupportTalkFE7Form).
+            // WinForms SupportTalkFE7Form.Init: stop on u16==0 OR
+            // (i > 10 && IsEmpty(addr, 20*10)).
             if (info.support_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -497,13 +569,13 @@ namespace FEBuilderGBA
                     EntrySize = 20,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4, 8, 12 },
-                    Terminator = StopOnU16Zero,
+                    Terminator = WithEmptyRunStop(StopOnU16Zero, 20),
                     NameResolver = id => $"Support {id:X02}",
                 });
             }
 
             // EventHaiku (FE7) — size 16, offset {4} only (textid path).
-            // EventHaikuFE7Form.Init: size 16, MakeVarsIDArray { 4 } + 8 (event ptr).
+            // EventHaikuFE7Form.Init: size 16, stop on u8==0 OR (i > 10 && IsEmpty(addr, 16*10)).
             // event_haiku_tutorial_{1,2} are event-recursion only — deferred.
             if (info.event_haiku_pointer != 0)
             {
@@ -514,13 +586,14 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4 },
-                    Terminator = StopOnU8Zero,
+                    Terminator = WithEmptyRunStop(StopOnU8Zero, 16),
                     NameResolver = id => $"Haiku {id:X02}",
                 });
             }
 
             // EventBattleTalk (FE7 main) — size 16, offset {4}
-            // (EventBattleTalkFE7Form.Init).
+            // EventBattleTalkFE7Form.Init: stop on u16==0||0xFFFF OR
+            // (i > 10 && IsEmpty(addr, 16*10)).
             if (info.event_ballte_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -530,13 +603,14 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4 },
-                    Terminator = StopOnU16FFFFOrZero,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFFOrZero, 16),
                     NameResolver = id => $"BattleTalk {id:X02}",
                 });
             }
 
             // EventBattleTalk2 (FE7) — N1 table: size 12, offset {4}
-            // (EventBattleTalkFE7Form.N1_Init).
+            // EventBattleTalkFE7Form.N1_Init: stop on u8==0||0xFF OR
+            // (i > 10 && IsEmpty(addr, 12*10)).
             if (info.event_ballte_talk2_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -546,12 +620,13 @@ namespace FEBuilderGBA
                     EntrySize = 12,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4 },
-                    Terminator = StopOnU8Zero, // u8 == 0 or 0xFF
+                    Terminator = WithEmptyRunStop(StopOnU8ZeroOrFF, 12),
                     NameResolver = id => $"BattleTalk2 {id:X02}",
                 });
             }
 
             // SoundRoom (FE7) — offset 12 (same as FE8).
+            // SoundRoomForm.Init: stop on u32==0xFFFFFFFF OR (i > 10 && IsEmpty(addr, size*10)).
             if (info.sound_room_pointer != 0 && info.sound_room_datasize != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -561,7 +636,7 @@ namespace FEBuilderGBA
                     EntrySize = info.sound_room_datasize,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 12 },
-                    Terminator = StopOnU32FFFFFFFF,
+                    Terminator = WithEmptyRunStop(StopOnU32FFFFFFFF, info.sound_room_datasize),
                     NameResolver = id => $"Track {id:X02}",
                 });
             }
@@ -725,6 +800,7 @@ namespace FEBuilderGBA
             }
 
             // SupportTalk (FE6) — size 16, offsets {4,8,12} (SupportTalkFE6Form).
+            // SupportTalkFE6Form.Init: stop on u16==0 OR (i > 10 && IsEmpty(addr, 16*10)).
             if (info.support_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -734,13 +810,13 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4, 8, 12 },
-                    Terminator = StopOnU16Zero,
+                    Terminator = WithEmptyRunStop(StopOnU16Zero, 16),
                     NameResolver = id => $"Support {id:X02}",
                 });
             }
 
             // EventHaiku (FE6) — size 16, offsets {4, 12} (EventHaikuFE6Form).
-            // Both offsets are valid u16 reads inside the 16-byte entry.
+            // EventHaikuFE6Form.Init: stop on u8==0 OR (i > 10 && IsEmpty(addr, 16*10)).
             if (info.event_haiku_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -750,13 +826,13 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4, 12 },
-                    Terminator = StopOnU8Zero,
+                    Terminator = WithEmptyRunStop(StopOnU8Zero, 16),
                     NameResolver = id => $"Haiku {id:X02}",
                 });
             }
 
             // EventBattleTalk (FE6 main) — size 12, offset {4}.
-            // EventBattleTalkFE6Form.Init: size 12, MakeVarsIDArray { 4 }.
+            // EventBattleTalkFE6Form.Init: stop on u16==0||0xFFFF OR (i > 10 && IsEmpty(addr, 12*10)).
             if (info.event_ballte_talk_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -766,13 +842,13 @@ namespace FEBuilderGBA
                     EntrySize = 12,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4 },
-                    Terminator = StopOnU16FFFFOrZero,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFFOrZero, 12),
                     NameResolver = id => $"BattleTalk {id:X02}",
                 });
             }
 
-            // EventBattleTalk2 (FE6) — second table: size 16, offset {4}
-            // (EventBattleTalkFE6Form.N_Init).
+            // EventBattleTalk2 (FE6) — second table: size 16, offset {4}.
+            // EventBattleTalkFE6Form.N_Init: stop on u16==0||0xFFFF OR (i > 10 && IsEmpty(addr, 16*10)).
             if (info.event_ballte_talk2_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -782,13 +858,14 @@ namespace FEBuilderGBA
                     EntrySize = 16,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4 },
-                    Terminator = StopOnU16FFFFOrZero,
+                    Terminator = WithEmptyRunStop(StopOnU16FFFFOrZero, 16),
                     NameResolver = id => $"BattleTalk2 {id:X02}",
                 });
             }
 
             // SoundRoom (FE6) — offsets {4, 8} (different from FE7/8 which use {12}).
-            // SoundRoomFE6Form.MakeVarsIDArray: { 4, 8 }.
+            // SoundRoomFE6Form.MakeVarsIDArray uses { 4, 8 }; Init: stop on
+            // u32==0xFFFFFFFF OR (i > 10 && IsEmpty(addr, size*10)).
             if (info.sound_room_pointer != 0 && info.sound_room_datasize != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -798,7 +875,7 @@ namespace FEBuilderGBA
                     EntrySize = info.sound_room_datasize,
                     MaxCount = LargeMaxCount,
                     TextIdOffsets = new uint[] { 4, 8 },
-                    Terminator = StopOnU32FFFFFFFF,
+                    Terminator = WithEmptyRunStop(StopOnU32FFFFFFFF, info.sound_room_datasize),
                     NameResolver = id => $"Track {id:X02}",
                 });
             }

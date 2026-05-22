@@ -55,10 +55,15 @@ namespace FEBuilderGBA
         /// per-form WinForms <c>InputFormRef</c> stop callbacks (e.g. "stop at
         /// u16 == 0xFFFF", "stop at u8 == 0x00", "stop at empty run of N
         /// entries"). When null, the scanner walks <see cref="MaxCount"/>
-        /// entries (clamped to ROM end). The predicate is invoked with the
-        /// per-entry absolute ROM offset.
+        /// entries (clamped to ROM end).
+        ///
+        /// Arguments: <c>(rom, entryAddr, entryIndex)</c>.
+        ///   - <c>rom</c>: the loaded ROM (so the predicate can probe bytes/words).
+        ///   - <c>entryAddr</c>: absolute ROM offset of the current entry's start.
+        ///   - <c>entryIndex</c>: 0-based index in the table (so the predicate
+        ///     can do WinForms-style "i &gt; 10 &amp;&amp; IsEmpty" run-of-empties checks).
         /// </summary>
-        public Func<ROM, uint, bool>? Terminator { get; init; }
+        public Func<ROM, uint, uint, bool>? Terminator { get; init; }
 
         /// <summary>Resolver that maps an entry index to a display name.</summary>
         public Func<uint, string> NameResolver { get; init; } = _ => "";
@@ -153,7 +158,7 @@ namespace FEBuilderGBA
                 if (terminator != null)
                 {
                     bool stop;
-                    try { stop = terminator(rom, entry); }
+                    try { stop = terminator(rom, entry, i); }
                     catch { stop = true; } // defensive: bad predicate aborts table
                     if (stop) break;
                 }

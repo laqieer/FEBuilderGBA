@@ -445,7 +445,7 @@ namespace FEBuilderGBA.Core.Tests
                 EntrySize = 2,
                 MaxCount = 100, // way past the actual table size
                 TextIdOffsets = new uint[] { 0 },
-                Terminator = (r, entry) =>
+                Terminator = (r, entry, i) =>
                 {
                     if (entry + 2 > (uint)r.Data.Length) return true;
                     return r.u16(entry) == 0xFFFF;
@@ -480,7 +480,7 @@ namespace FEBuilderGBA.Core.Tests
                 EntrySize = 2,
                 MaxCount = 10,
                 TextIdOffsets = new uint[] { 0 },
-                Terminator = (r, e) => throw new InvalidOperationException("bad"),
+                Terminator = (r, e, i) => throw new InvalidOperationException("bad"),
                 NameResolver = _ => "",
             };
 
@@ -531,6 +531,40 @@ namespace FEBuilderGBA.Core.Tests
             var result = TextReferenceFinder.Find(rom, 0x0999, new[] { desc });
             // DirectBase takes precedence so we get exactly ONE match (not two).
             Assert.Single(result);
+        }
+
+        /// <summary>
+        /// Terminator receives the entry index. Verifies the predicate can
+        /// implement the WinForms "i > 10 && IsEmpty(...)" pattern by stopping
+        /// only after entry index 10 even if the per-entry sentinel never hits.
+        /// </summary>
+        [Fact]
+        public void Find_TerminatorReceivesEntryIndex_CanGateOnIndex()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            // Lay 20 entries, each u16 = 0x0042 (matches target). The
+            // terminator only stops when i > 10 — so we expect exactly 11
+            // matches (entries 0..10 inclusive).
+            var entries = new List<byte>();
+            for (int n = 0; n < 20; n++) entries.AddRange(LE16(0x0042));
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Test",
+                PointerField = pointerField,
+                EntrySize = 2,
+                MaxCount = 100,
+                TextIdOffsets = new uint[] { 0 },
+                Terminator = (r, addr, i) => i > 10,
+                NameResolver = id => $"T{id}",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0042, new[] { desc });
+            // Entries 0..10 inclusive = 11 matches; entry 11 is where the
+            // predicate returns true and the scan stops.
+            Assert.Equal(11, result.Count);
         }
     }
 }
