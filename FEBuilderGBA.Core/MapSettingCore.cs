@@ -170,7 +170,10 @@ namespace FEBuilderGBA
         {
             if (rom.RomInfo.text_pointer == 0) return 0;
             uint textBase = rom.p32(rom.RomInfo.text_pointer);
-            if (!U.isSafetyOffset(textBase)) return 0;
+            // Use the ROM-pinned safety check so this stays consistent with the
+            // public MakeMapIDList(ROM rom) contract — never silently falls back
+            // to CoreState.ROM.
+            if (!U.isSafetyOffset(textBase, rom)) return 0;
 
             // Walk the text pointer table to find count
             // Simplified: use a reasonable upper bound

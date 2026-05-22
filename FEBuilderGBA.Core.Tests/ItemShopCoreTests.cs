@@ -356,6 +356,52 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0xCDu, rom.u8(0x205));
         }
 
+        // -------------------- Unterminated-list guard --------------------
+        // These tests confirm that Append / Remove / Relocate refuse to operate
+        // on a shop whose item list lacks a terminator within MAX_SCAN_ENTRIES.
+        // Without the guard, CountShopItems would return MAX_SCAN_ENTRIES and
+        // Append would write into unrelated ROM data. (Per Copilot bot review
+        // on PR #465.)
+
+        [Fact]
+        public void TryAppendShopItem_FailsOnUnterminatedList()
+        {
+            var rom = MakeFE8UWithHenseiShop();
+            for (uint i = 0; i < ItemShopCore.MAX_SCAN_ENTRIES * 2; i++)
+            {
+                rom.Data[0x200 + i] = 0xAB;
+            }
+            bool ok = ItemShopCore.TryAppendShopItem(rom, 0x200, 0x07, 0x05, out uint newSlotAddr);
+            Assert.False(ok);
+            Assert.Equal(U.NOT_FOUND, newSlotAddr);
+        }
+
+        [Fact]
+        public void TryRemoveLastShopItem_FailsOnUnterminatedList()
+        {
+            var rom = MakeFE8UWithHenseiShop();
+            for (uint i = 0; i < ItemShopCore.MAX_SCAN_ENTRIES * 2; i++)
+            {
+                rom.Data[0x200 + i] = 0xAB;
+            }
+            bool ok = ItemShopCore.TryRemoveLastShopItem(rom, 0x200);
+            Assert.False(ok);
+            Assert.Equal(0xABu, rom.u8(0x200));
+        }
+
+        [Fact]
+        public void RelocateShopList_FailsOnUnterminatedList()
+        {
+            var rom = MakeFE8UWithHenseiShop();
+            for (uint i = 0; i < ItemShopCore.MAX_SCAN_ENTRIES * 2; i++)
+            {
+                rom.Data[0x200 + i] = 0xAB;
+            }
+            uint pointerAddr = rom.RomInfo.item_shop_hensei_pointer;
+            uint result = ItemShopCore.RelocateShopList(rom, 0x200, 0x09, 0x02, pointerAddr);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
         // ===================================================================
         // TryRemoveLastShopItem
         // ===================================================================

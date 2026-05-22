@@ -25,6 +25,11 @@ namespace FEBuilderGBA
         /// <summary>Shop entry block size in bytes (item ID + quantity).</summary>
         public const uint ENTRY_SIZE = 2;
 
+        /// <summary>Upper bound for shop item list scans. A list with this many
+        /// non-terminator entries is treated as unterminated / corrupted and is
+        /// refused for mutation by Append / Remove / Relocate.</summary>
+        public const int MAX_SCAN_ENTRIES = 0x200;
+
         // ===================================================================
         // Shop enumeration
         // ===================================================================
@@ -117,8 +122,14 @@ namespace FEBuilderGBA
         {
             // Skip null pointers.
             if (shopPtr == 0) return;
-            // Skip the known empty-list address (worldmap_node_*_empty_address).
-            if (shopPtr == knownEmptyAddr) return;
+            // NOTE: we deliberately do NOT pointer-equality-filter against the
+            // worldmap_node_*_empty_address — WinForms ItemShopForm.MakeShopListLow()
+            // only filters worldmap shops via the `rom.u8(shopAddr) == 0` empty-list
+            // check below. Doing both would drop valid shops that hacks may have
+            // pointed at a previously-empty address but since populated with items.
+            // (`knownEmptyAddr` is intentionally unused — preserved on the API for
+            // documentation purposes.)
+            _ = knownEmptyAddr;
             // Resolve to ROM offset.
             uint shopAddr = U.toOffset(shopPtr);
             if (!U.isSafetyOffset(shopAddr, rom)) return;
@@ -204,7 +215,7 @@ namespace FEBuilderGBA
             if (rom == null || !U.isSafetyOffset(shopAddr, rom)) return result;
             uint romLen = (uint)rom.Data.Length;
 
-            for (uint i = 0; i < 0x200; i++)
+            for (uint i = 0; i < MAX_SCAN_ENTRIES; i++)
             {
                 uint addr = shopAddr + i * ENTRY_SIZE;
                 if (addr + ENTRY_SIZE > romLen) break;
@@ -218,13 +229,16 @@ namespace FEBuilderGBA
             return result;
         }
 
-        /// <summary>Count the number of non-terminator item entries in a shop.</summary>
+        /// <summary>Count the number of non-terminator item entries in a shop.
+        /// Returns up to <see cref="MAX_SCAN_ENTRIES"/>; a return of exactly
+        /// <see cref="MAX_SCAN_ENTRIES"/> signals an unterminated/invalid list
+        /// and the mutation helpers refuse to operate on such a shop.</summary>
         public static int CountShopItems(ROM rom, uint shopAddr)
         {
             if (rom == null || !U.isSafetyOffset(shopAddr, rom)) return 0;
             uint romLen = (uint)rom.Data.Length;
             int count = 0;
-            for (uint i = 0; i < 0x200; i++)
+            for (uint i = 0; i < MAX_SCAN_ENTRIES; i++)
             {
                 uint addr = shopAddr + i * ENTRY_SIZE;
                 if (addr + ENTRY_SIZE > romLen) break;
@@ -258,8 +272,12 @@ namespace FEBuilderGBA
             if (rom == null || !U.isSafetyOffset(shopAddr, rom)) return false;
             uint romLen = (uint)rom.Data.Length;
 
-            // Find the current terminator position.
+            // Find the current terminator position. CountShopItems caps scanning
+            // at MAX_SCAN_ENTRIES; if it returns that cap, the list is
+            // unterminated / corrupted — refuse to mutate. Same guard applies in
+            // TryRemoveLastShopItem and RelocateShopList.
             int count = CountShopItems(rom, shopAddr);
+            if (count >= MAX_SCAN_ENTRIES) return false;
             uint terminatorAddr = shopAddr + (uint)count * ENTRY_SIZE;
             if (terminatorAddr + 2 * ENTRY_SIZE > romLen) return false;
 
@@ -292,6 +310,8 @@ namespace FEBuilderGBA
             if (rom == null || !U.isSafetyOffset(shopAddr, rom)) return false;
             int count = CountShopItems(rom, shopAddr);
             if (count <= 0) return false;
+            // Refuse mutation on unterminated/invalid lists.
+            if (count >= MAX_SCAN_ENTRIES) return false;
             uint lastEntryAddr = shopAddr + (uint)(count - 1) * ENTRY_SIZE;
             if (lastEntryAddr + ENTRY_SIZE > (uint)rom.Data.Length) return false;
             rom.write_u8(lastEntryAddr + 0, 0);
@@ -329,6 +349,8 @@ namespace FEBuilderGBA
                 return U.NOT_FOUND;
 
             int oldCount = CountShopItems(rom, oldShopAddr);
+            // Refuse relocation when the source list is unterminated (corrupted).
+            if (oldCount >= MAX_SCAN_ENTRIES) return U.NOT_FOUND;
             // Need oldCount + 1 entries + 1 terminator = (oldCount + 2) * ENTRY_SIZE bytes.
             uint needed = (uint)(oldCount + 2) * ENTRY_SIZE;
             // Pad to 4-byte alignment (FindFreeSpace also pads, but allocate a touch more
@@ -357,13 +379,10 @@ namespace FEBuilderGBA
             rom.write_u8(termSlot + 0, 0);
             rom.write_u8(termSlot + 1, 0);
 
-            // Update the inbound pointer (p32 form: ROM offset + 0x08000000).
-            rom.write_u32(pointerAddr, newAddr + 0x08000000u);
-
-            // Reference the hensei pointer field so test source-grep
-            // (ItemShopCore_References_HenseiPointer) passes — kept as a
-            // self-documenting comment too.
-            _ = rom.RomInfo.item_shop_hensei_pointer;
+            // Update the inbound pointer. write_p32 centralises the
+            // offset -> 0x08000000-based pointer conversion (preferred over
+            // write_u32 + manual + 0x08000000).
+            rom.write_p32(pointerAddr, newAddr);
 
             return newAddr;
         }
