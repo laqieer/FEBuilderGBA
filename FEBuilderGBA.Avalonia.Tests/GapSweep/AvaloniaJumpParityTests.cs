@@ -185,13 +185,16 @@ public class AvaloniaJumpParityTests
         Assert.Empty(stillBroken);
     }
 
-    [Fact(Skip = "Tracked in #362 — Jump action always selects 1st item.")]
+    [Fact]
     [Trait("KnownGap", "362")]
     public void Issue362_ItemEditor_EffectivenessJumpSelectsCorrectItem()
     {
-        // When fixed: ItemEditor → ItemEffectiveness jump will pre-select
-        // the referenced effectiveness table entry rather than landing on
-        // index 0.
+        // Fixed in #362: ItemEditor → ItemEffectiveness (SkillSystems Rework
+        // variant) jump now pre-selects the referenced effectiveness table
+        // entry rather than landing on index 0. The receiving view-model
+        // enumerates items by their P16 pointer so the source's
+        // `ptr - 0x08000000` matches a real list row.
+        // Asserts the IssueRef tag has been dropped from the manifest.
         var manifests = JumpParityScanner.ScanAvManifests(typeof(INavigationTargetSource).Assembly);
         var stillBroken = manifests.Where(m =>
                 m.SourceVm == "ItemEditorViewModel"
