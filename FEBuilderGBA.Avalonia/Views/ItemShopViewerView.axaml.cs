@@ -41,12 +41,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _currentShopList = _vm.LoadShopList();
-                ShopList.SetItems(_currentShopList);
+                // Clear the slot list FIRST so the SetItems->SelectFirst chain on
+                // the shop list (which fires OnShopSelected synchronously) can
+                // populate the slot list without it being overwritten afterwards.
                 _currentSlotList = new List<AddrResult>();
                 SlotList.SetItems(_currentSlotList);
-                if (_currentShopList.Count > 0)
-                    ShopList.SelectFirst();
+
+                _currentShopList = _vm.LoadShopList();
+                // SetItems() selects the first item internally, which fires
+                // OnShopSelected and populates the slot list.
+                ShopList.SetItems(_currentShopList);
                 StatusLabel.Text = $"{_currentShopList.Count} shop(s) found.";
             }
             catch (Exception ex)
