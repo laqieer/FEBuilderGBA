@@ -10,7 +10,9 @@
     Knight Crest, ... Sun Bracelet for FE7+); InnerList = the class IDs that
     item promotes; the right pane edits one class slot at a time. When the
     IER patch is installed, X_IER_Patch warns the user that the table is
-    superseded and offers a deep-link to Patch Manager.
+    superseded and exposes a button that opens Patch Manager (deep-linking
+    to the specific ItemEffectRevamp patch entry is out of scope for now —
+    matches WinForms behaviour which also just jumps to the patch list).
   -->
   <Grid ColumnDefinitions="320,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ItemPromotionViewer_Entry_List"

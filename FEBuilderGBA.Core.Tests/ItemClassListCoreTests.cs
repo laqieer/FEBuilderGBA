@@ -49,8 +49,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ScanClassList_EmptyOnZeroAddress()
         {
+            // baseAddr=0 is treated as a null pointer (matches the WinForms
+            // convention that real ROM tables never live at offset 0). Even
+            // when the ROM has non-zero data at offset 0, ScanClassList must
+            // refuse to scan from there.
             byte[] data = new byte[64];
-            data[0] = 0;
+            data[0] = 0x10;
+            data[1] = 0x20;
+            data[2] = 0x00;
             var rom = MakeRom(data);
             var list = ItemClassListCore.ScanClassList(rom, baseAddr: 0);
             Assert.Empty(list);
@@ -59,15 +65,18 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void ScanClassList_TerminatesOnFirstZero()
         {
+            // Use a non-zero base offset so the null-pointer guard above does
+            // not short-circuit. Bytes at offsets 4..6 hold the class list,
+            // offset 7 is the terminator.
             byte[] data = new byte[64];
-            data[0] = 0x10;
-            data[1] = 0x20;
-            data[2] = 0x30;
-            data[3] = 0x00; // terminator
-            data[4] = 0x40; // beyond terminator — must not be returned
+            data[4] = 0x10;
+            data[5] = 0x20;
+            data[6] = 0x30;
+            data[7] = 0x00; // terminator
+            data[8] = 0x40; // beyond terminator — must not be returned
 
             var rom = MakeRom(data);
-            var list = ItemClassListCore.ScanClassList(rom, baseAddr: 0);
+            var list = ItemClassListCore.ScanClassList(rom, baseAddr: 4);
             Assert.Equal(3, list.Count);
             Assert.Equal(0x10u, list[0]);
             Assert.Equal(0x20u, list[1]);
@@ -78,11 +87,13 @@ namespace FEBuilderGBA.Core.Tests
         public void ScanClassList_HandlesBoundsSafely()
         {
             // Array that fills the entire ROM and never hits a terminator.
+            // Start at offset 1 so we exercise the non-null path and the
+            // bounds check at the same time.
             byte[] data = new byte[8];
             for (int i = 0; i < data.Length; i++) data[i] = 0x42;
             var rom = MakeRom(data);
-            var list = ItemClassListCore.ScanClassList(rom, baseAddr: 0);
-            Assert.Equal(8, list.Count);
+            var list = ItemClassListCore.ScanClassList(rom, baseAddr: 1);
+            Assert.Equal(7, list.Count); // 7 bytes from offset 1 to end of ROM
         }
 
         // ---------------------------------------------------------------------
@@ -223,6 +234,72 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0x20, rom.Data[newAddr + 1]);
                 Assert.Equal(0x00, rom.Data[newAddr + 2]); // new appended slot
                 Assert.Equal(0x00, rom.Data[newAddr + 3]); // terminator
+
+                // PR #463 review fix: the old bytes must remain INTACT so any
+                // other owners (shared effectiveness arrays) still work.
+                Assert.Equal(0x10, rom.Data[32]);
+                Assert.Equal(0x20, rom.Data[33]);
+                Assert.Equal(0x00, rom.Data[34]);
+            }
+            finally
+            {
+                CoreState.ROM = prevRomState;
+            }
+        }
+
+        [Fact]
+        public void ExpandClassList_PreservesSharedArrayForOtherOwners()
+        {
+            // Regression test for PR #463 review finding (Copilot bot):
+            // ExpandClassList previously zeroed/0xFF-filled the old array
+            // after relocating, which corrupted other items that shared the
+            // same effectiveness pointer. After the fix, the old bytes stay
+            // intact and the second owner continues to scan the original
+            // array.
+            byte[] data = new byte[1024];
+            for (int i = 0; i < data.Length; i++) data[i] = 0xFF;
+            // Shared list at offset 64: [0x10, 0x20, 0x00]
+            data[64] = 0x10;
+            data[65] = 0x20;
+            data[66] = 0x00;
+            // Two owner pointers at offsets 0 and 8 both pointing to 64.
+            uint sharedPtr = 64u | 0x08000000u;
+            data[0] = (byte)(sharedPtr & 0xFF);
+            data[1] = (byte)((sharedPtr >> 8) & 0xFF);
+            data[2] = (byte)((sharedPtr >> 16) & 0xFF);
+            data[3] = (byte)((sharedPtr >> 24) & 0xFF);
+            data[8] = (byte)(sharedPtr & 0xFF);
+            data[9] = (byte)((sharedPtr >> 8) & 0xFF);
+            data[10] = (byte)((sharedPtr >> 16) & 0xFF);
+            data[11] = (byte)((sharedPtr >> 24) & 0xFF);
+
+            var rom = MakeRom(data);
+            var prevRomState = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var undo = new Undo.UndoData
+                {
+                    name = "test",
+                    list = new List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length,
+                };
+
+                uint newAddr = ItemClassListCore.ExpandClassList(rom, pointerAddr: 0, undo: undo);
+
+                // Owner 1 moved to the new array.
+                Assert.Equal(newAddr | 0x08000000u, rom.u32(0));
+                // Owner 2 still points to the original 64.
+                Assert.Equal(sharedPtr, rom.u32(8));
+                // Original bytes preserved (would have been 0xFF if we cleared).
+                Assert.Equal(0x10, rom.Data[64]);
+                Assert.Equal(0x20, rom.Data[65]);
+                Assert.Equal(0x00, rom.Data[66]);
+                // ScanClassList from owner 2 still finds the original class list.
+                var owner2List = ItemClassListCore.ScanClassList(rom, 64);
+                Assert.Equal(2, owner2List.Count);
+                Assert.Equal(0x10u, owner2List[0]);
+                Assert.Equal(0x20u, owner2List[1]);
             }
             finally
             {

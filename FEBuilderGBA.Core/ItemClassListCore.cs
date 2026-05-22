@@ -33,6 +33,11 @@ namespace FEBuilderGBA
         {
             var result = new List<uint>();
             if (rom == null || rom.Data == null) return result;
+            // Pointer semantics: address 0 represents a null pointer and yields
+            // an empty list (the WinForms data tables never legitimately point
+            // at offset 0). Combined with the bounds check below this guards
+            // against scanning unrelated data when the owner pointer is null.
+            if (baseAddr == 0) return result;
             if (baseAddr >= (uint)rom.Data.Length) return result;
 
             // Cap iteration to avoid pathological cases — class IDs cannot
@@ -109,9 +114,9 @@ namespace FEBuilderGBA
         /// Expand the null-terminated class array referenced by
         /// <paramref name="pointerAddr"/> by one slot. Copies the existing
         /// array to free space, writes a new 0-slot just before the terminator
-        /// (so the user can edit the new slot in place), updates the owning
-        /// pointer to reference the new array, and frees the original bytes
-        /// with <c>0xFF</c>. All writes are recorded on <paramref name="undo"/>.
+        /// (so the user can edit the new slot in place), and updates the
+        /// owning pointer to reference the new array. All writes are recorded
+        /// on <paramref name="undo"/>.
         /// </summary>
         /// <returns>The new array base offset.</returns>
         /// <remarks>
@@ -119,6 +124,15 @@ namespace FEBuilderGBA
         /// the appended zero is the new editable slot, and the trailing zero
         /// stays as the terminator. Callers can immediately edit the new slot
         /// at <c>newAddr + oldCount</c>.
+        /// <para>
+        /// The original bytes at <c>oldBase</c> are intentionally LEFT INTACT
+        /// so any other owners still pointing at <c>oldBase</c> (the
+        /// effectiveness editor detects this case via
+        /// <see cref="FindItemsSharingPointer"/>) keep working. Wasting a few
+        /// bytes is preferable to corrupting another item's data; the UI flow
+        /// guides the user to <see cref="MakeIndependentCopy"/> first when the
+        /// array is shared.
+        /// </para>
         /// </remarks>
         public static uint ExpandClassList(ROM rom, uint pointerAddr, Undo.UndoData undo)
         {
@@ -158,12 +172,10 @@ namespace FEBuilderGBA
             // Update the owning pointer.
             rom.write_p32(pointerAddr, newBase, undo);
 
-            // Free the old bytes (oldCount + 1 to cover terminator).
-            for (uint i = 0; i < oldCount + 1; i++)
-            {
-                rom.write_u8(oldBase + i, 0xFFu, undo);
-            }
-
+            // INTENTIONAL: do not clear the old bytes. Other items may still
+            // point at oldBase (shared effectiveness arrays); zeroing or
+            // 0xFF-filling here would corrupt their data. The orphaned bytes
+            // are negligible and ROM rebuild reclaims them.
             return newBase;
         }
 
