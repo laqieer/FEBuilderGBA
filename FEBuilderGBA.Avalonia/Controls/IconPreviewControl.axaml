@@ -1,9 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FEBuilderGBA.Avalonia.Controls.IconPreviewControl">
+  <!--
+    The inner Image's Stretch and RenderOptions.BitmapInterpolationMode are
+    set from code-behind so the IconPreviewControl.Stretch /
+    .BitmapInterpolationMode styled properties drive them (issue #342
+    follow-up). Avoid setting them here in XAML to keep a single source of
+    truth.
+  -->
   <Border Name="OuterBorder" HorizontalAlignment="Center" VerticalAlignment="Center">
-    <Image Name="ImageDisplay" Stretch="Uniform"
-           RenderOptions.BitmapInterpolationMode="None"
+    <Image Name="ImageDisplay"
            HorizontalAlignment="Center" VerticalAlignment="Center" />
   </Border>
 </UserControl>
