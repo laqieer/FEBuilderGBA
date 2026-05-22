@@ -101,7 +101,14 @@ namespace FEBuilderGBA
         /// Returns true if the map entry is valid, false if it marks end-of-data.
         /// Logic extracted from WinForms MapSettingForm.IsMapSettingEnd.
         /// </summary>
-        static bool IsMapSettingValid(ROM rom, uint addr)
+        /// <summary>
+        /// Check whether the map setting entry at <paramref name="addr"/> is
+        /// a valid entry (i.e. real ROM data, not the table terminator or
+        /// trailing garbage). Exposed for cross-reference scanning
+        /// (<c>TextRefTableRegistry</c>) which needs the same terminator
+        /// heuristic as the editor's list builder.
+        /// </summary>
+        internal static bool IsMapSettingValid(ROM rom, uint addr)
         {
             // WinForms treats a pointer in the first dword as a valid map entry.
             uint a = rom.u32(addr + 0);

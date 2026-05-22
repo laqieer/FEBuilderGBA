@@ -56,12 +56,15 @@ namespace FEBuilderGBA
         const uint LargeMaxCount = 0x400u;
 
         /// <summary>
-        /// Maximum number of map settings to scan. WinForms uses
-        /// <c>MapSettingForm.GetDataCount()</c> which is bounded by the actual
-        /// number of valid entries; here we use an upper bound (FE8 default is
-        /// 0x29 chapters; allow 0x80 to cover expanded ROMs).
+        /// Maximum number of map settings to scan. WinForms supports up to
+        /// 0xFF entries via the AddressListExpandsButton_255 flow. The actual
+        /// number is determined dynamically by <c>MapSettingForm.GetDataCount()</c>
+        /// (which walks until <c>MapSettingCore.IsMapSettingValid</c> rejects an
+        /// entry). We use 0xFF as the hard upper bound; the registry pairs this
+        /// with a <c>MapSettingValid</c> terminator that mirrors the WinForms
+        /// stop heuristic so we don't read past the real end.
         /// </summary>
-        const uint MapSettingMaxCount = 0x80u;
+        const uint MapSettingMaxCount = 0xFFu;
 
         // -------------------------------------------------------------
         // Terminator predicates — mirror the WinForms InputFormRef stop
@@ -165,6 +168,31 @@ namespace FEBuilderGBA
             if (entry + 4 > (uint)rom.Data.Length) return true;
             uint v = rom.u32(entry);
             return v < 1 || v > 0xFFu;
+        }
+
+        /// <summary>
+        /// Stop when the map setting entry at <paramref name="entry"/> fails
+        /// the WinForms validity heuristic (<c>MapSettingCore.IsMapSettingValid</c>:
+        /// first-dword pointer check, weather check, PLIST validity, text-id
+        /// bounds). Used by MapSetting (all versions).
+        /// </summary>
+        static bool StopOnInvalidMapSetting(ROM rom, uint entry, uint i)
+        {
+            try { return !MapSettingCore.IsMapSettingValid(rom, entry); }
+            catch { return true; }
+        }
+
+        /// <summary>
+        /// Stop when u8 at entry+0xF &gt; <paramref name="maxValid"/>. Used by
+        /// OPClassDemoForm (FE8J: &lt;= 4) and OPClassDemoFE8UForm (FE8U: &lt;= 6).
+        /// </summary>
+        static Func<ROM, uint, uint, bool> StopOnOPClassDemo8(uint maxValid)
+        {
+            return (rom, entry, i) =>
+            {
+                if (entry + 0x10 > (uint)rom.Data.Length) return true;
+                return rom.u8(entry + 0xF) > maxValid;
+            };
         }
 
         /// <summary>
@@ -310,6 +338,7 @@ namespace FEBuilderGBA
                     EntrySize = info.map_setting_datasize,
                     MaxCount = MapSettingMaxCount,
                     TextIdOffsets = new uint[] { 112, 114, 136, 138 },
+                    Terminator = StopOnInvalidMapSetting,
                     NameResolver = id => $"Map {id:X02}",
                 });
             }
@@ -449,6 +478,7 @@ namespace FEBuilderGBA
             {
                 if (info.is_multibyte)
                 {
+                    // FE8J: OPClassDemoForm.Init stops on u8(addr+0xF) > 4.
                     list.Add(new TextRefTableDescriptor
                     {
                         Kind = "OPClassDemo",
@@ -456,11 +486,13 @@ namespace FEBuilderGBA
                         EntrySize = 28,
                         MaxCount = DefaultMaxCount,
                         TextIdOffsets = new uint[] { 4 },
+                        Terminator = StopOnOPClassDemo8(4),
                         NameResolver = id => $"OPDemo {id:X02}",
                     });
                 }
                 else
                 {
+                    // FE8U: OPClassDemoFE8UForm.Init stops on u8(addr+0xF) > 6.
                     list.Add(new TextRefTableDescriptor
                     {
                         Kind = "OPClassDemo",
@@ -468,6 +500,7 @@ namespace FEBuilderGBA
                         EntrySize = 20,
                         MaxCount = DefaultMaxCount,
                         TextIdOffsets = new uint[] { 0 },
+                        Terminator = StopOnOPClassDemo8(6),
                         NameResolver = id => $"OPDemo {id:X02}",
                     });
                 }
@@ -580,6 +613,7 @@ namespace FEBuilderGBA
                     EntrySize = info.map_setting_datasize,
                     MaxCount = MapSettingMaxCount,
                     TextIdOffsets = offsets,
+                    Terminator = StopOnInvalidMapSetting,
                     NameResolver = id => $"Map {id:X02}",
                 });
             }
@@ -734,6 +768,8 @@ namespace FEBuilderGBA
             // OP class demo (FE7) — multibyte (FE7J): size 32, non-multibyte
             // (FE7U): size 28; both use offset {4}.
             // OPClassDemoFE7Form (FE7J) = 32; OPClassDemoFE7UForm (FE7U) = 28.
+            // Both forms cap at i <= 0x41 (max 0x42 entries) — WinForms' hard
+            // max — not a per-entry stop predicate.
             if (info.op_class_demo_pointer != 0)
             {
                 list.Add(new TextRefTableDescriptor
@@ -741,7 +777,7 @@ namespace FEBuilderGBA
                     Kind = "OPClassDemo",
                     PointerField = info.op_class_demo_pointer,
                     EntrySize = info.is_multibyte ? 32u : 28u,
-                    MaxCount = DefaultMaxCount,
+                    MaxCount = 0x42u,
                     TextIdOffsets = new uint[] { 4 },
                     NameResolver = id => $"OPDemo {id:X02}",
                 });
@@ -829,6 +865,7 @@ namespace FEBuilderGBA
                     EntrySize = info.map_setting_datasize,
                     MaxCount = MapSettingMaxCount,
                     TextIdOffsets = new uint[] { 48, 50, 52, 60 },
+                    Terminator = StopOnInvalidMapSetting,
                     NameResolver = id => $"Map {id:X02}",
                 });
             }
