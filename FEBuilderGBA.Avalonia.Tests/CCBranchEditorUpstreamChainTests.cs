@@ -20,6 +20,11 @@ namespace FEBuilderGBA.Avalonia.Tests
     ///      count, polluting the upstream list with bytes read past the class table.
     ///   2) Avalonia did not skip class 0; WinForms wraps the scan with
     ///      <c>if (class_id >= 1)</c>, so class 0 must show no upstream.
+    ///
+    /// All FE8U tests use <see cref="RomTestHelper.WithRom"/> so CoreState (ROM,
+    /// caches, text encoders, NameResolver/PatchDetection/MagicSplitUtil caches)
+    /// is properly wired and restored around each test. Tests gracefully skip
+    /// when FE8U.gba is not available (CI sets ROMS_DIR; local dev uses roms/).
     /// </summary>
     [Collection("SharedState")]
     public class CCBranchEditorUpstreamChainTests
@@ -29,29 +34,6 @@ namespace FEBuilderGBA.Avalonia.Tests
         public CCBranchEditorUpstreamChainTests(ITestOutputHelper output)
         {
             _output = output;
-        }
-
-        /// <summary>
-        /// Loads FE8U.gba and sets CoreState.ROM. Returns null and writes a skip
-        /// message to the test output if the ROM is not available.
-        /// Caller MUST restore CoreState.ROM afterwards.
-        /// </summary>
-        ROM? LoadFE8U()
-        {
-            string? path = TestRomLocator.FindRom("FE8U");
-            if (path == null)
-            {
-                _output.WriteLine("SKIP: FE8U.gba not found in roms/ or ROMS_DIR");
-                return null;
-            }
-            var rom = new ROM();
-            if (!rom.Load(path, out _))
-            {
-                _output.WriteLine("SKIP: FE8U.gba failed to load");
-                return null;
-            }
-            CoreState.ROM = rom;
-            return rom;
         }
 
         // -------------------------------------------------------------------
@@ -114,11 +96,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void FE8U_UpstreamChain_MatchesWinFormsByteScan()
         {
-            var savedRom = CoreState.ROM;
-            try
+            if (TestRomLocator.FindRom("FE8U") == null)
             {
-                ROM? rom = LoadFE8U();
-                if (rom == null) return;
+                _output.WriteLine("SKIP: FE8U.gba not found in roms/ or ROMS_DIR");
+                return;
+            }
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                ROM rom = CoreState.ROM!;
                 if (rom.RomInfo.ccbranch_pointer == 0)
                 {
                     _output.WriteLine("SKIP: ROM has no CC branch table");
@@ -144,11 +129,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     }
                 }
                 Assert.Equal(0, mismatches);
-            }
-            finally
-            {
-                CoreState.ROM = savedRom;
-            }
+            });
         }
 
         // -------------------------------------------------------------------
@@ -158,11 +139,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void FE8U_UpstreamChain_Class0_ReturnsNone()
         {
-            var savedRom = CoreState.ROM;
-            try
+            if (TestRomLocator.FindRom("FE8U") == null)
             {
-                ROM? rom = LoadFE8U();
-                if (rom == null) return;
+                _output.WriteLine("SKIP: FE8U.gba not found in roms/ or ROMS_DIR");
+                return;
+            }
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                ROM rom = CoreState.ROM!;
                 if (rom.RomInfo.ccbranch_pointer == 0)
                 {
                     _output.WriteLine("SKIP: ROM has no CC branch table");
@@ -177,11 +161,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Either "(none)" or empty string is acceptable; both indicate no upstream.
                 Assert.True(vm.UpstreamChain == "(none)" || vm.UpstreamChain == "",
                     $"Expected class 0 upstream to be empty/(none), got '{vm.UpstreamChain}'");
-            }
-            finally
-            {
-                CoreState.ROM = savedRom;
-            }
+            });
         }
 
         // -------------------------------------------------------------------
@@ -191,11 +171,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void FE8U_UpstreamChain_AllResultsWithinClassCount()
         {
-            var savedRom = CoreState.ROM;
-            try
+            if (TestRomLocator.FindRom("FE8U") == null)
             {
-                ROM? rom = LoadFE8U();
-                if (rom == null) return;
+                _output.WriteLine("SKIP: FE8U.gba not found in roms/ or ROMS_DIR");
+                return;
+            }
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                ROM rom = CoreState.ROM!;
                 if (rom.RomInfo.ccbranch_pointer == 0)
                 {
                     _output.WriteLine("SKIP: ROM has no CC branch table");
@@ -217,11 +200,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                             $"class 0x{idx:X2}: upstream entry 0x{v:X2} >= classCount 0x{classCount:X2}");
                     }
                 }
-            }
-            finally
-            {
-                CoreState.ROM = savedRom;
-            }
+            });
         }
 
         // -------------------------------------------------------------------
@@ -231,11 +210,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void FE8U_UpstreamChain_Paladin_HasNonEmptyUpstream()
         {
-            var savedRom = CoreState.ROM;
-            try
+            if (TestRomLocator.FindRom("FE8U") == null)
             {
-                ROM? rom = LoadFE8U();
-                if (rom == null) return;
+                _output.WriteLine("SKIP: FE8U.gba not found in roms/ or ROMS_DIR");
+                return;
+            }
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                ROM rom = CoreState.ROM!;
                 if (rom.RomInfo.ccbranch_pointer == 0)
                 {
                     _output.WriteLine("SKIP: ROM has no CC branch table");
@@ -257,11 +239,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // here we just smoke-test that Paladin is reported as a promoted class
                 // (it must have at least one upstream entry in a stock FE8U).
                 Assert.NotEmpty(reported);
-            }
-            finally
-            {
-                CoreState.ROM = savedRom;
-            }
+            });
         }
 
         // -------------------------------------------------------------------
