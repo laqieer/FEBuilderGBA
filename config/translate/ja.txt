@@ -6187,3 +6187,16 @@ Avaloniaクロスプラットフォーム版
 :Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
 楽器セットの選択はAvalonia UIではまだ利用できません。MIDIインポート用に異なる楽器セットを選択するには、WinForms版を使用してください。この機能にはPatchUtil.SearchInstrumentSetをクロスプラットフォームCoreライブラリに移植する必要があります。
 
+
+:No data loaded.
+データが読み込まれていません。
+
+:This editor edits a unit-short-text table referenced by a pointer; it must be opened from a POINTER_UNITSSHORTTEXT event-script argument or a FELint follow-up. A vanilla ROM has no such table — patches like EVENTSCRIPT_SimpleEscape add one.
+このエディタはポインタで参照されるユニットショートテキストテーブルを編集します。POINTER_UNITSSHORTTEXTイベントスクリプト引数またはFELintフォローアップから開く必要があります。バニラROMにはそのようなテーブルはありません。EVENTSCRIPT_SimpleEscapeのようなパッチが追加します。
+
+:Units Short Text Editor
+ユニットショートテキストエディタ
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+各ユニットインデックスを説明テキストID (エントリごとに2バイト) にマップします。
+
