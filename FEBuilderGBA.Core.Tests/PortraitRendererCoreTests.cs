@@ -54,6 +54,39 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DrawPortraitAutoById_NullROM_ReturnsNull()
+        {
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawPortraitAutoById(1);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
+        public void DrawPortraitAutoById_ZeroId_ReturnsNull()
+        {
+            // Portrait id 0 is the empty / no-portrait slot.
+            var saved = CoreState.ROM;
+            CoreState.ROM = null;
+            try
+            {
+                var result = PortraitRendererCore.DrawPortraitAutoById(0);
+                Assert.Null(result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
+        [Fact]
         public void DrawPortraitUnit_InvalidPointer_ReturnsNull()
         {
             var saved = CoreState.ROM;

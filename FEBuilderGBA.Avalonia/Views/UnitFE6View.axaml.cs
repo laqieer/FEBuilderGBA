@@ -24,6 +24,29 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
+
+            // #358: jump to Support Unit Editor for this unit's support row.
+            JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+        }
+
+        /// <summary>
+        /// #358 — Open the FE6 Support Unit Editor and select the support row
+        /// that this unit's +44 pointer references.  Mirrors WinForms
+        /// <c>J_44_SUPPORTUNIT</c> in <c>UnitFE6Form</c>.
+        /// </summary>
+        void JumpToSupportUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                if (supportPtr == 0) return;
+                var window = WindowManager.Instance.Open<SupportUnitFE6View>();
+                window.JumpToAddr(supportPtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitFE6View.JumpToSupportUnit failed: {0}", ex.Message);
+            }
         }
 
         void LoadList()

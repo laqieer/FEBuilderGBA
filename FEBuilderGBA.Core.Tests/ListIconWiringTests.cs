@@ -120,14 +120,37 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("EventBattleTalkView.axaml.cs", "UnitPortraitFromAddrU16Loader")]  // FE8: W0 = u16 unit ID
         [InlineData("EventBattleTalkFE6View.axaml.cs", "UnitPortraitFromAddrU8Loader")] // FE6: B0 = u8 unit ID
         [InlineData("EventBattleTalkFE7View.axaml.cs", "UnitPortraitFromAddrU8Loader")] // FE7: B0 = u8 unit ID
-        [InlineData("SupportTalkView.axaml.cs", "UnitPortraitFromAddrU8Loader")]        // FE8: B0 = u8 partner1 ID
-        [InlineData("SupportTalkFE6View.axaml.cs", "UnitPortraitFromAddrU8Loader")]     // FE6: B0 = u8 partner1 ID
-        [InlineData("SupportTalkFE7View.axaml.cs", "UnitPortraitFromAddrU8Loader")]     // FE7: B0 = u8 partner1 ID
+        // Issue #361: Support Talk views now use the PAIR loader so both
+        // partner portraits render side-by-side. Each version supplies the
+        // version-specific second-partner offset:
+        //   - FE8     : partner 2 at addr+2
+        //   - FE6/FE7 : partner 2 at addr+1
+        [InlineData("SupportTalkView.axaml.cs", "UnitPortraitPairFromAddrU8Loader")]    // FE8
+        [InlineData("SupportTalkFE6View.axaml.cs", "UnitPortraitPairFromAddrU8Loader")] // FE6
+        [InlineData("SupportTalkFE7View.axaml.cs", "UnitPortraitPairFromAddrU8Loader")] // FE7
         public void View_UsesUnitPortraitFromAddrLoader(string viewFile, string loaderName)
         {
             string src = ReadViewSource(viewFile);
             Assert.Contains("SetItemsWithIcons(items", src);
             Assert.Contains(loaderName, src);
+        }
+
+        /// <summary>
+        /// Issue #361: each Support Talk view must pass the correct version-
+        /// specific <c>unit2Offset</c> to <see cref="ListIconLoaders.UnitPortraitPairFromAddrU8Loader"/>.
+        /// FE8 uses offset 2 (uid1@0, uid2@2); FE6/FE7 use offset 1 (uid1@0, uid2@1).
+        /// Locked here so future refactors can't silently regress to the
+        /// wrong offset (which would show the WRONG second portrait).
+        /// </summary>
+        [Theory]
+        [InlineData("SupportTalkView.axaml.cs", "unit2Offset: 2")]    // FE8: addr+2
+        [InlineData("SupportTalkFE6View.axaml.cs", "unit2Offset: 1")] // FE6: addr+1
+        [InlineData("SupportTalkFE7View.axaml.cs", "unit2Offset: 1")] // FE7: addr+1
+        public void SupportTalkView_PassesCorrectUnit2Offset(string viewFile, string expectedOffsetArg)
+        {
+            string src = ReadViewSource(viewFile);
+            Assert.Contains("UnitPortraitPairFromAddrU8Loader", src);
+            Assert.Contains(expectedOffsetArg, src);
         }
 
         // ---- Group E: Wait/Move icons ----

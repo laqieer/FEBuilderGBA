@@ -14,6 +14,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TextViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextViewerViewModel _vm = new();
+        readonly ConversationViewerTabViewModel _convVm = new();
         readonly UndoService _undoService = new();
 
         public string ViewTitle => "Text Editor";
@@ -29,7 +30,22 @@ namespace FEBuilderGBA.Avalonia.Views
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
             EditTextBox.TextChanged += OnEditTextChanged;
+            // Bind the conversation viewer tab's card collection ONCE. The
+            // VM mutates the same ObservableCollection in place so we never
+            // need to re-wire ItemsSource again.
+            ConversationCardsList.ItemsSource = _convVm.Cards;
+            // Lazy-load the Conversation Viewer tab: defer the parse + portrait
+            // decode work until the user actually activates that tab.
+            EditorTabs.SelectionChanged += OnEditorTabChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        void OnEditorTabChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (EditorTabs.SelectedItem == ConversationTab)
+            {
+                _convVm.EnsureCurrent();
+            }
         }
 
         void LoadList()
@@ -61,6 +77,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 uint id = (addr - baseAddr) / 4;
                 _vm.LoadText(id);
+                // Just mark the conversation viewer's pending id; the actual
+                // decode + portrait work only runs when the user activates
+                // the Conversation Viewer tab (see OnEditorTabChanged).
+                _convVm.SetPendingTextId(id);
+                if (EditorTabs.SelectedItem == ConversationTab)
+                {
+                    _convVm.EnsureCurrent();
+                }
                 UpdateUI();
             }
             catch (Exception ex)
