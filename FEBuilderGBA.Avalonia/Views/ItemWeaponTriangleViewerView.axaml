@@ -23,10 +23,10 @@
           <NumericUpDown AutomationProperties.AutomationId="ItemWeaponTriangleViewer_WeaponType2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="WeaponType2Box" Minimum="0" Maximum="255" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Bonus:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemWeaponTriangleViewer_Bonus_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="BonusBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemWeaponTriangleViewer_Bonus_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="BonusBox" Minimum="-128" Maximum="127" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Penalty:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemWeaponTriangleViewer_Penalty_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="PenaltyBox" Minimum="0" Maximum="255" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemWeaponTriangleViewer_Penalty_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="PenaltyBox" Minimum="-128" Maximum="127" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

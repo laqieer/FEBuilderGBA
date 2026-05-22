@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -1058,7 +1059,6 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             const uint blockSize = 4;
-            string[] wepNames = { "Sword", "Lance", "Axe", "Bow", "Staff", "Anima", "Light", "Dark", "Item" };
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
@@ -1068,9 +1068,16 @@ namespace FEBuilderGBA.Avalonia.Services
 
                 uint w1 = rom.u8(addr);
                 uint w2 = rom.u8(addr + 1);
-                string n1 = w1 < wepNames.Length ? wepNames[w1] : $"0x{w1:X02}";
-                string n2 = w2 < wepNames.Length ? wepNames[w2] : $"0x{w2:X02}";
-                string name = $"{U.ToHexString(i)} {n1} > {n2}";
+                // Issue #370: label format must match WinForms
+                // `DrawWeaponTypeIcon2AndText`:
+                //   "{weapon1Hex} {weapon1Name} -> {weapon2Hex} {weapon2Name}"
+                // The prefix MUST start with the weapon-type ID (not the row
+                // index) so any DrawWeaponTypeIcon-style parser that uses
+                // U.atoh(text) gets the correct icon. Mirrors the format
+                // produced by ItemWeaponTriangleViewerViewModel.
+                string n1 = ItemWeaponTriangleViewerViewModel.WeaponTypeNames.Get(w1);
+                string n2 = ItemWeaponTriangleViewerViewModel.WeaponTypeNames.Get(w2);
+                string name = $"{U.ToHexString(w1)} {n1} -> {U.ToHexString(w2)} {n2}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
