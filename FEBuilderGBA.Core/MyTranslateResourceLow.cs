@@ -69,7 +69,7 @@ namespace FEBuilderGBA
                         return japaneseKey;
                     }
                 }
-                // Normalise to LF (CRLF → LF) for direct lookup
+                // Normalise to LF (CRLF → LF) for direct + reverse lookup
                 string lfForm = src.Replace("\r\n", "\n").Replace("\r", "\n");
                 if (lfForm != src)
                 {

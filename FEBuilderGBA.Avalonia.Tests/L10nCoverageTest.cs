@@ -104,7 +104,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         /// <summary>
         /// Walk up the directory tree from the test assembly looking for
-        /// FEBuilderGBA.sln. Mirrors L10nScanner.FindRepoRoot logic.
+        /// FEBuilderGBA.sln. Mirrors the repo-root resolution in
+        /// <see cref="FEBuilderGBA.Avalonia.App.FindRepoRoot"/> (the gap-sweep
+        /// launcher in `FEBuilderGBA.Avalonia/App.axaml.cs`).
         /// </summary>
         static string FindRepoRoot()
         {

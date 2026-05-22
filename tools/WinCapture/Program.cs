@@ -23,6 +23,11 @@ class Program
 
     static IntPtr FindByPartialTitle(string substring)
     {
+        // Guard against empty substring: every window title contains "",
+        // so an empty-arg invocation would match an unrelated visible window
+        // (Copilot bot review #458). Treat empty as an unfindable target.
+        if (string.IsNullOrEmpty(substring))
+            return IntPtr.Zero;
         IntPtr result = IntPtr.Zero;
         EnumWindowsProc proc = (hWnd, lParam) =>
         {
@@ -43,6 +48,14 @@ class Program
 
     static void Main(string[] args)
     {
+        // Reject empty args[0] up-front so the user sees a clear error rather
+        // than the FindByPartialTitle fallback silently matching a random
+        // visible window (Copilot bot review #458).
+        if (args.Length > 0 && string.IsNullOrEmpty(args[0]))
+        {
+            Console.Error.WriteLine("Usage: WinCapture <window title> [output.png] — title must be non-empty.");
+            Environment.Exit(2);
+        }
         string title = args.Length > 0 ? args[0] : "Class Editor";
         string outPath = args.Length > 1 ? args[1] : "capture.png";
 
