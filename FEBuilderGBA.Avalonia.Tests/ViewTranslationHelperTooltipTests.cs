@@ -152,11 +152,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void TranslateAll_TranslatesTextBlockText_WhenConverted()
         {
             // The MapSettingDifficultyDialog help text was changed from
-            // <TextBox IsReadOnly=True> to <TextBlock> precisely so the
-            // existing TextBlock.Text translation path catches it. This test
-            // verifies the same path works with the sentinel map (regression
-            // guard: don't accidentally remove TextBlock support from the
-            // helper).
+            // <TextBox IsReadOnly=True> to <SelectableTextBlock> precisely so
+            // the existing TextBlock.Text translation path catches it. This
+            // test verifies the same path works with the sentinel map
+            // (regression guard: don't accidentally remove TextBlock support
+            // from the helper).
             var panel = new StackPanel();
             var tb = new TextBlock { Text = "Help text panel" };
             panel.Children.Add(tb);
@@ -165,6 +165,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             helper.TranslateAll();
 
             Assert.Equal("[TRANSLATED-HELP]", tb.Text);
+        }
+
+        [AvaloniaFact]
+        public void TranslateAll_TranslatesSelectableTextBlockText()
+        {
+            // SelectableTextBlock inherits from TextBlock in Avalonia 11+, so
+            // the existing TextBlock translation path catches it. This test
+            // verifies that inheritance — addresses Copilot inline review on
+            // PR #458: the help-panel switch from TextBox -> SelectableTextBlock
+            // (instead of plain TextBlock) preserves user copy/paste while
+            // still being translatable.
+            var panel = new StackPanel();
+            var stb = new SelectableTextBlock { Text = "Help text panel" };
+            panel.Children.Add(stb);
+
+            // Verify inheritance assumption (compile-time check would be ideal
+            // but runtime check is sufficient since the helper uses
+            // `is TextBlock tb` dispatch).
+            Assert.True(stb is TextBlock,
+                "SelectableTextBlock must inherit from TextBlock for the helper's translation dispatch to work.");
+
+            var helper = new ViewTranslationHelper(panel);
+            helper.TranslateAll();
+
+            Assert.Equal("[TRANSLATED-HELP]", stb.Text);
         }
     }
 }

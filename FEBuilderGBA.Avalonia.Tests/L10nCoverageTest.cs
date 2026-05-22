@@ -9,8 +9,12 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// <summary>
     /// CI gate for the #356 localisation work: asserts that every English
     /// AXAML literal in <c>FEBuilderGBA.Avalonia/Views/</c> has a Japanese
-    /// AND Chinese translation, modulo an explicit allowlist of 13
+    /// AND Chinese translation, modulo an explicit allowlist of 10 distinct
     /// URL/hex-example placeholders that are deliberately kept English.
+    /// These 10 distinct literals appear in 13 separate AXAML files (some
+    /// like <c>e.g. 0x08000000</c> repeat across MoveToFreeSpace and
+    /// PointerTool views), so the gap-sweep finds 13 untranslated findings
+    /// but the allowlist deduplicates to 10 unique strings.
     ///
     /// This test prevents regressions — if a new Avalonia view is added with
     /// an untranslated English label, this test fails and forces the
@@ -26,8 +30,11 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class L10nCoverageTest
     {
         /// <summary>
-        /// Allowlist of literals that are deliberately kept English because
-        /// they ARE the example/URL (not translatable content).
+        /// Allowlist of 10 distinct literals that are deliberately kept English
+        /// because they ARE the example/URL (not translatable content). Find
+        /// counts at scan time (13) exceed allowlist size (10) because some
+        /// literals repeat across files; the assertion logic dedupes via
+        /// <see cref="HashSet{T}"/> comparison.
         /// </summary>
         static readonly HashSet<string> UrlHexAllowlist = new(StringComparer.Ordinal)
         {
