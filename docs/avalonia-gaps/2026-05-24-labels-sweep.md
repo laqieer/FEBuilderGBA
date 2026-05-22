@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T19:43:07Z"
-git-sha: 4f7a9cf82
+generated: "2026-05-22T22:53:00Z"
+git-sha: 2368ef651
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4638 |
-| Total AV-only labels | 2643 |
-| Total common labels | 62 |
+| Total WF-only labels | 4639 |
+| Total AV-only labels | 2671 |
+| Total common labels | 61 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -1114,7 +1114,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Map Settings (FE6)`
 
 ### ClassForm
-WF labels: **58** · AV labels: **101** · WF-only: **57** · AV-only: **100** · Common: **1** · Density verdict: **Medium** (WF 211 / AV 148)
+WF labels: **58** · AV labels: **101** · WF-only: **57** · AV-only: **100** · Common: **1** · Density verdict: **Medium** (WF 211 / AV 154)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -2312,7 +2312,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### MonsterItemForm
-WF labels: **37** · AV labels: **9** · WF-only: **37** · AV-only: **9** · Common: **0** · Density verdict: **High** (WF 129 / AV 14)
+WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -2357,9 +2357,7 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Click to open Item Editor`
 - `Drop Rate:`
-- `Item ID:`
 - `Monster Item Editor`
 - `Unknown 1:`
 - `Unknown 2:`
@@ -3038,7 +3036,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `TSA Tile Editor`
 
 ### SummonsDemonKingForm
-WF labels: **30** · AV labels: **21** · WF-only: **30** · AV-only: **21** · Common: **0** · Density verdict: **Medium** (WF 60 / AV 36)
+WF labels: **30** · AV labels: **17** · WF-only: **30** · AV-only: **17** · Common: **0** · Density verdict: **Medium** (WF 60 / AV 32)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3079,9 +3077,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `AI 1:`
 - `AI 2:`
 - `AI Pointer:`
-- `Class ID:`
-- `Click to open Class Editor`
-- `Click to open Unit Editor`
 - `Commander:`
 - `Coordinates:`
 - `Demon King Summon Editor`
@@ -3094,7 +3089,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Retreat AI:`
 - `Special:`
 - `Target/Recovery AI:`
-- `Unit ID:`
 - `Write`
 
 ### ImageBattleAnimePalletForm
@@ -3660,7 +3654,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `ED (FE7)`
 
 ### OPClassDemoFE8UForm
-WF labels: **23** · AV labels: **14** · WF-only: **23** · AV-only: **14** · Common: **0** · Density verdict: **Medium** (WF 50 / AV 26)
+WF labels: **23** · AV labels: **12** · WF-only: **23** · AV-only: **12** · Common: **0** · Density verdict: **High** (WF 50 / AV 24)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3695,8 +3689,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Anime Pointer:`
 - `Anime Type:`
 - `Battle Anime:`
-- `Class ID:`
-- `Click to open Class Editor`
 - `Description Text ID:`
 - `Display Weapon:`
 - `Magic Effect:`
@@ -3776,6 +3768,63 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Support Partners`
 - `Support Units (FE6)`
 - `Talk`
+- `Write`
+
+### ImagePortraitFE6Form
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 34 / AV 42)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `X:`
+- `Y:`
+- `アドレス`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `フレーム`
+- `マップ顔`
+- `ユニット顔`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `口座標`
+- `名前`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Comment:`
+- `Export PAL`
+- `Export PNG`
+- `Import PAL`
+- `Import PNG`
+- `Map Face:`
+- `Map Face (32x32)`
+- `Mouth Coord:`
+- `Mouth X:`
+- `Mouth Y:`
+- `Open Source File`
+- `Palette:`
+- `Portrait Editor (FE6)`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Show Example (Frame 3)`
+- `Show Frame:`
+- `Start Address:`
+- `Unit Face:`
+- `Unit Face (96x80)`
+- `Unused (B14):`
+- `Unused (B15):`
 - `Write`
 
 ### MonsterProbabilityForm
@@ -3957,48 +4006,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `ROM Translation Tool`
 
-### ImagePortraitFE6Form
-WF labels: **23** · AV labels: **14** · WF-only: **21** · AV-only: **12** · Common: **2** · Density verdict: **Medium** (WF 34 / AV 22)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `アドレス`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `フレーム`
-- `マップ顔`
-- `ユニット顔`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `口座標`
-- `名前`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Export PAL`
-- `Export PNG`
-- `Import PAL`
-- `Import PNG`
-- `Map Face:`
-- `Mouth Coord:`
-- `Palette:`
-- `Portrait Editor (FE6)`
-- `Unit Face:`
-- `Unused (B14):`
-- `Unused (B15):`
-
 ### MapExitPointForm
 WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
 
@@ -4127,7 +4134,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `What Is`
 
 ### EDForm
-WF labels: **20** · AV labels: **9** · WF-only: **20** · AV-only: **9** · Common: **0** · Density verdict: **High** (WF 65 / AV 13)
+WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 65 / AV 11)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -4155,11 +4162,9 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Click to open Unit Editor`
 - `Condition:`
 - `Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed`
 - `Ending Event Editor`
-- `Unit ID:`
 - `Unknown (0x02):`
 - `Unknown (0x03):`
 - `Write`
@@ -4740,7 +4745,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### DumpStructSelectDialogForm
-WF labels: **18** · AV labels: **2** · WF-only: **18** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 19 / AV 3)
+WF labels: **18** · AV labels: **19** · WF-only: **18** · AV-only: **19** · Common: **0** · Density verdict: **Low** (WF 19 / AV 20)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -4766,7 +4771,24 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Struct Dump Selector`
+- `Cancel`
+- `Clipboard`
+- `Copy as Little Endian Pointer`
+- `Copy as No$GBA Read Breakpoint`
+- `Copy as Pointer`
+- `Copy to Clipboard`
+- `Create Nightmare .nmm File`
+- `Data Address Editor`
+- `Data Export Options`
+- `Data Structure Options`
+- `Display Byte Structure in C`
+- `Dump Displayed List to CSV format`
+- `Dump Displayed List to EA format`
+- `Dump Displayed List to TSV format`
+- `Hex Editor`
+- `Import`
+- `Import Dumped Data`
+- `Open Selected Address in Hex Editor`
 
 ### EventBattleTalkFE7Form
 WF labels: **18** · AV labels: **2** · WF-only: **18** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 62 / AV 3)
@@ -5242,7 +5264,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ItemWeaponEffectForm
-WF labels: **17** · AV labels: **15** · WF-only: **17** · AV-only: **15** · Common: **0** · Density verdict: **Medium** (WF 40 / AV 26)
+WF labels: **17** · AV labels: **13** · WF-only: **17** · AV-only: **13** · Common: **0** · Density verdict: **Medium** (WF 40 / AV 24)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -5268,11 +5290,9 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Anim Type:`
-- `Click to open Item Editor`
 - `Damage Effect:`
 - `Effect ID:`
 - `Hit Color:`
-- `Item ID:`
 - `Item Weapon Effect Editor`
 - `Map Effect Pointer:`
 - `Motion:`
@@ -5528,7 +5548,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Haiku (FE7)`
 
 ### ItemUsagePointerForm
-WF labels: **16** · AV labels: **5** · WF-only: **16** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 23 / AV 7)
+WF labels: **16** · AV labels: **22** · WF-only: **16** · AV-only: **22** · Common: **0** · Density verdict: **Medium** (WF 23 / AV 31)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -5552,8 +5572,25 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Block Size:`
+- `CC Item Editor`
+- `Count`
+- `Filter:`
+- `Function`
 - `Function pointers for item usability checks`
+- `Hex Address`
+- `IER patch detected — configure from Patch Manager.`
+- `Item ID Switch:`
 - `Item Usage Pointer Editor`
+- `List Expansion`
+- `Name`
+- `Not used in this version of FE.`
+- `Open Patch Manager`
+- `Related: Promotion`
+- `Related: Stat Booster`
+- `Reload`
+- `Selection:`
+- `Stat Bonuses Editor`
 - `Usability Pointer:`
 - `Write`
 
@@ -6692,7 +6729,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ArenaClassForm
-WF labels: **12** · AV labels: **5** · WF-only: **12** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 17 / AV 7)
+WF labels: **12** · AV labels: **3** · WF-only: **12** · AV-only: **3** · Common: **0** · Density verdict: **High** (WF 17 / AV 5)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -6713,8 +6750,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Arena Class Editor`
-- `Class ID:`
-- `Click to open Class Editor`
 - `Write`
 
 ### BigCGForm
@@ -7308,7 +7343,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ItemRandomChestForm
-WF labels: **11** · AV labels: **6** · WF-only: **11** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 16 / AV 8)
+WF labels: **11** · AV labels: **4** · WF-only: **11** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 16 / AV 6)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -7327,8 +7362,6 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Click to open Item Editor`
-- `Item:`
 - `Probability %:`
 - `Random Chest Items`
 - `Write`
@@ -7516,7 +7549,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### SummonUnitForm
-WF labels: **11** · AV labels: **6** · WF-only: **11** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 16 / AV 8)
+WF labels: **11** · AV labels: **4** · WF-only: **11** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 16 / AV 6)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -7535,10 +7568,8 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Click to open Unit Editor`
 - `Summon Unit Editor`
 - `Summoned Unit:`
-- `Summoner:`
 - `Write`
 
 ### ToolASMInsertForm
@@ -7831,7 +7862,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### LinkArenaDenyUnitForm
-WF labels: **10** · AV labels: **5** · WF-only: **10** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 14 / AV 6)
+WF labels: **10** · AV labels: **3** · WF-only: **10** · AV-only: **3** · Common: **0** · Density verdict: **High** (WF 14 / AV 4)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -7849,9 +7880,7 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Click to open Unit Editor`
 - `Link Arena Deny Unit Editor`
-- `Unit ID:`
 - `Write`
 
 ### SMEPromoListForm

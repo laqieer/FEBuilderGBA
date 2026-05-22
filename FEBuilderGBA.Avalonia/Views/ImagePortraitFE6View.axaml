@@ -2,57 +2,151 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImagePortraitFE6View"
-        Title="Portrait Editor (FE6)" Width="795" Height="451"
+        Title="Portrait Editor (FE6)" Width="900" Height="600"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImagePortraitFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="280,*">
+    <!-- Left side: list (AddressListControl ships its own SearchBox + Find button
+         for the WF `名前` parity — no need for a sibling filter row). -->
+    <controls:AddressListControl AutomationProperties.AutomationId="ImagePortraitFE6_Entry_List"
+                                 Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Portrait Editor (FE6)" FontSize="18" FontWeight="Bold" />
 
+        <!-- Top-of-list config bar (mirrors WF 先頭アドレス / 読込数 / Size: + 再取得 button) -->
+        <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,4">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="Start Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ReadStartAddress_Label"
+                       Grid.Column="1" Name="ReadStartAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"
+                       FontFamily="Consolas, monospace" />
+            <TextBlock Grid.Column="2" Text="Read Count:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ReadCount_Label"
+                       Grid.Column="3" Name="ReadCountLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <TextBlock Grid.Column="4" Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_BlockSize_Label"
+                       Grid.Column="5" Name="BlockSizeLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <Button AutomationProperties.AutomationId="ImagePortraitFE6_ReloadList_Button"
+                    Grid.Column="6" Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" Margin="0,0,4,0" />
+          </Grid>
+        </Border>
+
+        <!-- Image / palette action buttons -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
           <Button AutomationProperties.AutomationId="ImagePortraitFE6_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
           <Button AutomationProperties.AutomationId="ImagePortraitFE6_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
           <Button AutomationProperties.AutomationId="ImagePortraitFE6_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
           <Button AutomationProperties.AutomationId="ImagePortraitFE6_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortraitFE6_OpenSource_Button"
+                  Name="OpenSourceButton" Content="Open Source File" Click="OpenSource_Click"
+                  IsVisible="False" />
+          <Button AutomationProperties.AutomationId="ImagePortraitFE6_SelectSource_Button"
+                  Name="SelectSourceButton" Content="Select Source Folder" Click="SelectSource_Click"
+                  IsVisible="False" />
         </StackPanel>
 
-        <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitFE6_Portrait_Image" Name="PortraitImage" Margin="0,0,0,8" />
-
-        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <!-- Row 0: Address -->
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <!-- Row 1: Unit Face (D0) -->
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Face:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_PortraitImagePtr_Label" Grid.Row="1" Grid.Column="1" Name="PortraitImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <!-- Row 2: Map Face (D4) -->
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_MiniPortraitPtr_Label" Grid.Row="2" Grid.Column="1" Name="MiniPortraitPtrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <!-- Row 3: Palette (D8) -->
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_PalettePtr_Label" Grid.Row="3" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <!-- Row 4: Mouth Coord -->
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Mouth Coord:" VerticalAlignment="Center" Margin="0,2" />
-          <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <TextBlock Text="X:" VerticalAlignment="Center" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_MouthX_Label" Name="MouthXLabel" VerticalAlignment="Center" />
-            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_MouthY_Label" Name="MouthYLabel" VerticalAlignment="Center" />
+        <!-- Portrait images side-by-side (Unit Face + Map Face) -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Unit Face (96x80)" FontWeight="SemiBold" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitFE6_Portrait_Image" Name="PortraitImage" />
           </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Face (32x32)" FontWeight="SemiBold" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitFE6_MapFace_Image" Name="MapFaceImage" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ShowExample_Label"
+                       Name="ShowExampleLabel" Text="Show Example (Frame 3)" FontWeight="SemiBold" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitFE6_ShowExample_Image" Name="ShowExampleImage" />
+          </StackPanel>
+        </StackPanel>
 
-          <!-- Row 5: Unused14 (B14) -->
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Unused (B14):" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_Unused14_Label" Grid.Row="5" Grid.Column="1" Name="Unused14Label" VerticalAlignment="Center" Margin="0,2" />
+        <!-- Show Frame selector -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+          <TextBlock Text="Show Frame:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortraitFE6_ShowFrame_Input"
+                         FormatString="0" Name="ShowFrameInput" Minimum="0" Maximum="5" Value="0"
+                         Increment="1" Width="80" ValueChanged="ShowFrame_ValueChanged" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ShowFrame_Label"
+                     Name="ShowFrameLabel" VerticalAlignment="Center" Foreground="Gray" />
+        </StackPanel>
 
-          <!-- Row 6: Unused15 (B15) -->
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Unused (B15):" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_Unused15_Label" Grid.Row="6" Grid.Column="1" Name="Unused15Label" VerticalAlignment="Center" Margin="0,2" />
+        <!-- Selection bar (mirrors WF 選択アドレス: + 書き込み) -->
+        <Border BorderBrush="Gray" BorderThickness="0,1,0,1" Padding="0,4" Margin="0,0,0,4">
+          <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_SelectedAddress_Label"
+                       Grid.Column="1" Name="SelectedAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"
+                       FontFamily="Consolas, monospace" />
+            <Button AutomationProperties.AutomationId="ImagePortraitFE6_Write_Button"
+                    Grid.Column="2" Name="WriteButton" Content="Write" Click="WriteButton_Click" />
+          </Grid>
+        </Border>
+
+        <!-- Inner editable detail panel -->
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Address (read-only) -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_Addr_Label"
+                     Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2"
+                     FontFamily="Consolas, monospace" />
+
+          <!-- Row 1: Unit Face pointer (D0, read-only — managed by Import) -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Face:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_PortraitImagePtr_Label"
+                     Grid.Row="1" Grid.Column="1" Name="PortraitImagePtrLabel" VerticalAlignment="Center" Margin="0,2"
+                     FontFamily="Consolas, monospace" />
+
+          <!-- Row 2: Map Face pointer (D4, read-only) -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Map Face:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_MiniPortraitPtr_Label"
+                     Grid.Row="2" Grid.Column="1" Name="MiniPortraitPtrLabel" VerticalAlignment="Center" Margin="0,2"
+                     FontFamily="Consolas, monospace" />
+
+          <!-- Row 3: Palette pointer (D8, read-only) -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_PalettePtr_Label"
+                     Grid.Row="3" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2"
+                     FontFamily="Consolas, monospace" />
+
+          <!-- Row 4: Mouth Coord header (read-only label, matching WF 口座標) -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Mouth Coord:" VerticalAlignment="Center" Margin="0,2" FontWeight="SemiBold" />
+
+          <!-- Row 5: Mouth X (editable, was a read-only label before) -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Mouth X:" VerticalAlignment="Center" Margin="16,2,0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortraitFE6_MouthX_Input"
+                         FormatString="0" Grid.Row="5" Grid.Column="1" Name="MouthXInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Field_ValueChanged" />
+
+          <!-- Row 6: Mouth Y (editable) -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Mouth Y:" VerticalAlignment="Center" Margin="16,2,0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortraitFE6_MouthY_Input"
+                         FormatString="0" Grid.Row="6" Grid.Column="1" Name="MouthYInput" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Field_ValueChanged" />
+
+          <!-- Row 7: Unused14 (editable, "00" in WF) -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Unused (B14):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortraitFE6_Unused14_Input"
+                         FormatString="0" Grid.Row="7" Grid.Column="1" Name="Unused14Input" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Field_ValueChanged" />
+
+          <!-- Row 8: Unused15 (editable, "00" in WF) -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Unused (B15):" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="ImagePortraitFE6_Unused15_Input"
+                         FormatString="0" Grid.Row="8" Grid.Column="1" Name="Unused15Input" Minimum="0" Maximum="255"
+                         Increment="1" Width="100" HorizontalAlignment="Left" Margin="0,2"
+                         ValueChanged="Field_ValueChanged" />
+
+          <!-- Row 9: Comment (editable, WF コメント) -->
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="ImagePortraitFE6_Comment_Input"
+                   Grid.Row="9" Grid.Column="1" Name="CommentInput" Width="280" HorizontalAlignment="Left" Margin="0,2"
+                   TextChanged="Comment_TextChanged" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

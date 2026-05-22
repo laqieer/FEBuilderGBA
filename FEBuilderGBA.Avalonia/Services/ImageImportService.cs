@@ -21,6 +21,13 @@ namespace FEBuilderGBA.Avalonia.Services
             public byte[] GBAPalette { get; set; }
             public int Width { get; set; }
             public int Height { get; set; }
+            /// <summary>
+            /// Absolute path of the source file the user picked. Editors that
+            /// keep a Source-File ResourceCache entry (e.g.
+            /// ImagePortraitFE6View) use this to populate the Open/Select
+            /// Source buttons after an import.
+            /// </summary>
+            public string SourcePath { get; set; }
         }
 
         /// <summary>
@@ -115,6 +122,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 result.GBAPalette = qr.GBAPalette;
                 result.Width = qr.Width;
                 result.Height = qr.Height;
+                result.SourcePath = filePath;
             }
 
             return result;
