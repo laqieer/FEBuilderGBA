@@ -169,7 +169,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + BlockSize > (uint)rom.Data.Length) return;
 
             CurrentBeforeAddr = addr;
-            BeforeEventPointer = rom.u32(addr);
+            // WF stores per-row event pointers as `P0` fields — `rom.p32`
+            // (offset form, mask stripped). The Write path inverts via
+            // `write_p32` (mask re-applied). Without this convention the
+            // round-trip would drift by 0x08000000 (Copilot CLI re-review
+            // blocking issue 1 — issue #432).
+            BeforeEventPointer = rom.p32(addr);
             CanWrite = true;
         }
 
@@ -180,22 +185,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + BlockSize > (uint)rom.Data.Length) return;
 
             CurrentAfterAddr = addr;
-            AfterEventPointer = rom.u32(addr);
+            AfterEventPointer = rom.p32(addr);
             CanWrite = true;
         }
 
         // ----------------------------------------------------------------
         // Write handlers — used by the View's Write_Click handlers inside
-        // an `_undoService.Begin/Commit` scope. Each writes a single u32
-        // to the row's slot; the global event write touches three RomInfo
-        // pointer locations at once.
+        // an `_undoService.Begin/Commit` scope. Each writes a single
+        // pointer to the row's slot; the global event write touches three
+        // RomInfo pointer locations at once.
         // ----------------------------------------------------------------
         public void WriteBefore()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentBeforeAddr == 0) return;
             if (CurrentBeforeAddr + BlockSize > (uint)rom.Data.Length) return;
-            rom.write_u32(CurrentBeforeAddr, BeforeEventPointer);
+            // P0 convention: `write_p32` re-applies the 0x08000000 mask
+            // when the input is an offset; pointer-form values pass
+            // through unchanged. Mirrors WF `Program.ROM.write_p32(addr, val)`.
+            rom.write_p32(CurrentBeforeAddr, BeforeEventPointer);
         }
 
         public void WriteAfter()
@@ -203,7 +211,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAfterAddr == 0) return;
             if (CurrentAfterAddr + BlockSize > (uint)rom.Data.Length) return;
-            rom.write_u32(CurrentAfterAddr, AfterEventPointer);
+            rom.write_p32(CurrentAfterAddr, AfterEventPointer);
         }
 
         public void WriteGlobalEvents()

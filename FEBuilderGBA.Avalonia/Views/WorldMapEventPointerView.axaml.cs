@@ -213,6 +213,27 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // ----------------------------------------------------------------
+        // NewAlloc handlers — mirror WF L_0_NEWALLOC_EVENT / N_L_0_NEWALLOC_EVENT
+        // buttons. The full WF flow (InputFormRef.AllocEvent) auto-finds free
+        // space and writes a default event header; in the Avalonia port the
+        // simpler equivalent is to open the EventScript editor so the user
+        // can pick / author an event, then return and paste the address into
+        // the corresponding NumericUpDown. Maintains parity with the WF
+        // affordance (a click target exists with the same purpose) without
+        // re-implementing the 200-line AllocEvent state machine — full
+        // automation is tracked separately (out-of-scope for #432).
+        // ----------------------------------------------------------------
+        void BeforeNewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<EventScriptView>();
+        }
+
+        void AfterNewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<EventScriptView>();
+        }
+
+        // ----------------------------------------------------------------
         // Jump handlers — mirror the 5 WF JumpForm<T> callsites. Each
         // opens the corresponding editor; the EventScript jumps pass the
         // selected global pointer so the user lands on the right script.

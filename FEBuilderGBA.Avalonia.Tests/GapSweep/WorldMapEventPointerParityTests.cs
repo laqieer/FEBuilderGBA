@@ -260,6 +260,18 @@ public class WorldMapEventPointerParityTests
         AssertHandlerWiring(source,
             handlerName: "JumpToWorldMapPoint_Click",
             requiredCallPattern: @"WindowManager\.Instance\.(Navigate|Open)<WorldMapPointView>");
+
+        // NewAlloc handlers (mirrors WF L_0_NEWALLOC_EVENT / N_L_0_NEWALLOC_EVENT).
+        // Avalonia delegates to opening the EventScriptView so the user can
+        // pick / author a new event — the full AllocEvent state machine is
+        // intentionally not re-implemented (out of scope for #432).
+        AssertHandlerWiring(source,
+            handlerName: "BeforeNewAlloc_Click",
+            requiredCallPattern: @"WindowManager\.Instance\.(Navigate|Open)<EventScriptView>");
+
+        AssertHandlerWiring(source,
+            handlerName: "AfterNewAlloc_Click",
+            requiredCallPattern: @"WindowManager\.Instance\.(Navigate|Open)<EventScriptView>");
     }
 
     // -----------------------------------------------------------------
@@ -333,6 +345,72 @@ public class WorldMapEventPointerParityTests
             var vm = new WorldMapEventPointerViewModel();
             var rows = vm.LoadAfterList();
             Assert.True(rows.Count >= 1, $"Expected >=1 row when slot0 is NULL, got {rows.Count}");
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Per-row event pointer round-trip (Before + After tables). Copilot
+    // CLI re-review of PR #511 flagged that per-row pointers must use
+    // `rom.p32` / `rom.write_p32` semantics so the 0x08000000 mask is
+    // applied symmetrically — otherwise high pointers (e.g. 0x08A39768)
+    // get capped/stripped during write. These tests pin the contract.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_BeforeRow_RoundTrips_With_PointerForm()
+    {
+        // Plant a row 0 with a high-bit pointer to verify the mask survives
+        // a load/write cycle. Without p32/write_p32 the high byte (0x08)
+        // would be lost or doubled.
+        uint slot0 = 0x08A39768u;
+        ROM rom = MakeFe8uWithBeforeListSlots(new[] { slot0 });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new WorldMapEventPointerViewModel();
+
+            uint baseAddr = rom.p32(rom.RomInfo.worldmap_event_on_stageclear_pointer);
+            vm.LoadBeforeEntry(baseAddr);
+
+            // VM stores values in OFFSET form (mask stripped via p32).
+            Assert.Equal(0x00A39768u, vm.BeforeEventPointer);
+
+            // Modify and write back. write_p32 re-applies the mask.
+            vm.BeforeEventPointer = 0x00BBCCDDu;
+            vm.WriteBefore();
+            Assert.Equal(0x08BBCCDDu, rom.u32(baseAddr));
+
+            // Reload and verify the round-trip is symmetric.
+            vm.LoadBeforeEntry(baseAddr);
+            Assert.Equal(0x00BBCCDDu, vm.BeforeEventPointer);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_AfterRow_RoundTrips_With_PointerForm()
+    {
+        uint slot0 = 0x08A39D00u;
+        ROM rom = MakeFe8uWithAfterListSlots(new[] { slot0 });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new WorldMapEventPointerViewModel();
+
+            uint baseAddr = rom.p32(rom.RomInfo.worldmap_event_on_stageselect_pointer);
+            vm.LoadAfterEntry(baseAddr);
+
+            Assert.Equal(0x00A39D00u, vm.AfterEventPointer);
+
+            vm.AfterEventPointer = 0x00ABCDEFu;
+            vm.WriteAfter();
+            Assert.Equal(0x08ABCDEFu, rom.u32(baseAddr));
+
+            vm.LoadAfterEntry(baseAddr);
+            Assert.Equal(0x00ABCDEFu, vm.AfterEventPointer);
         }
         finally { CoreState.ROM = prevRom; }
     }

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:38:35Z"
-git-sha: 52c766ad7
+generated: "2026-05-22T23:34:04Z"
+git-sha: 465acb02f
 sweep-type: density
 ---
 
@@ -292,8 +292,8 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | 19 | 22 | 3 | +15.8% | ListParityHelper |
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
-| Low | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 46 | 7 | +17.9% | ListParityHelper |
 | Low | `MainSimpleMenuEventErrorIgnoreErrorForm` | `MainSimpleMenuEventErrorIgnoreErrorView` | 5 | 6 | 1 | +20.0% | Heuristic |
+| Low | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 48 | 9 | +23.1% | ListParityHelper |
 | Medium | `ItemPromotionForm` | `ItemPromotionViewerView` | 16 | 20 | 4 | +25.0% | ListParityHelper |
 | Medium | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` | 4 | 5 | 1 | +25.0% | Heuristic |
 | Medium | `SMEPromoListForm` | `SMEPromoListView` | 16 | 20 | 4 | +25.0% | Heuristic |
