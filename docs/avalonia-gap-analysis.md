@@ -291,7 +291,7 @@ SongTrack is no longer a pure blocker because MIDI import/export exists in curre
 
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
-| **TextForm / TextViewerVM** | **45%** | ~~Dialogue preview~~ **FIXED** (bracket highlighting), ~~Search~~ **FIXED** (content search across all texts). Has TSV export/import + individual write. Missing: validation |
+| **TextForm / TextViewerVM** | **55%** | ~~Dialogue preview~~ **FIXED** (bracket highlighting), ~~Search~~ **FIXED** (content search across all texts), ~~Cross-reference display~~ **FIXED** (#349 — TextRefTableRegistry covers units/classes/items/map settings/supports/haiku/battle talks/sound room/world map/ED screens/OP demo/status menus/dictionary across FE6/7/8). Has TSV export/import + individual write. Missing: validation warnings; recursive event-script and patch-defined refs still deferred. |
 | TextCharCodeForm / TextCharCodeVM | 35% | No font preview, no frequency analysis |
 | TextDicForm / TextDicVM | **50%** | ~~list not populated~~ **FIXED** — AddressListControl from dic_main_pointer, text decode preview, unit/class name resolution. Missing: chapter/title sub-lists |
 | TextRefAddDialog | 30% | No UseTextIDCache integration |
@@ -302,8 +302,8 @@ SongTrack is no longer a pure blocker because MIDI import/export exists in curre
 | TextBadCharPopup | 25% | Minimal shell |
 | TextScriptCategorySelect | 25% | Hardcoded stub |
 
-### TextForm (45%)
-The text editor has read/write, TSV export/import, dialogue preview with control code highlighting, content search across all texts, and individual Huffman write-back. Missing: validation warnings, cross-reference display.
+### TextForm (55%)
+The text editor has read/write, TSV export/import, dialogue preview with control code highlighting, content search across all texts, individual Huffman write-back, and (per issue #349) cross-reference display backed by `TextRefTableRegistry` covering units/classes/items, map settings, support talks, event haiku, battle talks, sound room, world map (FE8), ED screens, OP class demo, status menus, dictionary entries (FE8), final-chapter lines + senseki comments (FE7), and map-terrain names (US/EU). Missing: validation warnings; recursive event-script scanning and patch-defined text-ID parameters remain deferred (tracked separately).
 
 ---
 

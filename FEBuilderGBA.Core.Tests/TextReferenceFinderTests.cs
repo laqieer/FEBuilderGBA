@@ -374,5 +374,197 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.Empty(result);
         }
+
+        // ===========================================================
+        // Issue #349 follow-up tests — DirectBase + Terminator paths.
+        // ===========================================================
+
+        /// <summary>
+        /// Descriptors with DirectBase set should bypass pointer dereferencing
+        /// and read the table base directly. Mirrors FE7's ed_3c_pointer which
+        /// stores the base address (not a pointer to a pointer).
+        /// </summary>
+        [Fact]
+        public void Find_DirectBase_BypassesPointerDeref()
+        {
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            entries.AddRange(LE16(0x0100));
+            entries.AddRange(LE16(0x0200));
+            entries.AddRange(LE16(0x0100)); // entry 1 - target
+            entries.AddRange(LE16(0xABCD));
+            var bytes = new byte[0x1000];
+            Array.Copy(entries.ToArray(), 0, bytes, dataBase, entries.Count);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            // Pass the data base directly via DirectBase (in GBA pointer form).
+            // The finder converts it to ROM offset via U.toOffset.
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "ED_Lyn",
+                DirectBase = dataBase + 0x08000000u, // GBA pointer form
+                EntrySize = 4,
+                MaxCount = 2,
+                TextIdOffsets = new uint[] { 0, 2 },
+                NameResolver = id => $"L{id}",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0xABCD, new[] { desc });
+            Assert.Single(result);
+            Assert.Equal("ED_Lyn 0x01 (L1)", result[0]);
+        }
+
+        /// <summary>
+        /// A descriptor with a Terminator predicate must stop scanning at the
+        /// sentinel entry, even when MaxCount is much larger. This guards
+        /// against false positives past the real table end.
+        /// </summary>
+        [Fact]
+        public void Find_TerminatorStopsAtSentinel()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            // 4 real entries, then a 0xFFFF sentinel, then bytes that WOULD match
+            // if the scanner walked past the terminator.
+            var entries = new List<byte>();
+            entries.AddRange(LE16(0x0001)); // entry 0
+            entries.AddRange(LE16(0x0002)); // entry 1
+            entries.AddRange(LE16(0x0003)); // entry 2
+            entries.AddRange(LE16(0x0004)); // entry 3
+            entries.AddRange(LE16(0xFFFF)); // entry 4 = sentinel
+            entries.AddRange(LE16(0x0042)); // entry 5 = would match — must NOT scan
+            entries.AddRange(LE16(0x0042)); // entry 6 = would match — must NOT scan
+
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Haiku",
+                PointerField = pointerField,
+                EntrySize = 2,
+                MaxCount = 100, // way past the actual table size
+                TextIdOffsets = new uint[] { 0 },
+                Terminator = (r, entry, i) =>
+                {
+                    if (entry + 2 > (uint)r.Data.Length) return true;
+                    return r.u16(entry) == 0xFFFF;
+                },
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0042, new[] { desc });
+            // Match should NOT be found — the terminator stops the scan before
+            // reaching entries 5/6.
+            Assert.Empty(result);
+        }
+
+        /// <summary>
+        /// When the terminator predicate throws, the finder treats the table
+        /// as terminated at that entry (defensive — bad predicate shouldn't
+        /// crash the whole scan).
+        /// </summary>
+        [Fact]
+        public void Find_TerminatorThrows_TableSkipped()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            entries.AddRange(LE16(0x0042));
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Foo",
+                PointerField = pointerField,
+                EntrySize = 2,
+                MaxCount = 10,
+                TextIdOffsets = new uint[] { 0 },
+                Terminator = (r, e, i) => throw new InvalidOperationException("bad"),
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0042, new[] { desc });
+            // Should not crash; treats throwing terminator as "stop now".
+            Assert.Empty(result);
+        }
+
+        /// <summary>
+        /// When both PointerField and DirectBase are set, DirectBase takes
+        /// precedence so the descriptor behaviour is deterministic.
+        /// </summary>
+        [Fact]
+        public void Find_BothPointerFieldAndDirectBaseSet_DirectBaseWins()
+        {
+            uint pointerField = 0x200;
+            uint pointerFieldPointsTo = 0x800; // would-be alternative base
+            uint directBase = 0x400;            // actual data location
+
+            var bytes = new byte[0x1000];
+            // Pointer field points at 0x800
+            uint ptrValue = pointerFieldPointsTo + 0x08000000u;
+            bytes[pointerField + 0] = (byte)(ptrValue & 0xFF);
+            bytes[pointerField + 1] = (byte)((ptrValue >> 8) & 0xFF);
+            bytes[pointerField + 2] = (byte)((ptrValue >> 16) & 0xFF);
+            bytes[pointerField + 3] = (byte)((ptrValue >> 24) & 0xFF);
+            // Match at the pointer-field-derived location
+            bytes[pointerFieldPointsTo + 0] = 0x99;
+            bytes[pointerFieldPointsTo + 1] = 0x09;
+            // Match at directBase
+            bytes[directBase + 0] = 0x99;
+            bytes[directBase + 1] = 0x09;
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Test",
+                PointerField = pointerField,
+                DirectBase = directBase + 0x08000000u,
+                EntrySize = 4,
+                MaxCount = 1,
+                TextIdOffsets = new uint[] { 0 },
+                NameResolver = id => $"T{id}",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0999, new[] { desc });
+            // DirectBase takes precedence so we get exactly ONE match (not two).
+            Assert.Single(result);
+        }
+
+        /// <summary>
+        /// Terminator receives the entry index. Verifies the predicate can
+        /// implement the WinForms "i > 10 && IsEmpty(...)" pattern by stopping
+        /// only after entry index 10 even if the per-entry sentinel never hits.
+        /// </summary>
+        [Fact]
+        public void Find_TerminatorReceivesEntryIndex_CanGateOnIndex()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            // Lay 20 entries, each u16 = 0x0042 (matches target). The
+            // terminator only stops when i > 10 — so we expect exactly 11
+            // matches (entries 0..10 inclusive).
+            var entries = new List<byte>();
+            for (int n = 0; n < 20; n++) entries.AddRange(LE16(0x0042));
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Test",
+                PointerField = pointerField,
+                EntrySize = 2,
+                MaxCount = 100,
+                TextIdOffsets = new uint[] { 0 },
+                Terminator = (r, addr, i) => i > 10,
+                NameResolver = id => $"T{id}",
+            };
+
+            var result = TextReferenceFinder.Find(rom, 0x0042, new[] { desc });
+            // Entries 0..10 inclusive = 11 matches; entry 11 is where the
+            // predicate returns true and the scan stops.
+            Assert.Equal(11, result.Count);
+        }
     }
 }

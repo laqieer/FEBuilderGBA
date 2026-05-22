@@ -97,5 +97,239 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.Empty(refs);
         }
+
+        // ===========================================================
+        // Issue #349 follow-up tests — Registry coverage of map/sound
+        // room/world-map on a real FE8U ROM. Each test:
+        //   1. resolves the relevant table base via NameResolver.DerefPointer
+        //   2. picks the first entry that has a non-zero text-id field
+        //   3. asserts FindCrossReferences returns a matching reference
+        //      from the expected Kind.
+        // ===========================================================
+
+        /// <summary>
+        /// Picks the first map-setting entry with a non-zero chapter-name text
+        /// ID (offset +112 in FE8) and verifies the registry-driven
+        /// FindCrossReferences returns at least one "MapSetting 0xNN" entry.
+        /// </summary>
+        [Fact]
+        public void RealRom_FindsMapSettingReference()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("ROM not available; skipping integration test.");
+                return;
+            }
+
+            ROM rom = CoreState.ROM!;
+            var info = rom.RomInfo;
+            uint mapBase = NameResolver.DerefPointer(rom, info.map_setting_pointer);
+            if (mapBase == 0)
+            {
+                _output.WriteLine("map_setting_pointer doesn't dereference; skipping.");
+                return;
+            }
+            uint mapSize = info.map_setting_datasize;
+            Assert.NotEqual(0u, mapSize);
+
+            uint foundTextId = 0;
+            uint foundMapId = 0;
+            for (uint i = 0; i < 0x80; i++)
+            {
+                uint entry = mapBase + i * mapSize;
+                if (entry + 114 > (uint)rom.Data.Length) break;
+                // Try offset +112 (FE8 chapter-name text ID).
+                uint tid = rom.u16(entry + 112);
+                if (tid != 0 && tid < 0x7FFF)
+                {
+                    foundTextId = tid;
+                    foundMapId = i;
+                    break;
+                }
+            }
+            Assert.NotEqual(0u, foundTextId);
+            _output.WriteLine($"Using map {foundMapId} with chapter-name text ID 0x{foundTextId:X4}");
+
+            var vm = new TextViewerViewModel();
+            List<string> refs = vm.FindCrossReferences(foundTextId);
+
+            Assert.NotEmpty(refs);
+            string expected = $"MapSetting 0x{foundMapId:X02}";
+            Assert.Contains(refs, r => r.StartsWith(expected));
+        }
+
+        /// <summary>
+        /// Picks the first sound-room entry with a non-zero track-name text
+        /// ID (offset +12 for FE7/8, +4 for FE6) and verifies the
+        /// registry-driven FindCrossReferences returns a "SoundRoom" entry.
+        /// </summary>
+        [Fact]
+        public void RealRom_FindsSoundRoomReference()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("ROM not available; skipping integration test.");
+                return;
+            }
+
+            ROM rom = CoreState.ROM!;
+            var info = rom.RomInfo;
+            uint srBase = NameResolver.DerefPointer(rom, info.sound_room_pointer);
+            if (srBase == 0)
+            {
+                _output.WriteLine("sound_room_pointer doesn't dereference; skipping.");
+                return;
+            }
+            uint srSize = info.sound_room_datasize;
+            Assert.NotEqual(0u, srSize);
+
+            // FE7/8 reads text ID at +12; FE6 at +4 (first text offset).
+            uint textOffset = info.version == 6 ? 4u : 12u;
+
+            uint foundTextId = 0;
+            uint foundSrId = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint entry = srBase + i * srSize;
+                if (entry + textOffset + 2 > (uint)rom.Data.Length) break;
+                // Stop on sentinel (terminator for FE7/8: u32 == 0xFFFFFFFF).
+                uint terminator = rom.u32(entry);
+                if (terminator == 0xFFFFFFFFu) break;
+                uint tid = rom.u16(entry + textOffset);
+                if (tid != 0 && tid < 0x7FFF)
+                {
+                    foundTextId = tid;
+                    foundSrId = i;
+                    break;
+                }
+            }
+            Assert.NotEqual(0u, foundTextId);
+            _output.WriteLine($"Using sound-room entry {foundSrId} with text ID 0x{foundTextId:X4}");
+
+            var vm = new TextViewerViewModel();
+            List<string> refs = vm.FindCrossReferences(foundTextId);
+
+            Assert.NotEmpty(refs);
+            string expected = $"SoundRoom 0x{foundSrId:X02}";
+            Assert.Contains(refs, r => r.StartsWith(expected));
+        }
+
+        /// <summary>
+        /// Picks the first world-map point entry (FE8 only) with a non-zero
+        /// text ID at +28 and verifies the registry-driven
+        /// FindCrossReferences returns a "WorldMapPoint" entry.
+        /// </summary>
+        [Fact]
+        public void RealRom_FindsWorldMapPointReference_FE8Only()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("ROM not available; skipping integration test.");
+                return;
+            }
+
+            ROM rom = CoreState.ROM!;
+            var info = rom.RomInfo;
+            if (info.version != 8)
+            {
+                _output.WriteLine($"Not FE8 (version={info.version}); skipping.");
+                return;
+            }
+            uint wmpBase = NameResolver.DerefPointer(rom, info.worldmap_point_pointer);
+            if (wmpBase == 0)
+            {
+                _output.WriteLine("worldmap_point_pointer doesn't dereference; skipping.");
+                return;
+            }
+
+            uint foundTextId = 0;
+            uint foundWmpId = 0;
+            for (uint i = 0; i < 0x100; i++)
+            {
+                uint entry = wmpBase + i * 32u;
+                if (entry + 30 > (uint)rom.Data.Length) break;
+                // WMP terminator: u32 at entry+0 == 0.
+                if (rom.u32(entry) == 0) break;
+                uint tid = rom.u16(entry + 28);
+                if (tid != 0 && tid < 0x7FFF)
+                {
+                    foundTextId = tid;
+                    foundWmpId = i;
+                    break;
+                }
+            }
+            if (foundTextId == 0)
+            {
+                _output.WriteLine("No world-map point with text ID found; skipping.");
+                return;
+            }
+            _output.WriteLine($"Using WMP {foundWmpId} with text ID 0x{foundTextId:X4}");
+
+            var vm = new TextViewerViewModel();
+            List<string> refs = vm.FindCrossReferences(foundTextId);
+
+            Assert.NotEmpty(refs);
+            string expected = $"WorldMapPoint 0x{foundWmpId:X02}";
+            Assert.Contains(refs, r => r.StartsWith(expected));
+        }
+
+        /// <summary>
+        /// Picks the first epithet (ed_2) entry with a non-zero text ID and
+        /// verifies the registry-driven FindCrossReferences returns an
+        /// "ED_Epithet" entry.
+        /// </summary>
+        [Fact]
+        public void RealRom_FindsEDEpithetReference()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("ROM not available; skipping integration test.");
+                return;
+            }
+
+            ROM rom = CoreState.ROM!;
+            var info = rom.RomInfo;
+            if (info.ed_2_pointer == 0)
+            {
+                _output.WriteLine("ed_2_pointer is 0; skipping.");
+                return;
+            }
+            uint edBase = NameResolver.DerefPointer(rom, info.ed_2_pointer);
+            if (edBase == 0)
+            {
+                _output.WriteLine("ed_2_pointer doesn't dereference; skipping.");
+                return;
+            }
+
+            uint foundTextId = 0;
+            uint foundEdId = 0;
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint entry = edBase + i * 8u;
+                if (entry + 6 > (uint)rom.Data.Length) break;
+                // Terminator: u32 at +0 == 0.
+                if (rom.u32(entry) == 0) break;
+                uint tid = rom.u16(entry + 4);
+                if (tid != 0 && tid < 0x7FFF)
+                {
+                    foundTextId = tid;
+                    foundEdId = i;
+                    break;
+                }
+            }
+            if (foundTextId == 0)
+            {
+                _output.WriteLine("No ED epithet with text ID found; skipping.");
+                return;
+            }
+            _output.WriteLine($"Using ED epithet {foundEdId} with text ID 0x{foundTextId:X4}");
+
+            var vm = new TextViewerViewModel();
+            List<string> refs = vm.FindCrossReferences(foundTextId);
+
+            Assert.NotEmpty(refs);
+            string expected = $"ED_Epithet 0x{foundEdId:X02}";
+            Assert.Contains(refs, r => r.StartsWith(expected));
+        }
     }
 }

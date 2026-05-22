@@ -46,7 +46,7 @@
             </StackPanel>
 
             <!-- Cross-references -->
-            <TextBlock Text="References (units, classes, items):" FontWeight="SemiBold" Margin="0,16,0,4" />
+            <TextBlock Text="References:" FontWeight="SemiBold" Margin="0,16,0,4" />
             <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" MinHeight="40">
               <ItemsControl AutomationProperties.AutomationId="TextViewer_CrossRef_List" Name="CrossRefList">
                 <ItemsControl.ItemTemplate>
@@ -56,8 +56,6 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </Border>
-            <TextBlock Text="Other reference sources (maps, events, supports, …) not yet ported. Track full parity in a follow-up issue."
-                       FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
