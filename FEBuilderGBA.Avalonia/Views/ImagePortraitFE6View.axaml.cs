@@ -13,6 +13,16 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImagePortraitFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        static readonly string[] ShowFrameNames = new[]
+        {
+            "Normal (no mouth)",
+            "Mouth 1",
+            "Mouth 2",
+            "Mouth 3 (Example)",
+            "Mouth 4",
+            "Mouth 5",
+        };
+
         public string ViewTitle => "Portrait Editor (FE6)";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -30,6 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
+                UpdateTopBar();
             }
             catch (Exception ex)
             {
@@ -44,8 +55,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
+                LoadCommentForCurrentEntry();
                 UpdateUI();
                 TryShowPortraitImage();
+                UpdateSourceButtonVisibility();
             }
             catch (Exception ex)
             {
@@ -54,33 +67,253 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
+        void UpdateTopBar()
+        {
+            ReadStartAddressLabel.Text = $"0x{_vm.ReadStartAddress:X08}";
+            ReadCountLabel.Text = _vm.ReadCount.ToString();
+            BlockSizeLabel.Text = _vm.BlockSize.ToString();
+        }
+
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             PortraitImagePtrLabel.Text = $"0x{_vm.PortraitImagePtr:X08}";
             MiniPortraitPtrLabel.Text = $"0x{_vm.MiniPortraitPtr:X08}";
             PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
-            MouthXLabel.Text = _vm.MouthX.ToString();
-            MouthYLabel.Text = _vm.MouthY.ToString();
-            Unused14Label.Text = $"0x{_vm.Unused14:X02}";
-            Unused15Label.Text = $"0x{_vm.Unused15:X02}";
+            MouthXInput.Value = _vm.MouthX;
+            MouthYInput.Value = _vm.MouthY;
+            Unused14Input.Value = _vm.Unused14;
+            Unused15Input.Value = _vm.Unused15;
+            CommentInput.Text = _vm.Comment;
+            UpdateShowFrameLabel();
+            UpdateTopBar();
+        }
+
+        void UpdateShowFrameLabel()
+        {
+            int idx = (int)(ShowFrameInput?.Value ?? 0);
+            // Translate the static description string at assignment time —
+            // TranslatedWindow.TranslateAll() runs once at window open, so
+            // values assigned afterward must go through R._() explicitly
+            // to localize when the UI language is ja/zh.
+            ShowFrameLabel.Text = R._(idx >= 0 && idx < ShowFrameNames.Length
+                ? ShowFrameNames[idx] : $"Frame {idx}");
         }
 
         void TryShowPortraitImage()
         {
             try
             {
-                // FE6 portrait: use PortraitRendererCore with available pointers
-                var img = PortraitRendererCore.DrawPortraitUnit(
+                int showFrame = (int)(ShowFrameInput?.Value ?? 0);
+                byte mouthX = (byte)(_vm.MouthX & 0xFF);
+                byte mouthY = (byte)(_vm.MouthY & 0xFF);
+
+                // Main face: respect mouth coords + show frame
+                var img = PortraitRendererCoreFE6.DrawPortraitUnitFE6(
                     _vm.PortraitImagePtr, _vm.PalettePtr,
-                    0, 0, 0); // FE6 has no eye coords in this struct
+                    mouthX, mouthY, showFrame);
                 PortraitImage.SetImage(img);
+
+                // Map face
+                if (_vm.MiniPortraitPtr != 0)
+                {
+                    var mapImg = PortraitRendererCore.DrawPortraitMap(
+                        _vm.MiniPortraitPtr, _vm.PalettePtr);
+                    MapFaceImage.SetImage(mapImg);
+                }
+                else
+                {
+                    MapFaceImage.SetImage(null);
+                }
+
+                // Show example: WF uses fixed frame 3 (口ぱく3) for the side preview
+                var exImg = PortraitRendererCoreFE6.DrawPortraitUnitFE6(
+                    _vm.PortraitImagePtr, _vm.PalettePtr,
+                    mouthX, mouthY, 3);
+                ShowExampleImage.SetImage(exImg);
             }
             catch (Exception ex)
             {
                 Log.Error("ImagePortraitFE6View.TryShowPortraitImage failed: {0}", ex.Message);
                 PortraitImage.SetImage(null);
+                MapFaceImage.SetImage(null);
+                ShowExampleImage.SetImage(null);
             }
+        }
+
+        void LoadCommentForCurrentEntry()
+        {
+            // WF wires `Comment` through `Program.CommentCache.At(addr)` —
+            // an IEtcCache keyed by the entry's ROM address (see
+            // InputFormRef.UI_WriteCommentToUI). Avalonia uses the same
+            // CoreState.CommentCache instance so the cache file lives in
+            // exactly the same on-disk slot for both heads.
+            try
+            {
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { _vm.Comment = string.Empty; return; }
+                if (CoreState.CommentCache != null
+                    && CoreState.CommentCache.TryGetValue(addr, out string value))
+                {
+                    _vm.Comment = value ?? string.Empty;
+                }
+                else
+                {
+                    _vm.Comment = string.Empty;
+                }
+            }
+            catch { _vm.Comment = string.Empty; }
+        }
+
+        void UpdateSourceButtonVisibility()
+        {
+            // WF shows the Open / Select Source File buttons when a portrait
+            // image was imported from disk and the source path was recorded
+            // in Program.ResourceCache under "Portrait_<id>". We surface the
+            // same EtcCacheResource state — when ResourceCache is null (some
+            // headless / CLI launches) the buttons stay hidden.
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) { OpenSourceButton.IsVisible = false; SelectSourceButton.IsVisible = false; return; }
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                bool has = CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path)
+                    && File.Exists(path);
+                OpenSourceButton.IsVisible = has;
+                SelectSourceButton.IsVisible = has;
+            }
+            catch
+            {
+                OpenSourceButton.IsVisible = false;
+                SelectSourceButton.IsVisible = false;
+            }
+        }
+
+        void Field_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
+            _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
+            _vm.Unused14 = (uint)(Unused14Input.Value ?? 0);
+            _vm.Unused15 = (uint)(Unused15Input.Value ?? 0);
+            // Live preview re-renders with new mouth coords
+            TryShowPortraitImage();
+        }
+
+        void ShowFrame_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            UpdateShowFrameLabel();
+            TryShowPortraitImage();
+        }
+
+        void Comment_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            _vm.Comment = CommentInput.Text ?? string.Empty;
+            // Persist via CoreState.CommentCache keyed by the current ROM
+            // address — same data file WF writes through
+            // Program.CommentCache.Update (InputFormRef.UI_ReadUIToComment).
+            try
+            {
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) return;
+                CoreState.CommentCache?.Update(addr, _vm.Comment);
+            }
+            catch { /* non-fatal — caching is best effort */ }
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+
+        /// <summary>
+        /// Write button. Single-owner pattern (Copilot CLI plan-review point 1):
+        /// the View delegates to the VM, which owns the UndoService scope.
+        /// The handler does NOT open its own Begin scope.
+        /// </summary>
+        void WriteButton_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            uint addr = _vm.CurrentAddr;
+            if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
+
+            // Snapshot UI state into the VM before delegating.
+            _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
+            _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
+            _vm.Unused14 = (uint)(Unused14Input.Value ?? 0);
+            _vm.Unused15 = (uint)(Unused15Input.Value ?? 0);
+
+            try
+            {
+                _vm.Write(_undoService);
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Portrait entry written.");
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
+            }
+        }
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                if (CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path))
+                {
+                    if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
+                    // Cross-platform "open file" — defer to OS default handler.
+                    var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
+                    System.Diagnostics.Process.Start(psi);
+                }
+                else
+                {
+                    CoreState.Services.ShowError("No source file recorded for this portrait.");
+                }
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Open source failed: {ex.Message}"); }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                if (CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path))
+                {
+                    if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
+                    // Reveal the file in the OS file explorer. Windows: explorer /select,
+                    string? dir = Path.GetDirectoryName(path);
+                    if (string.IsNullOrEmpty(dir)) return;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                    }
+                    else
+                    {
+                        // Cross-platform fallback: open the parent directory.
+                        var psi = new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true };
+                        System.Diagnostics.Process.Start(psi);
+                    }
+                }
+                else
+                {
+                    CoreState.Services.ShowError("No source file recorded for this portrait.");
+                }
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Select source failed: {ex.Message}"); }
         }
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
@@ -110,9 +343,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
+
+                // Record the source file path so the Open / Select Source
+                // buttons surface this portrait's origin (matches WF
+                // ImagePortraitFE6Form.ImportButton_Click).
+                if (!string.IsNullOrEmpty(loadResult.SourcePath))
+                {
+                    int idx = EntryList.SelectedOriginalIndex;
+                    if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource cache)
+                    {
+                        string srcKey = "Portrait_" + U.ToHexString((uint)idx);
+                        cache.Update(srcKey, loadResult.SourcePath);
+                    }
+                }
+
                 _vm.LoadEntry(addr);
                 UpdateUI();
                 TryShowPortraitImage();
+                UpdateSourceButtonVisibility();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }

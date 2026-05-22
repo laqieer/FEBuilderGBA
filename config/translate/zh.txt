@@ -20491,61 +20491,22 @@ ASM 指针地址:
 9=物品名前置词 (A/An/The)
 
 :Selected Address:
-所选地址:
+选择地址:
 
-:Opening Event
-开场事件
+:Comment:
+注释:
 
-:Eirika Ending
-艾瑞克结束
+:Start Address:
+起始地址:
 
-:Ephraim Ending
-伊弗列姆结束
+:Read Count:
+读取数量:
 
-:Write
-写入
+:Show Example (Frame 3)
+显示示例 (帧3)
 
-:Reload
-重新加载
+:Open Source File
+打开源文件
 
-:Address
-地址
-
-:Top Address
-起始地址
-
-:Read Count
-读取数量
-
-:Before (Stage Clear)
-前 (关卡通过)
-
-:After (Stage Select)
-后 (关卡选择)
-
-:Event after previous stage clear
-上一关通过后触发的事件
-
-:Event after stage selection
-选择关卡后触发的事件
-
-:Global story events
-全局剧情事件
-
-:Related Editors
-相关编辑器
-
-:Jump to World Map Paths (roads)
-跳转到世界地图道路
-
-:Jump to World Map Points
-跳转到世界地图据点
-
-:The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it.
-当玩家清除地图时运行的事件。负责在世界地图上生成下一个据点并绘制通往它的道路。
-
-:The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.
-当玩家在世界地图上选择一个据点时运行的事件。\r\nFE8允许玩家在据点之间自由移动，因此下一章的介绍必须在选择据点时发生。
-
-:New Event
-新建事件
+:Select Source Folder
+选择源文件夹

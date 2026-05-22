@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:39:15Z"
-git-sha: 52c766ad7
+generated: "2026-05-22T22:53:00Z"
+git-sha: 2368ef651
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4637 |
-| Total AV-only labels | 2675 |
-| Total common labels | 63 |
+| Total WF-only labels | 4639 |
+| Total AV-only labels | 2671 |
+| Total common labels | 61 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -3770,6 +3770,63 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Talk`
 - `Write`
 
+### ImagePortraitFE6Form
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 34 / AV 42)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `X:`
+- `Y:`
+- `アドレス`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `フレーム`
+- `マップ顔`
+- `ユニット顔`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `口座標`
+- `名前`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Comment:`
+- `Export PAL`
+- `Export PNG`
+- `Import PAL`
+- `Import PNG`
+- `Map Face:`
+- `Map Face (32x32)`
+- `Mouth Coord:`
+- `Mouth X:`
+- `Mouth Y:`
+- `Open Source File`
+- `Palette:`
+- `Portrait Editor (FE6)`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Show Example (Frame 3)`
+- `Show Frame:`
+- `Start Address:`
+- `Unit Face:`
+- `Unit Face (96x80)`
+- `Unused (B14):`
+- `Unused (B15):`
+- `Write`
+
 ### MonsterProbabilityForm
 WF labels: **22** · AV labels: **15** · WF-only: **22** · AV-only: **15** · Common: **0** · Density verdict: **Medium** (WF 38 / AV 28)
 
@@ -3948,48 +4005,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `ROM Translation Tool`
-
-### ImagePortraitFE6Form
-WF labels: **23** · AV labels: **14** · WF-only: **21** · AV-only: **12** · Common: **2** · Density verdict: **Medium** (WF 34 / AV 22)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `アドレス`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `フレーム`
-- `マップ顔`
-- `ユニット顔`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `口座標`
-- `名前`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Export PAL`
-- `Export PNG`
-- `Import PAL`
-- `Import PNG`
-- `Map Face:`
-- `Mouth Coord:`
-- `Palette:`
-- `Portrait Editor (FE6)`
-- `Unit Face:`
-- `Unused (B14):`
-- `Unused (B15):`
 
 ### MapExitPointForm
 WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
@@ -5475,6 +5490,36 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Type:`
 - `Write`
 
+### WorldMapEventPointerForm
+WF labels: **17** · AV labels: **4** · WF-only: **17** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 39 / AV 6)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `Size:`
+- `アドレス`
+- `エイリークエンディング`
+- `エフラムエンディング`
+- `オープニングイベント`
+- `リストの拡張`
+- `ワールドマップ拠点へJump`
+- `ワールドマップ道へJump`
+- `先頭アドレス`
+- `再取得`
+- `前の拠点クリア後に発生するイベント`
+- `名前`
+- `拠点選択後に発生するイベント`
+- `新規イベント`
+- `書き込み`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Event Pointer (u32@0):`
+- `World Map Event Editor`
+- `Write`
+
 ### EventHaikuFE7Form
 WF labels: **16** · AV labels: **2** · WF-only: **16** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 60 / AV 3)
 
@@ -5762,53 +5807,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Title Index:`
 - `Unit:`
 - `Unit ID:`
-- `Write`
-
-### WorldMapEventPointerForm
-WF labels: **17** · AV labels: **23** · WF-only: **16** · AV-only: **22** · Common: **1** · Density verdict: **Low** (WF 39 / AV 46)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `アドレス`
-- `エイリークエンディング`
-- `エフラムエンディング`
-- `オープニングイベント`
-- `リストの拡張`
-- `ワールドマップ拠点へJump`
-- `ワールドマップ道へJump`
-- `先頭アドレス`
-- `再取得`
-- `前の拠点クリア後に発生するイベント`
-- `名前`
-- `拠点選択後に発生するイベント`
-- `新規イベント`
-- `書き込み`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `4`
-- `Address`
-- `After (Stage Select)`
-- `Before (Stage Clear)`
-- `Eirika Ending`
-- `Ephraim Ending`
-- `Event after previous stage clear`
-- `Event after stage selection`
-- `Event Pointer (u32@0):`
-- `Global story events`
-- `Jump to World Map Paths (roads)`
-- `Jump to World Map Points`
-- `Opening Event`
-- `Read Count`
-- `Related Editors`
-- `Reload`
-- `Selected Address:`
-- `The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it.`
-- `The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.`
-- `Top Address`
-- `World Map Event Editor`
 - `Write`
 
 ### EventHaikuFE6Form
