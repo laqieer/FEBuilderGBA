@@ -20489,3 +20489,24 @@ ASM 指针地址:
 
 :9=Item name article (A/An/The)
 9=物品名前置词 (A/An/The)
+
+:Selected Address:
+选择地址:
+
+:Comment:
+注释:
+
+:Start Address:
+起始地址:
+
+:Read Count:
+读取数量:
+
+:Show Example (Frame 3)
+显示示例 (帧3)
+
+:Open Source File
+打开源文件
+
+:Select Source Folder
+选择源文件夹

@@ -6509,3 +6509,24 @@ ASMポインタアドレス:
 
 :9=Item name article (A/An/The)
 9=アイテム名前置詞 (A/An/The)
+
+:Selected Address:
+選択アドレス:
+
+:Comment:
+コメント:
+
+:Start Address:
+先頭アドレス:
+
+:Read Count:
+読込数:
+
+:Show Example (Frame 3)
+表示例 (フレーム3)
+
+:Open Source File
+ソースファイルを開く
+
+:Select Source Folder
+ソースフォルダーを開く

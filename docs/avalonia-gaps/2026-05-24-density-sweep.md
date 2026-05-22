@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T19:43:02Z"
-git-sha: 4f7a9cf82
+generated: "2026-05-22T22:22:57Z"
+git-sha: 52c766ad7
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 237 |
+| HIGH | |Δ%| ≥ 50 | 236 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 82 |
-| LOW | |Δ%| < 25 | 51 |
+| LOW | |Δ%| < 25 | 52 |
 
 ## Ranked Density Deltas
 
@@ -63,11 +63,11 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventHaikuFE6Form` | `EventHaikuFE6View` | 34 | 3 | -31 | -91.2% | ListParityHelper |
 | High | `FE8SpellMenuExtendsForm` | `FE8SpellMenuExtendsView` | 34 | 3 | -31 | -91.2% | Heuristic |
 | High | `MonsterWMapProbabilityForm` | `MonsterWMapProbabilityViewerView` | 66 | 6 | -60 | -90.9% | ListParityHelper |
+| High | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 12 | -117 | -90.7% | ListParityHelper |
 | High | `EventCondForm` | `EventCondView` | 414 | 41 | -373 | -90.1% | ListParityHelper |
 | High | `EventBattleTalkForm` | `EventBattleTalkView` | 30 | 3 | -27 | -90.0% | ListParityHelper |
 | High | `ToolInitWizardForm` | `ToolInitWizardView` | 80 | 8 | -72 | -90.0% | Heuristic |
 | High | `EventHaikuForm` | `EventHaikuView` | 28 | 3 | -25 | -89.3% | ListParityHelper |
-| High | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 14 | -115 | -89.1% | ListParityHelper |
 | High | `MoveCostForm` | `MoveCostEditorView` | 72 | 8 | -64 | -88.9% | ListParityHelper |
 | High | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 166 | 19 | -147 | -88.6% | Heuristic |
 | High | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 17 | -119 | -87.5% | Heuristic |
@@ -81,7 +81,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ToolProblemReportForm` | `ToolProblemReportView` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 6 | -33 | -84.6% | ListParityHelper |
-| High | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `EDFE6Form` | `EDFE6View` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `ToolASMInsertForm` | `ToolASMInsertView` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 7 | -36 | -83.7% | Heuristic |
@@ -89,6 +88,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `PaletteSwapForm` | `PaletteSwapView` | 49 | 8 | -41 | -83.7% | Heuristic |
 | High | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` | 18 | 3 | -15 | -83.3% | Heuristic |
 | High | `SongInstrumentForm` | `SongInstrumentView` | 323 | 54 | -269 | -83.3% | Heuristic |
+| High | `EDForm` | `EDView` | 65 | 11 | -54 | -83.1% | ListParityHelper |
 | High | `MoveCostFE6Form` | `MoveCostFE6View` | 57 | 10 | -47 | -82.5% | ListParityHelper |
 | High | `FontZHForm` | `FontZHView` | 17 | 3 | -14 | -82.4% | Heuristic |
 | High | `MantAnimationForm` | `MantAnimationView` | 17 | 3 | -14 | -82.4% | ListParityHelper |
@@ -99,7 +99,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `MainSimpleMenuImageSubForm` | `MainSimpleMenuImageSubView` | 16 | 3 | -13 | -81.3% | Heuristic |
 | High | `MapExitPointForm` | `MapExitPointView` | 32 | 6 | -26 | -81.3% | ListParityHelper |
 | High | `SkillConfigFE8NSkillForm` | `SkillConfigFE8NSkillView` | 169 | 33 | -136 | -80.5% | Heuristic |
-| High | `EDForm` | `EDView` | 65 | 13 | -52 | -80.0% | ListParityHelper |
 | High | `SkillAssignmentUnitCSkillSysForm` | `SkillAssignmentUnitCSkillSysView` | 35 | 7 | -28 | -80.0% | Heuristic |
 | High | `SkillAssignmentUnitSkillSystemForm` | `SkillAssignmentUnitSkillSystemView` | 35 | 7 | -28 | -80.0% | Heuristic |
 | High | `OPClassAlphaNameForm` | `OPClassAlphaNameView` | 34 | 7 | -27 | -79.4% | ListParityHelper |
@@ -123,13 +122,14 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventTemplate1Form` | `EventTemplate1View` | 11 | 3 | -8 | -72.7% | Heuristic |
 | High | `TextForm` | `TextViewerView` | 62 | 17 | -45 | -72.6% | Heuristic |
 | High | `ImageGenericEnemyPortraitForm` | `ImageGenericEnemyPortraitView` | 18 | 5 | -13 | -72.2% | ListParityHelper |
+| High | `LinkArenaDenyUnitForm` | `LinkArenaDenyUnitViewerView` | 14 | 4 | -10 | -71.4% | ListParityHelper |
 | High | `ImageCGForm` | `ImageCGView` | 24 | 7 | -17 | -70.8% | ListParityHelper |
+| High | `ArenaClassForm` | `ArenaClassViewerView` | 17 | 5 | -12 | -70.6% | ListParityHelper |
 | High | `DevTranslateForm` | `DevTranslateView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `EventTemplate4Form` | `EventTemplate4View` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `MapSettingDifficultyForm` | `MapSettingDifficultyView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `ToolCustomBuildForm` | `ToolCustomBuildView` | 10 | 3 | -7 | -70.0% | Heuristic |
-| High | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | 23 | 7 | -16 | -69.6% | ListParityHelper |
 | High | `SkillConfigFE8UCSkillSys09xForm` | `SkillConfigFE8UCSkillSys09xView` | 29 | 9 | -20 | -69.0% | Heuristic |
 | High | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | 22 | 7 | -15 | -68.2% | ListParityHelper |
 | High | `UnitCustomBattleAnimeForm` | `UnitCustomBattleAnimeView` | 31 | 10 | -21 | -67.7% | ListParityHelper |
@@ -140,20 +140,20 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `SkillAssignmentUnitFE8NForm` | `SkillAssignmentUnitFE8NView` | 31 | 11 | -20 | -64.5% | Heuristic |
 | High | `UnitPaletteForm` | `UnitPaletteView` | 50 | 18 | -32 | -64.0% | ListParityHelper |
 | High | `EventTemplate6Form` | `EventTemplate6View` | 8 | 3 | -5 | -62.5% | Heuristic |
+| High | `ItemRandomChestForm` | `ItemRandomChestView` | 16 | 6 | -10 | -62.5% | Heuristic |
 | High | `SoundFootStepsForm` | `SoundFootStepsViewerView` | 16 | 6 | -10 | -62.5% | ListParityHelper |
+| High | `SummonUnitForm` | `SummonUnitViewerView` | 16 | 6 | -10 | -62.5% | ListParityHelper |
 | High | `ImageTSAAnime2Form` | `ImageTSAAnime2View` | 38 | 15 | -23 | -60.5% | ListParityHelper |
 | High | `EventFunctionPointerForm` | `EventFunctionPointerView` | 15 | 6 | -9 | -60.0% | ListParityHelper |
 | High | `ExtraUnitForm` | `ExtraUnitView` | 15 | 6 | -9 | -60.0% | ListParityHelper |
 | High | `MapTileAnimation1Form` | `MapTileAnimation1View` | 25 | 10 | -15 | -60.0% | ListParityHelper |
 | High | `SongTrackImportMidiForm` | `SongTrackImportMidiView` | 25 | 10 | -15 | -60.0% | Heuristic |
-| High | `ArenaClassForm` | `ArenaClassViewerView` | 17 | 7 | -10 | -58.8% | ListParityHelper |
 | High | `EventMoveDataFE7Form` | `EventMoveDataFE7View` | 17 | 7 | -10 | -58.8% | Heuristic |
 | High | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | 29 | 12 | -17 | -58.6% | ListParityHelper |
 | High | `SongTrackForm` | `SongTrackView` | 45 | 19 | -26 | -57.8% | ListParityHelper |
 | High | `AITilesForm` | `AITilesView` | 14 | 6 | -8 | -57.1% | Heuristic |
 | High | `ErrorPaletteMissMatchForm` | `ErrorPaletteMissMatchView` | 7 | 3 | -4 | -57.1% | Heuristic |
 | High | `ErrorTSAErrorForm` | `ErrorTSAErrorView` | 7 | 3 | -4 | -57.1% | Heuristic |
-| High | `LinkArenaDenyUnitForm` | `LinkArenaDenyUnitViewerView` | 14 | 6 | -8 | -57.1% | ListParityHelper |
 | High | `SoundRoomCGForm` | `SoundRoomCGView` | 14 | 6 | -8 | -57.1% | ListParityHelper |
 | High | `StatusOptionOrderForm` | `StatusOptionOrderView` | 14 | 6 | -8 | -57.1% | ListParityHelper |
 | High | `ToolFlagNameForm` | `ToolFlagNameView` | 7 | 3 | -4 | -57.1% | Heuristic |
@@ -166,6 +166,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ImageItemIconForm` | `ItemIconViewerView` | 22 | 10 | -12 | -54.5% | ListParityHelper |
 | High | `OPClassDemoFE7UForm` | `OPClassDemoFE7UView` | 56 | 26 | -30 | -53.6% | ListParityHelper |
 | High | `EDStaffRollForm` | `EDStaffRollView` | 17 | 8 | -9 | -52.9% | ListParityHelper |
+| High | `OPClassDemoFE8UForm` | `OPClassDemoFE8UView` | 50 | 24 | -26 | -52.0% | ListParityHelper |
 | High | `PaletteChangeColorsForm` | `PaletteChangeColorsView` | 25 | 12 | -13 | -52.0% | Heuristic |
 | High | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 31 | -32 | -50.8% | Heuristic |
 | High | `AIUnitsForm` | `AIUnitsView` | 16 | 8 | -8 | -50.0% | Heuristic |
@@ -173,19 +174,17 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventTemplate5Form` | `EventTemplate5View` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `ExtraUnitFE8UForm` | `ExtraUnitFE8UView` | 16 | 8 | -8 | -50.0% | ListParityHelper |
 | High | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 13 | -13 | -50.0% | ListParityHelper |
-| High | `ItemRandomChestForm` | `ItemRandomChestView` | 16 | 8 | -8 | -50.0% | Heuristic |
 | High | `OAMSPForm` | `OAMSPView` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `OPClassDemoFE7Form` | `OPClassDemoFE7View` | 64 | 32 | -32 | -50.0% | ListParityHelper |
-| High | `SummonUnitForm` | `SummonUnitViewerView` | 16 | 8 | -8 | -50.0% | ListParityHelper |
 | High | `VersionForm` | `VersionView` | 2 | 1 | -1 | -50.0% | Heuristic |
 | Medium | `ImageChapterTitleForm` | `ChapterTitleViewerView` | 25 | 13 | -12 | -48.0% | ListParityHelper |
-| Medium | `OPClassDemoFE8UForm` | `OPClassDemoFE8UView` | 50 | 26 | -24 | -48.0% | ListParityHelper |
 | Medium | `MapEditorForm` | `MapEditorView` | 23 | 12 | -11 | -47.8% | ListParityHelper |
 | Medium | `EventForceSortieForm` | `EventForceSortieView` | 19 | 10 | -9 | -47.4% | ListParityHelper |
 | Medium | `WorldMapBGMForm` | `WorldMapBGMView` | 19 | 10 | -9 | -47.4% | ListParityHelper |
 | Medium | `AIStealItemForm` | `AIStealItemView` | 17 | 9 | -8 | -47.1% | ListParityHelper |
 | Medium | `MapLoadFunctionForm` | `MapLoadFunctionView` | 17 | 9 | -8 | -47.1% | ListParityHelper |
 | Medium | `EventFunctionPointerFE7Form` | `EventFunctionPointerFE7View` | 15 | 8 | -7 | -46.7% | ListParityHelper |
+| Medium | `SummonsDemonKingForm` | `SummonsDemonKingViewerView` | 60 | 32 | -28 | -46.7% | ListParityHelper |
 | Medium | `ItemEffectPointerForm` | `ItemEffectPointerViewerView` | 13 | 7 | -6 | -46.2% | ListParityHelper |
 | Medium | `OPPrologueForm` | `OPPrologueViewerView` | 26 | 14 | -12 | -46.2% | ListParityHelper |
 | Medium | `SongTableForm` | `SongTableView` | 26 | 14 | -12 | -46.2% | ListParityHelper |
@@ -206,9 +205,9 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `EDSensekiCommentForm` | `EDSensekiCommentView` | 20 | 12 | -8 | -40.0% | ListParityHelper |
 | Medium | `EventUnitItemDropForm` | `EventUnitItemDropView` | 5 | 3 | -2 | -40.0% | Heuristic |
 | Medium | `EventUnitNewAllocForm` | `EventUnitNewAllocView` | 5 | 3 | -2 | -40.0% | Heuristic |
+| Medium | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` | 40 | 24 | -16 | -40.0% | ListParityHelper |
 | Medium | `OtherTextForm` | `OtherTextView` | 5 | 3 | -2 | -40.0% | Heuristic |
 | Medium | `SoundRoomFE6Form` | `SoundRoomFE6View` | 20 | 12 | -8 | -40.0% | ListParityHelper |
-| Medium | `SummonsDemonKingForm` | `SummonsDemonKingViewerView` | 60 | 36 | -24 | -40.0% | ListParityHelper |
 | Medium | `TextToSpeechForm` | `TextToSpeechView` | 10 | 6 | -4 | -40.0% | Heuristic |
 | Medium | `ToolUPSOpenSimpleForm` | `ToolUPSOpenSimpleView` | 5 | 3 | -2 | -40.0% | Heuristic |
 | Medium | `ToolUndoForm` | `ToolUndoView` | 5 | 3 | -2 | -40.0% | Heuristic |
@@ -217,8 +216,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `MapSettingFE7Form` | `MapSettingFE7View` | 229 | 146 | -83 | -36.2% | ListParityHelper |
 | Medium | `MapSettingFE7UForm` | `MapSettingFE7UView` | 233 | 150 | -83 | -35.6% | ListParityHelper |
 | Medium | `UnitFE6Form` | `UnitFE6View` | 152 | 98 | -54 | -35.5% | ListParityHelper |
-| Medium | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 22 | -12 | -35.3% | ListParityHelper |
-| Medium | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` | 40 | 26 | -14 | -35.0% | ListParityHelper |
 | Medium | `UnitFE7Form` | `UnitFE7View` | 160 | 106 | -54 | -33.8% | ListParityHelper |
 | Medium | `HowDoYouLikePatch2Form` | `HowDoYouLikePatch2View` | 6 | 4 | -2 | -33.3% | Heuristic |
 | Medium | `MapTerrainNameEngForm` | `MapTerrainNameEngView` | 12 | 8 | -4 | -33.3% | ListParityHelper |
@@ -231,11 +228,11 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `UnitForm` | `UnitEditorView` | 183 | 127 | -56 | -30.6% | ListParityHelper |
 | Medium | `BigCGForm` | `BigCGViewerView` | 20 | 14 | -6 | -30.0% | ListParityHelper |
 | Medium | `SkillSystemsEffectivenessReworkClassTypeForm` | `SkillSystemsEffectivenessReworkClassTypeView` | 10 | 7 | -3 | -30.0% | Heuristic |
-| Medium | `ClassForm` | `ClassEditorView` | 211 | 148 | -63 | -29.9% | ListParityHelper |
 | Medium | `WorldMapPathForm` | `WorldMapPathView` | 24 | 17 | -7 | -29.2% | ListParityHelper |
 | Medium | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` | 7 | 5 | -2 | -28.6% | Heuristic |
 | Medium | `ImagePortraitForm` | `ImagePortraitView` | 63 | 45 | -18 | -28.6% | ListParityHelper |
 | Medium | `SupportTalkForm` | `SupportTalkView` | 32 | 23 | -9 | -28.1% | ListParityHelper |
+| Medium | `ClassForm` | `ClassEditorView` | 211 | 154 | -57 | -27.0% | ListParityHelper |
 | Medium | `VennouWeaponLockForm` | `VennouWeaponLockView` | 15 | 11 | -4 | -26.7% | Heuristic |
 | Medium | `SupportTalkFE7Form` | `SupportTalkFE7View` | 34 | 25 | -9 | -26.5% | ListParityHelper |
 | Medium | `MonsterProbabilityForm` | `MonsterProbabilityViewerView` | 38 | 28 | -10 | -26.3% | ListParityHelper |
@@ -280,6 +277,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ToolEmulatorSetupMessageForm` | `ToolEmulatorSetupMessageView` | 3 | 3 | 0 | 0.0% | Heuristic |
 | Low | `ToolUndoPopupDialogForm` | `ToolUndoPopupDialogView` | 5 | 5 | 0 | 0.0% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
+| Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
@@ -299,6 +297,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` | 4 | 5 | 1 | +25.0% | Heuristic |
 | Medium | `SMEPromoListForm` | `SMEPromoListView` | 16 | 20 | 4 | +25.0% | Heuristic |
 | Medium | `ToolWorkSupport_SelectUPSForm` | `ToolWorkSupport_SelectUPSView` | 4 | 5 | 1 | +25.0% | Heuristic |
+| Medium | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 44 | 10 | +29.4% | ListParityHelper |
 | Medium | `HexEditorForm` | `HexEditorView` | 6 | 8 | 2 | +33.3% | Heuristic |
 | Medium | `ToolExportEAEventForm` | `ToolExportEAEventView` | 12 | 16 | 4 | +33.3% | Heuristic |
 | Medium | `ToolProblemReportSearchBackupForm` | `ToolProblemReportSearchBackupView` | 3 | 4 | 1 | +33.3% | Heuristic |
@@ -306,6 +305,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolRunHintMessageForm` | `ToolRunHintMessageView` | 3 | 4 | 1 | +33.3% | Heuristic |
 | Medium | `ToolThreeMargeCloseAlertForm` | `ToolThreeMargeCloseAlertView` | 3 | 4 | 1 | +33.3% | Heuristic |
 | Medium | `ToolWorkSupport_UpdateQuestionDialogForm` | `ToolWorkSupport_UpdateQuestionDialogView` | 3 | 4 | 1 | +33.3% | Heuristic |
+| Medium | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | 23 | 31 | 8 | +34.8% | ListParityHelper |
 | Medium | `ToolDiffDebugSelectForm` | `ToolDiffDebugSelectView` | 11 | 15 | 4 | +36.4% | Heuristic |
 | Medium | `PackedMemorySlotForm` | `PackedMemorySlotView` | 5 | 7 | 2 | +40.0% | Heuristic |
 | Medium | `TextRefAddDialogForm` | `TextRefAddDialogView` | 5 | 7 | 2 | +40.0% | Heuristic |
