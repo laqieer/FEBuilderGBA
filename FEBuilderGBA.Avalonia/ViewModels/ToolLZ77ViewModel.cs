@@ -211,7 +211,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 if (_undo.HasPendingUndo)
                 {
-                    try { _undo.Rollback(); } catch { }
+                    try { _undo.Rollback(); } catch (Exception rollbackEx) { Log.Error("ZeroClear rollback failed: {0}", rollbackEx.Message); }
                 }
                 StatusText = R._("ZeroClear failed: {0}", ex.Message);
             }
