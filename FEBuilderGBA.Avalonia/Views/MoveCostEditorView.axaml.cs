@@ -162,14 +162,18 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public void NavigateToWithCostType(uint classAddr, CostType costType)
         {
-            // Ensure the cost-type combo has been populated. Window.Opened
-            // -> LoadList normally does this once, but if NavigateToWithCostType
-            // is called before LoadList has run we still need a populated combo
-            // for the selection logic below to find the right index.
-            if (_vm.CostTypeItems.Count == 0)
+            // Ensure the editor is fully initialized before selecting class/cost type.
+            // Window.Opened -> LoadList() normally handles this when the user opens
+            // the editor manually, but if NavigateToWithCostType is invoked
+            // synchronously after WindowManager.Open<T>() the Opened event may not
+            // have fired yet. In that case the combo, terrain names, and ClassList
+            // items are all empty, so SelectAddress would no-op and the combo
+            // selection logic below could leave SelectedIndex == -1
+            // (Copilot bot review feedback). We detect this and run LoadList()
+            // eagerly so navigation proceeds as expected.
+            if (_vm.CostTypeItems.Count == 0 || ClassList.ItemCount == 0)
             {
-                _vm.BuildCostTypeItems();
-                CostTypeCombo.ItemsSource = _vm.CostTypeItems;
+                LoadList();
             }
 
             // Find the combo index for the requested cost type. If absent

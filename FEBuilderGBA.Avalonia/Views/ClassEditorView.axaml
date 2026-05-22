@@ -323,7 +323,7 @@
                 <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr68_Button" Content="Jump" Click="JumpToPtr68_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainDef_Label" Grid.Row="0" Grid.Column="3" Name="TerrainDefLabel" Text="Terrain Def (P72):" VerticalAlignment="Center" />
-              <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+              <StackPanel Name="Ptr72Wrapper" Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
                 <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr72_Input" Name="Ptr72Box" Width="120" />
                 <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr72_Button" Name="JumpToPtr72Button" Content="Jump" Click="JumpToPtr72_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
               </StackPanel>

@@ -149,10 +149,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Terrain Avoid (P56):";
                 if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Terrain Def (P60):";
 
-                // TerrainRow: repurpose first slot for Terrain Res (P64), hide second pair
+                // TerrainRow: repurpose first slot for Terrain Res (P64), hide second pair.
+                // The Ptr72 wrapper StackPanel contains both Ptr72Box AND the JumpToPtr72Button
+                // added for #359 — hiding only Ptr72Box would leave an orphaned "Jump" button
+                // visible on FE6 (Copilot CLI review feedback). Hide the entire wrapper so
+                // both the textbox and its Jump button disappear together.
                 if (TerrainAvoidLabel != null) TerrainAvoidLabel.Text = "Terrain Res (P64):";
                 if (TerrainDefLabel != null) TerrainDefLabel.IsVisible = false;
-                if (Ptr72Box != null) Ptr72Box.IsVisible = false;
+                if (Ptr72Wrapper != null) Ptr72Wrapper.IsVisible = false;
             }
             else
             {
@@ -177,10 +181,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (MoveCostRainLabel != null) MoveCostRainLabel.Text = "Move Cost Rain (P60):";
                 if (MoveCostSnowLabel != null) MoveCostSnowLabel.Text = "Move Cost Snow (P64):";
 
-                // TerrainRow: restore defaults for FE7/8
+                // TerrainRow: restore defaults for FE7/8. The Ptr72 wrapper StackPanel
+                // contains both the textbox and the Jump button — restore the wrapper's
+                // visibility so both are shown together.
                 if (TerrainAvoidLabel != null) TerrainAvoidLabel.Text = "Terrain Avoid (P68):";
                 if (TerrainDefLabel != null) TerrainDefLabel.IsVisible = true;
-                if (Ptr72Box != null) Ptr72Box.IsVisible = true;
+                if (Ptr72Wrapper != null) Ptr72Wrapper.IsVisible = true;
             }
         }
 
@@ -588,7 +594,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 // contains class addresses and resolves the move-cost pointer internally.
                 // Previously this passed the move-cost-table offset, which never matches
                 // any class in the list and silently fell back to entry 0 (issue #344).
-                WindowManager.Instance.Navigate<MoveCostEditorView>(_vm.CurrentAddr);
+                //
+                // Route through the cost-type-aware overload introduced for #359 so the
+                // Move Cost (P56) jump always lands on CostType=MoveCostNormal even when
+                // the MoveCostEditor was already open with a stale cost type from a prior
+                // Rain/Snow/Terrain jump (Copilot CLI review feedback #2). Open<T>() reuses
+                // the existing editor instance, so without this the receiving editor would
+                // keep the previously-selected cost type after a P56 click.
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, CostType.MoveCostNormal);
             }
             catch (Exception ex)
             {
