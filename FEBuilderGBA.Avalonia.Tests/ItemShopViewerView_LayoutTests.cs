@@ -60,5 +60,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(view.FindControl<NumericUpDown>("ItemIdBox"));
             Assert.NotNull(view.FindControl<NumericUpDown>("QuantityBox"));
         }
+
+        /// <summary>
+        /// Source-grep proof that after relocation, AppendSlot_Click reselects
+        /// the relocated shop (preserving the user's editing context) rather
+        /// than letting LoadShopList()'s SelectFirst() jump to shop 0.
+        /// Covers the Copilot CLI follow-up review on PR #465.
+        /// </summary>
+        [AvaloniaFact]
+        public void ItemShopViewerView_RelocationPreservesShopSelection()
+        {
+            string srcPath = System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..",
+                "FEBuilderGBA.Avalonia", "Views", "ItemShopViewerView.axaml.cs");
+            string src = System.IO.File.ReadAllText(srcPath);
+            // After Relocated outcome, the handler must call the
+            // shop-preserving reload helper (not raw LoadShopList).
+            Assert.Contains("ReloadShopListAndSelect(newShopAddr", src);
+            // The helper must select the new shop address.
+            Assert.Contains("ShopList.SelectAddress(shopAddrToSelect)", src);
+            // The helper must reselect the appended slot inside the relocated shop.
+            Assert.Contains("SlotList.SelectAddress(slot.addr)", src);
+        }
     }
 }

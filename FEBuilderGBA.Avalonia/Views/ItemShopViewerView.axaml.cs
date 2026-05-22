@@ -60,6 +60,41 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Reload the shop list (after a relocation that changes shop addresses),
+        /// then reselect the shop at <paramref name="shopAddrToSelect"/> and the
+        /// slot at the given slot index inside that shop. Preserves the user's
+        /// editing context across the relocate.
+        /// </summary>
+        void ReloadShopListAndSelect(uint shopAddrToSelect, int slotIndexToSelect)
+        {
+            try
+            {
+                _currentSlotList = new List<AddrResult>();
+                SlotList.SetItems(_currentSlotList);
+
+                _currentShopList = _vm.LoadShopList();
+                // SetItems() triggers SelectFirst() -> OnShopSelected on the first
+                // shop, but that's transient — SelectAddress() below moves the
+                // selection (and re-fires OnShopSelected for the right shop).
+                ShopList.SetItems(_currentShopList);
+                ShopList.SelectAddress(shopAddrToSelect);
+
+                // After OnShopSelected populates _currentSlotList, jump to the
+                // appended slot.
+                if (slotIndexToSelect >= 0 && slotIndexToSelect < _currentSlotList.Count)
+                {
+                    var slot = _currentSlotList[slotIndexToSelect];
+                    SlotList.SelectAddress(slot.addr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemShopViewerView.ReloadShopListAndSelect: {0}", ex.Message);
+                StatusLabel.Text = $"Reload failed after relocation: {ex.Message}";
+            }
+        }
+
         void OnShopSelected(uint shopAddr)
         {
             try
@@ -177,13 +212,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                // Capture the slot count BEFORE the relocate so we know which
+                // slot is the newly appended one (it's always at index oldCount).
+                int oldSlotCount = _currentSlotList.Count;
                 var reloc = _vm.AppendSlotWithRelocation(out uint newShopAddr);
                 if (reloc == ItemShopViewerViewModel.AppendOutcome.Relocated)
                 {
                     _undoService.Commit();
-                    StatusLabel.Text = $"Shop relocated to 0x{newShopAddr:X08}.";
-                    // Re-scan everything because addresses changed.
-                    LoadShopList();
+
+                    // Reload shop list — but DO NOT let SetItems' SelectFirst()
+                    // jump us away from the relocated shop. Per the accepted plan
+                    // (WU2) and Copilot bot follow-up review: after relocation we
+                    // must reselect the new shop address, then the appended slot
+                    // (at index oldSlotCount in the refreshed slot list).
+                    ReloadShopListAndSelect(newShopAddr, oldSlotCount);
+                    StatusLabel.Text = $"Shop relocated to 0x{newShopAddr:X08}; appended slot selected.";
                     return;
                 }
 
