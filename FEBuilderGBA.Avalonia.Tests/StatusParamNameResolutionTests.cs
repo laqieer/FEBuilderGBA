@@ -98,9 +98,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
-        /// FE8U-specific assertion: entry 0 must resolve to "Skill" (per the WinForms
-        /// reference output verified against FE8U.gba). Skips when the loaded ROM is
-        /// a different version. The exact strings are taken from the FE8U Huffman table.
+        /// FE8U-specific assertion: entries 0..5 must contain "Skill", "Spd", "Luck",
+        /// "Def", "Res", "Move" (the strings produced by running
+        /// <c>StatusParamForm.GetParamName</c> against FE8U.gba and observed via the
+        /// WinForms editor). Skips when the loaded ROM is a different version.
+        /// Uses <c>Assert.Contains</c> so the assertion tolerates the implementation's
+        /// trim semantics that may slightly differ from raw WinForms output.
         /// </summary>
         [Fact]
         public void LoadStatusParamList_FirstEntries_MatchWinFormsReference_FE8U()
@@ -132,12 +135,18 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         /// <summary>
         /// Cross-validation: for every entry in the list, the Avalonia ViewModel's
-        /// displayed name must match the WinForms-equivalent resolution we recompute
-        /// inline. This works on any ROM the fixture loads and protects against the
-        /// reported indirection bug.
+        /// displayed name must match a reference oracle that re-applies the WinForms
+        /// pointer indirection logic and the Avalonia NameResolver decoding. This is
+        /// not an exact byte-for-byte WinForms reproduction — WinForms uses
+        /// <c>TextForm.Direct</c> (which only strips <c>@001F</c>) on the Huffman branch,
+        /// while the oracle (and the implementation under test) uses
+        /// <c>NameResolver.GetTextById</c> (more aggressive control-code stripping).
+        /// For status-parameter labels both paths converge on the same rendered text.
+        /// The test works on any ROM the fixture loads and guards against the original
+        /// one-indirection bug.
         /// </summary>
         [Fact]
-        public void LoadStatusParamList_NamesMatchWinFormsResolution()
+        public void LoadStatusParamList_NamesMatchIndirectionOracle()
         {
             if (!_fixture.IsAvailable)
             {
@@ -154,7 +163,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (var entry in list)
             {
                 uint structAddr = entry.addr;
-                string expected = WinFormsReferenceResolve(rom, structAddr);
+                string expected = IndirectionOracleResolve(rom, structAddr);
                 string display = entry.name ?? string.Empty;
                 int sp = display.IndexOf(' ');
                 string actualName = sp >= 0 && sp + 1 < display.Length ? display.Substring(sp + 1) : display;
@@ -171,16 +180,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(expected.Trim(), actualName.Trim());
                 comparisons++;
             }
-            _output.WriteLine($"Verified {comparisons} list entries against WinForms reference.");
+            _output.WriteLine($"Verified {comparisons} list entries against indirection oracle.");
             Assert.True(comparisons > 0, "Expected at least one resolved name to cross-check");
         }
 
         /// <summary>
         /// Cross-validation for the detail-view StringText field: load each entry and
-        /// confirm StringText equals the WinForms-equivalent resolution.
+        /// confirm StringText equals the indirection oracle's output (WinForms pointer
+        /// indirection + Avalonia NameResolver decoding). See
+        /// <see cref="LoadStatusParamList_NamesMatchIndirectionOracle"/> for the parity
+        /// disclaimer about <c>TextForm.Direct</c> vs <c>NameResolver.GetTextById</c>.
         /// </summary>
         [Fact]
-        public void LoadStatusParam_StringText_MatchesWinFormsResolution()
+        public void LoadStatusParam_StringText_MatchesIndirectionOracle()
         {
             if (!_fixture.IsAvailable)
             {
@@ -197,7 +209,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             int loadCount = Math.Min(8, list.Count);
             for (int i = 0; i < loadCount; i++)
             {
-                string expected = WinFormsReferenceResolve(rom, list[i].addr);
+                string expected = IndirectionOracleResolve(rom, list[i].addr);
                 vm.LoadStatusParam(list[i].addr);
                 string actual = vm.StringText ?? string.Empty;
 
@@ -209,16 +221,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(expected.Trim(), actual.Trim());
                 verified++;
             }
-            _output.WriteLine($"Verified {verified} StringText loads against WinForms reference.");
+            _output.WriteLine($"Verified {verified} StringText loads against indirection oracle.");
             Assert.True(verified > 0, "Expected at least one StringText to cross-check");
         }
 
         /// <summary>
-        /// Inline re-implementation of the WinForms <c>StatusParamForm.GetParamName</c>
-        /// logic, used as the reference oracle in cross-validation tests. Kept self-contained
-        /// so the test does not depend on WinForms types.
+        /// Reference oracle: re-implements the WinForms <c>StatusParamForm.GetParamName</c>
+        /// pointer indirection (u32@+12 -> p32 -> id), then resolves <c>id</c> using
+        /// <c>NameResolver.GetTextById</c> for the Huffman branch (matching the
+        /// implementation under test, not raw WinForms <c>TextForm.Direct</c>).
+        /// Kept self-contained so the test does not depend on WinForms types.
         /// </summary>
-        static string WinFormsReferenceResolve(ROM rom, uint structAddr)
+        static string IndirectionOracleResolve(ROM rom, uint structAddr)
         {
             if (!U.isSafetyOffset(structAddr + 15, rom)) return string.Empty;
 

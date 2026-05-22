@@ -98,15 +98,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Resolve the display name for a status-parameter struct entry. Mirrors the
-        /// WinForms <c>StatusParamForm.GetParamName</c> two-step indirection:
+        /// pointer-indirection logic from the WinForms <c>StatusParamForm.GetParamName</c>:
         ///   1. <c>u32@(addr+12)</c> is a pointer to another u32.
         ///   2. That inner u32 is either a Huffman text ID or a direct string pointer.
         ///
+        /// Note on decoding parity: the Huffman branch here calls
+        /// <see cref="NameResolver.GetTextById"/>, which wraps
+        /// <see cref="FETextDecode.Direct"/> and applies <c>NameResolver.StripControlCodes</c>.
+        /// That is closer to the WinForms <c>TextForm.DirectAndStripAllCode</c> path
+        /// than the unstripped <c>TextForm.Direct</c>, but for list labels and the
+        /// detail "String Text" field the stripped output matches what the WinForms
+        /// editor ends up rendering.
+        ///
         /// Issue #355: the previous Avalonia implementation skipped step 1 and tried
         /// to read raw bytes at the first indirection level, producing garbage for
-        /// every entry. All safety checks use the explicit-ROM overloads so the helper
-        /// is independent of <c>CoreState.ROM</c> global state (note: the Huffman
-        /// fallback through <see cref="FETextDecode.Direct"/> still relies on
+        /// every entry. All safety checks here use the explicit-ROM overloads so the
+        /// helper is independent of <c>CoreState.ROM</c> global state (note: the
+        /// Huffman fallback through <see cref="FETextDecode.Direct"/> still relies on
         /// <c>CoreState.ROM</c>; callers must keep them in sync).
         /// </summary>
         internal static string ResolveParamName(ROM rom, uint structAddr)
@@ -131,8 +139,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             if (string.IsNullOrEmpty(name))
             {
-                // Treat id as a Huffman text ID. NameResolver.GetTextById strips control
-                // codes the way TextForm.Direct does for display.
+                // Treat id as a Huffman text ID. NameResolver.GetTextById wraps
+                // FETextDecode.Direct and then applies NameResolver.StripControlCodes —
+                // closer to WinForms TextForm.DirectAndStripAllCode than TextForm.Direct
+                // (which only removes @001F + ConvertEscapeText). For status-parameter
+                // labels we want fully stripped output, which matches what InputFormRef
+                // ends up rendering in the WinForms list after default trimming.
                 try { name = NameResolver.GetTextById(id) ?? string.Empty; }
                 catch { name = string.Empty; }
             }
