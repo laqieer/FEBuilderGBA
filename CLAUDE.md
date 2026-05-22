@@ -348,6 +348,8 @@ InputFormRef.MakeLinkEvent(this);
 
 **Convention-based linking:** Controls named `L_{id}_{linktype}_{args}` automatically get event handlers wired.
 
+**Avalonia equivalent** (`FEBuilderGBA.Avalonia/Services/WindowManager.cs`): `WindowManager.Navigate<TView>(addr)` opens an editor positioned at an address; `WindowManager.PickFromEditor<TView>(addr, owner)` opens an editor in pick mode and awaits the user's selection. For type-ID fields (Class ID, etc.), the reusable `Controls/IdFieldControl` (#366) bundles a hyperlink label + NumericUpDown + inline name preview + Jump button + Pick button, with `JumpRequested` / `PickRequested` / `ValueChanged` routed events the host wires per call site.
+
 ### Patch & Mod System
 
 **Files:** `PatchForm.cs`, `Mod.cs`
