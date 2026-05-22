@@ -446,8 +446,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
                 uint waitIcon = (uint)(WaitIconBox.Value ?? 0);
 
-                var facePic = PreviewIconHelper.LoadClassFacePortrait(portraitId);
-                var waitPic = PreviewIconHelper.LoadClassWaitIcon(waitIcon);
+                // `using` so the IDisposable IImage temporaries are released
+                // even if SetImage / Avalonia bitmap conversion throws.
+                // PR #471 Copilot inline review fix.
+                using var facePic = PreviewIconHelper.LoadClassFacePortrait(portraitId);
+                using var waitPic = PreviewIconHelper.LoadClassWaitIcon(waitIcon);
 
                 CardPortraitImage.SetImage(facePic);
                 CardWaitIconImage.SetImage(waitPic);
@@ -455,9 +458,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 CardNameLabel.Text = _vm.Name ?? "";
                 CardIdLabel.Text = $"0x{_vm.CurrentAddr:X08}  /  ID {_vm.ClassNumber}";
                 ClassCardBorder.IsVisible = true;
-
-                facePic?.Dispose();
-                waitPic?.Dispose();
             }
             catch (Exception ex)
             {
