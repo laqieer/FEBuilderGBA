@@ -474,6 +474,14 @@ namespace FEBuilderGBA.Avalonia.Services
             // The Avalonia counterpart is PatchManagerView (different data shape;
             // not a list-parity port).
             { "PatchManagerView", "PatchForm" },
+            // #433 / #500 — ImageMapActionAnimationForm, ImageMagicFEditorForm,
+            // and ImageMagicCSACreatorForm all jump to ToolAnimationCreatorForm
+            // via X_N_JumpEditor (the "edit animation" affordance). The Avalonia
+            // ToolAnimationCreatorView lives in ContextDependentEditors (no
+            // list-parity port), so without this entry the jump scanner resolves
+            // to "no AV counterpart" and the manifest can never reach
+            // KnownGap / Match status.
+            { "ToolAnimationCreatorView", "ToolAnimationCreatorForm" },
         };
 
         /// <summary>

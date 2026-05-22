@@ -2,38 +2,131 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageMapActionAnimationView"
-        Title="Map Action Animation" Width="801" Height="473"
+        Title="Map Action Animation" Width="1024" Height="640"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageMapActionAnimation_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: top read-config bar (mirrors WF panel3: 先頭アドレス / 読込数 / 再取得) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageMapActionAnimation_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1: selection bar (mirrors WF panel5: アドレス / Size: / 選択アドレス / 書き込み) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Address_Input"
+                       FormatString="X8" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="8" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="ImageMapActionAnimation_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Write_Button"
+                Name="WriteButton" Content="Write" Click="Write_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 col 0: AddressList + Filter Name + List Expansion -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="ImageMapActionAnimation_FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="ImageMapActionAnimation_ListExpand_Button"
+                Name="ListExpandButton" Content="List Expansion"
+                Click="ListExpand_Click" IsEnabled="False"
+                ToolTip.Tip="Not yet implemented — see #501" Margin="0,4,0,0"
+                HorizontalAlignment="Stretch" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="ImageMapActionAnimation_Entry_List"
+            Name="EntryList" />
+      </DockPanel>
+    </Border>
+
+    <!-- Row 2 col 1: edit panel -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Action Animation" FontSize="18" FontWeight="Bold" />
+        <Label Content="Map Action Animation" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="200,200,20,180,200" RowDefinitions="Auto,Auto,Auto,Auto">
-          <!-- Row 0: Address -->
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageMapActionAnimation_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Edit fields (D0 / W4 / W6 / Comment) -->
+        <Grid ColumnDefinitions="160,200,20,160,200" RowDefinitions="Auto,Auto,Auto,Auto">
+          <Label Grid.Row="0" Grid.Column="0" Content="Animation Pointer (D0):" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageMapActionAnimation_AnimationPointer_Input"
+                   Grid.Row="0" Grid.Column="1" Name="AnimationPointerBox" Width="160" />
 
-          <!-- Row 1: D0 Animation Pointer -->
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Ptr (D0):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ImageMapActionAnimation_AnimationPointer_Input" Grid.Row="1" Grid.Column="1" Name="AnimationPointerBox" Width="160" />
+          <Label Grid.Row="1" Grid.Column="0" Content="Padding 1 (W4):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Padding1_Input"
+                         FormatString="0" Grid.Row="1" Grid.Column="1" Name="Padding1Box"
+                         Minimum="0" Maximum="65535" />
+          <Label Grid.Row="1" Grid.Column="3" Content="Padding 2 (W6):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Padding2_Input"
+                         FormatString="0" Grid.Row="1" Grid.Column="4" Name="Padding2Box"
+                         Minimum="0" Maximum="65535" />
 
-          <!-- Row 2: W4 Padding, W6 Padding -->
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Padding 1 (W4):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Padding1_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Padding1Box" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="Padding 2 (W6):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Padding2_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="Padding2Box" Minimum="0" Maximum="65535" />
+          <Label Grid.Row="2" Grid.Column="0" Content="Comment:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageMapActionAnimation_Comment_Input"
+                   Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4" Name="CommentBox" />
 
-          <!-- Row 3: Write button -->
-          <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Write_Button" Grid.Row="3" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
+          <!-- KeepEmpty notice — visible only when ID=0 -->
+          <Label Grid.Row="3" Grid.ColumnSpan="5"
+                 AutomationProperties.AutomationId="ImageMapActionAnimation_KeepEmpty_Label"
+                 Name="KeepEmptyLabel"
+                 Content="ID=00 is reserved as null data. Do not set any value other than 0x0."
+                 Foreground="DarkRed" FontWeight="SemiBold" IsVisible="False" />
         </Grid>
 
-        <!-- Animation preview -->
-        <TextBlock Text="Preview (Frame 0):" FontWeight="SemiBold" Margin="0,8,0,4" />
-        <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
-          <Image AutomationProperties.AutomationId="ImageMapActionAnimation_Preview_Image" Name="PreviewImage" Width="128" Height="128" Stretch="Uniform" />
+        <!-- Animation preview panel — visible only when D0 resolves safely -->
+        <Border Name="AnimationPanel" BorderBrush="Gray" BorderThickness="1" Padding="8" IsVisible="False">
+          <StackPanel Spacing="6">
+            <Label AutomationProperties.AutomationId="ImageMapActionAnimation_DisplayExample_Label"
+                   Content="Display example" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto">
+              <Label Grid.Row="0" Grid.Column="0"
+                     AutomationProperties.AutomationId="ImageMapActionAnimation_Zoom_Label"
+                     Content="Zoom:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        AutomationProperties.AutomationId="ImageMapActionAnimation_ShowZoom_Combo"
+                        Name="ShowZoomComboBox" Width="160"
+                        SelectionChanged="ShowZoomComboBox_SelectionChanged">
+                <ComboBoxItem>Zoomed</ComboBoxItem>
+                <ComboBoxItem>Original size</ComboBoxItem>
+              </ComboBox>
+              <Label Grid.Row="1" Grid.Column="0"
+                     AutomationProperties.AutomationId="ImageMapActionAnimation_Frame_Label"
+                     Content="Frame:" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1"
+                             AutomationProperties.AutomationId="ImageMapActionAnimation_ShowFrame_Input"
+                             FormatString="0" Name="ShowFrameUpDown" Width="80"
+                             Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
+            </Grid>
+            <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
+              <Image AutomationProperties.AutomationId="ImageMapActionAnimation_Preview_Image"
+                     Name="PreviewImage" Width="128" Height="128" Stretch="Uniform" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="ImageMapActionAnimation_BinInfo_Label"
+                     Name="BinInfoBox" IsReadOnly="True" FontFamily="Consolas" />
+          </StackPanel>
         </Border>
       </StackPanel>
     </ScrollViewer>

@@ -20491,7 +20491,19 @@ ASM 指针地址:
 9=物品名前置词 (A/An/The)
 
 :Selected Address:
-选择地址:
+选中地址:
+
+:Read Count
+读取数量
+
+:Filter Name
+名称
+
+:List Expansion
+列表扩展
+
+:Animation Pointer (D0):
+动画指针 (D0):
 
 :Comment:
 注释:
@@ -20510,3 +20522,18 @@ ASM 指针地址:
 
 :Select Source Folder
 选择源文件夹
+
+:Display example
+显示样例
+
+:Zoomed
+放大显示
+
+:Original size
+原始尺寸
+
+:ID=00 is reserved as null data. Do not set any value other than 0x0.
+ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
+
+:Not yet implemented — see #501
+尚未实现 — 请参考 #501

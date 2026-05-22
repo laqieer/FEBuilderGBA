@@ -6530,3 +6530,30 @@ ASMポインタアドレス:
 
 :Select Source Folder
 ソースフォルダーを開く
+
+:Read Count
+読込数
+
+:Filter Name
+名前
+
+:List Expansion
+リスト拡張
+
+:Animation Pointer (D0):
+アニメーション (D0):
+
+:Display example
+表示例
+
+:Zoomed
+拡大して描画
+
+:Original size
+拡大しないで描画
+
+:ID=00 is reserved as null data. Do not set any value other than 0x0.
+ID=00 Emptyはnullデータとして予約されています。\r\n0x0以外の値を設定しないでください。
+
+:Not yet implemented — see #501
+未実装です。 — #501 を参照
