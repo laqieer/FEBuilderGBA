@@ -19,7 +19,40 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
+            // #358: source-unit jump + per-partner SupportTalk jumps.
+            JumpToSourceUnitButton.Click += JumpToSourceUnit_Click;
+            Talk1Button.Click += (s, e) => JumpToTalk((uint)(Partner1Nud.Value ?? 0));
+            Talk2Button.Click += (s, e) => JumpToTalk((uint)(Partner2Nud.Value ?? 0));
+            Talk3Button.Click += (s, e) => JumpToTalk((uint)(Partner3Nud.Value ?? 0));
+            Talk4Button.Click += (s, e) => JumpToTalk((uint)(Partner4Nud.Value ?? 0));
+            Talk5Button.Click += (s, e) => JumpToTalk((uint)(Partner5Nud.Value ?? 0));
+            Talk6Button.Click += (s, e) => JumpToTalk((uint)(Partner6Nud.Value ?? 0));
+            Talk7Button.Click += (s, e) => JumpToTalk((uint)(Partner7Nud.Value ?? 0));
+            Talk8Button.Click += (s, e) => JumpToTalk((uint)(Partner8Nud.Value ?? 0));
+            Talk9Button.Click += (s, e) => JumpToTalk((uint)(Partner9Nud.Value ?? 0));
+            Talk10Button.Click += (s, e) => JumpToTalk((uint)(Partner10Nud.Value ?? 0));
+            // Refresh partner name labels when the user edits a partner ID.
+            Partner1Nud.ValueChanged  += (s, e) => Partner1NameLabel.Text  = ResolvePartnerName(Partner1Nud.Value);
+            Partner2Nud.ValueChanged  += (s, e) => Partner2NameLabel.Text  = ResolvePartnerName(Partner2Nud.Value);
+            Partner3Nud.ValueChanged  += (s, e) => Partner3NameLabel.Text  = ResolvePartnerName(Partner3Nud.Value);
+            Partner4Nud.ValueChanged  += (s, e) => Partner4NameLabel.Text  = ResolvePartnerName(Partner4Nud.Value);
+            Partner5Nud.ValueChanged  += (s, e) => Partner5NameLabel.Text  = ResolvePartnerName(Partner5Nud.Value);
+            Partner6Nud.ValueChanged  += (s, e) => Partner6NameLabel.Text  = ResolvePartnerName(Partner6Nud.Value);
+            Partner7Nud.ValueChanged  += (s, e) => Partner7NameLabel.Text  = ResolvePartnerName(Partner7Nud.Value);
+            Partner8Nud.ValueChanged  += (s, e) => Partner8NameLabel.Text  = ResolvePartnerName(Partner8Nud.Value);
+            Partner9Nud.ValueChanged  += (s, e) => Partner9NameLabel.Text  = ResolvePartnerName(Partner9Nud.Value);
+            Partner10Nud.ValueChanged += (s, e) => Partner10NameLabel.Text = ResolvePartnerName(Partner10Nud.Value);
             Opened += (_, _) => LoadList();
+        }
+
+        static string ResolvePartnerName(decimal? value)
+        {
+            if (value == null || value.Value == 0) return "";
+            // Partner ID in the support data is 1-based.
+            uint id = (uint)value.Value;
+            if (id == 0) return "";
+            try { return SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, id - 1); }
+            catch { return ""; }
         }
 
         void LoadList()
@@ -99,6 +132,83 @@ namespace FEBuilderGBA.Avalonia.Views
 
             PartnerCountNud.Value = _vm.PartnerCount;
             SeparatorNud.Value = _vm.Separator;
+
+            // #358: source unit and partner name labels.
+            if (_vm.SourceUnitId1Based == 0)
+            {
+                SourceUnitIdLabel.Text = "—";
+                SourceUnitNameLabel.Text = "(no unit points at this row)";
+                JumpToSourceUnitButton.IsEnabled = false;
+            }
+            else
+            {
+                SourceUnitIdLabel.Text = $"0x{_vm.SourceUnitId1Based:X02}";
+                SourceUnitNameLabel.Text = _vm.SourceUnitName;
+                JumpToSourceUnitButton.IsEnabled = true;
+            }
+            Partner1NameLabel.Text  = ResolvePartnerName(Partner1Nud.Value);
+            Partner2NameLabel.Text  = ResolvePartnerName(Partner2Nud.Value);
+            Partner3NameLabel.Text  = ResolvePartnerName(Partner3Nud.Value);
+            Partner4NameLabel.Text  = ResolvePartnerName(Partner4Nud.Value);
+            Partner5NameLabel.Text  = ResolvePartnerName(Partner5Nud.Value);
+            Partner6NameLabel.Text  = ResolvePartnerName(Partner6Nud.Value);
+            Partner7NameLabel.Text  = ResolvePartnerName(Partner7Nud.Value);
+            Partner8NameLabel.Text  = ResolvePartnerName(Partner8Nud.Value);
+            Partner9NameLabel.Text  = ResolvePartnerName(Partner9Nud.Value);
+            Partner10NameLabel.Text = ResolvePartnerName(Partner10Nud.Value);
+        }
+
+        // #358: Navigate to the FE6 Unit Editor for the source unit that
+        // owns this support row.
+        void JumpToSourceUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_vm.SourceUnitId1Based == 0) return;
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint unitBase = SupportUnitNavigation.GetUnitTableBase(rom);
+                if (unitBase == 0) return;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                if (dataSize == 0) return;
+                // FE6 source: SourceUnitId1Based is 1-based, and the FE6 logical
+                // unit table starts after the dummy first entry (which the helper
+                // already accounts for via GetUnitTableBase).
+                uint addr = unitBase + (_vm.SourceUnitId1Based - 1) * dataSize;
+                WindowManager.Instance.Navigate<UnitFE6View>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SupportUnitFE6View.JumpToSourceUnit failed: {0}", ex.Message);
+            }
+        }
+
+        // #358: Navigate to the FE6 Support Talk editor and select the
+        // conversation between the source unit and the given partner.
+        void JumpToTalk(uint partnerUid)
+        {
+            try
+            {
+                if (partnerUid == 0) return;
+                uint srcUid = _vm.SourceUnitId1Based;
+                if (srcUid == 0) return;
+                var window = WindowManager.Instance.Open<SupportTalkFE6View>();
+                window.JumpToUnitPair(srcUid, partnerUid);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SupportUnitFE6View.JumpToTalk failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// #358 — navigate to the support row whose ROM address (after
+        /// normalization) equals <paramref name="supportPointerOrFileOffset"/>.
+        /// </summary>
+        public void JumpToAddr(uint supportPointerOrFileOffset)
+        {
+            uint normalized = U.toOffset(supportPointerOrFileOffset);
+            EntryList.SelectAddress(normalized);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

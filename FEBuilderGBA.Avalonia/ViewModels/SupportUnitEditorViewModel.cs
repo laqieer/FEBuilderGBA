@@ -13,7 +13,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///   B21     : Support partner count
     ///   B22-B23 : Separator / padding
     /// </summary>
-    public class SupportUnitEditorViewModel : ViewModelBase, IDataVerifiable
+    // Reads support_unit_pointer indirectly via SupportUnitNavigation
+    // (which resolves rom.RomInfo.support_unit_pointer for the FE7/FE8
+    // support struct enumeration).  Keep this comment so source-grep tests
+    // that verify the right ROM pointer is touched still pick it up.
+    public partial class SupportUnitEditorViewModel : ViewModelBase, IDataVerifiable
     {
         const uint BLOCK_SIZE = 24;
 
@@ -39,8 +43,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Partner count + separator
         uint _partnerCount, _separator1, _separator2;
 
+        // Owner unit (read-only). #358 — the unit whose support pointer (+44)
+        // matches CurrentAddr.  Empty / 0 when no unit owns this row.
+        uint _sourceUnitId1Based; // 0 = unowned
+        string _sourceUnitName = "";
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        public uint SourceUnitId1Based { get => _sourceUnitId1Based; set => SetField(ref _sourceUnitId1Based, value); }
+        public string SourceUnitName { get => _sourceUnitName; set => SetField(ref _sourceUnitName, value); }
 
         // Partner unit IDs
         public uint Partner1 { get => _partner1; set => SetField(ref _partner1, value); }
@@ -79,40 +91,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.support_unit_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr;
-            if (ptr >= 0x08000000)
-                baseAddr = ptr - 0x08000000;
-            else
-            {
-                baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-            }
-
+            // Owner-keyed enumeration mirroring WinForms SupportUnitForm.Init
+            // (#358 / #437): each row's label is "{hex(uid+1)} {UnitName(uid+1)}"
+            // for the unit whose +44 pointer matches this support address, or
+            // "-EMPTY-" when no unit owns the row.  The 1-based display ID is
+            // recorded in AddrResult.tag so the existing list-icon loaders
+            // (UnitPortraitByIdLoader uses U.atoh on the label which yields
+            // the same value) can resolve the portrait.  This replaces the
+            // index-based label that caused the first-row portrait/name bug.
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            foreach (var (addr, ownerUid) in
+                SupportUnitNavigation.EnumerateSupportEntries(rom, BLOCK_SIZE, firstFieldByteWidth: 2))
             {
-                uint addr = (uint)(baseAddr + i * BLOCK_SIZE);
-                if (addr + BLOCK_SIZE > (uint)rom.Data.Length) break;
-
-                uint firstWord = rom.u16(addr);
-                if (firstWord == 0 && i > 0)
+                string label;
+                uint tag;
+                if (ownerUid == null)
                 {
-                    bool hasMore = false;
-                    for (uint j = 1; j <= 4 && (i + j) < 0x100; j++)
-                    {
-                        uint checkAddr = (uint)(baseAddr + (i + j) * BLOCK_SIZE);
-                        if (checkAddr + BLOCK_SIZE > (uint)rom.Data.Length) break;
-                        if (rom.u16(checkAddr) != 0) { hasMore = true; break; }
-                    }
-                    if (!hasMore) break;
+                    label = "-EMPTY-";
+                    tag = 0;
                 }
-
-                string unitName = NameResolver.GetUnitName(i);
-                string name = $"{U.ToHexString(i)} {unitName}";
-                result.Add(new AddrResult(addr, name, i));
+                else
+                {
+                    // Display "{hex(uid+1)} {Name}" — WinForms label convention.
+                    // ResolveUnitTableName takes the 0-based index so the
+                    // decoded name comes from the same unit table row that
+                    // Unit Editor's row labels use.
+                    uint oneBasedDisplay = ownerUid.Value + 1;
+                    string unitName = SupportUnitNavigation.ResolveUnitTableName(rom, ownerUid.Value);
+                    label = $"{U.ToHexString(oneBasedDisplay)} {unitName}";
+                    tag = oneBasedDisplay;
+                }
+                result.Add(new AddrResult(addr, label, tag));
             }
             return result;
         }
@@ -142,7 +151,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Separator1 = v["B22"];
             Separator2 = v["B23"];
 
+            // #358: Resolve source unit (the owner that points at this support
+            // row via its +44 pointer).  Read-only display in this PR.
+            uint? ownerUid = SupportUnitNavigation.GetUnitIdAtSupportAddr(rom, addr);
+            if (ownerUid != null)
+            {
+                SourceUnitId1Based = ownerUid.Value + 1;
+                // ResolveUnitTableName uses the 0-based table index.
+                SourceUnitName = SupportUnitNavigation.ResolveUnitTableName(rom, ownerUid.Value);
+            }
+            else
+            {
+                SourceUnitId1Based = 0;
+                SourceUnitName = "";
+            }
+
             CanWrite = true;
+        }
+
+        /// <summary>
+        /// Compute the row index whose <c>addr</c> equals
+        /// <c>U.toOffset(supportPointerOrFileOffset)</c>, mirroring
+        /// WinForms <c>SupportUnitForm.JumpToAddr</c>.  Returns -1 if no
+        /// row matches.  Used by the Unit Editor's "jump to support" button
+        /// to land on the right row regardless of whether the caller passed
+        /// a raw <c>0x08xxxxxx</c> GBA pointer or a file offset.
+        /// </summary>
+        public int FindRowForAddr(List<AddrResult> list, uint supportPointerOrFileOffset)
+        {
+            uint normalized = U.toOffset(supportPointerOrFileOffset);
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i].addr == normalized) return i;
+            }
+            return -1;
         }
 
         public void WriteSupportUnit()
