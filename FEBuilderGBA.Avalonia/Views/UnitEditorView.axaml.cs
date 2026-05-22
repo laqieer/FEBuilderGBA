@@ -44,6 +44,40 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
+
+            // #358: jump to Support Unit Editor for this unit's support row.
+            JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+        }
+
+        /// <summary>
+        /// #358 — Open the version-correct Support Unit Editor and select the
+        /// support row that this unit's +44 pointer references.
+        /// FE6 routes to <c>SupportUnitFE6View</c>; FE7/FE8 route to
+        /// <c>SupportUnitEditorView</c>.  Mirrors WinForms <c>J_44_SUPPORTUNIT</c>.
+        /// </summary>
+        void JumpToSupportUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                if (supportPtr == 0) return;
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                if (rom.RomInfo.version == 6)
+                {
+                    var window = WindowManager.Instance.Open<SupportUnitFE6View>();
+                    window.JumpToAddr(supportPtr);
+                }
+                else
+                {
+                    var window = WindowManager.Instance.Open<SupportUnitEditorView>();
+                    window.JumpToAddr(supportPtr);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitEditor.JumpToSupportUnit failed: {0}", ex.Message);
+            }
         }
 
         /// <summary>

@@ -24,6 +24,28 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
+
+            // #358: jump to Support Unit Editor for this unit's support row.
+            JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+        }
+
+        /// <summary>
+        /// #358 — Open the FE7 Support Unit Editor (shared FE7/FE8 view) and
+        /// select the support row that this unit's +44 pointer references.
+        /// </summary>
+        void JumpToSupportUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                if (supportPtr == 0) return;
+                var window = WindowManager.Instance.Open<SupportUnitEditorView>();
+                window.JumpToAddr(supportPtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitFE7View.JumpToSupportUnit failed: {0}", ex.Message);
+            }
         }
 
         void LoadList()

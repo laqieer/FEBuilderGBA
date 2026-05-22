@@ -176,7 +176,11 @@
 
           <!-- Row 29: Support Pointer -->
           <TextBlock Grid.Row="29" Grid.Column="0" Text="Support Data Ptr:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="UnitFE7_SupportPtr_Input" Grid.Row="29" Grid.Column="1" Name="SupportPtrBox" Width="180" Margin="0,2" />
+          <StackPanel Grid.Row="29" Grid.Column="1" Orientation="Horizontal">
+            <TextBox AutomationProperties.AutomationId="UnitFE7_SupportPtr_Input" Name="SupportPtrBox" Width="180" Margin="0,2" />
+            <!-- #358: jump to Support Unit Editor for this unit's support row -->
+            <Button AutomationProperties.AutomationId="UnitFE7_JumpToSupportUnit_Button" Name="JumpToSupportUnitButton" Content="Open Support" Margin="8,2,0,2" />
+          </StackPanel>
 
           <!-- Row 30: Talk Group -->
           <TextBlock Grid.Row="30" Grid.Column="0" Text="Talk Group:" VerticalAlignment="Center" />

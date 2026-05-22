@@ -224,9 +224,11 @@
         <Expander AutomationProperties.AutomationId="UnitEditor_SupportampOther_Expander" Header="Support &amp; Other" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
-            <Grid ColumnDefinitions="Auto,180" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,180,Auto" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Support Ptr:" VerticalAlignment="Center" Margin="0,2,8,2" />
               <TextBox AutomationProperties.AutomationId="UnitEditor_SupportPtr_Input" Grid.Row="0" Grid.Column="1" Name="SupportPtrBox" Margin="0,2" />
+              <!-- #358: jump to Support Unit Editor for this unit's support row -->
+              <Button AutomationProperties.AutomationId="UnitEditor_JumpToSupportUnit_Button" Grid.Row="0" Grid.Column="2" Name="JumpToSupportUnitButton" Content="Open Support" Margin="8,2,0,2" />
             </Grid>
 
             <!-- Unknown bytes 35-39 -->
