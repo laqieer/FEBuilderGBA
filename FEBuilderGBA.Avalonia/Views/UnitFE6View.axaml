@@ -42,11 +42,20 @@
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" Margin="0,2" />
-              <TextBlock Grid.Row="1" Grid.Column="3" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
-                         AutomationProperties.AutomationId="UnitFE6_ClassId_Link"
-                         Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
-                         ToolTip.Tip="Click to open Class Editor" />
-              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_ClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="ClassIdBox" Minimum="0" Maximum="255" Margin="0,2" />
+              <!-- Class ID — reusable IdFieldControl (#366).
+                   Spans columns 3+4 since the IdFieldControl bundles its own
+                   label + value box + name preview + Jump + Pick. The inner
+                   ClassIdBox name is preserved on the IdFieldControl host so
+                   FindControl<>("ClassIdBox") still resolves. -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="UnitFE6_ClassId_Input"
+                                       Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
+                                       Name="ClassIdBox"
+                                       Label="Class ID:"
+                                       Maximum="255"
+                                       Margin="0,2"
+                                       JumpRequested="ClassId_Jump"
+                                       PickRequested="ClassId_Pick"
+                                       ValueChanged="ClassId_ValueChanged" />
               <TextBlock Grid.Row="1" Grid.Column="6" Text="Portrait:" VerticalAlignment="Center" Margin="0,2"
                          AutomationProperties.AutomationId="UnitFE6_Portrait_Link"
                          Classes="Hyperlink" Name="Portrait_Link" PointerPressed="OnPortraitLinkClick"
