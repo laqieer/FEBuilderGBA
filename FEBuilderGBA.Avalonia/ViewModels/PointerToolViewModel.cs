@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Text;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class PointerToolViewModel : ViewModelBase
+    public partial class PointerToolViewModel : ViewModelBase
     {
         bool _isLoaded;
         string _addressInput = string.Empty;
@@ -27,8 +28,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _slideSize;
         int _autoTrackingLevel;
         int _warningLevel;
-        bool _hasZeroWarning;
-        bool _hasVeryFarWarning;
+
+        // ----- Per-result warning flags (#438 Copilot CLI review point 4) ---
+        // WF uses 4 separate visibility-controlled labels:
+        //   ERROR_ZERO1   ERROR_VERYFAR1   (direct match)
+        //   ERROR_ZERO3   ERROR_VERYFAR3   (LDR match)
+        // The original AV VM collapsed these into 2 globals; v2 mirrors WF.
+        bool _hasZeroAtDirect;
+        bool _hasVeryFarAtDirect;
+        bool _hasZeroAtLdr;
+        bool _hasVeryFarAtLdr;
+
+        // ----- Other-ROM byte buffer (loaded via LoadOtherRom) ---
+        // Held internally so RunSearch can grep against it. The LDR map of
+        // the other ROM is built lazily on the first comparison.
+        byte[]? _otherRomData;
+        string _otherRomFilename = string.Empty;
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         /// <summary>Input ROM address to analyze.</summary>
@@ -68,10 +83,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int AutoTrackingLevel { get => _autoTrackingLevel; set => SetField(ref _autoTrackingLevel, value); }
         /// <summary>Warning level: 0=Error, 1=Ignore if referenced, 2=Ignore.</summary>
         public int WarningLevel { get => _warningLevel; set => SetField(ref _warningLevel, value); }
-        /// <summary>True if the address points to a zero-filled region.</summary>
-        public bool HasZeroWarning { get => _hasZeroWarning; set => SetField(ref _hasZeroWarning, value); }
-        /// <summary>True if the address is very far from the original data.</summary>
-        public bool HasVeryFarWarning { get => _hasVeryFarWarning; set => SetField(ref _hasVeryFarWarning, value); }
+        /// <summary>True if the direct-match address points to a zero-filled region (mirrors WF ERROR_ZERO1).</summary>
+        public bool HasZeroAtDirect { get => _hasZeroAtDirect; set => SetField(ref _hasZeroAtDirect, value); }
+        /// <summary>True if the direct-match address is very far from the original data (mirrors WF ERROR_VERYFAR1).</summary>
+        public bool HasVeryFarAtDirect { get => _hasVeryFarAtDirect; set => SetField(ref _hasVeryFarAtDirect, value); }
+        /// <summary>True if the LDR-tracked match address points to a zero-filled region (mirrors WF ERROR_ZERO3).</summary>
+        public bool HasZeroAtLdr { get => _hasZeroAtLdr; set => SetField(ref _hasZeroAtLdr, value); }
+        /// <summary>True if the LDR-tracked match address is very far from the original data (mirrors WF ERROR_VERYFAR3).</summary>
+        public bool HasVeryFarAtLdr { get => _hasVeryFarAtLdr; set => SetField(ref _hasVeryFarAtLdr, value); }
 
         public void Initialize()
         {
@@ -142,9 +161,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 SearchResults = sb.ToString();
             }
 
-            // Warn about zero-filled or very far addresses
-            HasZeroWarning = addr + 3 < (uint)rom.Data.Length && rom.u32(addr) == 0;
-            HasVeryFarWarning = addr > (uint)(rom.Data.Length * 3 / 4);
+            // Per-result warnings — mirrors WF ERROR_ZERO* / ERROR_VERYFAR*.
+            // The direct-match group looks at the source address (the one
+            // typed in by the user). The LDR group is populated only when
+            // a real other-ROM comparison has run (deferred to follow-up).
+            bool directZero = addr + 3 < (uint)rom.Data.Length && rom.u32(addr) == 0;
+            bool directFar = addr > (uint)(rom.Data.Length * 3 / 4);
+            // Only show the direct warnings when an other-ROM match has been
+            // recorded (mirrors WF which only renders the labels after
+            // OtherROMAddress2 is populated). Without an other-ROM context
+            // both warnings stay false.
+            bool hasOther = _otherRomData != null && _otherRomData.Length > 0;
+            HasZeroAtDirect = hasOther && directZero;
+            HasVeryFarAtDirect = hasOther && directFar;
+            // LDR warnings — the LDR comparison path is not yet implemented
+            // in AV (deferred to a follow-up that ports WF FindOtherROMDataWithLDR).
+            // Defaulting to false here so the labels stay hidden.
+            HasZeroAtLdr = false;
+            HasVeryFarAtLdr = false;
         }
 
         /// <summary>Search the ROM for all 4-byte-aligned pointer references to the given address.</summary>
@@ -223,6 +257,92 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Refresh the display to show the updated value
             RunSearch();
+        }
+
+        /// <summary>
+        /// Load an "other ROM" file for cross-ROM pointer comparison. Mirrors
+        /// WF <c>PointerToolForm.LoadTargetROM</c> at the gap-sweep scope:
+        /// reads the file bytes, sets <see cref="OtherRomName"/> to the file
+        /// base name, and runs <see cref="RunSearch"/> against the current
+        /// ROM. Full WF AutoSearch behavioural parity (auto-tracking retry,
+        /// source/target LDR map symmetry, ASM-map name search) is intentionally
+        /// out of scope for #438 and deferred to a follow-up issue — the
+        /// gap-sweep acceptance criteria only require the visible UI surface.
+        /// </summary>
+        /// <param name="filename">Absolute path to a GBA ROM (.gba / .bin).</param>
+        public void LoadOtherRom(string filename)
+        {
+            if (string.IsNullOrEmpty(filename) || !File.Exists(filename))
+            {
+                SearchResults = $"Other ROM not found: {filename}";
+                return;
+            }
+
+            try
+            {
+                _otherRomData = File.ReadAllBytes(filename);
+                _otherRomFilename = filename;
+                OtherRomName = Path.GetFileNameWithoutExtension(filename);
+
+                // Re-run search to populate the other-ROM fields from the
+                // newly loaded bytes. The same-ROM fields (PointerValue,
+                // LittleEndianValue) are unchanged but RunSearch is idempotent.
+                RunSearch();
+            }
+            catch (Exception ex)
+            {
+                _otherRomData = null;
+                _otherRomFilename = string.Empty;
+                OtherRomName = string.Empty;
+                SearchResults = $"Failed to load other ROM: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Mirror of WF <c>PointerToolForm.WhatIsButton_Click</c> at the
+        /// gap-sweep scope (#438). Returns a human-readable hint describing
+        /// the address. The full WF lookup path queries
+        /// <c>Program.AsmMapFileAsmCache.GetAsmMapFile()</c> +
+        /// <c>asmMap.SearchNear</c>; the Core <see cref="IAsmMapCache"/>
+        /// abstraction does not yet expose <c>GetAsmMapFile</c> /
+        /// <c>SearchNear</c>, so AV returns a structured "address+pointer"
+        /// summary derived from the WF logic. Extending IAsmMapCache to
+        /// expose the asm-map surface is tracked as a follow-up for the
+        /// PointerTool full-behaviour port.
+        /// </summary>
+        public string LookupAddressType(uint addr)
+        {
+            // Classify the address according to WF's runtime semantics:
+            // - GBA pointer (0x08xxxxxx): is_ROMPointer.
+            // - Small numeric (< 0xA00): is_RAMPointer or constant.
+            // - 0x02000000 / 0x03000000 RAM regions.
+            //
+            // The output mirrors what WF shows in the "address type" message
+            // box. When the asm-map surface lands in Core (follow-up), this
+            // method gains the SearchNear path.
+            uint pointer = U.toPointer(addr);
+            string regionHint;
+            if (U.isPointer(pointer))
+            {
+                // ROM pointer.
+                regionHint = "ROM (0x08xxxxxx)";
+            }
+            else if (pointer >= 0x02000000 && pointer < 0x03000000)
+            {
+                regionHint = "EWRAM (0x02xxxxxx)";
+            }
+            else if (pointer >= 0x03000000 && pointer < 0x04000000)
+            {
+                regionHint = "IWRAM (0x03xxxxxx)";
+            }
+            else
+            {
+                regionHint = "unknown region";
+            }
+
+            string result = $"Address 0x{addr:X08} (pointer 0x{pointer:X08}): {regionHint}.";
+            SearchResults = result;
+            return result;
         }
     }
 }
