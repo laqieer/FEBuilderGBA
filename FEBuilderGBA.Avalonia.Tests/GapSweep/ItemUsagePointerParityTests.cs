@@ -233,6 +233,88 @@ public class ItemUsagePointerParityTests
         Assert.Equal("ItemUsagePointerForm", map!.Value.FormType);
     }
 
+    // -----------------------------------------------------------------
+    // ResolveDefaultExpansionFillPointer (Copilot CLI re-review issue 3) —
+    // mirror WF's "use first '-' entry, fall back to first entry" logic.
+    // Tested at the View source level since the helper is private to the
+    // View; we verify the code-behind contains the right pattern.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_DefaultExpansionFillPointer_UsesDashPlaceholderFirst()
+    {
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ItemUsagePointerViewerView.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+        // The helper must be present and must look for the "-" placeholder
+        // entry before falling back to the first row — matches WF
+        // U.FindComboSelectHexFromValueWhereName(L_0_COMBO, "-").
+        Assert.Contains("ResolveDefaultExpansionFillPointer", source);
+        Assert.Contains("\"-\"", source);
+        // newCount comes from ItemListPredicate.GetItemDataCount (mirrors WF
+        // ItemForm.DataCount()) — never a hard-coded 0x100.
+        Assert.Contains("ItemListPredicate.GetItemDataCount", source);
+        Assert.DoesNotContain("newCount = 0x100u;", source);
+    }
+
+    [Fact]
+    public void ItemListPredicate_GetItemDataCount_ReturnsZeroOnNullRom()
+    {
+        Assert.Equal(0u, ItemListPredicate.GetItemDataCount(null!));
+    }
+
+    // -----------------------------------------------------------------
+    // PatchUtil delegator preserves WinForms confirmation prompt
+    // (Copilot CLI re-review issue 2). The WF Switch2Expands delegator
+    // MUST call R.ShowYesNo before invoking the Core implementation.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void WinForms_PatchUtil_Switch2Expands_PreservesConfirmationPrompt()
+    {
+        string repoRoot = FindRepoRoot();
+        string patchUtilPath = Path.Combine(repoRoot, "FEBuilderGBA", "PatchUtil.cs");
+        string source = File.ReadAllText(patchUtilPath);
+        // The WF delegator must call R.ShowYesNo before delegating to Core
+        // (WinForms doesn't wire CoreState.Services, so the Core prompt
+        // would be silently skipped without this preserved WF dialog).
+        // Locate the Switch2Expands method body by string anchor (the
+        // signature spans multiple lines, so a single-line regex would
+        // miss the body). Slice from the method's `{` to its matching `}`
+        // by counting braces — works whether or not the signature wraps.
+        int sigIdx = source.IndexOf("public static uint Switch2Expands", StringComparison.Ordinal);
+        Assert.True(sigIdx >= 0, "Switch2Expands wrapper not found in PatchUtil.cs");
+        int braceOpenIdx = source.IndexOf('{', sigIdx);
+        Assert.True(braceOpenIdx > sigIdx, "Switch2Expands has no body");
+        int depth = 1;
+        int i = braceOpenIdx + 1;
+        for (; i < source.Length && depth > 0; i++)
+        {
+            if (source[i] == '{') depth++;
+            else if (source[i] == '}') depth--;
+        }
+        Assert.True(depth == 0, "Switch2Expands body is malformed (no matching `}`)");
+        string body = source.Substring(braceOpenIdx + 1, i - braceOpenIdx - 2);
+
+        // Strip C# line comments so that the order assertion compares
+        // CODE positions, not comment text. The natural comment block
+        // mentions `ItemUsagePointerCore.Switch2Expands` to explain WHY
+        // the wrapper exists, which would otherwise be mis-detected as
+        // a "delegate call before the confirmation" violation.
+        string codeOnly = Regex.Replace(body, @"//[^\n]*", "");
+
+        Assert.Contains("R.ShowYesNo", codeOnly);
+        Assert.Contains("ItemUsagePointerCore.Switch2Expands", codeOnly);
+        // R.ShowYesNo must appear BEFORE the Core call (so the dialog gates
+        // the ROM mutation, not the other way around).
+        int yesNoIdx = codeOnly.IndexOf("R.ShowYesNo", StringComparison.Ordinal);
+        int coreIdx = codeOnly.IndexOf("ItemUsagePointerCore.Switch2Expands", StringComparison.Ordinal);
+        Assert.True(yesNoIdx < coreIdx,
+            $"WinForms R.ShowYesNo confirmation must run BEFORE the Core mutation. " +
+            $"yesNoIdx={yesNoIdx}, coreIdx={coreIdx}");
+    }
+
     // ---------------------------- Helpers ----------------------------
 
     static void AssertHandlerWiring(string source, string handlerName, string requiredCallPattern)

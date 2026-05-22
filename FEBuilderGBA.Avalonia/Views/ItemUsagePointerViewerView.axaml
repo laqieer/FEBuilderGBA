@@ -15,7 +15,7 @@
         <Label Content="Hex Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadStart_Input"
                        FormatString="X8" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
+                       Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Count" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadCount_Input"
@@ -33,7 +33,7 @@
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_Item_Address_Input"
                        FormatString="X8" Name="ItemAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
+                       Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Block Size:" VerticalAlignment="Center" />
         <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Block_Size"
@@ -62,27 +62,30 @@
         <Label Content="Item Usage Pointer Editor" FontSize="18" FontWeight="Bold" />
         <Label Content="Function pointers for item usability checks" FontSize="12" Foreground="Gray" />
 
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto">
-          <Label Grid.Row="0" Grid.Column="0" Content="ASM Pointer Address:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmPointer_Input"
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto">
+          <!-- Editable function pointer (mirrors WinForms `P0` NumericUpDown).
+               Range = full u32 so any valid GBA pointer (0x08000000..0x0AFFFFFF) fits. -->
+          <Label Grid.Row="0" Grid.Column="0" Content="Usability Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_UsabilityPointer_Input"
                          FormatString="X8" Grid.Row="0" Grid.Column="1"
-                         Name="AsmPointerBox" Minimum="0" Maximum="65535999"
-                         IsEnabled="False" VerticalAlignment="Center" />
+                         Name="UsabilityPointerBox" Width="160"
+                         Minimum="0" Maximum="4294967295"
+                         VerticalAlignment="Center" HorizontalAlignment="Left" />
 
-          <Label Grid.Row="1" Grid.Column="0" Content="Item ID Switch:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmSwitch"
-                   Grid.Row="1" Grid.Column="1" Name="AsmSwitchBox" Width="200"
-                   IsReadOnly="True" VerticalAlignment="Center" />
-
-          <Label Grid.Row="2" Grid.Column="0" Content="Function" VerticalAlignment="Center" />
+          <!-- L_0_COMBO equivalent — named function dropdown loaded from
+               config/data/item_*_array_FE{6,7,8}.txt for the active filter.
+               Picking an entry sets UsabilityPointer to the entry's hex key. -->
+          <Label Grid.Row="1" Grid.Column="0" Content="Function" VerticalAlignment="Center" />
           <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Function_Combo"
-                    Grid.Row="2" Grid.Column="1" Name="FunctionCombo" Width="640"
+                    Grid.Row="1" Grid.Column="1" Name="FunctionCombo" Width="640"
                     VerticalAlignment="Center" />
 
-          <Label Grid.Row="3" Grid.Column="0" Content="Usability Pointer:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_UsabilityPointer_Input"
-                   Grid.Row="3" Grid.Column="1" Name="UsabilityPointerBox" Width="120"
-                   VerticalAlignment="Center" />
+          <!-- L_0_ASM_SWITCH equivalent — display the switch2 metadata address
+               (read-only) for the current filter. -->
+          <Label Grid.Row="2" Grid.Column="0" Content="Item ID Switch:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmSwitch"
+                   Grid.Row="2" Grid.Column="1" Name="AsmSwitchBox" Width="200"
+                   IsReadOnly="True" VerticalAlignment="Center" HorizontalAlignment="Left" />
         </Grid>
 
         <!-- Promotion related-link panel (visible only when current filter

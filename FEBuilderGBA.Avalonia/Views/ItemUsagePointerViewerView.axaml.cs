@@ -3,6 +3,7 @@
 // indicators, expand button, related-link panels, and the IER red bar
 // missing from the pre-#440 view (which only handled the Usability slot).
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -24,6 +25,8 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ItemUsagePointerViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressFilterChange;
+        bool _suppressFunctionComboChange;
+        List<string> _currentFunctionLines = new();
 
         public string ViewTitle => "Item Usage Pointer";
         public bool IsLoaded => _vm.CanWrite;
@@ -33,6 +36,7 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             FilterComboBox.SelectionChanged += FilterComboBox_SelectionChanged;
+            FunctionCombo.SelectionChanged += FunctionCombo_SelectionChanged;
             Opened += (_, _) => InitialLoad();
         }
 
@@ -74,7 +78,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 AsmSwitchBox.Text = _vm.AsmSwitchText;
                 BlockSizeBox.Text = _vm.BlockSize.ToString();
                 ItemAddressBox.Value = (decimal)_vm.CurrentArrayAddr;
-                AsmPointerBox.Value = (decimal)_vm.CurrentArrayAddr;
+
+                // Populate the L_0_COMBO equivalent — named function entries
+                // for this filter (loaded from config/data/item_*_array_FE*.txt).
+                _currentFunctionLines = _vm.LoadFunctionLines(filterIndex);
+                _suppressFunctionComboChange = true;
+                FunctionCombo.ItemsSource = _currentFunctionLines;
+                FunctionCombo.SelectedIndex = -1;
+                _suppressFunctionComboChange = false;
 
                 // Promotion/StatBooster panels visibility — mirrors WinForms.
                 bool isPromo = filterIndex == (int)ItemUsagePointerCore.FilterKind.Promotion1
@@ -129,6 +140,23 @@ namespace FEBuilderGBA.Avalonia.Views
             LoadListForFilter(idx);
         }
 
+        void FunctionCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            // Mirror WinForms FormUtil.WriteComboBoxLinkInfo behavior — when the
+            // user picks a named function from the dropdown, parse its hex key
+            // (the left side of `=`) and update UsabilityPointer.
+            if (_suppressFunctionComboChange) return;
+            int idx = FunctionCombo.SelectedIndex;
+            if (idx < 0 || idx >= _currentFunctionLines.Count) return;
+            string line = _currentFunctionLines[idx];
+            // Each line is `0xHEX[=Name1,Name2]` — pull the leading hex token.
+            int eq = line.IndexOf('=');
+            string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
+            uint ptr = U.atoh(hexToken);
+            _vm.UsabilityPointer = ptr;
+            UsabilityPointerBox.Value = (decimal)ptr;
+        }
+
         void ReloadList_Click(object? sender, RoutedEventArgs e)
         {
             int idx = Math.Max(0, FilterComboBox.SelectedIndex);
@@ -155,12 +183,33 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             SelectedAddressBox.Text = $"0x{_vm.CurrentSelectedAddr:X08}";
-            UsabilityPointerBox.Text = $"0x{_vm.UsabilityPointer:X08}";
+            UsabilityPointerBox.Value = (decimal)_vm.UsabilityPointer;
+
+            // Sync the FunctionCombo selection to the current pointer (if a
+            // line in the config data matches). Mirrors WF L_0_COMBO behavior.
+            _suppressFunctionComboChange = true;
+            try
+            {
+                int matchIdx = -1;
+                for (int i = 0; i < _currentFunctionLines.Count; i++)
+                {
+                    string line = _currentFunctionLines[i];
+                    int eq = line.IndexOf('=');
+                    string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
+                    if (U.atoh(hexToken) == _vm.UsabilityPointer)
+                    {
+                        matchIdx = i;
+                        break;
+                    }
+                }
+                FunctionCombo.SelectedIndex = matchIdx;
+            }
+            finally { _suppressFunctionComboChange = false; }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.UsabilityPointer = ParseHexText(UsabilityPointerBox.Text);
+            _vm.UsabilityPointer = (uint)(UsabilityPointerBox.Value ?? 0);
 
             _undoService.Begin("Edit Item Usage Pointer");
             try
@@ -179,17 +228,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SwitchListExpands_Click(object? sender, RoutedEventArgs e)
         {
-            // The full WF dialog asks the user for a target count + default
-            // function pointer. For the Avalonia parity we use a simple
-            // "expand to ItemForm.DataCount()" heuristic which mirrors the WF
-            // SwitchListExpandsButton_Click logic (newCount = ItemForm.DataCount()
-            // and defAddr = first L_0_COMBO entry). Since the Avalonia view
-            // doesn't bind a function-pointer dropdown yet, we use the current
-            // UsabilityPointer (or 0) as the default-fill pointer.
+            // Mirror WinForms `ItemUsagePointerForm.SwitchListExpandsButton_Click`:
+            // newCount = ItemForm.DataCount() (the total number of items in
+            // the ROM); defAddr = the first FunctionCombo entry that is NOT a
+            // "-" placeholder (i.e. the first valid named function in the
+            // config data), falling back to the first entry if no "-" exists.
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
-            uint newCount = 0x100u; // Match WF ItemForm.DataCount default.
-            uint defAddr = _vm.UsabilityPointer != 0 ? _vm.UsabilityPointer : 0u;
+
+            uint newCount = ItemListPredicate.GetItemDataCount(rom);
+            uint defAddr = ResolveDefaultExpansionFillPointer();
 
             _undoService.Begin("Item Usage Switch2 Expand");
             try
@@ -213,6 +261,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("ItemUsagePointerViewerView.SwitchListExpands_Click: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Resolve the default fill pointer the WinForms expansion path uses.
+        /// Mirrors WF `U.FindComboSelectHexFromValueWhereName(L_0_COMBO, "-")`
+        /// — find the entry whose name is "-" (the canonical "no-op" entry)
+        /// and return its hex key. Falls back to the first entry's hex key
+        /// when no "-" exists. Returns 0 when the combo is empty.
+        /// </summary>
+        uint ResolveDefaultExpansionFillPointer()
+        {
+            if (_currentFunctionLines.Count == 0) return 0;
+            foreach (var line in _currentFunctionLines)
+            {
+                int eq = line.IndexOf('=');
+                if (eq < 0) continue;
+                string nameSide = line.Substring(eq + 1).Trim();
+                // WF: U.FindComboSelectHexFromValueWhereName matches when the
+                // name (right side, before any comma) is exactly "-".
+                int comma = nameSide.IndexOf(',');
+                string first = (comma >= 0 ? nameSide.Substring(0, comma) : nameSide).Trim();
+                if (first == "-")
+                {
+                    return U.atoh(line.Substring(0, eq).Trim());
+                }
+            }
+            // Fallback — first entry's hex key.
+            string firstLine = _currentFunctionLines[0];
+            int firstEq = firstLine.IndexOf('=');
+            string firstHex = firstEq >= 0 ? firstLine.Substring(0, firstEq).Trim() : firstLine.Trim();
+            return U.atoh(firstHex);
         }
 
         void PromotionItemLink_Click(object? sender, RoutedEventArgs e)
@@ -255,13 +334,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-
-        static uint ParseHexText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            text = text.Trim();
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
-            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
-        }
     }
 }

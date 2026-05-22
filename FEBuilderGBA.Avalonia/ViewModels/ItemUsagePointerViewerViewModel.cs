@@ -86,8 +86,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Display labels for the 10 array filters, in the order shown
-        /// in the FilterComboBox. Provided as a defensive copy of the
-        /// Core metadata so binding consumers cannot mutate it.
+        /// in the FilterComboBox. Each entry is routed through
+        /// <see cref="R._(string)"/> so the FilterComboBox items pick up
+        /// the active language (English source -> ja/zh forward map via
+        /// the translation chain). The Core metadata stores the canonical
+        /// English label; consumers requesting a translated string call
+        /// this property.
         /// </summary>
         public IReadOnlyList<string> FilterEntries
         {
@@ -95,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 var list = new List<string>(10);
                 foreach (var fm in ItemUsagePointerCore.GetAllFilters())
-                    list.Add(fm.Label);
+                    list.Add(R._(fm.Label));
                 return list;
             }
         }
@@ -255,6 +259,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadList(FilterIndex).Count;
+
+        /// <summary>
+        /// Load the named-function lines for the given filter from
+        /// `config/data/item_*_array_FE{6,7,8}.txt` — mirrors the WinForms
+        /// `FilterComboBox_SelectedIndexChanged` loader. Returns an empty
+        /// list when the data file doesn't exist (older ROM versions or
+        /// missing config).
+        /// </summary>
+        public List<string> LoadFunctionLines(int filterIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<string>();
+
+            var filters = ItemUsagePointerCore.GetAllFilters();
+            if (filterIndex < 0 || filterIndex >= filters.Count) return new List<string>();
+            string prefix = filters[filterIndex].ConfigPrefix;
+
+            // FE8U with magic-split patch uses a special StatBooster1 prefix —
+            // mirror WinForms FilterComboBox_SelectedIndexChanged.case 6 branch.
+            if (filterIndex == (int)ItemUsagePointerCore.FilterKind.StatBooster1)
+            {
+                var magicSplit = MagicSplitUtil.SearchMagicSplit();
+                if (magicSplit == MagicSplitUtil.magic_split_enum.FE8UMAGIC)
+                {
+                    prefix = "item_statbooster1_skill_array_";
+                }
+            }
+
+            string filename = U.ConfigDataFilename(prefix, rom);
+            if (!System.IO.File.Exists(filename)) return new List<string>();
+
+            var result = new List<string>();
+            foreach (string raw in System.IO.File.ReadAllLines(filename))
+            {
+                string line = raw;
+                if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                line = U.ClipComment(line).Trim();
+                if (line.Length == 0) continue;
+                result.Add(line);
+            }
+            return result;
+        }
 
         // ------------ IDataVerifiable ----------------
 

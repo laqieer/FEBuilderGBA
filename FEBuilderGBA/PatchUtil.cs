@@ -1568,6 +1568,18 @@ namespace FEBuilderGBA
                         , uint defaultJumpAddr
                         , Undo.UndoData undodata)
         {
+            // Preserve the WinForms confirmation prompt. Core's
+            // ItemUsagePointerCore.Switch2Expands routes confirmation through
+            // CoreState.Services, which is null in the WinForms host (we
+            // never wired an IAppServices implementation that hooks
+            // R.ShowYesNo). Show the confirmation here so the WF flow keeps
+            // its existing yes/no dialog before any ROM bytes are mutated.
+            DialogResult dr = R.ShowYesNo("配列を {0}まで拡張してもよろしいですか？"
+                , U.To0xHexString(newCount));
+            if (dr != DialogResult.Yes)
+            {
+                return U.NOT_FOUND;
+            }
             return ItemUsagePointerCore.Switch2Expands(
                 Program.ROM,
                 array_pointer,

@@ -180,21 +180,15 @@ namespace FEBuilderGBA
         {
             if (!IsSwitch2Enable(rom, switchAddr)) return null;
 
-            // Note: The LDR slip (0x9A00 at +2) affects the count-read offset
-            // in Switch2Expands (which uses +2+extraByte), but the WinForms
-            // ReInit path reads the count at the unadjusted +2 offset. We
-            // preserve WF list-population behavior here; expansion paths
-            // use the adjusted offset via ReadSwitch2ForExpansion.
+            // WinForms `ItemUsagePointerForm.ReInit` reads the count at the
+            // unadjusted `+2` offset (then calls `ReInitPointer(pointer,
+            // count + 1)`). We mirror that read here so the list population
+            // matches WF exactly. The LDR-slip variant (`+2 + extraByte`)
+            // only matters for the ROM-mutating expansion path; that case
+            // is handled inline in `Switch2Expands` rather than via a
+            // separate overload, so callers consume this single helper for
+            // both purposes.
             uint start = rom.u8(switchAddr + 0);
-            // WinForms reads `+ 2` (no extraByte adjustment) for the count read
-            // in ReInit; PatchUtil.Switch2Expands then uses `+ 2 + extraByte`.
-            // We follow the Switch2Expands version because it correctly
-            // accounts for the LDR slip and is what the expansion path uses.
-            // For ReInit's count, the WF code did `+ 2`, which on the slip
-            // case reads the wrong byte — but since the LDR slip is rare and
-            // the WF flow patches the count via `Switch2Expands(... extraByte)`,
-            // the inconsistency is benign. To match WF list-population behavior
-            // exactly we read at `+ 2` and let TotalCount = count + 1.
             uint countMinusOne = rom.u8(switchAddr + 2);
             uint totalCount = countMinusOne + 1u;
             return (start, totalCount);
