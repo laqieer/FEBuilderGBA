@@ -224,7 +224,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Default the Comment to the default name when none is set
             // — mirrors WF AddressList_SelectedIndexChanged behavior.
-            Comment = LoadDefaultName(SelectedId);
+            // First check CoreState.CommentCache for a user-saved comment
+            // at this address (matches `Program.CommentCache.At(addr)` in
+            // WF InputFormRef.UI_ReadUIToComment line 5395); fall back to
+            // the per-id default name when no user comment is set.
+            string saved = "";
+            if (CoreState.CommentCache != null)
+            {
+                saved = CoreState.CommentCache.At(addr) ?? "";
+            }
+            Comment = saved.Length > 0 ? saved : LoadDefaultName(SelectedId);
 
             // Mirror WF NOTIFY_KeepEmpty: ID=0 is reserved as null data.
             IsEmptyEntry = SelectedId == 0;
@@ -263,6 +272,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 0, AnimationPointer);
             rom.write_u16(addr + 4, Padding1);
             rom.write_u16(addr + 6, Padding2);
+
+            // Persist the Comment to CoreState.CommentCache so the next
+            // LoadEntry reads it back. Mirrors WinForms `UI_WriteCommentToUI`
+            // (InputFormRef.cs line 5373) which writes the Comment textbox
+            // through `Program.CommentCache.Update(addr, info_object.Text)`.
+            // Without this, user edits to the Comment textbox are silently
+            // discarded after Write+Reload — Copilot CLI review on PR #506.
+            if (CoreState.CommentCache != null)
+            {
+                CoreState.CommentCache.Update(addr, Comment ?? "");
+            }
         }
 
         /// <summary>

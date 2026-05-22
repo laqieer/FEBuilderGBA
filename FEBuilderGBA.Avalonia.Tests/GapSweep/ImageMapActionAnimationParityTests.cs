@@ -240,6 +240,54 @@ public class ImageMapActionAnimationParityTests
         Assert.Equal("Break1", name1);
     }
 
+    /// <summary>
+    /// Copilot CLI review on PR #506 — <c>Write()</c> must persist the
+    /// Comment to <c>CoreState.CommentCache</c> so subsequent reloads
+    /// (via <c>LoadEntry</c>) read back what the user typed. Mirrors
+    /// WinForms <c>UI_WriteCommentToUI</c> / <c>UI_ReadUIToComment</c>
+    /// (InputFormRef.cs lines 5373 / 5395). Without this fix, user
+    /// comment edits would be silently discarded after Write+Reload.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_PersistsCommentToCommentCache()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        var prevCache = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            CoreState.CommentCache = new HeadlessEtcCache();
+
+            var vm = new ImageMapActionAnimationViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            // Edit the comment + write.
+            vm.Comment = "MyTestComment";
+            vm.Write();
+
+            // The comment must be in CoreState.CommentCache at the row addr.
+            Assert.Equal("MyTestComment", CoreState.CommentCache.At(addr));
+
+            // Reload the same entry — Comment must come back from the cache.
+            vm.Comment = "OVERWRITTEN_BEFORE_RELOAD";
+            vm.LoadEntry(addr);
+            Assert.Equal("MyTestComment", vm.Comment);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.SystemTextEncoder = prevEnc;
+            CoreState.CommentCache = prevCache;
+        }
+    }
+
     // -----------------------------------------------------------------
     // View — control surface assertions (Roslyn-static).
     // -----------------------------------------------------------------
