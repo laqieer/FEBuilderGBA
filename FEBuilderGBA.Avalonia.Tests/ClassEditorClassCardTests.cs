@@ -199,4 +199,67 @@ public class ClassEditorClassCardTests : IClassFixture<RomFixture>
             view.Close();
         }
     }
+
+    /// <summary>
+    /// Regression for PR #471 Copilot review: after a TSV import the editor
+    /// reloads the current class via _vm.LoadClass + UpdateUI(). UpdateUI()
+    /// sets PortraitIdBox / WaitIconBox while _vm.IsLoading is true, so
+    /// OnClassCardInputChanged intentionally skips its refresh. The import
+    /// callback must therefore explicitly mirror the OnClassSelected
+    /// refresh sequence (LoadClass + UpdateUI + TryShowListPreview +
+    /// UpdateClassCard + UpdateWarnings) so the card stays in sync with
+    /// imported data.
+    ///
+    /// Drives the class list to simulate a "re-load after import" — selecting
+    /// away then back triggers OnClassSelected which is the same sequence
+    /// the import callback now mirrors. The card must remain populated.
+    /// </summary>
+    [AvaloniaFact]
+    public void ImportLikeReload_KeepsCardInSync_FE8U()
+    {
+        if (!TryAssertFE8U()) return;
+
+        var view = new ClassEditorView();
+        view.Show();
+        try
+        {
+            var classList = view.FindControl<AddressListControl>("ClassList");
+            var waitIcon = view.FindControl<IconPreviewControl>("CardWaitIconImage");
+            var border = view.FindControl<Border>("ClassCardBorder");
+            Assert.NotNull(classList);
+            Assert.NotNull(waitIcon);
+            Assert.NotNull(border);
+
+            // Find a class with a populated wait icon.
+            classList!.SelectFirst();
+            int populated = -1;
+            for (int i = 1; i < classList.GetItems().Count && i < 16; i++)
+            {
+                classList.SelectByIndex(i);
+                if (waitIcon!.HasImage)
+                {
+                    populated = i;
+                    break;
+                }
+            }
+            Assert.True(populated >= 0,
+                "Expected a class with a non-null wait icon to test the import reload path");
+
+            // Simulate the post-import reload sequence: select away, then
+            // re-select. This re-runs OnClassSelected, which now mirrors what
+            // the import callback does (LoadClass + UpdateUI + TryShowListPreview
+            // + UpdateClassCard + UpdateWarnings). The card must remain in sync.
+            classList.SelectByIndex(0);
+            classList.SelectByIndex(populated);
+
+            Assert.True(border!.IsVisible,
+                "ClassCardBorder must remain visible after a reload (mirrors the TSV-import reload sequence)");
+            Assert.True(waitIcon!.HasImage,
+                "Card wait icon must remain populated after a reload (mirrors the TSV-import reload sequence)");
+        }
+        finally
+        {
+            view.Close();
+        }
+    }
 }

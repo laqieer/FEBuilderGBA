@@ -689,11 +689,19 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService, () =>
             {
-                // Reload the current entry after import
+                // Reload the current entry after import. Mirror the OnClassSelected
+                // refresh sequence so the class card preview stays in sync with
+                // imported data — UpdateUI() sets PortraitIdBox/WaitIconBox while
+                // _vm.IsLoading is true, so OnClassCardInputChanged intentionally
+                // skips the refresh and we must call UpdateClassCard() explicitly.
+                // PR #471 Copilot review fix.
                 if (_vm.CurrentAddr != 0)
                 {
                     _vm.LoadClass(_vm.CurrentAddr);
                     UpdateUI();
+                    TryShowListPreview();
+                    UpdateClassCard();
+                    UpdateWarnings();
                 }
             });
         }
