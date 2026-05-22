@@ -51,6 +51,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isBusy;
         bool _isLoaded;
         bool _zeroClearConfirmed;
+        // Move tab state
+        string _moveFromText = "0x0";
+        string _moveToText = "0x0";
+        string _moveLengthText = "0";
+        bool _moveRawFallbackConfirmed;
+        bool _movePointerCountConfirmed;
+        // Recompress tab state
+        bool _recompressConfirmed;
+        bool _recompressModifiedAcknowledged;
 
         readonly UndoService _undo = new();
 
@@ -66,6 +75,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsBusy { get => _isBusy; set => SetField(ref _isBusy, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool ZeroClearConfirmed { get => _zeroClearConfirmed; set => SetField(ref _zeroClearConfirmed, value); }
+
+        public string MoveFromText { get => _moveFromText; set => SetField(ref _moveFromText, value); }
+        public string MoveToText { get => _moveToText; set => SetField(ref _moveToText, value); }
+        public string MoveLengthText { get => _moveLengthText; set => SetField(ref _moveLengthText, value); }
+        /// <summary>Set by View after user confirms the raw-pointer fallback warning.</summary>
+        public bool MoveRawFallbackConfirmed { get => _moveRawFallbackConfirmed; set => SetField(ref _moveRawFallbackConfirmed, value); }
+        /// <summary>Set by View after user confirms the multi-pointer warning (pointerCount != 1).</summary>
+        public bool MovePointerCountConfirmed { get => _movePointerCountConfirmed; set => SetField(ref _movePointerCountConfirmed, value); }
+        /// <summary>Set by View after user confirms running recompress.</summary>
+        public bool RecompressConfirmed { get => _recompressConfirmed; set => SetField(ref _recompressConfirmed, value); }
+        /// <summary>Set by View after user acknowledges the rom-modified warning (allows continuation).</summary>
+        public bool RecompressModifiedAcknowledged { get => _recompressModifiedAcknowledged; set => SetField(ref _recompressModifiedAcknowledged, value); }
 
         public void Initialize()
         {
@@ -317,6 +338,227 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 StatusText = R._("Base64 read failed: {0}", ex.Message);
             }
+        }
+
+        // =================== Move tab ===================
+
+        /// <summary>Result enum for two-phase Move confirmation flow.</summary>
+        public enum MovePreflightResult
+        {
+            ProceedNoPrompt,
+            NeedRawFallbackConfirm,
+            NeedPointerCountConfirm,
+            ErrorAlreadyShown,
+        }
+
+        /// <summary>
+        /// Preflight check: parse inputs, search pointers, decide whether
+        /// confirmation is needed. Returns the action the View should take.
+        /// Sets StatusText on validation failures.
+        /// </summary>
+        public MovePreflightResult MovePreflight(out uint srcOffset, out uint dstOffset, out uint length, out LZ77ToolCore.SearchPointerResult searchResult)
+        {
+            srcOffset = 0; dstOffset = 0; length = 0;
+            searchResult = new LZ77ToolCore.SearchPointerResult();
+
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                StatusText = R._("Move: no ROM loaded.");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (!TryParseHex(MoveFromText, out uint fromRaw))
+            {
+                StatusText = R._("Move: FROM is not a valid hex value.");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (!TryParseHex(MoveToText, out uint toRaw))
+            {
+                StatusText = R._("Move: TO is not a valid hex value.");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (!TryParseHex(MoveLengthText, out uint lenRaw))
+            {
+                StatusText = R._("Move: LENGTH is not a valid hex value.");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (lenRaw == 0)
+            {
+                StatusText = R._("Move: LENGTH is 0 (cannot auto-detect length).");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+
+            srcOffset = U.toOffset(fromRaw);
+            dstOffset = toRaw == 0 ? 0u : U.toOffset(toRaw);
+            length = lenRaw;
+
+            // Look up pointers (LDR-first, raw fallback) so the View can decide
+            // what prompts to surface BEFORE the actual write.
+            searchResult = LZ77ToolCore.SearchPointersForAddress(rom.Data, srcOffset);
+
+            if (searchResult.UsedRawFallback && !MoveRawFallbackConfirmed)
+                return MovePreflightResult.NeedRawFallbackConfirm;
+            if (searchResult.Pointers.Count != 1 && !MovePointerCountConfirmed)
+                return MovePreflightResult.NeedPointerCountConfirm;
+            return MovePreflightResult.ProceedNoPrompt;
+        }
+
+        /// <summary>
+        /// Apply the move. Caller is responsible for calling
+        /// <see cref="MovePreflight"/> first and handling the confirmation
+        /// prompts via <see cref="MoveRawFallbackConfirmed"/> +
+        /// <see cref="MovePointerCountConfirmed"/>.
+        /// </summary>
+        public LZ77ToolCore.MoveResult RunMove()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                StatusText = R._("Move: no ROM loaded.");
+                return new LZ77ToolCore.MoveResult { Ok = false, ErrorMessage = "no ROM" };
+            }
+            var preflight = MovePreflight(out uint srcOffset, out uint dstOffset, out uint length, out _);
+            if (preflight == MovePreflightResult.ErrorAlreadyShown)
+            {
+                return new LZ77ToolCore.MoveResult { Ok = false, ErrorMessage = StatusText };
+            }
+            if (preflight != MovePreflightResult.ProceedNoPrompt)
+            {
+                StatusText = R._("Move: pending user confirmation — see prompt.");
+                return new LZ77ToolCore.MoveResult { Ok = false, ErrorMessage = "pending confirmation" };
+            }
+
+            LZ77ToolCore.MoveResult result;
+            try
+            {
+                _undo.Begin($"MoveLZ77 0x{srcOffset:X8} -> 0x{dstOffset:X8} ({length} bytes)");
+                result = LZ77ToolCore.MoveCompressedData(rom, srcOffset, dstOffset, length);
+                if (result.Ok) _undo.Commit();
+                else
+                {
+                    if (_undo.HasPendingUndo)
+                        try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Move rollback failed: {0}", rbEx.Message); }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (_undo.HasPendingUndo)
+                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Move rollback failed: {0}", rbEx.Message); }
+                StatusText = R._("Move failed: {0}", ex.Message);
+                return new LZ77ToolCore.MoveResult { Ok = false, ErrorMessage = ex.Message };
+            }
+            finally
+            {
+                // Reset confirmation flags so subsequent moves require fresh confirmation.
+                MoveRawFallbackConfirmed = false;
+                MovePointerCountConfirmed = false;
+            }
+
+            if (result.Ok)
+            {
+                StatusText = R._("Move: moved 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8} ({3} pointers rewritten{4}).",
+                    length, srcOffset, result.NewAddress, result.PointersRewritten.Count,
+                    result.AutoAllocated ? ", auto-allocated" : "");
+            }
+            else
+            {
+                StatusText = R._("Move: {0}", result.ErrorMessage);
+            }
+            return result;
+        }
+
+        // =================== Recompress tab ===================
+
+        /// <summary>Result enum for two-phase Recompress confirmation flow.</summary>
+        public enum RecompressPreflightResult
+        {
+            ProceedNoPrompt,
+            NeedConfirm,
+            NeedRomModifiedAck,
+            ErrorAlreadyShown,
+        }
+
+        /// <summary>
+        /// Preflight check for Recompress: validates ROM is loaded and not
+        /// modified. Returns the action the View should take.
+        /// </summary>
+        public RecompressPreflightResult RecompressPreflight()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                StatusText = R._("Recompress: no ROM loaded.");
+                return RecompressPreflightResult.ErrorAlreadyShown;
+            }
+            if (rom.Modified && !RecompressModifiedAcknowledged)
+                return RecompressPreflightResult.NeedRomModifiedAck;
+            if (!RecompressConfirmed)
+                return RecompressPreflightResult.NeedConfirm;
+            return RecompressPreflightResult.ProceedNoPrompt;
+        }
+
+        /// <summary>
+        /// Run recompress: scan, iterate candidates, recompress each.
+        /// Caller is responsible for calling <see cref="RecompressPreflight"/>
+        /// first and handling confirmation via <see cref="RecompressConfirmed"/>.
+        /// </summary>
+        public (uint totalSize, uint totalCount) RunRecompress()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                StatusText = R._("Recompress: no ROM loaded.");
+                return (0, 0);
+            }
+            var preflight = RecompressPreflight();
+            if (preflight == RecompressPreflightResult.ErrorAlreadyShown)
+                return (0, 0);
+            if (preflight != RecompressPreflightResult.ProceedNoPrompt)
+            {
+                StatusText = R._("Recompress: pending user confirmation — see prompt.");
+                return (0, 0);
+            }
+
+            uint totalSize = 0;
+            uint totalCount = 0;
+            try
+            {
+                List<Address> candidates = LZ77ToolCore.ScanForLZ77Candidates(rom);
+                _undo.Begin("RecompressLZ77");
+                foreach (var a in candidates)
+                {
+                    var r = LZ77ToolCore.RecompressAt(rom, a.Addr, a.Length);
+                    if (r.Ok && r.SavedBytes > 0)
+                    {
+                        totalSize += r.SavedBytes;
+                        totalCount++;
+                    }
+                }
+                _undo.Commit();
+            }
+            catch (Exception ex)
+            {
+                if (_undo.HasPendingUndo)
+                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Recompress rollback failed: {0}", rbEx.Message); }
+                StatusText = R._("Recompress failed: {0}", ex.Message);
+                return (0, 0);
+            }
+            finally
+            {
+                RecompressConfirmed = false;
+                RecompressModifiedAcknowledged = false;
+            }
+
+            if (totalSize == 0)
+            {
+                StatusText = R._("Recompress: no savings — all entries already optimally compressed.");
+            }
+            else
+            {
+                StatusText = R._("Recompress: {0} entries recompressed, {1} bytes saved. Heuristic scan — may miss entries WinForms catches.",
+                    totalCount, totalSize);
+            }
+            return (totalSize, totalCount);
         }
     }
 }

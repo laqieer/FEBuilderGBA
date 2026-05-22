@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void ToolLZ77View_TabControl_HasFourTabs()
+        public void ToolLZ77View_TabControl_HasSixTabs()
         {
             var view = new ToolLZ77View();
             var tabs = view.GetLogicalDescendants().OfType<TabControl>().FirstOrDefault();
@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             view.Show();
             view.Hide();
             var items = tabs.GetLogicalDescendants().OfType<TabItem>().ToList();
-            Assert.Equal(4, items.Count);
+            Assert.Equal(6, items.Count);
         }
 
         [AvaloniaFact]
@@ -69,6 +69,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("Compress", headers);
             Assert.Contains("Erase", headers);
             Assert.Contains("Base64", headers);
+            Assert.Contains("Move", headers);
+            Assert.Contains("Recompress", headers);
         }
 
         [AvaloniaFact]
@@ -85,6 +87,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("ToolLZ77_ZeroClear_Button", ids);
             Assert.Contains("ToolLZ77_Base64TextToFile_Button", ids);
             Assert.Contains("ToolLZ77_FileToBase64Text_Button", ids);
+            Assert.Contains("ToolLZ77_Move_Button", ids);
+            Assert.Contains("ToolLZ77_Recompress_Button", ids);
 
             // Input fields
             Assert.Contains("ToolLZ77_DecompressSrc_Input", ids);
@@ -95,6 +99,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("ToolLZ77_ZeroClearFrom_Input", ids);
             Assert.Contains("ToolLZ77_ZeroClearTo_Input", ids);
             Assert.Contains("ToolLZ77_Base64Text_Input", ids);
+            Assert.Contains("ToolLZ77_MoveFrom_Input", ids);
+            Assert.Contains("ToolLZ77_MoveTo_Input", ids);
+            Assert.Contains("ToolLZ77_MoveLength_Input", ids);
+
+            // Tabs
+            Assert.Contains("ToolLZ77_Move_Tab", ids);
+            Assert.Contains("ToolLZ77_Recompress_Tab", ids);
 
             // Status row
             Assert.Contains("ToolLZ77_Status_Label", ids);

@@ -208,5 +208,145 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.RunZeroClear();
             Assert.Contains("no rom", vm.StatusText, StringComparison.OrdinalIgnoreCase);
         }
+
+        // =============== Move tab ===============
+
+        [Fact]
+        public void Move_NoRomLoaded_SetsStatus()
+        {
+            var vm = new ToolLZ77ViewModel();
+            vm.MoveFromText = "0x1000";
+            vm.MoveToText = "0x2000";
+            vm.MoveLengthText = "0x10";
+            var result = vm.RunMove();
+            Assert.False(result.Ok);
+            Assert.Contains("no rom", vm.StatusText, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Move_InvalidFromHex_SetsStatus()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "garbage";
+                vm.MoveToText = "0x2000";
+                vm.MoveLengthText = "0x10";
+                var result = vm.RunMove();
+                Assert.False(result.Ok);
+                Assert.Contains("from", vm.StatusText, StringComparison.OrdinalIgnoreCase);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void Move_InvalidLengthHex_SetsStatus()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0x1000";
+                vm.MoveToText = "0x2000";
+                vm.MoveLengthText = "xyz";
+                var result = vm.RunMove();
+                Assert.False(result.Ok);
+                Assert.Contains("length", vm.StatusText, StringComparison.OrdinalIgnoreCase);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void Move_LengthZero_SetsStatus()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0x1000";
+                vm.MoveToText = "0x2000";
+                vm.MoveLengthText = "0";
+                var result = vm.RunMove();
+                Assert.False(result.Ok);
+                Assert.Contains("length is 0", vm.StatusText, StringComparison.OrdinalIgnoreCase);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        // =============== Recompress tab ===============
+
+        [Fact]
+        public void Recompress_NoRomLoaded_SetsStatus()
+        {
+            var vm = new ToolLZ77ViewModel();
+            var (size, count) = vm.RunRecompress();
+            Assert.Equal(0u, size);
+            Assert.Equal(0u, count);
+            Assert.Contains("no rom", vm.StatusText, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Recompress_RomModified_RequiresUserConfirmation()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            // Make rom Modified by writing to it.
+            using (ROM.BeginUndoScope(new Undo.UndoData
+            {
+                time = System.DateTime.Now,
+                name = "test",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            }))
+            {
+                rom.write_u8(0x100, 0xAA);
+            }
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                var preflight = vm.RecompressPreflight();
+                Assert.Equal(ToolLZ77ViewModel.RecompressPreflightResult.NeedRomModifiedAck, preflight);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void Recompress_PreflightNeedsConfirmation_WhenCleanRom()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                var preflight = vm.RecompressPreflight();
+                Assert.Equal(ToolLZ77ViewModel.RecompressPreflightResult.NeedConfirm, preflight);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void Recompress_PreflightProceeds_AfterConfirmation()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.RecompressConfirmed = true;
+                var preflight = vm.RecompressPreflight();
+                Assert.Equal(ToolLZ77ViewModel.RecompressPreflightResult.ProceedNoPrompt, preflight);
+            }
+            finally { CoreState.ROM = null; }
+        }
     }
 }
