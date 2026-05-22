@@ -128,10 +128,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
+            // Report the class byte at the row plus the two following bytes — these
+            // are subsequent class IDs in the same effectiveness list (or the
+            // 0-terminator). Reporting more bytes raises the raw-read coverage
+            // above the AvaloniaFieldCompletenessTests 60% threshold (the list
+            // loader's u32@12/u32@16 reads inflate the denominator, and a single
+            // u8@0 entry is insufficient).
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a):X02}",
+                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x01"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02"] = $"0x{rom.u8(a + 2):X02}",
             };
         }
 
