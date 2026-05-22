@@ -137,6 +137,63 @@ namespace FEBuilderGBA
             return TextEngineRework_enum.NO;
         }
 
+        // ---- ExtendsBattleBG patch detection ----
+        // Mirrors WinForms PatchUtil.SearchExtendsBattleBG. Used by the
+        // MapTerrainBGLookupTable / MapTerrainFloorLookupTable editors to
+        // decide between the vanilla 21-entry pointer list and the patched
+        // extended pointer table. (#442 / #441)
+
+        public enum ExtendsBattleBG_extends
+        {
+            NO,
+            Extends,
+            NoCache = (int)NO_CACHE
+        }
+
+        static ExtendsBattleBG_extends g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
+
+        public static void ClearCacheExtendsBattleBG()
+        {
+            g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
+        }
+
+        /// <summary>
+        /// Detect whether the "Extends Battle BG" patch is installed in
+        /// <see cref="CoreState.ROM"/>. Cached after first call; call
+        /// <see cref="ClearCacheExtendsBattleBG"/> on ROM swap.
+        /// </summary>
+        public static ExtendsBattleBG_extends SearchExtendsBattleBG()
+        {
+            if (g_Cache_ExtendsBattleBG == ExtendsBattleBG_extends.NoCache)
+            {
+                g_Cache_ExtendsBattleBG = SearchExtendsBattleBG(CoreState.ROM);
+            }
+            return g_Cache_ExtendsBattleBG;
+        }
+
+        /// <summary>
+        /// ROM-explicit detection (non-caching). Used by Avalonia view models
+        /// that want to detect the patch without depending on CoreState.ROM
+        /// being set — e.g. during scanner / test runs.
+        /// </summary>
+        public static ExtendsBattleBG_extends SearchExtendsBattleBG(ROM rom)
+        {
+            if (rom?.RomInfo == null) return ExtendsBattleBG_extends.NO;
+            PatchTableSt[] table = new PatchTableSt[] {
+                new PatchTableSt{ name="Extends", ver = "FE8J", addr = 0x58D1C, data = new byte[]{0x00, 0xB5, 0x05, 0x4B, 0xC9, 0x00}},
+                new PatchTableSt{ name="Extends", ver = "FE8U", addr = 0x57ED0, data = new byte[]{0x00, 0xB5, 0x05, 0x4B, 0xC9, 0x00}},
+            };
+            string version = rom.RomInfo.VersionToFilename;
+            foreach (PatchTableSt t in table)
+            {
+                if (t.ver != version) continue;
+                byte[] data = rom.getBinaryData(t.addr, t.data.Length);
+                if (U.memcmp(t.data, data) != 0) continue;
+                return ExtendsBattleBG_extends.Extends;
+            }
+            return ExtendsBattleBG_extends.NO;
+        }
+
         // ---- Generic patch search helpers ----
 
         public static bool SearchPatchBool(PatchTableSt[] table)
@@ -167,6 +224,7 @@ namespace FEBuilderGBA
         {
             g_Cache_draw_font_enum = draw_font_enum.NoCache;
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
+            g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
         }
     }
 }

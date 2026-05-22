@@ -79,5 +79,33 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        /// <summary>
+        /// Filter+row navigation API mirrored from the Floor sister view.
+        /// Phase 4 gap-fix (#442 — Copilot CLI review point 2): when the
+        /// Floor view's "Jump to BG" button fires, both the filter index AND
+        /// the selected row must be preserved — non-zero filters MUST NOT
+        /// resolve to the wrong BG lookup table.
+        ///
+        /// The BG view doesn't yet have a UI FilterComboBox (#441 will add
+        /// the full combo + density raise), but the VM exposes a
+        /// `LoadList(int filterIndex)` overload that reads from the requested
+        /// floor pointer via <see cref="MapTerrainLookupCore.GetPointers"/>.
+        /// We use that overload here so the BG list is rebuilt against the
+        /// SAME filter slot the Floor side sent.
+        /// </summary>
+        public void NavigateToFilterAndRow(uint filterIndex, uint rowIndex)
+        {
+            try
+            {
+                var items = _vm.LoadList((int)filterIndex);
+                EntryList.SetItems(items);
+                EntryList.SelectByIndex((int)rowIndex);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTerrainBGLookupTableView.NavigateToFilterAndRow failed: {ex.Message}");
+            }
+        }
     }
 }

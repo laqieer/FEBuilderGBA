@@ -940,6 +940,27 @@ namespace FEBuilderGBA
             for (uint i = addr; i < max; i += 1) { r.Append(" "); r.Append(bytes[i].ToString("X02")); }
             return r.ToString();
         }
+        /// <summary>
+        /// Project a Dictionary&lt;uint,string&gt; to a list of its values.
+        /// The order matches <see cref="Dictionary{TKey,TValue}.Values"/>'s
+        /// enumeration order (which the BCL does NOT guarantee to be insertion
+        /// order). Callers that rely on a deterministic index-to-name mapping
+        /// MUST sort by key themselves — both call sites here (gap-sweep
+        /// parity helpers + filter-combo population) iterate values directly
+        /// for display so the unspecified order is acceptable.
+        /// Mirrors the WinForms <c>U.DictionaryToValuesList</c> helper.
+        /// </summary>
+        public static List<string> DictionaryToValuesList(Dictionary<uint, string> d)
+        {
+            List<string> ret = new List<string>();
+            if (d == null) return ret;
+            foreach (var v in d.Values)
+            {
+                ret.Add(v);
+            }
+            return ret;
+        }
+
         public static string HexsToString(byte[] data)
         {
             StringBuilder sb = new StringBuilder();

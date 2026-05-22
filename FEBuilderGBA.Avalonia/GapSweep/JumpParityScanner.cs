@@ -641,6 +641,24 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 if (!list.Contains(avName))
                     list.Add(avName);
             }
+            // Layer 1b: KnownExtraCrossViewMappings — cross-editor pairs that
+            // are NOT list-based parity ports (e.g. PatchForm ↔ PatchManagerView)
+            // but ARE valid jump targets. Without this layer the WF callsites
+            // to those forms resolve to "no AV counterpart" in the jumps report
+            // even though the editor exists in a different shape on the AV side.
+            // (#442 / #441 / #438 — gap-sweep cross-references.)
+            foreach (var kv in ListParityHelper.GetExtraCrossViewMappings())
+            {
+                string avName = kv.Key;
+                string formName = kv.Value;
+                if (!map.TryGetValue(formName, out var list))
+                {
+                    list = new List<string>();
+                    map[formName] = list;
+                }
+                if (!list.Contains(avName))
+                    list.Add(avName);
+            }
             // Layer 2: PairMatcher heuristic + exact-name pairs (broader coverage).
             // Skip when no repo root — unit tests that don't need this layer.
             if (!string.IsNullOrEmpty(repoRoot) && Directory.Exists(repoRoot))
