@@ -13,10 +13,11 @@
 // with empty `Create_Click` / `BrowseImage_Click` handlers — calling
 // `WindowManager.Open<ToolAnimationCreatorView>()` would just open a
 // non-functional window. Therefore the manifest declares this jump as a
-// `KnownGap` (non-null `IssueRef`) tracked by the follow-up issue
-// #<followup-creator-init>. The view code-behind intentionally does NOT
-// render a jump button until the target editor implements its Init flow —
-// this is parity-via-declaration, not parity-via-broken-UI.
+// `KnownGap` (non-null `IssueRef`) tracked by the follow-up issue #500
+// (`feat(tool-animation-creator): real Init() flow + Map Action Animation
+// entry point`). The view code-behind intentionally does NOT render a
+// jump button until the target editor implements its Init flow — this is
+// parity-via-declaration, not parity-via-broken-UI.
 //
 // Once the follow-up issue lands, the IssueRef can be cleared and a button
 // added to the AXAML — at that point the gap-sweep scanner will

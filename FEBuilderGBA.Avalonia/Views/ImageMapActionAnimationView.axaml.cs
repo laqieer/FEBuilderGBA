@@ -44,8 +44,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReadStartAddressBox.Value = _vm.ReadStartAddress;
                 ReadCountBox.Value = _vm.ReadCount;
 
+                // Reset zoom selection AND explicitly sync `PreviewImage.Stretch`
+                // + `_vm.ShowZoomed` because the SelectionChanged handler is
+                // suppressed while we mutate `SelectedIndex`. Without this
+                // explicit sync, reloading after the user picked "Original
+                // size" would leave the preview unzoomed while the combo
+                // showed "Zoomed" — Copilot CLI inline review on PR #506.
                 _suppressZoomChange = true;
-                try { ShowZoomComboBox.SelectedIndex = 0; }
+                try
+                {
+                    ShowZoomComboBox.SelectedIndex = 0;
+                    _vm.ShowZoomed = true;
+                    PreviewImage.Stretch = global::Avalonia.Media.Stretch.Uniform;
+                }
                 finally { _suppressZoomChange = false; }
             }
             catch (Exception ex)
@@ -157,12 +168,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (_vm.AnimationPointer == 0 || !U.isPointer(_vm.AnimationPointer))
+                // Mirror WinForms: accept either a GBA pointer (e.g.
+                // 0x08800000) or a safe ROM offset (e.g. 0x800000). The
+                // earlier guard rejected raw offsets even when
+                // `IsAnimationValid` (offset-based) said the panel should
+                // be visible — leaving the preview blank for user-entered
+                // offsets. `ImageUtilMapActionAnimationCore.DrawFrame`
+                // returns null for un-renderable input so the catch handles
+                // anything else. Copilot CLI inline review on PR #506.
+                if (_vm.AnimationPointer == 0)
                 {
                     PreviewImage.Source = null;
                     return;
                 }
                 uint animePtr = U.toOffset(_vm.AnimationPointer);
+                if (!U.isSafetyOffset(animePtr))
+                {
+                    PreviewImage.Source = null;
+                    return;
+                }
                 using var img = ImageUtilMapActionAnimationCore.DrawFrame(animePtr, _vm.SelectedFrame);
                 Bitmap? bmp = img != null ? ImageConversionHelper.ToAvaloniaBitmap(img) : null;
                 PreviewImage.Source = bmp;
