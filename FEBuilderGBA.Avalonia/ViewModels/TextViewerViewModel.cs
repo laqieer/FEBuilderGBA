@@ -214,19 +214,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Find units, items, and classes that reference the given text ID.
-        /// Delegates to <see cref="TextReferenceFinder.Find"/>, which correctly
-        /// dereferences ROMFEINFO pointer FIELDS (unit_pointer/class_pointer/item_pointer)
-        /// to the actual data base addresses before scanning entries.
+        /// Find all ROM entries that reference the given text ID. Delegates to
+        /// <see cref="TextReferenceFinder.Find"/> with the per-version
+        /// descriptor list assembled by
+        /// <see cref="TextRefTableRegistry.BuildForRom"/>.
         ///
-        /// Text ID offsets per entry follow WinForms ROMFE*INFO definitions:
-        ///   - Unit:  +0 (name), +2 (description)
-        ///   - Class: +0 (name), +2 (description)
-        ///   - Item:  +0 (name), +2 (description), +4 (use description)
+        /// Coverage (mirrors WinForms <c>U.MakeVarsIDArray</c> for fixed-table
+        /// descriptors): units, classes, items, map settings, support talks,
+        /// event haiku, battle talks (both main and 2 for FE6/7), sound room,
+        /// ED screens (FE7 includes ed_3c Lyn-ending direct base), OP class
+        /// demo, status options, units menu, world-map points (FE8),
+        /// dictionary entries (FE8), final-chapter lines + senseki comments
+        /// (FE7), map-terrain names (US/EU builds).
         ///
-        /// Currently scoped to units, classes, and items. Other reference sources
-        /// (map settings, supports, events, sound room, etc.) are tracked as
-        /// follow-up parity work — see the issue tracker.
+        /// Out of scope (deferred — tracked separately):
+        /// recursive event-script scanning (EventCond), menu-definition
+        /// pointer chains, patch-defined text-ID parameters, status R-menu
+        /// linked lists, FE7 haiku tutorial event pointers.
         /// </summary>
         public List<string> FindCrossReferences(uint textId)
         {
@@ -235,42 +239,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null || rom.Data == null) return new List<string>();
 
-                var info = rom.RomInfo;
-                // ROMFEINFO only declares unit_maxcount; class/item tables don't have explicit
-                // counts in the schema. Use 0x100 (256) as a reasonable upper bound — the same
-                // value used by ItemEditorViewModel.LoadItemList and NameResolver.ResolvePortraitName.
-                uint unitCount = info.unit_maxcount != 0 ? info.unit_maxcount : 0x100u;
-                var tables = new[]
-                {
-                    new TextRefTableDescriptor
-                    {
-                        Kind = "Unit",
-                        PointerField = info.unit_pointer,
-                        EntrySize = info.unit_datasize,
-                        MaxCount = unitCount,
-                        TextIdOffsets = new uint[] { 0, 2 },
-                        NameResolver = id => NameResolver.GetUnitName(id),
-                    },
-                    new TextRefTableDescriptor
-                    {
-                        Kind = "Class",
-                        PointerField = info.class_pointer,
-                        EntrySize = info.class_datasize,
-                        MaxCount = 0x100u,
-                        TextIdOffsets = new uint[] { 0, 2 },
-                        NameResolver = id => NameResolver.GetClassName(id),
-                    },
-                    new TextRefTableDescriptor
-                    {
-                        Kind = "Item",
-                        PointerField = info.item_pointer,
-                        EntrySize = info.item_datasize,
-                        MaxCount = 0x100u,
-                        TextIdOffsets = new uint[] { 0, 2, 4 },
-                        NameResolver = id => NameResolver.GetItemName(id),
-                    },
-                };
-
+                var tables = TextRefTableRegistry.BuildForRom(rom);
                 return TextReferenceFinder.Find(rom, textId, tables);
             }
             catch (Exception ex)
