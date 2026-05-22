@@ -4,7 +4,7 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class UnitFE6ViewModel : ViewModelBase, IDataVerifiable
+    public partial class UnitFE6ViewModel : ViewModelBase, IDataVerifiable
     {
         uint _currentAddr;
         uint _selectedId;

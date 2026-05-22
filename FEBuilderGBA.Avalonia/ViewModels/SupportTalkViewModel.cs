@@ -101,6 +101,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
+        /// <summary>
+        /// #358 — find the support-talk row whose two unit-id bytes match
+        /// <paramref name="uid1"/> and <paramref name="uid2"/> in either order.
+        /// FE8 layout: u8 at offset 0 and u8 at offset 2 (byte 1 is reserved).
+        /// Mirrors WinForms <c>SupportTalkForm.JumpTo(unit1, unit2)</c>; the
+        /// WinForms version reads u16 at +0 and +2, but for ROMs with the
+        /// expected padding (byte 1 = 0) the result is the same byte value
+        /// as u8 — and u8 is the correct field width for the unit ID.
+        /// </summary>
+        public uint? FindAddrForUnitPair(uint uid1, uint uid2)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return null;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return null;
+            uint dataSize = 16;
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                uint first = rom.u16(addr);
+                if (first == 0xFFFF) break;
+                if (i > 10 && rom.IsEmpty(addr, 16 * 10)) break;
+                uint d1 = rom.u8(addr + 0);
+                uint d2 = rom.u8(addr + 2);
+                if ((d1 == uid1 && d2 == uid2) || (d1 == uid2 && d2 == uid1))
+                    return addr;
+            }
+            return null;
+        }
+
         public int GetListCount() => LoadSupportTalkList().Count;
 
         public Dictionary<string, string> GetDataReport()

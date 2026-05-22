@@ -103,6 +103,19 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
+        /// <summary>
+        /// #358 — select the FE7 support-talk row that pairs the two units
+        /// in either order.  Mirrors WinForms <c>SupportTalkFE7Form.JumpTo</c>.
+        /// </summary>
+        public void JumpToUnitPair(uint uid1, uint uid2)
+        {
+            uint? addr = _vm.FindAddrForUnitPair(uid1, uid2);
+            if (addr != null)
+            {
+                EntryList.SelectAddress(addr.Value);
+            }
+        }
+
         void JumpToTextC_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextCNud.Value ?? 0));
         void JumpToTextB_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextBNud.Value ?? 0));
         void JumpToTextA_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextANud.Value ?? 0));

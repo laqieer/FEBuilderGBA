@@ -103,6 +103,20 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectAddress(address);
         }
 
+        /// <summary>
+        /// #358 — select the support-talk row that pairs <paramref name="uid1"/>
+        /// and <paramref name="uid2"/> (in either order).  No-op when no row
+        /// matches.  Mirrors WinForms <c>SupportTalkForm.JumpTo(unit1, unit2)</c>.
+        /// </summary>
+        public void JumpToUnitPair(uint uid1, uint uid2)
+        {
+            uint? addr = _vm.FindAddrForUnitPair(uid1, uid2);
+            if (addr != null)
+            {
+                EntryList.SelectAddress(addr.Value);
+            }
+        }
+
         public void SelectFirstItem()
         {
             EntryList.SelectFirst();
