@@ -7,9 +7,9 @@
   <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl AutomationProperties.AutomationId="TextViewer_Text_List" Grid.Column="0" Name="TextList" Margin="4" />
 
-    <TabControl AutomationProperties.AutomationId="TextViewer_Tabs" Name="EditorTabs" Grid.Column="1" Margin="4">
+    <TabControl AutomationProperties.AutomationId="TextViewer_Tabs_TabControl" Name="EditorTabs" Grid.Column="1" Margin="4">
       <!-- Tab 1: Edit (existing behaviour) -->
-      <TabItem Header="Edit" Name="EditTab" AutomationProperties.AutomationId="TextViewer_EditTab">
+      <TabItem Header="Edit" Name="EditTab" AutomationProperties.AutomationId="TextViewer_Edit_Tab">
         <ScrollViewer Margin="4">
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Text Editor" FontSize="18" FontWeight="Bold" />
@@ -63,11 +63,11 @@
       </TabItem>
 
       <!-- Tab 2: Simple Conversation Viewer (read-only playback) -->
-      <TabItem Header="Conversation Viewer" Name="ConversationTab" AutomationProperties.AutomationId="TextViewer_ConversationTab">
+      <TabItem Header="Conversation Viewer" Name="ConversationTab" AutomationProperties.AutomationId="TextViewer_Conversation_Tab">
         <Grid RowDefinitions="Auto,*" Margin="4">
           <TextBlock Grid.Row="0" Text="Simple Conversation Viewer (read-only)" FontSize="16" FontWeight="Bold" Margin="4,4,4,8" />
           <ScrollViewer Grid.Row="1" Margin="4" AutomationProperties.AutomationId="TextViewer_ConversationScroll">
-            <ItemsControl AutomationProperties.AutomationId="TextViewer_ConversationCards" Name="ConversationCardsList">
+            <ItemsControl AutomationProperties.AutomationId="TextViewer_ConversationCards_List" Name="ConversationCardsList">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,4">
