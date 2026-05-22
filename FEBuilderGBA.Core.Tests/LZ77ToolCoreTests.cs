@@ -378,6 +378,19 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void RecompressAt_AllocatedLengthNotAligned_ReturnsError()
+        {
+            // PR #481 review point 4: allocatedLength must be 4-byte aligned
+            // because the helper docstring promises 4-aligned semantics.
+            var rom = CreateRom();
+            rom.Data[0x100] = 0x10;
+            // Use any non-4-aligned allocated length.
+            var r = LZ77ToolCore.RecompressAt(rom, 0x100, 0x101);
+            Assert.False(r.Ok);
+            Assert.Contains("not 4-byte aligned", r.ErrorMessage);
+        }
+
+        [Fact]
         public void RecompressAt_BadUncompressSize_ReturnsZero()
         {
             var rom = CreateRom();

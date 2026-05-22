@@ -392,6 +392,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             dstOffset = toRaw == 0 ? 0u : U.toOffset(toRaw);
             length = lenRaw;
 
+            // Surface basic validation errors BEFORE prompting the user, so we
+            // don't walk the multi-prompt confirmation flow and then fail inside
+            // MoveCompressedData. Mirrors the same checks in the Core helper.
+            if (srcOffset == 0)
+            {
+                StatusText = R._("Move: source address is 0 (bad base address).");
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (length >= LZ77ToolCore.MOVE_LENGTH_LIMIT)
+            {
+                StatusText = R._("Move: LENGTH 0x{0:X} exceeds 2 MB limit.", length);
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (srcOffset + length > (uint)rom.Data.Length)
+            {
+                StatusText = R._("Move: source range 0x{0:X8}+0x{1:X} exceeds ROM end.", srcOffset, length);
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            if (dstOffset != 0 && (dstOffset + length > (uint)rom.Data.Length))
+            {
+                StatusText = R._("Move: destination range 0x{0:X8}+0x{1:X} exceeds ROM end.", dstOffset, length);
+                return MovePreflightResult.ErrorAlreadyShown;
+            }
+            // Overlap check (only applies when caller supplied an explicit dst).
+            if (dstOffset != 0)
+            {
+                uint sEnd = srcOffset + length;
+                uint dEnd = dstOffset + length;
+                if (srcOffset < dEnd && dstOffset < sEnd)
+                {
+                    StatusText = R._("Move: source 0x{0:X8}+0x{1:X} and destination 0x{2:X8}+0x{1:X} overlap (not supported).", srcOffset, length, dstOffset);
+                    return MovePreflightResult.ErrorAlreadyShown;
+                }
+            }
+
             // Look up pointers (LDR-first, raw fallback) so the View can decide
             // what prompts to surface BEFORE the actual write.
             searchResult = LZ77ToolCore.SearchPointersForAddress(rom.Data, srcOffset);

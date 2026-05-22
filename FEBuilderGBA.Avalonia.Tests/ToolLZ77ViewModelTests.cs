@@ -348,5 +348,83 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally { CoreState.ROM = null; }
         }
+
+        // -------- MovePreflight early-validation (PR #481 review round 2) --------
+
+        [Fact]
+        public void MovePreflight_LengthExceedsLimit_FailsBeforePrompt()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0x1000";
+                vm.MoveToText = "0x2000";
+                vm.MoveLengthText = "0x300000"; // 3 MB > 2 MB limit
+                var result = vm.MovePreflight(out _, out _, out _, out _);
+                Assert.Equal(ToolLZ77ViewModel.MovePreflightResult.ErrorAlreadyShown, result);
+                Assert.Contains("LENGTH", vm.StatusText);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void MovePreflight_SrcOutOfBounds_FailsBeforePrompt()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x1000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0xF00";
+                vm.MoveToText = "0x200";
+                vm.MoveLengthText = "0x500"; // 0xF00 + 0x500 = 0x1400 > 0x1000
+                var result = vm.MovePreflight(out _, out _, out _, out _);
+                Assert.Equal(ToolLZ77ViewModel.MovePreflightResult.ErrorAlreadyShown, result);
+                Assert.Contains("source range", vm.StatusText);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void MovePreflight_DestOutOfBounds_FailsBeforePrompt()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x1000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0x100";
+                vm.MoveToText = "0xF80";
+                vm.MoveLengthText = "0x100"; // 0xF80 + 0x100 = 0x1080 > 0x1000
+                var result = vm.MovePreflight(out _, out _, out _, out _);
+                Assert.Equal(ToolLZ77ViewModel.MovePreflightResult.ErrorAlreadyShown, result);
+                Assert.Contains("destination range", vm.StatusText);
+            }
+            finally { CoreState.ROM = null; }
+        }
+
+        [Fact]
+        public void MovePreflight_OverlappingRanges_FailsBeforePrompt()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x10000]);
+            CoreState.ROM = rom;
+            try
+            {
+                var vm = new ToolLZ77ViewModel();
+                vm.MoveFromText = "0x1000";
+                vm.MoveToText = "0x1080"; // overlaps source
+                vm.MoveLengthText = "0x100";
+                var result = vm.MovePreflight(out _, out _, out _, out _);
+                Assert.Equal(ToolLZ77ViewModel.MovePreflightResult.ErrorAlreadyShown, result);
+                Assert.Contains("overlap", vm.StatusText);
+            }
+            finally { CoreState.ROM = null; }
+        }
     }
 }

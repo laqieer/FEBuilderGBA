@@ -294,6 +294,11 @@ namespace FEBuilderGBA
                 result.ErrorMessage = $"RecompressAt: allocatedLength 0x{allocatedLength:X} out of bounds at 0x{addr:X8}.";
                 return result;
             }
+            if (!U.isPadding4(allocatedLength))
+            {
+                result.ErrorMessage = $"RecompressAt: allocatedLength 0x{allocatedLength:X} is not 4-byte aligned.";
+                return result;
+            }
 
             uint expectedUncompSize = LZ77.getUncompressSize(rom.Data, addr);
             if (expectedUncompSize == 0)

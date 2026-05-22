@@ -180,6 +180,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Recompress_Click(object? sender, RoutedEventArgs e)
         {
+            // Always start a fresh confirmation flow — cancellation at any prompt
+            // below must NOT leave stale flags that auto-skip prompts on next click.
+            _vm.RecompressModifiedAcknowledged = false;
+            _vm.RecompressConfirmed = false;
+
             var preflight = _vm.RecompressPreflight();
             if (preflight == ToolLZ77ViewModel.RecompressPreflightResult.ErrorAlreadyShown)
                 return;
@@ -208,12 +213,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (dr != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Recompress: canceled by user.");
+                    // Reset acknowledgement too — the user has not yet started a real run.
+                    _vm.RecompressModifiedAcknowledged = false;
                     return;
                 }
                 _vm.RecompressConfirmed = true;
             }
 
-            _vm.RunRecompress();
+            // Run the (potentially multi-minute) scan + recompress off the UI thread
+            // so the window stays responsive. IsBusy disables interactions and acts as
+            // a re-entrancy guard against double-clicks.
+            if (_vm.IsBusy) return;
+            _vm.IsBusy = true;
+            _vm.StatusText = R._("Recompress: running (this may take several minutes)...");
+            try
+            {
+                await System.Threading.Tasks.Task.Run(() => _vm.RunRecompress());
+            }
+            finally
+            {
+                _vm.IsBusy = false;
+            }
         }
 
         public void NavigateTo(uint address) { }
