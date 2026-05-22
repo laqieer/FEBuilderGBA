@@ -83,21 +83,29 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Filter+row navigation API mirrored from the Floor sister view.
         /// Phase 4 gap-fix (#442 — Copilot CLI review point 2): when the
-        /// Floor view's "Jump to BG" button fires, both filter index and
-        /// selected row must be preserved on the BG side. Today the BG VM
-        /// always loads filter 0 (#441 will raise it to a full filter combo);
-        /// in the meantime we just select the requested row inside the
-        /// vanilla filter-0 list. This keeps the parity invariant ("same
-        /// filter + same row on both sides") true today AND stays correct
-        /// once #441 adds the BG filter combo.
+        /// Floor view's "Jump to BG" button fires, both the filter index AND
+        /// the selected row must be preserved — non-zero filters MUST NOT
+        /// resolve to the wrong BG lookup table.
+        ///
+        /// The BG view doesn't yet have a UI FilterComboBox (#441 will add
+        /// the full combo + density raise), but the VM exposes a
+        /// `LoadList(int filterIndex)` overload that reads from the requested
+        /// floor pointer via <see cref="MapTerrainLookupCore.GetPointers"/>.
+        /// We use that overload here so the BG list is rebuilt against the
+        /// SAME filter slot the Floor side sent.
         /// </summary>
         public void NavigateToFilterAndRow(uint filterIndex, uint rowIndex)
         {
-            // BG VM doesn't yet expose a multi-filter API (sister issue #441).
-            // For now, ignore filterIndex and just select the requested row
-            // in the default-filter list — same behaviour the WF JumpTo
-            // produces against filter 0.
-            EntryList.SelectByIndex((int)rowIndex);
+            try
+            {
+                var items = _vm.LoadList((int)filterIndex);
+                EntryList.SetItems(items);
+                EntryList.SelectByIndex((int)rowIndex);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTerrainBGLookupTableView.NavigateToFilterAndRow failed: {ex.Message}");
+            }
         }
     }
 }

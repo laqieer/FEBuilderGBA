@@ -146,6 +146,91 @@ public class MapTerrainFloorLookupTableParityTests
     }
 
     // -----------------------------------------------------------------
+    // Filter+row preservation: NavigateToFilterAndRow must use the right
+    // base pointer when filterIndex > 0 (Copilot CLI review point 2).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void BgViewModel_LoadList_NonZeroFilter_SwapsBasePointer()
+    {
+        // Synthesize a tiny FE8U ROM where bg-pointer 0 and bg-pointer 1
+        // differ; the LoadList(filterIndex) overload must follow filter 1.
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTerrainBGLookupTableViewModel();
+
+            var list0 = vm.LoadList(0);
+            var list1 = vm.LoadList(1);
+            // The base pointers for vanilla filter 0 vs filter 1 resolve to
+            // different ROM addresses on a properly-laid-out FE8U; the same
+            // synthetic ROM here just makes sure the overload is wired —
+            // both lists are non-empty and start at different addresses.
+            Assert.NotEmpty(list0);
+            Assert.NotEmpty(list1);
+            Assert.NotEqual(list0[0].addr, list1[0].addr);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    [Fact]
+    public void BgViewModel_LoadList_NoFilterArg_DefaultsToZero()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTerrainBGLookupTableViewModel();
+
+            var defaultList = vm.LoadList();
+            var zeroList = vm.LoadList(0);
+            Assert.Equal(defaultList.Count, zeroList.Count);
+            if (defaultList.Count > 0)
+            {
+                Assert.Equal(defaultList[0].addr, zeroList[0].addr);
+            }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    /// <summary>
+    /// Build a tiny synthetic FE8U ROM whose two BG-lookup pointer slots
+    /// (filter 0 + filter 1) point to DIFFERENT in-ROM addresses, so the
+    /// LoadList(int) overload can be observed to follow the filterIndex.
+    /// </summary>
+    static ROM MakeMinimalFe8uRom()
+    {
+        var bytes = new byte[0x1100000];
+
+        // FE8U lookup_table_battle_bg_00_pointer is at offset 0x57FF4 and
+        // _01_pointer is at 0x57F48 (see ROMFE8U.cs). We plant GBA pointers
+        // (with the 0x08000000 base) at those slots that resolve to two
+        // distinct safe in-ROM addresses with usable per-entry data.
+        uint slot0Target = 0x00800000u;
+        uint slot1Target = 0x00900000u;
+        BitConverter.GetBytes(slot0Target | 0x08000000u).CopyTo(bytes, 0x57FF4);
+        BitConverter.GetBytes(slot1Target | 0x08000000u).CopyTo(bytes, 0x57F48);
+
+        // Mark each slot's first byte differently so the test can verify
+        // it followed the right pointer when needed.
+        bytes[slot0Target] = 0xA0;
+        bytes[slot1Target] = 0xB1;
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+        return rom;
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

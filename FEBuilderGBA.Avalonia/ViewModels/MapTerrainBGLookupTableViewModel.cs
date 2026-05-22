@@ -20,15 +20,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint BattleBG { get => _battleBG; set => SetField(ref _battleBG, value); }
 
         /// <summary>
-        /// Load the list of terrain entries using the first vanilla BG pointer.
+        /// Load the list of terrain entries for the requested BG filter index
+        /// (0..20 vanilla, 0..N when the ExtendsBattleBG patch is installed).
         /// Each entry is 1 byte, total count = map_terrain_type_count.
+        ///
+        /// Phase 4 gap-fix (#442): the Floor view's "Jump to BG" button passes
+        /// the source filterIndex via <see cref="MapTerrainBGLookupTableView.NavigateToFilterAndRow"/>,
+        /// which delegates here. Without this overload, non-zero source
+        /// filters would map to the WRONG BG list (Copilot CLI review point 2).
         /// </summary>
-        public List<AddrResult> LoadList()
+        public List<AddrResult> LoadList(int filterIndex)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.lookup_table_battle_bg_00_pointer;
+            uint[] pointers = MapTerrainLookupCore.GetPointers(rom, isFloor: false);
+            if (filterIndex < 0 || filterIndex >= pointers.Length)
+                return new List<AddrResult>();
+            uint ptr = pointers[filterIndex];
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
@@ -44,6 +53,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return result;
         }
+
+        /// <summary>
+        /// Vanilla-filter overload (filter=0). Kept for source compatibility
+        /// with existing tests + the on-Opened auto-load path.
+        /// </summary>
+        public List<AddrResult> LoadList() => LoadList(0);
 
         public void LoadEntry(uint addr)
         {
