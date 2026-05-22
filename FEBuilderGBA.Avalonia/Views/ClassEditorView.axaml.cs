@@ -690,23 +690,36 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportTSV_Click(object? sender, RoutedEventArgs e)
         {
-            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService, () =>
-            {
-                // Reload the current entry after import. Mirror the OnClassSelected
-                // refresh sequence so the class card preview stays in sync with
-                // imported data — UpdateUI() sets PortraitIdBox/WaitIconBox while
-                // _vm.IsLoading is true, so OnClassCardInputChanged intentionally
-                // skips the refresh and we must call UpdateClassCard() explicitly.
-                // PR #471 Copilot review fix.
-                if (_vm.CurrentAddr != 0)
-                {
-                    _vm.LoadClass(_vm.CurrentAddr);
-                    UpdateUI();
-                    TryShowListPreview();
-                    UpdateClassCard();
-                    UpdateWarnings();
-                }
-            });
+            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService,
+                ReloadCurrentClassAfterImport);
+        }
+
+        /// <summary>
+        /// Reload the current class after a TSV import so all UI surfaces
+        /// (form fields, list preview, class card, validation warnings) stay
+        /// in sync with the imported data. Mirrors the
+        /// <see cref="OnClassSelected"/> refresh sequence.
+        ///
+        /// CRITICAL: <see cref="UpdateUI"/> sets <c>PortraitIdBox</c> and
+        /// <c>WaitIconBox</c> while <c>_vm.IsLoading</c> is true, so the
+        /// <see cref="OnClassCardInputChanged"/> handler intentionally skips
+        /// its refresh. <see cref="UpdateClassCard"/> MUST therefore be
+        /// invoked explicitly here — removing this call leaves the class
+        /// card preview stale until the user re-selects the class or
+        /// manually edits one of those fields.
+        ///
+        /// Extracted into an internal method so it can be regression-tested
+        /// without driving the full async TSV-import flow (PR #471 Copilot
+        /// inline-review follow-up).
+        /// </summary>
+        internal void ReloadCurrentClassAfterImport()
+        {
+            if (_vm.CurrentAddr == 0) return;
+            _vm.LoadClass(_vm.CurrentAddr);
+            UpdateUI();
+            TryShowListPreview();
+            UpdateClassCard();
+            UpdateWarnings();
         }
 
         public void EnablePickMode() => ClassList.EnablePickMode();

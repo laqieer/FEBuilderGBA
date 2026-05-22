@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.SkiaSharp;
 using Xunit;
@@ -201,21 +202,21 @@ public class ClassEditorClassCardTests : IClassFixture<RomFixture>
     }
 
     /// <summary>
-    /// Regression for PR #471 Copilot review: after a TSV import the editor
-    /// reloads the current class via _vm.LoadClass + UpdateUI(). UpdateUI()
-    /// sets PortraitIdBox / WaitIconBox while _vm.IsLoading is true, so
-    /// OnClassCardInputChanged intentionally skips its refresh. The import
-    /// callback must therefore explicitly mirror the OnClassSelected
-    /// refresh sequence (LoadClass + UpdateUI + TryShowListPreview +
-    /// UpdateClassCard + UpdateWarnings) so the card stays in sync with
-    /// imported data.
+    /// Regression for PR #471 Copilot follow-up: the TSV-import reload path
+    /// is now an extracted internal method <c>ReloadCurrentClassAfterImport</c>.
+    /// Drive that method DIRECTLY (not via OnClassSelected, which already
+    /// calls UpdateClassCard) so the test would fail if the
+    /// <c>UpdateClassCard()</c> call were removed from
+    /// <c>ReloadCurrentClassAfterImport</c>.
     ///
-    /// Drives the class list to simulate a "re-load after import" — selecting
-    /// away then back triggers OnClassSelected which is the same sequence
-    /// the import callback now mirrors. The card must remain populated.
+    /// Strategy: select class A, capture initial card state, then mutate the
+    /// ViewModel's CurrentAddr to point at a DIFFERENT class B (simulating
+    /// what an import does — change the underlying data without going
+    /// through the list selection), then invoke ReloadCurrentClassAfterImport
+    /// and assert the card now reflects class B (not stale class A).
     /// </summary>
     [AvaloniaFact]
-    public void ImportLikeReload_KeepsCardInSync_FE8U()
+    public void ReloadCurrentClassAfterImport_RefreshesCard_FE8U()
     {
         if (!TryAssertFE8U()) return;
 
@@ -224,38 +225,72 @@ public class ClassEditorClassCardTests : IClassFixture<RomFixture>
         try
         {
             var classList = view.FindControl<AddressListControl>("ClassList");
-            var waitIcon = view.FindControl<IconPreviewControl>("CardWaitIconImage");
-            var border = view.FindControl<Border>("ClassCardBorder");
+            var cardWait = view.FindControl<IconPreviewControl>("CardWaitIconImage");
+            var idLabel = view.FindControl<TextBlock>("CardIdLabel");
             Assert.NotNull(classList);
-            Assert.NotNull(waitIcon);
-            Assert.NotNull(border);
+            Assert.NotNull(cardWait);
+            Assert.NotNull(idLabel);
 
-            // Find a class with a populated wait icon.
-            classList!.SelectFirst();
-            int populated = -1;
-            for (int i = 1; i < classList.GetItems().Count && i < 16; i++)
+            // Find two distinct classes that both have a populated wait icon
+            // and DIFFERENT wait-icon indices, so the card image actually
+            // changes when we swap.
+            ROM rom = CoreState.ROM!;
+            uint classBase = rom.p32(rom.RomInfo.class_pointer);
+            uint classSize = rom.RomInfo.class_datasize;
+
+            int classAIdx = -1, classBIdx = -1;
+            uint classAWaitIcon = 0, classBWaitIcon = 0;
+            for (int i = 1; i < classList!.GetItems().Count && i < 32; i++)
             {
-                classList.SelectByIndex(i);
-                if (waitIcon!.HasImage)
+                uint waitIcon = rom.u8(classBase + (uint)i * classSize + 6);
+                if (waitIcon == 0) continue;
+                if (classAIdx < 0)
                 {
-                    populated = i;
+                    classAIdx = i;
+                    classAWaitIcon = waitIcon;
+                }
+                else if (waitIcon != classAWaitIcon)
+                {
+                    classBIdx = i;
+                    classBWaitIcon = waitIcon;
                     break;
                 }
             }
-            Assert.True(populated >= 0,
-                "Expected a class with a non-null wait icon to test the import reload path");
+            Assert.True(classAIdx >= 0 && classBIdx >= 0,
+                "Expected at least two distinct classes with different non-zero wait-icon indices in FE8U");
 
-            // Simulate the post-import reload sequence: select away, then
-            // re-select. This re-runs OnClassSelected, which now mirrors what
-            // the import callback does (LoadClass + UpdateUI + TryShowListPreview
-            // + UpdateClassCard + UpdateWarnings). The card must remain in sync.
-            classList.SelectByIndex(0);
-            classList.SelectByIndex(populated);
+            // Select class A and let OnClassSelected populate the card.
+            classList.SelectByIndex(classAIdx);
+            string idLabelAtA = idLabel!.Text ?? "";
+            // classBWaitIcon is used after the swap to confirm the card moved.
+            _ = classAWaitIcon;
+            _ = classBWaitIcon;
+            Assert.True(cardWait!.HasImage, "Card wait icon must be populated for class A");
 
-            Assert.True(border!.IsVisible,
-                "ClassCardBorder must remain visible after a reload (mirrors the TSV-import reload sequence)");
-            Assert.True(waitIcon!.HasImage,
-                "Card wait icon must remain populated after a reload (mirrors the TSV-import reload sequence)");
+            // Now simulate what import does: directly mutate _vm.CurrentAddr to
+            // class B's address WITHOUT going through the list, then invoke the
+            // extracted import-reload helper. If UpdateClassCard() were removed
+            // from ReloadCurrentClassAfterImport, the card image would remain
+            // at class A's wait icon (because OnClassCardInputChanged is
+            // suppressed during UpdateUI's IsLoading=true window).
+            var vm = view.DataViewModel as ClassEditorViewModel;
+            Assert.NotNull(vm);
+            uint classBAddr = classBase + (uint)classBIdx * classSize;
+            vm!.CurrentAddr = classBAddr;
+
+            view.ReloadCurrentClassAfterImport();
+
+            // After the reload helper runs, the card label MUST reflect class B.
+            // The label format is "0x{addr:X08}  /  ID {ClassNumber}" where
+            // ClassNumber is read from offset +4 of the class struct.
+            string idLabelAfter = idLabel.Text ?? "";
+            string expectedAddrSubstring = $"0x{classBAddr:X08}";
+            Assert.Contains(expectedAddrSubstring, idLabelAfter);
+            Assert.NotEqual(idLabelAtA, idLabelAfter);
+
+            // Card image must still be populated (class B has a non-zero icon).
+            Assert.True(cardWait.HasImage,
+                "Card wait icon must be populated after ReloadCurrentClassAfterImport");
         }
         finally
         {
