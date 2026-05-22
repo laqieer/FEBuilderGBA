@@ -126,7 +126,7 @@
             <Label Content="IER patch detected — configure from Patch Manager."
                    Foreground="Red" />
             <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_IerPatch_Button"
-                    Name="IerPatchButton" Content="Install Patch"
+                    Name="IerPatchButton" Content="Open Patch Manager"
                     Click="IerPatch_Click" />
           </StackPanel>
         </Border>

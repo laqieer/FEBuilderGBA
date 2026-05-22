@@ -319,15 +319,27 @@ public class ItemUsagePointerParityTests
 
     static void AssertHandlerWiring(string source, string handlerName, string requiredCallPattern)
     {
-        // Find the handler method body: `void handlerName(...) { ... }`.
-        // We assert the body contains the required navigation call.
-        var methodPattern = new Regex(
-            @"\b" + Regex.Escape(handlerName) + @"\s*\([^)]*\)\s*\{(?<body>.*?)\n\s*\}",
-            RegexOptions.Singleline | RegexOptions.Compiled);
-        Match m = methodPattern.Match(source);
-        Assert.True(m.Success,
+        // Find the handler signature: `void handlerName(...)`. Then walk
+        // braces from the first `{` to find the matching `}` so we capture
+        // the ENTIRE method body — including nested blocks (e.g. the early
+        // return inside `if (_currentFunctionLines.Count == 0) { ... }`).
+        // A non-greedy regex would stop at the first `}` (the nested one)
+        // and miss the `_vm.ExpandList(...)` call further down the method.
+        int sigIdx = source.IndexOf(handlerName + "(", StringComparison.Ordinal);
+        Assert.True(sigIdx >= 0,
             $"Click handler '{handlerName}' not found in ItemUsagePointerViewerView.axaml.cs");
-        string body = m.Groups["body"].Value;
+        int braceOpenIdx = source.IndexOf('{', sigIdx);
+        Assert.True(braceOpenIdx > sigIdx, $"Handler '{handlerName}' has no body");
+        int depth = 1;
+        int i = braceOpenIdx + 1;
+        for (; i < source.Length && depth > 0; i++)
+        {
+            if (source[i] == '{') depth++;
+            else if (source[i] == '}') depth--;
+        }
+        Assert.True(depth == 0,
+            $"Handler '{handlerName}' body is malformed (no matching `}}`)");
+        string body = source.Substring(braceOpenIdx + 1, i - braceOpenIdx - 2);
         Assert.Matches(requiredCallPattern, body);
     }
 

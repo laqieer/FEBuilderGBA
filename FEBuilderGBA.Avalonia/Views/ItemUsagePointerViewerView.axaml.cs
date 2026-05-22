@@ -236,6 +236,18 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
+            // WF aborts expansion when `L_0_COMBO.Items.Count <= 0`. Mirror
+            // that guard so we never write a table filled with NULL pointers
+            // because the config data file was missing. (Copilot CLI re-
+            // review fix — issue 3 of PR #497.)
+            if (_currentFunctionLines.Count == 0)
+            {
+                CoreState.Services?.ShowError(
+                    "No function definitions loaded for this filter. " +
+                    "Cannot expand the list without a default fill pointer.");
+                return;
+            }
+
             uint newCount = ItemListPredicate.GetItemDataCount(rom);
             uint defAddr = ResolveDefaultExpansionFillPointer();
 

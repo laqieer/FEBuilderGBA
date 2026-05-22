@@ -117,6 +117,42 @@ public class ItemUsagePointerCoreTests
         Assert.Null(result);
     }
 
+    /// <summary>
+    /// Regression test for the LDR-slip variant (Copilot CLI PR #497
+    /// re-review issue 1). When `u16(switchAddr+2) == 0x9A00` the count
+    /// byte sits at `+2+extraByte = +4`, not the nominal `+2`. The
+    /// `Switch2Expands` path writes the count back at `+2+extraByte` —
+    /// `ReadSwitch2` must mirror that so the post-expand refresh reads
+    /// the same byte that was just written.
+    /// </summary>
+    [Fact]
+    public void ReadSwitch2_LdrSlipVariant_ReadsCountAtSlippedOffset()
+    {
+        var bytes = new byte[0x1100000];
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        uint switchAddr = rom.RomInfo.item_usability_array_switch2_address;
+        // Plant the LDR-slip signature: SUB at +1, LDR encoded as 0x9A00 at +2..+3,
+        // CMP at +3+extraByte=+5. Count byte at +2+extraByte=+4 (set to 0x07 -> 8 entries).
+        bytes[switchAddr + 0] = 0x10;       // start
+        bytes[switchAddr + 1] = 0x38;       // SUB opcode
+        bytes[switchAddr + 2] = 0x00;       // LDR slip lo
+        bytes[switchAddr + 3] = 0x9A;       // LDR slip hi
+        bytes[switchAddr + 4] = 0x07;       // count - 1 (= 7)
+        bytes[switchAddr + 5] = 0x28;       // CMP opcode
+
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        // IsSwitch2Enable already supports the slip — verify ReadSwitch2 follows suit.
+        Assert.True(ItemUsagePointerCore.IsSwitch2Enable(rom, switchAddr));
+        var result = ItemUsagePointerCore.ReadSwitch2(rom, switchAddr);
+        Assert.NotNull(result);
+        Assert.Equal((uint)0x10, result!.Value.Start);
+        // count + 1 = 8 (NOT 1, which is what +2-only reads would have returned).
+        Assert.Equal((uint)8, result.Value.TotalCount);
+    }
+
     // -----------------------------------------------------------------
     // MakeRows — Switch2-count semantics (#440 acceptance, point 3)
     // -----------------------------------------------------------------

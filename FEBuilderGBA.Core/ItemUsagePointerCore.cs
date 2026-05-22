@@ -180,16 +180,25 @@ namespace FEBuilderGBA
         {
             if (!IsSwitch2Enable(rom, switchAddr)) return null;
 
-            // WinForms `ItemUsagePointerForm.ReInit` reads the count at the
-            // unadjusted `+2` offset (then calls `ReInitPointer(pointer,
-            // count + 1)`). We mirror that read here so the list population
-            // matches WF exactly. The LDR-slip variant (`+2 + extraByte`)
-            // only matters for the ROM-mutating expansion path; that case
-            // is handled inline in `Switch2Expands` rather than via a
-            // separate overload, so callers consume this single helper for
-            // both purposes.
+            // Detect the old-compiler LDR slip: when bytes at +2..+3 are
+            // `00 9A` (the encoded `ldr r2,[sp,#0x0]`), the count byte is
+            // at `+2 + extraByte = +4` instead of the nominal `+2`. The
+            // `Switch2Expands` path uses the SAME formula when writing
+            // the count back, so we must mirror it here to round-trip
+            // correctly. (PR #497 Copilot CLI re-review fix.) Note that
+            // the original WinForms `ItemUsagePointerForm.ReInit` read
+            // the count at unadjusted `+2`, which is technically a bug
+            // for slip-affected ROMs — we use the slip-aware offset so
+            // post-Switch2Expands refresh reads the same byte that was
+            // just written.
+            uint extraByte = 0;
+            if (rom.u16(switchAddr + 2) == 0x9A00)
+            {
+                extraByte = 2;
+            }
+
             uint start = rom.u8(switchAddr + 0);
-            uint countMinusOne = rom.u8(switchAddr + 2);
+            uint countMinusOne = rom.u8(switchAddr + 2 + extraByte);
             uint totalCount = countMinusOne + 1u;
             return (start, totalCount);
         }
@@ -265,12 +274,12 @@ namespace FEBuilderGBA
             if (!IsSwitch2Enable(rom, switch2Addr))
             {
                 // Caller should have gated on IsSwitch2Enable already.
-                R.ShowStopError("Switch2 is not present at this address.");
+                ShowExpansionError("Switch2 is not present at this address.");
                 return U.NOT_FOUND;
             }
             if (CoreState.AppendBinaryData == null)
             {
-                R.ShowStopError("CoreState.AppendBinaryData is not wired — "
+                ShowExpansionError("CoreState.AppendBinaryData is not wired — "
                     + "cannot allocate free space for the new Switch2 table.");
                 return U.NOT_FOUND;
             }
@@ -287,10 +296,10 @@ namespace FEBuilderGBA
             uint count = rom.u8(switch2Addr + 2 + extraByte) + 1u;
             if (newCount <= start + count)
             {
-                R.ShowStopError(
+                ShowExpansionError(string.Format(
                     "Already large enough.\r\nrequested:{0} existing:{1}+{2}={3}",
                     U.To0xHexString(newCount), U.To0xHexString(start),
-                    U.To0xHexString(count), U.To0xHexString(start + count));
+                    U.To0xHexString(count), U.To0xHexString(start + count)));
                 return U.NOT_FOUND;
             }
 
@@ -298,15 +307,17 @@ namespace FEBuilderGBA
             uint op = rom.u8(switch2Addr + 1);
             if (op < 0x38 || op > 0x3D)
             {
-                R.ShowStopError("Opcode rewritten by another patch — cannot expand.\r\nAddress:{0} Opcode:{1}",
-                    U.To0xHexString(switch2Addr + 1), U.To0xHexString(op));
+                ShowExpansionError(string.Format(
+                    "Opcode rewritten by another patch — cannot expand.\r\nAddress:{0} Opcode:{1}",
+                    U.To0xHexString(switch2Addr + 1), U.To0xHexString(op)));
                 return U.NOT_FOUND;
             }
             op = rom.u8(switch2Addr + 3 + extraByte);
             if (op < 0x28 || op > 0x2D)
             {
-                R.ShowStopError("Opcode rewritten by another patch — cannot expand.\r\nAddress:{0} Opcode:{1}",
-                    U.To0xHexString(switch2Addr + 3), U.To0xHexString(op));
+                ShowExpansionError(string.Format(
+                    "Opcode rewritten by another patch — cannot expand.\r\nAddress:{0} Opcode:{1}",
+                    U.To0xHexString(switch2Addr + 3), U.To0xHexString(op)));
                 return U.NOT_FOUND;
             }
 
@@ -341,6 +352,22 @@ namespace FEBuilderGBA
             rom.write_u8(switch2Addr + 2 + extraByte, newCount - 1u, undodata);
 
             return newaddr;
+        }
+
+        /// <summary>
+        /// Surface an expansion failure both to the UI (via
+        /// <see cref="CoreState.Services"/>.ShowError) AND the log (via
+        /// <see cref="R.ShowStopError"/>). Avalonia callers wire
+        /// `CoreState.Services` so users see a dialog/toast; WinForms keeps
+        /// the legacy `R.ShowStopError` MessageBox via the R.cs shadow type
+        /// in the WinForms project. Headless callers (tests, CLI) see only
+        /// the log line — sufficient for diagnostics. Mirrors the pattern
+        /// added by the PR #497 Copilot CLI re-review.
+        /// </summary>
+        static void ShowExpansionError(string message)
+        {
+            CoreState.Services?.ShowError(message);
+            R.ShowStopError(message);
         }
     }
 }
