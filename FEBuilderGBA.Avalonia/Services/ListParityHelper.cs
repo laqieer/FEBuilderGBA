@@ -1691,51 +1691,67 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build item effectiveness list matching ItemEffectivenessViewerViewModel.
-        /// Uses weapon_effectiveness_2x3x_address — a byte array of class IDs (blockSize=1).</summary>
+        /// <summary>Build item effectiveness OUTER (item-driven) list matching the
+        /// new ItemEffectivenessViewerViewModel layout (issue #368). Walks the
+        /// item table by +16 effectiveness pointer; mirrors the WinForms
+        /// ItemEffectivenessForm.Init iteration semantics. Replaces the old
+        /// flat weapon_effectiveness_2x3x_address-only loader which only worked
+        /// on FE8 and did not match WinForms behaviour.</summary>
         static List<AddrResult> BuildItemEffectivenessList(ROM rom)
         {
-            uint baseAddr = rom.RomInfo.weapon_effectiveness_2x3x_address;
-            if (baseAddr == 0) return new List<AddrResult>();
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            uint itemPtr = rom.RomInfo.item_pointer;
+            if (itemPtr == 0) return new List<AddrResult>();
+            uint itemBase = rom.p32(itemPtr);
+            if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
-                uint addr = baseAddr + i;
-                if (addr >= (uint)rom.Data.Length) break;
+                uint itemAddr = itemBase + i * dataSize;
+                if (itemAddr + dataSize > (uint)rom.Data.Length) break;
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))) break;
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 16))) break;
+                uint critPtr = rom.u32(itemAddr + 16);
+                if (!U.isPointer(critPtr)) continue;
+                uint critOff = U.toOffset(critPtr);
+                if (!U.isSafetyOffset(critOff)) continue;
 
-                uint classId = rom.u8(addr);
-                if (classId == 0) break;
-
-                string className = NameResolver.GetClassName(classId);
-                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
-                result.Add(new AddrResult(addr, name, i));
+                string itemName = NameResolver.GetItemName(i);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(itemAddr, name, i));
             }
             return result;
         }
 
-        /// <summary>Build item promotion list matching ItemPromotionViewerViewModel.
-        /// Uses item_promotion1_array_pointer — a byte array of class IDs (blockSize=1).</summary>
+        /// <summary>Build CC-item-driven OUTER list matching the new
+        /// ItemPromotionViewerViewModel layout (issue #368). Returns the fixed
+        /// set of CC items (Hero Crest, Knight Crest, ...). Replaces the old
+        /// flat item_promotion1_array_pointer loader.</summary>
         static List<AddrResult> BuildItemPromotionList(ROM rom)
         {
-            uint ptr = rom.RomInfo.item_promotion1_array_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x200; i++)
+
+            void Add(uint itemId, uint pointer)
             {
-                uint addr = baseAddr + i;
-                if (addr >= (uint)rom.Data.Length) break;
+                if (pointer == 0) return;
+                string name = $"{U.ToHexString(itemId)} {NameResolver.GetItemName(itemId)}";
+                result.Add(new AddrResult(pointer, name, itemId));
+            }
 
-                uint classId = rom.u8(addr);
-                if (classId == 0x00) break;
-
-                string className = NameResolver.GetClassName(classId);
-                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
-                result.Add(new AddrResult(addr, name, i));
+            Add(rom.RomInfo.cc_item_hero_crest_itemid, rom.RomInfo.cc_item_hero_crest_pointer);
+            Add(rom.RomInfo.cc_item_knight_crest_itemid, rom.RomInfo.cc_item_knight_crest_pointer);
+            Add(rom.RomInfo.cc_item_orion_bolt_itemid, rom.RomInfo.cc_item_orion_bolt_pointer);
+            Add(rom.RomInfo.cc_elysian_whip_itemid, rom.RomInfo.cc_elysian_whip_pointer);
+            Add(rom.RomInfo.cc_guiding_ring_itemid, rom.RomInfo.cc_guiding_ring_pointer);
+            if (rom.RomInfo.version >= 7)
+            {
+                Add(rom.RomInfo.cc_fallen_contract_itemid, rom.RomInfo.cc_fallen_contract_pointer);
+                Add(rom.RomInfo.cc_master_seal_itemid, rom.RomInfo.cc_master_seal_pointer);
+                Add(rom.RomInfo.cc_ocean_seal_itemid, rom.RomInfo.cc_ocean_seal_pointer);
+                Add(rom.RomInfo.cc_moon_bracelet_itemid, rom.RomInfo.cc_moon_bracelet_pointer);
+                Add(rom.RomInfo.cc_sun_bracelet_itemid, rom.RomInfo.cc_sun_bracelet_pointer);
             }
             return result;
         }

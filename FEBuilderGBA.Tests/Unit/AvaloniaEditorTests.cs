@@ -463,11 +463,33 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public void SelectFirstItem()", src);
         }
 
+        // Issue #368 — Effectiveness view now uses item-driven master/detail.
+        // The viewmodel walks the item table by +16 effectiveness pointer
+        // (mirroring WinForms ItemEffectivenessForm.Init), so the source must
+        // reference the item-pointer scan rather than the obsolete flat
+        // weapon_effectiveness_2x3x_address-only loader.
         [Fact]
-        public void ItemEffectivenessViewModel_UsesEffectivenessAddress()
+        public void ItemEffectivenessViewModel_UsesItemPointerAndPlusSixteen()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemEffectivenessViewerViewModel.cs"));
-            Assert.Contains("weapon_effectiveness_2x3x_address", src);
+            Assert.Contains("item_pointer", src);
+            Assert.Contains("item_datasize", src);
+            Assert.Contains("+ 16", src); // +16 is the effectiveness pointer offset
+        }
+
+        // Issue #368 — the rewritten view must expose the WinForms control set.
+        [Fact]
+        public void ItemEffectivenessView_HasItemDrivenLayout()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEffectivenessViewerView.axaml"));
+            Assert.Contains("InnerList", src);
+            Assert.Contains("ClassIdInput", src);
+            Assert.Contains("ClassNameLabel", src);
+            Assert.Contains("ClassIconImage", src);
+            Assert.Contains("IndependenceButton", src);
+            Assert.Contains("ListExpandsButton", src);
+            Assert.Contains("ReloadListButton", src);
+            Assert.Contains("ItemListBox", src);
         }
 
         // ------------------------------------------------------------------ Item Promotion Viewer
@@ -478,11 +500,30 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("public void SelectFirstItem()", src);
         }
 
+        // Issue #368 — Promotion view now uses item-driven master/detail
+        // sourcing the fixed CC items from cc_*_pointer in RomInfo.
         [Fact]
-        public void ItemPromotionViewModel_UsesPromotionPointer()
+        public void ItemPromotionViewModel_UsesCCItemPointers()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemPromotionViewerViewModel.cs"));
-            Assert.Contains("item_promotion1_array_pointer", src);
+            Assert.Contains("cc_item_hero_crest_pointer", src);
+            Assert.Contains("cc_item_knight_crest_pointer", src);
+            Assert.Contains("cc_guiding_ring_pointer", src);
+        }
+
+        // Issue #368 — the rewritten view must expose the WinForms control set
+        // plus the X_IER_Patch warning label.
+        [Fact]
+        public void ItemPromotionView_HasItemDrivenLayout()
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemPromotionViewerView.axaml"));
+            Assert.Contains("InnerList", src);
+            Assert.Contains("ClassIdInput", src);
+            Assert.Contains("ClassNameLabel", src);
+            Assert.Contains("ClassIconImage", src);
+            Assert.Contains("ListExpandsButton", src);
+            Assert.Contains("ReloadListButton", src);
+            Assert.Contains("X_IER_Patch", src);
         }
 
         // ------------------------------------------------------------------ Item Shop Viewer
