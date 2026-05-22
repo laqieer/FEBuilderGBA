@@ -461,7 +461,10 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"UpdateClassCard failed: {ex.Message}");
+                // Log the full exception (stack trace + inner) so UI/ROM
+                // rendering failures are diagnosable from logs.
+                // PR #471 Copilot inline review fix.
+                Log.Error("UpdateClassCard failed: " + ex.ToString());
                 CardPortraitImage.SetImage(null);
                 CardWaitIconImage.SetImage(null);
                 ClassCardBorder.IsVisible = false;

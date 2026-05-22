@@ -236,7 +236,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isSafetyOffset(baseAddr)) return null;
 
                 uint dataSize = rom.RomInfo.portrait_datasize;
-                if (dataSize == 0) return null;
+                if (dataSize == 0)
+                {
+                    // Defensive fallback mirroring LoadPortraitMini for FE7/8:
+                    // when RomInfo did not declare a portrait struct size (e.g.,
+                    // a malformed/partial RomInfo) use the canonical struct size
+                    // for the current version (16 for FE6, 28 for FE7/8) instead
+                    // of bailing out. PR #471 Copilot inline review fix.
+                    dataSize = rom.RomInfo.version == 6 ? 16u : 28u;
+                }
 
                 uint addr = baseAddr + portraitId * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) return null;

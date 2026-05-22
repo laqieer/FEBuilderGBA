@@ -28,6 +28,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
+        /// Skip when no ROM was loaded at all (CI/local without ROM available).
+        /// When a ROM IS loaded but it is not FE8U, hard-fail so misconfigured
+        /// fixtures do not silently pass FE8U-specific assertions. This mirrors
+        /// the <c>TryAssertFE8U</c> pattern used elsewhere in this test suite
+        /// (e.g., <see cref="ClassEditorListPreviewTests"/>).
+        /// PR #471 Copilot inline review fix.
+        /// </summary>
+        bool TryAssertFE8U()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("RomFixture not available — skipping ROM-backed assertions.");
+                return false;
+            }
+            Assert.Equal("FE8U", _fixture.Version);
+            return true;
+        }
+
+        /// <summary>
         /// Ensure CoreState.ImageService is wired so PortraitRendererCore can
         /// decode 4bpp tiles. RomFixture itself does not register one.
         /// </summary>
@@ -55,22 +74,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Null(img);
         }
 
+        /// <summary>
+        /// Class id 1 in FE8U is the first non-placeholder class entry with a
+        /// non-zero portrait id (id 0 is a placeholder with no portrait).
+        /// </summary>
         [Fact]
-        public void LoadClassFacePortrait_FE8U_FirstClass_ReturnsImage()
+        public void LoadClassFacePortrait_FE8U_ClassId1_ReturnsImage()
         {
-            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
-            {
-                _output.WriteLine($"SKIP: FE8U.gba unavailable (have {_fixture.Version})");
-                return;
-            }
+            if (!TryAssertFE8U()) return;
             using var _ = EnsureImageService();
 
             ROM rom = CoreState.ROM!;
-            // Eirika Lord class (id=1) has portrait_id at offset +8.
             uint classBase = rom.p32(rom.RomInfo.class_pointer);
             uint classAddr = classBase + 1 * rom.RomInfo.class_datasize;
             uint portraitId = rom.u16(classAddr + 8);
-            Assert.True(portraitId > 0, "Expected first class to have non-zero portrait id");
+            Assert.True(portraitId > 0, "Expected class id 1 to have non-zero portrait id");
 
             using var img = PreviewIconHelper.LoadClassFacePortrait(portraitId);
             Assert.NotNull(img);
@@ -81,11 +99,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void LoadClassFacePortrait_FE8U_ImageWidth_Is80px()
         {
-            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
-            {
-                _output.WriteLine($"SKIP: FE8U.gba unavailable (have {_fixture.Version})");
-                return;
-            }
+            if (!TryAssertFE8U()) return;
             using var _ = EnsureImageService();
 
             ROM rom = CoreState.ROM!;
@@ -102,11 +116,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void LoadClassFacePortrait_FE8U_InvalidPortraitId_ReturnsNull()
         {
-            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
-            {
-                _output.WriteLine($"SKIP: FE8U.gba unavailable (have {_fixture.Version})");
-                return;
-            }
+            if (!TryAssertFE8U()) return;
             using var _ = EnsureImageService();
 
             // Wildly out-of-range portrait id pushes the entry beyond ROM end.
