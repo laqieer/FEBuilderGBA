@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             uint dataSize = rom.RomInfo.item_datasize;
-            bool fe8uSingleByte = ItemListPredicate.IsFE8USingleByte(rom);
+            bool fe8SingleByte = ItemListPredicate.IsFE8SingleByte(rom);
 
             var result = new List<AddrResult>();
             // Issue #364: mirror the WinForms ItemForm stop predicate so the list
@@ -237,7 +237,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 uint addr = (uint)(baseAddr + i * dataSize);
                 if (addr + dataSize > (uint)rom.Data.Length) break;
-                if (!ItemListPredicate.IsValidEntry(rom, (int)i, addr, fe8uSingleByte)) break;
+                if (!ItemListPredicate.IsValidEntry(rom, (int)i, addr, fe8SingleByte)) break;
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;

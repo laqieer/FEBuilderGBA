@@ -10,9 +10,9 @@ namespace FEBuilderGBA.Avalonia.Services
     ///
     /// <list type="bullet">
     ///   <item>Stop at index &gt; 0xFF (hard cap of 256 entries).</item>
-    ///   <item>For FE8U non-multibyte, accept the entry iff
-    ///         <c>u32(addr + 12)</c> is a ROM pointer or NULL.</item>
-    ///   <item>For every other version (FE6 / FE7J / FE7U / FE8J),
+    ///   <item>For FE8 + single-byte (<c>RomInfo.version == 8 &amp;&amp; is_multibyte == false</c>),
+    ///         accept the entry iff <c>u32(addr + 12)</c> is a ROM pointer or NULL.</item>
+    ///   <item>For every other configuration (FE6 / FE7 either region / FE8 multibyte),
     ///         additionally require <c>u32(addr + 16)</c> to be a ROM pointer or NULL.</item>
     /// </list>
     ///
@@ -29,11 +29,12 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <param name="rom">Source ROM. Must be non-null.</param>
         /// <param name="i">Zero-based entry index.</param>
         /// <param name="entryAddr">Absolute ROM-relative offset of the entry start.</param>
-        /// <param name="fe8uSingleByte">
-        /// true for FE8U non-multibyte (loosened predicate); false for every other
-        /// version (strict +12 AND +16 predicate, matching WinForms <c>ItemForm</c>).
+        /// <param name="fe8SingleByte">
+        /// true when <c>RomInfo.version == 8 &amp;&amp; is_multibyte == false</c> (loosened
+        /// predicate — only <c>+12</c> checked); false for every other configuration
+        /// (strict <c>+12 AND +16</c> predicate, matching WinForms <c>ItemForm</c>).
         /// </param>
-        public static bool IsValidEntry(ROM rom, int i, uint entryAddr, bool fe8uSingleByte)
+        public static bool IsValidEntry(ROM rom, int i, uint entryAddr, bool fe8SingleByte)
         {
             if (i > 0xFF) return false;
 
@@ -41,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr + 20 > (uint)rom.Data.Length) return false;
 
             if (!U.isPointerOrNULL(rom.u32(entryAddr + 12))) return false;
-            if (fe8uSingleByte) return true;
+            if (fe8SingleByte) return true;
             return U.isPointerOrNULL(rom.u32(entryAddr + 16));
         }
 
@@ -49,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Walks the item table from <paramref name="baseAddr"/> applying
         /// <see cref="IsValidEntry"/> and returns the number of valid entries.
         /// </summary>
-        public static int CountValidEntries(ROM rom, uint baseAddr, uint dataSize, bool fe8uSingleByte)
+        public static int CountValidEntries(ROM rom, uint baseAddr, uint dataSize, bool fe8SingleByte)
         {
             if (rom == null) return 0;
             if (dataSize == 0) return 0;
@@ -64,17 +65,20 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint addr = baseAddr + (uint)i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
-                if (!IsValidEntry(rom, i, addr, fe8uSingleByte)) break;
+                if (!IsValidEntry(rom, i, addr, fe8SingleByte)) break;
                 count++;
             }
             return count;
         }
 
         /// <summary>
-        /// Returns the FE8U-single-byte flag for the supplied ROM
-        /// (FE8 + non-multibyte). All other configurations get the strict +12 AND +16 predicate.
+        /// Returns true when <paramref name="rom"/> is FE8 + single-byte
+        /// (<c>RomInfo.version == 8 &amp;&amp; is_multibyte == false</c>) — the WinForms
+        /// reference predicate uses the relaxed (+12 only) branch in that case. All other
+        /// configurations (FE6, FE7 either region, FE8 multibyte) get the strict
+        /// <c>+12 AND +16</c> predicate.
         /// </summary>
-        public static bool IsFE8USingleByte(ROM rom)
+        public static bool IsFE8SingleByte(ROM rom)
         {
             if (rom?.RomInfo == null) return false;
             return rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte == false;

@@ -11,9 +11,11 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// containing crafted item entries and exercise <see cref="ItemListPredicate"/> directly.
     ///
     /// The predicate mirrors WinForms ItemForm.Init exactly:
-    ///   FE8U non-multibyte:        +12 must be pointer-or-null
-    ///   FE6 / FE7J / FE7U / FE8J:  +12 AND +16 must each be pointer-or-null
-    ///   i > 0xFF                   always stops (hard cap of 256 entries)
+    ///   FE8 single-byte (version == 8 && is_multibyte == false):
+    ///                                  +12 must be pointer-or-null
+    ///   FE6 / FE7 either / FE8 multibyte:
+    ///                                  +12 AND +16 must each be pointer-or-null
+    ///   i > 0xFF                       always stops (hard cap of 256 entries)
     /// </summary>
     public class ItemEditorListCountPredicateTests
     {
@@ -21,14 +23,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         const uint ENTRY_SIZE = 36;
         const int ROM_SIZE = 0x100000; // 1 MB — plenty for 256 entries
 
-        /// <summary>Build a ROM filled with valid item entries.
-        /// Each entry has u32 @ +12 and u32 @ +16 set to 0 (pointer-or-NULL).
-        /// </summary>
-        static ROM BuildValidRom(int validEntries)
+        /// <summary>Build an empty ROM (1 MB, all zeros). Each item entry is filled with
+        /// zeros so <c>u32 @ +12</c> and <c>u32 @ +16</c> are NULL (pointer-or-null).
+        /// Tests then overwrite specific bytes to mark entries invalid.</summary>
+        static ROM BuildValidRom()
         {
             byte[] data = new byte[ROM_SIZE];
-            // 0 is treated as pointer-or-null by U.isPointerOrNULL.
-            // No-op: byte[] is already zero-initialised.
+            // byte[] is already zero-initialised — 0 is treated as pointer-or-null
+            // by U.isPointerOrNULL, so every entry is "valid" until a test mutates it.
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
             return rom;
@@ -46,8 +48,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Predicate_StopsOnFirst_PlusSixteenNotPointer_NonFE8U()
         {
-            // FE6/FE7/FE8J path: +12 AND +16 both required.
-            var rom = BuildValidRom(0);
+            // FE6 / FE7 either / FE8 multibyte path: +12 AND +16 both required.
+            var rom = BuildValidRom();
             byte[] data = rom.Data;
 
             // Entries 0..9: +12 = 0 (null), +16 = 0 (null) — valid.
@@ -62,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(data, BASE_ADDR + 10 * ENTRY_SIZE + 16, 0x12345678);
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: false);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: false);
 
             Assert.Equal(10, count);
         }
@@ -70,8 +72,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Predicate_StopsOnFirst_PlusTwelveNotPointer_FE8USingleByte()
         {
-            // FE8U non-multibyte: only +12 required; +16 is ignored.
-            var rom = BuildValidRom(0);
+            // FE8 single-byte (e.g. FE8U): only +12 required; +16 is ignored.
+            var rom = BuildValidRom();
             byte[] data = rom.Data;
 
             // Entries 0..4: +12 = 0 — valid.
@@ -84,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(data, BASE_ADDR + 5 * ENTRY_SIZE + 12, 0xDEADBEEF);
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: true);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: true);
 
             Assert.Equal(5, count);
         }
@@ -93,11 +95,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void Predicate_StopsAt256_OnAllPointersValid()
         {
             // All zeros → every entry is pointer-or-null. Hard cap of 256 entries kicks in.
-            var rom = BuildValidRom(0);
+            var rom = BuildValidRom();
             // No edits — entire ROM is 0.
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: false);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: false);
 
             Assert.Equal(256, count);
         }
@@ -105,11 +107,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Predicate_FE8USingleByte_StopsAt256_OnAllValid()
         {
-            // Same hard-cap behaviour under FE8U single-byte branch.
-            var rom = BuildValidRom(0);
+            // Same hard-cap behaviour under FE8 single-byte branch.
+            var rom = BuildValidRom();
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: true);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: true);
 
             Assert.Equal(256, count);
         }
@@ -120,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Regression guard: ensures the +16 check is actually applied in the
             // non-FE8U branch. If a future refactor accidentally drops it, the
             // count would be 256 (full cap) and this test would fail.
-            var rom = BuildValidRom(0);
+            var rom = BuildValidRom();
             byte[] data = rom.Data;
 
             // Entry 50: +12 = 0 (valid pointer-or-null), +16 = 0xFFFF_FFFF (NOT pointer-or-null).
@@ -129,7 +131,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(data, BASE_ADDR + 50 * ENTRY_SIZE + 16, 0xFFFFFFFF);
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: false);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: false);
 
             Assert.Equal(50, count);
         }
@@ -138,7 +140,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void Predicate_AcceptsRomPointerOrNull_AtPlusTwelveAndPlusSixteen()
         {
             // 0x08000000 is a valid ROM pointer → predicate accepts it.
-            var rom = BuildValidRom(0);
+            var rom = BuildValidRom();
             byte[] data = rom.Data;
 
             // Entries 0..2: realistic ROM pointers.
@@ -155,7 +157,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(data, BASE_ADDR + 4 * ENTRY_SIZE + 16, 0x03001000); // RAM pointer is NOT ROM pointer
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, BASE_ADDR, ENTRY_SIZE, fe8uSingleByte: false);
+                rom, BASE_ADDR, ENTRY_SIZE, fe8SingleByte: false);
 
             Assert.Equal(4, count);
         }
@@ -170,7 +172,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             rom.SwapNewROMDataDirect(data);
 
             int count = ItemListPredicate.CountValidEntries(
-                rom, 0x100, ENTRY_SIZE, fe8uSingleByte: false);
+                rom, 0x100, ENTRY_SIZE, fe8SingleByte: false);
 
             // All entries valid (zeros) until ROM ends.
             Assert.Equal(35, count);

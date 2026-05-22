@@ -575,14 +575,14 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             uint dataSize = rom.RomInfo.item_datasize;
-            bool fe8uSingleByte = ItemListPredicate.IsFE8USingleByte(rom);
+            bool fe8SingleByte = ItemListPredicate.IsFE8SingleByte(rom);
             var result = new List<AddrResult>();
             // Issue #364: same WinForms-mirroring stop predicate as ItemEditorViewModel.
             for (uint i = 0; i <= 0xFF; i++)
             {
                 uint addr = baseAddr + i * dataSize;
                 if (addr + dataSize > (uint)rom.Data.Length) break;
-                if (!ItemListPredicate.IsValidEntry(rom, (int)i, addr, fe8uSingleByte)) break;
+                if (!ItemListPredicate.IsValidEntry(rom, (int)i, addr, fe8SingleByte)) break;
                 uint nameId = rom.u16(addr);
                 string name = U.ToHexString(i) + " " + GetTextById(nameId);
                 result.Add(new AddrResult(addr, name, i));
