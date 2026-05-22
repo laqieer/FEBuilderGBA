@@ -379,5 +379,109 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // -------------------------------------------------------------------
+        // Issue #356 \u2014 LF/CRLF newline normalization in MyTranslateResourceLow.str()
+        //
+        // AXAML literals decoded from `&#x0a;` XML entities use bare LF, while
+        // the translation files store the literal `\r\n` escape that the parser
+        // decodes to CRLF (or sometimes plain LF after manual editing). The
+        // runtime must succeed when the runtime string and the stored key
+        // differ only in newline form. Tests below cover each lookup path:
+        //   - direct lookup (Japanese mode against a Japanese-keyed file)
+        //   - reverse-English chain (Avalonia English literal -> Japanese key)
+        //   - explicit LF\u2194CRLF mismatch in both directions
+        //
+        // These tests address Copilot CLI PR #458 round-2 review: the LF/CRLF
+        // fallback added by commit 58c65ef64 had no targeted Core-side test.
+        // -------------------------------------------------------------------
+
+        [Fact]
+        public void LfInput_MatchesCrlfStoredKey_DirectLookup()
+        {
+            // Translation file stores key with literal `\r\n` (parser decodes
+            // to CRLF). Lookup with bare-LF runtime string should still hit
+            // via the 2c LF\u2192CRLF normalization fallback.
+            string langFile = Path.GetTempFileName();
+            try
+            {
+                // After parser decoding, the key is "Help\r\nLine2"
+                File.WriteAllText(langFile,
+                    ":Help\\r\\nLine2\n" +
+                    "Help-translated\n" +
+                    "\n");
+                MyTranslateResource.LoadResource(langFile);
+
+                // Runtime string uses bare LF (as Avalonia produces from &#x0a;)
+                string lfInput = "Help\nLine2";
+                Assert.Equal("Help-translated", MyTranslateResource.str(lfInput));
+            }
+            finally
+            {
+                File.Delete(langFile);
+            }
+        }
+
+        [Fact]
+        public void LfInput_MatchesCrlfReverseEnMapKey()
+        {
+            // en.txt reverse map has a CRLF key (Avalonia English literal
+            // stored as `Other ROM\r\nData Address` after \\r\\n decode).
+            // The runtime hits the reverse chain with a bare-LF input and
+            // should still resolve via the LF\u2192CRLF normalization branch
+            // inside the reverse-map lookup.
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                // en.txt maps a Japanese key to a CRLF-keyed English value
+                File.WriteAllText(enFile,
+                    ":\u4ed6\u306eROM\\r\\n\u30c7\u30fc\u30bf\u30a2\u30c9\u30ec\u30b9\n" +
+                    "Other ROM\\r\\nData Address\n" +
+                    "\n");
+                File.WriteAllText(zhFile,
+                    ":\u4ed6\u306eROM\\r\\n\u30c7\u30fc\u30bf\u30a2\u30c9\u30ec\u30b9\n" +
+                    "\u5176\u4ed6ROM\\r\\n\u6570\u636e\u5730\u5740\n" +
+                    "\n");
+
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // Runtime input uses LF (as Avalonia produces from &#x0a;)
+                string lfInput = "Other ROM\nData Address";
+                Assert.Equal("\u5176\u4ed6ROM\r\n\u6570\u636e\u5730\u5740",
+                    MyTranslateResource.str(lfInput));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
+        [Fact]
+        public void NewlineNormalization_PassesThroughWhenNoMatch()
+        {
+            // If neither LF nor CRLF variants match, the fallback chain
+            // should pass through cleanly (return the source string) \u2014 i.e.
+            // not crash, not return an empty string. Regression guard for
+            // multi-line literals not yet translated.
+            string langFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(langFile,
+                    ":SomeOtherKey\n" +
+                    "value\n" +
+                    "\n");
+                MyTranslateResource.LoadResource(langFile);
+
+                string lfInput = "Unmatched\nliteral";
+                Assert.Equal(lfInput, MyTranslateResource.str(lfInput));
+            }
+            finally
+            {
+                File.Delete(langFile);
+            }
+        }
+
     }
 }
