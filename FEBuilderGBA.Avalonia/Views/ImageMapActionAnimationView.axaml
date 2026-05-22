@@ -27,7 +27,7 @@
     <!-- Row 1: selection bar (mirrors WF panel5: アドレス / Size: / 選択アドレス / 書き込み) -->
     <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Address" VerticalAlignment="Center" />
+        <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Address_Input"
                        FormatString="X8" Name="AddressBox" Width="120"
                        Minimum="0" Maximum="65535999"

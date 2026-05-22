@@ -6537,9 +6537,6 @@ ASMポインタアドレス:
 :Filter Name
 名前
 
-:List Expansion
-リスト拡張
-
 :Animation Pointer (D0):
 アニメーション (D0):
 

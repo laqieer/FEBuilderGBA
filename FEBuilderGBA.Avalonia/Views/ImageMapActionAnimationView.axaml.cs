@@ -99,31 +99,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 ShowFrameUpDown.Value = _vm.SelectedFrame;
                 _vm.ComputeFrameInfo(_vm.SelectedFrame);
                 BinInfoBox.Text = _vm.BinInfoText;
-                UpdatePreview();
+                // Render the SELECTED frame (mirrors WinForms
+                // ShowFrameUpDown_ValueChanged on initial load). The earlier
+                // implementation called both UpdatePreview() and
+                // UpdatePreviewForFrame() which raced — Copilot CLI inline
+                // review on PR #506.
+                UpdatePreviewForFrame();
             }
             else
             {
                 PreviewImage.Source = null;
                 BinInfoBox.Text = "";
-            }
-        }
-
-        void UpdatePreview()
-        {
-            try
-            {
-                if (_vm.AnimationPointer == 0 || !U.isPointer(_vm.AnimationPointer))
-                {
-                    PreviewImage.Source = null;
-                    return;
-                }
-                using var img = PreviewIconHelper.LoadMapActionAnimationThumbnail(_vm.AnimationPointer);
-                Bitmap? bmp = ImageConversionHelper.ToAvaloniaBitmap(img);
-                PreviewImage.Source = bmp;
-            }
-            catch
-            {
-                PreviewImage.Source = null;
             }
         }
 

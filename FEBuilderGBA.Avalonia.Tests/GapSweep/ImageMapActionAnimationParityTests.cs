@@ -60,22 +60,20 @@ public class ImageMapActionAnimationParityTests
     // Partial-class enforcement — Copilot CLI plan-review pt 1.
     // -----------------------------------------------------------------
 
+    /// <summary>
+    /// Enforces that <c>ImageMapActionAnimationViewModel</c> implements
+    /// <see cref="INavigationTargetSource"/> — the contract added by the
+    /// sibling <c>.NavigationTargets.cs</c> partial. The <c>partial</c>
+    /// modifier itself is compile-time enforced (CS0260 if it disappears),
+    /// so this test focuses on the actually-runtime-visible interface
+    /// contract instead. Renamed from
+    /// <c>ViewModel_IsDeclaredAsPartialClass</c> after Copilot CLI inline
+    /// review on PR #506 flagged the original name as misleading.
+    /// </summary>
     [Fact]
-    public void ViewModel_IsDeclaredAsPartialClass()
+    public void ViewModel_ImplementsNavigationTargetSourceInterface()
     {
-        // The NavigationTargets manifest lives in a sibling
-        // `.NavigationTargets.cs`. If the main VM file ever loses its
-        // `partial` modifier we'd get a CS0260 compile error, but the
-        // test ensures the explicit contract stays visible. We use the
-        // attribute Type.IsAbstract metadata heuristic: a class declared
-        // `public partial class X` produces multiple non-abstract
-        // TypeInfo entries that the runtime fuses into one.
         var t = typeof(ImageMapActionAnimationViewModel);
-
-        // Compile-time fact: this file references the manifest from the
-        // sibling file. The build itself would fail if the VM weren't
-        // partial. Add a runtime assertion mirroring the Copilot CLI
-        // plan-review's explicit ask for an enforcing test.
         Assert.Contains(typeof(INavigationTargetSource), t.GetInterfaces());
     }
 
@@ -451,11 +449,12 @@ public class ImageMapActionAnimationParityTests
         // entry, so we want at least row 0 + row 1 readable.
         BitConverter.GetBytes(0u).CopyTo(bytes, tableBase + 0);
         BitConverter.GetBytes(0x00200000u | 0x08000000u).CopyTo(bytes, tableBase + 8);
-        // Row 2 entry stays zero so the loop continues to row 2; but
-        // isSafetyPointerOrNull(0) is true so we get at least row 0 + row 1
-        // before stopping on row 2's terminator condition.
-        // Actually 0 is a valid pointer-or-null entry, so we let the
-        // loop run to a natural break when we exceed length-readability.
+        // Row 2 = INVALID terminator so LoadList breaks the loop quickly.
+        // Without an explicit invalid terminator, `isSafetyPointerOrNull(0)`
+        // returns true and the loop would scan until ROM end (16 MB →
+        // millions of iterations + OOM-sized list). Copilot CLI inline
+        // review on PR #506.
+        BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(bytes, tableBase + 16);
 
         var rom = new ROM();
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");

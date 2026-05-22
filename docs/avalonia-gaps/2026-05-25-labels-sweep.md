@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:33:01Z"
-git-sha: 52c766ad7
+generated: "2026-05-22T23:23:08Z"
+git-sha: e2e13099d
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4637 |
-| Total AV-only labels | 2668 |
-| Total common labels | 63 |
+| Total WF-only labels | 4638 |
+| Total AV-only labels | 2682 |
+| Total common labels | 62 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-25-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-22-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -3770,6 +3770,63 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Talk`
 - `Write`
 
+### ImagePortraitFE6Form
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 34 / AV 42)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `X:`
+- `Y:`
+- `アドレス`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `フレーム`
+- `マップ顔`
+- `ユニット顔`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `口座標`
+- `名前`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Comment:`
+- `Export PAL`
+- `Export PNG`
+- `Import PAL`
+- `Import PNG`
+- `Map Face:`
+- `Map Face (32x32)`
+- `Mouth Coord:`
+- `Mouth X:`
+- `Mouth Y:`
+- `Open Source File`
+- `Palette:`
+- `Portrait Editor (FE6)`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Show Example (Frame 3)`
+- `Show Frame:`
+- `Start Address:`
+- `Unit Face:`
+- `Unit Face (96x80)`
+- `Unused (B14):`
+- `Unused (B15):`
+- `Write`
+
 ### MonsterProbabilityForm
 WF labels: **22** · AV labels: **15** · WF-only: **22** · AV-only: **15** · Common: **0** · Density verdict: **Medium** (WF 38 / AV 28)
 
@@ -3948,48 +4005,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `ROM Translation Tool`
-
-### ImagePortraitFE6Form
-WF labels: **23** · AV labels: **14** · WF-only: **21** · AV-only: **12** · Common: **2** · Density verdict: **Medium** (WF 34 / AV 22)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `アドレス`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `フレーム`
-- `マップ顔`
-- `ユニット顔`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `口座標`
-- `名前`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Export PAL`
-- `Export PNG`
-- `Import PAL`
-- `Import PNG`
-- `Map Face:`
-- `Mouth Coord:`
-- `Palette:`
-- `Portrait Editor (FE6)`
-- `Unit Face:`
-- `Unused (B14):`
-- `Unused (B15):`
 
 ### MapExitPointForm
 WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
@@ -4551,7 +4566,7 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address`
+- `Address:`
 - `Animation Pointer (D0):`
 - `Comment:`
 - `Display example`

@@ -20499,9 +20499,6 @@ ASM 指针地址:
 :Filter Name
 名称
 
-:List Expansion
-列表扩展
-
 :Animation Pointer (D0):
 动画指针 (D0):
 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -96,34 +95,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         static Dictionary<uint, string> LoadDefaultNamesFromConfig()
         {
-            var dic = new Dictionary<uint, string>();
             try
             {
-                string baseDir = CoreState.BaseDirectory ?? AppContext.BaseDirectory;
-                string path = Path.Combine(baseDir, "config", "data", "MapActionAnimation_ALL.txt");
-                if (!File.Exists(path))
-                {
-                    return dic;
-                }
-                foreach (string raw in File.ReadAllLines(path))
-                {
-                    string line = raw.Trim();
-                    if (line.Length == 0 || line.StartsWith("#")) continue;
-                    int eq = line.IndexOf('=');
-                    if (eq <= 0) continue;
-                    string hex = line.Substring(0, eq).Trim();
-                    string name = line.Substring(eq + 1).Trim();
-                    if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out uint id))
-                    {
-                        dic[id] = name;
-                    }
-                }
+                // Use U.ConfigDataFilename + U.LoadDicResource so we pick up
+                // ROM-specific overrides (`MapActionAnimation_{FE8U}.{lang}.txt`)
+                // and language fallback chain — matches WinForms
+                // `ImageMapActionAnimationForm.GetNameDefaultName` /
+                // `U.LoadDicResource(U.ConfigDataFilename(...))` pattern.
+                // Copilot CLI inline review on PR #506.
+                string path = U.ConfigDataFilename("MapActionAnimation_");
+                return U.LoadDicResource(path);
             }
             catch (Exception ex)
             {
                 Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig failed: {0}", ex.Message);
+                return new Dictionary<uint, string>();
             }
-            return dic;
         }
 
         /// <summary>
@@ -198,10 +185,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint a = rom.u32(addr);
                 if (!U.isSafetyPointerOrNull(a)) break;
 
-                // Prefer the human-readable default name when available.
-                string defaultName = LoadDefaultName((uint)i);
-                string name = defaultName.Length > 0
-                    ? $"0x{i:X02} {defaultName}"
+                // Prefer the user-saved comment from CoreState.CommentCache
+                // (matches WinForms `InputFormRef.GetCommentSA(addr)` lookup
+                // in `Init.makeNameAt`); fall back to the per-id default name
+                // when no cached comment is set.
+                string label = "";
+                if (CoreState.CommentCache != null)
+                {
+                    label = CoreState.CommentCache.At(addr) ?? "";
+                }
+                if (label.Length == 0)
+                {
+                    label = LoadDefaultName((uint)i);
+                }
+                string name = label.Length > 0
+                    ? $"0x{i:X02} {label}"
                     : $"0x{i:X02} Map Action Animation";
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
@@ -216,7 +214,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
-            SelectedId = ComputeIdForAddress(rom, addr);
+            // If LoadList hasn't run yet (deep-linked NavigateTo), populate
+            // ReadStartAddress lazily by running the signature search once,
+            // then derive SelectedId via the cheap O(1) helper. After
+            // LoadList runs, subsequent LoadEntry calls hit the fast path.
+            if (ReadStartAddress == 0)
+            {
+                uint animeP = FindAnimationPointer(rom);
+                if (animeP != U.NOT_FOUND)
+                {
+                    ReadStartAddress = rom.p32(animeP);
+                }
+            }
+            SelectedId = ComputeIdForAddress(addr);
 
             AnimationPointer = rom.u32(addr + 0);
             Padding1 = rom.u16(addr + 4);
@@ -250,16 +260,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Given a row address and the current ROM, derive the id
-        /// (0-based index into the pointer table). Returns 0 when the
-        /// address falls outside the expected table window.
+        /// Given a row address, derive the id (0-based index into the
+        /// pointer table). Returns 0 when the address falls outside the
+        /// expected table window or when LoadList hasn't yet populated
+        /// the cached ReadStartAddress. Cheap O(1) derivation — does NOT
+        /// rescan the ROM (the previous version re-ran the GrepEnd
+        /// signature search on every selection change — Copilot CLI
+        /// inline review on PR #506).
         /// </summary>
-        static uint ComputeIdForAddress(ROM rom, uint addr)
+        uint ComputeIdForAddress(uint addr)
         {
-            uint animeP = FindAnimationPointer(rom);
-            if (animeP == U.NOT_FOUND) return 0;
-            uint baseAddr = rom.p32(animeP);
-            if (addr < baseAddr) return 0;
+            uint baseAddr = ReadStartAddress;
+            if (baseAddr == 0 || addr < baseAddr) return 0;
             return (addr - baseAddr) / SIZE;
         }
 
