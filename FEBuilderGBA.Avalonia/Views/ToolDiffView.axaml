@@ -18,13 +18,13 @@
           <StackPanel Spacing="8" Margin="8">
             <Grid ColumnDefinitions="160,8,*,8,Auto" RowDefinitions="Auto,8,Auto,8,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Other ROM:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolDiff_OtherPath_TextBox" Grid.Row="0" Grid.Column="2" Text="{Binding OtherPath}" />
+              <TextBox AutomationProperties.AutomationId="ToolDiff_OtherPath_Input" Grid.Row="0" Grid.Column="2" Text="{Binding OtherPath}" />
               <Button AutomationProperties.AutomationId="ToolDiff_OtherBrowse_Button" Grid.Row="0" Grid.Column="4" Content="Browse..." Click="OtherBrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Recover Miss Match:" VerticalAlignment="Center" ToolTip.Tip="Minimum number of matching bytes required to end a diff run." />
-              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch_NumericUpDown" Grid.Row="2" Grid.Column="2" Value="{Binding RecoverMissMatch}" Minimum="0" Maximum="65535" />
+              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch_Input" Grid.Row="2" Grid.Column="2" Value="{Binding RecoverMissMatch}" Minimum="0" Maximum="65535" />
 
-              <CheckBox AutomationProperties.AutomationId="ToolDiff_CollectFreeSpace_CheckBox" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding IsCollectFreeSpace}" Content="Collect free space (FE8 only — keeps free-area diffs as a single block)" />
+              <CheckBox AutomationProperties.AutomationId="ToolDiff_CollectFreeSpace_Check" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding IsCollectFreeSpace}" Content="Collect free space (FE8 only — keeps free-area diffs as a single block)" />
             </Grid>
 
             <Button AutomationProperties.AutomationId="ToolDiff_MakeBinPatch_Button" Content="Make Binary Patch" Click="MakeBinPatch_Click" Height="36" HorizontalAlignment="Stretch" />
@@ -43,15 +43,15 @@
           <StackPanel Spacing="8" Margin="8">
             <Grid ColumnDefinitions="160,8,*,8,Auto" RowDefinitions="Auto,8,Auto,8,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="ROM A:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolDiff_AFilePath_TextBox" Grid.Row="0" Grid.Column="2" Text="{Binding AFilePath}" />
+              <TextBox AutomationProperties.AutomationId="ToolDiff_AFilePath_Input" Grid.Row="0" Grid.Column="2" Text="{Binding AFilePath}" />
               <Button AutomationProperties.AutomationId="ToolDiff_ABrowse_Button" Grid.Row="0" Grid.Column="4" Content="Browse..." Click="ABrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="ROM B:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolDiff_BFilePath_TextBox" Grid.Row="2" Grid.Column="2" Text="{Binding BFilePath}" />
+              <TextBox AutomationProperties.AutomationId="ToolDiff_BFilePath_Input" Grid.Row="2" Grid.Column="2" Text="{Binding BFilePath}" />
               <Button AutomationProperties.AutomationId="ToolDiff_BBrowse_Button" Grid.Row="2" Grid.Column="4" Content="Browse..." Click="BBrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="Recover Miss Match:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch3_NumericUpDown" Grid.Row="4" Grid.Column="2" Value="{Binding RecoverMissMatch3}" Minimum="0" Maximum="65535" />
+              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch3_Input" Grid.Row="4" Grid.Column="2" Value="{Binding RecoverMissMatch3}" Minimum="0" Maximum="65535" />
             </Grid>
 
             <Button AutomationProperties.AutomationId="ToolDiff_MakeBinPatch3_Button" Content="Make 3-Way Binary Patch" Click="MakeBinPatch3_Click" Height="36" HorizontalAlignment="Stretch" />

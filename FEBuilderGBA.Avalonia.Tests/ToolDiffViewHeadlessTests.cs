@@ -73,15 +73,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             var ids = CollectAutomationIds(view);
 
             // Diff2 tab
-            Assert.Contains("ToolDiff_OtherPath_TextBox", ids);
+            Assert.Contains("ToolDiff_OtherPath_Input", ids);
             Assert.Contains("ToolDiff_OtherBrowse_Button", ids);
-            Assert.Contains("ToolDiff_RecoverMissMatch_NumericUpDown", ids);
-            Assert.Contains("ToolDiff_CollectFreeSpace_CheckBox", ids);
+            Assert.Contains("ToolDiff_RecoverMissMatch_Input", ids);
+            Assert.Contains("ToolDiff_CollectFreeSpace_Check", ids);
             Assert.Contains("ToolDiff_MakeBinPatch_Button", ids);
 
             // Diff3 tab
-            Assert.Contains("ToolDiff_AFilePath_TextBox", ids);
-            Assert.Contains("ToolDiff_BFilePath_TextBox", ids);
+            Assert.Contains("ToolDiff_AFilePath_Input", ids);
+            Assert.Contains("ToolDiff_BFilePath_Input", ids);
             Assert.Contains("ToolDiff_ABrowse_Button", ids);
             Assert.Contains("ToolDiff_BBrowse_Button", ids);
             Assert.Contains("ToolDiff_MakeBinPatch3_Button", ids);

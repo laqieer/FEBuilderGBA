@@ -17,14 +17,14 @@
           <StackPanel Spacing="8" Margin="8">
             <Grid ColumnDefinitions="140,8,*,8,Auto" RowDefinitions="Auto,8,Auto,8,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="SRC:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressSrc_TextBox" Grid.Row="0" Grid.Column="2" Text="{Binding DecompressSrcPath}" Watermark="&lt;&lt;THIS ROM&gt;&gt;" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressSrc_Input" Grid.Row="0" Grid.Column="2" Text="{Binding DecompressSrcPath}" Watermark="&lt;&lt;THIS ROM&gt;&gt;" />
               <Button AutomationProperties.AutomationId="ToolLZ77_DecompressSrcBrowse_Button" Grid.Row="0" Grid.Column="4" Content="Browse..." Click="DecompressSrcBrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="SRC Address:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressAddress_TextBox" Grid.Row="2" Grid.Column="2" Text="{Binding DecompressAddressText}" Watermark="0x0" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressAddress_Input" Grid.Row="2" Grid.Column="2" Text="{Binding DecompressAddressText}" Watermark="0x0" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="DEST:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressDest_TextBox" Grid.Row="4" Grid.Column="2" Text="{Binding DecompressDestPath}" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_DecompressDest_Input" Grid.Row="4" Grid.Column="2" Text="{Binding DecompressDestPath}" />
               <Button AutomationProperties.AutomationId="ToolLZ77_DecompressDestBrowse_Button" Grid.Row="4" Grid.Column="4" Content="Browse..." Click="DecompressDestBrowse_Click" Width="100" />
             </Grid>
 
@@ -43,11 +43,11 @@
           <StackPanel Spacing="8" Margin="8">
             <Grid ColumnDefinitions="140,8,*,8,Auto" RowDefinitions="Auto,8,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="SRC:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_CompressSrc_TextBox" Grid.Row="0" Grid.Column="2" Text="{Binding CompressSrcPath}" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_CompressSrc_Input" Grid.Row="0" Grid.Column="2" Text="{Binding CompressSrcPath}" />
               <Button AutomationProperties.AutomationId="ToolLZ77_CompressSrcBrowse_Button" Grid.Row="0" Grid.Column="4" Content="Browse..." Click="CompressSrcBrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="DEST:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_CompressDest_TextBox" Grid.Row="2" Grid.Column="2" Text="{Binding CompressDestPath}" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_CompressDest_Input" Grid.Row="2" Grid.Column="2" Text="{Binding CompressDestPath}" />
               <Button AutomationProperties.AutomationId="ToolLZ77_CompressDestBrowse_Button" Grid.Row="2" Grid.Column="4" Content="Browse..." Click="CompressDestBrowse_Click" Width="100" />
             </Grid>
 
@@ -66,10 +66,10 @@
           <StackPanel Spacing="8" Margin="8">
             <Grid ColumnDefinitions="140,8,*" RowDefinitions="Auto,8,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="FROM:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_ZeroClearFrom_TextBox" Grid.Row="0" Grid.Column="2" Text="{Binding ZeroClearFromText}" Watermark="0x0" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_ZeroClearFrom_Input" Grid.Row="0" Grid.Column="2" Text="{Binding ZeroClearFromText}" Watermark="0x0" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="TO:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ToolLZ77_ZeroClearTo_TextBox" Grid.Row="2" Grid.Column="2" Text="{Binding ZeroClearToText}" Watermark="0x0" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_ZeroClearTo_Input" Grid.Row="2" Grid.Column="2" Text="{Binding ZeroClearToText}" Watermark="0x0" />
             </Grid>
 
             <Button AutomationProperties.AutomationId="ToolLZ77_ZeroClear_Button" Content="Zero Clear This Region" Click="ZeroClear_Click" Height="36" HorizontalAlignment="Stretch" />
@@ -88,7 +88,7 @@
             <Button AutomationProperties.AutomationId="ToolLZ77_Base64TextToFile_Button" Content="Base64 Text to File" Click="Base64TextToFile_Click" Width="200" />
             <Button AutomationProperties.AutomationId="ToolLZ77_FileToBase64Text_Button" Content="File to Base64 Text" Click="FileToBase64Text_Click" Width="200" />
           </StackPanel>
-          <TextBox AutomationProperties.AutomationId="ToolLZ77_Base64Text_TextBox" Name="Base64TextEdit" Text="{Binding Base64Text}"
+          <TextBox AutomationProperties.AutomationId="ToolLZ77_Base64Text_Input" Name="Base64TextEdit" Text="{Binding Base64Text}"
                    AcceptsReturn="True" TextWrapping="Wrap"
                    Watermark="Paste base64 text, or use 'File to Base64 Text' to encode a file."
                    VerticalAlignment="Stretch" />

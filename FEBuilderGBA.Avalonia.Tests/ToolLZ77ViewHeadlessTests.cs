@@ -87,14 +87,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("ToolLZ77_FileToBase64Text_Button", ids);
 
             // Input fields
-            Assert.Contains("ToolLZ77_DecompressSrc_TextBox", ids);
-            Assert.Contains("ToolLZ77_DecompressDest_TextBox", ids);
-            Assert.Contains("ToolLZ77_DecompressAddress_TextBox", ids);
-            Assert.Contains("ToolLZ77_CompressSrc_TextBox", ids);
-            Assert.Contains("ToolLZ77_CompressDest_TextBox", ids);
-            Assert.Contains("ToolLZ77_ZeroClearFrom_TextBox", ids);
-            Assert.Contains("ToolLZ77_ZeroClearTo_TextBox", ids);
-            Assert.Contains("ToolLZ77_Base64Text_TextBox", ids);
+            Assert.Contains("ToolLZ77_DecompressSrc_Input", ids);
+            Assert.Contains("ToolLZ77_DecompressDest_Input", ids);
+            Assert.Contains("ToolLZ77_DecompressAddress_Input", ids);
+            Assert.Contains("ToolLZ77_CompressSrc_Input", ids);
+            Assert.Contains("ToolLZ77_CompressDest_Input", ids);
+            Assert.Contains("ToolLZ77_ZeroClearFrom_Input", ids);
+            Assert.Contains("ToolLZ77_ZeroClearTo_Input", ids);
+            Assert.Contains("ToolLZ77_Base64Text_Input", ids);
 
             // Status row
             Assert.Contains("ToolLZ77_Status_Label", ids);
