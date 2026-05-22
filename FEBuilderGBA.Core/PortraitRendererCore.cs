@@ -377,6 +377,71 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Look up the portrait table entry for <paramref name="portraitId"/>
+        /// and render either the unit face (when offset +0 is set) or the
+        /// class card fallback (when offset +0 is zero). FE6 dispatches to
+        /// <see cref="PortraitRendererCoreFE6.DrawPortraitUnitFE6"/>; FE7 / 8
+        /// use the standard <see cref="DrawPortraitUnit"/> path.
+        /// </summary>
+        /// <remarks>
+        /// Cross-platform equivalent of WinForms
+        /// <c>ImagePortraitForm.DrawPortraitAuto(id)</c>. Returns <c>null</c>
+        /// for portrait id 0 (empty slot), missing ROM, malformed table entry,
+        /// or any decoding failure. Callers handle null via a UI placeholder
+        /// (matches the existing <c>LoadPortraitMini</c> null-tolerant pattern).
+        /// </remarks>
+        public static IImage DrawPortraitAutoById(uint portraitId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            if (portraitId == 0) return null;
+
+            uint ptr = rom.RomInfo.portrait_pointer;
+            if (ptr == 0) return null;
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return null;
+
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (dataSize == 0) dataSize = 28;
+
+            uint addr = baseAddr + portraitId * dataSize;
+            if (addr + dataSize > (uint)rom.Data.Length) return null;
+
+            // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY
+            if (rom.RomInfo.version == 6)
+            {
+                uint fe6UnitFace = rom.u32(addr + 0);
+                uint fe6Palette = rom.u32(addr + 8);
+                byte fe6MouthX = (byte)rom.u8(addr + 12);
+                byte fe6MouthY = (byte)rom.u8(addr + 13);
+                // Frame 0 = base (no mouth overlay)
+                return PortraitRendererCoreFE6.DrawPortraitUnitFE6(
+                    fe6UnitFace, fe6Palette, fe6MouthX, fe6MouthY, 0);
+            }
+
+            // FE7 / 8: 28-byte struct, +0 face, +8 palette, +12 mouth, +16 class card,
+            //          +20-21 mouthX/Y, +22-23 eyeX/Y, +24 state
+            uint unitFace = rom.u32(addr + 0);
+            uint palette = rom.u32(addr + 8);
+            uint mouth = rom.u32(addr + 12);
+            uint classCard = rom.u32(addr + 16);
+            byte mouthX = (byte)rom.u8(addr + 20);
+            byte mouthY = (byte)rom.u8(addr + 21);
+            byte eyeX = (byte)rom.u8(addr + 22);
+            byte eyeY = (byte)rom.u8(addr + 23);
+            byte state = (byte)rom.u8(addr + 24);
+
+            if (unitFace != 0)
+            {
+                return DrawPortraitUnitWithFrame(unitFace, palette, mouth,
+                    mouthX, mouthY, eyeX, eyeY, state, 0);
+            }
+            // Class-card fallback when no unit face is set
+            return DrawPortraitClass(classCard, palette);
+        }
+
+        /// <summary>
         /// Check if portrait data has the half-body flag (header == 0x00200400).
         /// </summary>
         static bool IsHalfBodyFlag(uint unitFace)
