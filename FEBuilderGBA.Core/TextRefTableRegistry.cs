@@ -65,13 +65,6 @@ namespace FEBuilderGBA
 
         // -------------------------------------------------------------
         // Terminator predicates — mirror the WinForms InputFormRef stop
-        // callbacks for each form. Each predicate returns true when the
-        // scanner should STOP at this entry (i.e. this entry is the
-        // sentinel / past the real data).
-        // -------------------------------------------------------------
-
-        // -------------------------------------------------------------
-        // Terminator predicates — mirror the WinForms InputFormRef stop
         // callbacks for each form. Each predicate is (rom, entryAddr,
         // entryIndex) and returns true when the scanner should STOP at
         // this entry (i.e. this entry is the sentinel / past real data).
@@ -80,7 +73,7 @@ namespace FEBuilderGBA
         //   (a) sentinel byte/word/dword match (e.g. u16 == 0xFFFF), AND
         //   (b) "i > 10 && ROM.IsEmpty(addr, blockSize * 10)" — i.e. once
         //       we're past the first 10 entries AND the next 10 blocks
-        //       are all-zero, treat as end-of-table.
+        //       are empty (all 0x00 or all 0xFF), treat as end-of-table.
         // The helpers here implement both. Empty-run guards are
         // parameterized by per-descriptor blockSize.
         // -------------------------------------------------------------
@@ -175,7 +168,9 @@ namespace FEBuilderGBA
                 if (i > 10)
                 {
                     // ROM.IsEmpty is range-safe — returns true if all bytes in
-                    // [addr .. addr+count) are 0x00. We check the next 10 blocks.
+                    // [addr .. addr+count) are uniformly 0x00 OR uniformly
+                    // 0xFF (it does two passes — both terminator patterns are
+                    // common in GBA ROMs). We check the next 10 blocks.
                     uint runBytes = blockSize * 10;
                     if (entry + runBytes <= (uint)rom.Data.Length && rom.IsEmpty(entry, runBytes))
                         return true;
@@ -233,6 +228,10 @@ namespace FEBuilderGBA
             // ===========================================================
             // Version-independent table — MapTerrainNameEng (English/US/EU
             // ROMs). WinForms registers this only when `!is_multibyte`.
+            // MapTerrainNameEngForm.Init terminates on u16 == 0 (the text-id
+            // sentinel) — without this, the scan walks the full MaxCount
+            // (0x100) and can produce false positives past the real table
+            // end on relocated/expanded ROMs.
             // ===========================================================
             if (!info.is_multibyte && info.map_terrain_name_pointer != 0)
             {
@@ -243,6 +242,7 @@ namespace FEBuilderGBA
                     EntrySize = 2,
                     MaxCount = DefaultMaxCount,
                     TextIdOffsets = new uint[] { 0 },
+                    Terminator = StopOnU16Zero,
                     NameResolver = id => $"Terrain {id:X02}",
                 });
             }
