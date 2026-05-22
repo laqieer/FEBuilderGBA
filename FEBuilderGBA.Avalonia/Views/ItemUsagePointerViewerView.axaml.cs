@@ -165,18 +165,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
-                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
-                _vm.IsLoading = false;
                 _vm.MarkClean();
             }
             catch (Exception ex)
             {
-                _vm.IsLoading = false;
                 Log.Error("ItemUsagePointerViewerView.OnSelected: {0}", ex.Message);
+            }
+            finally
+            {
+                // Always reset IsLoading — leaving it stuck true would
+                // suppress dirty tracking + UI updates elsewhere
+                // (Copilot CLI re-review fix).
+                _vm.IsLoading = false;
             }
         }
 

@@ -6,10 +6,23 @@
 // call into the same Core surface — no AV-side fork of the switch2 metadata
 // read or the array-expansion ROM mutation.
 //
-// All methods are pure functions of a passed-in <see cref="ROM"/> instance
-// (plus an <see cref="Undo.UndoData"/> for the mutating overload). The
-// FreeSpace allocator is consumed through <see cref="CoreState.AppendBinaryData"/>
-// which the WinForms host wires to InputFormRef.AppendBinaryData at startup.
+// Dependencies (NOT pure functions):
+//   - Read paths (`IsSwitch2Enable`, `ReadSwitch2`, `MakeRows`, `GetPointerSlot`,
+//     `GetSwitchSlot`, `GetAllFilters`) are pure functions of their ROM
+//     argument — no CoreState or service callbacks consumed.
+//   - The mutating overloads (`Switch2Expands`) additionally consume:
+//       * <see cref="CoreState.AppendBinaryData"/> — the WinForms host
+//         wires this to `InputFormRef.AppendBinaryData` at startup;
+//         when null the method aborts with U.NOT_FOUND.
+//       * <see cref="CoreState.Services"/> — used for both ShowError
+//         (failure surfacing) and ShowYesNo (user confirmation). Callers
+//         that already confirmed via their own dialog should pass
+//         `alreadyConfirmed: true` to skip the Services prompt (notably
+//         to avoid `HeadlessAppServices.ShowYesNo` returning false in
+//         the WinForms wrapper path).
+//       * <see cref="R.ShowStopError"/> — log line for failure cases
+//         (always called via `ShowExpansionError` helper alongside the
+//         Services.ShowError dialog so headless runs still get a record).
 using System;
 using System.Collections.Generic;
 
@@ -300,7 +313,30 @@ namespace FEBuilderGBA
                 return U.NOT_FOUND;
             }
 
+            // Defensive range validation — rom.p32 -> rom.u32 -> U.u32 will
+            // throw IndexOutOfRangeException if arrayPointer+4 exceeds the
+            // ROM length. Mirror the safety helpers used throughout the
+            // codebase so malformed inputs fail with U.NOT_FOUND + a visible
+            // error instead of crashing. (PR #497 Copilot CLI re-review.)
+            if (!U.isSafetyOffset(arrayPointer + 3, rom))
+            {
+                ShowExpansionError(string.Format(
+                    "Array pointer {0} is outside the safe ROM range.",
+                    U.To0xHexString(arrayPointer)));
+                return U.NOT_FOUND;
+            }
+
             uint pointeraddr = rom.p32(arrayPointer);
+
+            // The resolved table base must also be a safe ROM offset before
+            // we read or rewrite it.
+            if (!U.isSafetyOffset(pointeraddr, rom))
+            {
+                ShowExpansionError(string.Format(
+                    "Resolved table base {0} is outside the safe ROM range.",
+                    U.To0xHexString(pointeraddr)));
+                return U.NOT_FOUND;
+            }
 
             uint extraByte = 0;
             if (rom.u16(switch2Addr + 2) == 0x9A00)
@@ -358,6 +394,16 @@ namespace FEBuilderGBA
                 }
             }
 
+            // Make sure the existing table fits entirely within the ROM
+            // before snapshotting it — defensive guard for the
+            // `getBinaryData` read.
+            if (pointeraddr + count * 4 > (uint)rom.Data.Length)
+            {
+                ShowExpansionError(string.Format(
+                    "Existing table at {0} (size {1} bytes) exceeds ROM length.",
+                    U.To0xHexString(pointeraddr), count * 4));
+                return U.NOT_FOUND;
+            }
             byte[] dd = rom.getBinaryData(pointeraddr, count * 4);
             byte[] d = new byte[(newCount + 1) * 4];
             for (uint i = 0; i < start; i++)
