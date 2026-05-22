@@ -452,6 +452,38 @@ namespace FEBuilderGBA.Avalonia.Services
         public static IReadOnlyCollection<string> GetAllMappedEditors() => EditorMap.Keys;
 
         /// <summary>
+        /// Cross-editor mappings that are NOT list-based parity pairs but
+        /// ARE relevant to the Phase 4 jump scanner. For example:
+        /// `PatchForm` (the WF patch list) corresponds to `PatchManagerView`
+        /// in Avalonia, but the AV view has its own data shape (categories,
+        /// installed-state filtering) and isn't a row-by-row port. Without
+        /// declaring the pair here, every `JumpForm&lt;PatchForm&gt;()` callsite
+        /// in WinForms resolves to "no AV counterpart" in the jumps sweep
+        /// (issue #442 / #441 / #438 / etc), which makes the report look like
+        /// many AV nav gaps that are actually present in another shape.
+        ///
+        /// Maps Avalonia view name → WinForms form name. Consumed by
+        /// <c>JumpParityScanner.BuildWfFormToAvViewsMap</c> after the
+        /// authoritative ListParityHelper seed and the PairMatcher heuristic
+        /// pass — strictly additive, never overrides earlier layers.
+        /// </summary>
+        static readonly Dictionary<string, string> KnownExtraCrossViewMappings = new(StringComparer.Ordinal)
+        {
+            // #442 / #441 — MapTerrain{BG,Floor}LookupTableForm jumps to PatchForm
+            // to drive the user to install/configure the ExtendsBattleBG patch.
+            // The Avalonia counterpart is PatchManagerView (different data shape;
+            // not a list-parity port).
+            { "PatchManagerView", "PatchForm" },
+        };
+
+        /// <summary>
+        /// Public accessor for <see cref="KnownExtraCrossViewMappings"/>.
+        /// Used by <c>JumpParityScanner.BuildWfFormToAvViewsMap</c>.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> GetExtraCrossViewMappings()
+            => KnownExtraCrossViewMappings;
+
+        /// <summary>
         /// Build a reference list for the given editor using Core ROM data.
         /// Returns null if the editor has no mapping.
         /// </summary>
