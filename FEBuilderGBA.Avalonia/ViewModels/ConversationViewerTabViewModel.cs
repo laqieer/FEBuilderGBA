@@ -53,6 +53,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>True if the speaker slot is on the left half of the screen.</summary>
         public bool IsLeftSide { get; init; }
+
+        /// <summary>Convenience inverse of <see cref="IsLeftSide"/> for one-way bindings.
+        /// Avalonia's compiled binding syntax does not support the C-style <c>!</c>
+        /// prefix on property paths, so the right-side portrait binding uses this
+        /// explicit property instead.</summary>
+        public bool IsRightSide => !IsLeftSide;
     }
 
     /// <summary>
@@ -308,15 +314,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (string.IsNullOrEmpty(srcText)) return "";
             string s = srcText;
-            // Strip leading position / display codes from a serif line so the
-            // user just sees the spoken text (mirrors WinForms
-            // TextForm.StripFirstCodeBySerifu — we strip leading @00XX codes
-            // <= 0x11 since those are display/position commands).
+            // Strip leading position / display / hide codes from a serif line
+            // so the user just sees the spoken text. Mirrors WinForms
+            // TextForm.StripFirstCodeBySerifu (line 1240):
+            //   - codes 0x08..0x11  (position + display + hide commands)
+            //   - codes >= 0x100    (load-face image references)
+            // Codes 0x00..0x07 are pause / line-break / control codes that
+            // are part of the spoken text and must NOT be stripped.
             int i = 0;
             while (i + 5 <= s.Length && s[i] == '@')
             {
                 uint code = ParseHex4(s, i + 1);
-                if (code <= 0x11 || code >= 0x100)
+                if ((code >= 0x8 && code <= 0x11) || code >= 0x100)
                 {
                     i += 5;
                     continue;

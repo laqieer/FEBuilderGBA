@@ -405,8 +405,13 @@ namespace FEBuilderGBA
             uint dataSize = rom.RomInfo.portrait_datasize;
             if (dataSize == 0) dataSize = 28;
 
-            uint addr = baseAddr + portraitId * dataSize;
-            if (addr + dataSize > (uint)rom.Data.Length) return null;
+            // Use ulong arithmetic to avoid uint wraparound on large portraitId values.
+            // A wrapped address could otherwise slip past the bounds check and cause
+            // out-of-range reads in rom.u32 / rom.u8 below.
+            ulong addr64 = (ulong)baseAddr + (ulong)portraitId * (ulong)dataSize;
+            ulong romLen = (ulong)rom.Data.Length;
+            if (addr64 + dataSize > romLen) return null;
+            uint addr = (uint)addr64;
 
             // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY.
             // Mirrors WinForms ImagePortraitFE6Form.DrawPortraitAuto (line 268)

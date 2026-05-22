@@ -92,7 +92,7 @@
                              Width="96" Height="80"
                              Stretch="Uniform"
                              HorizontalAlignment="Right" VerticalAlignment="Top"
-                             IsVisible="{Binding !IsLeftSide}" />
+                             IsVisible="{Binding IsRightSide}" />
                     </Grid>
                   </Border>
                 </DataTemplate>

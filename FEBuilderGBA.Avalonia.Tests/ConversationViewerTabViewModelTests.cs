@@ -82,10 +82,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.LoadFromDecodedText("@0008Hello");
             Assert.Single(vm.Cards);
             Assert.True(vm.Cards[0].IsLeftSide);
+            Assert.False(vm.Cards[0].IsRightSide);
 
             vm.LoadFromDecodedText("@000DHello");
             Assert.Single(vm.Cards);
             Assert.False(vm.Cards[0].IsLeftSide);
+            Assert.True(vm.Cards[0].IsRightSide);
         }
 
         [Fact]
