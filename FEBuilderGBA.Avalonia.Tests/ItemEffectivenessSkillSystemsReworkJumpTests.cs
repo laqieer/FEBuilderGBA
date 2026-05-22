@@ -58,7 +58,13 @@ public class ItemEffectivenessSkillSystemsReworkJumpTests : IClassFixture<RomFix
         // coincidentally on index 0. Vanilla ROMs commonly have multiple
         // items sharing the same effectiveness pointer (e.g. Rapier and a
         // dummy slot), so we pick the first row whose addr differs from
-        // list[0].
+        // list[0]. Empty / single-row lists skip cleanly — they cannot
+        // demonstrate "select non-first" by construction.
+        if (list.Count < 2)
+        {
+            _output.WriteLine($"List has only {list.Count} entries; cannot test non-first selection.");
+            return;
+        }
         uint firstAddr = list[0].addr;
         int targetIndex = -1;
         for (int i = 1; i < list.Count; i++)

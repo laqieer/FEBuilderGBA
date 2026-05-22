@@ -24,11 +24,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// (and the existing Avalonia <c>ItemStatBonusesViewerViewModel</c>)
         /// iteration semantics: walk the item table by
         /// <c>itemBase + i * item_datasize</c> using the dereferenced
-        /// <c>item_pointer</c>, <see cref="System.Linq.Enumerable.Break"/> on
-        /// the first row whose P12 or P16 is not pointer-or-null (mirroring
-        /// <c>InputFormRef.DataCount</c> termination), and
-        /// <see cref="System.Linq.Enumerable.Skip"/> rows whose P16 is null /
-        /// zero / out-of-range (item carries no effectiveness data).
+        /// <c>item_pointer</c>. The loop <c>break</c>s on the first row whose
+        /// P12 or P16 is not pointer-or-null (mirroring
+        /// <c>InputFormRef.DataCount</c> termination), and <c>continue</c>s
+        /// past rows whose P16 is null / zero / out-of-range (the item is
+        /// valid but carries no effectiveness data — nothing to navigate to).
         /// </summary>
         public List<AddrResult> LoadList()
         {

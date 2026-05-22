@@ -6,7 +6,7 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedWindow, IEditorView
+    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ItemEffectivenessSkillSystemsReworkViewModel _vm = new();
 
