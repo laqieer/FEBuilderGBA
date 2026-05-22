@@ -599,6 +599,132 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a single 16x16 weapon-type icon by weapon type ID.
+        /// Mirrors WinForms <c>ImageSystemIconForm.WeaponIcon(type)</c>:
+        ///   FE6   -> source sub-region at (type+6)*16, y=8 from the decompressed sheet
+        ///   FE7/8 -> source sub-region at (type+3)*16, y=0
+        /// The sheet is LZ77-compressed and palette is read from
+        /// <c>system_weapon_icon_palette_pointer</c>. Returns null on failure.
+        /// Issue #370.
+        /// </summary>
+        public static IImage LoadWeaponTypeIcon(uint type)
+        {
+            return LoadWeaponTypePairIcon(type, 0xFFFFFFFFu /* sentinel: second half blank */);
+        }
+
+        /// <summary>
+        /// Load a horizontally-stitched 32x16 icon containing two weapon-type
+        /// icons side-by-side (left = <paramref name="type1"/>, right =
+        /// <paramref name="type2"/>). This mirrors WinForms
+        /// <c>ListBoxEx.DrawWeaponTypeIcon2AndText</c> which draws two
+        /// <c>ImageSystemIconForm.WeaponIcon</c> icons in the list row.
+        ///
+        /// Implementation notes:
+        ///   * The full weapon icon sheet is an LZ77-compressed 4bpp tile
+        ///     bitmap rendered as an indexed <see cref="IImage"/>.
+        ///   * For each half, we copy palette indices from the source
+        ///     sub-region into a fresh 32x16 indexed image that shares the
+        ///     same palette (no RGBA conversion needed). If a type ID is
+        ///     out-of-bounds the corresponding half stays zero (transparent).
+        ///   * If <paramref name="type2"/> is <c>0xFFFFFFFF</c> the right half
+        ///     is left blank — used by the single-icon overload.
+        ///
+        /// Returns null on ROM/service failure. Issue #370.
+        /// </summary>
+        public static IImage LoadWeaponTypePairIcon(uint type1, uint type2)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            try
+            {
+                uint imagePtr = rom.RomInfo.system_weapon_icon_pointer;
+                uint palPtr = rom.RomInfo.system_weapon_icon_palette_pointer;
+                if (imagePtr == 0 || palPtr == 0) return null;
+
+                uint imageGba = rom.u32(imagePtr);
+                uint palGba = rom.u32(palPtr);
+                if (!U.isPointer(imageGba) || !U.isPointer(palGba)) return null;
+
+                uint imageOffset = U.toOffset(imageGba);
+                uint palOffset = U.toOffset(palGba);
+                if (!U.isSafetyOffset(imageOffset) || !U.isSafetyOffset(palOffset)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palOffset, 16);
+                if (palette == null) return null;
+
+                // Sheet dimensions and source Y differ by ROM version:
+                //   FE6:   32x3 tiles (256x24) and weapon icons start at row 1 (y=8),
+                //          column offset (type+6)*16.
+                //   FE7/8: 32x2 tiles (256x16) and weapon icons start at row 0 (y=0),
+                //          column offset (type+3)*16.
+                // Mirrors WinForms `ImageSystemIconForm.BaseWeaponImage` +
+                // `WeaponIcon`.
+                bool isFE6 = rom.RomInfo.version == 6;
+                int sheetTilesY = isFE6 ? 3 : 2;
+                int srcY = isFE6 ? 8 : 0;
+                int columnAddend = isFE6 ? 6 : 3;
+
+                using IImage sheet = ImageUtilCore.LoadROMTiles4bpp(
+                    imageOffset, palette, 32, sheetTilesY, isCompressed: true);
+                if (sheet == null) return null;
+
+                int sheetW = sheet.Width;
+                int sheetH = sheet.Height;
+                byte[] sheetIndices = sheet.GetPixelData();
+                if (sheetIndices == null || sheetIndices.Length < sheetW * sheetH) return null;
+
+                const int OUT_W = 32;
+                const int OUT_H = 16;
+                byte[] outIndices = new byte[OUT_W * OUT_H];
+
+                // Copy half[0] = type1 into outIndices[x in 0..15]
+                // Copy half[1] = type2 into outIndices[x in 16..31]
+                CopyWeaponHalf(sheetIndices, sheetW, sheetH, type1, srcY, columnAddend,
+                    outIndices, OUT_W, dstX: 0);
+                if (type2 != 0xFFFFFFFFu)
+                {
+                    CopyWeaponHalf(sheetIndices, sheetW, sheetH, type2, srcY, columnAddend,
+                        outIndices, OUT_W, dstX: 16);
+                }
+
+                var outImage = svc.CreateIndexedImage(OUT_W, OUT_H, sheet.GetPaletteGBA(), 16);
+                outImage.SetPixelData(outIndices);
+                return outImage;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Copy a 16x16 weapon-type sub-region from the source sheet into the
+        /// destination index buffer at <paramref name="dstX"/>. Out-of-bounds
+        /// source regions leave the destination zero (transparent index).
+        /// </summary>
+        static void CopyWeaponHalf(byte[] sheetIndices, int sheetW, int sheetH,
+            uint type, int srcY, int columnAddend,
+            byte[] outIndices, int outW, int dstX)
+        {
+            // Type must be < 32 (sheet is 32 tiles wide at 16px/tile) AND
+            // (type + columnAddend) must keep the 16-wide region within the sheet.
+            if (type > 31) return;
+            int srcX = ((int)type + columnAddend) * 16;
+            if (srcX < 0 || srcX + 16 > sheetW) return;
+            if (srcY < 0 || srcY + 16 > sheetH) return;
+
+            for (int y = 0; y < 16; y++)
+            {
+                int srcRow = (srcY + y) * sheetW + srcX;
+                int dstRow = y * outW + dstX;
+                Buffer.BlockCopy(sheetIndices, srcRow, outIndices, dstRow, 16);
+            }
+        }
+
+        /// <summary>
         /// Load a 16x16 skill icon for the SkillSystem patch.
         /// Each skill icon is 128 bytes of 4bpp tile data (16x16 pixels).
         /// Uses a fixed palette at ROM address 0x22370 (pointer to palette data).

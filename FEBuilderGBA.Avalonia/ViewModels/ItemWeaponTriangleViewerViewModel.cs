@@ -6,21 +6,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemWeaponTriangleViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        // Field map for EditorFormRef.
+        // Byte 0/1 = weapon-type IDs (unsigned, range 0..255).
+        // Byte 2/3 = atk/hit bonuses (SIGNED sbyte, range -128..127).
+        // Mirrors WinForms `b2`/`b3` lowercase naming which `InputFormRef.RomToUI`
+        // casts to sbyte. Issue #370.
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3" });
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "S2", "S3" });
 
         uint _currentAddr;
         uint _weaponType1;
         uint _weaponType2;
-        uint _bonus;
-        uint _penalty;
+        int _bonus;
+        int _penalty;
         bool _canWrite;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint WeaponType1 { get => _weaponType1; set => SetField(ref _weaponType1, value); }
         public uint WeaponType2 { get => _weaponType2; set => SetField(ref _weaponType2, value); }
-        public uint Bonus { get => _bonus; set => SetField(ref _bonus, value); }
-        public uint Penalty { get => _penalty; set => SetField(ref _penalty, value); }
+        public int Bonus { get => _bonus; set => SetField(ref _bonus, value); }
+        public int Penalty { get => _penalty; set => SetField(ref _penalty, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
         public List<AddrResult> LoadItemWeaponTriangleList()
@@ -44,10 +49,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint w1 = rom.u8(addr);
                 uint w2 = rom.u8(addr + 1);
-                string[] wepNames = { "Sword", "Lance", "Axe", "Bow", "Staff", "Anima", "Light", "Dark", "Item" };
-                string n1 = w1 < wepNames.Length ? wepNames[w1] : $"0x{w1:X02}";
-                string n2 = w2 < wepNames.Length ? wepNames[w2] : $"0x{w2:X02}";
-                string name = $"{U.ToHexString(i)} {n1} > {n2}";
+                // Match WinForms `DrawWeaponTypeIcon2AndText` label format:
+                //   "{weapon1Hex} {weapon1Name} -> {weapon2Hex} {weapon2Name}"
+                // The prefix MUST start with the weapon-type ID (not the row index)
+                // so any DrawWeaponTypeIcon-style parser that uses U.atoh(text)
+                // gets the correct icon. Issue #370.
+                string n1 = WeaponTypeNames.Get(w1);
+                string n2 = WeaponTypeNames.Get(w2);
+                string name = $"{U.ToHexString(w1)} {n1} -> {U.ToHexString(w2)} {n2}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -64,8 +73,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             WeaponType1 = values["B0"];
             WeaponType2 = values["B1"];
-            Bonus = values["B2"];
-            Penalty = values["B3"];
+            // S2/S3 are sign-extended into uint by EditorFormRef; cast back to int
+            // to preserve the negative value (e.g. 0xF1 -> 0xFFFFFFF1 -> -15).
+            Bonus = (int)values["S2"];
+            Penalty = (int)values["S3"];
 
             CanWrite = true;
         }
@@ -79,8 +90,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["B0"] = WeaponType1,
                 ["B1"] = WeaponType2,
-                ["B2"] = Bonus,
-                ["B3"] = Penalty,
+                // EditorFormRef.WriteFields for SByte masks to byte; uint cast of
+                // negative int gives sign-extended uint which the writer truncates.
+                ["S2"] = unchecked((uint)Bonus),
+                ["S3"] = unchecked((uint)Penalty),
             };
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
@@ -89,13 +102,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetDataReport()
         {
+            // For signed fields, display decimal and the byte-masked hex so the
+            // report does NOT emit 32-bit sign-extended values like 0xFFFFFFF1.
+            // Issue #370 (Copilot review item 2).
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["WeaponType1"] = $"0x{WeaponType1:X02}",
                 ["WeaponType2"] = $"0x{WeaponType2:X02}",
-                ["Bonus"] = $"0x{Bonus:X02}",
-                ["Penalty"] = $"0x{Penalty:X02}",
+                ["Bonus"] = $"{Bonus} (0x{(byte)Bonus:X02})",
+                ["Penalty"] = $"{Penalty} (0x{(byte)Penalty:X02})",
             };
         }
 
@@ -120,8 +136,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["WeaponType1"] = "u8@0x00",
                 ["WeaponType2"] = "u8@0x01",
-                ["Bonus"] = "u8@0x02",
-                ["Penalty"] = "u8@0x03",
+                ["Bonus"] = "s8@0x02",
+                ["Penalty"] = "s8@0x03",
+            };
+        }
+
+        /// <summary>
+        /// Maps weapon-type IDs to short English names matching the WinForms
+        /// `InputFormRef.GetWeaponTypeName` semantic (translated to ASCII).
+        /// </summary>
+        internal static class WeaponTypeNames
+        {
+            public static string Get(uint type) => type switch
+            {
+                0x00 => "Sword",
+                0x01 => "Lance",
+                0x02 => "Axe",
+                0x03 => "Bow",
+                0x04 => "Staff",
+                0x05 => "Anima",
+                0x06 => "Light",
+                0x07 => "Dark",
+                0x09 => "Item",
+                0x0B => "DragonStone",
+                0x0C => "Ring",
+                0x11 => "FireStone",
+                0x12 => "DanceRing",
+                _ => $"0x{type:X02}",
             };
         }
     }

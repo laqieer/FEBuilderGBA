@@ -27,7 +27,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadItemWeaponTriangleList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+                // Show weapon-TYPE icons (attacker + defender) read from ROM,
+                // NOT item icons keyed on the row text — issue #370.
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.WeaponTypePairFromAddrU8Loader(items, i));
             }
             catch (Exception ex)
             {
@@ -57,6 +59,9 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             WeaponType1Box.Value = _vm.WeaponType1;
             WeaponType2Box.Value = _vm.WeaponType2;
+            // Bonus/Penalty are signed (sbyte). NumericUpDown.Value is decimal,
+            // and Bonus/Penalty are int — implicit conversion is safe because
+            // int range fits in decimal. Issue #370.
             BonusBox.Value = _vm.Bonus;
             PenaltyBox.Value = _vm.Penalty;
         }
@@ -65,8 +70,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.WeaponType1 = (uint)(WeaponType1Box.Value ?? 0);
             _vm.WeaponType2 = (uint)(WeaponType2Box.Value ?? 0);
-            _vm.Bonus = (uint)(BonusBox.Value ?? 0);
-            _vm.Penalty = (uint)(PenaltyBox.Value ?? 0);
+            // Bonus/Penalty are signed (int). The XAML clamps the NumericUpDown
+            // to -128..127, so the cast is safe. Issue #370.
+            _vm.Bonus = (int)(BonusBox.Value ?? 0);
+            _vm.Penalty = (int)(PenaltyBox.Value ?? 0);
 
             _undoService.Begin("Edit Weapon Triangle");
             try

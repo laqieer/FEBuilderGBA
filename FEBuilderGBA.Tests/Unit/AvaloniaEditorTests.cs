@@ -515,6 +515,55 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("item_cornered_pointer", src);
         }
 
+        // Issue #370 regression guards — see PR description.
+
+        [Fact]
+        public void ItemWeaponTriangleViewModel_UsesSignedFieldsForBonusPenalty()
+        {
+            // Bytes 2 (atk-bonus) and 3 (hit-bonus) are SIGNED (sbyte). The
+            // ViewModel must declare them with the EditorFormRef "S" prefix
+            // (FieldType.SByte). Catches regressions where someone reverts to
+            // unsigned `B2`/`B3` and breaks negative-value display.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemWeaponTriangleViewerViewModel.cs"));
+            Assert.Contains("\"S2\"", src);
+            Assert.Contains("\"S3\"", src);
+            Assert.Contains("int Bonus", src);
+            Assert.Contains("int Penalty", src);
+        }
+
+        [Fact]
+        public void ItemWeaponTriangleView_NumericUpDownAcceptsNegativeBonus()
+        {
+            // XAML must allow -128..127 for bonus/penalty so the NumericUpDown
+            // does not clamp 0xF1 to 0 (issue #370 root cause).
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemWeaponTriangleViewerView.axaml"));
+            Assert.Contains("Name=\"BonusBox\"", src);
+            Assert.Contains("Name=\"PenaltyBox\"", src);
+            // Both boxes must have Minimum="-128" and Maximum="127"
+            int bonusIdx = src.IndexOf("Name=\"BonusBox\"", System.StringComparison.Ordinal);
+            int penaltyIdx = src.IndexOf("Name=\"PenaltyBox\"", System.StringComparison.Ordinal);
+            // Find the start of each NumericUpDown declaration containing those names.
+            int bonusStart = src.LastIndexOf("<NumericUpDown", bonusIdx, System.StringComparison.Ordinal);
+            int penaltyStart = src.LastIndexOf("<NumericUpDown", penaltyIdx, System.StringComparison.Ordinal);
+            string bonusDecl = src.Substring(bonusStart, src.IndexOf("/>", bonusStart, System.StringComparison.Ordinal) - bonusStart);
+            string penaltyDecl = src.Substring(penaltyStart, src.IndexOf("/>", penaltyStart, System.StringComparison.Ordinal) - penaltyStart);
+            Assert.Contains("Minimum=\"-128\"", bonusDecl);
+            Assert.Contains("Maximum=\"127\"", bonusDecl);
+            Assert.Contains("Minimum=\"-128\"", penaltyDecl);
+            Assert.Contains("Maximum=\"127\"", penaltyDecl);
+        }
+
+        [Fact]
+        public void ItemWeaponTriangleView_UsesWeaponTypePairIconLoader()
+        {
+            // The list-icon loader must read weapon-type bytes from ROM, NOT
+            // load item icons via name-prefix parsing.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemWeaponTriangleViewerView.axaml.cs"));
+            Assert.Contains("WeaponTypePairFromAddrU8Loader", src);
+            // Negative assertion: the old ItemIconLoader call must be gone.
+            Assert.DoesNotContain("ListIconLoaders.ItemIconLoader(items", src);
+        }
+
         // ------------------------------------------------------------------ Item Usage Pointer Viewer
         [Fact]
         public void ItemUsagePointerView_HasSelectFirstItem()

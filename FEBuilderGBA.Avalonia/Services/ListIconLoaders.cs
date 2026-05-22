@@ -438,6 +438,37 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a horizontally-stitched 32x16 weapon-type icon pair by reading
+        /// the two weapon-type IDs at <c>items[index].addr</c> (byte 0) and
+        /// <c>items[index].addr + 1</c> (byte 1) directly from ROM.
+        ///
+        /// IMPORTANT: this loader does NOT parse the list-text prefix — it
+        /// reads from the ROM address. This is required because the row text
+        /// prefix may not match the actual weapon-type ID (e.g. the WinForms
+        /// `DrawWeaponTypeIcon2AndText` semantic uses the prefix as the first
+        /// weapon type, but the entry can be re-ordered or hand-edited).
+        ///
+        /// Mirrors WinForms `ListBoxEx.DrawWeaponTypeIcon2AndText`.
+        /// Used by `ItemWeaponTriangleViewerView`. Issue #370.
+        /// </summary>
+        public static Bitmap? WeaponTypePairFromAddrU8Loader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return null;
+                uint addr = items[index].addr;
+                if (!U.isSafetyOffset(addr + 1)) return null;
+                uint type1 = rom.u8(addr);
+                uint type2 = rom.u8(addr + 1);
+                using var img = PreviewIconHelper.LoadWeaponTypePairIcon(type1, type2);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load a skill icon for the SkillSystem patch.
         /// Dynamically locates the skill icon base address via binary pattern search,
         /// then renders the 16x16 4bpp tile at the given index.
