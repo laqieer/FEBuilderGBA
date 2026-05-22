@@ -23,8 +23,6 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
-        // ---------- Decompress tab ----------
-
         async void DecompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
             var path = await FileDialogHelper.OpenFile(this, "Open source file", "*");
@@ -34,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void DecompressDestBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerSaveOptions
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Decompressed File"),
                 SuggestedFileName = "decompressed.bin",
@@ -46,8 +44,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void DecompressFire_Click(object? sender, RoutedEventArgs e) => _vm.RunDecompress();
 
-        // ---------- Compress tab ----------
-
         async void CompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
             var path = await FileDialogHelper.OpenFile(this, "Open source file", "*");
@@ -57,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void CompressDestBrowse_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerSaveOptions
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Compressed File"),
                 SuggestedFileName = "compressed.bin",
@@ -69,15 +65,38 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void CompressFire_Click(object? sender, RoutedEventArgs e) => _vm.RunCompress();
 
-        // ---------- Erase tab ----------
+        async void ZeroClear_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!ToolLZ77ViewModel.TryParseHex(_vm.ZeroClearFromText, out uint fromRaw)
+                || !ToolLZ77ViewModel.TryParseHex(_vm.ZeroClearToText, out uint toRaw))
+            {
+                _vm.RunZeroClear();
+                return;
+            }
 
-        void ZeroClear_Click(object? sender, RoutedEventArgs e) => _vm.RunZeroClear();
+            uint from = U.toOffset(fromRaw);
+            uint to = U.toOffset(toRaw);
+            if (to < from) { uint t = from; from = to; to = t; }
 
-        // ---------- Base64 tab ----------
+            if (_vm.ZeroClearNeedsConfirmation(from, to))
+            {
+                var result = await MessageBoxWindow.Show(this,
+                    R._("Zeroing 0x{0:X8}..0x{1:X8} hits a dangerous low-address region (ROM header, fixed tables). Continue?", from, to),
+                    R._("Confirm Zero Clear"),
+                    MessageBoxMode.YesNo);
+                if (result != MessageBoxResult.Yes)
+                {
+                    _vm.StatusText = R._("ZeroClear: canceled by user.");
+                    return;
+                }
+                _vm.ZeroClearConfirmed = true;
+            }
+            _vm.RunZeroClear();
+        }
 
         async void Base64TextToFile_Click(object? sender, RoutedEventArgs e)
         {
-            var file = await StorageProvider.SaveFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerSaveOptions
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Decoded File"),
                 SuggestedFileName = "decoded.bin",

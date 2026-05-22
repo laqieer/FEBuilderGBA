@@ -216,8 +216,9 @@ namespace FEBuilderGBA
             return true;
         }
 
-        // Local equivalent of WinForms U.DumpByte (which is not in Core's internal U).
-        // Produces space-separated "0xHH 0xHH" without leading space.
+        // Local equivalent of WinForms U.DumpByte. Produces space-separated
+        // hex byte tokens with variable width ("0xA" for 10, "0xAB" for 171),
+        // exactly matching WinForms U.DumpByte's ToString("X") format.
         static string DumpByte(byte[] data)
         {
             if (data.Length == 0) return "";

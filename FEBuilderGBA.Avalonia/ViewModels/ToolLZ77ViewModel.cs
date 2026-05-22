@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -13,6 +14,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///
     /// ROM reads use CoreState.ROM (Core), not WinForms Program.ROM, so this is
     /// callable from the cross-platform Avalonia project.
+    ///
+    /// Address fields are exposed as string properties so users can enter "0x..."
+    /// (or plain hex) — uint two-way binding with StringFormat fails on hex input.
     /// </summary>
     public class ToolLZ77ViewModel : ViewModelBase
     {
@@ -20,29 +24,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         string _decompressSrcPath = THIS_ROM;
         string _decompressDestPath = string.Empty;
-        uint _decompressAddress;
+        string _decompressAddressText = "0x0";
         string _compressSrcPath = string.Empty;
         string _compressDestPath = string.Empty;
-        uint _zeroClearFrom;
-        uint _zeroClearTo;
+        string _zeroClearFromText = "0x0";
+        string _zeroClearToText = "0x0";
         string _base64Text = string.Empty;
         string _statusText = string.Empty;
         bool _isBusy;
         bool _isLoaded;
+        bool _zeroClearConfirmed;
 
         readonly UndoService _undo = new();
 
         public string DecompressSrcPath { get => _decompressSrcPath; set => SetField(ref _decompressSrcPath, value); }
         public string DecompressDestPath { get => _decompressDestPath; set => SetField(ref _decompressDestPath, value); }
-        public uint DecompressAddress { get => _decompressAddress; set => SetField(ref _decompressAddress, value); }
+        public string DecompressAddressText { get => _decompressAddressText; set => SetField(ref _decompressAddressText, value); }
         public string CompressSrcPath { get => _compressSrcPath; set => SetField(ref _compressSrcPath, value); }
         public string CompressDestPath { get => _compressDestPath; set => SetField(ref _compressDestPath, value); }
-        public uint ZeroClearFrom { get => _zeroClearFrom; set => SetField(ref _zeroClearFrom, value); }
-        public uint ZeroClearTo { get => _zeroClearTo; set => SetField(ref _zeroClearTo, value); }
+        public string ZeroClearFromText { get => _zeroClearFromText; set => SetField(ref _zeroClearFromText, value); }
+        public string ZeroClearToText { get => _zeroClearToText; set => SetField(ref _zeroClearToText, value); }
         public string Base64Text { get => _base64Text; set => SetField(ref _base64Text, value); }
         public string StatusText { get => _statusText; set => SetField(ref _statusText, value); }
         public bool IsBusy { get => _isBusy; set => SetField(ref _isBusy, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        public bool ZeroClearConfirmed { get => _zeroClearConfirmed; set => SetField(ref _zeroClearConfirmed, value); }
 
         public void Initialize()
         {
@@ -50,20 +56,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
-        /// <summary>Stub LoadList for editor-list compatibility. LZ77 tool has no list of entries.</summary>
         public List<AddrResult> LoadList()
         {
             return new List<AddrResult>();
         }
 
-        // ---------- Decompress ----------
+        internal static bool TryParseHex(string text, out uint value)
+        {
+            value = 0;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            string trimmed = text.Trim();
+            if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                trimmed = trimmed.Substring(2);
+            return uint.TryParse(trimmed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+        }
 
-        /// <summary>Decompress LZ77 data from the current ROM (THIS_ROM) or from a file.</summary>
         public void RunDecompress()
         {
             if (string.IsNullOrWhiteSpace(DecompressDestPath))
             {
                 StatusText = R._("Decompress: destination path required.");
+                return;
+            }
+            if (!TryParseHex(DecompressAddressText, out uint rawAddr))
+            {
+                StatusText = R._("Decompress: SRC address is not a valid hex value.");
                 return;
             }
 
@@ -89,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 src = File.ReadAllBytes(DecompressSrcPath);
             }
 
-            uint addr = U.toOffset(DecompressAddress);
+            uint addr = U.toOffset(rawAddr);
             if (src.Length <= addr)
             {
                 StatusText = R._("Decompress: address out of range.");
@@ -108,9 +125,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        // ---------- Compress ----------
-
-        /// <summary>Compress a file into LZ77 format.</summary>
         public void RunCompress()
         {
             if (string.IsNullOrWhiteSpace(CompressSrcPath))
@@ -142,9 +156,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        // ---------- Zero Clear (Erase) ----------
+        public bool ZeroClearNeedsConfirmation(uint from, uint to)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return false;
+            uint borderline = rom.RomInfo.compress_image_borderline_address;
+            return from < borderline || to < borderline;
+        }
 
-        /// <summary>Zero-fill a region of the loaded ROM. Undo-tracked.</summary>
         public void RunZeroClear()
         {
             var rom = CoreState.ROM;
@@ -153,20 +172,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 StatusText = R._("ZeroClear: no ROM loaded.");
                 return;
             }
-
-            uint from = U.toOffset(ZeroClearFrom);
-            uint to = U.toOffset(ZeroClearTo);
-            if (to < from)
+            if (!TryParseHex(ZeroClearFromText, out uint fromRaw))
             {
-                uint tmp = from;
-                from = to;
-                to = tmp;
+                StatusText = R._("ZeroClear: FROM is not a valid hex value.");
+                return;
             }
+            if (!TryParseHex(ZeroClearToText, out uint toRaw))
+            {
+                StatusText = R._("ZeroClear: TO is not a valid hex value.");
+                return;
+            }
+
+            uint from = U.toOffset(fromRaw);
+            uint to = U.toOffset(toRaw);
+            if (to < from) { uint tmp = from; from = to; to = tmp; }
             uint size = to - from;
 
             if (!IsAddressInRom(rom, from) || !IsAddressInRom(rom, to))
             {
                 StatusText = R._("ZeroClear: address out of ROM bounds.");
+                return;
+            }
+
+            if (ZeroClearNeedsConfirmation(from, to) && !ZeroClearConfirmed)
+            {
+                StatusText = R._("ZeroClear: low address requires confirmation — set ZeroClearConfirmed=true to proceed.");
                 return;
             }
 
@@ -179,7 +209,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
+                if (_undo.HasPendingUndo)
+                {
+                    try { _undo.Rollback(); } catch { }
+                }
                 StatusText = R._("ZeroClear failed: {0}", ex.Message);
+            }
+            finally
+            {
+                ZeroClearConfirmed = false;
             }
         }
 
@@ -188,9 +226,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return offset < (uint)rom.Data.Length;
         }
 
-        // ---------- Base64 (Plain) ----------
-
-        /// <summary>Decode the current Base64Text into binary and write to a file.</summary>
         public void RunBase64TextToFile(string outPath)
         {
             if (string.IsNullOrEmpty(Base64Text))
@@ -204,8 +239,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // Mirror WinForms ToolLZ77Form.Base64TextToFileButton_Click behavior:
-            // Trim() + space → '+' to forgive pasted strings where '+' was URL-encoded as space.
             string text = Base64Text.Trim().Replace(' ', '+');
             byte[] bin;
             if (!U.Base64Encode(text, out bin))
@@ -225,7 +258,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        /// <summary>Read a file and populate Base64Text with the base64 representation.</summary>
         public void RunFileToBase64Text(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))

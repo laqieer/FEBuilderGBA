@@ -51,7 +51,7 @@
               <Button AutomationProperties.AutomationId="ToolDiff_BBrowse_Button" Grid.Row="2" Grid.Column="4" Content="Browse..." Click="BBrowse_Click" Width="100" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="Recover Miss Match:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch3_NumericUpDown" Grid.Row="4" Grid.Column="2" Value="{Binding RecoverMissMatch}" Minimum="0" Maximum="65535" />
+              <NumericUpDown AutomationProperties.AutomationId="ToolDiff_RecoverMissMatch3_NumericUpDown" Grid.Row="4" Grid.Column="2" Value="{Binding RecoverMissMatch3}" Minimum="0" Maximum="65535" />
             </Grid>
 
             <Button AutomationProperties.AutomationId="ToolDiff_MakeBinPatch3_Button" Content="Make 3-Way Binary Patch" Click="MakeBinPatch3_Click" Height="36" HorizontalAlignment="Stretch" />
