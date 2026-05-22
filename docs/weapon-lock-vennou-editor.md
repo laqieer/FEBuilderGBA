@@ -36,21 +36,31 @@ applies to the item.
 
 ## 2. Prerequisites — when the editor has data
 
-The editor only resolves a list of lock entries when **all** of these are
-true:
+There are **three independent gates** in the code, each with different
+requirements. They are easy to conflate; understanding which gate applies
+to which path matters.
 
-- The ROM is **FE8U** (`Program.ROM.RomInfo.version == 8` and
-  non-multibyte). This is enforced by both
-  `PatchUtil.SearchVennouWeaponLockArrayAddrLow()` and
-  `PatchDetectionService.DetectVennouWeaponLock()`.
-- The SkillSystems `WeaponLockArray` patch is installed. The
-  signature is the value `0xFF3D3C00` at offset `0x16DD8`, plus the file
-  `config/patch2/FE8U/WeaponLockArray_SkillSystems/AdvWeaponLocks.dmp` is
-  resolvable at runtime.
-- The Avalonia main window detects this state via
-  `PatchDetectionService.Instance.VennouWeaponLock`. If the property is
-  `false`, the editor still opens but the `WeaponLockArray` does not exist
-  in ROM, so there is nothing to inspect or edit.
+| Gate | Function | Requires |
+|---|---|---|
+| A | `VennouWeaponLockViewModel.BuildList(addr)` | A loaded ROM (`CoreState.ROM != null`) and a non-zero `baseAddr`. This is the **rendering** path — it does not enforce ROM version or check any patch. Given any address with the right byte layout, it will produce a list. |
+| B | `PatchDetectionService.DetectVennouWeaponLock()` | **FE8U** ROM (`RomInfo.version == 8 && !RomInfo.is_multibyte`) **plus** the hook signature `0xFF3D3C00` at offset `0x16DD8`. This is what the Avalonia main window's `PatchDetectionService.Instance.VennouWeaponLock` flag reflects. |
+| C | `PatchUtil.SearchVennouWeaponLockArrayAddrLow()` | Everything Gate B requires **plus** the file `config/patch2/FE8U/WeaponLockArray_SkillSystems/AdvWeaponLocks.dmp` being resolvable at runtime, and a `GrepEnd` match for that dump in ROM. This is the WinForms path that finds the `WeaponLockArray` table address. |
+
+What this means in practice:
+
+- If your `baseAddr` came from somewhere reliable (WinForms editor,
+  manual `PatchUtil.SearchVennouWeaponLockArrayAddr()` call,
+  hex-editor inspection), **Gate A alone** is enough to populate the
+  Avalonia list. You do not need FE8U or the patch installed to *display*
+  a byte sequence at that address — but reading bytes that are not a
+  valid `WeaponLockArray` entry will, of course, produce nonsense.
+- If you are starting from a clean slate and want the editor to resolve
+  real lock data automatically, you need **all three gates** — Gate C
+  is what produces a usable address from "this ROM has WeaponLockArray
+  installed".
+- If `PatchDetectionService.Instance.VennouWeaponLock` is `false`
+  (Gate B fails), the editor still opens — Gate A only needs a loaded
+  ROM — but there is no meaningful `WeaponLockArray` to inspect.
 
 ---
 
@@ -86,7 +96,7 @@ the Hex Editor jump only navigates the hex view itself.
 
 ### Recommended workflows today
 
-Use one of these until a follow-up GUI feature lands (see [section 7](#7-pitfalls-and-current-limitations)):
+Use one of these until a follow-up GUI feature lands (see [section 9](#9-pitfalls-and-current-limitations)):
 
 1. **Use the WinForms editor.** The WinForms `VennouWeaponLockForm`
    resolves the `WeaponLockArray` table via
@@ -106,8 +116,9 @@ Use one of these until a follow-up GUI feature lands (see [section 7](#7-pitfall
    ```
    Index `0` is reserved (renders as `-NULL-` in WinForms).
 3. **Raw hex inspection.** Open the ROM in any hex editor at the computed
-   address. The bytes are 1 BPP — straightforward to read by hand once you
-   know the format described in [section 4](#4-data-format).
+   address. The format is a flat 1-byte-per-entry stream — straightforward
+   to read by hand once you know the layout described in
+   [section 4](#4-data-format).
 
 A follow-up GitHub issue should track adding an end-user navigation path
 (e.g. prompt for a `WeaponLockArray` index on launcher click, or a
@@ -245,9 +256,13 @@ change byte 0 from `0x00` to `0x02` (Soft class lock) and byte 1 from
   `WeaponLockArray` installer.
 - **8-bit IDs only.** Unit and Class IDs larger than `0xFF` are not
   representable in this format.
-- **Patch-gated.** Without the SkillSystems `WeaponLockArray` patch on
-  FE8U, the `WeaponLockArray` does not exist in ROM and there is nothing
-  to edit.
+- **Patch-gated for auto-resolve.** Gate A in
+  [section 2](#2-prerequisites--when-the-editor-has-data) only needs a
+  loaded ROM and an address. Gate C — automatically locating the
+  `WeaponLockArray` table — requires FE8U **plus** the SkillSystems
+  `WeaponLockArray` patch installed. Without Gate C there is no meaningful
+  table to traverse end-to-end, even though the view will still render any
+  byte sequence you point it at.
 - **No cross-editor jump in Avalonia.** The Item Editor's B11 is bit
   flags, not a Vennou index link. See [section 7](#7-linking-a-weapon-to-a-lock).
 
