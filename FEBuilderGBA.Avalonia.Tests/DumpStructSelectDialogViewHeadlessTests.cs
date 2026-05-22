@@ -49,20 +49,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new DumpStructSelectDialogView();
             var ids = CollectAutomationIds(view).Select(p => p.AutomationId).ToList();
-            // The 11 action buttons mirror the WinForms Designer.
+            // The 11 action buttons mirror the WinForms Designer. AutomationIds
+            // end with `_Button` per the scripts/validate-automation-ids.ps1
+            // naming convention.
             string[] expectedButtonIds =
             {
-                "DumpStructSelectDialog_BinaryButton",
-                "DumpStructSelectDialog_CopyPointer",
-                "DumpStructSelectDialog_CopyClipboard",
-                "DumpStructSelectDialog_CopyLittleEndian",
-                "DumpStructSelectDialog_CopyNoDollGBARadBreakPoint",
-                "DumpStructSelectDialog_EAALLButton",
-                "DumpStructSelectDialog_CSVButton",
-                "DumpStructSelectDialog_TSVALLButton",
-                "DumpStructSelectDialog_STRUCTButton",
-                "DumpStructSelectDialog_NMMButton",
-                "DumpStructSelectDialog_ImportButton",
+                "DumpStructSelectDialog_Binary_Button",
+                "DumpStructSelectDialog_CopyPointer_Button",
+                "DumpStructSelectDialog_CopyClipboard_Button",
+                "DumpStructSelectDialog_CopyLittleEndian_Button",
+                "DumpStructSelectDialog_CopyNoDollGBARadBreakPoint_Button",
+                "DumpStructSelectDialog_EAALL_Button",
+                "DumpStructSelectDialog_CSV_Button",
+                "DumpStructSelectDialog_TSVALL_Button",
+                "DumpStructSelectDialog_STRUCT_Button",
+                "DumpStructSelectDialog_NMM_Button",
+                "DumpStructSelectDialog_Import_Button",
             };
             foreach (string expected in expectedButtonIds)
             {
@@ -76,13 +78,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Group section headers mirror WinForms label1/2/3/4/6.
             var view = new DumpStructSelectDialogView();
             var ids = CollectAutomationIds(view).Select(p => p.AutomationId).ToList();
+            // AutomationIds end with `_Label` per the
+            // scripts/validate-automation-ids.ps1 naming convention.
             string[] expectedLabelIds =
             {
-                "DumpStructSelectDialog_HexEditorGroupLabel",
-                "DumpStructSelectDialog_ClipboardGroupLabel",
-                "DumpStructSelectDialog_DataExportGroupLabel",
-                "DumpStructSelectDialog_DataStructureGroupLabel",
-                "DumpStructSelectDialog_ImportGroupLabel",
+                "DumpStructSelectDialog_HexEditorGroup_Label",
+                "DumpStructSelectDialog_ClipboardGroup_Label",
+                "DumpStructSelectDialog_DataExportGroup_Label",
+                "DumpStructSelectDialog_DataStructureGroup_Label",
+                "DumpStructSelectDialog_ImportGroup_Label",
             };
             foreach (string expected in expectedLabelIds)
             {
@@ -96,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Cancel button mirrors WinForms U.AddCancelButton.
             var view = new DumpStructSelectDialogView();
             var ids = CollectAutomationIds(view).Select(p => p.AutomationId).ToList();
-            Assert.Contains("DumpStructSelectDialog_CancelButton", ids);
+            Assert.Contains("DumpStructSelectDialog_Cancel_Button", ids);
         }
 
         [AvaloniaFact]

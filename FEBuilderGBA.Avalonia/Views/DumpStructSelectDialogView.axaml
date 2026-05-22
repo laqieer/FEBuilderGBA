@@ -19,9 +19,9 @@
       <!-- =================================================================
            Group: Hex Editor (WinForms label3)
            ================================================================= -->
-      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_HexEditorGroupLabel"
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_HexEditorGroup_Label"
                  Name="HexEditorGroupLabel" Text="Hex Editor" FontWeight="Bold" Margin="0,10,0,2" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_BinaryButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_Binary_Button"
               Name="BinaryButton"
               Content="Open Selected Address in Hex Editor"
               HorizontalAlignment="Stretch" Padding="6,8"
@@ -30,24 +30,24 @@
       <!-- =================================================================
            Group: Clipboard (WinForms label2)
            ================================================================= -->
-      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ClipboardGroupLabel"
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ClipboardGroup_Label"
                  Name="ClipboardGroupLabel" Text="Clipboard" FontWeight="Bold" Margin="0,10,0,2" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyPointer"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyPointer_Button"
               Name="CopyPointer"
               Content="Copy as Pointer"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="CopyPointer_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyClipboard"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyClipboard_Button"
               Name="CopyClipboard"
               Content="Copy to Clipboard"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="CopyClipboard_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyLittleEndian"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyLittleEndian_Button"
               Name="CopyLittleEndian"
               Content="Copy as Little Endian Pointer"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="CopyLittleEndian_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyNoDollGBARadBreakPoint"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyNoDollGBARadBreakPoint_Button"
               Name="CopyNoDollGBARadBreakPoint"
               Content="Copy as No$GBA Read Breakpoint"
               HorizontalAlignment="Stretch" Padding="6,8"
@@ -56,19 +56,19 @@
       <!-- =================================================================
            Group: Data Export Options (WinForms label1)
            ================================================================= -->
-      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataExportGroupLabel"
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataExportGroup_Label"
                  Name="DataExportGroupLabel" Text="Data Export Options" FontWeight="Bold" Margin="0,10,0,2" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_EAALLButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_EAALL_Button"
               Name="EAALLButton"
               Content="Dump Displayed List to EA format"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="EAALLButton_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CSVButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CSV_Button"
               Name="CSVButton"
               Content="Dump Displayed List to CSV format"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="CSVButton_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_TSVALLButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_TSVALL_Button"
               Name="TSVALLButton"
               Content="Dump Displayed List to TSV format"
               HorizontalAlignment="Stretch" Padding="6,8"
@@ -77,14 +77,14 @@
       <!-- =================================================================
            Group: Data Structure Options (WinForms label4)
            ================================================================= -->
-      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataStructureGroupLabel"
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataStructureGroup_Label"
                  Name="DataStructureGroupLabel" Text="Data Structure Options" FontWeight="Bold" Margin="0,10,0,2" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_STRUCTButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_STRUCT_Button"
               Name="STRUCTButton"
               Content="Display Byte Structure in C"
               HorizontalAlignment="Stretch" Padding="6,8"
               Click="STRUCTButton_Click" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_NMMButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_NMM_Button"
               Name="NMMButton"
               Content="Create Nightmare .nmm File"
               HorizontalAlignment="Stretch" Padding="6,8"
@@ -93,9 +93,9 @@
       <!-- =================================================================
            Group: Import (WinForms label6)
            ================================================================= -->
-      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ImportGroupLabel"
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ImportGroup_Label"
                  Name="ImportGroupLabel" Text="Import" FontWeight="Bold" Margin="0,10,0,2" />
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_ImportButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_Import_Button"
               Name="ImportButton"
               Content="Import Dumped Data"
               HorizontalAlignment="Stretch" Padding="6,8"
@@ -104,7 +104,7 @@
       <!-- =================================================================
            Cancel (mirrors WinForms U.AddCancelButton)
            ================================================================= -->
-      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CancelButton"
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_Cancel_Button"
               Name="CancelButton"
               Content="Cancel"
               HorizontalAlignment="Stretch" Padding="6,8"
