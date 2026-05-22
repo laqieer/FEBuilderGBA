@@ -6530,3 +6530,27 @@ ASMポインタアドレス:
 
 :Select Source Folder
 ソースフォルダーを開く
+
+:Comment
+コメント
+
+:Image
+画像
+
+:TSA
+TSA
+
+:References
+参照箇所
+
+:Read Start Address
+先頭アドレス
+
+:Read Count
+読込数
+
+:Open Source Folder
+ソースフォルダーを開く
+
+:Expand List (+1 slot)
+リストの拡張 (+1スロット)

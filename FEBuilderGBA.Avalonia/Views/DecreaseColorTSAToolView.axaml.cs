@@ -53,5 +53,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        /// <summary>
+        /// Pre-select the Color Reduce method index. Mirrors the WinForms
+        /// `DecreaseColorTSAToolForm.InitMethod(int)` entry point used by
+        /// callers like ImageBattleBGForm (mode 2 = battle BG) so the
+        /// dialog opens in the correct mode for the caller.
+        ///
+        /// The current Avalonia view is a stub with no Method combo yet;
+        /// storing the mode index on the VM keeps the calling contract
+        /// honest so a future full port can pick the mode without
+        /// breaking existing callers.
+        /// </summary>
+        /// <param name="methodIndex">WF method index — 2 = Battle BG.</param>
+        public void InitMethod(int methodIndex)
+        {
+            _vm.Method = methodIndex;
+        }
     }
 }

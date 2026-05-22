@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -22,6 +24,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Wire Comment lost-focus → save (mirrors WF
+            // InputFormRef.OnComment_TextChanged save path).
+            CommentBox.LostFocus += (_, _) => _vm.SaveComment(CommentBox.Text ?? string.Empty);
 
             // Enable drag-and-drop for image files
             DragDrop.SetAllowDrop(this, true);
@@ -81,6 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _undoService.Commit();
                 _vm.LoadEntry(addr);
+                _vm.RecordSourceFile(filePath);
                 UpdateUI();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
@@ -95,6 +102,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                // Reflect read-config bar values now that the list is loaded.
+                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                ReadCountBox.Value = _vm.ReadCount;
+                BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
             }
             catch (Exception ex)
             {
@@ -120,10 +131,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressBox.Text = $"0x{_vm.SelectAddress:X08}";
             ImagePointerBox.Text = $"0x{_vm.ImagePointer:X08}";
             TSAPointerBox.Text = $"0x{_vm.TSAPointer:X08}";
             PalettePointerBox.Text = $"0x{_vm.PalettePointer:X08}";
+            CommentBox.Text = _vm.Comment;
+            BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
+
+            // Refresh X_REF list display (mirror WF X_REF ListBoxEx).
+            XRefList.ItemsSource = _vm.XRefEntries
+                .Select(x => x.name).ToList();
+
+            // Refresh source-file affordance visibility.
+            SourceFilePanel.IsVisible = _vm.IsSourceFileAvailable;
+
+            // Refresh BG preview image.
+            try
+            {
+                var img = _vm.TryLoadImage();
+                BgPreviewImage.SetImage(img);
+            }
+            catch { BgPreviewImage.SetImage(null); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -134,6 +162,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.ImagePointer = ParseHexText(ImagePointerBox.Text);
                 _vm.TSAPointer = ParseHexText(TSAPointerBox.Text);
                 _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
+                _vm.SaveComment(CommentBox.Text ?? string.Empty);
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -170,6 +199,21 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                var img = _vm.TryLoadImage();
+                if (img == null) { CoreState.Services.ShowError("No image to export"); return; }
+                string path = await FileDialogHelper.SaveImageFile(this, $"battle_bg_{_vm.CurrentIndex:X02}.png");
+                if (string.IsNullOrEmpty(path)) return;
+                img.Save(path);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Export image failed: {ex.Message}"); }
         }
 
         static uint ParseHexText(string? text)
@@ -227,6 +271,142 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Palette imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import palette failed: {ex.Message}"); }
+        }
+
+        // -----------------------------------------------------------------
+        // New gap-fix handlers (#434)
+        // -----------------------------------------------------------------
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+        }
+
+        void ListExpands_Click(object? sender, RoutedEventArgs e)
+        {
+            // Increment by 1 each click — matches the existing
+            // `Expand List (+1 slot)` semantics used by the
+            // ItemEffectivenessViewerView. Capped at 255 by the Core helper.
+            uint newCount = (uint)Math.Min(255, _vm.ReadCount + 1);
+            if (newCount <= _vm.ReadCount) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Build an UndoData for the Core helper to record into. The
+            // UndoService wraps a fresh scope so any failure rolls back
+            // cleanly.
+            _undoService.Begin("Expand Battle BG List");
+            try
+            {
+                var ud = new Undo.UndoData
+                {
+                    time = DateTime.Now,
+                    name = "ImageBattleBG.ExpandList",
+                    list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length,
+                };
+                uint result = _vm.ExpandList(newCount, ud);
+                if (result == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("Failed to expand Battle BG list. Check ROM free space.");
+                    return;
+                }
+                _undoService.Commit();
+                LoadList();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo($"Battle BG list expanded to {newCount} entries.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageBattleBGView.ListExpands_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Expand failed: {ex.Message}");
+            }
+        }
+
+        void GraphicsTool_Click(object? sender, RoutedEventArgs e)
+        {
+            // Mirror WinForms `GraphicsToolButton_Click`:
+            //   f.Jump(30*8, 20*8, image, 0, tsa, 1, palette, 1, 8, 0)
+            // (battle BG is 30x20 tiles = 240x160 px, image raw, tsa+palette
+            // LZ77-compressed.)
+            var view = WindowManager.Instance.Open<GraphicsToolView>();
+            view.Jump(
+                width: 30 * 8,
+                height: 20 * 8,
+                image: _vm.ImagePointer,
+                imageType: 0,
+                tsa: _vm.TSAPointer,
+                tsaType: 1,
+                palette: _vm.PalettePointer,
+                paletteType: 1,
+                paletteCount: 8,
+                image2: 0);
+        }
+
+        void DecreaseColor_Click(object? sender, RoutedEventArgs e)
+        {
+            // Mirror WinForms `DecreaseColorTSAToolButton_Click`:
+            //   f.InitMethod(2) — method 2 = Battle BG mode.
+            var view = WindowManager.Instance.Open<DecreaseColorTSAToolView>();
+            view.InitMethod(2);
+        }
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath) || !File.Exists(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleBGView.OpenSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
+            }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath) || !File.Exists(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                // Open Explorer with the file selected (Windows-only "/select,"
+                // verb; on other platforms fall back to opening the parent
+                // directory).
+                if (OperatingSystem.IsWindows())
+                {
+                    var psi = new ProcessStartInfo("explorer.exe",
+                        $"/select,\"{_vm.SourceFilePath}\"")
+                        { UseShellExecute = true };
+                    Process.Start(psi);
+                }
+                else
+                {
+                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
+                    if (!string.IsNullOrEmpty(folder))
+                    {
+                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
+                        Process.Start(psi);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleBGView.SelectSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
