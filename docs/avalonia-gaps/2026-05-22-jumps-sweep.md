@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-21T19:21:08Z"
-git-sha: 64b3ee589
+generated: "2026-05-22T11:06:28Z"
+git-sha: c35eb2cfa
 sweep-type: jumps
 ---
 
@@ -39,8 +39,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Total rows | 417 |
 | Match | 0 |
 | MissingAvManifest (backlog) | 384 |
-| NoWfCallsite | 21 |
-| KnownGap (issue-tagged) | 12 |
+| NoWfCallsite | 23 |
+| KnownGap (issue-tagged) | 10 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -54,7 +54,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ClassForm` | `ClassEditorView` | `JumpToTerrainRes` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
 | `ClassForm` | `ClassEditorView` | `JumpToMoveCostRain` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
 | `ClassForm` | `ClassEditorView` | `JumpToMoveCostSnow` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ItemForm` | `ItemEditorView` | `JumpToEffectivenessSkillSystem` | `ItemEffectivenessSkillSystemsReworkForm` | `ItemEffectivenessSkillSystemsReworkView` | [#362](https://github.com/laqieer/FEBuilderGBA/issues/362) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -457,6 +456,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ClassForm` | `ClassEditorView` | `JumpToPortrait` | `ImagePortraitForm` | `PortraitViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToDescText` | `TextForm` | `TextViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToNameText` | `TextForm` | `TextViewerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToEffectivenessSkillSystem` | `ItemEffectivenessSkillSystemsReworkForm` | `ItemEffectivenessSkillSystemsReworkView` |
+| `ItemForm` | `ItemEditorView` | `JumpToEffectivenessVanilla` | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToStatBonusesSkillSystem` | `ItemStatBonusesSkillSystemsForm` | `ItemStatBonusesSkillSystemsView` |
 | `ItemForm` | `ItemEditorView` | `JumpToStatBonusesVenno` | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` |
 | `ItemForm` | `ItemEditorView` | `JumpToStatBonusesVanilla` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |

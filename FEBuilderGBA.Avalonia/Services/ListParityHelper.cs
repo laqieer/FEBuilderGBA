@@ -1720,6 +1720,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isPointer(criticalPtr)) continue;
 
                 uint criticalAddr = U.toOffset(criticalPtr);
+                // Mirror the VM's defensive safety-offset filter so gap-sweep /
+                // list-parity tooling never emits out-of-range addresses that
+                // the runtime VM would skip.
+                if (!U.isSafetyOffset(criticalAddr)) continue;
+
                 uint nameId = rom.u16(itemAddr);
                 string name = U.ToHexString(i) + " " + GetTextById(nameId);
                 result.Add(new AddrResult(criticalAddr, name, i));
