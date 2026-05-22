@@ -15,9 +15,16 @@
       <ListBox.ItemTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal" Spacing="4">
+            <!--
+              #342 follow-up: Stretch="Fill" so source bitmaps of different
+              dimensions (16x16 / 16x24 / 32x32 class wait icons by animType)
+              all render at the SAME visual size in the list. Matches WinForms
+              PictureBoxSizeMode.StretchImage semantics in
+              FEBuilderGBA/ListBoxEx.cs OwnerDraw rendering.
+            -->
             <Image Source="{Binding Icon}" Width="32" Height="32"
                    IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
-                   Stretch="Uniform" />
+                   Stretch="Fill" />
             <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
           </StackPanel>
         </DataTemplate>

@@ -3,19 +3,27 @@ using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Layout;
 using global::Avalonia.Media;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Controls;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 /// <summary>
-/// Headless UI tests for <see cref="IconPreviewControl"/> covering the
-/// issue #342 regression: list-preview icons were being clipped because the
-/// previous <see cref="GbaImageControl"/> didn't reserve enough space for the
-/// up-scaled bitmap. These tests verify the outer box sizes correctly for
-/// each (Scale, MaxImageWidth, MaxImageHeight) combination, that property
-/// changes recompute both outer and inner sizes at runtime (Copilot CLI
-/// review note 1), and that bitmaps of various dimensions render without
-/// crop.
+/// Headless UI tests for <see cref="IconPreviewControl"/>.
+///
+/// <para>
+/// Tests originally landed with PR #351 to cover issue #342's clipping bug
+/// (Stretch="Uniform" with insufficient outer box size). Updated by the
+/// #342 follow-up (2026-05-21) to assert the WinForms-equivalent
+/// "consistent visual size" invariant: the inner Image always matches the
+/// outer Border, with Stretch=Fill + BitmapInterpolationMode=HighQuality as
+/// the defaults that mirror WinForms PictureBoxSizeMode.StretchImage +
+/// InterpolationMode.Bicubic.
+/// </para>
+/// <para>
+/// Cross-bitmap-size consistency assertions and consumer wiring checks live
+/// in <see cref="IconPreviewConsistentSizeTests"/>.
+/// </para>
 /// </summary>
 public class IconPreviewControlTests
 {
@@ -85,48 +93,59 @@ public class IconPreviewControlTests
         Assert.Equal(64, border.Height);
     }
 
+    /// <summary>
+    /// 16x16 source (animType=0 wait icon) fills the fixed 64x64 preview box.
+    /// Renamed from RendersFullBitmapNoCrop_16x16 per the #342 follow-up: the
+    /// invariant is now "inner Image matches outer Border", not "inner Image
+    /// equals bitmap pixel size × Scale".
+    /// </summary>
     [AvaloniaFact]
-    public void RendersFullBitmapNoCrop_16x16()
+    public void FillsFixedPreviewBox_16x16()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
+        host.Window.UpdateLayout();
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
-        Assert.Equal(32, imageDisplay!.Width);
-        Assert.Equal(32, imageDisplay.Height);
+        Assert.Equal(64, imageDisplay!.Width);
+        Assert.Equal(64, imageDisplay.Height);
     }
 
+    /// <summary>
+    /// 16x24 source (animType=1 tall wait icon) fills the fixed 64x64 box.
+    /// Stretch=Fill stretches the bitmap to 64x64 with bicubic-equivalent
+    /// interpolation, matching WinForms.
+    /// </summary>
     [AvaloniaFact]
-    public void RendersFullBitmapNoCrop_16x24()
+    public void FillsFixedPreviewBox_16x24()
     {
-        // ClassEditor wait-icon variant (animType=1 produces 16×24 tall icons).
-        // With Scale=2 → 32×48 scaled; with the 32×32 source cap (Scale*max = 64×64),
-        // the 32×48 fits entirely. Issue #342 was a smaller cap clipping these.
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(16, 24), 16, 24);
+        host.Window.UpdateLayout();
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
-        Assert.Equal(32, imageDisplay!.Width);
-        Assert.Equal(48, imageDisplay.Height);
+        Assert.Equal(64, imageDisplay!.Width);
+        Assert.Equal(64, imageDisplay.Height);
     }
 
+    /// <summary>
+    /// 32x32 source (animType=2 wait icon — the original #342 crop case) fills
+    /// the fixed 64x64 box.
+    /// </summary>
     [AvaloniaFact]
-    public void RendersFullBitmapNoCrop_32x32()
+    public void FillsFixedPreviewBox_32x32()
     {
-        // Original bug repro: a 32×32 source clipped because the outer slot
-        // was sized for a 16×16 source. With MaxImageWidth=32 and Scale=2
-        // we now reserve a 64×64 outer box, so a 32×32 source up-scaled to
-        // 64×64 must render in full.
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
 
         control.SetRgbaData(MakeRgba(32, 32), 32, 32);
+        host.Window.UpdateLayout();
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
@@ -153,9 +172,10 @@ public class IconPreviewControlTests
     }
 
     /// <summary>
-    /// Copilot CLI review note 1: XAML-set Scale/MaxImageWidth/MaxImageHeight
-    /// must recompute BOTH the outer Border size AND the inner Image size when
-    /// they change at runtime — not only at construction.
+    /// XAML-set Scale/MaxImageWidth/MaxImageHeight must recompute BOTH the
+    /// outer Border size AND the inner Image size at runtime. Under the new
+    /// WinForms-matching contract (#342 follow-up) the inner Image always
+    /// equals the outer Border, so this asserts they stay locked together.
     /// </summary>
     [AvaloniaFact]
     public void PropertyChange_RecomputesSize()
@@ -168,33 +188,36 @@ public class IconPreviewControlTests
         Assert.NotNull(border);
         Assert.NotNull(imageDisplay);
 
-        // Initial state: 64×64 outer.
+        // Initial state: 64×64 outer (no bitmap yet → inner has NaN size).
         Assert.Equal(64, border!.Width);
         Assert.Equal(64, border.Height);
 
-        // Load a 16×16 bitmap (scaled to 32×32 at Scale=2).
+        // Load a 16×16 bitmap → inner now equals outer (64x64).
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
-        Assert.Equal(32, imageDisplay!.Width);
-        Assert.Equal(32, imageDisplay.Height);
+        host.Window.UpdateLayout();
+        Assert.Equal(64, imageDisplay!.Width);
+        Assert.Equal(64, imageDisplay.Height);
 
-        // Bump Scale → outer must grow to 96×96 and the scaled image to 48×48.
+        // Bump Scale → outer grows to 96×96 and inner stays locked at 96×96.
         control.Scale = 3;
         Assert.Equal(96, border.Width);
         Assert.Equal(96, border.Height);
-        Assert.Equal(48, imageDisplay.Width);
-        Assert.Equal(48, imageDisplay.Height);
+        Assert.Equal(96, imageDisplay.Width);
+        Assert.Equal(96, imageDisplay.Height);
 
-        // Change MaxImageWidth → outer must recompute on width axis only.
+        // Change MaxImageWidth → outer recomputes on width; inner stays locked.
         control.MaxImageWidth = 16;
         Assert.Equal(48, border.Width);  // 3 * 16
         Assert.Equal(96, border.Height); // unchanged
-        // Image was 16 source px wide; scaled = 48, cap is 48 → 48.
         Assert.Equal(48, imageDisplay.Width);
+        Assert.Equal(96, imageDisplay.Height);
 
-        // Change MaxImageHeight → outer height recomputes.
+        // Change MaxImageHeight → outer height recomputes; inner stays locked.
         control.MaxImageHeight = 40;
         Assert.Equal(48, border.Width);
         Assert.Equal(120, border.Height); // 3 * 40
+        Assert.Equal(48, imageDisplay.Width);
+        Assert.Equal(120, imageDisplay.Height);
     }
 
     [AvaloniaFact]
@@ -218,17 +241,10 @@ public class IconPreviewControlTests
         Assert.Equal(2, control.Scale);
         Assert.Equal(32, control.MaxImageWidth);
         Assert.Equal(32, control.MaxImageHeight);
-    }
-
-    [AvaloniaFact]
-    public void ImageDisplay_UsesNearestNeighborInterpolation()
-    {
-        // GBA pixel art must use nearest-neighbour to stay crisp at scaled sizes.
-        var control = new IconPreviewControl();
-        var imageDisplay = control.FindControl<Image>("ImageDisplay");
-        Assert.NotNull(imageDisplay);
-        Assert.Equal(global::Avalonia.Media.Imaging.BitmapInterpolationMode.None,
-            RenderOptions.GetBitmapInterpolationMode(imageDisplay!));
+        // #342 follow-up: defaults match WinForms PictureBoxSizeMode.StretchImage
+        // + InterpolationMode.Bicubic.
+        Assert.Equal(Stretch.Fill, control.Stretch);
+        Assert.Equal(BitmapInterpolationMode.HighQuality, control.BitmapInterpolationMode);
     }
 
     /// <summary>
@@ -244,16 +260,12 @@ public class IconPreviewControlTests
 
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
 
-        // Force a second layout pass so Bounds reflect the loaded bitmap.
-        // Use the returned host's window rather than casting control.Parent
-        // (parent may be a presenter/container depending on templates) — PR
-        // #351 review feedback.
         host.Window.UpdateLayout();
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
 
-        // 32×32 image must fit fully inside the 250×120 host.
+        // 64×64 inner image must fit fully inside the 250×120 host.
         Assert.True(imageDisplay!.Bounds.Width <= 250,
             $"image width {imageDisplay.Bounds.Width} exceeds host 250");
         Assert.True(imageDisplay.Bounds.Height <= 120,
