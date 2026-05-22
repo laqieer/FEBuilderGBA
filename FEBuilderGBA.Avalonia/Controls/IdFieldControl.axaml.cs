@@ -13,6 +13,7 @@
 // for the gap-sweep scanner).
 using System;
 using global::Avalonia;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -125,6 +126,39 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 ValueBox.ValueChanged += OnNumericValueChanged;
             }
+            // Propagate the host's AutomationId to the inner controls so E2E
+            // selectors that expect "{host}_Input" to point at the NumericUpDown
+            // still resolve when typing values. We derive suffixed ids for the
+            // remaining inner controls so each is independently addressable.
+            AttachedToVisualTree += (_, _) => PropagateInnerAutomationIds();
+        }
+
+        /// <summary>
+        /// Map the host's AutomationId onto the four inner interactive controls
+        /// (NumericUpDown, NameLabel, JumpButton, PickButton). The NumericUpDown
+        /// inherits the host id directly so existing E2E selectors expecting
+        /// e.g. "CCBranchEditor_Promo1_Input" continue to find the actual input;
+        /// the other three get suffix-derived ids.
+        /// </summary>
+        void PropagateInnerAutomationIds()
+        {
+            string hostId = AutomationProperties.GetAutomationId(this);
+            if (string.IsNullOrEmpty(hostId)) return;
+
+            // Strip a trailing "_Input" if present (CCBranchEditor_Promo1_Input →
+            // CCBranchEditor_Promo1) so derived ids stay tidy.
+            string baseId = hostId;
+            if (baseId.EndsWith("_Input", StringComparison.Ordinal))
+                baseId = baseId.Substring(0, baseId.Length - "_Input".Length);
+
+            if (ValueBox != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(ValueBox)))
+                AutomationProperties.SetAutomationId(ValueBox, baseId + "_Input");
+            if (NameLabel != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(NameLabel)))
+                AutomationProperties.SetAutomationId(NameLabel, baseId + "_Name");
+            if (JumpButton != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(JumpButton)))
+                AutomationProperties.SetAutomationId(JumpButton, baseId + "_Jump_Button");
+            if (PickButton != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(PickButton)))
+                AutomationProperties.SetAutomationId(PickButton, baseId + "_Pick_Button");
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

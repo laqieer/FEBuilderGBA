@@ -20,6 +20,7 @@
 // without going through Jump or Pick. Plan v2 explicitly added this in response
 // to the Copilot CLI plan review.
 using System;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -168,5 +169,58 @@ public class IdFieldControlTests
         var control = new IdFieldControl();
         control.Value = 0u;
         Assert.Equal(0u, control.Value);
+    }
+
+    [AvaloniaFact]
+    public void HostAutomationId_PropagatesToInnerNumericUpDown()
+    {
+        // When a host sets AutomationProperties.AutomationId on the
+        // IdFieldControl, the inner NumericUpDown should inherit the SAME id
+        // (stripping a trailing "_Input" first if present) so existing E2E
+        // selectors that expect to type into "CCBranchEditor_Promo1_Input"
+        // still resolve to the actual input control.
+        var window = new Window { Width = 200, Height = 100 };
+        var control = new IdFieldControl();
+        AutomationProperties.SetAutomationId(control, "CCBranchEditor_Promo1_Input");
+        window.Content = control;
+        window.Show();
+        try
+        {
+            var nud = control.FindControl<NumericUpDown>("ValueBox");
+            Assert.NotNull(nud);
+            Assert.Equal("CCBranchEditor_Promo1_Input", AutomationProperties.GetAutomationId(nud));
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void HostAutomationId_PropagatesDerivedIdsToOtherInnerControls()
+    {
+        // Other inner controls get derived ids so each is independently
+        // addressable by automation: name preview, Jump button, Pick button.
+        var window = new Window { Width = 200, Height = 100 };
+        var control = new IdFieldControl();
+        AutomationProperties.SetAutomationId(control, "CCBranchEditor_Promo1_Input");
+        window.Content = control;
+        window.Show();
+        try
+        {
+            var name = control.FindControl<TextBlock>("NameLabel");
+            var jump = control.FindControl<Button>("JumpButton");
+            var pick = control.FindControl<Button>("PickButton");
+            Assert.NotNull(name);
+            Assert.NotNull(jump);
+            Assert.NotNull(pick);
+            Assert.Equal("CCBranchEditor_Promo1_Name", AutomationProperties.GetAutomationId(name));
+            Assert.Equal("CCBranchEditor_Promo1_Jump_Button", AutomationProperties.GetAutomationId(jump));
+            Assert.Equal("CCBranchEditor_Promo1_Pick_Button", AutomationProperties.GetAutomationId(pick));
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }
