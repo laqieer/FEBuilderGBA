@@ -25,12 +25,12 @@
         <Border BorderBrush="Gray" BorderThickness="1">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_BaseAddr"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_BaseAddr_Input"
                            FormatString="X8" Name="BeforeBaseAddrBox" Width="120"
                            Minimum="0" Maximum="65535999"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_ReadCount"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_ReadCount_Input"
                            FormatString="0" Name="BeforeReadCountBox" Width="80"
                            Minimum="0" Maximum="512"
                            IsReadOnly="True" VerticalAlignment="Center" />
@@ -43,16 +43,16 @@
         <Border BorderBrush="Gray" BorderThickness="1">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_RowAddr"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_RowAddr_Input"
                            FormatString="X8" Name="BeforeRowAddrBox" Width="120"
                            Minimum="0" Maximum="65535999"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Size:" VerticalAlignment="Center" />
-            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_BlockSize"
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_BlockSize_Input"
                      Name="BeforeBlockSizeBox" Width="80" Text="4"
                      IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Selected Address:" VerticalAlignment="Center" />
-            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_SelectAddr"
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_SelectAddr_Input"
                      Name="BeforeSelectAddrBox" Width="130"
                      IsReadOnly="True" VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="WorldMapEventPointer_Before_Write_Button"
@@ -66,7 +66,7 @@
             <Label Content="Event after previous stage clear" FontWeight="Bold" HorizontalAlignment="Center" />
             <Grid ColumnDefinitions="200,*" RowDefinitions="Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_EventPtr"
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_EventPtr_Input"
                              FormatString="X8" Grid.Row="0" Grid.Column="1"
                              Name="BeforeEventPtrBox" Width="160"
                              Minimum="0" Maximum="65535999"
@@ -84,7 +84,7 @@
                           Grid.Row="0" Grid.Column="0" Name="JumpToOpeningButton"
                           Content="Opening Event" Click="JumpToOpening_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
-                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_OpeningEvent"
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_OpeningEvent_Input"
                                  FormatString="X8" Grid.Row="0" Grid.Column="1"
                                  Name="OpeningEventBox" Width="160"
                                  Minimum="0" Maximum="65535999"
@@ -93,7 +93,7 @@
                           Grid.Row="1" Grid.Column="0" Name="JumpToEnding1Button"
                           Content="Eirika Ending" Click="JumpToEnding1_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
-                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending1Event"
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending1Event_Input"
                                  FormatString="X8" Grid.Row="1" Grid.Column="1"
                                  Name="Ending1EventBox" Width="160"
                                  Minimum="0" Maximum="65535999"
@@ -102,7 +102,7 @@
                           Grid.Row="2" Grid.Column="0" Name="JumpToEnding2Button"
                           Content="Ephraim Ending" Click="JumpToEnding2_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
-                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending2Event"
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending2Event_Input"
                                  FormatString="X8" Grid.Row="2" Grid.Column="1"
                                  Name="Ending2EventBox" Width="160"
                                  Minimum="0" Maximum="65535999"
@@ -136,12 +136,12 @@
         <Border BorderBrush="Gray" BorderThickness="1">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_BaseAddr"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_BaseAddr_Input"
                            FormatString="X8" Name="AfterBaseAddrBox" Width="120"
                            Minimum="0" Maximum="65535999"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_ReadCount"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_ReadCount_Input"
                            FormatString="0" Name="AfterReadCountBox" Width="80"
                            Minimum="0" Maximum="512"
                            IsReadOnly="True" VerticalAlignment="Center" />
@@ -154,16 +154,16 @@
         <Border BorderBrush="Gray" BorderThickness="1">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_RowAddr"
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_RowAddr_Input"
                            FormatString="X8" Name="AfterRowAddrBox" Width="120"
                            Minimum="0" Maximum="65535999"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Size:" VerticalAlignment="Center" />
-            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_BlockSize"
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_BlockSize_Input"
                      Name="AfterBlockSizeBox" Width="80" Text="4"
                      IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Selected Address:" VerticalAlignment="Center" />
-            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_SelectAddr"
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_SelectAddr_Input"
                      Name="AfterSelectAddrBox" Width="130"
                      IsReadOnly="True" VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="WorldMapEventPointer_After_Write_Button"
@@ -177,7 +177,7 @@
             <Label Content="Event after stage selection" FontWeight="Bold" HorizontalAlignment="Center" />
             <Grid ColumnDefinitions="200,*" RowDefinitions="Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_EventPtr"
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_EventPtr_Input"
                              FormatString="X8" Grid.Row="0" Grid.Column="1"
                              Name="AfterEventPtrBox" Width="160"
                              Minimum="0" Maximum="65535999"

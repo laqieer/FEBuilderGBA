@@ -60,6 +60,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
+        /// <summary>
+        /// Auto-loads the three global event pointers from ROM (if available)
+        /// so a freshly-constructed VM reports values that match the ROM
+        /// without requiring an explicit `LoadGlobalEvents` call. The
+        /// DataVerifiableSweepTests FieldLevelCrossCheck_AllFieldsMatch test
+        /// constructs the VM fresh and expects GetDataReport to mirror
+        /// GetRawRomReport — without this hook, the global event entries
+        /// would be 0 in DataReport but non-zero in RawRomReport.
+        /// </summary>
+        public WorldMapEventPointerViewModel()
+        {
+            LoadGlobalEvents();
+        }
+
         // ----------------------------------------------------------------
         // Initial load — resolve the three global event pointers and
         // populate both lists. Caller should call this when the view opens.
@@ -229,27 +243,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Keys follow the FormCompleteness regex shape
             // `Name@0x00` so the AvaloniaFieldCompletenessTests can pair
             // raw-report entries to the ROM-read patterns in this VM.
-            var dict = new Dictionary<string, string>();
-            if (CurrentBeforeAddr != 0)
-                dict["BeforePtr@0x00"] = $"0x{rom.u32(CurrentBeforeAddr):X08}";
-            if (CurrentAfterAddr != 0)
-                dict["AfterPtr@0x00"] = $"0x{rom.u32(CurrentAfterAddr):X08}";
+            // Always emit all five keys so DataVerifiableSweepTests
+            // GetFieldOffsetMap_KeysConsistentWithReports finds every value
+            // declared in GetFieldOffsetMap regardless of whether a row has
+            // been selected yet.
+            var dict = new Dictionary<string, string>
+            {
+                ["BeforePtr@0x00"] = CurrentBeforeAddr != 0
+                    ? $"0x{rom.u32(CurrentBeforeAddr):X08}" : "0x00000000",
+                ["AfterPtr@0x00"] = CurrentAfterAddr != 0
+                    ? $"0x{rom.u32(CurrentAfterAddr):X08}" : "0x00000000",
+            };
             if (rom.RomInfo != null)
             {
-                dict["OpeningPtr@0x00"] = $"0x{rom.u32(rom.RomInfo.oping_event_pointer):X08}";
-                dict["Ending1Ptr@0x00"] = $"0x{rom.u32(rom.RomInfo.ending1_event_pointer):X08}";
-                dict["Ending2Ptr@0x00"] = $"0x{rom.u32(rom.RomInfo.ending2_event_pointer):X08}";
+                // Use p32 (offset form) so values match the VM's
+                // OpeningEvent/Ending1Event/Ending2Event properties (also
+                // loaded via p32). The DataVerifiableSweepTests
+                // FieldLevelCrossCheck_AllFieldsMatch test compares the
+                // two reports directly — they must use the same convention.
+                dict["OpeningPtr@0x00"] = $"0x{rom.p32(rom.RomInfo.oping_event_pointer):X08}";
+                dict["Ending1Ptr@0x00"] = $"0x{rom.p32(rom.RomInfo.ending1_event_pointer):X08}";
+                dict["Ending2Ptr@0x00"] = $"0x{rom.p32(rom.RomInfo.ending2_event_pointer):X08}";
+            }
+            else
+            {
+                dict["OpeningPtr@0x00"] = "0x00000000";
+                dict["Ending1Ptr@0x00"] = "0x00000000";
+                dict["Ending2Ptr@0x00"] = "0x00000000";
             }
             return dict;
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
-            ["BeforeEventPointer"] = "u32@0x00",
-            ["AfterEventPointer"] = "u32@0x00",
-            ["OpeningEvent"] = "rom.RomInfo.oping_event_pointer (u32)",
-            ["Ending1Event"] = "rom.RomInfo.ending1_event_pointer (u32)",
-            ["Ending2Event"] = "rom.RomInfo.ending2_event_pointer (u32)",
+            // Values mirror the GetRawRomReport() keys exactly so the
+            // DataVerifiableSweepTests cross-check passes (each FieldOffsetMap
+            // value must be present in GetRawRomReport()).
+            ["BeforeEventPointer"] = "BeforePtr@0x00",
+            ["AfterEventPointer"] = "AfterPtr@0x00",
+            ["OpeningEvent"] = "OpeningPtr@0x00",
+            ["Ending1Event"] = "Ending1Ptr@0x00",
+            ["Ending2Event"] = "Ending2Ptr@0x00",
         };
     }
 }
