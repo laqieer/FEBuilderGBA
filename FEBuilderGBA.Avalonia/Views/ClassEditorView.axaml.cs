@@ -57,6 +57,11 @@ namespace FEBuilderGBA.Avalonia.Views
             B49Box.ValueChanged += OnWeaponValueChanged;
             B50Box.ValueChanged += OnWeaponValueChanged;
             B51Box.ValueChanged += OnWeaponValueChanged;
+
+            // Wire class-card live updates (issue #357): when the user edits
+            // the portrait or wait-icon field, refresh the card images.
+            PortraitIdBox.ValueChanged += OnClassCardInputChanged;
+            WaitIconBox.ValueChanged   += OnClassCardInputChanged;
         }
 
         void LoadList()
@@ -186,6 +191,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadClass(addr);
                 UpdateUI();
                 TryShowListPreview();
+                UpdateClassCard();
                 UpdateWarnings();
             }
             catch (Exception ex)
@@ -422,6 +428,54 @@ namespace FEBuilderGBA.Avalonia.Views
                 ListPreviewImage.SetImage(null);
                 ListPreviewBorder.IsVisible = false;
             }
+        }
+
+        /// <summary>
+        /// Refresh the class-card preview (issue #357). Mirrors WinForms
+        /// <c>ClassForm</c> top-right block — class face portrait
+        /// (<c>L_8_PORTRAIT_CLASS</c>) + class name (<c>L_5_CLASS</c>) +
+        /// class wait icon (<c>L_6_CLASSICONSRC</c>). Reads the current
+        /// portrait id and wait icon from the NumericUpDown controls so
+        /// edits propagate live (matching WinForms <c>InputFormRef</c>'s
+        /// <c>ValueChanged</c>-driven linktype refresh).
+        /// </summary>
+        void UpdateClassCard()
+        {
+            try
+            {
+                uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
+                uint waitIcon = (uint)(WaitIconBox.Value ?? 0);
+
+                var facePic = PreviewIconHelper.LoadClassFacePortrait(portraitId);
+                var waitPic = PreviewIconHelper.LoadClassWaitIcon(waitIcon);
+
+                CardPortraitImage.SetImage(facePic);
+                CardWaitIconImage.SetImage(waitPic);
+
+                CardNameLabel.Text = _vm.Name ?? "";
+                CardIdLabel.Text = $"0x{_vm.CurrentAddr:X08}  /  ID {_vm.ClassNumber}";
+                ClassCardBorder.IsVisible = true;
+
+                facePic?.Dispose();
+                waitPic?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"UpdateClassCard failed: {ex.Message}");
+                CardPortraitImage.SetImage(null);
+                CardWaitIconImage.SetImage(null);
+                ClassCardBorder.IsVisible = false;
+            }
+        }
+
+        /// <summary>
+        /// Live-refresh the class card when the user edits PortraitIdBox or
+        /// WaitIconBox. Skipped during bulk UI loads to avoid redundant work.
+        /// </summary>
+        void OnClassCardInputChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            UpdateClassCard();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

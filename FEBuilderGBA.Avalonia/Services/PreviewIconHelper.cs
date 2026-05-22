@@ -202,6 +202,72 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load the class face portrait ("class card") by portrait ID.
+        /// Mirrors the WinForms <c>L_8_PORTRAIT_CLASS</c> picture box behavior
+        /// powered by <c>InputFormRef</c>'s <c>PORTRAIT:CLASS</c> linktype, which
+        /// calls <c>ImagePortraitForm.DrawPortraitClass(face_id)</c> for FE7/8
+        /// and <c>ImagePortraitFE6Form.DrawPortraitClassFE6(id)</c> for FE6.
+        ///
+        /// Portrait struct layout differs by version (issue #357 plan v2):
+        ///   FE6:   16-byte struct, D0=unit_face, D4=map_face, D8=palette.
+        ///          The class card is rendered from D0 with palette D8 ONLY
+        ///          when D4==0 (entry is a pure class card, not a regular
+        ///          unit portrait).
+        ///   FE7/8: 28-byte struct, D8=palette, D16=class_card. Renders D16
+        ///          with palette D8.
+        ///
+        /// Returns null on any error / out-of-range / missing data.
+        /// </summary>
+        public static IImage LoadClassFacePortrait(uint portraitId)
+        {
+            if (portraitId == 0) return null;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                // Dereference the portrait pointer-table location to get the
+                // portrait-table base. RomInfo.portrait_pointer is the address
+                // of the pointer, not the base itself.
+                uint ptr = rom.RomInfo.portrait_pointer;
+                if (ptr == 0) return null;
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return null;
+
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) return null;
+
+                uint addr = baseAddr + portraitId * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) return null;
+
+                if (rom.RomInfo.version == 6)
+                {
+                    // FE6 — 16-byte struct, mirror DrawPortraitClassFE6.
+                    uint unitFace = rom.u32(addr + 0);
+                    uint mapFace = rom.u32(addr + 4);
+                    uint palette = rom.u32(addr + 8);
+                    // WinForms only renders the class card when map_face == 0.
+                    if (mapFace != 0) return null;
+                    if (!U.isPointer(unitFace) || !U.isPointer(palette)) return null;
+                    return PortraitRendererCore.DrawPortraitClass(unitFace, palette);
+                }
+                else
+                {
+                    // FE7/8 — 28-byte struct, D16 = class card pointer.
+                    uint palette = rom.u32(addr + 8);
+                    uint classCard = rom.u32(addr + 16);
+                    if (!U.isPointer(classCard) || !U.isPointer(palette)) return null;
+                    return PortraitRendererCore.DrawPortraitClass(classCard, palette);
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Load a class wait icon by class ID. Resolves class ID -> wait icon index (offset +6) -> loads icon.
         /// </summary>
         public static IImage LoadClassWaitIconByClassId(uint classId)
