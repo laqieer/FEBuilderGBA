@@ -85,18 +85,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             ROM rom = CoreState.ROM!;
-            // Find a free scratch region and plant a known 4-byte struct.
+            // Find a free scratch region and plant a known 4-byte struct
+            // using the same accessors as production code (rom.u8 /
+            // rom.write_u8) so the test exercises the public API.
             uint scratch = FindScratchAddr(rom, 4);
             Assert.NotEqual(0u, scratch);
 
-            byte[] saved = new byte[4];
-            Array.Copy(rom.Data, scratch, saved, 0, 4);
+            byte[] saved = SaveBytes(rom, scratch, 4);
             try
             {
-                rom.Data[scratch + 0] = 0x00;  // weapon1
-                rom.Data[scratch + 1] = 0x01;  // weapon2
-                rom.Data[scratch + 2] = 0xF1;  // bonus = -15 (sbyte)
-                rom.Data[scratch + 3] = 0xFF;  // penalty = -1 (sbyte)
+                rom.write_u8(scratch + 0, 0x00);  // weapon1
+                rom.write_u8(scratch + 1, 0x01);  // weapon2
+                rom.write_u8(scratch + 2, 0xF1);  // bonus = -15 (sbyte)
+                rom.write_u8(scratch + 3, 0xFF);  // penalty = -1 (sbyte)
 
                 var vm = new ItemWeaponTriangleViewerViewModel();
                 vm.LoadItemWeaponTriangle(scratch);
@@ -108,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                Array.Copy(saved, 0, rom.Data, scratch, 4);
+                RestoreBytes(rom, scratch, saved);
             }
         }
 
@@ -125,8 +126,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint scratch = FindScratchAddr(rom, 4);
             Assert.NotEqual(0u, scratch);
 
-            byte[] saved = new byte[4];
-            Array.Copy(rom.Data, scratch, saved, 0, 4);
+            byte[] saved = SaveBytes(rom, scratch, 4);
             try
             {
                 var vm = new ItemWeaponTriangleViewerViewModel();
@@ -139,10 +139,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 vm.WriteItemWeaponTriangle();
 
                 // Verify ROM bytes are exactly 0xF1 / 0xFF (NOT 0x00 / 0x00).
-                Assert.Equal(0x00, rom.Data[scratch + 0]);
-                Assert.Equal(0x01, rom.Data[scratch + 1]);
-                Assert.Equal(0xF1, rom.Data[scratch + 2]);
-                Assert.Equal(0xFF, rom.Data[scratch + 3]);
+                Assert.Equal(0x00u, rom.u8(scratch + 0));
+                Assert.Equal(0x01u, rom.u8(scratch + 1));
+                Assert.Equal(0xF1u, rom.u8(scratch + 2));
+                Assert.Equal(0xFFu, rom.u8(scratch + 3));
 
                 // Read back to confirm round-trip
                 var vm2 = new ItemWeaponTriangleViewerViewModel();
@@ -152,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                Array.Copy(saved, 0, rom.Data, scratch, 4);
+                RestoreBytes(rom, scratch, saved);
             }
         }
 
@@ -169,8 +169,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint scratch = FindScratchAddr(rom, 4);
             Assert.NotEqual(0u, scratch);
 
-            byte[] saved = new byte[4];
-            Array.Copy(rom.Data, scratch, saved, 0, 4);
+            byte[] saved = SaveBytes(rom, scratch, 4);
             try
             {
                 var vm = new ItemWeaponTriangleViewerViewModel();
@@ -181,8 +180,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 vm.Penalty = -128;
                 vm.WriteItemWeaponTriangle();
 
-                Assert.Equal(0x7F, rom.Data[scratch + 2]);  // 127
-                Assert.Equal(0x80, rom.Data[scratch + 3]);  // -128
+                Assert.Equal(0x7Fu, rom.u8(scratch + 2));  // 127
+                Assert.Equal(0x80u, rom.u8(scratch + 3));  // -128
 
                 var vm2 = new ItemWeaponTriangleViewerViewModel();
                 vm2.LoadItemWeaponTriangle(scratch);
@@ -191,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                Array.Copy(saved, 0, rom.Data, scratch, 4);
+                RestoreBytes(rom, scratch, saved);
             }
         }
 
@@ -253,22 +252,46 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// Find a writable scratch region of the requested size in the ROM
         /// free-space area (consecutive 0xFF bytes). Tests restore the bytes
         /// they overwrite to leave the fixture clean for subsequent tests.
+        /// Uses <c>rom.u8</c> for reads (same accessor as production code).
         /// </summary>
         static uint FindScratchAddr(ROM rom, int size)
         {
             // Search the back ~64KB which usually contains freespace padding.
-            uint start = (uint)Math.Max(0, rom.Data.Length - 0x10000);
-            for (uint a = start; a < rom.Data.Length - size; a += (uint)size)
+            int dataLen = rom.Data.Length;
+            int startInt = Math.Max(0, dataLen - 0x10000);
+            for (int aInt = startInt; aInt < dataLen - size; aInt += size)
             {
+                uint a = (uint)aInt;
                 bool allFF = true;
                 for (int i = 0; i < size + 4; i++)
                 {
-                    if (a + i >= rom.Data.Length) { allFF = false; break; }
-                    if (rom.Data[a + i] != 0xFF) { allFF = false; break; }
+                    if (aInt + i >= dataLen) { allFF = false; break; }
+                    if (rom.u8(a + (uint)i) != 0xFF) { allFF = false; break; }
                 }
                 if (allFF) return a;
             }
             return 0;
+        }
+
+        /// <summary>
+        /// Capture <paramref name="size"/> bytes starting at <paramref name="addr"/>
+        /// so they can be restored after a destructive test. Uses
+        /// <c>rom.u8</c> for reads.
+        /// </summary>
+        static byte[] SaveBytes(ROM rom, uint addr, int size)
+        {
+            byte[] buf = new byte[size];
+            for (int i = 0; i < size; i++) buf[i] = (byte)rom.u8(addr + (uint)i);
+            return buf;
+        }
+
+        /// <summary>
+        /// Restore bytes previously captured with <see cref="SaveBytes"/> using
+        /// <c>rom.write_u8</c> (same accessor as production code).
+        /// </summary>
+        static void RestoreBytes(ROM rom, uint addr, byte[] saved)
+        {
+            for (int i = 0; i < saved.Length; i++) rom.write_u8(addr + (uint)i, saved[i]);
         }
     }
 }

@@ -609,7 +609,46 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         public static IImage LoadWeaponTypeIcon(uint type)
         {
-            return LoadWeaponTypePairIcon(type, 0xFFFFFFFFu /* sentinel: second half blank */);
+            return LoadWeaponTypeIconInternal(type, outWidth: 16);
+        }
+
+        /// <summary>
+        /// Internal helper for <see cref="LoadWeaponTypeIcon"/> and the
+        /// "pair" overload. <paramref name="outWidth"/> must be 16 (single
+        /// icon) or 32 (pair). Returns null on ROM/service failure.
+        /// </summary>
+        static IImage LoadWeaponTypeIconInternal(uint type, int outWidth)
+        {
+            // Reuses the pair-icon path by sentinel-blanking the right half
+            // and then cropping the output to the requested width. Cropping
+            // is a row-by-row Buffer.BlockCopy of the 16-wide left half.
+            using IImage pair = LoadWeaponTypePairIcon(type, 0xFFFFFFFFu);
+            if (pair == null) return null;
+            if (outWidth == 32) return CloneIndexedImage(pair);
+            if (outWidth != 16) return null;
+
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            byte[] pairData = pair.GetPixelData();
+            byte[] cropData = new byte[16 * 16];
+            for (int y = 0; y < 16; y++)
+            {
+                Buffer.BlockCopy(pairData, y * 32, cropData, y * 16, 16);
+            }
+            var outImage = svc.CreateIndexedImage(16, 16, pair.GetPaletteGBA(), 16);
+            outImage.SetPixelData(cropData);
+            return outImage;
+        }
+
+        /// <summary>Create a fresh indexed copy of <paramref name="src"/>.</summary>
+        static IImage CloneIndexedImage(IImage src)
+        {
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+            var copy = svc.CreateIndexedImage(src.Width, src.Height, src.GetPaletteGBA(), 16);
+            copy.SetPixelData(src.GetPixelData());
+            return copy;
         }
 
         /// <summary>
