@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Controls.IdFieldControl">
+  <!--
+    Reusable type-ID input (#366). Bundles the affordances that the WinForms
+    InputFormRef "underlined label + Pick context menu" pattern provides:
+      - LabelText: Hyperlink-styled TextBlock — click to Jump
+      - ValueBox:  NumericUpDown — the raw id
+      - NameLabel: inline name preview (set by host via NameResolver)
+      - JumpButton: explicit Jump button (in addition to label hyperlink)
+      - PickButton: open the target editor in pick-mode
+    The host wires the routed events (JumpRequested / PickRequested /
+    ValueChanged) to WindowManager.Navigate<T> / PickFromEditor<T> and to a
+    NameResolver-driven NameText refresh.
+  -->
+  <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+    <TextBlock Name="LabelText"
+               Classes="Hyperlink"
+               VerticalAlignment="Center"
+               PointerPressed="OnLabelClick"
+               ToolTip.Tip="Click to open the target editor" />
+    <NumericUpDown Name="ValueBox"
+                   FormatString="0"
+                   Minimum="0"
+                   Maximum="255"
+                   MinWidth="120"
+                   VerticalAlignment="Center" />
+    <TextBlock Name="NameLabel"
+               VerticalAlignment="Center"
+               Foreground="Gray"
+               MinWidth="80"
+               MaxWidth="200"
+               TextTrimming="CharacterEllipsis"
+               ToolTip.Tip="Resolved name for the current id" />
+    <Button Name="JumpButton"
+            Content="Jump"
+            FontSize="11"
+            Padding="4,2"
+            VerticalAlignment="Center"
+            Click="OnJumpClick"
+            ToolTip.Tip="Open the target editor positioned at this id" />
+    <Button Name="PickButton"
+            Content="Pick..."
+            FontSize="11"
+            Padding="4,2"
+            VerticalAlignment="Center"
+            Click="OnPickClick"
+            ToolTip.Tip="Pick a value from the target editor" />
+  </StackPanel>
+</UserControl>
