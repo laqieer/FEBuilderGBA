@@ -364,6 +364,27 @@ namespace FEBuilderGBA.Core.Tests
         // on PR #465.)
 
         [Fact]
+        public void TryAppendShopItem_RejectsItemIdZero()
+        {
+            // itemId == 0 is the terminator. An appended "entry" with id 0
+            // would be indistinguishable from the terminator and silently no-op
+            // the list. The API must reject it.
+            var rom = MakeFE8UWithHenseiShop();
+            bool ok = ItemShopCore.TryAppendShopItem(rom, 0x200, 0x00, 0x05, out uint newSlotAddr);
+            Assert.False(ok);
+            Assert.Equal(U.NOT_FOUND, newSlotAddr);
+        }
+
+        [Fact]
+        public void RelocateShopList_RejectsNewItemIdZero()
+        {
+            var rom = MakeFE8UWithHenseiShop();
+            uint pointerAddr = rom.RomInfo.item_shop_hensei_pointer;
+            uint result = ItemShopCore.RelocateShopList(rom, 0x200, 0x00, 0x02, pointerAddr);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        [Fact]
         public void TryAppendShopItem_FailsOnUnterminatedList()
         {
             var rom = MakeFE8UWithHenseiShop();

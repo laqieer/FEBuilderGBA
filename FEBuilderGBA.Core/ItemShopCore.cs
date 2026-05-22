@@ -81,9 +81,10 @@ namespace FEBuilderGBA
             uint wmBaseAddr = rom.p32(wmPtrLoc);
             if (!U.isSafetyOffset(wmBaseAddr, rom)) return;
 
-            // WorldMap point entries are 32 bytes each. The list terminates when
-            // the first dword stops looking like a pointer (matches
-            // WorldMapPointForm.Init predicate).
+            // WorldMap point entries are 32 bytes each. Termination matches the
+            // WinForms WorldMapPointForm.Init predicate: scan stops when ANY of
+            // the three shop pointers at offsets +12, +16, +20 is not a pointer
+            // (and not NULL). The first dword is not consulted.
             const uint pointSize = 32;
             uint romLen = (uint)rom.Data.Length;
             for (uint i = 0; i < 0x100; i++)
@@ -91,52 +92,71 @@ namespace FEBuilderGBA
                 uint pointAddr = wmBaseAddr + i * pointSize;
                 if (pointAddr + pointSize > romLen) break;
 
-                // Predicate from WorldMapPointForm.Init: shop pointers at +12/+16/+20
-                // must each be a pointer or null. If none of the three are pointers,
-                // assume end of list.
                 uint armoryPtr = rom.u32(pointAddr + 12);
                 uint vendorPtr = rom.u32(pointAddr + 16);
                 uint secretPtr = rom.u32(pointAddr + 20);
-                bool a = U.isPointerOrNULL(armoryPtr);
-                bool v = U.isPointerOrNULL(vendorPtr);
-                bool s = U.isPointerOrNULL(secretPtr);
-                if (!a || !v || !s) break;
+                // Each of armory / vendor / secret must be a pointer or NULL.
+                // If ANY is malformed, treat that as end of list (matches
+                // WorldMapPointForm.Init).
+                if (!U.isPointerOrNULL(armoryPtr)
+                    || !U.isPointerOrNULL(vendorPtr)
+                    || !U.isPointerOrNULL(secretPtr))
+                    break;
 
-                // Per WinForms WorldMapPointForm.GetShopAddr: skip null pointers and
-                // skip the known empty-list addresses; ItemShopForm then additionally
-                // skips shops whose first item byte is 0x00.
+                // Resolve a display prefix for this worldmap point so labels are
+                // unambiguous (WinForms includes the point's text via
+                // TextForm.Direct(textid); we mirror that here).
+                uint pointNameTextId = rom.u16(pointAddr + 28);
+                string pointName = ResolveWorldMapPointName(rom, pointNameTextId, i);
+
+                // Per WinForms WorldMapPointForm.GetShopAddr: skip null pointers;
+                // ItemShopForm then additionally skips shops whose first item byte
+                // is 0x00 (the `rom.u8(shopAddr) == 0` check below).
                 AddWorldMapShopIfValid(rom, pointAddr + 12, armoryPtr,
-                    (uint)rom.RomInfo.worldmap_node_armory_empty_address,
-                    rom.RomInfo.get_shop_name(0x16), result);
+                    rom.RomInfo.get_shop_name(0x16), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 16, vendorPtr,
-                    (uint)rom.RomInfo.worldmap_node_vendor_empty_address,
-                    rom.RomInfo.get_shop_name(0x17), result);
+                    rom.RomInfo.get_shop_name(0x17), pointName, result);
                 AddWorldMapShopIfValid(rom, pointAddr + 20, secretPtr,
-                    (uint)rom.RomInfo.worldmap_node_secret_empty_address,
-                    rom.RomInfo.get_shop_name(0x18), result);
+                    rom.RomInfo.get_shop_name(0x18), pointName, result);
             }
         }
 
+        /// <summary>
+        /// Build a display name for a worldmap point. Returns the text-table
+        /// resolved name if non-empty, else a fallback like "Point 0x05" so the
+        /// caller can always produce a unique label.
+        /// </summary>
+        static string ResolveWorldMapPointName(ROM rom, uint textId, uint index)
+        {
+            try
+            {
+                string text = textId != 0 ? FETextDecode.Direct(textId) : "";
+                if (!string.IsNullOrEmpty(text)) return text;
+            }
+            catch { /* fall through to fallback */ }
+            return "Point " + U.ToHexString(index);
+        }
+
         static void AddWorldMapShopIfValid(ROM rom, uint pointerSlotAddr, uint shopPtr,
-            uint knownEmptyAddr, string shopLabel, List<AddrResult> result)
+            string shopLabel, string pointName, List<AddrResult> result)
         {
             // Skip null pointers.
             if (shopPtr == 0) return;
             // NOTE: we deliberately do NOT pointer-equality-filter against the
-            // worldmap_node_*_empty_address — WinForms ItemShopForm.MakeShopListLow()
+            // worldmap_node_*_empty_address. WinForms ItemShopForm.MakeShopListLow()
             // only filters worldmap shops via the `rom.u8(shopAddr) == 0` empty-list
             // check below. Doing both would drop valid shops that hacks may have
             // pointed at a previously-empty address but since populated with items.
-            // (`knownEmptyAddr` is intentionally unused — preserved on the API for
-            // documentation purposes.)
-            _ = knownEmptyAddr;
             // Resolve to ROM offset.
             uint shopAddr = U.toOffset(shopPtr);
             if (!U.isSafetyOffset(shopAddr, rom)) return;
             // WinForms ItemShopForm filter: skip if first byte is 0x00 (empty shop).
             if (rom.u8(shopAddr) == 0) return;
 
-            string name = "WorldMap " + (shopLabel ?? "Shop");
+            // Include the point name so worldmap shop labels are unambiguous —
+            // WinForms uses TextForm.Direct(textid) the same way. Without the
+            // point prefix you'd get many identical "WorldMap 武器屋" rows.
+            string name = pointName + " WorldMap " + (shopLabel ?? "Shop");
             result.Add(new AddrResult(shopAddr, name, pointerSlotAddr));
         }
 
@@ -270,6 +290,10 @@ namespace FEBuilderGBA
         {
             newSlotAddr = U.NOT_FOUND;
             if (rom == null || !U.isSafetyOffset(shopAddr, rom)) return false;
+            // Reject itemId == 0 — that's the terminator, so an "appended" entry
+            // with id 0 is indistinguishable from the existing terminator and
+            // would silently no-op the list. Callers must supply a non-zero ID.
+            if (itemId == 0) return false;
             uint romLen = (uint)rom.Data.Length;
 
             // Find the current terminator position. CountShopItems caps scanning
@@ -347,6 +371,10 @@ namespace FEBuilderGBA
         {
             if (rom == null || !U.isSafetyOffset(oldShopAddr, rom) || !U.isSafetyOffset(pointerAddr, rom))
                 return U.NOT_FOUND;
+            // Reject newItemId == 0 for the same reason as TryAppendShopItem —
+            // the new "entry" would be a terminator, leaving the relocated list
+            // empty after the copy.
+            if (newItemId == 0) return U.NOT_FOUND;
 
             int oldCount = CountShopItems(rom, oldShopAddr);
             // Refuse relocation when the source list is unterminated (corrupted).

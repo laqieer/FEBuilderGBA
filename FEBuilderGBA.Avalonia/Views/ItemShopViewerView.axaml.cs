@@ -109,6 +109,25 @@ namespace FEBuilderGBA.Avalonia.Views
                     i => ListIconLoaders.ItemIconLoader(_currentSlotList, i));
                 ShopAddrLabel.Text = $"0x{shopAddr:X08}";
                 ShopNameLabel.Text = _vm.CurrentShopName;
+
+                // If the selected shop has zero slots, OnSlotSelected will never
+                // fire (the SlotList is empty), so the VM keeps the previous
+                // shop's CurrentAddr / CanWrite and a Write click could
+                // accidentally edit a slot from a different shop. Explicitly
+                // clear the editor state and disable Write until a slot is
+                // selected. (Copilot bot review on PR #465.)
+                if (_currentSlotList.Count == 0)
+                {
+                    _vm.CurrentAddr = 0;
+                    _vm.ItemId = 0;
+                    _vm.Quantity = 0;
+                    _vm.CanWrite = false;
+                    AddrLabel.Text = "(empty shop — append a slot first)";
+                    ItemIdBox.Value = 0;
+                    QuantityBox.Value = 0;
+                    ItemNameLabel.Text = "";
+                }
+
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -160,6 +179,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // Guard: refuse to write when no slot is currently selected (e.g.
+            // user clicked Write on an empty shop after the editor was cleared
+            // by OnShopSelected).
+            if (!_vm.CanWrite || _vm.CurrentAddr == 0)
+            {
+                StatusLabel.Text = "Select a slot first (or use Append Slot to add one).";
+                return;
+            }
             _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
             _vm.Quantity = (uint)(QuantityBox.Value ?? 0);
 
