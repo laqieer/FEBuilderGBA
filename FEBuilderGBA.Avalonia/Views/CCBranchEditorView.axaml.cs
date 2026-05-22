@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -58,15 +59,16 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             Promo1Box.Value = _vm.PromotionClass1;
             Promo2Box.Value = _vm.PromotionClass2;
-            Promo1NameLabel.Text = _vm.PromoName1;
-            Promo2NameLabel.Text = _vm.PromoName2;
+            // Push VM-resolved names; ValueChanged will also refresh on user input.
+            Promo1Box.NameText = _vm.PromoName1;
+            Promo2Box.NameText = _vm.PromoName2;
             UpstreamLabel.Text = _vm.UpstreamChain;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PromotionClass1 = (uint)(Promo1Box.Value ?? 0);
-            _vm.PromotionClass2 = (uint)(Promo2Box.Value ?? 0);
+            _vm.PromotionClass1 = Promo1Box.Value;
+            _vm.PromotionClass2 = Promo2Box.Value;
 
             _undoService.Begin("Edit CC Branch");
             try
@@ -86,6 +88,73 @@ namespace FEBuilderGBA.Avalonia.Views
         public void SelectFirstItem()
         {
             BranchList.SelectFirst();
+        }
+
+        // -- IdFieldControl handlers (#366) ----------------------------------
+
+        /// <summary>
+        /// Compute the ClassEditorView ROM address for the given class index.
+        /// Returns 0 if the class table is unavailable / index is out of range.
+        /// </summary>
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            return baseAddr + classId * dataSize;
+        }
+
+        void Promo1_Jump(object? sender, RoutedEventArgs e) => JumpToClass(Promo1Box.Value);
+        void Promo2_Jump(object? sender, RoutedEventArgs e) => JumpToClass(Promo2Box.Value);
+
+        void JumpToClass(uint classId)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(classId);
+                if (addr == 0) return;
+                WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("CCBranchEditorView.JumpToClass failed: {0}", ex.Message);
+            }
+        }
+
+        async void Promo1_Pick(object? sender, RoutedEventArgs e) => await PickClass(Promo1Box);
+        async void Promo2_Pick(object? sender, RoutedEventArgs e) => await PickClass(Promo2Box);
+
+        async System.Threading.Tasks.Task PickClass(IdFieldControl target)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(target.Value);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null)
+                {
+                    target.Value = (uint)result.Index;
+                    // NameText refresh happens automatically via ValueChanged.
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("CCBranchEditorView.PickClass failed: {0}", ex.Message);
+            }
+        }
+
+        void Promo1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            Promo1Box.NameText = NameResolver.GetClassName(e.NewValue);
+        }
+
+        void Promo2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            Promo2Box.NameText = NameResolver.GetClassName(e.NewValue);
         }
     }
 }

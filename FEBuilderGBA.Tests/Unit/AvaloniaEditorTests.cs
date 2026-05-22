@@ -1458,10 +1458,21 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void CCBranchEditorView_NumericUpDownsHaveNoHexFormat()
         {
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "CCBranchEditorView.axaml"));
-            Assert.DoesNotContain("FormatString=\"X\"", src);
-            Assert.Contains("NumericUpDown", src);
-            Assert.Contains("Promo1Box", src);
+            // CCBranch's Promotion Class 1/2 NumericUpDowns moved into the
+            // reusable IdFieldControl (#366). The view file no longer hosts
+            // the NumericUpDown literally; assert against IdFieldControl
+            // markup + the shared IdFieldControl.axaml instead. The
+            // Promo1Box/Promo2Box names are preserved as the IdFieldControl
+            // Name= attribute so existing tests and E2E selectors that look
+            // up by name continue to resolve the right host control.
+            var viewSrc = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "CCBranchEditorView.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", viewSrc);
+            Assert.Contains("IdFieldControl", viewSrc);
+            Assert.Contains("Promo1Box", viewSrc);
+            // The actual NumericUpDown markup now lives in IdFieldControl.axaml.
+            var idFieldSrc = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "IdFieldControl.axaml"));
+            Assert.DoesNotContain("FormatString=\"X\"", idFieldSrc);
+            Assert.Contains("NumericUpDown", idFieldSrc);
         }
 
         [Fact]
