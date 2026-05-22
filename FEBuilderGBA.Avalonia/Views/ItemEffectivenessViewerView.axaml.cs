@@ -29,7 +29,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadItemEffectivenessList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // Item-keyed list — render item icons, not class icons. The
+                // rows are now items that have effectiveness data, keyed on
+                // their P16 ROM offset (issue #363; mirrors the #362 fix for
+                // the SkillSystems Rework variant).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
             }
             catch (Exception ex)
             {

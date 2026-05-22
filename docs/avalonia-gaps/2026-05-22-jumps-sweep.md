@@ -55,7 +55,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ClassForm` | `ClassEditorView` | `JumpToMoveCostRain` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
 | `ClassForm` | `ClassEditorView` | `JumpToMoveCostSnow` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
 | `ItemForm` | `ItemEditorView` | `JumpToEffectivenessSkillSystem` | `ItemEffectivenessSkillSystemsReworkForm` | `ItemEffectivenessSkillSystemsReworkView` | [#362](https://github.com/laqieer/FEBuilderGBA/issues/362) |
-| `ItemForm` | `ItemEditorView` | `JumpToEffectivenessVanilla` | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | [#363](https://github.com/laqieer/FEBuilderGBA/issues/363) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 

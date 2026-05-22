@@ -16,9 +16,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // ----------------------------------------------------------------
         // INavigationTargetSource — Phase 4 (#374). Mirror the navigation
         // callsites in ItemEditorView.axaml.cs WITHOUT changing actual
-        // navigation behavior. The Effectiveness jump for the vanilla path
-        // is still known-broken (#363 — wrong address + preview icons);
-        // the SkillSystems Rework path was fixed by #362.
+        // navigation behavior. Both Effectiveness jump paths are now fixed:
+        // SkillSystems Rework by #362 / PR #456, and vanilla by #363.
         // ----------------------------------------------------------------
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
@@ -54,13 +53,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TargetViewType: typeof(ItemStatBonusesViewerView),
                     TargetAddress: null),
 
-                // Effectiveness jumps split by patch state. The Skill Systems
-                // Rework path was fixed by #362 — the receiving view-model
-                // now enumerates items by their P16 pointer so the address
-                // passed by ItemEditorView.JumpToEffectiveness_Click matches
-                // a real list row. The vanilla path is still known-broken
-                // under #363 (sacred-weapons-table base address + wrong
-                // preview icons).
+                // Effectiveness jumps split by patch state. Both paths
+                // enumerate items by their P16 pointer (skill-systems-rework
+                // fixed by #362 / PR #456; vanilla fixed by #363) so the
+                // address passed by ItemEditorView.JumpToEffectiveness_Click
+                // matches a real list row in either receiver.
                 new NavigationTarget(
                     CommandName: "JumpToEffectivenessSkillSystem",
                     TargetViewType: typeof(ItemEffectivenessSkillSystemsReworkView),
@@ -68,8 +65,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 new NavigationTarget(
                     CommandName: "JumpToEffectivenessVanilla",
                     TargetViewType: typeof(ItemEffectivenessViewerView),
-                    TargetAddress: null,
-                    IssueRef: "#363"),
+                    TargetAddress: null),
             };
         }
     }
