@@ -33,6 +33,36 @@
           <TextBlock AutomationProperties.AutomationId="ClassEditor_Name_Label" Name="NameLabel" VerticalAlignment="Center" />
         </StackPanel>
 
+        <!-- Class Card Preview (issue #357): mirrors WinForms ClassForm top-right
+             block — L_8_PORTRAIT_CLASS (face portrait) + L_5_CLASS (name) +
+             L_6_CLASSICONSRC (map wait icon). Updates live as PortraitIdBox /
+             WaitIconBox change in code-behind.UpdateClassCard(). -->
+        <Border AutomationProperties.AutomationId="ClassEditor_ClassCard_Control"
+                Name="ClassCardBorder" IsVisible="False"
+                BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4"
+                Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                Margin="0,4,0,2">
+          <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto">
+            <controls:IconPreviewControl
+                AutomationProperties.AutomationId="ClassEditor_CardPortrait_Image"
+                Name="CardPortraitImage" Grid.Column="0"
+                Scale="2" MaxImageWidth="80" MaxImageHeight="80" Margin="0,0,12,0" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+              <TextBlock Text="Class Card" FontWeight="Bold" FontSize="14" />
+              <TextBlock AutomationProperties.AutomationId="ClassEditor_CardName_Label"
+                         Name="CardNameLabel" FontSize="13"
+                         TextWrapping="Wrap" />
+              <TextBlock AutomationProperties.AutomationId="ClassEditor_CardId_Label"
+                         Name="CardIdLabel" Foreground="Gray" FontSize="11" />
+            </StackPanel>
+            <controls:IconPreviewControl
+                AutomationProperties.AutomationId="ClassEditor_CardWaitIcon_Image"
+                Name="CardWaitIconImage" Grid.Column="2"
+                Scale="2" MaxImageWidth="32" MaxImageHeight="32"
+                VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+
         <!-- Identity / Misc -->
         <Expander AutomationProperties.AutomationId="ClassEditor_IdentityMisc_Expander" Header="Identity / Misc" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">

@@ -57,6 +57,11 @@ namespace FEBuilderGBA.Avalonia.Views
             B49Box.ValueChanged += OnWeaponValueChanged;
             B50Box.ValueChanged += OnWeaponValueChanged;
             B51Box.ValueChanged += OnWeaponValueChanged;
+
+            // Wire class-card live updates (issue #357): when the user edits
+            // the portrait or wait-icon field, refresh the card images.
+            PortraitIdBox.ValueChanged += OnClassCardInputChanged;
+            WaitIconBox.ValueChanged   += OnClassCardInputChanged;
         }
 
         void LoadList()
@@ -186,6 +191,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadClass(addr);
                 UpdateUI();
                 TryShowListPreview();
+                UpdateClassCard();
                 UpdateWarnings();
             }
             catch (Exception ex)
@@ -424,6 +430,57 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Refresh the class-card preview (issue #357). Mirrors WinForms
+        /// <c>ClassForm</c> top-right block — class face portrait
+        /// (<c>L_8_PORTRAIT_CLASS</c>) + class name (<c>L_5_CLASS</c>) +
+        /// class wait icon (<c>L_6_CLASSICONSRC</c>). Reads the current
+        /// portrait id and wait icon from the NumericUpDown controls so
+        /// edits propagate live (matching WinForms <c>InputFormRef</c>'s
+        /// <c>ValueChanged</c>-driven linktype refresh).
+        /// </summary>
+        void UpdateClassCard()
+        {
+            try
+            {
+                uint portraitId = (uint)(PortraitIdBox.Value ?? 0);
+                uint waitIcon = (uint)(WaitIconBox.Value ?? 0);
+
+                // `using` so the IDisposable IImage temporaries are released
+                // even if SetImage / Avalonia bitmap conversion throws.
+                // PR #471 Copilot inline review fix.
+                using var facePic = PreviewIconHelper.LoadClassFacePortrait(portraitId);
+                using var waitPic = PreviewIconHelper.LoadClassWaitIcon(waitIcon);
+
+                CardPortraitImage.SetImage(facePic);
+                CardWaitIconImage.SetImage(waitPic);
+
+                CardNameLabel.Text = _vm.Name ?? "";
+                CardIdLabel.Text = $"0x{_vm.CurrentAddr:X08}  /  ID {_vm.ClassNumber}";
+                ClassCardBorder.IsVisible = true;
+            }
+            catch (Exception ex)
+            {
+                // Log the full exception (stack trace + inner) so UI/ROM
+                // rendering failures are diagnosable from logs.
+                // PR #471 Copilot inline review fix.
+                Log.Error("UpdateClassCard failed: " + ex.ToString());
+                CardPortraitImage.SetImage(null);
+                CardWaitIconImage.SetImage(null);
+                ClassCardBorder.IsVisible = false;
+            }
+        }
+
+        /// <summary>
+        /// Live-refresh the class card when the user edits PortraitIdBox or
+        /// WaitIconBox. Skipped during bulk UI loads to avoid redundant work.
+        /// </summary>
+        void OnClassCardInputChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            UpdateClassCard();
+        }
+
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _vm.NameId = (uint)(NameIdBox.Value ?? 0);
@@ -633,15 +690,36 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportTSV_Click(object? sender, RoutedEventArgs e)
         {
-            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService, () =>
-            {
-                // Reload the current entry after import
-                if (_vm.CurrentAddr != 0)
-                {
-                    _vm.LoadClass(_vm.CurrentAddr);
-                    UpdateUI();
-                }
-            });
+            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService,
+                ReloadCurrentClassAfterImport);
+        }
+
+        /// <summary>
+        /// Reload the current class after a TSV import so all UI surfaces
+        /// (form fields, list preview, class card, validation warnings) stay
+        /// in sync with the imported data. Mirrors the
+        /// <see cref="OnClassSelected"/> refresh sequence.
+        ///
+        /// CRITICAL: <see cref="UpdateUI"/> sets <c>PortraitIdBox</c> and
+        /// <c>WaitIconBox</c> while <c>_vm.IsLoading</c> is true, so the
+        /// <see cref="OnClassCardInputChanged"/> handler intentionally skips
+        /// its refresh. <see cref="UpdateClassCard"/> MUST therefore be
+        /// invoked explicitly here — removing this call leaves the class
+        /// card preview stale until the user re-selects the class or
+        /// manually edits one of those fields.
+        ///
+        /// Extracted into an internal method so it can be regression-tested
+        /// without driving the full async TSV-import flow (PR #471 Copilot
+        /// inline-review follow-up).
+        /// </summary>
+        internal void ReloadCurrentClassAfterImport()
+        {
+            if (_vm.CurrentAddr == 0) return;
+            _vm.LoadClass(_vm.CurrentAddr);
+            UpdateUI();
+            TryShowListPreview();
+            UpdateClassCard();
+            UpdateWarnings();
         }
 
         public void EnablePickMode() => ClassList.EnablePickMode();
