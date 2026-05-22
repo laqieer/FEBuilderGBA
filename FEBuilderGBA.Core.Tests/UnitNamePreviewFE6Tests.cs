@@ -31,18 +31,26 @@ namespace FEBuilderGBA.Core.Tests
     {
         // ---- helpers (mirrors SupportUnitNavigationTests style) ------------
 
+        // Cast the uint offset to int once via checked() so we get a clear
+        // OverflowException (rather than a confusing wrap-around) if a future
+        // refactor passes an address > int.MaxValue. The synthetic ROM is
+        // 16 MB so the cast is always safe in practice; this is hygiene to
+        // match the int-indexed byte[] indexer per Copilot bot review on PR
+        // #495.
         static void WriteU16(byte[] data, uint addr, ushort value)
         {
-            data[addr + 0] = (byte)(value & 0xFF);
-            data[addr + 1] = (byte)((value >> 8) & 0xFF);
+            int i = checked((int)addr);
+            data[i + 0] = (byte)(value & 0xFF);
+            data[i + 1] = (byte)((value >> 8) & 0xFF);
         }
 
         static void WriteU32(byte[] data, uint addr, uint value)
         {
-            data[addr + 0] = (byte)(value & 0xFF);
-            data[addr + 1] = (byte)((value >> 8) & 0xFF);
-            data[addr + 2] = (byte)((value >> 16) & 0xFF);
-            data[addr + 3] = (byte)((value >> 24) & 0xFF);
+            int i = checked((int)addr);
+            data[i + 0] = (byte)(value & 0xFF);
+            data[i + 1] = (byte)((value >> 8) & 0xFF);
+            data[i + 2] = (byte)((value >> 16) & 0xFF);
+            data[i + 3] = (byte)((value >> 24) & 0xFF);
         }
 
         static ROM MakeRom(string sig)
