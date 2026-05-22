@@ -43,7 +43,8 @@ namespace FEBuilderGBA
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
             g_Cache_HPBar_enum = HPBar_enum.NoCache;
             g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
-            PatchDetection.ClearCacheExtendsBattleBG();
+            // PatchDetection.ClearAllCaches() above already invalidates the
+            // Core-side ExtendsBattleBG cache — no second call needed here.
             g_Cache_m4a_hq_mixer = Cache_m4a_hq_mixer.NoCache;
             g_Cache_SoundRoomExpands = Cache_SoundRoomExpands.NoCache;
             g_Cache_NullifyMovPatch = NullifyMovPatch.NoCache;

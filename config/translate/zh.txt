@@ -20351,3 +20351,12 @@ LZ77 重新压缩 (2026 以后)
 
 :References:
 引用:
+
+:Selection:
+选择地址:
+
+:Hex Address
+开始地址
+
+:Jump to the background of battle animation
+跳转到战斗动画的背景

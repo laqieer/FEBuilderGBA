@@ -163,43 +163,64 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Filter+row navigation. Used by the BG sister view's "Jump to Floor"
         /// button and by deep-link callers (gap-sweep parity rounds preserve
-        /// both axes per Copilot CLI review point 2).
+        /// both axes per Copilot CLI review point 2). Both indices are clamped
+        /// to valid ranges to mirror the WinForms `SelectedIndexSafety` helper;
+        /// out-of-range arguments fall back to filter 0 / row 0 instead of
+        /// silently emptying the list.
         /// </summary>
         public void NavigateToFilterAndRow(uint filterIndex, uint rowIndex)
         {
+            // Mirror WinForms SelectedIndexSafety: clamp filter to a valid
+            // slot. When the combo is empty we keep filter=0 — there's
+            // nothing to load but we still set the row safely.
+            int filterCount = _vm.FilterEntries.Count;
+            int safeFilter = filterCount == 0 ? 0
+                : (int)Math.Min(filterIndex, (uint)(filterCount - 1));
+
             _suppressFilterChange = true;
             try
             {
-                if (filterIndex < _vm.FilterEntries.Count)
-                    FilterComboBox.SelectedIndex = (int)filterIndex;
+                if (filterCount > 0)
+                    FilterComboBox.SelectedIndex = safeFilter;
             }
             finally { _suppressFilterChange = false; }
-            LoadListForFilter((int)filterIndex);
-            EntryList.SelectByIndex((int)rowIndex);
+
+            LoadListForFilter(safeFilter);
+
+            // Clamp the row to the list count we just loaded.
+            int listCount = EntryList.GetItems().Count;
+            int safeRow = listCount == 0 ? 0
+                : (int)Math.Min(rowIndex, (uint)(listCount - 1));
+            EntryList.SelectByIndex(safeRow);
         }
 
         /// <summary>
         /// Parse a `filter:row` reference string (mirrors WinForms
         /// `MapTerrainFloorLookupTableForm.JumpToRef`) and navigate. The
         /// regex accepts e.g. `"0x03 ... 0x01:"` and pulls filter=0x01,
-        /// row=0x03 (same semantics as the WF implementation).
+        /// row=0x03 (same semantics as the WF implementation). Returns
+        /// null when the input doesn't match the WinForms expected shape —
+        /// callers should NOT see a window pop up for malformed references.
         /// </summary>
-        public static MapTerrainFloorLookupTableView JumpToRef(string text)
+        public static MapTerrainFloorLookupTableView? JumpToRef(string text)
         {
             // Mirror WinForms: RegexCache.Split(text, @"([0-9a-zA-Z]+) .+? ([0-9a-zA-Z]+):")
-            // ptrn[1] = list-row hex, ptrn[2] = filter hex. Defensive when
-            // parsing fails — open the view without preselection.
-            uint filter = 0, row = 0;
+            // — returns without opening when the pattern doesn't yield both
+            // captures, so partial/malformed references don't open a stray
+            // window. (Matches the WF early-return semantics.)
+            uint filter, row;
             try
             {
                 var parts = FEBuilderGBA.RegexCache.Split(text ?? "", @"([0-9a-zA-Z]+) .+? ([0-9a-zA-Z]+):");
-                if (parts.Length > 2)
-                {
-                    row = U.atoh(parts[1]);
-                    filter = U.atoh(parts[2]);
-                }
+                if (parts.Length <= 2)
+                    return null;
+                row = U.atoh(parts[1]);
+                filter = U.atoh(parts[2]);
             }
-            catch { /* defensive — open without preselection */ }
+            catch
+            {
+                return null;
+            }
             var v = WindowManager.Instance.Open<MapTerrainFloorLookupTableView>();
             v.NavigateToFilterAndRow(filter, row);
             return v;

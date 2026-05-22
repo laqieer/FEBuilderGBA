@@ -24,9 +24,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         //   3. JumpToRef (static) → JumpForm<MapTerrainFloorLookupTableForm>
         //
         // All three are now wired in MapTerrainFloorLookupTableView.axaml.cs:
-        //   1. JumpToBG_Click          → WindowManager.Navigate<MapTerrainBGLookupTableView>
-        //   2. PatchInstall_Click      → WindowManager.Open<PatchManagerView>
-        //   3. static JumpToRefAsync   → opens self with parsed (filter, list) selection
+        //   1. JumpToBG_Click       → WindowManager.Navigate<MapTerrainBGLookupTableView>
+        //   2. PatchInstall_Click   → WindowManager.Open<PatchManagerView>
+        //   3. static JumpToRef     → opens self with parsed (filter, list) selection
         //
         // Layer 1b of JumpParityScanner.BuildWfFormToAvViewsMap pairs
         // `PatchForm` ↔ `PatchManagerView`, so the WF callsite (2) MATCHes
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TargetViewType: typeof(PatchManagerView),
                     TargetAddress: null),
 
-                // 3. Self-jump — JumpToRefAsync(text) parses a reference
+                // 3. Self-jump — static JumpToRef(text) parses a reference
                 //    string and opens this view with the right filter+row.
                 //    Mirrors WF JumpToRef.
                 new NavigationTarget(

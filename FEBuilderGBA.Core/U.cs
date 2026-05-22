@@ -941,9 +941,14 @@ namespace FEBuilderGBA
             return r.ToString();
         }
         /// <summary>
-        /// Project a Dictionary&lt;uint,string&gt; to its values list in insertion order.
-        /// Used by gap-sweep parity helpers (#442) so Core code doesn't need to
-        /// reach back into the WinForms U.cs sibling for trivial collection ops.
+        /// Project a Dictionary&lt;uint,string&gt; to a list of its values.
+        /// The order matches <see cref="Dictionary{TKey,TValue}.Values"/>'s
+        /// enumeration order (which the BCL does NOT guarantee to be insertion
+        /// order). Callers that rely on a deterministic index-to-name mapping
+        /// MUST sort by key themselves — both call sites here (gap-sweep
+        /// parity helpers + filter-combo population) iterate values directly
+        /// for display so the unspecified order is acceptable.
+        /// Mirrors the WinForms <c>U.DictionaryToValuesList</c> helper.
         /// </summary>
         public static List<string> DictionaryToValuesList(Dictionary<uint, string> d)
         {
