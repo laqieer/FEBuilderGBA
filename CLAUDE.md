@@ -377,6 +377,10 @@ Specialized utilities for different graphic types:
 - `ImageUtilMap.cs` - Map tiles
 - `ImageUtilMagic.cs` - Magic effects
 - `LZ77.cs` - GBA LZ77 compression (LZSS variant)
+- `LZ77ToolCore.cs` (Core) - Cross-platform helpers for the LZ77 Tool's Move + Recompress tabs.
+  Used by both WinForms `ToolLZ77Form` and Avalonia `ToolLZ77ViewModel`.
+  Uses ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
+  (event-aware path is explicitly out of scope — `MissingEventAwareCoverage` flag always set).
 
 ### Caching System
 

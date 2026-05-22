@@ -20309,3 +20309,42 @@ Base64 文本 → 文件
 
 :Open Support
 打开支援
+
+:LENGTH:
+长度:
+
+:0x0 (source offset)
+0x0 (源偏移)
+
+:0x0 (destination, 0 = auto-allocate)
+0x0 (目标地址，0=自动分配)
+
+:length in bytes (hex)
+长度 (字节数，十六进制)
+
+:Move This Region
+移动该区域
+
+:Run LZ77 Recompress
+运行 LZ77 重新压缩
+
+:Move arbitrary binary data (LZ77 or otherwise) to a new address. TO = 0 auto-allocates from free space (or appends to end). Pointer references are rewritten.
+将任意二进制数据 (LZ77 等) 移动到新地址。TO=0 时从空闲区自动分配 (或追加到末尾)。指针引用会被重写。
+
+:Limitation: event-script-aware pointer search is not included (WinForms-only). If your data is referenced from event scripts or struct pointer tables, perform Move in WinForms.
+限制: 不包含支持事件脚本的指针搜索 (仅 WinForms)。如果你的数据从事件脚本或结构体指针表中被引用，请在 WinForms 中执行移动。
+
+:LZ77 Recompress (since 2026)
+LZ77 重新压缩 (2026 以后)
+
+:Walks ROM for LZ77-compressed entries and re-compresses each with the current encoder. Any savings can be reclaimed via Rebuild later. Process takes several minutes for a full ROM scan.
+扫描 ROM 中所有 LZ77 压缩条目，并用当前编码器重新压缩。生成的空间可在 Rebuild 时回收。完整扫描需要数分钟。
+
+:Heuristic scan: this tool does NOT use WinForms MakeAllStructPointersList — it may miss entries referenced only from event scripts or struct pointer tables. For best coverage, run Recompress in WinForms.
+启发式扫描: 本工具不使用 WinForms 的 MakeAllStructPointersList，可能漏掉仅被事件脚本或结构体指针表引用的条目。如需完整覆盖请在 WinForms 中运行重新压缩。
+
+:Move
+移动
+
+:Recompress
+重新压缩

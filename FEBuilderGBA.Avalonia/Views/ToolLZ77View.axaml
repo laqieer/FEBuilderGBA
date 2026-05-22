@@ -95,6 +95,52 @@
         </DockPanel>
       </TabItem>
 
+      <TabItem Header="Move" AutomationProperties.AutomationId="ToolLZ77_Move_Tab">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <Grid ColumnDefinitions="140,8,*" RowDefinitions="Auto,8,Auto,8,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="FROM:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_MoveFrom_Input" Grid.Row="0" Grid.Column="2" Text="{Binding MoveFromText}" Watermark="0x0 (source offset)" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="TO:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_MoveTo_Input" Grid.Row="2" Grid.Column="2" Text="{Binding MoveToText}" Watermark="0x0 (destination, 0 = auto-allocate)" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="LENGTH:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="ToolLZ77_MoveLength_Input" Grid.Row="4" Grid.Column="2" Text="{Binding MoveLengthText}" Watermark="length in bytes (hex)" />
+            </Grid>
+
+            <Button AutomationProperties.AutomationId="ToolLZ77_Move_Button" Content="Move This Region" Click="Move_Click" Height="36" HorizontalAlignment="Stretch" />
+
+            <Border BorderBrush="LightGray" BorderThickness="1" Padding="8" CornerRadius="2">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Move arbitrary binary data (LZ77 or otherwise) to a new address. TO = 0 auto-allocates from free space (or appends to end). Pointer references are rewritten."
+                           TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+                <TextBlock Text="Limitation: event-script-aware pointer search is not included (WinForms-only). If your data is referenced from event scripts or struct pointer tables, perform Move in WinForms."
+                           TextWrapping="Wrap" FontSize="11" Foreground="DarkOrange" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Recompress" AutomationProperties.AutomationId="ToolLZ77_Recompress_Tab">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <Border BorderBrush="LightGray" BorderThickness="1" Padding="8" CornerRadius="2">
+              <StackPanel Spacing="4">
+                <TextBlock Text="LZ77 Recompress (since 2026)" FontWeight="Bold" />
+                <TextBlock Text="Walks ROM for LZ77-compressed entries and re-compresses each with the current encoder. Any savings can be reclaimed via Rebuild later. Process takes several minutes for a full ROM scan."
+                           TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+                <TextBlock Text="Heuristic scan: this tool does NOT use WinForms MakeAllStructPointersList — it may miss entries referenced only from event scripts or struct pointer tables. For best coverage, run Recompress in WinForms."
+                           TextWrapping="Wrap" FontSize="11" Foreground="DarkOrange" />
+              </StackPanel>
+            </Border>
+
+            <Button AutomationProperties.AutomationId="ToolLZ77_Recompress_Button" Content="Run LZ77 Recompress" Click="Recompress_Click" Height="36" HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
     </TabControl>
   </DockPanel>
 </Window>
