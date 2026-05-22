@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void NMMButton_Click(object? sender, RoutedEventArgs e)
             => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_NMM, "NMM", ".nmm");
 
-        void OpenExportDialog(DumpStructSelectDialogViewModel.Func func, string formatName, string ext)
+        async void OpenExportDialog(DumpStructSelectDialogViewModel.Func func, string formatName, string ext)
         {
             try
             {
@@ -155,7 +155,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 string text = _vm.MakeStubExportText(formatName);
                 var dialog = new DumpStructSelectToTextDialogView();
                 dialog.SetContent(filename, text);
-                dialog.Show();
+                // ShowDialog with this as owner so the preview is modal and
+                // honors the target view's WindowStartupLocation="CenterOwner".
+                // (Per Copilot inline review on PR #494.)
+                await dialog.ShowDialog(this);
             }
             catch (Exception ex)
             {
