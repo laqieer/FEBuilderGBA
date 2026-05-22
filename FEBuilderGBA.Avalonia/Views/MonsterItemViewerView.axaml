@@ -15,11 +15,19 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Item ID:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Link"
-                     Classes="Hyperlink" Name="ItemId_Link" PointerPressed="OnItemIdLinkClick"
-                     ToolTip.Tip="Click to open Item Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <!-- #360: replaces "Hyperlink TextBlock + NumericUpDown" with a single
+               IdFieldControl. Host Name="ItemIdBox" preserved so FindControl<>
+               lookups resolve; AutomationId preserved and forwarded by
+               IdFieldControl.PropagateInnerAutomationIds onto the inner
+               NumericUpDown so E2E selectors keep working. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ItemIdBox"
+                                   Label="Item ID:"
+                                   Maximum="255"
+                                   JumpRequested="ItemId_Jump"
+                                   PickRequested="ItemId_Pick"
+                                   ValueChanged="ItemId_ValueChanged" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Drop Rate:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_DropRate_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DropRateBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
