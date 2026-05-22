@@ -41,7 +41,7 @@
                          Name="ItemAddressBox" Minimum="0" Maximum="65535999"
                          IsEnabled="False" VerticalAlignment="Center" />
 
-          <Label Grid.Row="1" Grid.Column="0" Content="Selected Address:" VerticalAlignment="Center" />
+          <Label Grid.Row="1" Grid.Column="0" Content="Selection:" VerticalAlignment="Center" />
           <Label AutomationProperties.AutomationId="MapTerrainFloorLookupTable_Addr_Label"
                  Grid.Row="1" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
