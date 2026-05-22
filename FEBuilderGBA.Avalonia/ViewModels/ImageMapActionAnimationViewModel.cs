@@ -95,22 +95,61 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         static Dictionary<uint, string> LoadDefaultNamesFromConfig()
         {
+            // Use U.ConfigDataFilename + U.LoadDicResource so we pick up
+            // ROM-specific overrides (`MapActionAnimation_{FE8U}.{lang}.txt`)
+            // and language fallback chain — matches WinForms
+            // `ImageMapActionAnimationForm.GetNameDefaultName` /
+            // `U.LoadDicResource(U.ConfigDataFilename(...))` pattern.
+            // Copilot CLI inline review on PR #506.
+            //
+            // Wrap in try/catch + null-guard around CoreState.Services so a
+            // headless test environment that hasn't wired Services can't
+            // NRE inside U.LoadDicResource's error path (which calls
+            // CoreState.Services.ShowError on file-missing). Falls back to
+            // a hand-rolled parser if the U.* path throws — keeps the test
+            // contract (id=0 -> "Empty", id=1 -> "Break1") stable in CI.
             try
             {
-                // Use U.ConfigDataFilename + U.LoadDicResource so we pick up
-                // ROM-specific overrides (`MapActionAnimation_{FE8U}.{lang}.txt`)
-                // and language fallback chain — matches WinForms
-                // `ImageMapActionAnimationForm.GetNameDefaultName` /
-                // `U.LoadDicResource(U.ConfigDataFilename(...))` pattern.
-                // Copilot CLI inline review on PR #506.
                 string path = U.ConfigDataFilename("MapActionAnimation_");
-                return U.LoadDicResource(path);
+                if (System.IO.File.Exists(path))
+                {
+                    return U.LoadDicResource(path);
+                }
+                // Fall through to manual parser below.
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig failed: {0}", ex.Message);
-                return new Dictionary<uint, string>();
+                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
             }
+
+            // Fallback: parse the file directly with a hand-rolled loop.
+            // Used when CoreState.Services is null (headless tests) or when
+            // the U.* path raises for any other reason.
+            var dic = new Dictionary<uint, string>();
+            try
+            {
+                string baseDir = CoreState.BaseDirectory ?? AppContext.BaseDirectory;
+                string path = System.IO.Path.Combine(baseDir, "config", "data", "MapActionAnimation_ALL.txt");
+                if (!System.IO.File.Exists(path)) return dic;
+                foreach (string raw in System.IO.File.ReadAllLines(path))
+                {
+                    string line = raw.Trim();
+                    if (line.Length == 0 || line.StartsWith("#")) continue;
+                    int eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+                    string hex = line.Substring(0, eq).Trim();
+                    string name = line.Substring(eq + 1).Trim();
+                    if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out uint id))
+                    {
+                        dic[id] = name;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig fallback failed: {0}", ex.Message);
+            }
+            return dic;
         }
 
         /// <summary>
