@@ -12,12 +12,12 @@
         <Label Content="Condition:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="MapTerrainFloorLookupTable_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Start Address" VerticalAlignment="Center" />
+        <Label Content="Hex Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTerrainFloorLookupTable_ReadStart_Input"
                        FormatString="X8" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
+        <Label Content="Count" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTerrainFloorLookupTable_ReadCount_Input"
                        FormatString="0" Name="ReadCountBox" Width="80"
                        Minimum="0" Maximum="256"
@@ -56,9 +56,9 @@
           <Button AutomationProperties.AutomationId="MapTerrainFloorLookupTable_Write_Button"
                   Content="Write" Click="Write_Click" />
           <Button AutomationProperties.AutomationId="MapTerrainFloorLookupTable_JumpToBG_Button"
-                  Name="JumpToBGButton" Content="Jump to Battle BG" Click="JumpToBG_Click" />
+                  Name="JumpToBGButton" Content="Jump to the background of battle animation" Click="JumpToBG_Click" />
           <Button AutomationProperties.AutomationId="MapTerrainFloorLookupTable_PatchInstall_Button"
-                  Name="PatchInstallButton" Content="Install ExtendsBattleBG Patch" Click="PatchInstall_Click"
+                  Name="PatchInstallButton" Content="Install Patch" Click="PatchInstall_Click"
                   Foreground="Red" IsVisible="False" />
         </StackPanel>
       </StackPanel>
