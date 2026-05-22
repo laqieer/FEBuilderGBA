@@ -5,19 +5,10 @@
         Title="Portrait Editor (FE6)" Width="900" Height="600"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="280,*">
-    <!-- Left side: list + filter -->
-    <DockPanel Grid.Column="0" Margin="4">
-      <!-- Filter row (`名前`) -->
-      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="4" Margin="0,0,0,4">
-        <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_LabelFilter_Label"
-                   Name="LabelFilterLabel"
-                   Text="Filter:" VerticalAlignment="Center" />
-        <TextBox AutomationProperties.AutomationId="ImagePortraitFE6_LabelFilter_Input"
-                 Name="LabelFilterInput" Width="180" Watermark="(filter list by name)" />
-      </StackPanel>
-
-      <controls:AddressListControl AutomationProperties.AutomationId="ImagePortraitFE6_Entry_List" Name="EntryList" />
-    </DockPanel>
+    <!-- Left side: list (AddressListControl ships its own SearchBox + Find button
+         for the WF `名前` parity — no need for a sibling filter row). -->
+    <controls:AddressListControl AutomationProperties.AutomationId="ImagePortraitFE6_Entry_List"
+                                 Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
@@ -25,7 +16,7 @@
 
         <!-- Top-of-list config bar (mirrors WF 先頭アドレス / 読込数 / Size: + 再取得 button) -->
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,4">
-          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
             <TextBlock Grid.Column="0" Text="Start Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
             <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ReadStartAddress_Label"
                        Grid.Column="1" Name="ReadStartAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"

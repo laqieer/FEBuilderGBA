@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:23:10Z"
-git-sha: 52c766ad7
+generated: "2026-05-22T22:53:00Z"
+git-sha: 2368ef651
 sweep-type: labels
 ---
 
@@ -37,7 +37,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
 | Total WF-only labels | 4639 |
-| Total AV-only labels | 2673 |
+| Total AV-only labels | 2671 |
 | Total common labels | 61 |
 
 ## Top 20 Forms by WF-only Label Count
@@ -3771,7 +3771,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ImagePortraitFE6Form
-WF labels: **23** · AV labels: **29** · WF-only: **22** · AV-only: **28** · Common: **1** · Density verdict: **Medium** (WF 34 / AV 44)
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 34 / AV 42)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3800,12 +3800,10 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `(filter list by name)`
 - `Address:`
 - `Comment:`
 - `Export PAL`
 - `Export PNG`
-- `Filter:`
 - `Import PAL`
 - `Import PNG`
 - `Map Face:`

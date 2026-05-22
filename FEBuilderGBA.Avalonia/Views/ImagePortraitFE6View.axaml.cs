@@ -93,8 +93,12 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateShowFrameLabel()
         {
             int idx = (int)(ShowFrameInput?.Value ?? 0);
-            ShowFrameLabel.Text = idx >= 0 && idx < ShowFrameNames.Length
-                ? ShowFrameNames[idx] : $"Frame {idx}";
+            // Translate the static description string at assignment time —
+            // TranslatedWindow.TranslateAll() runs once at window open, so
+            // values assigned afterward must go through R._() explicitly
+            // to localize when the UI language is ja/zh.
+            ShowFrameLabel.Text = R._(idx >= 0 && idx < ShowFrameNames.Length
+                ? ShowFrameNames[idx] : $"Frame {idx}");
         }
 
         void TryShowPortraitImage()
@@ -140,15 +144,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadCommentForCurrentEntry()
         {
-            // WF mirrors `Comment` against the ResourceCache entry keyed by
-            // the current portrait ID. Avalonia uses the same key convention.
+            // WF wires `Comment` through `Program.CommentCache.At(addr)` —
+            // an IEtcCache keyed by the entry's ROM address (see
+            // InputFormRef.UI_WriteCommentToUI). Avalonia uses the same
+            // CoreState.CommentCache instance so the cache file lives in
+            // exactly the same on-disk slot for both heads.
             try
             {
-                int idx = EntryList.SelectedOriginalIndex;
-                if (idx < 0) { _vm.Comment = string.Empty; return; }
-                string key = "PortraitFE6Comment_" + U.ToHexString((uint)idx);
-                if (CoreState.ResourceCache is EtcCacheResource cache
-                    && cache.TryGetValue(key, out string? value))
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { _vm.Comment = string.Empty; return; }
+                if (CoreState.CommentCache != null
+                    && CoreState.CommentCache.TryGetValue(addr, out string value))
                 {
                     _vm.Comment = value ?? string.Empty;
                 }
@@ -163,7 +169,10 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateSourceButtonVisibility()
         {
             // WF shows the Open / Select Source File buttons when a portrait
-            // image was imported from disk and the source path is cached.
+            // image was imported from disk and the source path was recorded
+            // in Program.ResourceCache under "Portrait_<id>". We surface the
+            // same EtcCacheResource state — when ResourceCache is null (some
+            // headless / CLI launches) the buttons stay hidden.
             try
             {
                 int idx = EntryList.SelectedOriginalIndex;
@@ -205,16 +214,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.IsLoading) return;
             _vm.Comment = CommentInput.Text ?? string.Empty;
-            // Persist to ResourceCache immediately (matches WF behavior).
+            // Persist via CoreState.CommentCache keyed by the current ROM
+            // address — same data file WF writes through
+            // Program.CommentCache.Update (InputFormRef.UI_ReadUIToComment).
             try
             {
-                int idx = EntryList.SelectedOriginalIndex;
-                if (idx < 0) return;
-                string key = "PortraitFE6Comment_" + U.ToHexString((uint)idx);
-                if (CoreState.ResourceCache is EtcCacheResource cache)
-                {
-                    cache.Update(key, _vm.Comment);
-                }
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) return;
+                CoreState.CommentCache?.Update(addr, _vm.Comment);
             }
             catch { /* non-fatal — caching is best effort */ }
         }
@@ -336,9 +343,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
+
+                // Record the source file path so the Open / Select Source
+                // buttons surface this portrait's origin (matches WF
+                // ImagePortraitFE6Form.ImportButton_Click).
+                if (!string.IsNullOrEmpty(loadResult.SourcePath))
+                {
+                    int idx = EntryList.SelectedOriginalIndex;
+                    if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource cache)
+                    {
+                        string srcKey = "Portrait_" + U.ToHexString((uint)idx);
+                        cache.Update(srcKey, loadResult.SourcePath);
+                    }
+                }
+
                 _vm.LoadEntry(addr);
                 UpdateUI();
                 TryShowPortraitImage();
+                UpdateSourceButtonVisibility();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }

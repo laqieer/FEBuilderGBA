@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:22:57Z"
-git-sha: 52c766ad7
+generated: "2026-05-22T22:52:47Z"
+git-sha: 2368ef651
 sweep-type: density
 ---
 
@@ -21,8 +21,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 | Verdict | Threshold | Count |
 |---|---|---|
 | HIGH | |Δ%| ≥ 50 | 236 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 82 |
-| LOW | |Δ%| < 25 | 52 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 81 |
+| LOW | |Δ%| < 25 | 53 |
 
 ## Ranked Density Deltas
 
@@ -293,11 +293,11 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
 | Low | `MainSimpleMenuEventErrorIgnoreErrorForm` | `MainSimpleMenuEventErrorIgnoreErrorView` | 5 | 6 | 1 | +20.0% | Heuristic |
+| Low | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 42 | 8 | +23.5% | ListParityHelper |
 | Medium | `ItemPromotionForm` | `ItemPromotionViewerView` | 16 | 20 | 4 | +25.0% | ListParityHelper |
 | Medium | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` | 4 | 5 | 1 | +25.0% | Heuristic |
 | Medium | `SMEPromoListForm` | `SMEPromoListView` | 16 | 20 | 4 | +25.0% | Heuristic |
 | Medium | `ToolWorkSupport_SelectUPSForm` | `ToolWorkSupport_SelectUPSView` | 4 | 5 | 1 | +25.0% | Heuristic |
-| Medium | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 44 | 10 | +29.4% | ListParityHelper |
 | Medium | `HexEditorForm` | `HexEditorView` | 6 | 8 | 2 | +33.3% | Heuristic |
 | Medium | `ToolExportEAEventForm` | `ToolExportEAEventView` | 12 | 16 | 4 | +33.3% | Heuristic |
 | Medium | `ToolProblemReportSearchBackupForm` | `ToolProblemReportSearchBackupView` | 3 | 4 | 1 | +33.3% | Heuristic |

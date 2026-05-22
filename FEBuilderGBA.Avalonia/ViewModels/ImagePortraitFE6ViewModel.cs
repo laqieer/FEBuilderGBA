@@ -141,13 +141,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Write the current entry to ROM under the caller's existing undo
-        /// scope. The View's WriteButton_Click calls this overload after
-        /// opening its own UndoService (single-owner pattern per Copilot CLI
-        /// plan-review #2 — https://github.com/laqieer/FEBuilderGBA/issues/435).
+        /// Write the current entry to ROM. The caller passes its
+        /// <see cref="UndoService"/> instance but does NOT open a Begin
+        /// scope around the call — this method owns the single
+        /// <c>Begin</c>/<c>Commit</c> pair (Rollback runs on exception)
+        /// and every <c>rom.write_*</c> lives strictly between them.
         ///
-        /// Begin/Commit are owned by the VM; Rollback runs on exception.
-        /// Every rom.write_* call lives strictly between Begin and Commit.
+        /// Single-owner pattern per Copilot CLI plan-review point 1 on
+        /// https://github.com/laqieer/FEBuilderGBA/issues/435 — the View's
+        /// <c>WriteButton_Click</c> delegates here without opening or
+        /// nesting its own scope.
         /// </summary>
         public void Write(UndoService undoService)
         {

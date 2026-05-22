@@ -256,6 +256,133 @@ public class ImagePortraitFE6ParityTests
         Assert.Equal("test comment", vm.Comment);
     }
 
+    /// <summary>
+    /// Comment caching must use <see cref="CoreState.CommentCache"/> keyed by
+    /// the current ROM address — the same EtcCache instance the WinForms
+    /// <c>InputFormRef</c> wires `Program.CommentCache.At(addr)` /
+    /// `Update(addr, text)` against. (Copilot CLI PR #504 review point 1.)
+    /// </summary>
+    [Fact]
+    public void View_CommentHandlers_UseCommentCacheKeyedByAddress()
+    {
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImagePortraitFE6View.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+
+        // LoadCommentForCurrentEntry must read CoreState.CommentCache.TryGetValue(addr, ...)
+        AssertHandlerBodyContains(source, "LoadCommentForCurrentEntry",
+            @"CoreState\.CommentCache");
+        AssertHandlerBodyContains(source, "LoadCommentForCurrentEntry",
+            @"\.TryGetValue\s*\(\s*addr");
+        // And must NOT use the prior "PortraitFE6Comment_" custom key.
+        AssertHandlerBodyDoesNotContain(source, "LoadCommentForCurrentEntry",
+            @"PortraitFE6Comment_");
+
+        // Comment_TextChanged must write CoreState.CommentCache.Update(addr, …)
+        AssertHandlerBodyContains(source, "Comment_TextChanged",
+            @"CoreState\.CommentCache");
+        AssertHandlerBodyContains(source, "Comment_TextChanged",
+            @"\.Update\s*\(\s*addr");
+        AssertHandlerBodyDoesNotContain(source, "Comment_TextChanged",
+            @"PortraitFE6Comment_");
+    }
+
+    /// <summary>
+    /// The filter row visible above the entry list MUST be either removed
+    /// (AddressListControl ships its own SearchBox + Find button) OR wired
+    /// to a real filter handler. Inert UI affordances are rejected.
+    /// (Copilot CLI PR #504 review point 2.)
+    /// </summary>
+    [Fact]
+    public void View_DoesNotIntroduceInertFilterRow()
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImagePortraitFE6View.axaml");
+        string xaml = File.ReadAllText(axamlPath);
+        // The earlier draft introduced `LabelFilterInput` / `LabelFilterLabel`
+        // — those AutomationIds must not be present (AddressListControl
+        // already provides the search box).
+        Assert.DoesNotContain("ImagePortraitFE6_LabelFilter_Input", xaml);
+        Assert.DoesNotContain("ImagePortraitFE6_LabelFilter_Label", xaml);
+    }
+
+    /// <summary>
+    /// `UpdateShowFrameLabel` must wrap the user-visible string in
+    /// <see cref="R._(string, object[])"/> so it localizes — assignments
+    /// after <c>TranslatedWindow.TranslateAll()</c> need explicit translation
+    /// (Copilot bot PR #504 review point on .axaml.cs:97).
+    /// </summary>
+    [Fact]
+    public void View_UpdateShowFrameLabel_WrapsInRUnderscore()
+    {
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImagePortraitFE6View.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+        AssertHandlerBodyContains(source, "UpdateShowFrameLabel",
+            @"ShowFrameLabel\.Text\s*=\s*R\._\s*\(");
+    }
+
+    /// <summary>
+    /// `ImportPng_Click` must record the source file path to
+    /// <see cref="CoreState.ResourceCache"/> after a successful import so
+    /// the Open / Select Source File buttons surface afterwards.
+    /// (Copilot bot PR #504 review point on .axaml.cs:177.)
+    /// </summary>
+    [Fact]
+    public void View_ImportPng_RecordsSourcePathToResourceCache()
+    {
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImagePortraitFE6View.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+        AssertHandlerBodyContains(source, "ImportPng_Click",
+            @"loadResult\.SourcePath");
+        AssertHandlerBodyContains(source, "ImportPng_Click",
+            @"cache\.Update\s*\(\s*srcKey");
+    }
+
+    // ---------------------------- Roslyn handler helpers ----------------------------
+
+    static void AssertHandlerBodyContains(string source, string handlerName, string requiredPattern)
+    {
+        string body = ExtractHandlerBody(source, handlerName);
+        Assert.Matches(requiredPattern, body);
+    }
+
+    static void AssertHandlerBodyDoesNotContain(string source, string handlerName, string forbiddenPattern)
+    {
+        string body = ExtractHandlerBody(source, handlerName);
+        Assert.DoesNotMatch(forbiddenPattern, body);
+    }
+
+    static string ExtractHandlerBody(string source, string handlerName)
+    {
+        // Find the method DECLARATION, not the call site. A declaration ends
+        // its parameter list with `)` followed by optional whitespace and `{`,
+        // while a call ends with `)` and `;` or `)` and `,` or `)` and ` =>`.
+        // Use a regex that allows the multiline method body to follow.
+        // Pattern: <space|tab><handlerName>(...)<ws>{
+        var rx = new System.Text.RegularExpressions.Regex(
+            @"(?<=\s)" + System.Text.RegularExpressions.Regex.Escape(handlerName) +
+            @"\s*\([^)]*\)\s*(\{)",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        var m = rx.Match(source);
+        Assert.True(m.Success, $"Handler declaration '{handlerName}' not found");
+        int braceOpenIdx = m.Groups[1].Index;
+        int depth = 1;
+        int i = braceOpenIdx + 1;
+        for (; i < source.Length && depth > 0; i++)
+        {
+            if (source[i] == '{') depth++;
+            else if (source[i] == '}') depth--;
+        }
+        Assert.True(depth == 0, $"Handler '{handlerName}' body malformed");
+        return source.Substring(braceOpenIdx + 1, i - braceOpenIdx - 2);
+    }
+
     // ---------------------------- Helpers ----------------------------
 
     /// <summary>
