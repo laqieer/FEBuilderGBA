@@ -6,12 +6,20 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedWindow, IEditorView
+    public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ItemEffectivenessSkillSystemsReworkViewModel _vm = new();
 
         public string ViewTitle => "Effectiveness (Skill Systems Rework)";
         public bool IsLoaded => _vm.IsLoaded;
+
+        /// <summary>
+        /// Exposes the backing view-model for headless test access (issue #362
+        /// regression tests assert <c>vm.CurrentAddr</c> matches the navigated
+        /// address). Mirrors the <c>DataViewModel</c> pattern used by
+        /// <see cref="ItemStatBonusesViewerView"/> and the other editor views.
+        /// </summary>
+        public ViewModelBase? DataViewModel => _vm;
 
         public ItemEffectivenessSkillSystemsReworkView()
         {
@@ -25,7 +33,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // Item-keyed list — render item icons, not class icons
+                // (the list rows are item names + IDs, mirroring the WinForms
+                // ItemEffectivenessSkillSystemsReworkForm outer list).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
             }
             catch (Exception ex)
             {

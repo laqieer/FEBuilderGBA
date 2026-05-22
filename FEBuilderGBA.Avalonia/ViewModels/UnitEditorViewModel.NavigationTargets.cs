@@ -48,6 +48,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     CommandName: "JumpToPortrait",
                     TargetViewType: typeof(PortraitViewerView),
                     TargetAddress: null),
+                // #358: Support Unit jump (mirrors WinForms J_44_SUPPORTUNIT).
+                // FE6 routes via UnitFE6ViewModel; this entry covers FE7/FE8.
+                new NavigationTarget(
+                    CommandName: "JumpToSupportUnit",
+                    TargetViewType: typeof(SupportUnitEditorView),
+                    TargetAddress: null),
             };
         }
     }

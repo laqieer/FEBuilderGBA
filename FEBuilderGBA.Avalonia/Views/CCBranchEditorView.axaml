@@ -11,17 +11,40 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="CC Branch Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto">
+        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Promotion Class 1:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="CCBranchEditor_Promo1_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Promo1Box" Minimum="0" Maximum="255" />
-          <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Promo1Name_Label" Grid.Row="1" Grid.Column="2" Name="Promo1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <!-- Promotion Class 1 — reusable IdFieldControl (#366).
+               Promo1Box is the IdFieldControl HOST (not a NumericUpDown);
+               the inner NumericUpDown is named ValueBox inside
+               Controls/IdFieldControl.axaml, and IdFieldControl propagates
+               the host's AutomationId (CCBranchEditor_Promo1_Input) onto
+               that inner ValueBox at attach time. The host's own
+               AutomationId is reassigned to CCBranchEditor_Promo1_Control
+               so the "_Input" id resolves uniquely to the typeable input
+               (see PropagateInnerAutomationIds). The
+               AvaloniaEditorTests.CCBranchEditorView_NumericUpDownsHaveNoHexFormat
+               source-text check is updated to scan
+               Controls/IdFieldControl.axaml where the actual NumericUpDown
+               markup now lives. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="CCBranchEditor_Promo1_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="Promo1Box"
+                                   Label="Promotion Class 1:"
+                                   Maximum="255"
+                                   JumpRequested="Promo1_Jump"
+                                   PickRequested="Promo1_Pick"
+                                   ValueChanged="Promo1_ValueChanged" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Promotion Class 2:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="CCBranchEditor_Promo2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Promo2Box" Minimum="0" Maximum="255" />
-          <TextBlock AutomationProperties.AutomationId="CCBranchEditor_Promo2Name_Label" Grid.Row="2" Grid.Column="2" Name="Promo2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="CCBranchEditor_Promo2_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="Promo2Box"
+                                   Label="Promotion Class 2:"
+                                   Maximum="255"
+                                   JumpRequested="Promo2_Jump"
+                                   PickRequested="Promo2_Pick"
+                                   ValueChanged="Promo2_ValueChanged" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

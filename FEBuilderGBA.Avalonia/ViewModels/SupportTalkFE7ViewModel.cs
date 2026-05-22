@@ -103,6 +103,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, a, values, _fields);
         }
 
+        /// <summary>
+        /// #358 — find the support-talk row whose two unit-id bytes match
+        /// <paramref name="uid1"/> and <paramref name="uid2"/> in either order.
+        /// FE7 layout: u8 at offset 0 and u8 at offset 1.
+        /// Mirrors WinForms <c>SupportTalkFE7Form.JumpTo(unit1, unit2)</c>.
+        /// </summary>
+        public uint? FindAddrForUnitPair(uint uid1, uint uid2)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return null;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return null;
+            uint dataSize = 20;
+            int emptyCount = 0;
+            for (uint i = 0; i < 0x400; i++)
+            {
+                uint addr = baseAddr + i * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                uint first = rom.u16(addr);
+                if (first == 0)
+                {
+                    emptyCount++;
+                    if (emptyCount >= 10) break;
+                    continue;
+                }
+                emptyCount = 0;
+                uint d1 = rom.u8(addr + 0);
+                uint d2 = rom.u8(addr + 1);
+                if ((d1 == uid1 && d2 == uid2) || (d1 == uid2 && d2 == uid1))
+                    return addr;
+            }
+            return null;
+        }
+
         public int GetListCount() => LoadSupportTalkList().Count;
 
         public Dictionary<string, string> GetDataReport()

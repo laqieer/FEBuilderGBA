@@ -28,7 +28,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadSupportTalkList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
+                // Issue #361: show BOTH unit portraits per row. FE7 stores
+                // partner 2 at addr+1 (partner 1 at addr+0).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitPairFromAddrU8Loader(items, i, unit2Offset: 1));
             }
             catch (Exception ex)
             {
@@ -102,6 +104,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        /// <summary>
+        /// #358 — select the FE7 support-talk row that pairs the two units
+        /// in either order.  Mirrors WinForms <c>SupportTalkFE7Form.JumpTo</c>.
+        /// </summary>
+        public void JumpToUnitPair(uint uid1, uint uid2)
+        {
+            uint? addr = _vm.FindAddrForUnitPair(uid1, uid2);
+            if (addr != null)
+            {
+                EntryList.SelectAddress(addr.Value);
+            }
+        }
 
         void JumpToTextC_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextCNud.Value ?? 0));
         void JumpToTextB_Click(object? sender, RoutedEventArgs e) => JumpToText((uint)(TextBNud.Value ?? 0));

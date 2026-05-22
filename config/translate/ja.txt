@@ -6197,3 +6197,144 @@ Avaloniaクロスプラットフォーム版
 :Maps each unit index to a description text ID (2 bytes per entry).
 各ユニットインデックスを説明テキストID (エントリごとに2バイト) にマップします。
 
+
+:Decompress
+解凍する
+
+:Compress
+圧縮する
+
+:Erase
+消去
+
+:Other ROM:
+他のROM:
+
+:Minimum number of matching bytes required to end a diff run.
+差分の終端と判定する最小一致バイト数。
+
+:Recover Miss Match:
+不一致リカバリー:
+
+:Collect free space (FE8 only — keeps free-area diffs as a single block)
+空き領域を集約する（FE8のみ — 空き領域の差分を1ブロックにまとめます）
+
+:Make Binary Patch
+バイナリパッチを作成
+
+:Compares the current loaded ROM against another ROM and writes a binary patch (NAME=/TYPE=BIN/BINF: lines) plus .bin sidecars to the chosen output folder.
+現在ロード中のROMと別のROMを比較し、バイナリパッチ（NAME=/TYPE=BIN/BINF: 行）と.binサイドカーを指定の出力フォルダに書き出します。
+
+:ROM A:
+ROM A:
+
+:ROM B:
+ROM B:
+
+:Make 3-Way Binary Patch
+3ウェイ バイナリパッチを作成
+
+:Emits bytes that ROM A and ROM B agree on but the current ROM lacks. Useful when two modded ROMs share a feature absent from your base.
+ROM AとROM Bが一致するが現在のROMには無いバイトを出力します。2つの改造ROMが共通で持つ機能をベースROMに移植する際に便利です。
+
+:SRC Address:
+SRCアドレス:
+
+:DEST:
+DEST:
+
+:Extracts LZ77-compressed data from the loaded ROM (when SRC is <<THIS ROM>>) or from a file, and writes the raw bytes to DEST. Debug feature.
+ロード中のROM（SRCが<<THIS ROM>>の場合）またはファイルからLZ77圧縮データを展開し、生バイトをDESTに書き出します。デバッグ機能です。
+
+:Compresses a file using LZ77 and writes the compressed bytes to DEST. Debug feature.
+ファイルをLZ77で圧縮し、圧縮後のバイトをDESTに書き出します。デバッグ機能です。
+
+:FROM:
+FROM:
+
+:Zero Clear This Region
+この範囲をゼロクリア
+
+:Fills the specified ROM range with zero bytes. Dangerous — low-address writes require confirmation. Undo is tracked.
+指定されたROM範囲をゼロバイトで埋めます。危険な操作 — 低位アドレスへの書き込みは確認が必要です。Undoは記録されます。
+
+:Base64 Text to File
+Base64テキスト → ファイル
+
+:File to Base64 Text
+ファイル → Base64テキスト
+
+:Paste base64 text, or use 'File to Base64 Text' to encode a file.
+base64テキストを貼り付けるか、「ファイル → Base64テキスト」でファイルをエンコードしてください。
+
+:Weapon effectiveness 2x/3x class list (per item)
+武器特効 2倍/3倍 クラスリスト（アイテムごと）
+
+:Selected:
+選択中:
+
+:Effective against (classes)
+特効対象（クラス）
+
+:Expand List (+1 slot)
+リストを拡張（+1スロット）
+
+:Items sharing this effectiveness list
+この特効リストを共有するアイテム
+
+:This data is shared with other items. Forking will isolate the current item's edits.
+このデータは他のアイテムと共有されています。フォークすると現在のアイテムの編集が独立します。
+
+:Make Independent Copy
+独立したコピーを作成
+
+:Items in Shop
+ショップの商品
+
+:Shop Address:
+ショップアドレス:
+
+:Slot Address:
+スロットアドレス:
+
+:Append Slot
+スロットを追加
+
+:Add a new item slot at the end of this shop's list. Will relocate the list if there is no slack.
+このショップのリストの末尾に新しいアイテムスロットを追加します。余裕が無い場合はリストを再配置します。
+
+:Remove Last Slot
+最終スロットを削除
+
+:Rescan the ROM for shops (use after editing events).
+ROMを再スキャンしてショップを検出します（イベント編集後に使用してください）。
+
+:Promotion target classes per CC item
+CCアイテムごとのCC先クラス
+
+:IER patch is installed. Promotion targets must be configured via Patch Manager.
+IERパッチがインストールされています。CC先はパッチマネージャーから設定してください。
+
+:Open Patch Manager
+パッチマネージャーを開く
+
+:Promotes (classes)
+CC先（クラス）
+
+:Edit
+編集
+
+:Conversation Viewer
+会話ビューア
+
+:Simple Conversation Viewer (read-only)
+シンプル会話ビューア（読み取り専用）
+
+:Source Unit:
+ソースユニット:
+
+:Open Unit
+ユニットを開く
+
+:Open Support
+支援を開く

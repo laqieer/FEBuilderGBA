@@ -97,113 +97,12 @@ namespace FEBuilderGBA
         }
         public static void MakeDiff(string bin_patchfilename,byte[] currentBIN, byte[] otherBIN, uint PATCHED_IF_MinSize, bool isCollectFreeSpace)
         {
-            string name = U.substr(Path.GetFileNameWithoutExtension(bin_patchfilename), "PATCH_".Length);
-
-            List<string> lines = new List<string>();
-            lines.Add("NAME=" + name);
-            lines.Add("TYPE=BIN");
-            lines.Add("");
-
-            bool PATCHED_IF_NotYet = true;
-//            uint PATCHED_IF_MinSize = (uint)RecoverMissMatchNumericUpDown.Value;
-
-            int RecoverMissMatch = (int)PATCHED_IF_MinSize;
-            int checkpoint = -1;
-
-            //SkillSystemsのパッチを作るときのために、フリー領域はまとめてdiffを出力する.
-            uint beginFreeSpace;
-            uint endFreeSpace;
-            isCollectFreeSpace = DefineFreeSapce(out beginFreeSpace, out endFreeSpace, isCollectFreeSpace);
-
-            int length = Math.Max(currentBIN.Length, otherBIN.Length);
-            for (int i = 0; i < length; i++)
-            {
-                if (U.at(currentBIN, i) == U.at(otherBIN, i))
-                {
-                    continue;
-                }
-
-                checkpoint = i;
-
-                i++;
-                int missCount = 0;
-                for (; i < length; i++)
-                {
-                    if (isCollectFreeSpace
-                        && i >= beginFreeSpace && i <= endFreeSpace)
-                    {//ミスを容認する
-                        missCount = 0;
-                        continue;
-                    }
-                    if (i >= endFreeSpace)
-                    {
-                        break;
-                    }
-
-                    if (U.at(currentBIN, i) != U.at(otherBIN, i))
-                    {
-                        missCount = 0;
-                        continue;
-                    }
-
-                    if (missCount >= RecoverMissMatch)
-                    {
-                        i -= missCount;
-                        break;
-                    }
-
-                    missCount++;
-                }
-
-                //checkpoint ～ i の間を相違点として記録.
-                checkpoint = (checkpoint / 4) * 4;
-                i = U.Padding4(i);
-
-                string split_filename = U.ToHexString8(checkpoint) + ".bin";
-                string split_filename_fullpath =
-                    Path.Combine(Path.GetDirectoryName(bin_patchfilename), split_filename);
-
-                byte[] diff = U.subrange(otherBIN, (uint)checkpoint, (uint)i);
-                U.WriteAllBytes(split_filename_fullpath, diff);
-
-                if (PATCHED_IF_NotYet)
-                {
-                    if (diff.Length > PATCHED_IF_MinSize)
-                    {
-                        lines.Add("PATCHED_IF:" + U.To0xHexString((uint)checkpoint) + "=" + U.DumpByte(diff));
-
-                        PATCHED_IF_NotYet = false;
-                    }
-                }
-
-                lines.Add("BINF:" + U.To0xHexString((uint)checkpoint) + "=" + split_filename);
-            }
-
-            File.WriteAllLines(bin_patchfilename, lines);
-        }
-        static bool DefineFreeSapce(out uint beginFreeSpace, out uint endFreeSpace, bool isCollectFreeSpace)
-        {
-            beginFreeSpace = U.NOT_FOUND;
-            endFreeSpace = U.NOT_FOUND;
-            if (!isCollectFreeSpace)
-            {
-                return false;
-            }
-            if (Program.ROM.RomInfo.version != 8)
-            {
-                return false;
-            }
-            if (Program.ROM.RomInfo.is_multibyte)
-            {//FE8J
-                beginFreeSpace = 0xEFB2E0;
-                endFreeSpace   = 0xF90000 - 4;
-            }
-            else
-            {//FE8U
-                beginFreeSpace = 0xB2A610;
-                endFreeSpace =   0xB88560 - 4;
-            }
-            return true;
+            // Delegates to the cross-platform Core helper so the Avalonia ToolDiffViewModel
+            // and WinForms ToolDiffForm produce identical patch output.
+            DiffToolCore.MakeDiff(bin_patchfilename, currentBIN, otherBIN, PATCHED_IF_MinSize,
+                isCollectFreeSpace,
+                version: Program.ROM.RomInfo.version,
+                isMultibyte: Program.ROM.RomInfo.is_multibyte);
         }
 
         private void AFileSelectButton_Click(object sender, EventArgs e)
@@ -263,82 +162,22 @@ namespace FEBuilderGBA
             Program.LastSelectedFilename.Save(this, "", save);
 
 
-            List<string> lines = new List<string>();
-            lines.Add("TYPE=BIN");
-            lines.Add("");
-
-            bool PATCHED_IF_NotYet = true;
             uint PATCHED_IF_MinSize = (uint)RecoverMissMatchDiff3NumericUpDown.Value;
-
             string bin_patchfilename = save.FileName;
-
-            int RecoverMissMatch = (int)RecoverMissMatchDiff3NumericUpDown.Value;
-            int checkpoint = -1;
 
             byte[] a = File.ReadAllBytes(AFilename.Text);
             byte[] b = File.ReadAllBytes(BFilename.Text);
 
-            int length = Math.Max(Math.Max(Program.ROM.Data.Length, a.Length),b.Length);
             if (Diff3Method.SelectedIndex == 0)
-            {//AとBにあって、自分にだけないもの
-                for (int i = 0; i < length; i++)
-                {
-                    uint ai = U.at(a, i);
-                    uint bi = U.at(b, i);
-                    uint ri = U.at(Program.ROM.Data, i);
-                    if (ai != bi || ai == ri)
-                    {
-                        continue;
-                    }
-
-                    checkpoint = i;
-
-                    i++;
-                    int missCount = 0;
-                    for (; i < length; i++)
-                    {
-                        ai = U.at(a, i);
-                        bi = U.at(b, i);
-                        ri = U.at(Program.ROM.Data, i);
-                        if (!(ai != bi || ai == ri))
-                        {
-                            missCount = 0;
-                            continue;
-                        }
-
-                        if (missCount >= RecoverMissMatch)
-                        {
-                            i -= missCount;
-                            break;
-                        }
-
-                        missCount++;
-                    }
-
-                    //checkpoint ～ i の間を相違点として記録.
-                    string split_filename = U.ToHexString8(checkpoint) + ".bin";
-                    string split_filename_fullpath =
-                        Path.Combine(Path.GetDirectoryName(bin_patchfilename), split_filename);
-
-                    byte[] diff = U.subrange(a, (uint)checkpoint, (uint)i);
-                    U.WriteAllBytes(split_filename_fullpath, diff);
-
-                    if (PATCHED_IF_NotYet)
-                    {
-                        if (diff.Length > PATCHED_IF_MinSize)
-                        {
-                            lines.Add("PATCHED_IF:" + U.To0xHexString((uint)checkpoint) + "=" + U.DumpByte(diff));
-
-                            PATCHED_IF_NotYet = false;
-                        }
-                    }
-
-                    lines.Add("BINF:" + U.To0xHexString((uint)checkpoint) + "=" + split_filename);
-                }
+            {//AとBにあって、自分にだけないもの — delegates to Core helper (shared with Avalonia)
+                DiffToolCore.MakeDiff3(bin_patchfilename, Program.ROM.Data, a, b, PATCHED_IF_MinSize);
+            }
+            else
+            {
+                // Unknown Diff3 method — preserve original behavior of producing the header-only file.
+                File.WriteAllLines(bin_patchfilename, new[] { "TYPE=BIN", "" });
             }
 
-
-            File.WriteAllLines(bin_patchfilename, lines);
             //エクスプローラで選択しよう
             U.SelectFileByExplorer(bin_patchfilename);
         }

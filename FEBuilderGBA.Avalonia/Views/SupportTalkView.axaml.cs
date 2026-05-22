@@ -28,7 +28,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadSupportTalkList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
+                // Issue #361: show BOTH unit portraits per row. FE8 stores
+                // partner 2 at addr+2 (partner 1 at addr+0).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitPairFromAddrU8Loader(items, i, unit2Offset: 2));
             }
             catch (Exception ex)
             {
@@ -101,6 +103,20 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address)
         {
             EntryList.SelectAddress(address);
+        }
+
+        /// <summary>
+        /// #358 — select the support-talk row that pairs <paramref name="uid1"/>
+        /// and <paramref name="uid2"/> (in either order).  No-op when no row
+        /// matches.  Mirrors WinForms <c>SupportTalkForm.JumpTo(unit1, unit2)</c>.
+        /// </summary>
+        public void JumpToUnitPair(uint uid1, uint uid2)
+        {
+            uint? addr = _vm.FindAddrForUnitPair(uid1, uid2);
+            if (addr != null)
+            {
+                EntryList.SelectAddress(addr.Value);
+            }
         }
 
         public void SelectFirstItem()

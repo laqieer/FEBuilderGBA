@@ -16,9 +16,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // ----------------------------------------------------------------
         // INavigationTargetSource — Phase 4 (#374). Mirror the navigation
         // callsites in ItemEditorView.axaml.cs WITHOUT changing actual
-        // navigation behavior. Tagged jumps are known-broken per issues
-        // #362 (jump always selects 1st item) and #363 (Effectiveness jump
-        // takes wrong address + previews are wrong).
+        // navigation behavior. Both Effectiveness jump paths are now fixed:
+        // SkillSystems Rework by #362 / PR #456, and vanilla by #363.
         // ----------------------------------------------------------------
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
@@ -54,21 +53,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TargetViewType: typeof(ItemStatBonusesViewerView),
                     TargetAddress: null),
 
-                // Known-broken (#362, #363): Effectiveness jump opens the
-                // right editor type but lands on the first entry instead of
-                // the referenced effectiveness table, and the preview icons
-                // are wrong. Two patch-conditional targets mirror the actual
-                // callsites in ItemEditorView.JumpToEffectiveness_Click.
+                // Effectiveness jumps split by patch state. Both paths
+                // enumerate items by their P16 pointer (skill-systems-rework
+                // fixed by #362 / PR #456; vanilla fixed by #363) so the
+                // address passed by ItemEditorView.JumpToEffectiveness_Click
+                // matches a real list row in either receiver.
                 new NavigationTarget(
                     CommandName: "JumpToEffectivenessSkillSystem",
                     TargetViewType: typeof(ItemEffectivenessSkillSystemsReworkView),
-                    TargetAddress: null,
-                    IssueRef: "#362"),
+                    TargetAddress: null),
                 new NavigationTarget(
                     CommandName: "JumpToEffectivenessVanilla",
                     TargetViewType: typeof(ItemEffectivenessViewerView),
-                    TargetAddress: null,
-                    IssueRef: "#363"),
+                    TargetAddress: null),
             };
         }
     }

@@ -2,33 +2,81 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemShopViewerView"
-        Title="Item Shop Editor" Width="1207" Height="682"
+        Title="Item Shop Editor" Width="1280" Height="720"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ItemShopViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!--
+    3-region layout mirroring WinForms ItemShopForm (#369 parity):
+      - Column 0: ShopList     — every shop in the ROM (hensei + worldmap + per-map)
+      - Column 1: SlotList     — 2-byte item entries inside the selected shop
+      - Column 2: Editor pane  — per-slot edit + slot management buttons
+  -->
+  <Grid ColumnDefinitions="320,280,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Column 0: Shop list -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Shops" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ItemShopViewer_Shop_List"
+                                   Name="ShopList" />
+    </DockPanel>
+
+    <!-- Column 1: Slot list (items in selected shop) -->
+    <DockPanel Grid.Column="1" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Items in Shop" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ItemShopViewer_Slot_List"
+                                   Name="SlotList" />
+    </DockPanel>
+
+    <!-- Column 2: Editor pane -->
+    <ScrollViewer Grid.Column="2" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item Shop Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Text="Preparation shop item list" FontSize="12" Foreground="Gray" />
+        <TextBlock AutomationProperties.AutomationId="ItemShopViewer_ShopName_Label"
+                   Name="ShopNameLabel" FontStyle="Italic" Foreground="Gray" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ItemShopViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Shop Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemShopViewer_ShopAddr_Label"
+                     Grid.Row="0" Grid.Column="1" Name="ShopAddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Item ID:" VerticalAlignment="Center"
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Slot Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemShopViewer_Addr_Label"
+                     Grid.Row="1" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Item ID:" VerticalAlignment="Center"
                      AutomationProperties.AutomationId="ItemShopViewer_ItemId_Link"
                      Classes="Hyperlink" Name="ItemId_Link" PointerPressed="OnItemIdLinkClick"
                      ToolTip.Tip="Click to open Item Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_ItemId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ItemIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                      VerticalAlignment="Center">
+            <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_ItemId_Input"
+                           FormatString="0" Name="ItemIdBox" Minimum="0" Maximum="255" Width="100"
+                           VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ItemShopViewer_ItemName_Label"
+                       Name="ItemNameLabel" VerticalAlignment="Center" />
+          </StackPanel>
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Quantity/Uses:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_Quantity_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="QuantityBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Quantity/Uses:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_Quantity_Input"
+                         FormatString="0" Grid.Row="3" Grid.Column="1" Name="QuantityBox"
+                         Minimum="0" Maximum="255" Width="100" VerticalAlignment="Center" />
         </Grid>
 
+        <!-- Slot management buttons (parity with WinForms expand/write/reload) -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ItemShopViewer_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ItemShopViewer_Write_Button"
+                  Content="Write" Name="WriteButton" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="ItemShopViewer_AppendSlot_Button"
+                  Content="Append Slot" Name="AppendSlotButton" Click="AppendSlot_Click"
+                  ToolTip.Tip="Add a new item slot at the end of this shop's list. Will relocate the list if there is no slack." />
+          <Button AutomationProperties.AutomationId="ItemShopViewer_RemoveLastSlot_Button"
+                  Content="Remove Last Slot" Name="RemoveLastSlotButton" Click="RemoveLastSlot_Click" />
+          <Button AutomationProperties.AutomationId="ItemShopViewer_Reload_Button"
+                  Content="Reload" Name="ReloadButton" Click="Reload_Click"
+                  ToolTip.Tip="Rescan the ROM for shops (use after editing events)." />
         </StackPanel>
+
+        <TextBlock AutomationProperties.AutomationId="ItemShopViewer_Status_Label"
+                   Name="StatusLabel" Margin="0,12,0,0" Foreground="DarkGreen" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

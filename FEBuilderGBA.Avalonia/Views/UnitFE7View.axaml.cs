@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -24,6 +25,28 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
+
+            // #358: jump to Support Unit Editor for this unit's support row.
+            JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+        }
+
+        /// <summary>
+        /// #358 — Open the FE7 Support Unit Editor (shared FE7/FE8 view) and
+        /// select the support row that this unit's +44 pointer references.
+        /// </summary>
+        void JumpToSupportUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                if (supportPtr == 0) return;
+                var window = WindowManager.Instance.Open<SupportUnitEditorView>();
+                window.JumpToAddr(supportPtr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitFE7View.JumpToSupportUnit failed: {0}", ex.Message);
+            }
         }
 
         void LoadList()
@@ -67,6 +90,9 @@ namespace FEBuilderGBA.Avalonia.Views
             DescTextLabel.Text = _vm.DescText;
             UnitIdBox.Value = _vm.UnitId;
             ClassIdBox.Value = _vm.ClassId;
+            // Push VM-resolved class name; ValueChanged also refreshes on edit.
+            try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
+            catch { /* NameResolver may fail without ROM */ }
             PortraitIdBox.Value = _vm.PortraitId;
             MapFaceBox.Value = _vm.MapFace;
             AffinityBox.Value = _vm.Affinity;
@@ -152,19 +178,59 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- ClassId IdFieldControl handlers (#366) --------------------------
+
+        /// <summary>
+        /// Compute the ClassEditorView ROM address for the given class index.
+        /// Returns 0 when the class table is unavailable OR when the computed
+        /// entry address falls outside ROM bounds (i.e. the id is out of range).
+        /// </summary>
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void ClassId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint classId = (uint)(ClassIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                if (addr == 0) return;
                 WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("UnitFE7View.ClassId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ClassId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null)
+                {
+                    ClassIdBox.Value = (uint)result.Index;
+                    // NameText refresh via ValueChanged.
+                }
+            }
+            catch (Exception ex) { Log.Error("UnitFE7View.ClassId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue); }
+            catch { /* fallback silently */ }
         }
 
         void OnPortraitLinkClick(object? sender, PointerPressedEventArgs e)
@@ -192,7 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.NameId = (uint)(NameIdBox.Value ?? 0);
             _vm.DescId = (uint)(DescIdBox.Value ?? 0);
             _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-            _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+            _vm.ClassId = ClassIdBox.Value;
             _vm.PortraitId = (uint)(PortraitIdBox.Value ?? 0);
             _vm.MapFace = (uint)(MapFaceBox.Value ?? 0);
             _vm.Affinity = (uint)(AffinityBox.Value ?? 0);

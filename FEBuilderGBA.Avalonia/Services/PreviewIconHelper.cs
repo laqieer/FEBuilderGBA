@@ -73,11 +73,135 @@ namespace FEBuilderGBA.Avalonia.Services
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                // FE6's mini-face image data is stored uncompressed; FE7/FE8
+                // store it LZ77-compressed. Mirrors WinForms version-split
+                // in ImagePortraitFE6Form.DrawPortraitFE6Map (uses raw bytes
+                // via ByteToImage16Tile) vs ImagePortraitForm.DrawPortraitMap
+                // (uses LZ77.decompress). Issue #361 follow-up: required to
+                // make FE6 SupportTalkView render portraits at all.
+                bool isCompressed = rom.RomInfo.version != 6;
+                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, isCompressed);
             }
             catch
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Load two mini portraits (32x32 each) horizontally stitched into a
+        /// single 64x32 RGBA <see cref="IImage"/>. Used by the Support Talk
+        /// editor list to show both members of a support pair (issue #361).
+        ///
+        /// Why RGBA (not indexed): each portrait has its OWN 16-color palette,
+        /// so two portraits cannot share a single indexed image. The output is
+        /// composed by expanding each portrait's indexed pixels through its
+        /// palette into RGBA and blitting into a fresh RGBA canvas.
+        ///
+        /// Behavior:
+        ///   - If a portrait ID is 0, OR <see cref="LoadPortraitMini"/> fails
+        ///     for that ID, the corresponding 32x32 half stays fully
+        ///     transparent (RGBA 0,0,0,0).
+        ///   - Returns null if both portrait IDs are 0 (nothing to render),
+        ///     or if <see cref="CoreState.ImageService"/> is unavailable.
+        /// </summary>
+        public static IImage LoadPortraitMiniPair(uint portraitId1, uint portraitId2)
+        {
+            if (portraitId1 == 0 && portraitId2 == 0) return null;
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            // Geometry: two 32x32 mini portraits side-by-side -> 64x32 RGBA.
+            // HALF_W is also the dstX for the right half.
+            const int HALF_W = 32;
+            const int HALF_H = 32;
+            const int OUT_W = 2 * HALF_W;
+            const int OUT_H = HALF_H;
+            const int OUT_BYTES = OUT_W * OUT_H * 4;
+
+            byte[] outRgba = new byte[OUT_BYTES];  // zero-initialized => transparent
+
+            // Per-half failure isolation (Copilot review): each portrait may
+            // throw inside LoadPortraitMini / palette decoding for one ID
+            // without invalidating the other half. Without per-call try/catch
+            // a single bad portrait blanks the whole pair, violating the
+            // documented "each half is independent" contract.
+            TryBlitPortraitHalfRgba(portraitId1, outRgba, dstX: 0,      canvasW: OUT_W);
+            TryBlitPortraitHalfRgba(portraitId2, outRgba, dstX: HALF_W, canvasW: OUT_W);
+
+            // Dispose the canvas on the failure path (Copilot review): IImage
+            // is IDisposable and SetPixelData can throw on size mismatch.
+            IImage canvas = null;
+            try
+            {
+                canvas = svc.CreateImage(OUT_W, OUT_H);
+                canvas.SetPixelData(outRgba);
+                var ret = canvas;
+                canvas = null;  // ownership transferred to caller
+                return ret;
+            }
+            catch
+            {
+                canvas?.Dispose();
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Render one portrait (by ID) into the given 32x32 sub-region of an
+        /// RGBA pair-canvas, starting at <paramref name="dstX"/> in the
+        /// <paramref name="canvasW"/>-wide canvas. Leaves the region
+        /// transparent if the portrait is missing or fails to load.
+        ///
+        /// Per-call try/catch ensures one portrait's failure does NOT blank
+        /// the other half (Copilot review item).
+        /// </summary>
+        static void TryBlitPortraitHalfRgba(uint portraitId, byte[] dstRgba, int dstX, int canvasW)
+        {
+            try
+            {
+                BlitPortraitHalfRgba(portraitId, dstRgba, dstX, canvasW);
+            }
+            catch
+            {
+                // Half stays transparent. Other half is unaffected.
+            }
+        }
+
+        static void BlitPortraitHalfRgba(uint portraitId, byte[] dstRgba, int dstX, int canvasW)
+        {
+            if (portraitId == 0) return;
+            using IImage solo = LoadPortraitMini(portraitId);
+            if (solo == null) return;
+            if (solo.Width != 32 || solo.Height != 32) return;
+            if (!solo.IsIndexed) return;
+
+            byte[] indices = solo.GetPixelData();
+            if (indices == null || indices.Length < 32 * 32) return;
+            byte[] paletteRgba = solo.GetPaletteRGBA();
+            if (paletteRgba == null || paletteRgba.Length == 0) return;
+            if (paletteRgba.Length % 4 != 0) return;
+            int paletteColors = paletteRgba.Length / 4;
+
+            // Verify destination range so we never index out-of-bounds even
+            // if a future caller passes a wrong canvasW/dstX combination.
+            if ((long)(31 * canvasW + dstX + 31) * 4 + 3 >= dstRgba.Length) return;
+
+            for (int y = 0; y < 32; y++)
+            {
+                for (int x = 0; x < 32; x++)
+                {
+                    // idx is byte (unsigned), so it is always >= 0 — only
+                    // the upper-bound check is needed (Copilot review).
+                    int idx = indices[y * 32 + x];
+                    if (idx >= paletteColors) continue;
+                    int palOff = idx * 4;
+                    int dstOff = (y * canvasW + dstX + x) * 4;
+                    dstRgba[dstOff]     = paletteRgba[palOff];
+                    dstRgba[dstOff + 1] = paletteRgba[palOff + 1];
+                    dstRgba[dstOff + 2] = paletteRgba[palOff + 2];
+                    dstRgba[dstOff + 3] = paletteRgba[palOff + 3];
+                }
             }
         }
 
@@ -194,6 +318,80 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (iconAddr + 128 > (uint)rom.Data.Length) return null;
 
                 return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Load the class face portrait ("class card") by portrait ID.
+        /// Mirrors the WinForms <c>L_8_PORTRAIT_CLASS</c> picture box behavior
+        /// powered by <c>InputFormRef</c>'s <c>PORTRAIT:CLASS</c> linktype, which
+        /// calls <c>ImagePortraitForm.DrawPortraitClass(face_id)</c> for FE7/8
+        /// and <c>ImagePortraitFE6Form.DrawPortraitClassFE6(id)</c> for FE6.
+        ///
+        /// Portrait struct layout differs by version (issue #357 plan v2):
+        ///   FE6:   16-byte struct, D0=unit_face, D4=map_face, D8=palette.
+        ///          The class card is rendered from D0 with palette D8 ONLY
+        ///          when D4==0 (entry is a pure class card, not a regular
+        ///          unit portrait).
+        ///   FE7/8: 28-byte struct, D8=palette, D16=class_card. Renders D16
+        ///          with palette D8.
+        ///
+        /// Returns null on any error / out-of-range / missing data.
+        /// </summary>
+        public static IImage LoadClassFacePortrait(uint portraitId)
+        {
+            if (portraitId == 0) return null;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                // Dereference the portrait pointer-table location to get the
+                // portrait-table base. RomInfo.portrait_pointer is the address
+                // of the pointer, not the base itself.
+                uint ptr = rom.RomInfo.portrait_pointer;
+                if (ptr == 0) return null;
+
+                uint baseAddr = rom.p32(ptr);
+                if (!U.isSafetyOffset(baseAddr)) return null;
+
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0)
+                {
+                    // Defensive fallback mirroring LoadPortraitMini for FE7/8:
+                    // when RomInfo did not declare a portrait struct size (e.g.,
+                    // a malformed/partial RomInfo) use the canonical struct size
+                    // for the current version (16 for FE6, 28 for FE7/8) instead
+                    // of bailing out. PR #471 Copilot inline review fix.
+                    dataSize = rom.RomInfo.version == 6 ? 16u : 28u;
+                }
+
+                uint addr = baseAddr + portraitId * dataSize;
+                if (addr + dataSize > (uint)rom.Data.Length) return null;
+
+                if (rom.RomInfo.version == 6)
+                {
+                    // FE6 — 16-byte struct, mirror DrawPortraitClassFE6.
+                    uint unitFace = rom.u32(addr + 0);
+                    uint mapFace = rom.u32(addr + 4);
+                    uint palette = rom.u32(addr + 8);
+                    // WinForms only renders the class card when map_face == 0.
+                    if (mapFace != 0) return null;
+                    if (!U.isPointer(unitFace) || !U.isPointer(palette)) return null;
+                    return PortraitRendererCore.DrawPortraitClass(unitFace, palette);
+                }
+                else
+                {
+                    // FE7/8 — 28-byte struct, D16 = class card pointer.
+                    uint palette = rom.u32(addr + 8);
+                    uint classCard = rom.u32(addr + 16);
+                    if (!U.isPointer(classCard) || !U.isPointer(palette)) return null;
+                    return PortraitRendererCore.DrawPortraitClass(classCard, palette);
+                }
             }
             catch
             {
