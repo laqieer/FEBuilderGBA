@@ -7,6 +7,20 @@
 // If a future change accidentally swaps the resolver back to GetUnitName in
 // the migrated editors, this test will fail by demonstrating that the two
 // helpers DO NOT agree on the same input ROM/index.
+//
+// Rewritten per Copilot inline review on PR #495:
+//   - Sets CoreState.ROM = synthetic FE6 ROM in try/finally so the raw
+//     NameResolver path actually resolves against the same ROM the FE6-aware
+//     path uses (the previous version didn't set CoreState.ROM and could
+//     accidentally pass against a stale ROM).
+//   - Calls the now-internal-visible SupportUnitNavigation.GetUnitTableBase
+//     directly via InternalsVisibleTo("FEBuilderGBA.Core.Tests") rather than
+//     duplicating the conditional in a test-only shim class.
+//   - Forces observable output divergence on a Huffman-less test ROM by
+//     wiring dummy textId=0 (raw resolver returns "#0") and FE6-logical-0
+//     textId=1 (FE6-aware resolver tries to decode textId=1 and falls back
+//     to "???" when no decoder is present). Different output proves the
+//     read addresses differ.
 using Xunit;
 using FEBuilderGBA;
 
@@ -41,100 +55,138 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>
         /// FE6 places a dummy entry at p32(unit_pointer) and the "real" table
-        /// starts at p32(unit_pointer) + unit_datasize. Plant text-id 0xAAAA
-        /// at raw index 0 (the dummy) and 0xBBBB at raw index 1 (= FE6 logical
-        /// index 0). The FE6-aware resolver MUST return the text linked to
-        /// raw index 1; the raw NameResolver returns the dummy text.
+        /// starts at p32(unit_pointer) + unit_datasize. We plant a dummy entry
+        /// at raw index 0 with textId=0 (so the raw NameResolver returns "#0",
+        /// the textId==0 fallback) and the FE6-logical-0 entry at raw index 1
+        /// with textId=1 (so the FE6-aware ResolveUnitTableName attempts to
+        /// decode textId=1 and falls back to "???" without a Huffman decoder).
+        ///
+        /// "#0" vs "???" is observable divergence — exactly what Copilot CLI
+        /// flagged on the plan: if a future code change accidentally points
+        /// the IdFieldControl preview at NameResolver.GetUnitName instead of
+        /// SupportUnitNavigation.ResolveUnitTableName on FE6, the preview
+        /// would silently show the dummy row's name. This test stops that.
         /// </summary>
         [Fact]
-        public void ResolveUnitTableName_FE6_SkipsDummyEntry()
+        public void ResolveUnitTableName_FE6_DivergesFromRawResolverOnDummySkip()
         {
-            var rom = MakeRom("AFEJ01");
-            Assert.Equal(6, rom.RomInfo.version);
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeRom("AFEJ01");
+                Assert.Equal(6, rom.RomInfo.version);
 
-            // Layout: unit_pointer field at rom.RomInfo.unit_pointer holds a
-            // GBA pointer to rawBase. rawBase+0 = dummy (text 0xAAAA), rawBase
-            // + unit_datasize = logical 0 (text 0xBBBB).
-            uint rawBase = 0x200000;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            Assert.True(dataSize > 1, "unit_datasize should be at least 2 to hold a text-id");
+                // CRITICAL: install the synthetic ROM so both helpers query
+                // the SAME data. Without this, NameResolver may resolve
+                // against a stale ROM and produce misleading agreement.
+                CoreState.ROM = rom;
 
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
-            WriteU16(rom.Data, rawBase, 0xAAAA);             // dummy
-            WriteU16(rom.Data, rawBase + dataSize, 0xBBBB);  // FE6 logical 0
+                uint rawBase = 0x200000;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                Assert.True(dataSize > 1, "unit_datasize should be at least 2 to hold a text-id");
 
-            // Without ROM-resident Huffman trees, FETextDecode.Direct fails and
-            // both helpers fall back to "???". Pin the FE6 dummy-skip contract
-            // through the *internal* text-id reads instead — we read what byte
-            // each helper would have decoded.
-            //
-            // Verify that ResolveUnitTableName(rom, 0) is reading from
-            // (rawBase + dataSize) by checking the synthetic ROM byte:
-            uint logicalZeroEntry = rawBase + dataSize;
-            Assert.Equal((uint)0xBBBB, rom.u16(logicalZeroEntry));
+                uint unitPtr = rom.RomInfo.unit_pointer;
+                WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
+                // Dummy entry at raw index 0 -> textId 0 -> raw resolver returns "#0".
+                WriteU16(rom.Data, rawBase, 0);
+                // FE6 logical index 0 at raw index 1 -> textId 1 -> FE6-aware
+                // resolver attempts decode and falls back to "???" without a
+                // Huffman decoder loaded.
+                WriteU16(rom.Data, rawBase + dataSize, 1);
 
-            // And the WinForms raw NameResolver path reads from rawBase:
-            Assert.Equal((uint)0xAAAA, rom.u16(rawBase));
+                NameResolver.ClearCache();
 
-            // Functional check: the two resolvers MUST NOT agree on FE6
-            // index 0 when their input text-ids differ. Both decode to "???"
-            // on a Huffman-less test ROM, but reading via ROM bytes proves
-            // the read addresses differ — preserving Copilot's contract.
-            NameResolver.ClearCache();
-            string fe6Aware = SupportUnitNavigation.ResolveUnitTableName(rom, 0);
-            string raw      = NameResolver.GetUnitName(0);
+                // FE6-aware path reads from (rawBase + dataSize) -> textId 1.
+                string fe6Aware = SupportUnitNavigation.ResolveUnitTableName(rom, 0);
+                // Raw NameResolver path reads from rawBase -> textId 0 -> "#0".
+                string raw = NameResolver.GetUnitName(0);
 
-            // Both return "???" without decoding tables, so the GUARANTEE we
-            // pin is the ADDRESS DIVERGENCE, not the string divergence: see
-            // the rom.u16 asserts above. Sanity-check both helpers return a
-            // non-empty fallback string so they can't silently regress to ""
-            // (which would mask other failures).
-            Assert.False(string.IsNullOrEmpty(fe6Aware));
-            Assert.False(string.IsNullOrEmpty(raw));
+                // The contract Copilot flagged: these MUST disagree on FE6.
+                Assert.NotEqual(fe6Aware, raw);
+
+                // Tight pins on each side so the divergence is meaningful (not
+                // just "they happen to differ because of some unrelated bug"):
+                //   - Raw side sees textId=0 -> the dedicated "#0" fallback.
+                Assert.Equal("#0", raw);
+                //   - FE6-aware side sees textId=1, decoded to "???" without a
+                //     Huffman tree. Anything non-empty + non-equal to "#0" is
+                //     also acceptable here (preserves resilience if the test
+                //     ROM grows a fake decoder later), so allow either "???"
+                //     or any other resolved string except "#0" / "".
+                Assert.False(string.IsNullOrEmpty(fe6Aware));
+                Assert.NotEqual("#0", fe6Aware);
+
+                // Additionally pin the ADDRESS divergence by directly reading
+                // the synthetic ROM bytes — guards against future test
+                // refactors that might accidentally point both helpers at the
+                // same offset.
+                Assert.Equal((uint)0, rom.u16(rawBase));
+                Assert.Equal((uint)1, rom.u16(rawBase + dataSize));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
 
         /// <summary>
-        /// FE8U has NO dummy entry, so both resolvers MUST agree on index 0.
-        /// This complements the FE6 divergence test by proving the FE6-aware
-        /// resolver is a no-op on non-FE6.
+        /// FE8U has NO dummy entry. The FE6-aware resolver MUST agree with the
+        /// raw resolver on a non-FE6 ROM — confirmed by calling the
+        /// internal-visible SupportUnitNavigation.GetUnitTableBase directly
+        /// (Copilot review point 2: don't duplicate the conditional in a
+        /// test-only shim).
         /// </summary>
         [Fact]
-        public void ResolveUnitTableName_FE8U_NoDummySkip()
+        public void GetUnitTableBase_FE8U_DoesNotSkipDummy()
         {
-            var rom = MakeRom("BE8E01");
-            Assert.Equal(8, rom.RomInfo.version);
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeRom("BE8E01");
+                Assert.Equal(8, rom.RomInfo.version);
+                CoreState.ROM = rom;
 
-            uint rawBase = 0x200000;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
-            WriteU16(rom.Data, rawBase, 0xCCCC);
+                uint rawBase = 0x200000;
+                uint unitPtr = rom.RomInfo.unit_pointer;
+                WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
 
-            // On FE8U, ResolveUnitTableName(rom, 0) and the underlying
-            // GetUnitTableBase() do NOT add unit_datasize.
-            Assert.Equal(rawBase, SupportUnitNavigation_PublicTestSurface.GetUnitTableBaseOrZero(rom));
-            Assert.Equal((uint)0xCCCC, rom.u16(rawBase));
+                // Call the internal helper directly — InternalsVisibleTo
+                // makes it visible to this test assembly.
+                uint baseAddr = SupportUnitNavigation.GetUnitTableBase(rom);
+                Assert.Equal(rawBase, baseAddr);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
-    }
 
-    /// <summary>
-    /// Test-only surface for the otherwise-internal GetUnitTableBase helper.
-    /// Calling it via reflection in tests is fragile; instead we re-implement
-    /// the same logic (it's a single conditional) so the FE8U-no-skip path is
-    /// directly verifiable from public Core API.
-    /// </summary>
-    static class SupportUnitNavigation_PublicTestSurface
-    {
-        public static uint GetUnitTableBaseOrZero(ROM rom)
+        /// <summary>
+        /// Sanity-check the FE6 side too: GetUnitTableBase MUST add
+        /// unit_datasize for FE6 — this is the contract the IdFieldControl
+        /// migrations rely on for the FE6 dummy-skip Jump/Pick address math.
+        /// </summary>
+        [Fact]
+        public void GetUnitTableBase_FE6_AddsDummySkip()
         {
-            if (rom?.RomInfo == null) return 0;
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            if (unitPtr == 0) return 0;
-            uint baseAddr = rom.p32(unitPtr);
-            if (rom.RomInfo.version == 6)
-                baseAddr += rom.RomInfo.unit_datasize;
-            return baseAddr;
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeRom("AFEJ01");
+                Assert.Equal(6, rom.RomInfo.version);
+                CoreState.ROM = rom;
+
+                uint rawBase = 0x200000;
+                uint unitPtr = rom.RomInfo.unit_pointer;
+                WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
+
+                uint baseAddr = SupportUnitNavigation.GetUnitTableBase(rom);
+                Assert.Equal(rawBase + rom.RomInfo.unit_datasize, baseAddr);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
     }
 }
