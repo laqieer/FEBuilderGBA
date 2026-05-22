@@ -229,17 +229,76 @@ namespace FEBuilderGBA.Core.Tests
                 uint newPtr = rom.u32(0);
                 Assert.Equal(newAddr | 0x08000000u, newPtr);
 
-                // Confirm new array has count 3 (old 2 + new 0-slot) + terminator.
+                // Confirm new array has count 3 (old 2 + new placeholder) + terminator.
+                // Placeholder MUST be non-zero so ScanClassList shows the row.
                 Assert.Equal(0x10, rom.Data[newAddr + 0]);
                 Assert.Equal(0x20, rom.Data[newAddr + 1]);
-                Assert.Equal(0x00, rom.Data[newAddr + 2]); // new appended slot
+                Assert.Equal((byte)ItemClassListCore.NewSlotPlaceholder, rom.Data[newAddr + 2]); // new slot
                 Assert.Equal(0x00, rom.Data[newAddr + 3]); // terminator
+
+                // ScanClassList must report the new row (count = oldCount + 1).
+                var scanned = ItemClassListCore.ScanClassList(rom, newAddr);
+                Assert.Equal(3, scanned.Count);
+                Assert.Equal(0x10u, scanned[0]);
+                Assert.Equal(0x20u, scanned[1]);
+                Assert.Equal(ItemClassListCore.NewSlotPlaceholder, scanned[2]);
 
                 // PR #463 review fix: the old bytes must remain INTACT so any
                 // other owners (shared effectiveness arrays) still work.
                 Assert.Equal(0x10, rom.Data[32]);
                 Assert.Equal(0x20, rom.Data[33]);
                 Assert.Equal(0x00, rom.Data[34]);
+            }
+            finally
+            {
+                CoreState.ROM = prevRomState;
+            }
+        }
+
+        [Fact]
+        public void ExpandClassList_OnSharedArray_OtherOwnersUnchanged()
+        {
+            // PR #463 Copilot CLI review: when owner A expands its
+            // (shared) array, owner B's scan must still see the ORIGINAL
+            // class list — not the expanded one and not corrupted bytes.
+            byte[] data = new byte[1024];
+            for (int i = 0; i < data.Length; i++) data[i] = 0xFF;
+            data[96] = 0x42;
+            data[97] = 0x00; // [0x42, 0]
+            // Owner A at offset 0; owner B at offset 8.
+            uint sharedPtr = 96u | 0x08000000u;
+            for (int i = 0; i < 4; i++)
+            {
+                data[0 + i] = (byte)((sharedPtr >> (i * 8)) & 0xFF);
+                data[8 + i] = (byte)((sharedPtr >> (i * 8)) & 0xFF);
+            }
+
+            var rom = MakeRom(data);
+            var prevRomState = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var undo = new Undo.UndoData
+                {
+                    name = "test",
+                    list = new List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length,
+                };
+
+                uint newAddrA = ItemClassListCore.ExpandClassList(rom, pointerAddr: 0, undo: undo);
+
+                // Owner A scans the new array: [0x42, placeholder].
+                var scanA = ItemClassListCore.ScanClassList(rom, newAddrA);
+                Assert.Equal(2, scanA.Count);
+                Assert.Equal(0x42u, scanA[0]);
+                Assert.Equal(ItemClassListCore.NewSlotPlaceholder, scanA[1]);
+
+                // Owner B's pointer is unchanged (still points to 96), and
+                // its scan still shows the ORIGINAL single-class list.
+                Assert.Equal(sharedPtr, rom.u32(8));
+                var scanB = ItemClassListCore.ScanClassList(rom, 96);
+                Assert.Single(scanB);
+                Assert.Equal(0x42u, scanB[0]);
             }
             finally
             {

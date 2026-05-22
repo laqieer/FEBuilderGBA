@@ -23,6 +23,17 @@ namespace FEBuilderGBA
     public static class ItemClassListCore
     {
         /// <summary>
+        /// Placeholder class ID written into the new slot by
+        /// <see cref="ExpandClassList"/>. Must be non-zero so the slot
+        /// survives the null-terminator scan in
+        /// <see cref="ScanClassList"/>. Class ID 0x01 is the FE Lord class
+        /// across all GBA Fire Emblem versions (Eirika in FE8 / Eliwood in
+        /// FE7 / Roy in FE6) — a recognizable valid placeholder the user
+        /// will obviously want to edit.
+        /// </summary>
+        public const uint NewSlotPlaceholder = 0x01;
+
+        /// <summary>
         /// Scan a null-terminated array of class IDs starting at
         /// <paramref name="baseAddr"/> and return the IDs encountered up to
         /// (but not including) the first <c>0x00</c> terminator. Stops at the
@@ -120,18 +131,24 @@ namespace FEBuilderGBA
         /// </summary>
         /// <returns>The new array base offset.</returns>
         /// <remarks>
-        /// The array layout grows from <c>[a, b, 0]</c> to <c>[a, b, 0, 0]</c>:
-        /// the appended zero is the new editable slot, and the trailing zero
-        /// stays as the terminator. Callers can immediately edit the new slot
-        /// at <c>newAddr + oldCount</c>.
+        /// The array layout grows from <c>[a, b, 0]</c> to <c>[a, b, 1, 0]</c>:
+        /// the appended slot is initialized to a non-zero placeholder (0x01)
+        /// so it remains visible in <see cref="ScanClassList"/> after the
+        /// reload (a 0 there would be interpreted as the terminator and the
+        /// new slot would be invisible to the UI — Copilot CLI review on
+        /// PR #463 caught this). Callers can immediately edit the new slot
+        /// at <c>newAddr + oldCount</c> to set the desired class ID.
         /// <para>
         /// The original bytes at <c>oldBase</c> are intentionally LEFT INTACT
         /// so any other owners still pointing at <c>oldBase</c> (the
         /// effectiveness editor detects this case via
         /// <see cref="FindItemsSharingPointer"/>) keep working. Wasting a few
-        /// bytes is preferable to corrupting another item's data; the UI flow
-        /// guides the user to <see cref="MakeIndependentCopy"/> first when the
-        /// array is shared.
+        /// bytes is preferable to corrupting another item's data; this means
+        /// <c>ExpandClassList</c> on a shared array implicitly forks the
+        /// caller's owner pointer (other owners retain the original list).
+        /// Tests verify this behaviour via
+        /// <c>ExpandClassList_PreservesSharedArrayForOtherOwners</c> and
+        /// <c>ExpandClassList_OnSharedArray_OtherOwnersUnchanged</c>.
         /// </para>
         /// </remarks>
         public static uint ExpandClassList(ROM rom, uint pointerAddr, Undo.UndoData undo)
@@ -165,8 +182,10 @@ namespace FEBuilderGBA
             {
                 rom.write_u8(newBase + i, oldList[(int)i] & 0xFFu, undo);
             }
-            // Append a new editable 0-slot and the terminator.
-            rom.write_u8(newBase + oldCount, 0u, undo);
+            // Append a non-zero placeholder (0x01) so the new slot remains
+            // visible after a reload (ScanClassList terminates on 0). Then
+            // write the trailing 0 terminator.
+            rom.write_u8(newBase + oldCount, NewSlotPlaceholder, undo);
             rom.write_u8(newBase + oldCount + 1, 0u, undo);
 
             // Update the owning pointer.

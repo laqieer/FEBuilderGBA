@@ -215,7 +215,46 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        /// <summary>
+        /// Navigate to a target item. The caller may pass either the ITEM
+        /// struct address (matches the outer list's stored key) OR an
+        /// effectiveness-ARRAY address (the WinForms convention; the
+        /// ItemEditorView jump button still passes the array address since
+        /// the field is exposed as an effectiveness pointer). When the array
+        /// address is given we translate it back to the owning item by
+        /// scanning the item table for the first match on <c>+16</c>.
+        /// PR #463 Copilot CLI review caught this — without the translation,
+        /// jumps from ItemEditorView silently fall back to entry 0.
+        /// </summary>
+        public void NavigateTo(uint address)
+        {
+            // First try the direct ITEM-address path (the common case from
+            // shared-owner jumps inside this editor).
+            EntryList.SelectAddress(address);
+            if (EntryList.SelectedItem?.addr == address) return;
+
+            // Fallback: callers from ItemEditorView pass the effectiveness
+            // array offset. Find the first item whose +16 dereferences here.
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            if (!U.isSafetyOffset(itemBase)) return;
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return;
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint itemAddr = itemBase + i * dataSize;
+                if (itemAddr + dataSize > (uint)rom.Data.Length) break;
+                uint critPtr = rom.u32(itemAddr + 16);
+                if (!U.isPointer(critPtr)) continue;
+                if (U.toOffset(critPtr) == address)
+                {
+                    EntryList.SelectAddress(itemAddr);
+                    return;
+                }
+            }
+        }
+
         public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

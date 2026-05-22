@@ -109,4 +109,53 @@ public class ItemEffectivenessViewerParityTests : IClassFixture<RomFixture>
         Assert.NotEmpty(list);
         _output.WriteLine($"Outer item list count: {list.Count}; first: {list[0].name}");
     }
+
+    /// <summary>
+    /// PR #463 Copilot CLI review: jumps from ItemEditorView pass the
+    /// effectiveness ARRAY address (the pointer value -- 0x08000000), not
+    /// the item struct address. NavigateTo must translate it back to the
+    /// owning item row.
+    /// </summary>
+    [AvaloniaFact]
+    public void NavigateTo_TranslatesEffectivenessArrayAddressToItem()
+    {
+        if (!_fixture.IsAvailable) return;
+
+        // Pick a real item from FE8U with a known effectiveness pointer.
+        var rom = FEBuilderGBA.CoreState.ROM!;
+        uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+        uint dataSize = rom.RomInfo.item_datasize;
+        uint? effAddr = null;
+        uint itemAddr = 0;
+        for (uint i = 1; i < 0x100; i++)
+        {
+            uint addr = itemBase + i * dataSize;
+            uint critPtr = rom.u32(addr + 16);
+            if (!FEBuilderGBA.U.isPointer(critPtr)) continue;
+            uint o = FEBuilderGBA.U.toOffset(critPtr);
+            if (!FEBuilderGBA.U.isSafetyOffset(o)) continue;
+            effAddr = o;
+            itemAddr = addr;
+            break;
+        }
+        if (effAddr == null)
+        {
+            _output.WriteLine("SKIP: FE8U has no item with effectiveness pointer");
+            return;
+        }
+
+        var view = new ItemEffectivenessViewerView();
+        view.Show();
+        try
+        {
+            // Pass the EFFECTIVENESS array address (the ItemEditorView convention).
+            view.NavigateTo(effAddr.Value);
+            var outer = view.FindControl<AddressListControl>("EntryList");
+            Assert.NotNull(outer);
+            Assert.NotNull(outer!.SelectedItem);
+            // Selected item must be the OWNING item, identified by its struct address.
+            Assert.Equal(itemAddr, outer.SelectedItem!.addr);
+        }
+        finally { view.Close(); }
+    }
 }

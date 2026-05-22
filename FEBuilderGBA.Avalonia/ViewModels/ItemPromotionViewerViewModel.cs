@@ -138,14 +138,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ClassName = NameResolver.GetClassName(ClassId);
         }
 
-        /// <summary>Write the single class byte at <see cref="CurrentClassAddr"/>.</summary>
+        /// <summary>
+        /// Write the single class byte at <see cref="CurrentClassAddr"/>.
+        /// Throws when the undo manager is unavailable (rather than silently
+        /// succeeding — Copilot bot review on PR #463 caught the silent-fail).
+        /// </summary>
         public void WriteCurrentClassByte()
         {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-            if (CurrentClassAddr == 0) return;
-            var undoMgr = CoreState.Undo;
-            if (undoMgr == null) return;
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (CurrentClassAddr == 0)
+                throw new InvalidOperationException("No class slot selected.");
+            var undoMgr = CoreState.Undo
+                ?? throw new InvalidOperationException("Undo manager unavailable.");
             var undo = undoMgr.NewUndoData(this, "Edit Item Promotion");
             ItemClassListCore.WriteClassByte(rom, CurrentClassAddr, ClassId, undo);
             undoMgr.Push(undo);
@@ -190,14 +195,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["array_addr"] = $"0x{CurrentArrayAddr:X08}",
                 ["class_byte_addr"] = $"0x{CurrentClassAddr:X08}",
             };
+            // Always include u8@0x00 — DataVerifiableSweepTests requires the
+            // key listed by GetFieldOffsetMap to be present even when no slot
+            // has been selected yet (the value defaults to 0 in that case).
+            report["u8@0x00"] = CurrentClassAddr != 0
+                ? $"0x{rom.u8(CurrentClassAddr):X02}"
+                : "0x00";
             if (CurrentPointerAddr != 0 && CurrentPointerAddr + 4 <= (uint)rom.Data.Length)
             {
                 // The cc_*_pointer slot itself.
-                report["p32@0x00"] = $"0x{rom.u32(CurrentPointerAddr):X08}";
-            }
-            if (CurrentClassAddr != 0)
-            {
-                report["u8@0x00"] = $"0x{rom.u8(CurrentClassAddr):X02}";
+                report["p32@0x00_pointer"] = $"0x{rom.u32(CurrentPointerAddr):X08}";
             }
             return report;
         }

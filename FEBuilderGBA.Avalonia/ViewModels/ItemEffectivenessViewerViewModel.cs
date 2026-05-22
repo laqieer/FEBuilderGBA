@@ -148,14 +148,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ClassName = NameResolver.GetClassName(ClassId);
         }
 
-        /// <summary>Write the single class byte at <see cref="CurrentClassAddr"/>.</summary>
+        /// <summary>
+        /// Write the single class byte at <see cref="CurrentClassAddr"/>.
+        /// Throws when the undo manager is unavailable (rather than silently
+        /// succeeding — Copilot bot review on PR #463 caught the silent-fail).
+        /// </summary>
         public void WriteCurrentClassByte()
         {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-            if (CurrentClassAddr == 0) return;
-            var undoMgr = CoreState.Undo;
-            if (undoMgr == null) return; // headless / standalone — no undo available
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (CurrentClassAddr == 0)
+                throw new InvalidOperationException("No class slot selected.");
+            var undoMgr = CoreState.Undo
+                ?? throw new InvalidOperationException("Undo manager unavailable.");
             var undo = undoMgr.NewUndoData(this, "Edit Item Effectiveness");
             ItemClassListCore.WriteClassByte(rom, CurrentClassAddr, ClassId, undo);
             undoMgr.Push(undo);
@@ -218,15 +223,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["effectiveness_addr"] = $"0x{CurrentEffAddr:X08}",
                 ["class_byte_addr"] = $"0x{CurrentClassAddr:X08}",
             };
+            // Always include u8@0x00 — DataVerifiableSweepTests requires the
+            // key listed by GetFieldOffsetMap to be present even when no slot
+            // has been selected yet (the value defaults to 0 in that case).
+            report["u8@0x00"] = CurrentClassAddr != 0
+                ? $"0x{rom.u8(CurrentClassAddr):X02}"
+                : "0x00";
             if (CurrentItemAddr != 0)
             {
                 // Item-table +12 correction and +16 effectiveness pointer.
                 report["u32@0x0C"] = $"0x{rom.u32(CurrentItemAddr + 12):X08}";
                 report["u32@0x10"] = $"0x{rom.u32(CurrentItemAddr + 16):X08}";
-            }
-            if (CurrentClassAddr != 0)
-            {
-                report["u8@0x00"] = $"0x{rom.u8(CurrentClassAddr):X02}";
             }
             return report;
         }
