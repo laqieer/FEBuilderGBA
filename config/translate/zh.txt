@@ -19861,3 +19861,309 @@ GIMP GPL 调色板
 
 :JASC-PAL (Aseprite/GIMP)
 JASC-PAL (Aseprite/GIMP)
+
+# ========================================================================
+# Avalonia untranslated literals (added for issue #356)
+# Auto-generated from term dictionary for the 96 in-scope literals.
+# Source: Phase 6 gap-sweep Untranslated section.
+# ========================================================================
+
+:Text ID for this class's display name (click to open Text Viewer)
+此兵种显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for this class's description (click to open Text Viewer)
+此兵种说明的文本ID (点击打开文本浏览器)
+
+:Decoded description text
+解码的说明文本
+
+:Desc
+说明
+
+:Open text viewer for this description
+打开此说明的文本浏览器
+
+:Internal class number
+内部兵种编号
+
+:Level required for promotion (0=unpromoted)
+转职所需等级 (0=未转职)
+
+:Map sprite index when idle
+空闲时地图精灵索引
+
+:Walking speed on the map
+地图上的行走速度
+
+:Portrait graphic index (click to open Portrait Viewer)
+头像图形索引 (点击打开头像浏览器)
+
+:Sort Order (B10):
+排序顺序 (B10):
+
+:Sort order for class list
+兵种列表的排序顺序
+
+:Base HP for this class
+此兵种的基础HP
+
+:Con (B17):
+体格 (B17):
+
+:Base constitution
+基础体格
+
+:Mov (B18):
+移动 (B18):
+
+:Base movement range
+基础移动范围
+
+:Stat Caps (Max Values)
+属性上限 (最大值)
+
+:Max HP (B19):
+最大HP (B19):
+
+:Maximum HP stat cap for this class
+此兵种的最大HP上限
+
+:Max Str (B20):
+最大力量 (B20):
+
+:Max Skl (B21):
+最大技术 (B21):
+
+:Max Spd (B22):
+最大速度 (B22):
+
+:Max Def (B23):
+最大防御 (B23):
+
+:Max Res (B24):
+最大魔防 (B24):
+
+:Max Con (B25):
+最大体格 (B25):
+
+:Power (B26):
+实力 (B26):
+
+:Class power / EXP correction value
+兵种实力 / 经验值修正值
+
+:Promotion Gains (CC Bonus)
+转职加成
+
+:HP bonus gained on class change
+转职获得的HP加成
+
+:Pointer to battle animation data
+战斗动画数据指针
+
+:Pointer to terrain movement cost table
+地形移动消耗表指针
+
+:Export all classes to a TSV file
+将所有兵种导出到TSV文件
+
+:Import classes from a TSV file
+从TSV文件导入兵种
+
+:Open skill assignment editor for this class
+打开此兵种的技能分配编辑器
+
+:Text ID for this item's display name (click to open Text Viewer)
+此物品显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for the item description (click to open Text Viewer)
+此物品说明的文本ID (点击打开文本浏览器)
+
+:Text ID for the item usage description (click to open Text Viewer)
+此物品用法说明的文本ID (点击打开文本浏览器)
+
+:Decoded usage description text
+解码的用法说明文本
+
+:Open text viewer for this usage description
+打开此用法说明的文本浏览器
+
+:Internal item number (unique ID)
+内部物品编号 (唯一ID)
+
+:Weapon type (Sword, Lance, Axe, etc.)
+武器类型 (剑、枪、斧等)
+
+:Pointer to stat bonuses when equipped
+装备时属性加成指针
+
+:Pointer to effectiveness list (bonus vs. classes)
+特效列表指针 (兵种特效)
+
+:Number of uses before the item breaks
+物品损坏前的使用次数
+
+:Attack power
+攻击力
+
+:Hit rate bonus
+命中率加成
+
+:Item weight (reduces attack speed)
+物品重量 (降低攻击速度)
+
+:Critical hit rate bonus
+必杀率加成
+
+:Attack range (encoded as min-max)
+攻击范围 (编码为最小-最大)
+
+:Base item price
+物品基础价格
+
+:Effect when using the item
+使用物品时的效果
+
+:Special effect applied on hit
+命中时应用的特殊效果
+
+:Weapon experience gained per use
+每次使用获得的武器经验
+
+:Export all items to a TSV file
+将所有物品导出到TSV文件
+
+:Import items from a TSV file
+从TSV文件导入物品
+
+:Open skill configuration editor
+打开技能配置编辑器
+
+:Text ID for the unit's display name (click to open Text Viewer)
+单位显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for the unit's description (click to open Text Viewer)
+单位说明的文本ID (点击打开文本浏览器)
+
+:Unique identifier for this unit
+此单位的唯一标识符
+
+:The unit's class (click to open Class Editor)
+单位的兵种 (点击打开兵种编辑器)
+
+:Pick class from editor
+从编辑器中选择兵种
+
+:Unit or class name associated with this portrait ID
+与此头像ID关联的单位或兵种名称
+
+:Pick portrait from editor
+从编辑器中选择头像
+
+:Map sprite face index
+地图精灵脸部索引
+
+:Elemental affinity for support bonuses
+支援加成的属性
+
+:Starting level of this unit
+此单位的初始等级
+
+:Base Hit Points (signed offset from class base)
+基础HP (相对兵种基础的有符号偏移)
+
+:Base Strength/Magic (signed offset from class base)
+基础力量/魔法 (相对兵种基础的有符号偏移)
+
+:Percent chance of HP increasing on level up
+升级时HP上升的百分比
+
+:Support & Other
+支援与其他
+
+:Export all units to a TSV file
+将所有单位导出到TSV文件
+
+:Import units from a TSV file
+从TSV文件导入单位
+
+:Open skill assignment editor for this unit
+打开此单位的技能分配编辑器
+
+:Text ID for the unit's description
+单位说明的文本ID
+
+:Click to open Class Editor
+点击打开兵种编辑器
+
+:Click to open Portrait Viewer
+点击打开头像浏览器
+
+:Text ID for the item's description
+物品说明的文本ID
+
+:Data Address\r\n(if pointer)
+数据地址\r\n(如果是指针)
+
+:Other ROM\r\nData Address
+其他ROM\r\n数据地址
+
+:Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
+将当前ROM与另一个版本比较以定位\r\n特定数据,例如FE7和FE8之间共享的\r\n图像或程序。
+
+:Click to open Unit Editor
+点击打开单位编辑器
+
+:Pick unit from editor
+从编辑器中选择单位
+
+:Click to open Song Table
+点击打开曲目表
+
+:References (units, classes, items):
+引用 (单位、兵种、物品):
+
+:Other reference sources (maps, events, supports, …) not yet ported. Track full parity in a follow-up issue.
+其他引用源 (地图、事件、支援等) 尚未移植。完整对等性在后续issue中跟踪。
+
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+背景图像选择器。\r\n从ROM中可用的背景条目中选择一个背景图像。
+
+:Preview (Frame 0):
+预览 (第0帧):
+
+:Click to open Item Editor
+点击打开物品编辑器
+
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+数据大小不匹配。\r\n(DataCount/2) % Width != 0
+
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (指针列表) 为每个地图分配数字ID。\r\n选择一个未使用的PLIST编号以添加新的地图指针条目。\r\nPLIST ID在内部用于引用地图数据。
+
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+设置难度调整值。\r\n困难加成在困难模式下提升敌人属性。\r\n惩罚在普通和简单模式下降低敌人属性。\r\n\r\n参考: feuniverse.us difficulty stat changes
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+调色板颜色编辑器允许编辑16色GBA调色板中的各个颜色。\r\n选择一个调色板槽以修改其RGB值。
+
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+调色板剪贴板管理器存储和检索调色板数据。\r\n在不同的图形条目之间复制调色板或保存以供以后使用。
+
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+调色板交换在条目之间交换调色板分配。\r\n选择源和目标调色板槽以交换其颜色数据。
+
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+技能系统编辑器需要安装兼容的技能补丁。\r\n请首先使用补丁管理器安装一个技能系统补丁。\r\n\r\n支持的技能系统: CSkillSys, FE8N Skill System
+
+# ----- Long-form entries (3 extra) for #356 untranslated coverage -----
+
+:Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
+请选择此补丁安装前的ROM以进行恢复。\r\n\r\n此功能不保证可靠的卸载。\r\n可能会失败，因此请事先备份。\r\n此外，虽然可以删除补丁代码，但相关数据可能并不总是可以删除。\r\n在这种情况下，可能会丢失几百字节。请理解。
+
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
+无法在ROM文本编码表中编码的字符将导致游戏内显示错误。\r\n\r\n常见问题:\r\n  - 使用ROM支持字符集之外的字符\r\n  - 粘贴包含特殊Unicode字符的外部来源文本\r\n  - 使用非有效转义序列的控制字符\r\n\r\n请选择以下选项之一以解决问题。
+
+:Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be <= 4095, otherwise instant movement occurs.
+经过时间控制单位在此节点停顿的时长。值越小停顿越长。总移动使用4096时间单位。所有节点经过时间之和必须 <= 4095，否则瞬时移动发生。
+
