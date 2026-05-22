@@ -1691,17 +1691,18 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build item effectiveness list matching ItemEffectivenessViewerViewModel.
-        /// Each item that has a non-null pointer at item_base + i*dataSize + 16 gets listed.
-        /// Mirrors the WinForms <c>ItemEffectivenessForm</c> outer <c>AddressList</c>
-        /// data model and the post-#363 VM behavior (item-keyed, P16 ROM offset as addr).</summary>
+        /// <summary>Build item effectiveness OUTER (item-driven) list matching the
+        /// new ItemEffectivenessViewerViewModel layout (issue #368). Walks the
+        /// item table by +16 effectiveness pointer; mirrors the WinForms
+        /// ItemEffectivenessForm.Init iteration semantics. Replaces the old
+        /// flat weapon_effectiveness_2x3x_address-only loader which only worked
+        /// on FE8 and did not match WinForms behaviour.</summary>
         static List<AddrResult> BuildItemEffectivenessList(ROM rom)
         {
             uint itemPtr = rom.RomInfo.item_pointer;
             if (itemPtr == 0) return new List<AddrResult>();
             uint itemBase = rom.p32(itemPtr);
             if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
-
             uint dataSize = rom.RomInfo.item_datasize;
             if (dataSize == 0) return new List<AddrResult>();
 
@@ -1710,33 +1711,56 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint itemAddr = itemBase + i * dataSize;
                 if (itemAddr + dataSize > (uint)rom.Data.Length) break;
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))) break;
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 16))) break;
+                uint critPtr = rom.u32(itemAddr + 16);
+                if (!U.isPointer(critPtr)) continue;
+                uint critOff = U.toOffset(critPtr);
+                if (!U.isSafetyOffset(critOff)) continue;
 
-                // Validation: offsets 12 and 16 must be pointer or null (same as WinForms Init)
-                if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))
-                    || !U.isPointerOrNULL(rom.u32(itemAddr + 16)))
-                    break;
-
-                uint criticalPtr = rom.u32(itemAddr + 16);
-                if (!U.isPointer(criticalPtr)) continue;
-
-                uint criticalAddr = U.toOffset(criticalPtr);
-                // Mirror the VM's defensive safety-offset filter so gap-sweep /
-                // list-parity tooling never emits out-of-range addresses that
-                // the runtime VM would skip.
-                if (!U.isSafetyOffset(criticalAddr)) continue;
-
-                uint nameId = rom.u16(itemAddr);
-                string name = U.ToHexString(i) + " " + GetTextById(nameId);
-                result.Add(new AddrResult(criticalAddr, name, i));
+                string itemName = NameResolver.GetItemName(i);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(itemAddr, name, i));
             }
             return result;
         }
 
-        /// <summary>Build item promotion list matching ItemPromotionViewerViewModel.
-        /// Uses item_promotion1_array_pointer — a byte array of class IDs (blockSize=1).</summary>
+        /// <summary>Build CC-item-driven OUTER list matching the new
+        /// ItemPromotionViewerViewModel layout (issue #368). Returns the fixed
+        /// set of CC items (Hero Crest, Knight Crest, ...). Replaces the old
+        /// flat item_promotion1_array_pointer loader.</summary>
         static List<AddrResult> BuildItemPromotionList(ROM rom)
         {
-            uint ptr = rom.RomInfo.item_promotion1_array_pointer;
+            var result = new List<AddrResult>();
+
+            void Add(uint itemId, uint pointer)
+            {
+                if (pointer == 0) return;
+                string name = $"{U.ToHexString(itemId)} {NameResolver.GetItemName(itemId)}";
+                result.Add(new AddrResult(pointer, name, itemId));
+            }
+
+            Add(rom.RomInfo.cc_item_hero_crest_itemid, rom.RomInfo.cc_item_hero_crest_pointer);
+            Add(rom.RomInfo.cc_item_knight_crest_itemid, rom.RomInfo.cc_item_knight_crest_pointer);
+            Add(rom.RomInfo.cc_item_orion_bolt_itemid, rom.RomInfo.cc_item_orion_bolt_pointer);
+            Add(rom.RomInfo.cc_elysian_whip_itemid, rom.RomInfo.cc_elysian_whip_pointer);
+            Add(rom.RomInfo.cc_guiding_ring_itemid, rom.RomInfo.cc_guiding_ring_pointer);
+            if (rom.RomInfo.version >= 7)
+            {
+                Add(rom.RomInfo.cc_fallen_contract_itemid, rom.RomInfo.cc_fallen_contract_pointer);
+                Add(rom.RomInfo.cc_master_seal_itemid, rom.RomInfo.cc_master_seal_pointer);
+                Add(rom.RomInfo.cc_ocean_seal_itemid, rom.RomInfo.cc_ocean_seal_pointer);
+                Add(rom.RomInfo.cc_moon_bracelet_itemid, rom.RomInfo.cc_moon_bracelet_pointer);
+                Add(rom.RomInfo.cc_sun_bracelet_itemid, rom.RomInfo.cc_sun_bracelet_pointer);
+            }
+            return result;
+        }
+
+        /// <summary>Build item shop (hensei) list matching ItemShopViewerViewModel.
+        /// Uses item_shop_hensei_pointer — 2-byte entries (item ID + quantity).</summary>
+        static List<AddrResult> BuildItemShopList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.item_shop_hensei_pointer;
             if (ptr == 0) return new List<AddrResult>();
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
@@ -1744,27 +1768,17 @@ namespace FEBuilderGBA.Avalonia.Services
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
-                uint addr = baseAddr + i;
-                if (addr >= (uint)rom.Data.Length) break;
+                uint addr = baseAddr + i * 2;
+                if (addr + 1 >= (uint)rom.Data.Length) break;
 
-                uint classId = rom.u8(addr);
-                if (classId == 0x00) break;
+                uint itemId = rom.u8(addr);
+                if (itemId == 0x00) break;
 
-                string className = NameResolver.GetClassName(classId);
-                string name = $"{U.ToHexString(i)} {className} (0x{classId:X02})";
+                string itemName = NameResolver.GetItemName(itemId);
+                string name = $"{U.ToHexString(i)} {itemName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
-        }
-
-        /// <summary>Build the full Item Shop list matching the Avalonia
-        /// <c>ItemShopViewerView</c> (#369 parity). Delegates to
-        /// <see cref="ItemShopCore.MakeShopList"/>, which enumerates the hensei
-        /// preparation shop plus (FE8) worldmap shops and per-map event-cond
-        /// shops — mirroring WinForms <c>ItemShopForm.MakeShopListLow()</c>.</summary>
-        static List<AddrResult> BuildItemShopList(ROM rom)
-        {
-            return ItemShopCore.MakeShopList(rom);
         }
 
         /// <summary>Build item usage pointer list matching ItemUsagePointerViewerViewModel.

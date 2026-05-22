@@ -878,8 +878,10 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("OPClassFontViewerView.axaml", 1179, 475)]
         [InlineData("ItemWeaponEffectViewerView.axaml", 1302, 803)]
         [InlineData("ItemStatBonusesViewerView.axaml", 1291, 587)]
-        [InlineData("ItemEffectivenessViewerView.axaml", 1297, 768)]
-        [InlineData("ItemPromotionViewerView.axaml", 1150, 669)]
+        // Issue #368 — sizes bumped to fit the new item-driven master/detail layout.
+        [InlineData("ItemEffectivenessViewerView.axaml", 1297, 780)]
+        [InlineData("ItemPromotionViewerView.axaml", 1180, 720)]
+        // PR #465 (#369) bumped ItemShopViewerView to 1280x720; sync the expected size.
         [InlineData("ItemShopViewerView.axaml", 1280, 720)]
         [InlineData("ItemWeaponTriangleViewerView.axaml", 1290, 648)]
         [InlineData("ItemUsagePointerViewerView.axaml", 1238, 801)]

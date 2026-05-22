@@ -2,31 +2,138 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessViewerView"
-        Title="Item Effectiveness Editor" Width="1297" Height="768"
+        Title="Item Effectiveness Editor" Width="1297" Height="780"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ItemEffectivenessViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!--
+    Issue #368: item-driven master/detail layout that mirrors the WinForms
+    ItemEffectivenessForm. Outer EntryList = items whose +16 effectiveness
+    pointer is set; InnerList = the class IDs that item targets; the right
+    pane edits one class slot at a time and surfaces shared-pointer detection
+    via the IndependencePanel.
+  -->
+  <Grid ColumnDefinitions="320,*">
+    <controls:AddressListControl AutomationProperties.AutomationId="ItemEffectivenessViewer_Entry_List"
+                                 Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+    <Grid Grid.Column="1" Margin="8" RowDefinitions="Auto,Auto,*,Auto">
+      <!-- Header -->
+      <StackPanel Grid.Row="0" Spacing="4">
         <TextBlock Text="Item Effectiveness Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock Text="Items with effectiveness data — select to edit the first class ID" FontSize="12" Foreground="Gray" />
+        <TextBlock Text="Weapon effectiveness 2x/3x class list (per item)" FontSize="12" Foreground="Gray" />
+      </StackPanel>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ItemEffectivenessViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <!-- Address + Block-size + Selection metadata (mirrors WinForms panel6) -->
+      <Grid Grid.Row="1" Margin="0,8,0,8"
+            ColumnDefinitions="100,160,100,160,*"
+            RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="0" Grid.Column="1" Name="AddressLabel"
+                   AutomationProperties.AutomationId="ItemEffectivenessViewer_Address_Label"
+                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="0" Grid.Column="3" Name="BlockSizeLabel"
+                   AutomationProperties.AutomationId="ItemEffectivenessViewer_BlockSize_Label"
+                   VerticalAlignment="Center" Text="1" />
+        <Button Grid.Row="0" Grid.Column="4" Name="ReloadListButton"
+                AutomationProperties.AutomationId="ItemEffectivenessViewer_ReloadList_Button"
+                Content="Reload" Click="ReloadList_Click" HorizontalAlignment="Right" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected:" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Name="SelectAddressLabel"
+                   AutomationProperties.AutomationId="ItemEffectivenessViewer_SelectAddress_Label"
+                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+      </Grid>
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Link"
-                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
-                     ToolTip.Tip="Click to open Class Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+      <!-- Two-pane content: inner class list + right edit panel.
+           The right pane is wrapped in a ScrollViewer so all controls remain
+           reachable when the window is shrunk (matches WinForms behaviour
+           where the right-side panels overflow on small windows). -->
+      <Grid Grid.Row="2" ColumnDefinitions="320,*">
+        <!-- Inner list of classes for the selected item -->
+        <Grid Grid.Column="0" Margin="0,0,8,0" RowDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Row="0" Text="Effective against (classes)" FontWeight="Bold" />
+          <ListBox Grid.Row="1" Name="InnerList"
+                   AutomationProperties.AutomationId="ItemEffectivenessViewer_Inner_List"
+                   SelectionChanged="InnerList_SelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <Image Source="{Binding Icon}" Width="32" Height="32"
+                         IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
+                         Stretch="Fill" />
+                  <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Button Grid.Row="2" Name="ListExpandsButton"
+                  AutomationProperties.AutomationId="ItemEffectivenessViewer_ListExpands_Button"
+                  Content="Expand List (+1 slot)" Click="ListExpands_Click"
+                  HorizontalAlignment="Stretch" Margin="0,4,0,0" />
         </Grid>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ItemEffectivenessViewer_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
-      </StackPanel>
-    </ScrollViewer>
+        <!-- Right edit panel (per-class fields + shared-pointer panel) -->
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+          <!-- Class edit row (mirrors WinForms panel7) -->
+          <Grid Grid.Row="0" Margin="0,0,0,8"
+                ColumnDefinitions="100,120,80,*,40"
+                RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="Class:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Link"
+                       Classes="Hyperlink" Name="ClassId_Link"
+                       PointerPressed="OnClassIdLinkClick"
+                       ToolTip.Tip="Click to open Class Editor" />
+            <NumericUpDown Grid.Column="1" Name="ClassIdInput"
+                           AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Input"
+                           FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Text="Name:" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="3" Name="ClassNameLabel"
+                       AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassName_Label"
+                       VerticalAlignment="Center" />
+            <Image Grid.Column="4" Name="ClassIconImage"
+                   AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassIcon_Image"
+                   Width="32" Height="32" Stretch="Fill" />
+          </Grid>
+
+          <!-- Write button -->
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Name="WriteButton"
+                    AutomationProperties.AutomationId="ItemEffectivenessViewer_Write_Button"
+                    Content="Write" Click="Write_Click" />
+          </StackPanel>
+
+          <!-- Shared-pointer list (mirrors WinForms ItemListBox) -->
+          <Grid Grid.Row="2" Margin="0,8,0,8" RowDefinitions="Auto,*">
+            <TextBlock Grid.Row="0" Text="Items sharing this effectiveness list" FontWeight="Bold" />
+            <ListBox Grid.Row="1" Name="ItemListBox" Height="120"
+                     AutomationProperties.AutomationId="ItemEffectivenessViewer_SharedOwners_List"
+                     SelectionChanged="ItemListBox_SelectionChanged">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <Image Source="{Binding Icon}" Width="32" Height="32"
+                           IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           Stretch="Fill" />
+                    <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Grid>
+
+          <!-- IndependencePanel (visible when >1 item shares the list) -->
+          <Grid Grid.Row="3" Name="IndependencePanel" IsVisible="False"
+                RowDefinitions="Auto,Auto" Margin="0,8,0,0">
+            <TextBlock Grid.Row="0" Foreground="DarkOrange"
+                       Text="This data is shared with other items. Forking will isolate the current item's edits." />
+            <Button Grid.Row="1" Name="IndependenceButton"
+                    AutomationProperties.AutomationId="ItemEffectivenessViewer_Independence_Button"
+                    Content="Make Independent Copy" Click="Independence_Click"
+                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+          </Grid>
+        </Grid>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
   </Grid>
 </Window>

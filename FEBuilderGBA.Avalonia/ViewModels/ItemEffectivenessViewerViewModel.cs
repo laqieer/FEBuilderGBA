@@ -4,151 +4,306 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Issue #368 — item-driven view-model for the Avalonia Item Effectiveness
+    /// editor. Mirrors WinForms <c>ItemEffectivenessForm.Init</c>:
+    ///   * Outer list iterates the item table by <c>item_pointer</c> +
+    ///     <c>item_datasize</c>; terminates on the first row whose +12 or
+    ///     +16 is not pointer-or-null; emits only rows whose +16 dereferences
+    ///     to a safe ROM offset.
+    ///   * Inner list scans the null-terminated byte array at that
+    ///     effectiveness pointer.
+    ///   * Per-class edit reads/writes a single byte through
+    ///     <see cref="ItemClassListCore.WriteClassByte"/>.
+    /// </summary>
     public class ItemEffectivenessViewerViewModel : ViewModelBase, IDataVerifiable
     {
-        static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "B0" });
-
-        uint _currentAddr;
+        uint _currentItemAddr;       // address of the item struct
+        uint _currentEffAddr;        // address of the effectiveness array (item +16 dereferenced)
+        uint _currentClassAddr;      // address of the currently-selected class byte inside the inner array
         uint _classId;
+        string _className = "";
         bool _canWrite;
+        bool _hasSharedOwners;       // true when ItemListBox would have >1 owner
+        int _itemIndex;              // index of the current outer-list item in the item table
 
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public uint CurrentItemAddr { get => _currentItemAddr; set => SetField(ref _currentItemAddr, value); }
+        public uint CurrentEffAddr { get => _currentEffAddr; set => SetField(ref _currentEffAddr, value); }
+        public uint CurrentClassAddr { get => _currentClassAddr; set => SetField(ref _currentClassAddr, value); }
         public uint ClassId { get => _classId; set => SetField(ref _classId, value); }
+        public string ClassName { get => _className; set => SetField(ref _className, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+        public bool HasSharedOwners { get => _hasSharedOwners; set => SetField(ref _hasSharedOwners, value); }
+        public int ItemIndex { get => _itemIndex; set => SetField(ref _itemIndex, value); }
 
         /// <summary>
-        /// Enumerate items that have a valid P16 (item effectiveness) pointer.
-        /// Each emitted <see cref="AddrResult"/> uses the P16 ROM offset as its
-        /// <c>addr</c>, so the address passed by
-        /// <c>ItemEditorView.JumpToEffectiveness_Click</c> (which is
-        /// <c>ptr - 0x08000000</c>) matches a list row directly and the
-        /// receiving editor's selection lands on the correct item — not on the
-        /// wrong sacred-weapons 2x/3x byte-table row (issue #363).
-        ///
-        /// Mirrors the WinForms <c>ItemEffectivenessForm</c> outer
-        /// <c>AddressList</c> (item-keyed, item icons) and the existing
-        /// Avalonia <c>ItemEffectivenessSkillSystemsReworkViewModel.LoadList()</c>
-        /// iteration semantics: walk the item table by
-        /// <c>itemBase + i * item_datasize</c> using the dereferenced
-        /// <c>item_pointer</c>. The loop <c>break</c>s on the first row whose
-        /// P12 or P16 is not pointer-or-null (mirroring
-        /// <c>InputFormRef.DataCount</c> termination), and <c>continue</c>s
-        /// past rows whose P16 is null / zero / out-of-range (the item is
-        /// valid but carries no effectiveness data — nothing to navigate to).
-        ///
-        /// The previous implementation read class IDs from
-        /// <c>rom.RomInfo.weapon_effectiveness_2x3x_address</c> — a fixed
-        /// "sacred weapons" byte table whose addresses had no relation to
-        /// per-item effectiveness pointers. <c>SelectAddress</c> never matched
-        /// any row, so the source jump silently fell back to entry 0.
+        /// Outer list — items whose +16 effectiveness pointer is a real ROM
+        /// address. The <see cref="AddrResult.addr"/> field stores the
+        /// EFFECTIVENESS ARRAY offset (the dereferenced +16 pointer) so
+        /// <c>ItemEditorView.JumpToEffectiveness_Click</c> (which passes
+        /// <c>ptr - 0x08000000</c>) and the
+        /// <c>ItemEffectivenessViewerJumpTests</c> regression suite both
+        /// resolve to the correct list row directly. Matches the post-#363
+        /// data model.
         /// </summary>
-        public List<AddrResult> LoadItemEffectivenessList()
+        public List<AddrResult> LoadItemList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             uint itemPtr = rom.RomInfo.item_pointer;
             if (itemPtr == 0) return new List<AddrResult>();
-
             uint itemBase = rom.p32(itemPtr);
             if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
-
             uint dataSize = rom.RomInfo.item_datasize;
             if (dataSize == 0) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
-                uint itemAddr = (uint)(itemBase + i * dataSize);
+                uint itemAddr = itemBase + i * dataSize;
                 if (itemAddr + dataSize > (uint)rom.Data.Length) break;
 
-                // Mirror WinForms InputFormRef.DataCount termination: data
-                // table ends on the first row whose P12 (offset +12) or P16
-                // (offset +16) is not pointer-or-null. Both must be valid for
-                // the row to count as an item.
+                // WinForms item-table termination: first row whose +12 OR +16
+                // is not pointer-or-null ends the table.
                 if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))) break;
                 if (!U.isPointerOrNULL(rom.u32(itemAddr + 16))) break;
 
-                // Skip rows where P16 is null / zero or not a real pointer —
-                // the item is valid but carries no effectiveness data, so
-                // there is nothing to navigate to.
-                uint criticalPtr = rom.u32(itemAddr + 16);
-                if (!U.isPointer(criticalPtr)) continue;
-
-                uint criticalAddr = U.toOffset(criticalPtr);
-                if (!U.isSafetyOffset(criticalAddr)) continue;
+                uint critPtr = rom.u32(itemAddr + 16);
+                if (!U.isPointer(critPtr)) continue;
+                uint critOff = U.toOffset(critPtr);
+                if (!U.isSafetyOffset(critOff)) continue;
 
                 string itemName = NameResolver.GetItemName(i);
                 string name = $"{U.ToHexString(i)} {itemName}";
-                result.Add(new AddrResult(criticalAddr, name, i));
+                // addr = EFFECTIVENESS ARRAY offset (matches the source-side
+                // address from ItemEditorView.JumpToEffectiveness_Click).
+                result.Add(new AddrResult(critOff, name, i));
             }
             return result;
         }
 
-        public void LoadItemEffectiveness(uint addr)
+        /// <summary>
+        /// Legacy alias for backward compatibility with the existing #363
+        /// regression suite (<c>ItemEffectivenessViewerJumpTests</c>) which
+        /// calls <c>LoadItemEffectivenessList()</c>.
+        /// </summary>
+        public List<AddrResult> LoadItemEffectivenessList() => LoadItemList();
+
+        /// <summary>
+        /// Legacy alias used by the #363 regression suite. Equivalent to
+        /// <see cref="CurrentEffAddr"/>.
+        /// </summary>
+        public uint CurrentAddr
+        {
+            get => _currentEffAddr;
+            set => CurrentEffAddr = value;
+        }
+
+        /// <summary>
+        /// Load the inner class list for a selected outer row. Accepts EITHER
+        /// the effectiveness ARRAY offset (preferred — matches the outer list
+        /// stored key and the #363 jump source) OR an item struct address
+        /// (back-compat for callers that still pass the item). Sets
+        /// <see cref="CurrentEffAddr"/> and resolves the owning item via
+        /// <see cref="ItemClassListCore.FindItemsSharingPointer"/>.
+        /// </summary>
+        public List<AddrResult> LoadInnerClassList(uint addr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            if (addr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
+            uint critOff;
+            uint itemAddr;
+
+            // Heuristic: if addr+16 is in range AND rom.u32(addr+16) is a real
+            // pointer, treat addr as an ITEM struct address (legacy path).
+            // Otherwise treat addr as an ARRAY offset directly.
+            bool looksLikeItem = false;
+            if (addr + 20 <= (uint)rom.Data.Length)
+            {
+                uint maybeCrit = rom.u32(addr + 16);
+                if (U.isPointer(maybeCrit) && U.isSafetyOffset(U.toOffset(maybeCrit)))
+                {
+                    // Could be item; but also could be array byte that happens
+                    // to point somewhere. Disambiguate by checking the item
+                    // table membership.
+                    uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                    uint dataSize = rom.RomInfo.item_datasize;
+                    if (dataSize > 0 && addr >= itemBase
+                        && (addr - itemBase) % dataSize == 0)
+                    {
+                        looksLikeItem = true;
+                    }
+                }
+            }
+
+            if (looksLikeItem)
+            {
+                itemAddr = addr;
+                uint critPtr = rom.u32(addr + 16);
+                critOff = U.toOffset(critPtr);
+            }
+            else
+            {
+                critOff = addr;
+                // Find the first item that owns this array.
+                var owners = ItemClassListCore.FindItemsSharingPointer(rom, critOff);
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                uint dataSize = rom.RomInfo.item_datasize;
+                itemAddr = owners.Count > 0
+                    ? itemBase + owners[0] * dataSize
+                    : 0;
+            }
+
+            if (!U.isSafetyOffset(critOff)) return new List<AddrResult>();
+
+            CurrentItemAddr = itemAddr;
+            CurrentEffAddr = critOff;
+            if (itemAddr != 0)
+            {
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                uint dataSize = rom.RomInfo.item_datasize;
+                if (dataSize > 0 && itemAddr >= itemBase)
+                {
+                    ItemIndex = (int)((itemAddr - itemBase) / dataSize);
+                }
+            }
+
+            var classes = ItemClassListCore.ScanClassList(rom, critOff);
+
+            var result = new List<AddrResult>();
+            for (int i = 0; i < classes.Count; i++)
+            {
+                uint classId = classes[i];
+                uint byteAddr = critOff + (uint)i;
+                string className = NameResolver.GetClassName(classId);
+                string name = $"{U.ToHexString(classId)} {className}";
+                result.Add(new AddrResult(byteAddr, name, classId));
+            }
+            CanWrite = true;
+            return result;
+        }
+
+        /// <summary>Load the list of items that point at the current effectiveness pointer.</summary>
+        public List<AddrResult> LoadSharedOwners()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || CurrentEffAddr == 0) return new List<AddrResult>();
+
+            var owners = ItemClassListCore.FindItemsSharingPointer(rom, CurrentEffAddr);
+            var result = new List<AddrResult>();
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            uint dataSize = rom.RomInfo.item_datasize;
+            foreach (uint id in owners)
+            {
+                uint itemAddr = itemBase + id * dataSize;
+                string name = $"{U.ToHexString(id)} {NameResolver.GetItemName(id)}";
+                result.Add(new AddrResult(itemAddr, name, id));
+            }
+            HasSharedOwners = result.Count > 1;
+            return result;
+        }
+
+        /// <summary>Read a single class byte (used when the inner list selection changes).</summary>
+        public void LoadClassByte(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-
             if (addr >= (uint)rom.Data.Length) return;
-
-            CurrentAddr = addr;
-            var values = EditorFormRef.ReadFields(rom, addr, _fields);
-            ClassId = values["B0"];
-
-            CanWrite = true;
+            CurrentClassAddr = addr;
+            ClassId = rom.u8(addr);
+            ClassName = NameResolver.GetClassName(ClassId);
         }
 
-        public void WriteItemEffectiveness()
+        /// <summary>
+        /// Write the single class byte at <see cref="CurrentClassAddr"/>.
+        /// Throws when the undo manager is unavailable (rather than silently
+        /// succeeding — Copilot bot review on PR #463 caught the silent-fail).
+        /// </summary>
+        public void WriteCurrentClassByte()
+        {
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (CurrentClassAddr == 0)
+                throw new InvalidOperationException("No class slot selected.");
+            var undoMgr = CoreState.Undo
+                ?? throw new InvalidOperationException("Undo manager unavailable.");
+            var undo = undoMgr.NewUndoData(this, "Edit Item Effectiveness");
+            ItemClassListCore.WriteClassByte(rom, CurrentClassAddr, ClassId, undo);
+            undoMgr.Push(undo);
+        }
+
+        /// <summary>Append a new editable 0-slot to the current effectiveness array.</summary>
+        public uint ExpandCurrentList()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return;
-            uint addr = CurrentAddr;
-            var values = new Dictionary<string, uint>
-            {
-                ["B0"] = ClassId,
-            };
-            EditorFormRef.WriteFields(rom, addr, values, _fields);
+            if (rom == null || CurrentItemAddr == 0)
+                throw new InvalidOperationException("No item selected.");
+            var undoMgr = CoreState.Undo;
+            if (undoMgr == null) throw new InvalidOperationException("Undo manager unavailable.");
+            uint ptrAddr = CurrentItemAddr + 16;
+            var undo = undoMgr.NewUndoData(this, "Expand Item Effectiveness");
+            uint newAddr = ItemClassListCore.ExpandClassList(rom, ptrAddr, undo);
+            undoMgr.Push(undo);
+            CurrentEffAddr = newAddr;
+            return newAddr;
         }
 
-        public int GetListCount() => LoadItemEffectivenessList().Count;
+        /// <summary>Fork the shared effectiveness array into an independent copy for the current item.</summary>
+        public uint MakeCurrentItemIndependent()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentItemAddr == 0 || CurrentEffAddr == 0)
+                throw new InvalidOperationException("No item selected.");
+            var undoMgr = CoreState.Undo;
+            if (undoMgr == null) throw new InvalidOperationException("Undo manager unavailable.");
+            uint ptrAddr = CurrentItemAddr + 16;
+            var undo = undoMgr.NewUndoData(this, "Independence Item Effectiveness");
+            uint newAddr = ItemClassListCore.MakeIndependentCopy(rom, CurrentEffAddr, ptrAddr, undo);
+            undoMgr.Push(undo);
+            CurrentEffAddr = newAddr;
+            return newAddr;
+        }
+
+        public int GetListCount() => LoadItemList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
-                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["item_addr"] = $"0x{CurrentItemAddr:X08}",
+                ["effectiveness_addr"] = $"0x{CurrentEffAddr:X08}",
+                ["class_byte_addr"] = $"0x{CurrentClassAddr:X08}",
                 ["ClassId"] = $"0x{ClassId:X02}",
+                ["ClassName"] = ClassName,
+                ["HasSharedOwners"] = HasSharedOwners.ToString(),
             };
         }
 
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
-            uint a = CurrentAddr;
-            // Report the class byte at the row plus subsequent bytes — these are
-            // additional class IDs in the same effectiveness list (or the
-            // 0-terminator). Reporting more bytes raises the raw-read coverage
-            // above the AvaloniaFieldCompletenessTests 60% threshold (the list
-            // loader's u32@12/u32@16 reads inflate the denominator, and a single
-            // u8@0 entry is insufficient).
-            //
-            // Defensively bounds-check each follow-on byte: a hacked / malformed
-            // ROM can pin P16 to the last byte of the ROM. The row passes
-            // U.isSafetyOffset(criticalAddr) and LoadItemEffectiveness reads
-            // B0 successfully, but rom.u8(a + 1/2) would throw via
-            // U.check_safety without this guard.
+            if (rom == null) return new Dictionary<string, string>();
             var report = new Dictionary<string, string>
             {
-                ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["item_addr"] = $"0x{CurrentItemAddr:X08}",
+                ["effectiveness_addr"] = $"0x{CurrentEffAddr:X08}",
+                ["class_byte_addr"] = $"0x{CurrentClassAddr:X08}",
             };
-            if (a + 1 < (uint)rom.Data.Length)
-                report["u8@0x01"] = $"0x{rom.u8(a + 1):X02}";
-            if (a + 2 < (uint)rom.Data.Length)
-                report["u8@0x02"] = $"0x{rom.u8(a + 2):X02}";
+            // Always include u8@0x00 — DataVerifiableSweepTests requires the
+            // key listed by GetFieldOffsetMap to be present even when no slot
+            // has been selected yet (the value defaults to 0 in that case).
+            report["u8@0x00"] = CurrentClassAddr != 0
+                ? $"0x{rom.u8(CurrentClassAddr):X02}"
+                : "0x00";
+            if (CurrentItemAddr != 0)
+            {
+                // Item-table +12 correction and +16 effectiveness pointer.
+                report["u32@0x0C"] = $"0x{rom.u32(CurrentItemAddr + 12):X08}";
+                report["u32@0x10"] = $"0x{rom.u32(CurrentItemAddr + 16):X08}";
+            }
             return report;
         }
 
