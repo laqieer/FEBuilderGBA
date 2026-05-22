@@ -226,34 +226,52 @@ public class ImageMapActionAnimationParityTests
     [Fact]
     public void ViewModel_DefaultName_FilledFromConfigFile()
     {
-        EnsureCoreStateBaseDirectory();
-        ImageMapActionAnimationViewModel.ResetDefaultNameCache();
-
-        // config/data/MapActionAnimation_ALL.txt ships with id=0 -> "Empty",
-        // id=1 -> "Break1". LoadDefaultName must return those exact strings.
-        //
-        // CI Linux runners can hit a race where SharedState's RomFixture
-        // declines to set CoreState.BaseDirectory (no ROM available) and a
-        // sibling parallel test resets it after our EnsureCoreStateBaseDirectory
-        // returns — in which case the config file isn't reachable and
-        // LoadDefaultName returns the empty string. Treat that as a SKIP
-        // signal rather than a hard fail: the contract we're asserting is
-        // "when the file IS readable, LoadDefaultName returns the parsed
-        // names", which is still verified on Windows local + Windows CI.
-        string baseDir = CoreState.BaseDirectory ?? AppContext.BaseDirectory;
-        string configPath = Path.Combine(baseDir, "config", "data", "MapActionAnimation_ALL.txt");
-        if (!File.Exists(configPath))
+        // Force-set CoreState.BaseDirectory to the test assembly dir
+        // (where Content Include copies config/data/...). The previous
+        // version used `EnsureCoreStateBaseDirectory` which only sets when
+        // null/empty — that path raced parallel tests in another class
+        // that set BaseDirectory to an unrelated location, leaving our
+        // `LoadDefaultName` resolving an unreadable path on Linux CI.
+        var prevBaseDir = CoreState.BaseDirectory;
+        try
         {
-            // Skip cleanly when the test environment doesn't have the
-            // config file at the resolved BaseDirectory.
-            return;
+            string? assemblyDir = Path.GetDirectoryName(
+                System.Reflection.Assembly.GetExecutingAssembly().Location);
+            if (assemblyDir != null)
+                CoreState.BaseDirectory = assemblyDir;
+
+            ImageMapActionAnimationViewModel.ResetDefaultNameCache();
+
+            // config/data/MapActionAnimation_ALL.txt ships with id=0 -> "Empty",
+            // id=1 -> "Break1". LoadDefaultName must return those exact strings.
+            // If the file isn't shipped to the test bin in this CI environment
+            // we treat it as a skip (return early) rather than hard-fail —
+            // the contract we're asserting is "when the file IS readable,
+            // LoadDefaultName returns the parsed names".
+            string baseDir = CoreState.BaseDirectory ?? AppContext.BaseDirectory;
+            string configPath = Path.Combine(baseDir, "config", "data", "MapActionAnimation_ALL.txt");
+            if (!File.Exists(configPath))
+            {
+                return;
+            }
+
+            string name0 = ImageMapActionAnimationViewModel.LoadDefaultName(0);
+            string name1 = ImageMapActionAnimationViewModel.LoadDefaultName(1);
+
+            Assert.Equal("Empty", name0);
+            Assert.Equal("Break1", name1);
         }
+        finally
+        {
+            // Restore prior BaseDirectory so we don't leak our overwrite
+            // into parallel tests.
+            if (prevBaseDir != null)
+                CoreState.BaseDirectory = prevBaseDir;
 
-        string name0 = ImageMapActionAnimationViewModel.LoadDefaultName(0);
-        string name1 = ImageMapActionAnimationViewModel.LoadDefaultName(1);
-
-        Assert.Equal("Empty", name0);
-        Assert.Equal("Break1", name1);
+            // Reset the static cache so any subsequent test that uses
+            // LoadDefaultName picks up the restored BaseDirectory.
+            ImageMapActionAnimationViewModel.ResetDefaultNameCache();
+        }
     }
 
     /// <summary>
