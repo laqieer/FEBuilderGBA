@@ -293,22 +293,15 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
-            // Single source of truth for undo tracking: use the
-            // UndoService's active scope rather than creating a parallel
-            // UndoData (Copilot bot review on PR #513 — the previous code
-            // double-snapshotted into both the ambient scope and a
-            // free-standing UndoData that was never pushed/committed).
+            // Single source of truth for undo tracking: open the ambient
+            // ROM undo scope and call the parameterless VM/Core overload.
+            // Every ROM write inside the scope appends to exactly one
+            // UndoData list — no double-snapshot (Copilot CLI re-review
+            // on PR #513).
             _undoService.Begin("Expand Battle BG List");
             try
             {
-                var ud = _undoService.GetActiveUndoData();
-                if (ud == null)
-                {
-                    _undoService.Rollback();
-                    CoreState.Services?.ShowError("Internal error: undo scope not active.");
-                    return;
-                }
-                uint result = _vm.ExpandList(newCount, ud);
+                uint result = _vm.ExpandList(newCount);
                 if (result == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
@@ -332,8 +325,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Mirror WinForms `GraphicsToolButton_Click`:
             //   f.Jump(30*8, 20*8, image, 0, tsa, 1, palette, 1, 8, 0)
-            // (battle BG is 30x20 tiles = 240x160 px, image raw, tsa+palette
-            // LZ77-compressed.)
+            // Battle BG is 30x20 tiles = 240x160 px. All three streams
+            // (image, tsa, palette) are LZ77-compressed in the ROM —
+            // imageType=0 in WF maps to "LZ77 compressed" (see
+            // GraphicsToolForm.Draw line 309); the tsaType/paletteType=1
+            // is the WF compressed-combo index for those streams.
             var view = WindowManager.Instance.Open<GraphicsToolView>();
             view.Jump(
                 width: 30 * 8,

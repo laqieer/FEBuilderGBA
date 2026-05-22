@@ -300,6 +300,84 @@ public class ImageBattleBGCoreTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// Regression test for Copilot CLI re-review on PR #513: the
+    /// ambient-scope variant must NOT double-snapshot writes when the
+    /// caller has already opened a `ROM.BeginUndoScope`. Each ROM write
+    /// inside the helper should produce exactly one `UndoPostion` entry
+    /// in the active ambient UndoData, not two.
+    /// </summary>
+    [Fact]
+    public void ExpandList_AmbientScope_DoesNotDoubleSnapshotWrites()
+    {
+        ROM rom = MakeFe8uWithBgTable(rowCount: 4);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var undo = NewUndo();
+            // Open the ambient scope, then invoke the parameterless
+            // overload — what the View handler does after
+            // `_undoService.Begin(...)`.
+            using (ROM.BeginUndoScope(undo))
+            {
+                uint result = ImageBattleBGCore.ExpandList(rom, oldCount: 4, newCount: 10);
+                Assert.NotEqual(U.NOT_FOUND, result);
+            }
+
+            // Count how many undo entries cover the new pointer slot —
+            // there must be EXACTLY one for the pointer write. (The
+            // previous explicit-overload chain produced 2 because both
+            // the explicit and ambient layers appended.)
+            uint pointerSlot = rom.RomInfo.battle_bg_pointer;
+            int pointerEntries = 0;
+            foreach (var pos in undo.list)
+            {
+                if (pos.addr == pointerSlot)
+                    pointerEntries++;
+            }
+            Assert.Equal(1, pointerEntries);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Regression mirror of the above for the explicit-undo
+    /// compatibility overload: when the supplied UndoData IS the
+    /// active ambient one, the helper must NOT double-snapshot
+    /// (the explicit overload now detects the alias and dispatches
+    /// to the parameterless variant — Copilot CLI re-review on PR #513).
+    /// </summary>
+    [Fact]
+    public void ExpandList_ExplicitUndoAliasingAmbient_DoesNotDoubleSnapshot()
+    {
+        ROM rom = MakeFe8uWithBgTable(rowCount: 4);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var undo = NewUndo();
+            using (ROM.BeginUndoScope(undo))
+            {
+                // Caller passes the SAME UndoData via the explicit
+                // overload AND opened an ambient scope around it — the
+                // helper should not double-append.
+                uint result = ImageBattleBGCore.ExpandList(rom, oldCount: 4, newCount: 10, undo);
+                Assert.NotEqual(U.NOT_FOUND, result);
+            }
+
+            uint pointerSlot = rom.RomInfo.battle_bg_pointer;
+            int pointerEntries = 0;
+            foreach (var pos in undo.list)
+            {
+                if (pos.addr == pointerSlot)
+                    pointerEntries++;
+            }
+            Assert.Equal(1, pointerEntries);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // -----------------------------------------------------------------
     // MakeListByUseTerrain — cross-reference build
     // -----------------------------------------------------------------

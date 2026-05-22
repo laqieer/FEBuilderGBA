@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         /// <returns>New base ROM offset on success, or <see cref="U.NOT_FOUND"/>
         /// on failure.</returns>
-        public uint ExpandList(uint newCount, Undo.UndoData undo)
+        public uint ExpandList(uint newCount)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return U.NOT_FOUND;
@@ -232,6 +232,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // is populated. Treating 0 as 1 would copy/clone uninitialised
             // bytes — return NOT_FOUND instead (Copilot bot review on
             // PR #513).
+            if (ReadCount <= 0)
+                return U.NOT_FOUND;
+            uint oldCount = (uint)ReadCount;
+            // Caller (View) MUST have opened a ROM ambient undo scope
+            // before calling this. The parameterless Core overload uses
+            // the ambient scope so every ROM write records into exactly
+            // one undo list (Copilot CLI re-review on PR #513).
+            return FEBuilderGBA.ImageBattleBGCore.ExpandList(rom, oldCount, newCount);
+        }
+
+        /// <summary>
+        /// Compatibility overload — accepts an explicit
+        /// <see cref="Undo.UndoData"/> and routes through the Core
+        /// helper's overload (which opens an ambient scope around it
+        /// or reuses an active one). Kept for tests that drive the
+        /// helper directly without opening a scope themselves.
+        /// </summary>
+        public uint ExpandList(uint newCount, Undo.UndoData undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
             if (ReadCount <= 0)
                 return U.NOT_FOUND;
             uint oldCount = (uint)ReadCount;

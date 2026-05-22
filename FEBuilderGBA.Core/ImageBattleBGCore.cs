@@ -43,7 +43,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Expand the battle-BG pointer table to <paramref name="newCount"/>
-        /// entries.
+        /// entries — ambient-scope flavour.
         ///
         /// Mirrors the WinForms `AddressListExpandsButton_255` flow
         /// without the interactive `MoveToFreeSpaceForm` dialog:
@@ -54,12 +54,20 @@ namespace FEBuilderGBA
         ///     <c>newCount * EntrySize</c> bytes via
         ///     <see cref="ROM.FindFreeSpace"/>.</item>
         ///   <item>Copy the <paramref name="oldCount"/> existing rows to
-        ///     the new region byte-for-byte (under undo).</item>
+        ///     the new region byte-for-byte.</item>
         ///   <item>Fill the new rows by duplicating row[0] (matches WF's
-        ///     "fill from first record" behavior under undo).</item>
+        ///     "fill from first record" behavior).</item>
         ///   <item>Repoint <c>rom.RomInfo.battle_bg_pointer</c> to the
-        ///     new region (under undo).</item>
+        ///     new region.</item>
         /// </list>
+        ///
+        /// Undo tracking is recorded through the ROM's ambient undo
+        /// scope (<see cref="ROM.BeginUndoScope"/>). The caller MUST
+        /// open the scope before calling this overload — the non-explicit
+        /// ROM write overloads append each write to the active scope's
+        /// UndoData automatically. This avoids the double-snapshot
+        /// pitfall where explicit-overload writes also re-append to the
+        /// ambient list (Copilot CLI review on PR #513).
         ///
         /// Returns the new base ROM offset (not a GBA pointer), or
         /// <see cref="U.NOT_FOUND"/> on failure.
@@ -72,16 +80,11 @@ namespace FEBuilderGBA
         /// <param name="newCount">The desired number of rows after
         ///   expansion. Must be > <paramref name="oldCount"/> and
         ///   &lt;= <see cref="MaxListCount"/>.</param>
-        /// <param name="undo">Undo data the caller has staged for this
-        ///   operation. The helper appends every byte it writes so a
-        ///   rollback restores the original ROM state.</param>
         /// <returns>New base ROM offset, or <see cref="U.NOT_FOUND"/>
         ///   on failure.</returns>
-        public static uint ExpandList(ROM rom, uint oldCount, uint newCount, Undo.UndoData undo)
+        public static uint ExpandList(ROM rom, uint oldCount, uint newCount)
         {
             if (rom == null || rom.RomInfo == null)
-                return U.NOT_FOUND;
-            if (undo == null)
                 return U.NOT_FOUND;
             if (oldCount == 0)
                 return U.NOT_FOUND;
@@ -120,24 +123,50 @@ namespace FEBuilderGBA
             if (newBase == U.NOT_FOUND)
                 return U.NOT_FOUND;
 
-            // 1. Copy old rows under undo.
+            // 1. Copy old rows. Undo is captured by the ambient scope.
             byte[] oldRows = rom.getBinaryData(origBase, oldCount * EntrySize);
-            rom.write_range(newBase, oldRows, undo);
+            rom.write_range(newBase, oldRows);
 
-            // 2. Fill the new rows by cloning row[0] under undo.
+            // 2. Fill the new rows by cloning row[0].
             for (uint i = oldCount; i < newCount; i++)
             {
                 uint rowAddr = newBase + i * EntrySize;
-                rom.write_range(rowAddr, row0, undo);
+                rom.write_range(rowAddr, row0);
             }
 
             // 3. Repoint battle_bg_pointer to the new base. write_p32
             // centralises the offset→GBA pointer conversion and matches
-            // existing Core patterns (e.g. ItemShopCore — Copilot bot
-            // review on PR #513).
-            rom.write_p32(pointerSlot, newBase, undo);
+            // existing Core patterns (e.g. ItemShopCore).
+            rom.write_p32(pointerSlot, newBase);
 
             return newBase;
+        }
+
+        /// <summary>
+        /// Compatibility overload — opens an ambient undo scope around
+        /// the supplied <paramref name="undo"/> (or reuses the one
+        /// already active for the same UndoData) and dispatches to the
+        /// parameterless variant. Single source of truth: every write
+        /// records into exactly one undo list, avoiding the
+        /// double-snapshot pitfall the explicit-overload chain produced
+        /// (Copilot CLI review on PR #513).
+        /// </summary>
+        public static uint ExpandList(ROM rom, uint oldCount, uint newCount, Undo.UndoData undo)
+        {
+            if (undo == null)
+                return U.NOT_FOUND;
+            // If the supplied UndoData IS the active ambient one (the
+            // recommended caller pattern — see the Avalonia View handler),
+            // reuse the scope as-is. Otherwise, open one around it so
+            // tests / batch callers without an outer scope still work.
+            if (ROM.GetAmbientUndoData() == undo)
+            {
+                return ExpandList(rom, oldCount, newCount);
+            }
+            using (ROM.BeginUndoScope(undo))
+            {
+                return ExpandList(rom, oldCount, newCount);
+            }
         }
 
         /// <summary>
