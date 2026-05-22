@@ -82,6 +82,87 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load two mini portraits (32x32 each) horizontally stitched into a
+        /// single 64x32 RGBA <see cref="IImage"/>. Used by the Support Talk
+        /// editor list to show both members of a support pair (issue #361).
+        ///
+        /// Why RGBA (not indexed): each portrait has its OWN 16-color palette,
+        /// so two portraits cannot share a single indexed image. The output is
+        /// composed by expanding each portrait's indexed pixels through its
+        /// palette into RGBA and blitting into a fresh RGBA canvas.
+        ///
+        /// Behavior:
+        ///   - If a portrait ID is 0, OR <see cref="LoadPortraitMini"/> fails
+        ///     for that ID, the corresponding 32x32 half stays fully
+        ///     transparent (RGBA 0,0,0,0).
+        ///   - Returns null if both portrait IDs are 0 (nothing to render),
+        ///     or if <see cref="CoreState.ImageService"/> is unavailable.
+        /// </summary>
+        public static IImage LoadPortraitMiniPair(uint portraitId1, uint portraitId2)
+        {
+            if (portraitId1 == 0 && portraitId2 == 0) return null;
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            const int HALF_W = 32;
+            const int HALF_H = 32;
+            const int OUT_W = 64;
+            const int OUT_H = 32;
+            const int OUT_BYTES = OUT_W * OUT_H * 4;
+
+            byte[] outRgba = new byte[OUT_BYTES];  // zero-initialized => transparent
+
+            try
+            {
+                BlitPortraitHalfRgba(portraitId1, outRgba, dstX: 0, OUT_W);
+                BlitPortraitHalfRgba(portraitId2, outRgba, dstX: HALF_W, OUT_W);
+
+                IImage canvas = svc.CreateImage(OUT_W, OUT_H);
+                canvas.SetPixelData(outRgba);
+                return canvas;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Render one portrait (by ID) into the given 32x32 sub-region of an
+        /// RGBA pair-canvas, starting at <paramref name="dstX"/> in the
+        /// <paramref name="canvasW"/>-wide canvas. Leaves the region
+        /// transparent if the portrait is missing or fails to load.
+        /// </summary>
+        static void BlitPortraitHalfRgba(uint portraitId, byte[] dstRgba, int dstX, int canvasW)
+        {
+            if (portraitId == 0) return;
+            using IImage solo = LoadPortraitMini(portraitId);
+            if (solo == null) return;
+            if (solo.Width != 32 || solo.Height != 32) return;
+            if (!solo.IsIndexed) return;
+
+            byte[] indices = solo.GetPixelData();
+            byte[] paletteRgba = solo.GetPaletteRGBA();
+            if (paletteRgba == null || paletteRgba.Length == 0) return;
+            int paletteColors = paletteRgba.Length / 4;
+
+            for (int y = 0; y < 32; y++)
+            {
+                for (int x = 0; x < 32; x++)
+                {
+                    int idx = indices[y * 32 + x];
+                    if (idx < 0 || idx >= paletteColors) continue;
+                    int palOff = idx * 4;
+                    int dstOff = (y * canvasW + dstX + x) * 4;
+                    dstRgba[dstOff]     = paletteRgba[palOff];
+                    dstRgba[dstOff + 1] = paletteRgba[palOff + 1];
+                    dstRgba[dstOff + 2] = paletteRgba[palOff + 2];
+                    dstRgba[dstOff + 3] = paletteRgba[palOff + 3];
+                }
+            }
+        }
+
+        /// <summary>
         /// Resolve the portrait ID for a unit: returns the unit's own portrait ID,
         /// or falls back to the class portrait if the unit has none (portrait ID 0).
         /// </summary>

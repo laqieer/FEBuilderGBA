@@ -28,7 +28,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadSupportTalkList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
+                // Issue #361: show BOTH unit portraits per row. FE7 stores
+                // partner 2 at addr+1 (partner 1 at addr+0).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitPairFromAddrU8Loader(items, i, unit2Offset: 1));
             }
             catch (Exception ex)
             {
