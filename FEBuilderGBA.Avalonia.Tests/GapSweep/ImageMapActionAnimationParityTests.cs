@@ -154,16 +154,18 @@ public class ImageMapActionAnimationParityTests
         // signature + a pointer + a small table so LoadList finds rows.
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
         try
         {
             CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
             var vm = new ImageMapActionAnimationViewModel();
             var items = vm.LoadList();
             Assert.NotEmpty(items);
             Assert.True(vm.ReadCount > 0, "LoadList must populate ReadCount");
             Assert.True(vm.ReadStartAddress > 0, "LoadList must populate ReadStartAddress");
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
     }
 
     [Fact]
@@ -171,9 +173,11 @@ public class ImageMapActionAnimationParityTests
     {
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
         try
         {
             CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
             var vm = new ImageMapActionAnimationViewModel();
             var items = vm.LoadList();
             Assert.NotEmpty(items);
@@ -189,7 +193,7 @@ public class ImageMapActionAnimationParityTests
             Assert.Equal(0u, vm.Padding1);
             Assert.Equal(0u, vm.Padding2);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
     }
 
     /// <summary>
@@ -201,9 +205,11 @@ public class ImageMapActionAnimationParityTests
     {
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
         try
         {
             CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
             var vm = new ImageMapActionAnimationViewModel();
             var items = vm.LoadList();
             Assert.NotEmpty(items);
@@ -216,7 +222,7 @@ public class ImageMapActionAnimationParityTests
                 Assert.False(vm.IsEmptyEntry);
             }
         }
-        finally { CoreState.ROM = prevRom; }
+        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
     }
 
     [Fact]
@@ -338,6 +344,24 @@ public class ImageMapActionAnimationParityTests
             System.Reflection.Assembly.GetExecutingAssembly().Location);
         if (assemblyDir != null)
             CoreState.BaseDirectory = assemblyDir;
+    }
+
+    /// <summary>
+    /// Ensure CoreState.SystemTextEncoder is non-null so concurrent tests
+    /// (e.g. ControlPropertyTests, ViewInstantiationSweepTests — NOT in the
+    /// `SharedState` collection) that instantiate views and call
+    /// `rom.getString` don't NRE on `CoreState.SystemTextEncoder.Decode`
+    /// when our synthetic ROM is briefly the CoreState.ROM. The CI Windows
+    /// runner doesn't ship a real ROM so `RomFixture` never sets the
+    /// encoder; without this guard the parallel runner can race
+    /// non-collection tests against ours.
+    /// </summary>
+    static void EnsureSystemTextEncoder(ROM rom)
+    {
+        if (CoreState.SystemTextEncoder == null)
+        {
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+        }
     }
 
     /// <summary>
