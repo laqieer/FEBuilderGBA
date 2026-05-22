@@ -22,6 +22,12 @@ via the `--data-verify` mode. This goes beyond smoke testing (which only checks
 that editors open without crashing) by verifying that field values match the
 actual ROM data at the correct addresses and offsets.
 
+### Per-editor user guides
+
+Standalone usage docs for specific editors that need extra explanation:
+
+- `VennouWeaponLockView` (#28 in *Data Editors*) — [weapon-lock-vennou-editor.md](weapon-lock-vennou-editor.md)
+
 ---
 
 ## Data Editors
