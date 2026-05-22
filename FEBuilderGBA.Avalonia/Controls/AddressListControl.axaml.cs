@@ -81,6 +81,9 @@ namespace FEBuilderGBA.Avalonia.Controls
             SelectFirst();
         }
 
+        /// <summary>Total number of items loaded into the list (regardless of filter state).</summary>
+        public int ItemCount => _items.Count;
+
         /// <summary>Get the currently selected AddrResult.</summary>
         public AddrResult? SelectedItem
         {
