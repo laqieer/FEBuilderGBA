@@ -83,5 +83,25 @@ namespace FEBuilderGBA.Avalonia.Services
             if (rom?.RomInfo == null) return false;
             return rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte == false;
         }
+
+        /// <summary>
+        /// Mirror of WinForms <c>ItemForm.DataCount()</c>. Returns the number
+        /// of valid item entries in the ROM by walking the item table from
+        /// <c>RomInfo.item_pointer</c> using <see cref="IsValidEntry"/>.
+        /// Returns 0 when the ROM is null, the pointer is unsafe, or the
+        /// table is empty.
+        /// </summary>
+        public static uint GetItemDataCount(ROM rom)
+        {
+            if (rom?.RomInfo == null) return 0;
+            uint ptr = rom.RomInfo.item_pointer;
+            if (ptr == 0) return 0;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.item_datasize;
+            bool fe8 = IsFE8SingleByte(rom);
+            int count = CountValidEntries(rom, baseAddr, dataSize, fe8);
+            return (uint)count;
+        }
     }
 }

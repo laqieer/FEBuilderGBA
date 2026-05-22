@@ -59,6 +59,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Whether there's an active undo group.</summary>
         public bool HasPendingUndo => _currentUndoData != null;
 
+        /// <summary>
+        /// Access the current undo data so callers that talk directly to Core
+        /// (e.g. ItemUsagePointerCore.Switch2Expands which signs `Undo.UndoData`
+        /// for #440) can pass the active scope through. Returns null when no
+        /// scope is open.
+        /// </summary>
+        public Undo.UndoData? GetActiveUndoData() => _currentUndoData;
+
         /// <summary>Notify the main window of the current unsaved-changes state.</summary>
         static void NotifyUnsavedChanges()
         {

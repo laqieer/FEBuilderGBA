@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T19:52:46Z"
-git-sha: 4f7a9cf82
+generated: "2026-05-22T20:56:55Z"
+git-sha: 4418ced46
 sweep-type: jumps
 ---
 
@@ -37,10 +37,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 423 |
-| Match | 12 |
-| MissingAvManifest (backlog) | 372 |
-| NoWfCallsite | 29 |
-| KnownGap (issue-tagged) | 10 |
+| Match | 18 |
+| MissingAvManifest (backlog) | 366 |
+| NoWfCallsite | 35 |
+| KnownGap (issue-tagged) | 4 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -48,12 +48,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|---|
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
-| `ClassForm` | `ClassEditorView` | `JumpToBattleAnime` | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ClassForm` | `ClassEditorView` | `JumpToTerrainAvoid` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ClassForm` | `ClassEditorView` | `JumpToTerrainDef` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ClassForm` | `ClassEditorView` | `JumpToTerrainRes` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ClassForm` | `ClassEditorView` | `JumpToMoveCostRain` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
-| `ClassForm` | `ClassEditorView` | `JumpToMoveCostSnow` | `MoveCostForm` | `MoveCostEditorView` | [#359](https://github.com/laqieer/FEBuilderGBA/issues/359) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -294,9 +288,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | `—` | `ItemFE6Form` | `ItemFE6View` |
 | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` | `—` | `ItemForm` | `ItemEditorView` |
 | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` | `—` | `ItemFE6Form` | `ItemFE6View` |
-| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `—` | `ItemPromotionForm` | `ItemPromotionViewerView` |
-| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `—` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
-| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `—` | `PatchForm` | `PatchManagerView` |
 | `MapChangeForm` | `MapChangeView` | `—` | `MapEditorForm` | `MapEditorView` |
 | `MapChangeForm` | `MapChangeView` | `—` | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` |
 | `MapEditorForm` | `MapEditorView` | `—` | `MapChangeForm` | `MapChangeView` |
@@ -312,9 +303,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `MapSettingForm` | `MapSettingView` | `—` | `MapStyleEditorAppendPopupForm` | `MapStyleEditorAppendPopupView` |
 | `MapStyleEditorAppendPopupForm` | `MapStyleEditorAppendPopupView` | `—` | `MapPointerForm` | `MapPointerView` |
 | `MapStyleEditorForm` | `MapStyleEditorView` | `—` | `MapStyleEditorImportImageOptionForm` | `MapStyleEditorImportImageOptionView` |
-| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `—` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
-| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `—` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
-| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `—` | `PatchForm` | `PatchManagerView` |
 | `MapTileAnimation1Form` | `MapTileAnimation1View` | `—` | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` |
 | `MapTileAnimation2Form` | `MapTileAnimation2View` | `—` | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` |
 | `MonsterWMapProbabilityForm` | `MonsterWMapProbabilityViewerView` | `—` | `EventScriptForm` | `EventScriptView` |
@@ -440,7 +428,13 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|
 | `ArenaClassForm` | `ArenaClassViewerView` | `JumpToClass` | `ClassForm` | `ClassEditorView` |
 | `ArenaClassForm` | `ArenaClassViewerView` | `JumpToClassFE6` | `ClassForm` | `ClassFE6View` |
+| `ClassForm` | `ClassEditorView` | `JumpToBattleAnime` | `ImageBattleAnimeForm` | `ImageBattleAnimeView` |
 | `ClassForm` | `ClassEditorView` | `JumpToMoveCost` | `MoveCostForm` | `MoveCostEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToMoveCostRain` | `MoveCostForm` | `MoveCostEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToMoveCostSnow` | `MoveCostForm` | `MoveCostEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToTerrainAvoid` | `MoveCostForm` | `MoveCostEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToTerrainDef` | `MoveCostForm` | `MoveCostEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToTerrainRes` | `MoveCostForm` | `MoveCostEditorView` |
 | `ClassForm` | `ClassEditorView` | `JumpToPortrait` | `ImagePortraitForm` | `PortraitViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToDescText` | `TextForm` | `TextViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToNameText` | `TextForm` | `TextViewerView` |
@@ -477,6 +471,12 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToHexEditor` | `HexEditorForm` | `HexEditorView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToPointerTool` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
+| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
+| `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |
+| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `JumpToSelfFromRef` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
+| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `JumpToFloorLookup` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
+| `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | `JumpToPatchExtendsBattleBG` | `PatchForm` | `PatchManagerView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToBGLookup` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToSelfFromRef` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToPatchExtendsBattleBG` | `PatchForm` | `PatchManagerView` |

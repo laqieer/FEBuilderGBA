@@ -651,8 +651,16 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void ItemUsagePointerViewModel_UsesUsabilityPointer()
         {
+            // #440 — VM now delegates list construction to
+            // FEBuilderGBA.Core.ItemUsagePointerCore which holds the
+            // RomInfo.item_usability_array_pointer reference. Assert the
+            // Core type is consumed by the VM (Promotion/StatBooster/IER
+            // editor calls share the same dispatch table).
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "ItemUsagePointerViewerViewModel.cs"));
-            Assert.Contains("item_usability_array_pointer", src);
+            Assert.Contains("ItemUsagePointerCore", src);
+            // FilterKind.Usability is the canonical "item_usability_array_pointer"
+            // slot in the new dispatch — the VM must reference it (or the enum).
+            Assert.Contains("FilterKind", src);
         }
 
         // ------------------------------------------------------------------ Item Effect Pointer Viewer

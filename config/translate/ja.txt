@@ -2102,6 +2102,9 @@ Free Space アドレス:
 :From Unit:
 From ユニット:
 
+:Function
+機能
+
 :Function Pointer:
 関数ポインタ
 
@@ -6434,3 +6437,75 @@ NightmareModule nmmファイルの作成
 
 :Import Dumped Data
 ダンプしていたデータのインポート
+
+:Block Size
+ブロックサイズ
+
+:List Expansion
+リスト拡張
+
+:Name
+名前
+
+:ASM Pointer Address
+ASMポインタアドレス
+
+:Item ID Switch
+アイテムID Switch
+
+:Related: Promotion
+関連項目: クラスチェンジ
+
+:Related: Stat Booster
+関連項目: ステ補正
+
+:CC Item Editor
+CCアイテムエディタ
+
+:Stat Bonuses Editor
+能力補正エディタ
+
+:Not used in this version of FE.
+このバージョンのFEでは利用しません。
+
+:IER patch detected — configure from Patch Manager.
+IERパッチが検出されました — パッチマネージャから設定してください。
+
+:Block Size:
+ブロックサイズ:
+
+:ASM Pointer Address:
+ASMポインタアドレス:
+
+:Item ID Switch:
+アイテムID Switch:
+
+:0=Usability check
+0=利用可否チェック
+
+:1=Effect-on-use
+1=利用効果
+
+:2=Promotion (use)
+2=CCアイテム利用処理
+
+:3=Promotion (check, FE7)
+3=CCアイテム判定(FE7)
+
+:4=Target selection (staff)
+4=ターゲット選択(杖)
+
+:5=Staff effect
+5=杖効果
+
+:6=Stat Booster message
+6=ドーピングメッセージ
+
+:7=Stat Booster + CC check
+7=ドーピング/CCアイテム判定
+
+:8=Use error message
+8=利用時エラーメッセージ
+
+:9=Item name article (A/An/The)
+9=アイテム名前置詞 (A/An/The)
