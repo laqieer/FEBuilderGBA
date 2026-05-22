@@ -6338,3 +6338,42 @@ CC先（クラス）
 
 :Open Support
 支援を開く
+
+:LENGTH:
+LENGTH:
+
+:0x0 (source offset)
+0x0 (移動元オフセット)
+
+:0x0 (destination, 0 = auto-allocate)
+0x0 (移動先、0=自動割り当て)
+
+:length in bytes (hex)
+長さ (バイト数、16進)
+
+:Move This Region
+この領域を移動する
+
+:Run LZ77 Recompress
+LZ77再圧縮を実行する
+
+:Move arbitrary binary data (LZ77 or otherwise) to a new address. TO = 0 auto-allocates from free space (or appends to end). Pointer references are rewritten.
+任意のバイナリデータ (LZ77など) を新しいアドレスに移動します。TO=0で空き領域から自動割り当て (または末尾追記)。ポインタ参照は書き換えられます。
+
+:Limitation: event-script-aware pointer search is not included (WinForms-only). If your data is referenced from event scripts or struct pointer tables, perform Move in WinForms.
+制限: イベントスクリプト対応のポインタ検索は含まれません (WinFormsのみ)。データがイベントスクリプトや構造体ポインタテーブルから参照されている場合は、WinForms側で移動を実行してください。
+
+:LZ77 Recompress (since 2026)
+LZ77再圧縮 (2026以降)
+
+:Walks ROM for LZ77-compressed entries and re-compresses each with the current encoder. Any savings can be reclaimed via Rebuild later. Process takes several minutes for a full ROM scan.
+ROM内のLZ77圧縮エントリを走査し、現在のエンコーダで再圧縮します。生じた余白は後でRebuildにより回収できます。フルROMスキャンには数分かかります。
+
+:Heuristic scan: this tool does NOT use WinForms MakeAllStructPointersList — it may miss entries referenced only from event scripts or struct pointer tables. For best coverage, run Recompress in WinForms.
+ヒューリスティックスキャン: このツールはWinFormsのMakeAllStructPointersListを使わないため、イベントスクリプトや構造体ポインタテーブルからのみ参照されるエントリを取りこぼす可能性があります。最大限の網羅性が必要な場合はWinForms側で再圧縮を実行してください。
+
+:Move
+移動
+
+:Recompress
+再圧縮
