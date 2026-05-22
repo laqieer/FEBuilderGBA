@@ -1,0 +1,13 @@
+[xUnit.net 00:00:01.78]   Starting:    FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:02.93]   Finished:    FEBuilderGBA.Avalonia.Tests
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.NavigateToValidItemAddress_VmCurrentAddrMatchesTarget [609 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.NavigateToValidItemAddress_SelectsThatItem_NotEntryZero [14 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.LoadList_OnAnyRom_DoesNotCrash [< 1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.LoadList_PopulatesMoreThanOneItem [< 1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.LoadList_EveryEntry_HasValidEffectivenessPointer [< 1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.ItemEffectivenessSkillSystemsReworkJumpTests.JumpAddress_MatchesAnEntryInList_ForItemsWithEffectiveness [44 ms]
+
+Test Run Successful.
+Total tests: 6
+     Passed: 6
+ Total time: 3.9142 Seconds
