@@ -11,5 +11,3 @@ Test Run Successful.
 Total tests: 6
      Passed: 6
  Total time: 3.9142 Seconds
-
-Workload updates are available. Run `dotnet workload list` for more information.
