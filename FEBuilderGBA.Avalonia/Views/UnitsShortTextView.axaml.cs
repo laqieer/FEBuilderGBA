@@ -19,29 +19,22 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => AutoInitIfNeeded();
+            // Issue #372: no auto-init from any ROM pointer. This editor is pointer-driven —
+            // a vanilla ROM has no unit-short-text table, so opening standalone shows an
+            // empty-state explanation until a caller supplies an address via NavigateTo().
+            Opened += (_, _) => UpdateEmptyState();
         }
 
         /// <summary>
-        /// If no external NavigateTo call provided a base address, try to find
-        /// a default unit short text table from ROM for standalone operation.
-        /// Uses event_haiku_pointer (death quotes) which has the same format.
+        /// Show the empty-state label when no base address has been supplied; otherwise show
+        /// the editor grid and Write button. Called on window open and on NavigateTo().
         /// </summary>
-        void AutoInitIfNeeded()
+        void UpdateEmptyState()
         {
-            if (_baseAddr != 0) return; // Already initialized via NavigateTo
-
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return;
-
-            uint ptr = rom.RomInfo.event_haiku_pointer;
-            if (ptr == 0) return;
-
-            uint addr = rom.p32(ptr);
-            if (U.isSafetyOffset(addr, rom) && addr + 0x46 * 2 <= (uint)rom.Data.Length)
-            {
-                NavigateTo(addr);
-            }
+            bool hasData = _baseAddr != 0;
+            EmptyStateLabel.IsVisible = !hasData;
+            EditorGrid.IsVisible = hasData;
+            WriteButton.IsVisible = hasData;
         }
 
         public void NavigateTo(uint address)
@@ -49,6 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _baseAddr = address;
             var items = _vm.BuildList(address);
             EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
+            UpdateEmptyState();
         }
 
         public void SelectFirstItem() => EntryList.SelectFirst();

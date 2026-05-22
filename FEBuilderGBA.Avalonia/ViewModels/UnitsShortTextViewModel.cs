@@ -3,9 +3,22 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    /// <summary>Unit short text editor — maps each unit to a "description" text ID.
+    /// <summary>
+    /// Unit short text editor — maps each unit to a "description" text ID.
     /// WinForms: UnitsShortTextForm — DATAMAX = 0x46 entries, 2 bytes each (text ID u16).
-    /// Display: "0xNN UnitName" where NN is the unit index.</summary>
+    /// Display: "0xNN UnitName" where NN is the unit index.
+    ///
+    /// IMPORTANT (#372): this is a pointer-driven editor. There is no canonical
+    /// <c>RomInfo</c> field for the unit-short-text base address; a vanilla ROM does NOT
+    /// contain such a table. The data only exists when an event-script
+    /// <c>POINTER_UNITSSHORTTEXT</c> argument allocates one (e.g. the
+    /// <c>EVENTSCRIPT_SimpleEscape</c> patch). Callers must supply a base address via
+    /// <see cref="BuildList(uint)"/> / <see cref="LoadEntry(uint)"/>; opening this editor
+    /// standalone with no caller-supplied address yields an empty list. A previous version
+    /// of this view-model fell back to the death-quotes pointer when no address was
+    /// provided, but that pointer references a 12-byte struct array, not u16 text IDs —
+    /// reading it as text IDs displayed garbage data.
+    /// </summary>
     public class UnitsShortTextViewModel : ViewModelBase, IDataVerifiable
     {
         const int DATAMAX = 0x46;
@@ -23,6 +36,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string TextPreview { get => _textPreview; set => SetField(ref _textPreview, value); }
         public string UnitName { get => _unitName; set => SetField(ref _unitName, value); }
         public int EntryIndex { get => _entryIndex; set => SetField(ref _entryIndex, value); }
+
+        /// <summary>True iff a valid base address has been loaded via <see cref="BuildList(uint)"/>.</summary>
+        public bool HasData => _baseAddr != 0;
 
         /// <summary>Build the unit short text list from a base address.</summary>
         public List<AddrResult> BuildList(uint baseAddr)
@@ -76,36 +92,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public int GetListCount()
         {
-            if (_baseAddr == 0)
-            {
-                // Standalone init: find a default address from event_haiku_pointer
-                // (death quotes) which has the same format: 0x46 u16 text IDs per unit.
-                uint defaultAddr = FindDefaultBaseAddr();
-                if (defaultAddr != 0)
-                    return BuildList(defaultAddr).Count;
-                return 0;
-            }
+            // Pointer-driven editor: no auto-discovery. A standalone open with no caller-supplied
+            // base address returns 0 entries; the view shows an empty-state explanation.
+            if (_baseAddr == 0) return 0;
             return BuildList(_baseAddr).Count;
-        }
-
-        /// <summary>
-        /// Find a default base address for unit short text from ROM.
-        /// Uses event_haiku_pointer (death quotes), which has the same
-        /// format: array of u16 text IDs indexed by unit ID.
-        /// </summary>
-        static uint FindDefaultBaseAddr()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
-
-            uint ptr = rom.RomInfo.event_haiku_pointer;
-            if (ptr == 0) return 0;
-
-            uint addr = rom.p32(ptr);
-            if (U.isSafetyOffset(addr, rom) && addr + DATAMAX * 2 <= (uint)rom.Data.Length)
-                return addr;
-
-            return 0;
         }
 
         public Dictionary<string, string> GetDataReport()

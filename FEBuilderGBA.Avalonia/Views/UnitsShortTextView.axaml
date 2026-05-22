@@ -14,7 +14,20 @@
       <TextBlock Text="Units Short Text Editor" FontSize="18" FontWeight="Bold" />
       <TextBlock Text="Maps each unit index to a description text ID (2 bytes per entry)." Foreground="Gray" TextWrapping="Wrap" />
 
-      <Grid ColumnDefinitions="140,200,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+      <!-- Empty state (#372): shown when no base address has been supplied via NavigateTo().
+           A vanilla ROM has no unit-short-text table, so standalone open lands here. -->
+      <TextBlock AutomationProperties.AutomationId="UnitsShortText_EmptyState_Label"
+                 Name="EmptyStateLabel"
+                 IsVisible="False"
+                 TextWrapping="Wrap"
+                 Foreground="DarkSlateGray"
+                 Margin="0,8,0,0">
+        <Run Text="No data loaded." FontWeight="Bold" />
+        <LineBreak />
+        <Run Text="This editor edits a unit-short-text table referenced by a pointer; it must be opened from a POINTER_UNITSSHORTTEXT event-script argument or a FELint follow-up. A vanilla ROM has no such table — patches like EVENTSCRIPT_SimpleEscape add one." />
+      </TextBlock>
+
+      <Grid Name="EditorGrid" IsVisible="False" ColumnDefinitions="140,200,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
         <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
         <TextBlock AutomationProperties.AutomationId="UnitsShortText_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
@@ -24,7 +37,7 @@
         <TextBlock Grid.Row="3" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" Margin="0,4" />
         <TextBlock AutomationProperties.AutomationId="UnitsShortText_TextPreview_Label" Grid.Row="3" Grid.Column="1" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Grid.ColumnSpan="2" />
       </Grid>
-      <Button AutomationProperties.AutomationId="UnitsShortText_Write_Button" Content="Write" Click="Write_Click" Width="168" Height="30" />
+      <Button AutomationProperties.AutomationId="UnitsShortText_Write_Button" Name="WriteButton" IsVisible="False" Content="Write" Click="Write_Click" Width="168" Height="30" />
     </StackPanel>
   </Grid>
   </ScrollViewer>
