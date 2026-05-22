@@ -27,18 +27,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Classes that can promote INTO the currently selected class.</summary>
         public string UpstreamChain { get => _upstreamChain; set => SetField(ref _upstreamChain, value); }
 
-        public List<AddrResult> LoadCCBranchList()
+        /// <summary>
+        /// Compute the number of CC branch entries to iterate, matching the
+        /// WinForms <c>ClassForm.DataCount()</c> semantics: class index 0 is
+        /// always counted, scanning stops at the first <c>u8(class_addr+4) == 0</c>
+        /// sentinel for <c>i &gt; 0</c>, and we fall back to <c>0x80</c> when
+        /// detection yields zero.
+        /// </summary>
+        static int ComputeClassCount(ROM rom)
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            uint ptr = rom.RomInfo.ccbranch_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            // Get class count from class_pointer for iteration limit
+            if (rom?.RomInfo == null) return 0x80;
             uint classPtr = rom.RomInfo.class_pointer;
             uint classBase = (classPtr != 0) ? rom.p32(classPtr) : 0;
             uint classDataSize = rom.RomInfo.class_datasize;
@@ -54,6 +52,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
             }
             if (classCount == 0) classCount = 0x80;
+            return classCount;
+        }
+
+        public List<AddrResult> LoadCCBranchList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint ptr = rom.RomInfo.ccbranch_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint classBase = (classPtr != 0) ? rom.p32(classPtr) : 0;
+            uint classDataSize = rom.RomInfo.class_datasize;
+            int classCount = ComputeClassCount(rom);
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < (uint)classCount; i++)
@@ -108,22 +124,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             MarkClean();
         }
 
+        /// <summary>
+        /// Build the comma-separated list of classes that promote INTO the
+        /// class identified by <paramref name="currentAddr"/>. This mirrors the
+        /// WinForms <see cref="CCBranchForm.AddressList_SelectedIndexChanged"/>
+        /// logic exactly:
+        ///   - scan only the valid class count (NOT the hardcoded 0xFF used previously)
+        ///   - class 0 has no upstream (WinForms guards with <c>if (class_id &gt;= 1)</c>)
+        ///   - guard against out-of-range / misaligned addresses
+        /// Regression: issue #365.
+        /// </summary>
         string BuildUpstreamChain(uint currentAddr)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return "";
+            if (rom?.RomInfo == null) return "(none)";
 
             uint ptr = rom.RomInfo.ccbranch_pointer;
-            if (ptr == 0) return "";
+            if (ptr == 0) return "(none)";
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return "";
+            if (!U.isSafetyOffset(baseAddr, rom)) return "(none)";
 
-            // Determine current class index from address
-            uint classIndex = (currentAddr - baseAddr) / 2;
+            // Validate the input address before deriving classIndex:
+            //  - must be at or past baseAddr (otherwise the unsigned subtraction underflows)
+            //  - must be 2-byte aligned to the table
+            if (currentAddr < baseAddr) return "(none)";
+            uint delta = currentAddr - baseAddr;
+            if ((delta & 1) != 0) return "(none)";
+            uint classIndex = delta / 2;
 
-            // Scan all CC entries to find which classes promote into this one
+            // Class 0 has no upstream — match the WinForms `if (class_id >= 1)` guard.
+            if (classIndex == 0) return "(none)";
+
+            int classCount = ComputeClassCount(rom);
+            if (classIndex >= (uint)classCount) return "(none)";
+
+            // Scan only the valid class range (NOT 0..0xFE) — replicates WinForms
+            // iteration over `list.Count`.
             var sb = new StringBuilder();
-            for (uint i = 0; i < 0xFF; i++)
+            for (uint i = 0; i < (uint)classCount; i++)
             {
                 uint addr = baseAddr + i * 2;
                 if (addr + 2 > (uint)rom.Data.Length) break;
