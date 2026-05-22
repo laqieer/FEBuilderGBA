@@ -15,11 +15,18 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SummonUnitViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Summoner:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="SummonUnitViewer_SummonerId_Link"
-                     Classes="Hyperlink" Name="SummonerId_Link" PointerPressed="OnSummonerIdLinkClick"
-                     ToolTip.Tip="Click to open Unit Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <!-- #360: replaces "Hyperlink TextBlock + NumericUpDown" with a single
+               IdFieldControl. Host Name="UnitIdBox" preserved; original
+               "Summoner:" label preserved per plan v2.1 so the UX caption
+               does not regress. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="SummonUnitViewer_UnitId_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="UnitIdBox"
+                                   Label="Summoner:"
+                                   Maximum="255"
+                                   JumpRequested="UnitId_Jump"
+                                   PickRequested="UnitId_Pick"
+                                   ValueChanged="UnitId_ValueChanged" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Summoned Unit:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_SummonedUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="UnknownBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />

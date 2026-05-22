@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -73,6 +74,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { DescTextPreview.Text = ""; }
             DisplayWeaponBox.Value = _vm.DisplayWeapon;
             ClassIdBox.Value = _vm.ClassId;
+            try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
             AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             BattleAnimeBox.Value = _vm.BattleAnime;
             TerrainLeftBox.Value = _vm.TerrainLeft;
@@ -90,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.DescriptionTextId = (uint)(DescTextIdBox.Value ?? 0);
                 _vm.DisplayWeapon = (uint)(DisplayWeaponBox.Value ?? 0);
-                _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+                _vm.ClassId = ClassIdBox.Value;
                 _vm.AllyEnemyColor = (uint)(AllyEnemyColorBox.Value ?? 0);
                 _vm.BattleAnime = (uint)(BattleAnimeBox.Value ?? 0);
                 _vm.TerrainLeft = (uint)(TerrainLeftBox.Value ?? 0);
@@ -106,22 +109,57 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassDemoFE8UView.Write: {0}", ex.Message); }
         }
 
-        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- IdFieldControl handlers (#360) ----------------------------------
+
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void ClassId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint classId = (uint)(ClassIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
-                if (rom.RomInfo.version == 6)
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
                     WindowManager.Instance.Navigate<ClassFE6View>(addr);
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("OPClassDemoFE8UView.ClassId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ClassId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null) ClassIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("OPClassDemoFE8UView.ClassId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

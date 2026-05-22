@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -57,7 +58,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
+            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.UnitId); }
+            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
             ClassIdBox.Value = _vm.ClassId;
+            try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
             Unknown1Box.Value = _vm.Commander;
             B3Box.Value = _vm.LevelGrowth;
             W4Box.Value = _vm.Coordinates;
@@ -80,8 +85,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Demon King Summon");
             try
             {
-                _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
-                _vm.ClassId = (uint)(ClassIdBox.Value ?? 0);
+                _vm.UnitId = UnitIdBox.Value;
+                _vm.ClassId = ClassIdBox.Value;
                 _vm.Commander = (uint)(Unknown1Box.Value ?? 0);
                 _vm.LevelGrowth = (uint)(B3Box.Value ?? 0);
                 _vm.Coordinates = (uint)(W4Box.Value ?? 0);
@@ -104,39 +109,102 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonsDemonKingViewerView.Write: {0}", ex.Message); }
         }
 
-        void OnUnitIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- IdFieldControl handlers (#360) ----------------------------------
+
+        static uint UnitAddrFor(uint unitId)
         {
-            try
-            {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint unitId = (uint)(UnitIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint dataSize = rom.RomInfo.unit_datasize;
-                if (rom.RomInfo.version == 6) baseAddr += dataSize;
-                uint addr = baseAddr + unitId * dataSize;
-                WindowManager.Instance.Navigate<UnitEditorView>(addr);
-            }
-            catch (Exception ex) { Log.Error("OnUnitIdLinkClick failed: {0}", ex.Message); }
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint unitPtr = rom.RomInfo.unit_pointer;
+            if (unitPtr == 0) return 0;
+            uint baseAddr = rom.p32(unitPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.unit_datasize;
+            if (dataSize == 0) return 0;
+            if (rom.RomInfo.version == 6) baseAddr += dataSize;
+            uint entryAddr = baseAddr + unitId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
         }
 
-        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void UnitId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint classId = (uint)(ClassIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
-                if (rom.RomInfo.version == 6)
+                uint addr = UnitAddrFor(UnitIdBox.Value);
+                if (addr == 0) return;
+                WindowManager.Instance.Navigate<UnitEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.UnitId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void UnitId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = UnitAddrFor(UnitIdBox.Value);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                if (result != null) UnitIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.UnitId_Pick failed: {0}", ex.Message); }
+        }
+
+        void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
+        }
+
+        void ClassId_Jump(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
                     WindowManager.Instance.Navigate<ClassFE6View>(addr);
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.ClassId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ClassId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null) ClassIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.ClassId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
