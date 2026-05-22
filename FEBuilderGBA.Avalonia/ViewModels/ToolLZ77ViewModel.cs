@@ -22,6 +22,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         public const string THIS_ROM = "<<THIS ROM>>";
 
+
+        /// <summary>
+        /// Low-address write policy. Mirrors WinForms OptionForm.write_low_address_enum
+        /// driven by the "func_write_low_address" Config key (default 2 = Deny).
+        /// </summary>
+        public enum LowAddressWritePolicy { NoWarning = 0, Warning = 1, Deny = 2 }
+
+        /// <summary>Read the current low-address write policy from CoreState.Config.</summary>
+        public static LowAddressWritePolicy GetLowAddressWritePolicy()
+        {
+            var cfg = CoreState.Config;
+            if (cfg == null) return LowAddressWritePolicy.Deny;
+            string s = cfg.at("func_write_low_address", "2");
+            if (int.TryParse(s, out int v) && v >= 0 && v <= 2)
+                return (LowAddressWritePolicy)v;
+            return LowAddressWritePolicy.Deny;
+        }
         string _decompressSrcPath = THIS_ROM;
         string _decompressDestPath = string.Empty;
         string _decompressAddressText = "0x0";
@@ -156,12 +173,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        public bool ZeroClearNeedsConfirmation(uint from, uint to)
+        /// <summary>
+        /// Returns true if the range hits a low-address region (ROM header, fixed tables)
+        /// that the config policy considers dangerous. Mirrors WinForms
+        /// U.CheckZeroAddressWriteHigh: checked against rom.RomInfo.compress_image_borderline_address.
+        /// </summary>
+        public bool IsLowAddressRange(uint from, uint to)
         {
             var rom = CoreState.ROM;
             if (rom == null) return false;
             uint borderline = rom.RomInfo.compress_image_borderline_address;
             return from < borderline || to < borderline;
+        }
+
+        /// <summary>
+        /// Decide what to do for a ZeroClear range under the current LowAddressWritePolicy:
+        /// - NoWarning: proceed silently
+        /// - Warning: require user confirmation (View prompts; sets ZeroClearConfirmed)
+        /// - Deny: block the write entirely (status text set, no prompt, no write)
+        /// Returns true if confirmation prompt is required.
+        /// </summary>
+        public bool ZeroClearNeedsConfirmation(uint from, uint to)
+        {
+            if (!IsLowAddressRange(from, to)) return false;
+            // Warning policy is the only one that prompts; NoWarning skips, Deny blocks via RunZeroClear.
+            return GetLowAddressWritePolicy() == LowAddressWritePolicy.Warning;
         }
 
         public void RunZeroClear()
