@@ -81,22 +81,74 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointer(strPtr)) break;
 
                 string name = U.ToHexString(i) + " Status Param";
-                // Try to resolve name from pointer
+                // Try to resolve name from pointer (matches WinForms StatusParamForm.GetParamName).
+                // Issue #355: the u32@+12 is a pointer to another u32 (text ID or string ptr).
                 try
                 {
-                    uint strAddr = U.toOffset(strPtr);
-                    if (U.isSafetyOffset(strAddr))
-                    {
-                        string resolved = rom.getString(strAddr, 32);
-                        if (!string.IsNullOrEmpty(resolved))
-                            name = U.ToHexString(i) + " " + resolved;
-                    }
+                    string resolved = ResolveParamName(rom, addr);
+                    if (!string.IsNullOrEmpty(resolved))
+                        name = U.ToHexString(i) + " " + resolved;
                 }
                 catch (Exception ex) { Log.Error("StatusParamViewModel.LoadList string resolve: {0}", ex.Message); }
 
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Resolve the display name for a status-parameter struct entry. Mirrors the
+        /// pointer-indirection logic from the WinForms <c>StatusParamForm.GetParamName</c>:
+        ///   1. <c>u32@(addr+12)</c> is a pointer to another u32.
+        ///   2. That inner u32 is either a Huffman text ID or a direct string pointer.
+        ///
+        /// Note on decoding parity: the Huffman branch here calls
+        /// <see cref="NameResolver.GetTextById"/>, which wraps
+        /// <see cref="FETextDecode.Direct"/> and applies <c>NameResolver.StripControlCodes</c>.
+        /// That is closer to the WinForms <c>TextForm.DirectAndStripAllCode</c> path
+        /// than the unstripped <c>TextForm.Direct</c>, but for list labels and the
+        /// detail "String Text" field the stripped output matches what the WinForms
+        /// editor ends up rendering.
+        ///
+        /// Issue #355: the previous Avalonia implementation skipped step 1 and tried
+        /// to read raw bytes at the first indirection level, producing garbage for
+        /// every entry. All safety checks here use the explicit-ROM overloads so the
+        /// helper is independent of <c>CoreState.ROM</c> global state (note: the
+        /// Huffman fallback through <see cref="FETextDecode.Direct"/> still relies on
+        /// <c>CoreState.ROM</c>; callers must keep them in sync).
+        /// </summary>
+        internal static string ResolveParamName(ROM rom, uint structAddr)
+        {
+            if (rom == null) return string.Empty;
+            if (!U.isSafetyOffset(structAddr + 15, rom)) return string.Empty;
+
+            uint nameAddrP = rom.u32(structAddr + 12);
+            if (!U.isPointer(nameAddrP)) return string.Empty;
+
+            nameAddrP = U.toOffset(nameAddrP);
+            if (!U.isSafetyOffset(nameAddrP + 3, rom)) return string.Empty;
+
+            uint id = rom.p32(nameAddrP);
+            if (id <= 0x10) return string.Empty;
+
+            string name = string.Empty;
+            if (id > 0xFFFF && U.isSafetyOffset(id, rom))
+            {
+                try { name = rom.getString(id) ?? string.Empty; }
+                catch { name = string.Empty; }
+            }
+            if (string.IsNullOrEmpty(name))
+            {
+                // Treat id as a Huffman text ID. NameResolver.GetTextById wraps
+                // FETextDecode.Direct and then applies NameResolver.StripControlCodes —
+                // closer to WinForms TextForm.DirectAndStripAllCode than TextForm.Direct
+                // (which only removes @001F + ConvertEscapeText). For status-parameter
+                // labels we want fully stripped output, which matches what InputFormRef
+                // ends up rendering in the WinForms list after default trimming.
+                try { name = NameResolver.GetTextById(id) ?? string.Empty; }
+                catch { name = string.Empty; }
+            }
+            return name?.TrimEnd('\0').Trim() ?? string.Empty;
         }
 
         public void LoadStatusParam(uint addr)
@@ -115,16 +167,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B11 = v["B11"];
             StringPointer = v["D12"];
 
-            // Resolve string text
+            // Resolve string text using the WinForms two-step indirection (issue #355).
             StringText = "";
             try
             {
-                if (U.isPointer(StringPointer))
-                {
-                    uint strAddr = U.toOffset(StringPointer);
-                    if (U.isSafetyOffset(strAddr))
-                        StringText = rom.getString(strAddr, 32);
-                }
+                StringText = ResolveParamName(rom, addr);
             }
             catch (Exception ex) { Log.Error("StatusParamViewModel.LoadStatusParam string resolve: {0}", ex.Message); }
 
