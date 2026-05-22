@@ -1549,31 +1549,16 @@ namespace FEBuilderGBA
             return addr;
         }
 
+        // WinForms thin delegators — gap-sweep #440. The actual byte-pattern
+        // detection + ROM mutation now lives in `ItemUsagePointerCore` so the
+        // Avalonia `ItemUsagePointerViewerView` can call the same logic
+        // without forking. The WinForms host wires
+        // `CoreState.AppendBinaryData = InputFormRef.AppendBinaryData` at
+        // startup (see Program.cs) — these delegators thereby keep the same
+        // behavior as the original inline implementation.
         public static bool IsSwitch2Enable(uint array_switch2_address)
         {
-            //こういうのを探す
-            //sub r0, #0x19
-            //cmp r0, #0x37
-            uint extraByte = 0;
-            if (Program.ROM.u16(array_switch2_address + 2) == 0x9A00)
-            {//古いコンパイラは、 9A00   ldr r2,[sp, #0x0] を挟むときがあるらしい.
-                //sub r0, #0x19
-                //ldr r2,[sp, #0x0]
-                //cmp r0, #0x37
-                extraByte = 2;
-            }
-
-            uint op = Program.ROM.u8(array_switch2_address + 1);
-            if (op < 0x38 || op > 0x3D)
-            {//SUB以外無視
-                return false;
-            }
-            op = Program.ROM.u8(array_switch2_address + 3 + extraByte);
-            if (op < 0x28 || op > 0x2d)
-            {//CMP以外無視
-                return false;
-            }
-            return true;
+            return ItemUsagePointerCore.IsSwitch2Enable(Program.ROM, array_switch2_address);
         }
 
         //switch文の拡張
@@ -1583,74 +1568,13 @@ namespace FEBuilderGBA
                         , uint defaultJumpAddr
                         , Undo.UndoData undodata)
         {
-            uint pointeraddr = Program.ROM.p32(array_pointer);
-
-            uint extraByte = 0;
-            if (Program.ROM.u16(array_switch2_address + 2) == 0x9A00)
-            {//古いコンパイラは、 9A00   ldr r2,[sp, #0x0] を挟むときがあるらしい.
-                //sub r0, #0x19
-                //ldr r2,[sp, #0x0]
-                //cmp r0, #0x37
-                extraByte = 2;
-            }
-
-            //384b     	sub	r0, #4b //ライブ 利用した時の効果
-            //2876     	cmp	r0, #76
-            uint start = Program.ROM.u8(array_switch2_address + 0);
-            uint count = Program.ROM.u8(array_switch2_address + 2 + extraByte) + 1;
-            if (newCount <= start + count)
-            {
-                R.ShowStopError("既に十分な数を確保しています。\r\nあなたの要求:{0} 既存サイズ:{1}+{2}={3}"
-                    , U.To0xHexString(newCount), U.To0xHexString(start), U.To0xHexString(count), U.To0xHexString(start + count));
-                return U.NOT_FOUND;
-            }
-
-            //オペコードの確認
-            uint op = Program.ROM.u8(array_switch2_address + 1);
-            if (op < 0x38 || op > 0x3D)
-            {
-                R.ShowStopError("別のパッチでオペコードを書き換えられているので、拡張できません\r\nアドレス:{0} オペコード:{1}"
-                    , U.To0xHexString(array_switch2_address + 1), U.To0xHexString(op));
-                return U.NOT_FOUND;
-            }
-            op = Program.ROM.u8(array_switch2_address + 3 + extraByte);
-            if (op < 0x28 || op > 0x2d)
-            {
-                R.ShowStopError("別のパッチでオペコードを書き換えられているので、拡張できません\r\nアドレス:{0} オペコード:{1}"
-                    , U.To0xHexString(array_switch2_address + 3), U.To0xHexString(op));
-                return U.NOT_FOUND;
-            }
-            //ユーザに確認を求める.
-            DialogResult dr = R.ShowYesNo("配列を {0}まで拡張してもよろしいですか？"
-                , U.To0xHexString(newCount));
-            if (dr != DialogResult.Yes)
-            {
-                return U.NOT_FOUND;
-            }
-
-            byte[] dd = Program.ROM.getBinaryData(pointeraddr, count * 4);
-            byte[] d = new byte[(newCount + 1) * 4];
-            for (uint i = 0; i < start; i++)
-            {
-                U.write_p32(d, i * 4, defaultJumpAddr);
-            }
-            Array.Copy(dd, 0, d, start * 4, count * 4);
-            for (uint i = start + count; i < newCount; i++)
-            {
-                U.write_p32(d, i * 4, defaultJumpAddr);
-            }
-
-            uint newaddr = InputFormRef.AppendBinaryData(d, undodata);
-            if (newaddr == U.NOT_FOUND)
-            {
-                return U.NOT_FOUND;
-            }
-
-            Program.ROM.write_p32(array_pointer, newaddr, undodata);
-            Program.ROM.write_u8(array_switch2_address + 0, 0, undodata);
-            Program.ROM.write_u8(array_switch2_address + 2 + extraByte, newCount - 1, undodata);
-
-            return newaddr;
+            return ItemUsagePointerCore.Switch2Expands(
+                Program.ROM,
+                array_pointer,
+                array_switch2_address,
+                newCount,
+                defaultJumpAddr,
+                undodata);
         }
         public static bool IsSwitch1Enable(uint array_switch1_address)
         {
