@@ -282,56 +282,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Convert @XXXX escape codes to human-readable [Name] format.
-        /// Mirrors WinForms TextForm.ConvertEscapeToFEditor().
+        /// Delegates to the shared <see cref="Services.TextDisplayFormatter"/>
+        /// so the conversation viewer tab renders identical strings.
         /// </summary>
         static string ConvertEscapeToFEditor(string str)
-        {
-            // Handle @0010@0XXX (LoadFace with parameter) before table_replace
-            str = RegexCache.Replace(str, @"@0010@0([0-9A-F][0-9A-F][0-9A-F])", "[LoadFace][0x$1]");
-            // Convert known codes via table
-            if (CoreState.TextEscape != null)
-                str = CoreState.TextEscape.table_replace(str);
-            // Convert remaining unknown @XXXX codes
-            str = RegexCache.Replace(str, @"@([0-9A-F][0-9A-F][0-9A-F][0-9A-F])", "[0x$1]");
-            return str;
-        }
+            => Services.TextDisplayFormatter.ConvertEscapeToFEditor(str);
 
         /// <summary>
         /// Strip raw non-printable control characters (0x00-0x1F) that weren't
         /// converted to @XXXX escape codes by FETextDecode.
-        /// Preserves \n and \r for display.
         /// </summary>
         static string StripControlChars(string str)
-        {
-            if (string.IsNullOrEmpty(str)) return str;
-            var sb = new System.Text.StringBuilder(str.Length);
-            foreach (char c in str)
-            {
-                if (c < 0x20 && c != '\n' && c != '\r')
-                    continue; // skip raw control chars
-                sb.Append(c);
-            }
-            return sb.ToString();
-        }
+            => Services.TextDisplayFormatter.StripControlChars(str);
 
         /// <summary>
         /// Convert raw control characters (0x00-0x1F) to @XXXX escape format
         /// so they can be processed by ConvertEscapeToFEditor and get proper
-        /// names from the TextEscape table (e.g., 0x1F → @001F → [.]).
+        /// names from the TextEscape table (e.g., 0x1F to @001F to [.]).
         /// </summary>
         static string EscapeRawControlChars(string str)
-        {
-            if (string.IsNullOrEmpty(str)) return str;
-            var sb = new System.Text.StringBuilder(str.Length);
-            foreach (char c in str)
-            {
-                if (c < 0x20 && c != '\n' && c != '\r')
-                    sb.Append($"@{(int)c:X04}");
-                else
-                    sb.Append(c);
-            }
-            return sb.ToString();
-        }
+            => Services.TextDisplayFormatter.EscapeRawControlChars(str);
 
         /// <summary>
         /// Convert FEditor [Name] codes back to @XXXX escape format.
