@@ -188,6 +188,38 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Null(pair);
         }
 
+        /// <summary>
+        /// Issue #361 follow-up: FE6 stores the mini-face image data
+        /// uncompressed (FE7/FE8 LZ77-compress it). LoadPortraitMini must
+        /// detect FE6 and skip the LZ77 step, otherwise it returns null
+        /// and the FE6 Support Talk list never shows portrait icons.
+        /// </summary>
+        [Fact]
+        public void LoadPortraitMini_RendersOnFE6()
+        {
+            if (!_fixture.IsAvailable || _fixture.Version != "FE6")
+            {
+                _output.WriteLine($"SKIP: FE6.gba unavailable (have {_fixture.Version})");
+                return;
+            }
+            using var _ = EnsureImageService();
+
+            // Roy is portrait 1 on FE6. The portrait must decode to a 32x32
+            // indexed image. Before this fix LoadPortraitMini returned null
+            // (LZ77 decompression failed on the uncompressed data).
+            using var roy = PreviewIconHelper.LoadPortraitMini(1);
+            Assert.NotNull(roy);
+            Assert.Equal(32, roy!.Width);
+            Assert.Equal(32, roy.Height);
+            Assert.True(roy.IsIndexed, "FE6 mini portrait should be indexed");
+
+            // Sanity: at least some pixels should be non-zero (real artwork).
+            byte[] data = roy.GetPixelData();
+            bool anyNonZero = false;
+            foreach (byte b in data) { if (b != 0) { anyNonZero = true; break; } }
+            Assert.True(anyNonZero, "FE6 portrait must render non-trivial content");
+        }
+
         [Fact]
         public void LoadPortraitMiniPair_OnlyLeftPortrait_RightHalfTransparent_FE8U()
         {
@@ -288,24 +320,31 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotEqual(expectedRgba, wrongRgba);
                 }
 
-                // Call the loader with FE8 offset.
-                // Use the internal pixel-equality path by reading the bytes
-                // mirroring exactly what the loader does, so we don't depend
-                // on Avalonia headless rendering being initialized.
-                uint addr0 = items[0].addr;
-                Assert.True(U.isSafetyOffset(addr0 + 2));
-                uint uid1 = rom.u8(addr0);
-                uint uid2 = rom.u8(addr0 + 2);
-                Assert.Equal(1u, uid1);
-                Assert.Equal(2u, uid2);
-
-                using var actual = PreviewIconHelper.LoadPortraitMiniPair(
-                    PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid1),
-                    PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid2));
+                // Call the ACTUAL loader (not a manual reconstruction) so
+                // the offset-reading logic is under test (Copilot review
+                // item). UnitPortraitPairFromAddrU8LoaderInternal returns
+                // the raw IImage produced by the loader's ROM-byte path,
+                // skipping the Avalonia Bitmap conversion so we don't
+                // depend on headless rendering being initialized.
+                using var actual = ListIconLoaders.UnitPortraitPairFromAddrU8LoaderInternal(
+                    items, 0, unit2Offset: 2);
                 Assert.NotNull(actual);
                 byte[] actualRgba = actual!.GetPixelData();
                 Assert.Equal(expectedRgba.Length, actualRgba.Length);
                 Assert.Equal(expectedRgba, actualRgba);
+
+                // Negative cross-check: if we ask the loader to use the
+                // WRONG offset (1 instead of 2) it should produce a
+                // DIFFERENT pair (the decoy uid 99). This proves the loader
+                // genuinely depends on unit2Offset, so a regression that
+                // hardcoded the wrong offset would fail.
+                using var wrongOffsetActual = ListIconLoaders.UnitPortraitPairFromAddrU8LoaderInternal(
+                    items, 0, unit2Offset: 1);
+                if (wrongOffsetActual != null && wrong != null)
+                {
+                    byte[] wrongOffsetRgba = wrongOffsetActual.GetPixelData();
+                    Assert.NotEqual(expectedRgba, wrongOffsetRgba);
+                }
             }
             finally
             {
@@ -387,10 +426,28 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotEqual(expectedRgba, decoyRgba);
                 }
 
-                // Now call the actual loader (offset=1) and assert pixel equality.
-                using var actual = PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
+                // Now call the ACTUAL loader (not a manual reconstruction)
+                // with unit2Offset=1 — the loader must read uid2 from
+                // items[0].addr+1, NOT addr+2, to satisfy the FE6/FE7
+                // contract (Copilot review item). The loader's internal
+                // helper returns IImage so we don't need Avalonia headless.
+                using var actual = ListIconLoaders.UnitPortraitPairFromAddrU8LoaderInternal(
+                    items, 0, unit2Offset: 1);
                 Assert.NotNull(actual);
                 Assert.Equal(expectedRgba, actual!.GetPixelData());
+
+                // Negative cross-check: with unit2Offset=2 the loader would
+                // pick up the decoy (uid 99) instead of the real partner
+                // (uid 2), so the output MUST differ from the expected pair.
+                // This proves the loader genuinely depends on the offset
+                // argument and a regression hardcoding offset=2 would fail.
+                using var wrongOffsetActual = ListIconLoaders.UnitPortraitPairFromAddrU8LoaderInternal(
+                    items, 0, unit2Offset: 2);
+                if (wrongOffsetActual != null)
+                {
+                    byte[] wrongOffsetRgba = wrongOffsetActual.GetPixelData();
+                    Assert.NotEqual(expectedRgba, wrongOffsetRgba);
+                }
             }
             finally
             {

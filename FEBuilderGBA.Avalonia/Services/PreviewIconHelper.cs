@@ -73,7 +73,14 @@ namespace FEBuilderGBA.Avalonia.Services
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, true);
+                // FE6's mini-face image data is stored uncompressed; FE7/FE8
+                // store it LZ77-compressed. Mirrors WinForms version-split
+                // in ImagePortraitFE6Form.DrawPortraitFE6Map (uses raw bytes
+                // via ByteToImage16Tile) vs ImagePortraitForm.DrawPortraitMap
+                // (uses LZ77.decompress). Issue #361 follow-up: required to
+                // make FE6 SupportTalkView render portraits at all.
+                bool isCompressed = rom.RomInfo.version != 6;
+                return ImageUtilCore.LoadROMTiles4bpp(imgAddr, palette, 4, 4, isCompressed);
             }
             catch
             {
@@ -104,25 +111,38 @@ namespace FEBuilderGBA.Avalonia.Services
             var svc = CoreState.ImageService;
             if (svc == null) return null;
 
+            // Geometry: two 32x32 mini portraits side-by-side -> 64x32 RGBA.
+            // HALF_W is also the dstX for the right half.
             const int HALF_W = 32;
             const int HALF_H = 32;
-            const int OUT_W = 64;
-            const int OUT_H = 32;
+            const int OUT_W = 2 * HALF_W;
+            const int OUT_H = HALF_H;
             const int OUT_BYTES = OUT_W * OUT_H * 4;
 
             byte[] outRgba = new byte[OUT_BYTES];  // zero-initialized => transparent
 
+            // Per-half failure isolation (Copilot review): each portrait may
+            // throw inside LoadPortraitMini / palette decoding for one ID
+            // without invalidating the other half. Without per-call try/catch
+            // a single bad portrait blanks the whole pair, violating the
+            // documented "each half is independent" contract.
+            TryBlitPortraitHalfRgba(portraitId1, outRgba, dstX: 0,      canvasW: OUT_W);
+            TryBlitPortraitHalfRgba(portraitId2, outRgba, dstX: HALF_W, canvasW: OUT_W);
+
+            // Dispose the canvas on the failure path (Copilot review): IImage
+            // is IDisposable and SetPixelData can throw on size mismatch.
+            IImage canvas = null;
             try
             {
-                BlitPortraitHalfRgba(portraitId1, outRgba, dstX: 0, OUT_W);
-                BlitPortraitHalfRgba(portraitId2, outRgba, dstX: HALF_W, OUT_W);
-
-                IImage canvas = svc.CreateImage(OUT_W, OUT_H);
+                canvas = svc.CreateImage(OUT_W, OUT_H);
                 canvas.SetPixelData(outRgba);
-                return canvas;
+                var ret = canvas;
+                canvas = null;  // ownership transferred to caller
+                return ret;
             }
             catch
             {
+                canvas?.Dispose();
                 return null;
             }
         }
@@ -132,7 +152,22 @@ namespace FEBuilderGBA.Avalonia.Services
         /// RGBA pair-canvas, starting at <paramref name="dstX"/> in the
         /// <paramref name="canvasW"/>-wide canvas. Leaves the region
         /// transparent if the portrait is missing or fails to load.
+        ///
+        /// Per-call try/catch ensures one portrait's failure does NOT blank
+        /// the other half (Copilot review item).
         /// </summary>
+        static void TryBlitPortraitHalfRgba(uint portraitId, byte[] dstRgba, int dstX, int canvasW)
+        {
+            try
+            {
+                BlitPortraitHalfRgba(portraitId, dstRgba, dstX, canvasW);
+            }
+            catch
+            {
+                // Half stays transparent. Other half is unaffected.
+            }
+        }
+
         static void BlitPortraitHalfRgba(uint portraitId, byte[] dstRgba, int dstX, int canvasW)
         {
             if (portraitId == 0) return;
@@ -142,9 +177,15 @@ namespace FEBuilderGBA.Avalonia.Services
             if (!solo.IsIndexed) return;
 
             byte[] indices = solo.GetPixelData();
+            if (indices == null || indices.Length < 32 * 32) return;
             byte[] paletteRgba = solo.GetPaletteRGBA();
             if (paletteRgba == null || paletteRgba.Length == 0) return;
+            if (paletteRgba.Length % 4 != 0) return;
             int paletteColors = paletteRgba.Length / 4;
+
+            // Verify destination range so we never index out-of-bounds even
+            // if a future caller passes a wrong canvasW/dstX combination.
+            if ((long)(31 * canvasW + dstX + 31) * 4 + 3 >= dstRgba.Length) return;
 
             for (int y = 0; y < 32; y++)
             {

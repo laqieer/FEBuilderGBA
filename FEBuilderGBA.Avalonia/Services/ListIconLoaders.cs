@@ -230,6 +230,24 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         public static Bitmap? UnitPortraitPairFromAddrU8Loader(List<AddrResult> items, int index, int unit2Offset)
         {
+            using var img = UnitPortraitPairFromAddrU8LoaderInternal(items, index, unit2Offset);
+            return ImageConversionHelper.ToAvaloniaBitmap(img);
+        }
+
+        /// <summary>
+        /// Test-visible internal helper: returns the raw <see cref="IImage"/>
+        /// produced by reading <c>uid1 = u8(addr)</c> and
+        /// <c>uid2 = u8(addr + unit2Offset)</c>, resolving each to a portrait
+        /// ID, and compositing via <see cref="PreviewIconHelper.LoadPortraitMiniPair"/>.
+        ///
+        /// Exists so tests can verify the offset-reading behavior without
+        /// requiring Avalonia headless rendering (the public method depends
+        /// on <see cref="ImageConversionHelper.ToAvaloniaBitmap"/> which
+        /// triggers PNG decode in Avalonia). Tests compare
+        /// <see cref="IImage.GetPixelData"/> directly. Issue #361.
+        /// </summary>
+        internal static IImage UnitPortraitPairFromAddrU8LoaderInternal(List<AddrResult> items, int index, int unit2Offset)
+        {
             if (index < 0 || index >= items.Count) return null;
             if (unit2Offset <= 0) return null;
             try
@@ -242,8 +260,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint uid2 = rom.u8(addr + (uint)unit2Offset);
                 uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid1);
                 uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid2);
-                using var img = PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
-                return ImageConversionHelper.ToAvaloniaBitmap(img);
+                return PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
             }
             catch { return null; }
         }
