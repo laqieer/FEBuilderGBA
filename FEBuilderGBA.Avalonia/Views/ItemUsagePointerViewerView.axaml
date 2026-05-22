@@ -36,10 +36,10 @@
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Block Size:" VerticalAlignment="Center" />
-        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Block_Size"
+        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_BlockSize_Input"
                  Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
         <Label Content="Selection:" VerticalAlignment="Center" />
-        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_SelectedAddress"
+        <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_SelectedAddress_Input"
                  Name="SelectedAddressBox" Width="120" IsReadOnly="True" VerticalAlignment="Center" />
         <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_Write_Button"
                 Name="WriteButton" Content="Write" Click="Write_Click" />
@@ -83,14 +83,14 @@
           <!-- L_0_ASM_SWITCH equivalent — display the switch2 metadata address
                (read-only) for the current filter. -->
           <Label Grid.Row="2" Grid.Column="0" Content="Item ID Switch:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmSwitch"
+          <TextBox AutomationProperties.AutomationId="ItemUsagePointerViewer_AsmSwitch_Input"
                    Grid.Row="2" Grid.Column="1" Name="AsmSwitchBox" Width="200"
                    IsReadOnly="True" VerticalAlignment="Center" HorizontalAlignment="Left" />
         </Grid>
 
         <!-- Promotion related-link panel (visible only when current filter
              is a promotion array). Mirrors WinForms PromotionItemExplain. -->
-        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_PromotionExplain_Panel"
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_PromotionExplain_Control"
                 Name="PromotionItemExplainPanel" BorderBrush="Gray" BorderThickness="1"
                 Padding="6" IsVisible="False">
           <StackPanel Spacing="4">
@@ -102,7 +102,7 @@
         </Border>
 
         <!-- Stat Booster related-link panel. Mirrors WinForms StatBoosterItemExplain. -->
-        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_StatBoosterExplain_Panel"
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_StatBoosterExplain_Control"
                 Name="StatBoosterItemExplainPanel" BorderBrush="Gray" BorderThickness="1"
                 Padding="6" IsVisible="False">
           <StackPanel Spacing="4">
@@ -119,7 +119,7 @@
                Foreground="Red" IsVisible="False" />
 
         <!-- IER red label + button (mirrors WF X_IER_PATCH). -->
-        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_IerPatch_Panel"
+        <Border AutomationProperties.AutomationId="ItemUsagePointerViewer_IerPatch_Control"
                 Name="IerPatchPanel" BorderBrush="Red" BorderThickness="1"
                 Padding="6" IsVisible="False">
           <StackPanel Spacing="4">
