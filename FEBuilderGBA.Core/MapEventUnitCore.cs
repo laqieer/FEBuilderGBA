@@ -142,13 +142,13 @@ namespace FEBuilderGBA
             if (tablePointer == 0) return U.NOT_FOUND;
 
             uint tableBase = rom.p32(tablePointer);
-            if (!U.isSafetyOffset(tableBase)) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(tableBase, rom)) return U.NOT_FOUND;
 
             uint entryAddr = (uint)(tableBase + plist * 4);
             if (!U.isSafetyOffset(entryAddr, rom)) return U.NOT_FOUND;
 
             uint eventAddr = rom.p32(entryAddr);
-            if (!U.isSafetyOffset(eventAddr)) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(eventAddr, rom)) return U.NOT_FOUND;
 
             return eventAddr;
         }
@@ -160,7 +160,9 @@ namespace FEBuilderGBA
         {
             if (rom?.RomInfo == null) return U.NOT_FOUND;
 
-            uint mapAddr = MapSettingCore.GetMapAddr(mapId);
+            // Use the ROM-pinned overload so this delegate never silently reads
+            // CoreState.ROM — guarantees `rom` is the only ROM consulted.
+            uint mapAddr = MapSettingCore.GetMapAddr(rom, mapId);
             if (mapAddr == U.NOT_FOUND) return U.NOT_FOUND;
 
             uint eventPlistPos = rom.RomInfo.map_setting_event_plist_pos;

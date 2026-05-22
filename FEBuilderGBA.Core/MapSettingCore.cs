@@ -16,12 +16,22 @@ namespace FEBuilderGBA
         public static bool IsFE7ULayout(uint mapSettingDataSize) => mapSettingDataSize >= 152;
 
         /// <summary>
-        /// Enumerate all maps from the ROM's map setting pointer table.
+        /// Enumerate all maps from <c>CoreState.ROM</c>'s map setting pointer table.
         /// Returns list of (address, display-name) pairs.
+        /// For ROM-explicit callers (e.g. <see cref="ItemShopCore"/>) use the
+        /// <see cref="MakeMapIDList(ROM)"/> overload — that path never reads
+        /// <c>CoreState.ROM</c>, so it is safe when operating on a ROM other
+        /// than the global one.
         /// </summary>
-        public static List<AddrResult> MakeMapIDList()
+        public static List<AddrResult> MakeMapIDList() => MakeMapIDList(CoreState.ROM);
+
+        /// <summary>
+        /// Enumerate all maps from the given ROM's map setting pointer table.
+        /// Does NOT read <c>CoreState.ROM</c>; every lookup uses
+        /// <paramref name="rom"/>.
+        /// </summary>
+        public static List<AddrResult> MakeMapIDList(ROM rom)
         {
-            ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null)
                 return new List<AddrResult>();
 
@@ -33,7 +43,7 @@ namespace FEBuilderGBA
 
             // Read base address from the pointer
             uint baseAddr = rom.p32(basePointer);
-            if (!U.isSafetyOffset(baseAddr))
+            if (!U.isSafetyOffset(baseAddr, rom))
                 return new List<AddrResult>();
 
             var result = new List<AddrResult>();
@@ -41,7 +51,7 @@ namespace FEBuilderGBA
             for (int i = 0; ; i++)
             {
                 uint addr = (uint)(baseAddr + (i * dataSize));
-                if (!U.isSafetyOffset(addr) || addr + dataSize > (uint)rom.Data.Length)
+                if (!U.isSafetyOffset(addr, rom) || addr + dataSize > (uint)rom.Data.Length)
                     break;
 
                 // Check for end of map data
@@ -56,7 +66,7 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Get the number of valid maps.
+        /// Get the number of valid maps in <c>CoreState.ROM</c>.
         /// </summary>
         public static int GetMapCount()
         {
@@ -64,18 +74,24 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Get the ROM address for a specific map ID.
+        /// Get the ROM address for a specific map ID in <c>CoreState.ROM</c>.
+        /// For ROM-explicit callers use <see cref="GetMapAddr(ROM, uint)"/>.
         /// </summary>
-        public static uint GetMapAddr(uint mapId)
+        public static uint GetMapAddr(uint mapId) => GetMapAddr(CoreState.ROM, mapId);
+
+        /// <summary>
+        /// Get the ROM address for a specific map ID in the given ROM.
+        /// Does NOT read <c>CoreState.ROM</c>.
+        /// </summary>
+        public static uint GetMapAddr(ROM rom, uint mapId)
         {
-            ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
 
             uint baseAddr = rom.p32(rom.RomInfo.map_setting_pointer);
-            if (!U.isSafetyOffset(baseAddr)) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
 
             uint addr = (uint)(baseAddr + (mapId * rom.RomInfo.map_setting_datasize));
-            if (!U.isSafetyOffset(addr)) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(addr, rom)) return U.NOT_FOUND;
 
             return addr;
         }

@@ -4,59 +4,83 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// ViewModel for the Avalonia Item Shop Editor (#369 parity with WinForms
+    /// <c>ItemShopForm</c>). Delegates all shop enumeration / read / mutate
+    /// operations to <see cref="ItemShopCore"/>.
+    /// </summary>
     public class ItemShopViewerViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "B0", "B1" });
-        uint _currentAddr;
+
+        // ---- Per-slot edit state ----
+        uint _currentAddr;       // address of the selected 2-byte item entry
         uint _itemId;
         uint _quantity;
         bool _canWrite;
+
+        // ---- Shop-level state ----
+        uint _currentShopAddr;      // start address of the selected shop's item list
+        uint _currentShopPointerAddr; // address of the 4-byte pointer slot that references the shop
+        string _currentShopName = string.Empty;
+        int _slotCount;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
         public uint Quantity { get => _quantity; set => SetField(ref _quantity, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        public List<AddrResult> LoadItemShopList()
+        public uint CurrentShopAddr { get => _currentShopAddr; set => SetField(ref _currentShopAddr, value); }
+        public uint CurrentShopPointerAddr { get => _currentShopPointerAddr; set => SetField(ref _currentShopPointerAddr, value); }
+        public string CurrentShopName { get => _currentShopName; set => SetField(ref _currentShopName, value); }
+        public int SlotCount { get => _slotCount; set => SetField(ref _slotCount, value); }
+
+        // ===================================================================
+        // Shop enumeration / item listing
+        // ===================================================================
+
+        /// <summary>
+        /// Return every shop in the ROM (hensei + worldmap + per-map event-cond).
+        /// Calls <see cref="ItemShopCore.MakeShopList"/>.
+        /// </summary>
+        public List<AddrResult> LoadShopList()
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            uint ptr = rom.RomInfo.item_shop_hensei_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x200; i++)
-            {
-                uint addr = (uint)(baseAddr + i * 2);
-                if (addr + 1 >= (uint)rom.Data.Length) break;
-
-                uint itemId = rom.u8(addr);
-                if (itemId == 0x00) break;
-
-                string itemName = NameResolver.GetItemName(itemId);
-                string name = $"{U.ToHexString(i)} {itemName}";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            if (rom == null) return new List<AddrResult>();
+            return ItemShopCore.MakeShopList(rom);
         }
+
+        /// <summary>
+        /// Load the item list for a specific shop and remember its pointer slot
+        /// for later append/relocate operations.
+        /// </summary>
+        public List<AddrResult> LoadShopItems(uint shopAddr, uint pointerAddr, string shopName)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            CurrentShopAddr = shopAddr;
+            CurrentShopPointerAddr = pointerAddr;
+            CurrentShopName = shopName ?? string.Empty;
+            var items = ItemShopCore.ReadShopItems(rom, shopAddr);
+            SlotCount = items.Count;
+            return items;
+        }
+
+        // ===================================================================
+        // Per-slot edit (matches WinForms B0 / B1 fields)
+        // ===================================================================
 
         public void LoadItemShop(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-
             if (addr + 1 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             ItemId = values["B0"];
             Quantity = values["B1"];
-
             CanWrite = true;
         }
 
@@ -66,18 +90,99 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             var values = new Dictionary<string, uint>
             {
-                ["B0"] = ItemId, ["B1"] = Quantity,
+                ["B0"] = ItemId,
+                ["B1"] = Quantity,
             };
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
 
-        public int GetListCount() => LoadItemShopList().Count;
+        // ===================================================================
+        // Slot management
+        // ===================================================================
+
+        /// <summary>Result of an append attempt.</summary>
+        public enum AppendOutcome
+        {
+            /// <summary>No-op (no shop selected or other precondition failure).</summary>
+            NoOp,
+            /// <summary>The new slot was appended in place over existing free space.</summary>
+            AppendedInPlace,
+            /// <summary>The shop list was relocated to ROM free space and the new slot appended.</summary>
+            Relocated,
+            /// <summary>Relocation was needed but free space could not be found.</summary>
+            RelocationFailed,
+        }
+
+        /// <summary>
+        /// Attempt to append a new item slot in place. Returns
+        /// <see cref="AppendOutcome.AppendedInPlace"/> on success, or
+        /// <see cref="AppendOutcome.NoOp"/> if no slack — caller can then
+        /// confirm relocation via <see cref="AppendSlotWithRelocation"/>.
+        /// New slot defaults to itemId=1 / qty=1 (itemId=0 would be treated
+        /// as a terminator by ReadShopItems).
+        /// </summary>
+        public AppendOutcome TryAppendSlotInPlace(out uint newSlotAddr)
+        {
+            newSlotAddr = U.NOT_FOUND;
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentShopAddr == 0) return AppendOutcome.NoOp;
+
+            if (ItemShopCore.TryAppendShopItem(rom, CurrentShopAddr, 1, 1, out newSlotAddr))
+            {
+                SlotCount = ItemShopCore.CountShopItems(rom, CurrentShopAddr);
+                return AppendOutcome.AppendedInPlace;
+            }
+            return AppendOutcome.NoOp;
+        }
+
+        /// <summary>
+        /// Relocate the current shop list to ROM free space and append a new item.
+        /// Updates the inbound pointer. Returns <see cref="AppendOutcome.Relocated"/>
+        /// on success and updates <see cref="CurrentShopAddr"/>.
+        /// </summary>
+        public AppendOutcome AppendSlotWithRelocation(out uint newShopAddr)
+        {
+            newShopAddr = U.NOT_FOUND;
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentShopAddr == 0 || CurrentShopPointerAddr == 0)
+                return AppendOutcome.NoOp;
+
+            uint result = ItemShopCore.RelocateShopList(rom, CurrentShopAddr, 1, 1, CurrentShopPointerAddr);
+            if (result == U.NOT_FOUND)
+                return AppendOutcome.RelocationFailed;
+
+            newShopAddr = result;
+            CurrentShopAddr = result;
+            SlotCount = ItemShopCore.CountShopItems(rom, result);
+            return AppendOutcome.Relocated;
+        }
+
+        /// <summary>Remove the last item slot from the current shop.</summary>
+        public bool RemoveLastSlot()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentShopAddr == 0) return false;
+            bool ok = ItemShopCore.TryRemoveLastShopItem(rom, CurrentShopAddr);
+            if (ok)
+                SlotCount = ItemShopCore.CountShopItems(rom, CurrentShopAddr);
+            return ok;
+        }
+
+        // ===================================================================
+        // IDataVerifiable
+        // ===================================================================
+
+        public int GetListCount() => LoadShopList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
+                ["ShopAddr"] = $"0x{CurrentShopAddr:X08}",
+                ["ShopPointerAddr"] = $"0x{CurrentShopPointerAddr:X08}",
+                ["ShopName"] = CurrentShopName,
+                ["SlotCount"] = SlotCount.ToString(),
                 ["ItemId"] = $"0x{ItemId:X02}",
                 ["Quantity"] = $"0x{Quantity:X02}",
             };
