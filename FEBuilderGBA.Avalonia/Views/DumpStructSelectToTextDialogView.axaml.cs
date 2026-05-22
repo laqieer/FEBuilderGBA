@@ -29,6 +29,17 @@ namespace FEBuilderGBA.Avalonia.Views
             ContentBox.Text = _vm.TextContent;
         }
 
+        /// <summary>
+        /// Set the file name + text content shown by this preview dialog.
+        /// Used by callers (e.g. <c>DumpStructSelectDialogView</c>) that
+        /// generate the dump content before opening the preview.
+        /// </summary>
+        public void SetContent(string fileName, string textContent)
+        {
+            _vm.Load(fileName, textContent);
+            UpdateUI();
+        }
+
         async void Save_Click(object? sender, RoutedEventArgs e)
         {
             try
