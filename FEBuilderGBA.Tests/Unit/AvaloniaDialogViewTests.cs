@@ -880,7 +880,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ItemStatBonusesViewerView.axaml", 1291, 587)]
         [InlineData("ItemEffectivenessViewerView.axaml", 1297, 768)]
         [InlineData("ItemPromotionViewerView.axaml", 1150, 669)]
-        [InlineData("ItemShopViewerView.axaml", 1207, 682)]
+        [InlineData("ItemShopViewerView.axaml", 1280, 720)]
         [InlineData("ItemWeaponTriangleViewerView.axaml", 1290, 648)]
         [InlineData("ItemUsagePointerViewerView.axaml", 1238, 801)]
         [InlineData("ItemEffectPointerViewerView.axaml", 1185, 658)]

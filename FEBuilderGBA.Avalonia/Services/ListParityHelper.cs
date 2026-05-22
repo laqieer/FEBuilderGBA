@@ -1740,29 +1740,14 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build item shop (hensei) list matching ItemShopViewerViewModel.
-        /// Uses item_shop_hensei_pointer — 2-byte entries (item ID + quantity).</summary>
+        /// <summary>Build the full Item Shop list matching the Avalonia
+        /// <c>ItemShopViewerView</c> (#369 parity). Delegates to
+        /// <see cref="ItemShopCore.MakeShopList"/>, which enumerates the hensei
+        /// preparation shop plus (FE8) worldmap shops and per-map event-cond
+        /// shops — mirroring WinForms <c>ItemShopForm.MakeShopListLow()</c>.</summary>
         static List<AddrResult> BuildItemShopList(ROM rom)
         {
-            uint ptr = rom.RomInfo.item_shop_hensei_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x200; i++)
-            {
-                uint addr = baseAddr + i * 2;
-                if (addr + 1 >= (uint)rom.Data.Length) break;
-
-                uint itemId = rom.u8(addr);
-                if (itemId == 0x00) break;
-
-                string itemName = NameResolver.GetItemName(itemId);
-                string name = $"{U.ToHexString(i)} {itemName}";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            return ItemShopCore.MakeShopList(rom);
         }
 
         /// <summary>Build item usage pointer list matching ItemUsagePointerViewerViewModel.
