@@ -196,6 +196,12 @@ namespace FEBuilderGBA
                 result.ErrorMessage = $"MoveCompressedData: destination range 0x{dest:X8}+0x{length:X} exceeds ROM end 0x{rom.Data.Length:X}.";
                 return result;
             }
+            // -- Reject overlapping src/dest ranges (overlap-unsafe write order) --
+            if (dest != 0 && RangesOverlap(src, length, dest, length))
+            {
+                result.ErrorMessage = $"MoveCompressedData: source 0x{src:X8}+0x{length:X} and destination 0x{dest:X8}+0x{length:X} overlap (not supported).";
+                return result;
+            }
 
             // -- "Already moved" guard: refuse to move all-zero data --
             byte[] srcBytes = rom.getBinaryData(src, length);
@@ -216,6 +222,7 @@ namespace FEBuilderGBA
                 }
                 dest = allocated;
                 result.AutoAllocated = true;
+                // Auto-allocated dest will never overlap source (free space, not source range).
             }
 
             // -- Search for references to source --
@@ -407,16 +414,29 @@ namespace FEBuilderGBA
             return ret;
         }
 
+        /// <summary>16-byte forward slack added before payload to avoid collisions with the prior run.</summary>
+        const uint AUTO_ALLOC_LTRIM_SLACK = 16;
+
         /// <summary>
         /// Auto-allocate a destination for moved data: find free space ahead of
         /// end-of-file, or append to ROM end (resizing if necessary). Mirrors
         /// the simple path of WinForms <c>InputFormRef.AppendBinaryData</c>
         /// without the magic-area / skill-reserve / event-unit-reserve guards
         /// (those are WinForms-form-coupled).
+        ///
+        /// IMPORTANT: When a free run is found, we return <c>freespace + 16</c>
+        /// (mirroring WinForms' LTRIM slack to avoid touching the previous run's
+        /// trailing bytes). The slack MUST be included in the requested free-run
+        /// size, otherwise the payload would be written past the validated free
+        /// area and clobber adjacent ROM data. PR #481 review fix.
         /// </summary>
         static uint AutoAllocateDestination(ROM rom, uint length)
         {
-            uint needSize = U.Padding4(length);
+            uint payload = U.Padding4(length);
+            // Include slack in the requested size so the discovered run is at
+            // least slack + payload bytes — guarantees writing `length` bytes at
+            // `freespace + slack` stays inside the validated free area.
+            uint needSize = U.Padding4(AUTO_ALLOC_LTRIM_SLACK + payload);
 
             // Try to find a free run in extended area / existing ROM space.
             uint start = 0x100;
@@ -428,13 +448,12 @@ namespace FEBuilderGBA
             uint freespace = rom.FindFreeSpace(start, needSize);
             if (freespace != U.NOT_FOUND)
             {
-                // Skip first 16 bytes of slack like WinForms does to avoid collisions.
-                return freespace + 16;
+                return freespace + AUTO_ALLOC_LTRIM_SLACK;
             }
 
             // No free run found — append to end of file (resize ROM if needed).
             uint endAddr = U.Padding4((uint)rom.Data.Length);
-            uint newEnd = endAddr + needSize;
+            uint newEnd = endAddr + payload;
             if (newEnd >= 0x02000000)
             {
                 return U.NOT_FOUND; // GBA 32 MB cap.
@@ -444,6 +463,15 @@ namespace FEBuilderGBA
                 if (!rom.write_resize_data(newEnd)) return U.NOT_FOUND;
             }
             return endAddr;
+        }
+
+        /// <summary>Returns true if [a, a+aLen) and [b, b+bLen) share any byte.</summary>
+        static bool RangesOverlap(uint a, uint aLen, uint b, uint bLen)
+        {
+            if (aLen == 0 || bLen == 0) return false;
+            uint aEnd = a + aLen;
+            uint bEnd = b + bLen;
+            return a < bEnd && b < aEnd;
         }
     }
 }

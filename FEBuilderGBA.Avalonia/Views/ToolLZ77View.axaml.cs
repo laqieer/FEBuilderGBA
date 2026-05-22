@@ -115,6 +115,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Move_Click(object? sender, RoutedEventArgs e)
         {
+            // Always start a fresh confirmation flow — cancellation at any prompt
+            // below must NOT leave stale flags that auto-skip prompts on next click.
+            _vm.MoveRawFallbackConfirmed = false;
+            _vm.MovePointerCountConfirmed = false;
+
             // Two-phase: preflight, prompt as needed, then execute.
             var preflight = _vm.MovePreflight(out uint srcOffset, out uint dstOffset, out uint length, out var sp);
             if (preflight == ToolLZ77ViewModel.MovePreflightResult.ErrorAlreadyShown)
@@ -147,6 +152,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (dr != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Move: canceled at pointer-count prompt.");
+                    // Reset BOTH flags — earlier raw-fallback approval is now stale.
+                    _vm.MoveRawFallbackConfirmed = false;
+                    _vm.MovePointerCountConfirmed = false;
                     return;
                 }
                 _vm.MovePointerCountConfirmed = true;

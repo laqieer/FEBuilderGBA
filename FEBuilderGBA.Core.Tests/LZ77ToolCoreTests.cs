@@ -159,6 +159,72 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(result.NewAddress < rom.Data.Length);
         }
 
+        // -------- Auto-allocate slack regression (PR #481 review point 1) --------
+
+        [Fact]
+        public void MoveCompressedData_AutoAllocate_ExactSizedFreeRun_DoesNotClobberSentinel()
+        {
+            // Regression: AutoAllocateDestination must request slack + payload bytes
+            // so that returning `freespace + 16` does NOT write past the free area.
+            // Place a sentinel just past an exact-sized free run and verify it's untouched.
+            var rom = CreateRom(0x10000);
+            // Fill most of ROM with 0xFF to leave only a small free run.
+            for (int i = 0x100; i < rom.Data.Length; i++) rom.Data[i] = 0xFF;
+            // Create a free run from 0x2000 to 0x2100 (256 bytes), surrounded by 0xFF.
+            uint runStart = 0x2000;
+            uint runSize = 0x100;
+            for (uint i = runStart; i < runStart + runSize; i++) rom.Data[i] = 0;
+            // Place a sentinel BYTE just past the free run.
+            uint sentinelAddr = runStart + runSize;
+            byte sentinel = 0xAB;
+            rom.Data[sentinelAddr] = sentinel;
+            // Mark source payload (small).
+            byte[] payload = { 1, 2, 3, 4 };
+            for (int i = 0; i < payload.Length; i++) rom.Data[0x500 + i] = payload[i];
+
+            var result = LZ77ToolCore.MoveCompressedData(rom, 0x500, 0, (uint)payload.Length);
+            // Regardless of where the allocator chose to land (free run + 16 or end-of-file),
+            // the sentinel just past the free run must NOT be clobbered.
+            Assert.True(result.Ok, result.ErrorMessage);
+            Assert.Equal(sentinel, rom.Data[sentinelAddr]);
+        }
+
+        // -------- Overlap rejection regression (PR #481 review point 2) --------
+
+        [Fact]
+        public void MoveCompressedData_OverlappingDestInsideSource_Rejects()
+        {
+            var rom = CreateRom(0x10000);
+            // Source: 0x1000..0x1100 (256 bytes).
+            for (int i = 0; i < 256; i++) rom.Data[0x1000 + i] = (byte)(i & 0xFF);
+            // Destination INSIDE source: 0x1080.
+            var result = LZ77ToolCore.MoveCompressedData(rom, 0x1000, 0x1080, 0x100);
+            Assert.False(result.Ok);
+            Assert.Contains("overlap", result.ErrorMessage, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void MoveCompressedData_OverlappingSourceInsideDest_Rejects()
+        {
+            var rom = CreateRom(0x10000);
+            // Source: 0x2000..0x2010 (16 bytes) — inside larger destination 0x1F80..0x2080.
+            for (int i = 0; i < 16; i++) rom.Data[0x2000 + i] = (byte)(i + 1);
+            // Destination range overlapping with source.
+            var result = LZ77ToolCore.MoveCompressedData(rom, 0x2000, 0x1F80, 0x100);
+            Assert.False(result.Ok);
+            Assert.Contains("overlap", result.ErrorMessage, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void MoveCompressedData_AdjacentNonOverlapping_Succeeds()
+        {
+            var rom = CreateRom(0x10000);
+            for (int i = 0; i < 16; i++) rom.Data[0x1000 + i] = (byte)(i + 1);
+            // Destination immediately AFTER source (no overlap: dest start == src end).
+            var result = LZ77ToolCore.MoveCompressedData(rom, 0x1000, 0x1010, 0x10);
+            Assert.True(result.Ok, result.ErrorMessage);
+        }
+
         // -------- Pointer-search gating (review point 2) --------
 
         [Fact]
