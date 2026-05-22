@@ -59,32 +59,69 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// View-model that drives the "Conversation Viewer" tab inside
     /// <c>TextViewerView</c>. Pure projection: takes a decoded text string
     /// (or text id), parses it via
-    /// <see cref="ConversationScriptParser.ParseScript"/>, and produces an
-    /// <see cref="ObservableCollection{T}"/> of <see cref="ConversationCardViewModel"/>.
+    /// <see cref="ConversationScriptParser.ParseScript"/>, and mutates a stable
+    /// <see cref="ObservableCollection{T}"/> of
+    /// <see cref="ConversationCardViewModel"/> in place so callers can bind
+    /// <see cref="Cards"/> once and never re-wire.
     /// </summary>
     public class ConversationViewerTabViewModel : ViewModelBase
     {
-        ObservableCollection<ConversationCardViewModel> _cards = new();
+        readonly ObservableCollection<ConversationCardViewModel> _cards = new();
+        // Per-load portrait cache: avoids re-decoding the same speaker's
+        // portrait multiple times across cards in a single conversation.
+        readonly Dictionary<uint, Bitmap?> _portraitCache = new();
+        uint _currentTextId;
+        bool _isCurrent;
 
         /// <summary>Cards rendered in the conversation tab.</summary>
-        public ObservableCollection<ConversationCardViewModel> Cards
+        public ObservableCollection<ConversationCardViewModel> Cards => _cards;
+
+        /// <summary>The text id this VM is currently presenting (0 when none).</summary>
+        public uint CurrentTextId
         {
-            get => _cards;
-            private set => SetField(ref _cards, value);
+            get => _currentTextId;
+            private set => SetField(ref _currentTextId, value);
+        }
+
+        /// <summary>
+        /// Mark a new text id as pending WITHOUT decoding / projecting it.
+        /// Used by <c>TextViewerView.OnTextSelected</c> to defer the heavy
+        /// portrait + parse work until the user actually opens the
+        /// Conversation Viewer tab.
+        /// </summary>
+        public void SetPendingTextId(uint textId)
+        {
+            if (CurrentTextId != textId)
+            {
+                CurrentTextId = textId;
+                _isCurrent = false;
+            }
+        }
+
+        /// <summary>
+        /// Ensure the cards collection reflects <see cref="CurrentTextId"/>.
+        /// Cheap when nothing has changed; otherwise reloads from ROM.
+        /// </summary>
+        public void EnsureCurrent()
+        {
+            if (_isCurrent) return;
+            LoadConversation(CurrentTextId);
         }
 
         /// <summary>
         /// Load a text id from ROM, decode it, and project to cards. Used by
-        /// <c>TextViewerView</c> when the user selects a text entry.
+        /// <c>TextViewerView</c> when the Conversation Viewer tab is activated.
         /// </summary>
         public void LoadConversation(uint textId)
         {
+            CurrentTextId = textId;
             try
             {
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null)
                 {
-                    Cards = new ObservableCollection<ConversationCardViewModel>();
+                    ResetCards();
+                    _isCurrent = true;
                     return;
                 }
                 string decoded = FETextDecode.Direct(textId) ?? "";
@@ -93,7 +130,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 Log.Error("ConversationViewerTabViewModel.LoadConversation", ex.ToString());
-                Cards = new ObservableCollection<ConversationCardViewModel>();
+                ResetCards();
+                _isCurrent = true;
             }
         }
 
@@ -109,19 +147,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             List<ConversationStep> steps =
                 ConversationScriptParser.ParseScript(decoded ?? "", enableRework);
 
-            var cards = new ObservableCollection<ConversationCardViewModel>();
+            ResetCards();
             foreach (ConversationStep step in steps)
             {
-                cards.Add(ProjectStep(step));
+                _cards.Add(ProjectStep(step, _portraitCache));
             }
-            Cards = cards;
+            _isCurrent = true;
+        }
+
+        void ResetCards()
+        {
+            _cards.Clear();
+            // Per-load cache: clear so a different conversation does not
+            // accidentally show a stale portrait if a face id slot is reused.
+            _portraitCache.Clear();
         }
 
         // ====================================================================
         // Projection helpers
         // ====================================================================
 
-        static ConversationCardViewModel ProjectStep(ConversationStep step)
+        static ConversationCardViewModel ProjectStep(
+            ConversationStep step, Dictionary<uint, Bitmap?> portraitCache)
         {
             uint pos = step.Code1 >= 0x8 ? step.Code1 - 0x8 : 0;
             bool isLeftSide = step.Code1 >= 0x8 && (step.Code1 - 0x8) <= 2;
@@ -140,7 +187,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 kindLabel = "[Display]";
                 uint face100 = step.Code3;
                 speakerName = ResolveFaceName(face100);
-                speakerBitmap = ResolveFaceBitmap(face100);
+                speakerBitmap = ResolveFaceBitmap(face100, portraitCache);
             }
             else if (step.Code2 == 0x11)
             {
@@ -171,7 +218,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 kindLabel = "[Talk]";
                 uint face100 = pos < step.Units.Length ? step.Units[pos] : 0;
                 speakerName = ResolveFaceName(face100);
-                speakerBitmap = ResolveFaceBitmap(face100);
+                speakerBitmap = ResolveFaceBitmap(face100, portraitCache);
                 bubble = HumaniseBubbleText(step.SrcText);
             }
             else
@@ -215,23 +262,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Resolve a face_id + 0x100 value to a portrait <see cref="Bitmap"/>.
+        /// Resolve a face_id + 0x100 value to a portrait <see cref="Bitmap"/>,
+        /// caching results in <paramref name="cache"/> so repeated speakers
+        /// in the same conversation reuse the decoded bitmap.
         /// Returns null for sentinels, malformed values, or missing portraits.
         /// </summary>
-        static Bitmap? ResolveFaceBitmap(uint face100)
+        static Bitmap? ResolveFaceBitmap(uint face100, Dictionary<uint, Bitmap?> cache)
         {
             if (face100 == 0 || face100 == 0xFFFF) return null;
             if (face100 < 0x100) return null;
+            if (cache.TryGetValue(face100, out Bitmap? cached)) return cached;
+
+            Bitmap? built = null;
             try
             {
                 uint faceId = face100 - 0x100;
                 IImage img = PortraitRendererCore.DrawPortraitAutoById(faceId);
-                return IconBitmapBuilder.FromImage(img);
+                built = IconBitmapBuilder.FromImage(img);
             }
             catch
             {
-                return null;
+                built = null;
             }
+            cache[face100] = built;
+            return built;
         }
 
         static string GetSlotLabel(uint code1)

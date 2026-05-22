@@ -81,7 +81,7 @@
                       <!-- Middle column: kind label + speaker name + bubble text -->
                       <StackPanel Grid.Column="1" Margin="8,0">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                          <TextBlock Text="{Binding KindLabel}" FontWeight="Bold" Foreground="#1565C0" />
+                          <TextBlock Text="{Binding KindLabel}" FontWeight="Bold" Foreground="{DynamicResource SectionHeadingBrush}" />
                           <TextBlock Text="{Binding SpeakerName}" FontWeight="SemiBold" />
                           <TextBlock Text="{Binding SlotLabel}" Foreground="Gray" />
                         </StackPanel>

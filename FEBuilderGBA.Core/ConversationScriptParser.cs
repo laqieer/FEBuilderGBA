@@ -88,14 +88,6 @@ namespace FEBuilderGBA
             return simpleList;
         }
 
-        /// <summary>Convenience overload that auto-detects the patch state.</summary>
-        public static List<ConversationStep> ParseScriptForRom()
-        {
-            // Reserved for a future ROM-aware overload; not currently needed
-            // because the production caller knows the gate value upfront.
-            return new List<ConversationStep>();
-        }
-
         // ====================================================================
         // Private parsing helpers (faithful ports of WinForms TextForm logic).
         // ====================================================================

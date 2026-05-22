@@ -408,11 +408,24 @@ namespace FEBuilderGBA
             uint addr = baseAddr + portraitId * dataSize;
             if (addr + dataSize > (uint)rom.Data.Length) return null;
 
-            // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY
+            // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY.
+            // Mirrors WinForms ImagePortraitFE6Form.DrawPortraitAuto (line 268)
+            // and DrawPortraitClassFE6 (line 337):
+            //   unit_face != 0 AND map_face != 0  -> normal unit portrait
+            //   unit_face != 0 AND map_face == 0  -> class-card record (unit_face slot
+            //                                        holds the class card pointer)
+            //   unit_face == 0                    -> null (no portrait at this id)
             if (rom.RomInfo.version == 6)
             {
                 uint fe6UnitFace = rom.u32(addr + 0);
+                uint fe6MapFace = rom.u32(addr + 4);
                 uint fe6Palette = rom.u32(addr + 8);
+                if (fe6UnitFace == 0) return null;
+                if (fe6MapFace == 0)
+                {
+                    // Class-card-only record: render the class card via the FE7/8 path
+                    return DrawPortraitClass(fe6UnitFace, fe6Palette);
+                }
                 byte fe6MouthX = (byte)rom.u8(addr + 12);
                 byte fe6MouthY = (byte)rom.u8(addr + 13);
                 // Frame 0 = base (no mouth overlay)
