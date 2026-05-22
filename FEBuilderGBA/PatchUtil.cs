@@ -43,6 +43,7 @@ namespace FEBuilderGBA
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
             g_Cache_HPBar_enum = HPBar_enum.NoCache;
             g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
+            PatchDetection.ClearCacheExtendsBattleBG();
             g_Cache_m4a_hq_mixer = Cache_m4a_hq_mixer.NoCache;
             g_Cache_SoundRoomExpands = Cache_SoundRoomExpands.NoCache;
             g_Cache_NullifyMovPatch = NullifyMovPatch.NoCache;
@@ -2057,15 +2058,19 @@ namespace FEBuilderGBA
         }
         static ExtendsBattleBG_extends SearchExtendsBattleBGLow()
         {
-            PatchTableSt[] table = new PatchTableSt[] { 
-                new PatchTableSt{ name="Extends",	ver = "FE8J", addr = 0x58D1C,data = new byte[]{0x00, 0xB5, 0x05, 0x4B, 0xC9, 0x00}},
-                new PatchTableSt{ name="Extends",	ver = "FE8U", addr = 0x57ED0,data = new byte[]{0x00, 0xB5, 0x05, 0x4B, 0xC9, 0x00}},
-            };
-            if (SearchPatchBool(table))
+            // Delegated to Core (PatchDetection.SearchExtendsBattleBG) so the
+            // Avalonia view models call the same byte-pattern detector and
+            // never drift from the WinForms behaviour. The local enum is
+            // kept for source compatibility with existing WinForms callers;
+            // mapping between Core's enum and PatchUtil's enum stays 1:1.
+            // (#442 — Copilot CLI review point 3.)
+            switch (PatchDetection.SearchExtendsBattleBG(Program.ROM))
             {
-                return ExtendsBattleBG_extends.Extends;
+                case PatchDetection.ExtendsBattleBG_extends.Extends:
+                    return ExtendsBattleBG_extends.Extends;
+                default:
+                    return ExtendsBattleBG_extends.NO;
             }
-            return ExtendsBattleBG_extends.NO;
         }
 
         //ボスの移動しないことを示すAI

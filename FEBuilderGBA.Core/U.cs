@@ -940,6 +940,22 @@ namespace FEBuilderGBA
             for (uint i = addr; i < max; i += 1) { r.Append(" "); r.Append(bytes[i].ToString("X02")); }
             return r.ToString();
         }
+        /// <summary>
+        /// Project a Dictionary&lt;uint,string&gt; to its values list in insertion order.
+        /// Used by gap-sweep parity helpers (#442) so Core code doesn't need to
+        /// reach back into the WinForms U.cs sibling for trivial collection ops.
+        /// </summary>
+        public static List<string> DictionaryToValuesList(Dictionary<uint, string> d)
+        {
+            List<string> ret = new List<string>();
+            if (d == null) return ret;
+            foreach (var v in d.Values)
+            {
+                ret.Add(v);
+            }
+            return ret;
+        }
+
         public static string HexsToString(byte[] data)
         {
             StringBuilder sb = new StringBuilder();
