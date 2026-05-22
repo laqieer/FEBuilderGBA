@@ -227,11 +227,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             uint dataSize = rom.RomInfo.item_datasize;
+            bool fe8SingleByte = ItemListPredicate.IsFE8SingleByte(rom);
+
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+            // Issue #364: mirror the WinForms ItemForm stop predicate so the list
+            // ends at the last real item (e.g. 206 for FE8U) instead of running
+            // unconditionally to 256 and producing dummy/garbage tail entries.
+            for (uint i = 0; i <= 0xFF; i++)
             {
                 uint addr = (uint)(baseAddr + i * dataSize);
                 if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (!ItemListPredicate.IsValidEntry(rom, (int)i, addr, fe8SingleByte)) break;
 
                 uint nameId = rom.u16(addr + 0);
                 string decoded;

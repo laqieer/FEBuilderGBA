@@ -623,3 +623,8 @@ All 20 tasks from the gap closure plan executed. Key improvements:
 - Remaining 34 editors are complex (Unit/Item/Class/MapSetting/EventScript/Image/Text) with conditional logic that doesn't fit auto-binding
 - Test count: 698 (unchanged — refactoring only)
 - Overall completeness estimate: ~96% → ~97%
+
+**Updated 2026-05-22 (issue #364 — Item Editor list count):**
+- **Item Editor list count fix:** `ItemEditorViewModel.LoadItemList()` was hard-coded to iterate 256 entries unconditionally, producing dummy/garbage tail items for FE7/FE8 (256 shown instead of expected 159/206). New `ItemListPredicate` helper mirrors WinForms `ItemForm.Init` exactly: stops at the first entry whose `+12` (and `+16` for non-FE8U) is not a ROM pointer or NULL, hard-capped at 256. FE6 path was already correct; this fix is for FE7/FE8.
+- **ListParityHelper.BuildItemList** updated to the same predicate so parity sweeps stay aligned.
+- Test count: +14 new tests in `FEBuilderGBA.Avalonia.Tests` (7 real-ROM count assertions + 7 synthetic predicate tests).
