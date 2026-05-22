@@ -23,7 +23,14 @@ namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
 /// Each assertion maps to a concrete acceptance-criterion bullet in the
 /// issue body, so regressions get a clear pointer back to the original
 /// gap-sweep report.
+///
+/// Marked [Collection("SharedState")] (#441) because the tests mutate
+/// CoreState.ROM and CoreState.BaseDirectory — without serialization,
+/// xUnit's per-class parallel runner can race a sibling test's ROM swap
+/// between two LoadList calls in the same test, producing "Expected: 65,
+/// Actual: 0" mismatches.
 /// </summary>
+[Collection("SharedState")]
 public class MapTerrainFloorLookupTableParityTests
 {
     // -----------------------------------------------------------------
@@ -203,12 +210,34 @@ public class MapTerrainFloorLookupTableParityTests
     }
 
     /// <summary>
+    /// Ensure CoreState.BaseDirectory points at the test bin dir so
+    /// MapTerrainLookupCore.GetTerrainSetDic can locate
+    /// config/data/battleterrain_set_*.txt. The Avalonia test project copies
+    /// the repo's config/ into its bin output via Content Include; we just
+    /// need to tell CoreState where to find it. Idempotent — safe across
+    /// test collections (only writes when null/empty). #441 widened the BG
+    /// VM's LoadList path to chain through LoadFilterEntries, which calls
+    /// GetTerrainSetDic — so the BG-VM tests (previously path-free) now also
+    /// need this guard.
+    /// </summary>
+    static void EnsureCoreStateBaseDirectory()
+    {
+        if (!string.IsNullOrEmpty(CoreState.BaseDirectory))
+            return;
+        string? assemblyDir = Path.GetDirectoryName(
+            System.Reflection.Assembly.GetExecutingAssembly().Location);
+        if (assemblyDir != null)
+            CoreState.BaseDirectory = assemblyDir;
+    }
+
+    /// <summary>
     /// Build a tiny synthetic FE8U ROM whose two BG-lookup pointer slots
     /// (filter 0 + filter 1) point to DIFFERENT in-ROM addresses, so the
     /// LoadList(int) overload can be observed to follow the filterIndex.
     /// </summary>
     static ROM MakeMinimalFe8uRom()
     {
+        EnsureCoreStateBaseDirectory();
         var bytes = new byte[0x1100000];
 
         // FE8U lookup_table_battle_bg_00_pointer is at offset 0x57FF4 and

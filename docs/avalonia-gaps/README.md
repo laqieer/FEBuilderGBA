@@ -22,12 +22,12 @@ them as backlog instead of waiting for users to file them one at a time.
 | # | Sweep | CLI flag | Status |
 |---|---|---|---|
 | 0 | Bootstrap (pair matcher + report writer) | (infrastructure) | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
-| 1 | Control-density delta | `--gap-sweep-density` | [x] [#375](https://github.com/laqieer/FEBuilderGBA/pull/375) |
-| 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-22 baseline](2026-05-22-labels-sweep.md) |
+| 1 | Control-density delta | `--gap-sweep-density` | [x] [2026-05-24 baseline](2026-05-24-density-sweep.md) |
+| 2 | Field-label diff | `--gap-sweep-labels` | [x] [2026-05-24 baseline](2026-05-24-labels-sweep.md) |
 | 3 | Side-by-side screenshot gallery | `--gap-sweep-gallery` + `--screenshot-all` × 2 | [x] [2026-05-22 FE8U baseline](2026-05-22-screenshots/FE8U/index.md) |
-| 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-22 baseline](2026-05-22-jumps-sweep.md) |
-| 5 | Undo coverage | `--gap-sweep-undo` | [x] [2026-05-22 baseline](2026-05-22-undo-sweep.md) |
-| 6 | Localisation sweep | `--gap-sweep-l10n` | [x] [2026-05-22 baseline](2026-05-22-l10n-sweep.md) |
+| 4 | Headless jump/navigation parity | `--gap-sweep-jumps` | [x] [2026-05-24 baseline](2026-05-24-jumps-sweep.md) |
+| 5 | Undo coverage | `--gap-sweep-undo` | [x] [2026-05-24 baseline](2026-05-24-undo-sweep.md) |
+| 6 | Localisation sweep | `--gap-sweep-l10n` | [x] [2026-05-24 baseline](2026-05-24-l10n-sweep.md) |
 | 7 | Meta-tracking + advisory CI | `--gap-sweep-all` | [x] [#374 closes this issue](https://github.com/laqieer/FEBuilderGBA/issues/374) |
 
 Each phase produces a markdown report under `docs/avalonia-gaps/<YYYY-MM-DD>-<sweep>.md`.
