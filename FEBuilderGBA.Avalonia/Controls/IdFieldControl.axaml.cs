@@ -135,10 +135,12 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>
         /// Map the host's AutomationId onto the four inner interactive controls
-        /// (NumericUpDown, NameLabel, JumpButton, PickButton). The NumericUpDown
-        /// inherits the host id directly so existing E2E selectors expecting
-        /// e.g. "CCBranchEditor_Promo1_Input" continue to find the actual input;
-        /// the other three get suffix-derived ids.
+        /// (NumericUpDown, NameLabel, JumpButton, PickButton) and CLEAR the
+        /// host's own AutomationId so the "_Input" id resolves UNAMBIGUOUSLY
+        /// to the NumericUpDown. The host itself gets a "_Control" id derived
+        /// from the same base so automation tests can still locate the host
+        /// when needed. This addresses Copilot CLI's second-round review on
+        /// PR #477.
         /// </summary>
         void PropagateInnerAutomationIds()
         {
@@ -151,14 +153,24 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (baseId.EndsWith("_Input", StringComparison.Ordinal))
                 baseId = baseId.Substring(0, baseId.Length - "_Input".Length);
 
+            // Move the host id onto the actual input control. To keep the
+            // "_Input" id unique in the logical tree, REPLACE the host's
+            // AutomationId with a distinct "_Control" id.
+            string inputId = baseId + "_Input";
+            string hostControlId = baseId + "_Control";
+
             if (ValueBox != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(ValueBox)))
-                AutomationProperties.SetAutomationId(ValueBox, baseId + "_Input");
+                AutomationProperties.SetAutomationId(ValueBox, inputId);
             if (NameLabel != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(NameLabel)))
                 AutomationProperties.SetAutomationId(NameLabel, baseId + "_Name");
             if (JumpButton != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(JumpButton)))
                 AutomationProperties.SetAutomationId(JumpButton, baseId + "_Jump_Button");
             if (PickButton != null && string.IsNullOrEmpty(AutomationProperties.GetAutomationId(PickButton)))
                 AutomationProperties.SetAutomationId(PickButton, baseId + "_Pick_Button");
+
+            // Reassign the host id last so the "_Input" id only resolves to the
+            // NumericUpDown, not the IdFieldControl host.
+            AutomationProperties.SetAutomationId(this, hostControlId);
         }
 
         protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)

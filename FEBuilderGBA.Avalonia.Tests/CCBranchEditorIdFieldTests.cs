@@ -70,29 +70,49 @@ public class CCBranchEditorIdFieldTests
     }
 
     [AvaloniaFact]
-    public void Promo1_AutomationId_StillDiscoverable()
+    public void Promo1_AutomationId_ResolvesToNumericUpDownUniquely()
     {
-        // AutomationId set on the IdFieldControl host element. Existing E2E
-        // selectors looking for CCBranchEditor_Promo1_Input must still resolve
-        // a Control so the test asserts the AutomationId is present on the
-        // logical tree.
+        // After IdFieldControl's AutomationId propagation (#366 PR #477 round 2),
+        // the host moves its "_Input" id to the actual NumericUpDown. The view
+        // must be shown for AttachedToVisualTree to fire the propagation.
+        // Verifies that:
+        //   - exactly one control in the logical tree has the "_Input" id
+        //   - that control is a NumericUpDown
         var view = new CCBranchEditorView();
-        var hits = view.GetLogicalDescendants()
-            .OfType<Control>()
-            .Where(c => AutomationProperties.GetAutomationId(c) == "CCBranchEditor_Promo1_Input")
-            .ToList();
-        Assert.NotEmpty(hits);
+        view.Show();
+        try
+        {
+            var hits = view.GetLogicalDescendants()
+                .OfType<Control>()
+                .Where(c => AutomationProperties.GetAutomationId(c) == "CCBranchEditor_Promo1_Input")
+                .ToList();
+            Assert.Single(hits);
+            Assert.IsType<NumericUpDown>(hits[0]);
+        }
+        finally
+        {
+            view.Close();
+        }
     }
 
     [AvaloniaFact]
-    public void Promo2_AutomationId_StillDiscoverable()
+    public void Promo2_AutomationId_ResolvesToNumericUpDownUniquely()
     {
         var view = new CCBranchEditorView();
-        var hits = view.GetLogicalDescendants()
-            .OfType<Control>()
-            .Where(c => AutomationProperties.GetAutomationId(c) == "CCBranchEditor_Promo2_Input")
-            .ToList();
-        Assert.NotEmpty(hits);
+        view.Show();
+        try
+        {
+            var hits = view.GetLogicalDescendants()
+                .OfType<Control>()
+                .Where(c => AutomationProperties.GetAutomationId(c) == "CCBranchEditor_Promo2_Input")
+                .ToList();
+            Assert.Single(hits);
+            Assert.IsType<NumericUpDown>(hits[0]);
+        }
+        finally
+        {
+            view.Close();
+        }
     }
 
     [AvaloniaFact]
