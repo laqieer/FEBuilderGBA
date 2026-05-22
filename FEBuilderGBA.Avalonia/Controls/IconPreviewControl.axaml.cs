@@ -70,7 +70,15 @@ namespace FEBuilderGBA.Avalonia.Controls
             AvaloniaProperty.Register<IconPreviewControl, BitmapInterpolationMode>(
                 nameof(BitmapInterpolationMode), defaultValue: BitmapInterpolationMode.HighQuality);
 
-        /// <summary>Integer up-scale factor applied to the bitmap (nearest-neighbour).</summary>
+        /// <summary>
+        /// Integer up-scale factor applied to the outer Border (and inner
+        /// Image) dimensions: outer = <c>Scale * MaxImageWidth</c> by
+        /// <c>Scale * MaxImageHeight</c>. Sampling mode is governed by
+        /// <see cref="BitmapInterpolationMode"/> — default
+        /// <see cref="BitmapInterpolationMode.HighQuality"/> (matching
+        /// WinForms <c>InterpolationMode.Bicubic</c>), NOT nearest-neighbour
+        /// by default (was prior to the #342 follow-up).
+        /// </summary>
         public int Scale
         {
             get => GetValue(ScaleProperty);

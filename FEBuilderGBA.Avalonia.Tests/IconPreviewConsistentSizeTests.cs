@@ -24,9 +24,13 @@ namespace FEBuilderGBA.Avalonia.Tests;
 /// visual size in WinForms.
 ///
 /// These tests enforce the WinForms-equivalent invariant in Avalonia:
-/// <c>ImageDisplay.Bounds == OuterBorder.Bounds</c> for ALL source sizes, with
-/// <c>Stretch.Fill</c> and <c>BitmapInterpolationMode.HighQuality</c> as the
-/// defaults.
+/// <c>ImageDisplay.Width</c> and <c>ImageDisplay.Height</c> equal
+/// <c>OuterBorder.Width</c> and <c>OuterBorder.Height</c> for ALL source
+/// sizes. The control sets those Width/Height values explicitly from
+/// code-behind so the layout pass is deterministic; tests therefore
+/// compare those properties (not <c>Bounds</c>) so the assertion runs
+/// before the headless platform's layout pass settles. Defaults are
+/// <c>Stretch.Fill</c> and <c>BitmapInterpolationMode.HighQuality</c>.
 /// </summary>
 public class IconPreviewConsistentSizeTests
 {
@@ -417,19 +421,23 @@ public class IconPreviewConsistentSizeTests
     [AvaloniaFact]
     public void AddressListControl_IconImage_UsesFillStretch()
     {
-        // Walk up from the tests bin/Release/net9.0 cwd to the repo root,
-        // then read the source XAML and assert the inline icon template uses
-        // Stretch="Fill" rather than Stretch="Uniform".
-        var dir = System.IO.Directory.GetCurrentDirectory();
-        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(
-                   dir, "FEBuilderGBA.Avalonia", "Controls", "AddressListControl.axaml")))
+        // Locate repo root by walking up from the test assembly's directory
+        // (AppDomain.CurrentDomain.BaseDirectory — the bin/Release/netN.0
+        // folder) until we find the solution file. This pattern is shared
+        // with other tests in this repo (see AutomationIdTests.cs) and is
+        // less sensitive than relying on the current working directory.
+        var dir = System.AppDomain.CurrentDomain.BaseDirectory;
+        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
         {
             dir = System.IO.Path.GetDirectoryName(dir);
         }
         Assert.NotNull(dir);
 
-        var xaml = System.IO.File.ReadAllText(System.IO.Path.Combine(
-            dir!, "FEBuilderGBA.Avalonia", "Controls", "AddressListControl.axaml"));
+        var axamlPath = System.IO.Path.Combine(
+            dir!, "FEBuilderGBA.Avalonia", "Controls", "AddressListControl.axaml");
+        Assert.True(System.IO.File.Exists(axamlPath),
+            $"AddressListControl.axaml not found under repo root '{dir}'");
+        var xaml = System.IO.File.ReadAllText(axamlPath);
 
         // Match WinForms PictureBoxSizeMode.StretchImage semantics.
         Assert.Contains("Stretch=\"Fill\"", xaml);
