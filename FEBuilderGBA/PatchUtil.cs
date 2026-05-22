@@ -1568,12 +1568,12 @@ namespace FEBuilderGBA
                         , uint defaultJumpAddr
                         , Undo.UndoData undodata)
         {
-            // Preserve the WinForms confirmation prompt. Core's
-            // ItemUsagePointerCore.Switch2Expands routes confirmation through
-            // CoreState.Services, which is null in the WinForms host (we
-            // never wired an IAppServices implementation that hooks
-            // R.ShowYesNo). Show the confirmation here so the WF flow keeps
-            // its existing yes/no dialog before any ROM bytes are mutated.
+            // Preserve the WinForms confirmation prompt. CoreState.Services
+            // defaults to HeadlessAppServices (which returns false from
+            // ShowYesNo), so the Core path would otherwise silently abort
+            // after the user already confirmed via WinForms' R.ShowYesNo.
+            // We show the legacy WF dialog here and pass `alreadyConfirmed:
+            // true` to the Core overload so its own prompt is skipped.
             DialogResult dr = R.ShowYesNo("配列を {0}まで拡張してもよろしいですか？"
                 , U.To0xHexString(newCount));
             if (dr != DialogResult.Yes)
@@ -1586,7 +1586,8 @@ namespace FEBuilderGBA
                 array_switch2_address,
                 newCount,
                 defaultJumpAddr,
-                undodata);
+                undodata,
+                alreadyConfirmed: true);
         }
         public static bool IsSwitch1Enable(uint array_switch1_address)
         {

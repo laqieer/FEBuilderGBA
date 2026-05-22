@@ -254,13 +254,11 @@ namespace FEBuilderGBA
         /// <c>PatchUtil.Switch2Expands</c> exactly — same opcode validation,
         /// same FreeSpace allocation path, same ROM byte writes.
         ///
-        /// User-confirmation prompts are routed through
-        /// <see cref="CoreState.Services"/> so Avalonia / headless callers
-        /// can substitute their own UI seam. When `Services` is null we
-        /// proceed without confirmation (test / batch-mode path).
-        ///
-        /// Returns the newly-allocated table address on success,
-        /// <c>U.NOT_FOUND</c> on any validation / allocation failure.
+        /// Convenience overload that requests user confirmation via
+        /// <see cref="CoreState.Services"/>.ShowYesNo. Callers that already
+        /// confirmed (e.g. the WinForms PatchUtil wrapper which shows its
+        /// own dialog) should use the <paramref name="alreadyConfirmed"/>
+        /// overload instead.
         /// </summary>
         public static uint Switch2Expands(
             ROM rom,
@@ -269,6 +267,24 @@ namespace FEBuilderGBA
             uint newCount,
             uint defaultJumpAddr,
             Undo.UndoData undodata)
+            => Switch2Expands(rom, arrayPointer, switch2Addr, newCount,
+                defaultJumpAddr, undodata, alreadyConfirmed: false);
+
+        /// <summary>
+        /// Expansion with an explicit `alreadyConfirmed` flag — callers that
+        /// own their confirmation dialog (e.g. the WinForms PatchUtil
+        /// wrapper which calls `R.ShowYesNo` in the host) pass true and
+        /// the Core path skips its own prompt. (PR #497 Copilot CLI
+        /// re-review — fixes double-prompt / HeadlessAppServices abort.)
+        /// </summary>
+        public static uint Switch2Expands(
+            ROM rom,
+            uint arrayPointer,
+            uint switch2Addr,
+            uint newCount,
+            uint defaultJumpAddr,
+            Undo.UndoData undodata,
+            bool alreadyConfirmed)
         {
             if (rom == null) return U.NOT_FOUND;
             if (!IsSwitch2Enable(rom, switch2Addr))
@@ -321,8 +337,18 @@ namespace FEBuilderGBA
                 return U.NOT_FOUND;
             }
 
-            // User confirmation (skip silently if no Services bound — tests).
-            if (CoreState.Services != null)
+            // User confirmation.
+            //   - When `alreadyConfirmed` is true, the host (WinForms
+            //     PatchUtil wrapper) already showed its own prompt before
+            //     delegating into Core — skip the Core prompt to avoid a
+            //     double-confirmation, and (more importantly) to avoid
+            //     `HeadlessAppServices.ShowYesNo` silently returning false
+            //     and aborting after the user already confirmed.
+            //   - Otherwise, route through CoreState.Services?.ShowYesNo
+            //     so Avalonia hosts get a native dialog.
+            //   - When Services is null, proceed without confirmation —
+            //     intended for tests / batch-mode CLI runs.
+            if (!alreadyConfirmed && CoreState.Services != null)
             {
                 string prompt = string.Format("Expand the array to {0}? This writes to ROM.",
                     U.To0xHexString(newCount));

@@ -362,6 +362,108 @@ public class ItemUsagePointerCoreTests
         }
     }
 
+    /// <summary>
+    /// Regression test: when `alreadyConfirmed: true` is passed (the WinForms
+    /// PatchUtil wrapper path), the Core path MUST skip its own ShowYesNo
+    /// prompt — otherwise `HeadlessAppServices.ShowYesNo` returns false and
+    /// the WF flow aborts even after the user confirmed via R.ShowYesNo.
+    /// (PR #497 Copilot CLI re-review — round 3 fix.)
+    /// </summary>
+    [Fact]
+    public void Switch2Expands_AlreadyConfirmed_SkipsServicesPrompt()
+    {
+        byte[] table = new byte[3 * 4];
+        BitConverter.GetBytes(0x08100000u).CopyTo(table, 0);
+        BitConverter.GetBytes(0x08100100u).CopyTo(table, 4);
+        BitConverter.GetBytes(0x08100200u).CopyTo(table, 8);
+
+        var rom = MakeFe8uWithSwitch2(table, start: 0, countMinusOne: 2);
+        uint switchAddr = rom.RomInfo.item_usability_array_switch2_address;
+        uint ptrSlot = rom.RomInfo.item_usability_array_pointer;
+
+        var prevAppender = CoreState.AppendBinaryData;
+        var prevRom = CoreState.ROM;
+        var prevServices = CoreState.Services;
+        try
+        {
+            CoreState.ROM = rom;
+            // The default HeadlessAppServices.ShowYesNo returns false — so if
+            // the Core path consulted Services, the expansion would abort.
+            // We deliberately wire HeadlessAppServices here to PROVE that
+            // alreadyConfirmed: true bypasses it.
+            CoreState.Services = new HeadlessAppServices();
+
+            uint nextFree = 0x00900000u;
+            CoreState.AppendBinaryData = (data, undo) =>
+            {
+                uint dst = nextFree;
+                for (int i = 0; i < data.Length; i++)
+                    rom.write_u8(dst + (uint)i, data[i], undo);
+                nextFree += (uint)(((data.Length + 3) / 4) * 4);
+                return dst;
+            };
+
+            var undoBuf = new Undo();
+            var undo = undoBuf.NewUndoData("test", "Switch2Expands");
+            // alreadyConfirmed: true MUST bypass the HeadlessAppServices prompt.
+            uint newAddr = ItemUsagePointerCore.Switch2Expands(
+                rom, ptrSlot, switchAddr, newCount: 8u,
+                defaultJumpAddr: 0x08FFFFFEu,
+                undodata: undo,
+                alreadyConfirmed: true);
+
+            Assert.NotEqual(U.NOT_FOUND, newAddr);
+        }
+        finally
+        {
+            CoreState.AppendBinaryData = prevAppender;
+            CoreState.ROM = prevRom;
+            CoreState.Services = prevServices;
+        }
+    }
+
+    /// <summary>
+    /// The default (no alreadyConfirmed flag) overload MUST consult the
+    /// Services prompt when Services is wired. With HeadlessAppServices
+    /// returning false, the expansion should abort.
+    /// </summary>
+    [Fact]
+    public void Switch2Expands_DefaultOverload_HonorsServicesPrompt()
+    {
+        byte[] table = new byte[3 * 4];
+        BitConverter.GetBytes(0x08100000u).CopyTo(table, 0);
+
+        var rom = MakeFe8uWithSwitch2(table, start: 0, countMinusOne: 2);
+        uint switchAddr = rom.RomInfo.item_usability_array_switch2_address;
+        uint ptrSlot = rom.RomInfo.item_usability_array_pointer;
+
+        var prevAppender = CoreState.AppendBinaryData;
+        var prevRom = CoreState.ROM;
+        var prevServices = CoreState.Services;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Services = new HeadlessAppServices(); // ShowYesNo returns false.
+            CoreState.AppendBinaryData = (data, undo) => 0x900000u;
+
+            var undoBuf = new Undo();
+            var undo = undoBuf.NewUndoData("test", "Switch2Expands_NoConfirm");
+            // No alreadyConfirmed flag — Services.ShowYesNo returns false ->
+            // expansion aborts.
+            uint result = ItemUsagePointerCore.Switch2Expands(
+                rom, ptrSlot, switchAddr, newCount: 8u,
+                defaultJumpAddr: 0x08FFFFFEu, undodata: undo);
+
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+        finally
+        {
+            CoreState.AppendBinaryData = prevAppender;
+            CoreState.ROM = prevRom;
+            CoreState.Services = prevServices;
+        }
+    }
+
     [Fact]
     public void Switch2Expands_AlreadyLargeEnough_ReturnsNotFound()
     {
