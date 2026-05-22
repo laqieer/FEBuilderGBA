@@ -26,14 +26,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // cross-editor jumps this VM exposes. Mirror the navigation callsites
         // in ClassEditorView.axaml.cs WITHOUT changing any actual behavior.
         //
-        // Known-broken jumps (per issue #359 — "Add jump support to
-        // Pointers/Movement/Terrain fields like Move Cost"): the Pointers
-        // panel exposes BattleAnime / MoveCostRain / MoveCostSnow /
-        // TerrainAvoid / TerrainDef / TerrainRes pointer textboxes, none of
-        // which currently have Jump buttons. Their target editors are the
-        // same MoveCost / Terrain editors that JumpToMoveCost reaches; we
-        // tag each entry with IssueRef="#359" so Phase 4 surfaces them as
-        // expected-skipped backlog rows until the fix PR adds the buttons.
+        // Issue #359 closed: all six BattleAnime / MoveCostRain /
+        // MoveCostSnow / TerrainAvoid / TerrainDef / TerrainRes jumps now
+        // have Click handlers + UI buttons. The terrain jumps target
+        // MoveCostEditorView (the same shared editor that handles all six
+        // MOVECOST1..6 WinForms cost types via the CostType combo), not
+        // the floor-lookup table — the WinForms `MOVECOST4/5/6` linktypes
+        // also dispatch into MoveCostForm, so MoveCostEditorView is the
+        // correct parity target.
         // ----------------------------------------------------------------
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
@@ -64,47 +64,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TargetViewType: typeof(PortraitViewerView),
                     TargetAddress: null),
 
-                // Known-broken (#359): no Jump button for BattleAnimePtr;
-                // WinForms ClassForm has one wired to ImageBattleAnimeForm
-                // (which maps to ImageBattleAnimeView on the AV side).
+                // Fixed in #359: JumpToBattleAnime_Click →
+                // Navigate<ImageBattleAnimeView>(U.toOffset(rawPtr)). The
+                // conversion from raw GBA pointer to ROM offset is required
+                // because the receiving EntryList stores ROM offsets.
                 new NavigationTarget(
                     CommandName: "JumpToBattleAnime",
                     TargetViewType: typeof(ImageBattleAnimeView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetAddress: null),
 
-                // Known-broken (#359): MoveCostRain / MoveCostSnow pointer
-                // textboxes have no Jump buttons. Target is MoveCostEditorView.
+                // Fixed in #359: Ptr60 → MoveCostEditorView with CostType
+                // MoveCostRain (FE7/8) or TerrainAvoid (FE6). Both paths
+                // land in MoveCostEditorView; the version-aware dispatch
+                // is in the Click handler, not the manifest.
                 new NavigationTarget(
                     CommandName: "JumpToMoveCostRain",
                     TargetViewType: typeof(MoveCostEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetAddress: null),
+
+                // Fixed in #359: Ptr64 → MoveCostEditorView with CostType
+                // MoveCostSnow (FE7/8) or TerrainDefense (FE6).
                 new NavigationTarget(
                     CommandName: "JumpToMoveCostSnow",
                     TargetViewType: typeof(MoveCostEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetAddress: null),
 
-                // Known-broken (#359): Terrain (Avoid/Def/Res) pointer fields
-                // have no Jump buttons. WinForms ClassForm wires these to the
-                // floor-lookup table editors; we use MapTerrainFloorLookupTableView
-                // as the closest existing AV target.
+                // Fixed in #359: Terrain Avoid/Def/Res Jumps land in
+                // MoveCostEditorView (not MapTerrainFloorLookupTableView —
+                // the WinForms MOVECOST4/5/6 linktypes also dispatch into
+                // MoveCostForm, so MoveCostEditorView is the parity target).
                 new NavigationTarget(
                     CommandName: "JumpToTerrainAvoid",
-                    TargetViewType: typeof(MapTerrainFloorLookupTableView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetViewType: typeof(MoveCostEditorView),
+                    TargetAddress: null),
                 new NavigationTarget(
                     CommandName: "JumpToTerrainDef",
-                    TargetViewType: typeof(MapTerrainFloorLookupTableView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetViewType: typeof(MoveCostEditorView),
+                    TargetAddress: null),
                 new NavigationTarget(
                     CommandName: "JumpToTerrainRes",
-                    TargetViewType: typeof(MapTerrainFloorLookupTableView),
-                    TargetAddress: null,
-                    IssueRef: "#359"),
+                    TargetViewType: typeof(MoveCostEditorView),
+                    TargetAddress: null),
             };
         }
     }

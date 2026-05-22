@@ -614,6 +614,133 @@ namespace FEBuilderGBA.Avalonia.Views
             return true;
         }
 
+        // ============================================================
+        // Issue #359 — Jump handlers for the remaining Pointers/Movement/
+        // Terrain fields. Each dispatches to MoveCostEditorView with the
+        // CURRENT CLASS address + the cost type appropriate for the
+        // textbox. The mapping is version-aware because FE6 reuses
+        // Ptr60/Ptr64/Ptr68 for Terrain Avoid/Def/Res (P56/P60/P64 in the
+        // FE6 class struct), while FE7/8 uses Ptr60 for Move Cost Rain
+        // (P60), Ptr64 for Move Cost Snow (P64), and Ptr68/Ptr72/Ptr76
+        // for Terrain Avoid/Def/Res (P68/P72/P76). The boxes themselves
+        // are physically the same controls; ConfigureVersionUI hides
+        // Ptr72/Ptr76 for FE6 and adjusts the labels.
+        //
+        // The same ShouldJumpToMoveCost safety gate is reused for all
+        // five move-cost/terrain Jump paths since the validation logic
+        // is identical (valid GBA pointer + in-ROM offset + class loaded).
+        // BattleAnime uses a distinct gate because its target is a
+        // different editor (ImageBattleAnimeView) and the pointer must be
+        // converted from raw GBA pointer to ROM offset before navigation.
+        // ============================================================
+
+        void JumpToPtr60_Click(object? sender, RoutedEventArgs e)
+        {
+            // FE7/8: Move Cost Rain (P60); FE6: Terrain Avoid (P56 in struct)
+            try
+            {
+                uint ptr = ParseHexText(Ptr60Box.Text);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+                CostType costType = _vm.IsFE6 ? CostType.TerrainAvoid : CostType.MoveCostRain;
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, costType);
+            }
+            catch (Exception ex) { Log.Error("JumpToPtr60 failed: {0}", ex.Message); }
+        }
+
+        void JumpToPtr64_Click(object? sender, RoutedEventArgs e)
+        {
+            // FE7/8: Move Cost Snow (P64); FE6: Terrain Def (P60 in struct)
+            try
+            {
+                uint ptr = ParseHexText(Ptr64Box.Text);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+                CostType costType = _vm.IsFE6 ? CostType.TerrainDefense : CostType.MoveCostSnow;
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, costType);
+            }
+            catch (Exception ex) { Log.Error("JumpToPtr64 failed: {0}", ex.Message); }
+        }
+
+        void JumpToPtr68_Click(object? sender, RoutedEventArgs e)
+        {
+            // FE7/8: Terrain Avoid (P68); FE6: Terrain Res (P64 in struct)
+            try
+            {
+                uint ptr = ParseHexText(Ptr68Box.Text);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+                CostType costType = _vm.IsFE6 ? CostType.TerrainResistance : CostType.TerrainAvoid;
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, costType);
+            }
+            catch (Exception ex) { Log.Error("JumpToPtr68 failed: {0}", ex.Message); }
+        }
+
+        void JumpToPtr72_Click(object? sender, RoutedEventArgs e)
+        {
+            // FE7/8: Terrain Def (P72). FE6 hides this control so the
+            // handler is unreachable; we still guard with IsFE6 in case
+            // the visibility check is bypassed.
+            try
+            {
+                if (_vm.IsFE6) return;
+                uint ptr = ParseHexText(Ptr72Box.Text);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, CostType.TerrainDefense);
+            }
+            catch (Exception ex) { Log.Error("JumpToPtr72 failed: {0}", ex.Message); }
+        }
+
+        void JumpToPtr76_Click(object? sender, RoutedEventArgs e)
+        {
+            // FE7/8: Terrain Res (P76). FE6 hides this control via D80Row.
+            try
+            {
+                if (_vm.IsFE6) return;
+                uint ptr = ParseHexText(Ptr76Box.Text);
+                if (!ShouldJumpToMoveCost(ptr, _vm.CurrentAddr)) return;
+                var view = WindowManager.Instance.Open<MoveCostEditorView>();
+                view.NavigateToWithCostType(_vm.CurrentAddr, CostType.TerrainResistance);
+            }
+            catch (Exception ex) { Log.Error("JumpToPtr76 failed: {0}", ex.Message); }
+        }
+
+        void JumpToBattleAnime_Click(object? sender, RoutedEventArgs e)
+        {
+            // Battle Anime pointer (P52 FE7/8 / P48 FE6). The class textbox
+            // shows the raw GBA pointer (rom.u32, e.g. 0x089D1234) but
+            // ImageBattleAnimeView.EntryList stores ROM offsets
+            // (baseAddr + i*4 where baseAddr already went through
+            // U.toOffset). Convert before navigating so SelectAddress
+            // finds the matching slot.
+            try
+            {
+                uint rawPtr = ParseHexText(Ptr52Box.Text);
+                if (!ShouldJumpToBattleAnime(rawPtr, _vm.CurrentAddr)) return;
+                uint romOffset = U.toOffset(rawPtr);
+                WindowManager.Instance.Navigate<ImageBattleAnimeView>(romOffset);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("JumpToBattleAnime failed: {0}", ex.Message);
+            }
+        }
+
+        // Defensive gate for the BattleAnime Jump button. Same structure
+        // as ShouldJumpToMoveCost — valid GBA pointer, in-ROM offset,
+        // class loaded — extracted as a separate method so the safety
+        // logic is visible to unit tests and any future change to the
+        // BattleAnime path can adjust its gate independently from the
+        // Move Cost path.
+        internal static bool ShouldJumpToBattleAnime(uint battleAnimePtr, uint currentClassAddr)
+        {
+            if (!U.isPointer(battleAnimePtr)) return false;
+            if (!U.isSafetyOffset(U.toOffset(battleAnimePtr))) return false;
+            if (currentClassAddr == 0) return false;
+            return true;
+        }
+
         void UpdateWarnings()
         {
             var warnings = _vm.ValidateClass();

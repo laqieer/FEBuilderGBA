@@ -292,7 +292,10 @@
         <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock AutomationProperties.AutomationId="ClassEditor_BattleAnimeLabel_Label" Grid.Row="0" Grid.Column="0" Name="BattleAnimeLabel" Text="Battle Anime (P52):" VerticalAlignment="Center"
                      ToolTip.Tip="Pointer to battle animation data" />
-          <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr52_Input" Grid.Row="0" Grid.Column="1" Name="Ptr52Box" Width="120" />
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr52_Input" Name="Ptr52Box" Width="120" />
+            <Button AutomationProperties.AutomationId="ClassEditor_JumpToBattleAnime_Button" Content="Jump" Click="JumpToBattleAnime_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock AutomationProperties.AutomationId="ClassEditor_MoveCostLabel_Label" Grid.Row="0" Grid.Column="3" Name="MoveCostLabel" Text="Move Cost (P56):" VerticalAlignment="Center"
                      ToolTip.Tip="Pointer to terrain movement cost table" />
           <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
@@ -301,17 +304,29 @@
           </StackPanel>
 
           <TextBlock AutomationProperties.AutomationId="ClassEditor_MoveCostRainLabel_Label" Grid.Row="1" Grid.Column="0" Name="MoveCostRainLabel" Text="Move Cost Rain (P60):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr60_Input" Grid.Row="1" Grid.Column="1" Name="Ptr60Box" Width="120" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr60_Input" Name="Ptr60Box" Width="120" />
+            <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr60_Button" Content="Jump" Click="JumpToPtr60_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
           <TextBlock AutomationProperties.AutomationId="ClassEditor_MoveCostSnowLabel_Label" Grid.Row="1" Grid.Column="3" Name="MoveCostSnowLabel" Text="Move Cost Snow (P64):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr64_Input" Grid.Row="1" Grid.Column="4" Name="Ptr64Box" Width="120" />
+          <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr64_Input" Name="Ptr64Box" Width="120" />
+            <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr64_Button" Content="Jump" Click="JumpToPtr64_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
 
           <!-- Terrain pointers row (shows Avoid+Def for FE7/8, Res only for FE6) -->
           <StackPanel Name="TerrainRow" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
             <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
               <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainAvoid_Label" Grid.Row="0" Grid.Column="0" Name="TerrainAvoidLabel" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr68_Input" Grid.Row="0" Grid.Column="1" Name="Ptr68Box" Width="120" />
+              <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr68_Input" Name="Ptr68Box" Width="120" />
+                <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr68_Button" Content="Jump" Click="JumpToPtr68_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+              </StackPanel>
               <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainDef_Label" Grid.Row="0" Grid.Column="3" Name="TerrainDefLabel" Text="Terrain Def (P72):" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr72_Input" Grid.Row="0" Grid.Column="4" Name="Ptr72Box" Width="120" />
+              <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+                <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr72_Input" Name="Ptr72Box" Width="120" />
+                <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr72_Button" Name="JumpToPtr72Button" Content="Jump" Click="JumpToPtr72_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+              </StackPanel>
             </Grid>
           </StackPanel>
 
@@ -319,7 +334,10 @@
           <StackPanel Name="D80Row" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
             <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr76_Input" Grid.Row="0" Grid.Column="1" Name="Ptr76Box" Width="120" />
+              <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr76_Input" Name="Ptr76Box" Width="120" />
+                <Button AutomationProperties.AutomationId="ClassEditor_JumpToPtr76_Button" Content="Jump" Click="JumpToPtr76_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+              </StackPanel>
               <TextBlock Grid.Row="0" Grid.Column="3" Text="??? (D80):" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="ClassEditor_D80_Input" Grid.Row="0" Grid.Column="4" Name="D80Box" Width="120" />
             </Grid>

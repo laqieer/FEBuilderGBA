@@ -146,6 +146,58 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassList.SelectAddress(address);
         }
 
+        /// <summary>
+        /// Cross-editor jump overload introduced for #359: navigate to the
+        /// given class address AND switch the cost-type combo to the
+        /// requested CostType in one call. Used by the new Pointer/Movement/
+        /// Terrain Jump buttons in the Class Editor so that, e.g., clicking
+        /// "Jump" next to "Move Cost Rain" lands the user on the same class
+        /// in the receiving editor with the Rain cost type pre-selected.
+        ///
+        /// If the requested cost type is not available for the current ROM
+        /// (e.g. <see cref="CostType.MoveCostRain"/> on FE6), the combo
+        /// retains its current selection — only the class navigation
+        /// proceeds. This keeps the behavior graceful when a caller
+        /// dispatches before the per-version combo items are populated.
+        /// </summary>
+        public void NavigateToWithCostType(uint classAddr, CostType costType)
+        {
+            // Ensure the cost-type combo has been populated. Window.Opened
+            // -> LoadList normally does this once, but if NavigateToWithCostType
+            // is called before LoadList has run we still need a populated combo
+            // for the selection logic below to find the right index.
+            if (_vm.CostTypeItems.Count == 0)
+            {
+                _vm.BuildCostTypeItems();
+                CostTypeCombo.ItemsSource = _vm.CostTypeItems;
+            }
+
+            // Find the combo index for the requested cost type. If absent
+            // (FE6 + Rain/Snow), leave the combo untouched and just navigate.
+            int targetIndex = -1;
+            for (int i = 0; i < _vm.CostTypeItems.Count; i++)
+            {
+                if (_vm.CostTypeItems[i].CostType == costType)
+                {
+                    targetIndex = i;
+                    break;
+                }
+            }
+            if (targetIndex >= 0 && CostTypeCombo.SelectedIndex != targetIndex)
+            {
+                // Setting SelectedIndex fires OnCostTypeChanged, which reloads
+                // the current class with the new cost type. When no class is
+                // loaded yet, that path is a safe no-op; the SelectAddress
+                // call below then loads the class with the new cost type
+                // already active (because _vm.SelectedCostType is updated by
+                // the SelectionChanged handler before SelectAddress fires
+                // OnClassSelected).
+                CostTypeCombo.SelectedIndex = targetIndex;
+            }
+
+            ClassList.SelectAddress(classAddr);
+        }
+
         void UpdateUI()
         {
             _suppressEvents = true;
