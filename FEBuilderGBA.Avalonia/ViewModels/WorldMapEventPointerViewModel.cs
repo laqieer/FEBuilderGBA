@@ -111,18 +111,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         enum WhichList { BeforeStageClear, AfterStageSelect }
 
+        /// <summary>
+        /// Clear the read-config indicators for the given list. Called on
+        /// every early-return path in LoadListFromPointer so a failed
+        /// reload (no ROM, null pointer, unsafe address) does not leave
+        /// stale values from a prior successful load visible to the user.
+        /// (Copilot CLI re-review inline thread on PR #511.)
+        /// </summary>
+        void ResetReadConfig(WhichList which)
+        {
+            if (which == WhichList.BeforeStageClear)
+            {
+                BeforeBaseAddr = 0;
+                BeforeReadCount = 0;
+            }
+            else
+            {
+                AfterBaseAddr = 0;
+                AfterReadCount = 0;
+            }
+        }
+
         List<AddrResult> LoadListFromPointer(WhichList which)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
+            if (rom?.RomInfo == null)
+            {
+                ResetReadConfig(which);
+                return new List<AddrResult>();
+            }
 
             uint ptr = which == WhichList.BeforeStageClear
                 ? rom.RomInfo.worldmap_event_on_stageclear_pointer
                 : rom.RomInfo.worldmap_event_on_stageselect_pointer;
-            if (ptr == 0) return new List<AddrResult>();
+            if (ptr == 0)
+            {
+                ResetReadConfig(which);
+                return new List<AddrResult>();
+            }
 
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                ResetReadConfig(which);
+                return new List<AddrResult>();
+            }
 
             // Update read-config indicators so the top bar matches the
             // resolved address. (WF surfaces these as read-only labels.)
@@ -257,10 +290,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // been selected yet.
             var dict = new Dictionary<string, string>
             {
+                // Use p32 (offset form) so values match the VM's
+                // BeforeEventPointer / AfterEventPointer properties which
+                // are also loaded via p32 (per the WF P0 convention).
+                // FieldLevelCrossCheck compares the two reports directly —
+                // they must use the same form. (Copilot CLI re-review.)
                 ["BeforePtr@0x00"] = CurrentBeforeAddr != 0
-                    ? $"0x{rom.u32(CurrentBeforeAddr):X08}" : "0x00000000",
+                    ? $"0x{rom.p32(CurrentBeforeAddr):X08}" : "0x00000000",
                 ["AfterPtr@0x00"] = CurrentAfterAddr != 0
-                    ? $"0x{rom.u32(CurrentAfterAddr):X08}" : "0x00000000",
+                    ? $"0x{rom.p32(CurrentAfterAddr):X08}" : "0x00000000",
             };
             if (rom.RomInfo != null)
             {

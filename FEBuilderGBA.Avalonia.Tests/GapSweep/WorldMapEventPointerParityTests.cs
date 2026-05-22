@@ -551,24 +551,24 @@ public class WorldMapEventPointerParityTests
         {
             for (int i = 0; i < stageClearSlots.Length; i++)
             {
-                BitConverter.GetBytes(stageClearSlots[i]).CopyTo(bytes, baseClear + (uint)(i * 4));
+                BitConverter.GetBytes(stageClearSlots[i]).CopyTo(bytes, (int)(baseClear + (uint)(i * 4)));
             }
             // Plant a sentinel NULL after the slots so the loader has
             // somewhere to stop even if the test array doesn't terminate.
-            BitConverter.GetBytes(0u).CopyTo(bytes, baseClear + (uint)(stageClearSlots.Length * 4));
+            BitConverter.GetBytes(0u).CopyTo(bytes, (int)(baseClear + (uint)(stageClearSlots.Length * 4)));
             BitConverter.GetBytes(baseClear | 0x08000000u).CopyTo(bytes,
-                rom.RomInfo.worldmap_event_on_stageclear_pointer);
+                (int)rom.RomInfo.worldmap_event_on_stageclear_pointer);
         }
 
         if (stageSelectSlots != null)
         {
             for (int i = 0; i < stageSelectSlots.Length; i++)
             {
-                BitConverter.GetBytes(stageSelectSlots[i]).CopyTo(bytes, baseSelect + (uint)(i * 4));
+                BitConverter.GetBytes(stageSelectSlots[i]).CopyTo(bytes, (int)(baseSelect + (uint)(i * 4)));
             }
-            BitConverter.GetBytes(0u).CopyTo(bytes, baseSelect + (uint)(stageSelectSlots.Length * 4));
+            BitConverter.GetBytes(0u).CopyTo(bytes, (int)(baseSelect + (uint)(stageSelectSlots.Length * 4)));
             BitConverter.GetBytes(baseSelect | 0x08000000u).CopyTo(bytes,
-                rom.RomInfo.worldmap_event_on_stageselect_pointer);
+                (int)rom.RomInfo.worldmap_event_on_stageselect_pointer);
         }
 
         // Re-load so RomInfo (already populated by the first LoadLow) sees
