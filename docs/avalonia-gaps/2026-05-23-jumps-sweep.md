@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T16:32:30Z"
-git-sha: 62632c0e8
+generated: "2026-05-22T19:52:46Z"
+git-sha: 4f7a9cf82
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 423 |
-| Match | 7 |
-| MissingAvManifest (backlog) | 377 |
+| Match | 12 |
+| MissingAvManifest (backlog) | 372 |
 | NoWfCallsite | 29 |
 | KnownGap (issue-tagged) | 10 |
 
@@ -217,11 +217,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ClassForm` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` | `—` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DisASMDumpAllForm` | `DisASMDumpAllView` | `—` | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` |
-| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `—` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
-| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `—` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
-| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `—` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
-| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `—` | `HexEditorForm` | `HexEditorView` |
-| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `EmulatorMemoryForm` | `EmulatorMemoryView` | `—` | `EventScriptForm` | `EventScriptView` |
 | `EmulatorMemoryForm` | `EmulatorMemoryView` | `—` | `EventScriptForm` | `EventScriptView` |
 | `EmulatorMemoryForm` | `EmulatorMemoryView` | `—` | `EventScriptForm` | `EventScriptView` |
@@ -477,6 +472,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
+| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
+| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
+| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToHexEditor` | `HexEditorForm` | `HexEditorView` |
+| `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToPointerTool` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToBGLookup` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToSelfFromRef` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToPatchExtendsBattleBG` | `PatchForm` | `PatchManagerView` |

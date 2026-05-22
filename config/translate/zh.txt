@@ -20360,3 +20360,51 @@ LZ77 重新压缩 (2026 以后)
 
 :Jump to the background of battle animation
 跳转到战斗动画的背景
+
+:Data Address Editor
+显示数据
+
+:Open Selected Address in Hex Editor
+在二进制编辑器中显示所选地址
+
+:Clipboard
+剪贴板
+
+:Copy to Clipboard
+复制到剪贴板
+
+:Copy as Pointer
+作为指针复制到剪贴板
+
+:Copy as Little Endian Pointer
+作为小端指针复制到剪贴板
+
+:Copy as No$GBA Read Breakpoint
+复制为no$gba的读取断点
+
+:Data Export Options
+数据转储
+
+:Dump Displayed List to EA format
+检索显示列表中所有数据的EA格式
+
+:Dump Displayed List to CSV format
+检索显示列表中所有数据的CSV格式
+
+:Dump Displayed List to TSV format
+检索显示列表中所有数据的TSV格式
+
+:Data Structure Options
+结构
+
+:Display Byte Structure in C
+显示C语言的结构
+
+:Create Nightmare .nmm File
+NightmareModule创建nmm文件
+
+:Import
+导入
+
+:Import Dumped Data
+导入转储数据

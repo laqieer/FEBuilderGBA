@@ -1,21 +1,115 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.DumpStructSelectDialogView"
-        Title="Struct Dump Selector" Width="695" Height="830"
+        Title="Data Address Editor" Width="720" Height="860"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="DumpStructSelectDialog_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+    <StackPanel Margin="12" Spacing="6">
+      <TextBlock Text="Data Address Editor" FontSize="18" FontWeight="Bold" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Struct Dump Selector" FontSize="18" FontWeight="Bold" />
+      <!-- Address display (matches WinForms label5 + ValueTextBox) -->
+      <Grid ColumnDefinitions="100,*" Margin="0,4,0,4">
+        <TextBlock Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_Addr_Label"
+                   Grid.Column="1" Name="AddrLabel"
+                   FontFamily="Consolas" FontSize="14" FontWeight="Bold"
+                   VerticalAlignment="Center" />
+      </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <!-- =================================================================
+           Group: Hex Editor (WinForms label3)
+           ================================================================= -->
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_HexEditorGroupLabel"
+                 Name="HexEditorGroupLabel" Text="Hex Editor" FontWeight="Bold" Margin="0,10,0,2" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_BinaryButton"
+              Name="BinaryButton"
+              Content="Open Selected Address in Hex Editor"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="BinaryButton_Click" />
+
+      <!-- =================================================================
+           Group: Clipboard (WinForms label2)
+           ================================================================= -->
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ClipboardGroupLabel"
+                 Name="ClipboardGroupLabel" Text="Clipboard" FontWeight="Bold" Margin="0,10,0,2" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyPointer"
+              Name="CopyPointer"
+              Content="Copy as Pointer"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="CopyPointer_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyClipboard"
+              Name="CopyClipboard"
+              Content="Copy to Clipboard"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="CopyClipboard_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyLittleEndian"
+              Name="CopyLittleEndian"
+              Content="Copy as Little Endian Pointer"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="CopyLittleEndian_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CopyNoDollGBARadBreakPoint"
+              Name="CopyNoDollGBARadBreakPoint"
+              Content="Copy as No$GBA Read Breakpoint"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="CopyNoDollGBARadBreakPoint_Click" />
+
+      <!-- =================================================================
+           Group: Data Export Options (WinForms label1)
+           ================================================================= -->
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataExportGroupLabel"
+                 Name="DataExportGroupLabel" Text="Data Export Options" FontWeight="Bold" Margin="0,10,0,2" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_EAALLButton"
+              Name="EAALLButton"
+              Content="Dump Displayed List to EA format"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="EAALLButton_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CSVButton"
+              Name="CSVButton"
+              Content="Dump Displayed List to CSV format"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="CSVButton_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_TSVALLButton"
+              Name="TSVALLButton"
+              Content="Dump Displayed List to TSV format"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="TSVButton_Click" />
+
+      <!-- =================================================================
+           Group: Data Structure Options (WinForms label4)
+           ================================================================= -->
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_DataStructureGroupLabel"
+                 Name="DataStructureGroupLabel" Text="Data Structure Options" FontWeight="Bold" Margin="0,10,0,2" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_STRUCTButton"
+              Name="STRUCTButton"
+              Content="Display Byte Structure in C"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="STRUCTButton_Click" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_NMMButton"
+              Name="NMMButton"
+              Content="Create Nightmare .nmm File"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="NMMButton_Click" />
+
+      <!-- =================================================================
+           Group: Import (WinForms label6)
+           ================================================================= -->
+      <TextBlock AutomationProperties.AutomationId="DumpStructSelectDialog_ImportGroupLabel"
+                 Name="ImportGroupLabel" Text="Import" FontWeight="Bold" Margin="0,10,0,2" />
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_ImportButton"
+              Name="ImportButton"
+              Content="Import Dumped Data"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Click="ImportButton_Click" />
+
+      <!-- =================================================================
+           Cancel (mirrors WinForms U.AddCancelButton)
+           ================================================================= -->
+      <Button AutomationProperties.AutomationId="DumpStructSelectDialog_CancelButton"
+              Name="CancelButton"
+              Content="Cancel"
+              HorizontalAlignment="Stretch" Padding="6,8"
+              Margin="0,10,0,0"
+              Click="CancelButton_Click" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
