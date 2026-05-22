@@ -147,27 +147,57 @@ public class AvaloniaJumpParityTests
     //     `dotnet test --filter KnownGap=359` runs only #359-related tests.
     // =====================================================================
 
-    [Fact(Skip = "Tracked in #359 — Pointers/Movement/Terrain fields need jump buttons.")]
+    [Fact]
     [Trait("KnownGap", "359")]
     public void Issue359_ClassEditor_PointerJumpsImplemented()
     {
-        // When fixed: the ClassEditor's BattleAnime / MoveCostRain /
+        // Fixed in #359: the ClassEditor's BattleAnime / MoveCostRain /
         // MoveCostSnow / TerrainAvoid / TerrainDef / TerrainRes pointer
-        // fields will each have a working Jump button. The manifest will
-        // drop the IssueRef tag for these entries, and the scanner will
-        // classify them as Match instead of KnownGap.
+        // fields each have a working Jump button. The manifest drops the
+        // IssueRef tag for these entries AND wires the correct target view
+        // (per Copilot review of plan v2: three terrain entries were
+        // mis-targeted at MapTerrainFloorLookupTableView; they should be
+        // MoveCostEditorView, matching the WinForms MOVECOST4/5/6 linktype
+        // dispatch). This test asserts both invariants:
+        //   (1) no entry still carries IssueRef = "#359"
+        //   (2) every entry resolves to its expected target view, so a
+        //       regression that drops the IssueRef but breaks the target
+        //       view will still fail this assertion.
         var manifests = JumpParityScanner.ScanAvManifests(typeof(INavigationTargetSource).Assembly);
-        var classEditorEntries = manifests.Where(m => m.SourceVm == "ClassEditorViewModel").ToList();
+        var classEditorEntries = manifests
+            .Where(m => m.SourceVm == "ClassEditorViewModel")
+            .ToList();
+
+        // (1) No remaining IssueRef = "#359" for any of the six commands.
         var stillBroken = classEditorEntries.Where(e =>
-                e.Command is "JumpToBattleAnime"
-                          or "JumpToMoveCostRain"
-                          or "JumpToMoveCostSnow"
-                          or "JumpToTerrainAvoid"
-                          or "JumpToTerrainDef"
-                          or "JumpToTerrainRes"
-            && e.IssueRef == "#359")
+                (e.Command == "JumpToBattleAnime"
+                 || e.Command == "JumpToMoveCostRain"
+                 || e.Command == "JumpToMoveCostSnow"
+                 || e.Command == "JumpToTerrainAvoid"
+                 || e.Command == "JumpToTerrainDef"
+                 || e.Command == "JumpToTerrainRes")
+                && e.IssueRef == "#359")
             .ToList();
         Assert.Empty(stillBroken);
+
+        // (2) Expected command -> target view pairs. BattleAnime lands in
+        // ImageBattleAnimeView; the five MoveCost/Terrain variants all land
+        // in MoveCostEditorView (matching WinForms MOVECOST1..6 dispatch).
+        var expected = new[]
+        {
+            ("JumpToBattleAnime",   "ImageBattleAnimeView"),
+            ("JumpToMoveCostRain",  "MoveCostEditorView"),
+            ("JumpToMoveCostSnow",  "MoveCostEditorView"),
+            ("JumpToTerrainAvoid",  "MoveCostEditorView"),
+            ("JumpToTerrainDef",    "MoveCostEditorView"),
+            ("JumpToTerrainRes",    "MoveCostEditorView"),
+        };
+        foreach (var (command, expectedView) in expected)
+        {
+            var entry = classEditorEntries.SingleOrDefault(e => e.Command == command);
+            Assert.True(entry != null, $"Manifest missing entry for command {command}");
+            Assert.Equal(expectedView, entry!.TargetView);
+        }
     }
 
     [Fact(Skip = "Tracked in #360 — id/address fields need jump/pick/preview.")]
