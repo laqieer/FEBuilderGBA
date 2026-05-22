@@ -34,12 +34,21 @@
           <TextBlock Grid.Row="2" Grid.Column="3" Text="Unit ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="UnitFE7_UnitId_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="UnitIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
 
-          <!-- Row 3: Class + Portrait -->
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Support Class:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="UnitFE7_ClassId_Link"
-                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
-                     ToolTip.Tip="Click to open Class Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="UnitFE7_ClassId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" Width="180" Margin="0,2" />
+          <!-- Row 3: Class + Portrait
+               Class ID — reusable IdFieldControl (#366).
+               Spans cols 0+1 since the IdFieldControl bundles its own label,
+               value box, name preview, Jump and Pick. The Name="ClassIdBox"
+               is preserved on the IdFieldControl so existing FindControl
+               lookups still resolve. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="UnitFE7_ClassId_Input"
+                                   Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassIdBox"
+                                   Label="Support Class:"
+                                   Maximum="255"
+                                   Margin="0,2"
+                                   JumpRequested="ClassId_Jump"
+                                   PickRequested="ClassId_Pick"
+                                   ValueChanged="ClassId_ValueChanged" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Portrait:" VerticalAlignment="Center"
                      AutomationProperties.AutomationId="UnitFE7_Portrait_Link"
                      Classes="Hyperlink" Name="Portrait_Link" PointerPressed="OnPortraitLinkClick"
